@@ -34,7 +34,9 @@ jobs:
       postgres:
         image: postgres
         env:
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: db_user
+          POSTGRES_PASSWORD: db_pass
+          POSTGRES_DB: hyperswitch_db
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -76,7 +78,7 @@ jobs:
       - name: Execute `diesel migration run`
         shell: bash
         env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: diesel migration run
 
       - name: Decrypt connector auth file
