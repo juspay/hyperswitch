@@ -3,7 +3,7 @@ name: Integration test
 on:
   push:
     branches:
-      - api-intgration-tests
+      - api-integration-tests
 
   pull_request:
 
