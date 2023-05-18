@@ -1,4 +1,4 @@
-name: Migration Consistency Tests
+name: Integration test 
 
 on:
   pull_request:
