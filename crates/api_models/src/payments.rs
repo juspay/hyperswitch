@@ -219,6 +219,10 @@ pub struct PaymentsRequest {
 
     /// Business sub label for the payment
     pub business_sub_label: Option<String>,
+
+    /// If enabled payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted.
+    #[serde(default)]
+    pub manual_retry: bool,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
@@ -1523,7 +1527,7 @@ pub struct GpayTransactionInfo {
     /// The total price status (ex: 'FINAL')
     pub total_price_status: String,
     /// The total price
-    pub total_price: i64,
+    pub total_price: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
