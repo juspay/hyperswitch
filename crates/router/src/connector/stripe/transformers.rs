@@ -296,10 +296,8 @@ pub struct AchBankTransferData {
 pub struct BacsBankTransferData {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
-    #[serde(rename = "payment_method_data[billing_details][email]")]
-    pub email: Email,
-    #[serde(rename = "payment_method_data[billing_details][name]")]
-    pub name: String,
+    #[serde(flatten)]
+    pub billing_address: StripeBillingAddress,
     #[serde(rename = "payment_method_options[customer_balance][bank_transfer][type]")]
     pub bank_transfer_type: BankTransferType,
     #[serde(rename = "payment_method_options[customer_balance][funding_type]")]
@@ -312,10 +310,8 @@ pub struct BacsBankTransferData {
 pub struct SepaBankTransferData {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
-    #[serde(rename = "payment_method_data[billing_details][email]")]
-    pub email: Email,
-    #[serde(rename = "payment_method_data[billing_details][name]")]
-    pub name: String,
+    #[serde(flatten)]
+    pub billing_address: StripeBillingAddress,
     #[serde(rename = "payment_method_options[customer_balance][bank_transfer][type]")]
     pub bank_transfer_type: BankTransferType,
     #[serde(rename = "payment_method_options[customer_balance][funding_type]")]
@@ -1087,8 +1083,11 @@ fn create_stripe_payment_method(
                     StripePaymentMethodData::BankTransfer(
                         StripeBankTransferData::SepaBankTransfer(SepaBankTransferData {
                             payment_method_data_type: StripePaymentMethodType::CustomerBalance,
-                            email: billing_details.email.to_owned(),
-                            name: billing_details.name.to_owned(),
+                            billing_address: StripeBillingAddress {
+                                email: Some(billing_details.email.clone()),
+                                name: Some(billing_details.name.clone().into()),
+                                ..Default::default()
+                            },
                             bank_transfer_type: BankTransferType::EuBankTransfer,
                             balance_funding_type: BankTransferType::BankTransfers,
                             payment_method_type: StripePaymentMethodType::CustomerBalance,
@@ -1102,8 +1101,11 @@ fn create_stripe_payment_method(
                     StripePaymentMethodData::BankTransfer(
                         StripeBankTransferData::BacsBankTransfers(BacsBankTransferData {
                             payment_method_data_type: StripePaymentMethodType::CustomerBalance,
-                            email: billing_details.email.to_owned(),
-                            name: billing_details.name.to_owned(),
+                            billing_address: StripeBillingAddress {
+                                email: Some(billing_details.email.clone()),
+                                name: Some(billing_details.name.clone().into()),
+                                ..Default::default()
+                            },
                             bank_transfer_type: BankTransferType::GbBankTransfer,
                             balance_funding_type: BankTransferType::BankTransfers,
                             payment_method_type: StripePaymentMethodType::CustomerBalance,
@@ -2546,8 +2548,11 @@ impl
                     } => Ok(Self::BankTransfer(
                         StripeBankTransferData::SepaBankTransfer(SepaBankTransferData {
                             payment_method_data_type: StripePaymentMethodType::CustomerBalance,
-                            email: billing_details.email.to_owned(),
-                            name: billing_details.name.to_owned(),
+                            billing_address: StripeBillingAddress {
+                                email: Some(billing_details.email.clone()),
+                                name: Some(billing_details.name.clone().into()),
+                                ..Default::default()
+                            },
                             bank_transfer_type: BankTransferType::EuBankTransfer,
                             balance_funding_type: BankTransferType::BankTransfers,
                             payment_method_type: StripePaymentMethodType::CustomerBalance,
@@ -2558,8 +2563,11 @@ impl
                         Ok(Self::BankTransfer(
                             StripeBankTransferData::BacsBankTransfers(BacsBankTransferData {
                                 payment_method_data_type: StripePaymentMethodType::CustomerBalance,
-                                email: billing_details.email.to_owned(),
-                                name: billing_details.name.to_owned(),
+                                billing_address: StripeBillingAddress {
+                                    email: Some(billing_details.email.clone()),
+                                    name: Some(billing_details.name.clone().into()),
+                                    ..Default::default()
+                                },
                                 bank_transfer_type: BankTransferType::GbBankTransfer,
                                 balance_funding_type: BankTransferType::BankTransfers,
                                 payment_method_type: StripePaymentMethodType::CustomerBalance,
