@@ -69,7 +69,6 @@ pub struct PaymentAttemptNew {
     pub tax_amount: Option<i64>,
     pub payment_method_id: Option<String>,
     pub payment_method: Option<storage_enums::PaymentMethod>,
-    pub connector_transaction_id: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<PrimitiveDateTime>,
@@ -148,7 +147,6 @@ pub enum PaymentAttemptUpdate {
         payment_token: Option<String>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
-        preprocessing_step_id: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -166,6 +164,12 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
+    },
+    PreprocessingUpdate {
+        status: storage_enums::AttemptStatus,
+        payment_method_id: Option<Option<String>>,
+        connector_metadata: Option<serde_json::Value>,
+        preprocessing_step_id: Option<String>,
     },
 }
 
@@ -312,7 +316,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_token,
                 error_code,
                 error_message,
-                preprocessing_step_id,
             } => Self {
                 status: Some(status),
                 connector,
@@ -325,8 +328,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 payment_token,
-
-                preprocessing_step_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {
@@ -371,6 +372,19 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 modified_at: Some(common_utils::date_time::now()),
                 error_code,
                 error_message,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::PreprocessingUpdate {
+                status,
+                payment_method_id,
+                connector_metadata,
+                preprocessing_step_id,
+            } => Self {
+                status: Some(status),
+                payment_method_id,
+                modified_at: Some(common_utils::date_time::now()),
+                connector_metadata,
+                preprocessing_step_id,
                 ..Default::default()
             },
         }

@@ -24,15 +24,18 @@ where
         .redis_conn()
         .map_err(Into::<errors::StorageError>::into)?;
     let redis_val = redis.get_and_deserialize_key::<T>(key, type_name).await;
+    let get_data_set_redis = || async {
+        let data = fun().await?;
+        redis
+            .serialize_and_set_key(key, &data)
+            .await
+            .change_context(errors::StorageError::KVError)?;
+        Ok::<_, error_stack::Report<errors::StorageError>>(data)
+    };
     match redis_val {
         Err(err) => match err.current_context() {
-            errors::RedisError::NotFound => {
-                let data = fun().await?;
-                redis
-                    .serialize_and_set_key(key, &data)
-                    .await
-                    .change_context(errors::StorageError::KVError)?;
-                Ok(data)
+            errors::RedisError::NotFound | errors::RedisError::JsonDeserializationFailed => {
+                get_data_set_redis().await
             }
             _ => Err(err
                 .change_context(errors::StorageError::KVError)
@@ -84,9 +87,9 @@ where
     Ok(data)
 }
 
-pub async fn publish_and_redact<T, F, Fut>(
+pub async fn publish_and_redact<'a, T, F, Fut>(
     store: &Store,
-    key: &str,
+    key: cache::CacheKind<'a>,
     fun: F,
 ) -> CustomResult<T, errors::StorageError>
 where

@@ -1,9 +1,13 @@
 use actix_web::{web, Scope};
+#[cfg(feature = "email")]
+use external_services::email::{AwsSes, EmailClient};
 use tokio::sync::oneshot;
 
+#[cfg(feature = "dummy_connector")]
+use super::dummy_connector::*;
 use super::health::*;
 #[cfg(feature = "olap")]
-use super::{admin::*, api_keys::*, disputes::*};
+use super::{admin::*, api_keys::*, disputes::*, files::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
 #[cfg(feature = "oltp")]
@@ -20,12 +24,16 @@ pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
     pub conf: Settings,
+    #[cfg(feature = "email")]
+    pub email_client: Box<dyn EmailClient>,
 }
 
 pub trait AppStateInfo {
     fn conf(&self) -> Settings;
     fn flow_name(&self) -> String;
     fn store(&self) -> Box<dyn StorageInterface>;
+    #[cfg(feature = "email")]
+    fn email_client(&self) -> Box<dyn EmailClient>;
 }
 
 impl AppStateInfo for AppState {
@@ -37,6 +45,10 @@ impl AppStateInfo for AppState {
     }
     fn store(&self) -> Box<dyn StorageInterface> {
         self.store.to_owned()
+    }
+    #[cfg(feature = "email")]
+    fn email_client(&self) -> Box<dyn EmailClient> {
+        self.email_client.to_owned()
     }
 }
 
@@ -54,10 +66,15 @@ impl AppState {
             StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
         };
 
+        #[cfg(feature = "email")]
+        #[allow(clippy::expect_used)]
+        let email_client = Box::new(AwsSes::new(&conf.email).await);
         Self {
             flow_name: String::from("default"),
             store,
             conf,
+            #[cfg(feature = "email")]
+            email_client,
         }
     }
 
@@ -73,6 +90,34 @@ impl Health {
         web::scope("")
             .app_data(web::Data::new(state))
             .service(web::resource("/health").route(web::get().to(health)))
+    }
+}
+
+#[cfg(feature = "dummy_connector")]
+pub struct DummyConnector;
+
+#[cfg(feature = "dummy_connector")]
+impl DummyConnector {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/dummy-connector").app_data(web::Data::new(state));
+        #[cfg(not(feature = "external_access_dc"))]
+        {
+            route = route.guard(actix_web::guard::Host("localhost"));
+        }
+        route = route
+            .service(web::resource("/payment").route(web::post().to(dummy_connector_payment)))
+            .service(
+                web::resource("/payments/{payment_id}")
+                    .route(web::get().to(dummy_connector_payment_data)),
+            )
+            .service(
+                web::resource("/{payment_id}/refund").route(web::post().to(dummy_connector_refund)),
+            )
+            .service(
+                web::resource("/refunds/{refund_id}")
+                    .route(web::get().to(dummy_connector_refund_data)),
+            );
+        route
     }
 }
 
@@ -320,6 +365,8 @@ impl Mandates {
 
         #[cfg(feature = "olap")]
         {
+            route =
+                route.service(web::resource("/list").route(web::get().to(retrieve_mandates_list)));
             route = route.service(web::resource("/{id}").route(web::get().to(get_mandate)));
         }
         #[cfg(feature = "oltp")]
@@ -359,6 +406,7 @@ impl Configs {
     pub fn server(config: AppState) -> Scope {
         web::scope("/configs")
             .app_data(web::Data::new(config))
+            .service(web::resource("/").route(web::post().to(config_key_create)))
             .service(
                 web::resource("/{key}")
                     .route(web::get().to(config_key_retrieve))
@@ -393,6 +441,16 @@ impl Disputes {
         web::scope("/disputes")
             .app_data(web::Data::new(state))
             .service(web::resource("/list").route(web::get().to(retrieve_disputes_list)))
+            .service(web::resource("/accept/{dispute_id}").route(web::post().to(accept_dispute)))
+            .service(
+                web::resource("/evidence")
+                    .route(web::post().to(submit_dispute_evidence))
+                    .route(web::put().to(attach_dispute_evidence)),
+            )
+            .service(
+                web::resource("/evidence/{dispute_id}")
+                    .route(web::get().to(retrieve_dispute_evidence)),
+            )
             .service(web::resource("/{dispute_id}").route(web::get().to(retrieve_dispute)))
     }
 }
@@ -404,5 +462,21 @@ impl Cards {
         web::scope("/cards")
             .app_data(web::Data::new(state))
             .service(web::resource("/{bin}").route(web::get().to(card_iin_info)))
+    }
+}
+
+pub struct Files;
+
+#[cfg(feature = "olap")]
+impl Files {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/files")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(files_create)))
+            .service(
+                web::resource("/{file_id}")
+                    .route(web::delete().to(files_delete))
+                    .route(web::get().to(files_retrieve)),
+            )
     }
 }

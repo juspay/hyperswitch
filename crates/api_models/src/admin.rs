@@ -1,5 +1,5 @@
 use common_utils::pii;
-use masking::{Secret, StrongSecret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url;
 use utoipa::ToSchema;
@@ -17,10 +17,6 @@ pub struct MerchantAccountCreate {
     /// Name of the Merchant Account
     #[schema(example = "NewAge Retailer")]
     pub merchant_name: Option<String>,
-
-    /// API key that will be used for server side API access
-    #[schema(value_type = Option<String>, example = "Ah2354543543523")]
-    pub api_key: Option<StrongSecret<String>>,
 
     /// Merchant related details
     pub merchant_details: Option<MerchantDetails>,
@@ -75,6 +71,15 @@ pub struct MerchantAccountCreate {
     #[cfg(not(feature = "multiple_mca"))]
     #[schema(value_type = Option<PrimaryBusinessDetails>)]
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
+
+    /// The frm routing algorithm to be used for routing payments to desired FRM's
+    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
+    pub frm_routing_algorithm: Option<serde_json::Value>,
+
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    #[schema(example = 900)]
+    pub intent_fulfillment_time: Option<u32>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
@@ -135,6 +140,14 @@ pub struct MerchantAccountUpdate {
 
     ///Default business details for connector routing
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
+
+    /// The frm routing algorithm to be used for routing payments to desired FRM's
+    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
+    pub frm_routing_algorithm: Option<serde_json::Value>,
+
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    pub intent_fulfillment_time: Option<u32>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -146,10 +159,6 @@ pub struct MerchantAccountResponse {
     /// Name of the Merchant Account
     #[schema(example = "NewAge Retailer")]
     pub merchant_name: Option<String>,
-
-    /// API key that will be used for server side API access
-    #[schema(value_type = Option<String>, example = "Ah2354543543523")]
-    pub api_key: Option<StrongSecret<String>>,
 
     /// The URL to redirect after the completion of the operation
     #[schema(max_length = 255, example = "https://www.example.com/success")]
@@ -201,6 +210,14 @@ pub struct MerchantAccountResponse {
     ///Default business details for connector routing
     #[schema(value_type = Vec<PrimaryBusinessDetails>)]
     pub primary_business_details: Vec<PrimaryBusinessDetails>,
+
+    /// The frm routing algorithm to be used to process the incoming request from merchant to outgoing payment FRM.
+    #[schema(value_type = Option<RoutingAlgorithm>, max_length = 255, example = r#"{"type": "single", "data": "stripe" }"#)]
+    pub frm_routing_algorithm: Option<serde_json::Value>,
+
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    pub intent_fulfillment_time: Option<i64>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -216,7 +233,7 @@ pub struct MerchantDetails {
 
     /// The merchant's primary email address
     #[schema(value_type = Option<String>, max_length = 255, example = "johndoe@test.com")]
-    pub primary_email: Option<Secret<String, pii::Email>>,
+    pub primary_email: Option<pii::Email>,
 
     /// The merchant's secondary contact name
     #[schema(value_type = Option<String>, max_length= 255, example = "John Doe2")]
@@ -228,7 +245,7 @@ pub struct MerchantDetails {
 
     /// The merchant's secondary email address
     #[schema(value_type = Option<String>, max_length = 255, example = "johndoe2@test.com")]
-    pub secondary_email: Option<Secret<String, pii::Email>>,
+    pub secondary_email: Option<pii::Email>,
 
     /// The business website of the merchant
     #[schema(max_length = 255, example = "www.example.com")]
@@ -251,10 +268,60 @@ pub enum RoutingAlgorithm {
     Single(api_enums::RoutableConnectors),
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(
+    tag = "type",
+    content = "data",
+    rename_all = "snake_case",
+    from = "StraightThroughAlgorithmSerde",
+    into = "StraightThroughAlgorithmSerde"
+)]
+pub enum StraightThroughAlgorithm {
+    Single(api_enums::RoutableConnectors),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "type", content = "data", rename_all = "snake_case")]
+pub enum StraightThroughAlgorithmInner {
+    Single(api_enums::RoutableConnectors),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum StraightThroughAlgorithmSerde {
+    Direct(StraightThroughAlgorithmInner),
+    Nested {
+        algorithm: StraightThroughAlgorithmInner,
+    },
+}
+
+impl From<StraightThroughAlgorithmSerde> for StraightThroughAlgorithm {
+    fn from(value: StraightThroughAlgorithmSerde) -> Self {
+        let inner = match value {
+            StraightThroughAlgorithmSerde::Direct(algorithm) => algorithm,
+            StraightThroughAlgorithmSerde::Nested { algorithm } => algorithm,
+        };
+
+        match inner {
+            StraightThroughAlgorithmInner::Single(conn) => Self::Single(conn),
+        }
+    }
+}
+
+impl From<StraightThroughAlgorithm> for StraightThroughAlgorithmSerde {
+    fn from(value: StraightThroughAlgorithm) -> Self {
+        let inner = match value {
+            StraightThroughAlgorithm::Single(conn) => StraightThroughAlgorithmInner::Single(conn),
+        };
+
+        Self::Nested { algorithm: inner }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrimaryBusinessDetails {
-    pub country: api_enums::CountryCode,
+    pub country: api_enums::CountryAlpha2,
     pub business: String,
 }
 
@@ -385,11 +452,11 @@ pub struct MerchantConnectorCreate {
     pub frm_configs: Option<FrmConfigs>,
 
     /// Business Country of the connector
-    #[schema(example = "US")]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     #[cfg(feature = "multiple_mca")]
-    pub business_country: api_enums::CountryCode,
+    pub business_country: api_enums::CountryAlpha2,
     #[cfg(not(feature = "multiple_mca"))]
-    pub business_country: Option<api_enums::CountryCode>,
+    pub business_country: Option<api_enums::CountryAlpha2>,
 
     ///Business Type of the merchant
     #[schema(example = "travel")]
@@ -466,8 +533,8 @@ pub struct MerchantConnectorResponse {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Business Country of the connector
-    #[schema(example = "US")]
-    pub business_country: api_enums::CountryCode,
+    #[schema(value_type = CountryAlpha2, example = "US")]
+    pub business_country: api_enums::CountryAlpha2,
 
     ///Business Type of the merchant
     #[schema(example = "travel")]
@@ -603,8 +670,8 @@ pub enum AcceptedCurrencies {
     rename_all = "snake_case"
 )]
 pub enum AcceptedCountries {
-    EnableOnly(Vec<api_enums::CountryCode>),
-    DisableOnly(Vec<api_enums::CountryCode>),
+    EnableOnly(Vec<api_enums::CountryAlpha2>),
+    DisableOnly(Vec<api_enums::CountryAlpha2>),
     AllAccepted,
 }
 

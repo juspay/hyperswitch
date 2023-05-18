@@ -1,5 +1,7 @@
-use error_stack::IntoReport;
+use common_utils::errors::CustomResult;
+use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
@@ -95,7 +97,7 @@ impl<F, T>
 pub struct CardSource {
     #[serde(rename = "type")]
     pub source_type: CheckoutSourceTypes,
-    pub number: pii::Secret<String, pii::CardNumber>,
+    pub number: cards::CardNumber,
     pub expiry_month: pii::Secret<String>,
     pub expiry_year: pii::Secret<String>,
     pub cvv: pii::Secret<String>,
@@ -348,6 +350,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })
@@ -375,6 +378,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })
@@ -417,6 +421,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             status: response.into(),
             ..item.data
@@ -488,6 +493,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             status,
             amount_captured,
@@ -575,7 +581,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CheckoutRefundResponse
 #[derive(Debug, Default, Eq, PartialEq, Deserialize)]
 pub struct ErrorResponse {
     pub request_id: Option<String>,
-    #[serde(rename = "type")]
     pub error_type: Option<String>,
     pub error_codes: Option<Vec<String>>,
 }
@@ -673,28 +678,34 @@ impl From<CheckoutRedirectResponseStatus> for enums::AttemptStatus {
     }
 }
 
-pub fn is_refund_event(event_code: &CheckoutTxnType) -> bool {
+pub fn is_refund_event(event_code: &CheckoutTransactionType) -> bool {
     matches!(
         event_code,
-        CheckoutTxnType::PaymentRefunded | CheckoutTxnType::PaymentRefundDeclined
+        CheckoutTransactionType::PaymentRefunded | CheckoutTransactionType::PaymentRefundDeclined
     )
 }
 
-pub fn is_chargeback_event(event_code: &CheckoutTxnType) -> bool {
+pub fn is_chargeback_event(event_code: &CheckoutTransactionType) -> bool {
     matches!(
         event_code,
-        CheckoutTxnType::DisputeReceived
-            | CheckoutTxnType::DisputeExpired
-            | CheckoutTxnType::DisputeAccepted
-            | CheckoutTxnType::DisputeCanceled
-            | CheckoutTxnType::DisputeEvidenceSubmitted
-            | CheckoutTxnType::DisputeEvidenceAcknowledgedByScheme
-            | CheckoutTxnType::DisputeEvidenceRequired
-            | CheckoutTxnType::DisputeArbitrationLost
-            | CheckoutTxnType::DisputeArbitrationWon
-            | CheckoutTxnType::DisputeWon
-            | CheckoutTxnType::DisputeLost
+        CheckoutTransactionType::DisputeReceived
+            | CheckoutTransactionType::DisputeExpired
+            | CheckoutTransactionType::DisputeAccepted
+            | CheckoutTransactionType::DisputeCanceled
+            | CheckoutTransactionType::DisputeEvidenceSubmitted
+            | CheckoutTransactionType::DisputeEvidenceAcknowledgedByScheme
+            | CheckoutTransactionType::DisputeEvidenceRequired
+            | CheckoutTransactionType::DisputeArbitrationLost
+            | CheckoutTransactionType::DisputeArbitrationWon
+            | CheckoutTransactionType::DisputeWon
+            | CheckoutTransactionType::DisputeLost
     )
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CheckoutWebhookEventTypeBody {
+    #[serde(rename = "type")]
+    pub transaction_type: CheckoutTransactionType,
 }
 
 #[derive(Debug, Deserialize)]
@@ -704,21 +715,43 @@ pub struct CheckoutWebhookData {
     pub action_id: Option<String>,
     pub amount: i32,
     pub currency: String,
-    pub evidence_required_by: Option<String>,
-    pub reason_code: Option<String>,
-    pub date: Option<String>,
 }
+
 #[derive(Debug, Deserialize)]
 pub struct CheckoutWebhookBody {
     #[serde(rename = "type")]
-    pub txn_type: CheckoutTxnType,
+    pub transaction_type: CheckoutTransactionType,
     pub data: CheckoutWebhookData,
-    pub created_on: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CheckoutDisputeWebhookData {
+    pub id: String,
+    pub payment_id: Option<String>,
+    pub action_id: Option<String>,
+    pub amount: i32,
+    pub currency: String,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub evidence_required_by: Option<PrimitiveDateTime>,
+    pub reason_code: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub date: Option<PrimitiveDateTime>,
+}
+#[derive(Debug, Deserialize)]
+pub struct CheckoutDisputeWebhookBody {
+    #[serde(rename = "type")]
+    pub transaction_type: CheckoutTransactionType,
+    pub data: CheckoutDisputeWebhookData,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub created_on: Option<PrimitiveDateTime>,
 }
 #[derive(Debug, Deserialize, strum::Display, Clone)]
 #[serde(rename_all = "snake_case")]
-pub enum CheckoutTxnType {
+pub enum CheckoutTransactionType {
+    AuthenticationStarted,
+    AuthenticationApproved,
     PaymentApproved,
+    PaymentCaptured,
     PaymentDeclined,
     PaymentRefunded,
     PaymentRefundDeclined,
@@ -735,37 +768,38 @@ pub enum CheckoutTxnType {
     DisputeLost,
 }
 
-impl From<CheckoutTxnType> for api::IncomingWebhookEvent {
-    fn from(txn_type: CheckoutTxnType) -> Self {
-        match txn_type {
-            CheckoutTxnType::PaymentApproved => Self::PaymentIntentSuccess,
-            CheckoutTxnType::PaymentDeclined => Self::PaymentIntentSuccess,
-            CheckoutTxnType::PaymentRefunded => Self::RefundSuccess,
-            CheckoutTxnType::PaymentRefundDeclined => Self::RefundFailure,
-            CheckoutTxnType::DisputeReceived | CheckoutTxnType::DisputeEvidenceRequired => {
-                Self::DisputeOpened
+impl From<CheckoutTransactionType> for api::IncomingWebhookEvent {
+    fn from(transaction_type: CheckoutTransactionType) -> Self {
+        match transaction_type {
+            CheckoutTransactionType::AuthenticationStarted => Self::EventNotSupported,
+            CheckoutTransactionType::AuthenticationApproved => Self::EventNotSupported,
+            CheckoutTransactionType::PaymentApproved => Self::EventNotSupported,
+            CheckoutTransactionType::PaymentCaptured => Self::PaymentIntentSuccess,
+            CheckoutTransactionType::PaymentDeclined => Self::PaymentIntentFailure,
+            CheckoutTransactionType::PaymentRefunded => Self::RefundSuccess,
+            CheckoutTransactionType::PaymentRefundDeclined => Self::RefundFailure,
+            CheckoutTransactionType::DisputeReceived
+            | CheckoutTransactionType::DisputeEvidenceRequired => Self::DisputeOpened,
+            CheckoutTransactionType::DisputeExpired => Self::DisputeExpired,
+            CheckoutTransactionType::DisputeAccepted => Self::DisputeAccepted,
+            CheckoutTransactionType::DisputeCanceled => Self::DisputeCancelled,
+            CheckoutTransactionType::DisputeEvidenceSubmitted
+            | CheckoutTransactionType::DisputeEvidenceAcknowledgedByScheme => {
+                Self::DisputeChallenged
             }
-            CheckoutTxnType::DisputeExpired => Self::DisputeExpired,
-            CheckoutTxnType::DisputeAccepted => Self::DisputeAccepted,
-            CheckoutTxnType::DisputeCanceled => Self::DisputeCancelled,
-            CheckoutTxnType::DisputeEvidenceSubmitted
-            | CheckoutTxnType::DisputeEvidenceAcknowledgedByScheme => Self::DisputeChallenged,
-            CheckoutTxnType::DisputeWon | CheckoutTxnType::DisputeArbitrationWon => {
-                Self::DisputeWon
-            }
-            CheckoutTxnType::DisputeLost | CheckoutTxnType::DisputeArbitrationLost => {
-                Self::DisputeLost
-            }
+            CheckoutTransactionType::DisputeWon
+            | CheckoutTransactionType::DisputeArbitrationWon => Self::DisputeWon,
+            CheckoutTransactionType::DisputeLost
+            | CheckoutTransactionType::DisputeArbitrationLost => Self::DisputeLost,
         }
     }
 }
 
-impl From<CheckoutTxnType> for api_models::enums::DisputeStage {
-    fn from(code: CheckoutTxnType) -> Self {
+impl From<CheckoutTransactionType> for api_models::enums::DisputeStage {
+    fn from(code: CheckoutTransactionType) -> Self {
         match code {
-            CheckoutTxnType::DisputeArbitrationLost | CheckoutTxnType::DisputeArbitrationWon => {
-                Self::PreArbitration
-            }
+            CheckoutTransactionType::DisputeArbitrationLost
+            | CheckoutTransactionType::DisputeArbitrationWon => Self::PreArbitration,
             _ => Self::Dispute,
         }
     }
@@ -774,4 +808,68 @@ impl From<CheckoutTxnType> for api_models::enums::DisputeStage {
 #[derive(Debug, Deserialize)]
 pub struct CheckoutWebhookObjectResource {
     pub data: serde_json::Value,
+}
+
+pub fn construct_file_upload_request(
+    file_upload_router_data: types::UploadFileRouterData,
+) -> CustomResult<reqwest::multipart::Form, errors::ConnectorError> {
+    let request = file_upload_router_data.request;
+    let mut multipart = reqwest::multipart::Form::new();
+    multipart = multipart.text("purpose", "dispute_evidence");
+    let file_data = reqwest::multipart::Part::bytes(request.file)
+        .file_name(format!(
+            "{}.{}",
+            request.file_key,
+            request
+                .file_type
+                .to_string()
+                .split('/')
+                .last()
+                .unwrap_or_default()
+        ))
+        .mime_str(request.file_type.as_ref())
+        .into_report()
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Failure in constructing file data")?;
+    multipart = multipart.part("file", file_data);
+    Ok(multipart)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FileUploadResponse {
+    #[serde(rename = "id")]
+    pub file_id: String,
+}
+
+#[derive(Default, Debug, Serialize)]
+pub struct Evidence {
+    pub proof_of_delivery_or_service_file: Option<String>,
+    pub invoice_or_receipt_file: Option<String>,
+    pub invoice_showing_distinct_transactions_file: Option<String>,
+    pub customer_communication_file: Option<String>,
+    pub refund_or_cancellation_policy_file: Option<String>,
+    pub recurring_transaction_agreement_file: Option<String>,
+    pub additional_evidence_file: Option<String>,
+}
+
+impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::SubmitEvidenceRouterData) -> Result<Self, Self::Error> {
+        let submit_evidence_request_data = item.request.clone();
+        Ok(Self {
+            proof_of_delivery_or_service_file: submit_evidence_request_data
+                .shipping_documentation_provider_file_id,
+            invoice_or_receipt_file: submit_evidence_request_data.receipt_provider_file_id,
+            invoice_showing_distinct_transactions_file: submit_evidence_request_data
+                .invoice_showing_distinct_transactions_provider_file_id,
+            customer_communication_file: submit_evidence_request_data
+                .customer_communication_provider_file_id,
+            refund_or_cancellation_policy_file: submit_evidence_request_data
+                .refund_policy_provider_file_id,
+            recurring_transaction_agreement_file: submit_evidence_request_data
+                .recurring_transaction_agreement_provider_file_id,
+            additional_evidence_file: submit_evidence_request_data
+                .uncategorized_file_provider_file_id,
+        })
+    }
 }

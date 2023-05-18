@@ -1,6 +1,8 @@
 use error_stack::IntoReport;
 
 use super::{MockDb, Store};
+#[cfg(feature = "accounts_cache")]
+use crate::cache::{self, ACCOUNTS_CACHE};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -75,7 +77,8 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_redis(self, merchant_id, fetch_func).await
+            super::cache::get_or_populate_in_memory(self, merchant_id, fetch_func, &ACCOUNTS_CACHE)
+                .await
         }
     }
 
@@ -100,7 +103,12 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::redact_cache(self, &_merchant_id, update_func, None).await
+            super::cache::publish_and_redact(
+                self,
+                cache::CacheKind::Accounts(_merchant_id.into()),
+                update_func,
+            )
+            .await
         }
     }
 
@@ -179,7 +187,6 @@ impl MerchantAccountInterface for MockDb {
             #[allow(clippy::as_conversions)]
             id: accounts.len() as i32,
             merchant_id: merchant_account.merchant_id,
-            api_key: merchant_account.api_key,
             return_url: merchant_account.return_url,
             enable_payment_response_hash: merchant_account
                 .enable_payment_response_hash
@@ -201,6 +208,8 @@ impl MerchantAccountInterface for MockDb {
             primary_business_details: merchant_account.primary_business_details,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
+            frm_routing_algorithm: merchant_account.frm_routing_algorithm,
+            intent_fulfillment_time: merchant_account.intent_fulfillment_time,
         };
         accounts.push(account.clone());
         Ok(account)

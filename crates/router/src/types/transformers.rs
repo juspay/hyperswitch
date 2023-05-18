@@ -76,6 +76,12 @@ impl ForeignFrom<storage_enums::MandateStatus> for api_enums::MandateStatus {
     }
 }
 
+impl ForeignFrom<api_enums::MandateStatus> for storage_enums::MandateStatus {
+    fn foreign_from(status: api_enums::MandateStatus) -> Self {
+        frunk::labelled_convert_from(status)
+    }
+}
+
 impl ForeignFrom<api_enums::PaymentMethod> for storage_enums::PaymentMethod {
     fn foreign_from(pm_type: api_enums::PaymentMethod) -> Self {
         frunk::labelled_convert_from(pm_type)
@@ -161,6 +167,7 @@ impl ForeignTryFrom<api_enums::IntentStatus> for storage_enums::EventType {
     fn foreign_try_from(value: api_enums::IntentStatus) -> Result<Self, Self::Error> {
         match value {
             api_enums::IntentStatus::Succeeded => Ok(Self::PaymentSucceeded),
+            api_enums::IntentStatus::Failed => Ok(Self::PaymentFailed),
             api_enums::IntentStatus::Processing => Ok(Self::PaymentProcessing),
             api_enums::IntentStatus::RequiresMerchantAction
             | api_enums::IntentStatus::RequiresCustomerAction => Ok(Self::ActionRequired),
@@ -501,9 +508,39 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
             connector_reason: dispute.connector_reason,
             connector_reason_code: dispute.connector_reason_code,
             challenge_required_by: dispute.challenge_required_by,
-            created_at: dispute.dispute_created_at,
-            updated_at: dispute.updated_at,
-            received_at: dispute.created_at.to_string(),
+            connector_created_at: dispute.connector_created_at,
+            connector_updated_at: dispute.connector_updated_at,
+            created_at: dispute.created_at,
+        }
+    }
+}
+
+impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponsePaymentsRetrieve {
+    fn foreign_from(dispute: storage::Dispute) -> Self {
+        Self {
+            dispute_id: dispute.dispute_id,
+            dispute_stage: dispute.dispute_stage.foreign_into(),
+            dispute_status: dispute.dispute_status.foreign_into(),
+            connector_status: dispute.connector_status,
+            connector_dispute_id: dispute.connector_dispute_id,
+            connector_reason: dispute.connector_reason,
+            connector_reason_code: dispute.connector_reason_code,
+            challenge_required_by: dispute.challenge_required_by,
+            connector_created_at: dispute.connector_created_at,
+            connector_updated_at: dispute.connector_updated_at,
+            created_at: dispute.created_at,
+        }
+    }
+}
+
+impl ForeignFrom<storage::FileMetadata> for api_models::files::FileMetadataResponse {
+    fn foreign_from(file_metadata: storage::FileMetadata) -> Self {
+        Self {
+            file_id: file_metadata.file_id,
+            file_name: file_metadata.file_name,
+            file_size: file_metadata.file_size,
+            file_type: file_metadata.file_type,
+            available: file_metadata.available,
         }
     }
 }

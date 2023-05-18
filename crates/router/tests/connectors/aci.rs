@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, str::FromStr};
 
 use masking::Secret;
 use router::{
@@ -21,6 +21,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     types::RouterData {
         flow: PhantomData,
         merchant_id: String::from("aci"),
+        customer_id: Some(String::from("aci")),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -34,7 +35,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             amount: 1000,
             currency: enums::Currency::USD,
             payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
-                card_number: Secret::new("4200000000000000".to_string()),
+                card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
                 card_holder_name: Secret::new("John Doe".to_string()),
@@ -72,8 +73,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        connector_customer: None,
         preprocessing_id: None,
-        customer_id: None,
     }
 }
 
@@ -85,6 +86,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
     types::RouterData {
         flow: PhantomData,
         merchant_id: String::from("aci"),
+        customer_id: Some(String::from("aci")),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -101,6 +103,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             refund_id: uuid::Uuid::new_v4().to_string(),
             connector_transaction_id: String::new(),
             refund_amount: 100,
+            webhook_url: None,
             connector_metadata: None,
             reason: None,
             connector_refund_id: None,
@@ -114,8 +117,8 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        connector_customer: None,
         preprocessing_id: None,
-        customer_id: None,
     }
 }
 
@@ -175,7 +178,7 @@ async fn payments_create_failure() {
         let mut request = construct_payment_router_data();
         request.request.payment_method_data =
             types::api::PaymentMethodData::Card(types::api::Card {
-                card_number: Secret::new("420000000000000000".to_string()),
+                card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
                 card_holder_name: Secret::new("John Doe".to_string()),
