@@ -1822,6 +1822,7 @@ impl AttemptType {
             business_sub_label: old_payment_attempt.business_sub_label,
             // If the algorithm is entered in Create call from server side, it needs to be populated here, however it could be overridden from the request.
             straight_through_algorithm: old_payment_attempt.straight_through_algorithm,
+            mandate_details: old_payment_attempt.mandate_details,
         }
     }
 
