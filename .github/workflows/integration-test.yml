@@ -1,0 +1,88 @@
+name: Migration Consistency Tests
+
+on:
+  pull_request:
+
+  merge_group:
+    types:
+      - checks_requested
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Allow more retries for network requests in cargo (downloading crates) and
+  # rustup (installing toolchains). This should help to reduce flaky CI failures
+  # from transient network timeouts or other issues.
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+  # Use cargo's sparse index protocol
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
+jobs:
+  migration_verify:
+    name: Verify consistency of migrations with `schema.rs` file
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3.1.0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@v2.2.0
+        with:
+          # We can use a single cache entry for all runs of this check, as only diesel CLI needs to be cached
+          shared-key: "migration_verify"
+          # We don't build any crates in this repository, no need to cache target directories
+          cache-targets: "false"
+          # Save cache even if migration verification fails.
+          # Only failure not considered is failures in installing diesel CLI itself.
+          cache-on-failure: "true"
+
+      - name: Install diesel_cli
+        shell: bash
+        run: cargo install diesel_cli --no-default-features --features postgres
+
+      - name: Verify `diesel migration run`
+        shell: bash
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+        run: diesel migration run --locked-schema
+
+      - name: Verify `diesel migration redo`
+        shell: bash
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+        run: diesel migration redo -a --locked-schema
+
+      - name: Decrypt connector auth file
+        run: ./scripts/decrypt_connector_auth.sh
+        env:
+          CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
+
+      - name: Set connector auth file path in env
+        run: echo "CONNECTOR_AUTH_FILE_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
+
+      - name: Run connector tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: test_api --test-threads=1
