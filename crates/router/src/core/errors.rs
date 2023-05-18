@@ -460,6 +460,8 @@ pub enum WebhooksFlowError {
     NotImplemented,
     #[error("Dispute webhook status validation failed")]
     DisputeWebhookValidationFailed,
+    #[error("Outgoing webhook body encoding failed")]
+    OutgoingWebhookEncodingFailed,
 }
 
 #[cfg(feature = "detailed_errors")]

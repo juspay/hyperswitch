@@ -41,7 +41,7 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::PaymentIntentSuccess => Self::Payment,
             IncomingWebhookEvent::PaymentIntentProcessing => Self::Payment,
             IncomingWebhookEvent::PaymentActionRequired => Self::Payment,
-            IncomingWebhookEvent::EventNotSupported => Self::Payment,
+            IncomingWebhookEvent::EventNotSupported => Self::ReturnResponse,
             IncomingWebhookEvent::RefundSuccess => Self::Refund,
             IncomingWebhookEvent::RefundFailure => Self::Refund,
             IncomingWebhookEvent::DisputeOpened => Self::Dispute,
@@ -91,5 +91,8 @@ pub enum OutgoingWebhookContent {
     DisputeDetails(Box<disputes::DisputeResponse>),
 }
 
-pub trait OutgoingWebhookType: Serialize + From<OutgoingWebhook> + Sync + Send {}
+pub trait OutgoingWebhookType:
+    Serialize + From<OutgoingWebhook> + Sync + Send + std::fmt::Debug
+{
+}
 impl OutgoingWebhookType for OutgoingWebhook {}

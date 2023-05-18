@@ -1102,7 +1102,7 @@ pub async fn list_payment_methods(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn filter_payment_methods(
+pub async fn filter_payment_methods(
     payment_methods: Vec<serde_json::Value>,
     req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,

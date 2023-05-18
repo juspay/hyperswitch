@@ -426,6 +426,7 @@ pub enum PaymentMethodType {
     Giropay,
     GooglePay,
     Ideal,
+    Interac,
     Klarna,
     MbWay,
     MobilePay,
@@ -630,6 +631,7 @@ pub enum Connector {
     Worldline,
     Worldpay,
     Zen,
+    Signifyd,
 }
 
 impl Connector {
