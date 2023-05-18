@@ -10,6 +10,8 @@ use router_env::{instrument, tracing};
 use super::payments::{helpers, PaymentAddress};
 #[cfg(feature = "payouts")]
 use super::payouts::PayoutData;
+#[cfg(feature = "payouts")]
+use crate::core::payments;
 use crate::{
     consts,
     core::errors::{self, RouterResult},
@@ -21,8 +23,6 @@ use crate::{
     },
     utils::{generate_id, OptionExt, ValueExt},
 };
-#[cfg(feature = "payouts")]
-use crate::{core::payments, types::api};
 
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
@@ -65,7 +65,6 @@ pub async fn construct_payout_router_data<'a, F>(
     merchant_account: &domain::MerchantAccount,
     _request: &api_models::payouts::PayoutRequest,
     payout_data: &mut PayoutData,
-    payout_method_data: &api::PayoutMethodData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
     let (business_country, _) = helpers::get_business_details(
         payout_data.payout_attempt.business_country,
@@ -155,7 +154,7 @@ pub async fn construct_payout_router_data<'a, F>(
         reference_id: None,
         payment_method_token: None,
         preprocessing_id: None,
-        payout_method_data: Some(payout_method_data.to_owned()),
+        payout_method_data: payout_data.payout_method_data.to_owned(),
     };
 
     Ok(router_data)

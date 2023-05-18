@@ -148,10 +148,13 @@ pub enum AdyenStatus {
     Received,
     RedirectShopper,
     Refused,
+    #[cfg(feature = "payouts")]
     #[serde(rename = "[payout-confirm-received]")]
     PayoutConfirmReceived,
+    #[cfg(feature = "payouts")]
     #[serde(rename = "[payout-decline-received]")]
     PayoutDeclineReceived,
+    #[cfg(feature = "payouts")]
     #[serde(rename = "[payout-submit-received]")]
     PayoutSubmitReceived,
 }
@@ -175,8 +178,11 @@ impl ForeignFrom<(bool, AdyenStatus)> for storage_enums::AttemptStatus {
             AdyenStatus::Error | AdyenStatus::Refused => Self::Failure,
             AdyenStatus::Pending => Self::Pending,
             AdyenStatus::Received => Self::Started,
+            #[cfg(feature = "payouts")]
             AdyenStatus::PayoutConfirmReceived => Self::Started,
+            #[cfg(feature = "payouts")]
             AdyenStatus::PayoutSubmitReceived => Self::Pending,
+            #[cfg(feature = "payouts")]
             AdyenStatus::PayoutDeclineReceived => Self::Voided,
         }
     }
@@ -664,6 +670,7 @@ pub struct AdyenRefundResponse {
 pub struct AdyenAuthType {
     pub(super) api_key: String,
     pub(super) merchant_account: String,
+    #[allow(dead_code)]
     pub(super) review_key: Option<String>,
 }
 
@@ -2159,7 +2166,7 @@ struct PayoutBankDetails {
     bic: Option<String>,
     country_code: storage_enums::CountryAlpha2,
     iban: Option<String>,
-    owner_name: Option<String>,
+    owner_name: Option<Secret<String>>,
     bank_city: String,
     tax_id: Option<String>,
 }
@@ -2323,14 +2330,11 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutCreateRequest {
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         let merchant_account = auth_type.merchant_account;
-
-        let (customer_name, customer_email) = item
+        let (owner_name, customer_email) = item
             .request
             .customer_details
             .to_owned()
-            .map_or((None, None), |c| {
-                (c.name.map(|n| n.peek().to_string()), c.email)
-            });
+            .map_or((None, None), |c| (c.name, c.email));
 
         match item.get_payout_method_data()? {
             PayoutMethodData::Card(_) => Err(errors::ConnectorError::NotSupported {
@@ -2352,7 +2356,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutCreateRequest {
                     bic: b.bic,
                     country_code: b.bank_country_code,
                     iban: b.iban,
-                    owner_name: customer_name,
+                    owner_name,
                     bank_city: b.bank_city,
                     tax_id: None,
                 },
@@ -2463,6 +2467,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<AdyenStatus> for storage_enums::PayoutStatus {
     fn foreign_from(adyen_status: AdyenStatus) -> Self {
         match adyen_status {

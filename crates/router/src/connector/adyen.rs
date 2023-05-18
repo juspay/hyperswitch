@@ -51,6 +51,22 @@ impl ConnectorCommon for Adyen {
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.adyen.base_url.as_ref()
     }
+
+    fn build_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: adyen::ErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            code: response.error_code,
+            message: response.message,
+            reason: None,
+        })
+    }
 }
 
 impl api::Payment for Adyen {}
@@ -672,16 +688,18 @@ impl services::ConnectorIntegration<api::PCancel, types::PayoutsData, types::Pay
         &self,
         req: &types::PayoutsRouterData<api::PCancel>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PayoutCancelType::get_content_type(self).to_string(),
+            types::PayoutCancelType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let auth = adyen::AdyenAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let mut api_key = vec![(
             headers::X_API_KEY.to_string(),
-            auth.review_key.unwrap_or(auth.api_key),
+            auth.review_key.unwrap_or(auth.api_key).into(),
         )];
         header.append(&mut api_key);
         Ok(header)
@@ -725,30 +743,18 @@ impl services::ConnectorIntegration<api::PCancel, types::PayoutsData, types::Pay
             .response
             .parse_struct("AdyenPayoutResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: adyen::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code,
-            message: response.message,
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -771,10 +777,12 @@ impl services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::Pay
         &self,
         req: &types::PayoutsRouterData<api::PCreate>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PayoutCreateType::get_content_type(self).to_string(),
+            types::PayoutCreateType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -819,30 +827,18 @@ impl services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::Pay
             .response
             .parse_struct("AdyenPayoutResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: adyen::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code,
-            message: response.message,
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -932,16 +928,7 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: adyen::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code,
-            message: response.message,
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -980,8 +967,8 @@ impl services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::Pa
         let mut api_key = vec![(
             headers::X_API_KEY.to_string(),
             match req.request.payout_type {
-                storage_enums::PayoutType::Bank => auth.review_key.unwrap_or(auth.api_key),
-                storage_enums::PayoutType::Card => auth.api_key,
+                storage_enums::PayoutType::Bank => auth.review_key.unwrap_or(auth.api_key).into(),
+                storage_enums::PayoutType::Card => auth.api_key.into(),
             },
         )];
         header.append(&mut api_key);
@@ -1040,16 +1027,7 @@ impl services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::Pa
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: adyen::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code,
-            message: response.message,
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 

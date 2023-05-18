@@ -1,6 +1,5 @@
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
-use storage_models::enums as storage_enums;
 
 use crate::{
     core::{
@@ -24,12 +23,12 @@ use crate::{
 
 pub async fn make_payout_method_data<'a>(
     state: &'a AppState,
-    request: &api::PayoutCreateRequest,
+    payout_method_data: &Option<api::PayoutMethodData>,
     payout_attempt: &storage::PayoutAttempt,
 ) -> RouterResult<Option<api::PayoutMethodData>> {
     let db = &*state.store;
     match (
-        request.payout_method_data.to_owned(),
+        payout_method_data.to_owned(),
         payout_attempt.payout_token.to_owned(),
     ) {
         (None, Some(payout_token)) => {
@@ -61,7 +60,7 @@ pub async fn make_payout_method_data<'a>(
             .await?;
             let payout_update = storage::PayoutAttemptUpdate::PayoutTokenUpdate {
                 payout_token,
-                status: storage_enums::PayoutStatus::RequiresFulfillment,
+                status: payout_attempt.status,
             };
             db.update_payout_attempt_by_merchant_id_payout_id(
                 &payout_attempt.merchant_id,
@@ -210,5 +209,13 @@ pub fn is_payout_err_state(status: api_enums::PayoutStatus) -> bool {
         api_enums::PayoutStatus::Cancelled
             | api_enums::PayoutStatus::Failed
             | api_enums::PayoutStatus::Ineligible
+    )
+}
+
+pub fn is_eligible_for_local_payout_cancellation(status: api_enums::PayoutStatus) -> bool {
+    matches!(
+        status,
+        api_enums::PayoutStatus::RequiresCreation
+            | api_enums::PayoutStatus::RequiresPayoutMethodData,
     )
 }
