@@ -2,8 +2,9 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self as conn_utils, RouterData},
+    connector::utils::{self as conn_utils, RefundsRequestData, RouterData},
     core::errors,
+    services,
     types::{self, api, storage::enums},
 };
 
@@ -35,7 +36,6 @@ pub enum NoonPaymentActions {
 #[serde(rename_all = "camelCase")]
 pub struct NoonConfiguration {
     payment_action: NoonPaymentActions,
-    webhook_url: Option<String>,
     return_url: Option<String>,
 }
 
@@ -104,7 +104,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             order,
             configuration: NoonConfiguration {
                 payment_action,
-                webhook_url: item.request.webhook_url.clone(),
                 return_url: item.request.router_return_url.clone(),
             },
             payment_data,
@@ -136,13 +135,15 @@ impl TryFrom<&types::ConnectorAuthType> for NoonAuthType {
         }
     }
 }
-// PaymentsResponse
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum NoonPaymentStatus {
     Authorized,
     Captured,
     Reversed,
+    #[serde(rename = "3DS_ENROLL_INITIATED")]
+    ThreeDsEnrollInitiated,
+    Failed,
 }
 
 impl From<NoonPaymentStatus> for enums::AttemptStatus {
@@ -151,6 +152,8 @@ impl From<NoonPaymentStatus> for enums::AttemptStatus {
             NoonPaymentStatus::Authorized => Self::Authorized,
             NoonPaymentStatus::Captured => Self::Charged,
             NoonPaymentStatus::Reversed => Self::Voided,
+            NoonPaymentStatus::ThreeDsEnrollInitiated => Self::AuthenticationPending,
+            NoonPaymentStatus::Failed => Self::Failure,
         }
     }
 }
@@ -159,12 +162,20 @@ impl From<NoonPaymentStatus> for enums::AttemptStatus {
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsOrderResponse {
     status: NoonPaymentStatus,
-    id: String,
+    id: u64,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonCheckoutData {
+    post_url: url::Url,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsResponseResult {
     order: NoonPaymentsOrderResponse,
+    checkout_data: Option<NoonCheckoutData>,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -180,13 +191,20 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, NoonPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let redirection_data = item.response.result.checkout_data.map(|redirection_data| {
+            services::RedirectForm::Form {
+                endpoint: redirection_data.post_url.to_string(),
+                method: services::Method::Post,
+                form_fields: std::collections::HashMap::new(),
+            }
+        });
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.result.order.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.result.order.id,
+                    item.response.result.order.id.to_string(),
                 ),
-                redirection_data: None,
+                redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
@@ -309,7 +327,6 @@ pub struct NoonPaymentsTransactionResponse {
 }
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
 pub struct NoonRefundResponseResult {
     transaction: NoonPaymentsTransactionResponse,
 }
@@ -336,17 +353,42 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
+#[derive(Default, Debug, Clone, Deserialize)]
+pub struct NoonRefundResponseTransactions {
+    id: String,
+    status: RefundStatus,
+}
+
+#[derive(Default, Debug, Clone, Deserialize)]
+pub struct NoonRefundSyncResponseResult {
+    transactions: Vec<NoonRefundResponseTransactions>,
+}
+
+#[derive(Default, Debug, Clone, Deserialize)]
+pub struct RefundSyncResponse {
+    result: NoonRefundSyncResponseResult,
+}
+
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
+        let connector_refund_id = item.data.request.get_connector_refund_id()?;
+        let noon_transaction: &NoonRefundResponseTransactions = item
+            .response
+            .result
+            .transactions
+            .iter()
+            .find(|transaction| transaction.id == connector_refund_id)
+            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.result.transaction.id,
-                refund_status: enums::RefundStatus::from(item.response.result.transaction.status),
+                connector_refund_id: noon_transaction.id.to_owned(),
+                refund_status: enums::RefundStatus::from(noon_transaction.status.to_owned()),
             }),
             ..item.data
         })

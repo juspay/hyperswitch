@@ -6,11 +6,13 @@ use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use transformers as noon;
 
-use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
     headers,
     services::{self, ConnectorIntegration},
     types::{
@@ -522,7 +524,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         Ok(format!(
             "{}payment/v1/order/{}",
             self.base_url(connectors),
-            req.request.get_connector_refund_id()?
+            req.request.connector_transaction_id
         ))
     }
 
@@ -547,15 +549,17 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: noon::RefundResponse =
-            res.response
-                .parse_struct("noon RefundSyncResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: noon::RefundSyncResponse = res
+            .response
+            .parse_struct("noon RefundSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -563,6 +567,17 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
+    }
+}
+
+impl services::ConnectorRedirectResponse for Noon {
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: services::PaymentAction,
+    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
+        Ok(payments::CallConnectorAction::Trigger)
     }
 }
 

@@ -1,7 +1,10 @@
 use std::str::FromStr;
 
 use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::types::{
+    self, api,
+    storage::{self, enums},
+};
 
 use crate::{
     connector_auth,
@@ -41,7 +44,10 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
 }
 
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
-    None
+    Some(types::PaymentsAuthorizeData {
+        currency: storage::enums::Currency::AED,
+        ..utils::PaymentAuthorizeType::default().0
+    })
 }
 
 // Cards Positive Tests
