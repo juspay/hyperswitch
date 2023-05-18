@@ -96,6 +96,8 @@ pub enum Flow {
     MandatesRetrieve,
     /// Mandates revoke flow.
     MandatesRevoke,
+    /// Mandates list flow.
+    MandatesList,
     /// Payment methods create flow.
     PaymentMethodsCreate,
     /// Payment methods list flow.
@@ -180,6 +182,8 @@ pub enum Flow {
     CreateConfigKey,
     /// Attach Dispute Evidence flow
     AttachDisputeEvidence,
+    /// Retrieve Dispute Evidence flow
+    RetrieveDisputeEvidence,
 }
 
 ///

@@ -15,6 +15,7 @@ use std::marker::PhantomData;
 pub use api_models::enums::Connector;
 use common_utils::{pii, pii::Email};
 use error_stack::{IntoReport, ResultExt};
+use masking::Secret;
 
 use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::PaymentAddress;
@@ -253,7 +254,7 @@ pub struct AuthorizeSessionTokenData {
 pub struct ConnectorCustomerData {
     pub description: Option<String>,
     pub email: Option<Email>,
-    pub phone: Option<masking::Secret<String>>,
+    pub phone: Option<Secret<String>>,
     pub name: Option<String>,
     pub preprocessing_id: Option<String>,
 }

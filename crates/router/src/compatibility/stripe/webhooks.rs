@@ -8,7 +8,7 @@ use super::{
     payment_intents::types::StripePaymentIntentResponse, refunds::types::StripeRefundResponse,
 };
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct StripeOutgoingWebhook {
     id: Option<String>,
     #[serde(rename = "type")]
@@ -18,7 +18,7 @@ pub struct StripeOutgoingWebhook {
 
 impl api::OutgoingWebhookType for StripeOutgoingWebhook {}
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 pub enum StripeWebhookObject {
     PaymentIntent(StripePaymentIntentResponse),
@@ -26,7 +26,7 @@ pub enum StripeWebhookObject {
     Dispute(StripeDisputeResponse),
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct StripeDisputeResponse {
     pub id: String,
     pub amount: String,
@@ -36,7 +36,7 @@ pub struct StripeDisputeResponse {
     pub status: StripeDisputeStatus,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum StripeDisputeStatus {
     WarningNeedsResponse,

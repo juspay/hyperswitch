@@ -219,6 +219,10 @@ pub struct PaymentsRequest {
 
     /// Business sub label for the payment
     pub business_sub_label: Option<String>,
+
+    /// If enabled payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted.
+    #[serde(default)]
+    pub manual_retry: bool,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
@@ -524,6 +528,9 @@ pub enum BankDebitData {
         /// Sort code for Bacs payment method
         #[schema(value_type = String, example = "108800")]
         sort_code: Secret<String>,
+        /// holder name for bank debit
+        #[schema(value_type = String, example = "A. Schneider")]
+        bank_account_holder_name: Option<Secret<String>>,
     },
 }
 
@@ -593,18 +600,21 @@ pub enum BankRedirectData {
     BancontactCard {
         /// The card number
         #[schema(value_type = String, example = "4242424242424242")]
-        card_number: CardNumber,
+        card_number: Option<CardNumber>,
         /// The card's expiry month
         #[schema(value_type = String, example = "24")]
-        card_exp_month: Secret<String>,
+        card_exp_month: Option<Secret<String>>,
 
         /// The card's expiry year
         #[schema(value_type = String, example = "24")]
-        card_exp_year: Secret<String>,
+        card_exp_year: Option<Secret<String>>,
 
         /// The card holder's name
         #[schema(value_type = String, example = "John Test")]
-        card_holder_name: Secret<String>,
+        card_holder_name: Option<Secret<String>>,
+
+        //Required by Stripes
+        billing_details: Option<BankRedirectBilling>,
     },
     Blik {
         // Blik Code
@@ -711,7 +721,7 @@ pub struct BankRedirectBilling {
     pub billing_name: Option<Secret<String>>,
     /// The billing email for bank redirect
     #[schema(value_type = String, example = "example@example.com")]
-    pub email: Email,
+    pub email: Option<Email>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1019,9 +1029,11 @@ pub struct NextAction {
     /// Specifying the action type to be performed next
     #[serde(rename = "type")]
     pub next_action_type: NextActionType,
+    //TODO: Make an enum having redirect_to_url and bank_transfer_steps_and_charges_details and use here
     /// Contains the url for redirection flow
     #[schema(example = "https://router.juspay.io/redirect/fakushdfjlksdfasklhdfj")]
     pub redirect_to_url: Option<String>,
+    /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
     pub bank_transfer_steps_and_charges_details: Option<NextStepsRequirements>,
 }
 
@@ -1565,7 +1577,7 @@ pub struct GpayTransactionInfo {
     /// The total price status (ex: 'FINAL')
     pub total_price_status: String,
     /// The total price
-    pub total_price: i64,
+    pub total_price: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

@@ -263,10 +263,16 @@ fn get_bank_name(
                 },
             )?)?,
         })),
-        (StripePaymentMethodType::Sofort | StripePaymentMethodType::Giropay, _) => Ok(None),
+        (
+            StripePaymentMethodType::Sofort
+            | StripePaymentMethodType::Giropay
+            | StripePaymentMethodType::Bancontact,
+            _,
+        ) => Ok(None),
         _ => Err(errors::ConnectorError::MismatchedPaymentData),
     }
 }
+
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeBankRedirectData {
     #[serde(rename = "payment_method_types[]")]
@@ -433,6 +439,7 @@ pub enum StripePaymentMethodType {
     Becs,
     #[serde(rename = "bacs_debit")]
     Bacs,
+    Bancontact,
     #[serde(rename = "wechat_pay")]
     Wechatpay,
     Alipay,
@@ -668,6 +675,10 @@ fn infer_stripe_bank_redirect_issuer(
         Some(storage_models::enums::PaymentMethodType::Sofort) => {
             Ok(StripePaymentMethodType::Sofort)
         }
+
+        Some(storage_models::enums::PaymentMethodType::BancontactCard) => {
+            Ok(StripePaymentMethodType::Bancontact)
+        }
         Some(storage_models::enums::PaymentMethodType::Przelewy24) => {
             Ok(StripePaymentMethodType::Przelewy24)
         }
@@ -773,7 +784,19 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             payments::BankRedirectData::Przelewy24 {
                 billing_details, ..
             } => Ok(Self {
-                email: Some(billing_details.email.clone()),
+                email: billing_details.email.clone(),
+                ..Self::default()
+            }),
+            payments::BankRedirectData::BancontactCard {
+                billing_details, ..
+            } => Ok(Self {
+                name: billing_details
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "bancontact_card.billing_name",
+                    })?
+                    .billing_name
+                    .clone(),
                 ..Self::default()
             }),
             _ => Ok(Self::default()),
@@ -845,6 +868,7 @@ fn get_bank_debit_data(
             billing_details,
             account_number,
             sort_code,
+            ..
         } => {
             let bacs_data = BankDebitData::Bacs {
                 account_number: account_number.to_owned(),
@@ -917,6 +941,7 @@ fn create_stripe_payment_method(
             let pm_type = infer_stripe_bank_redirect_issuer(pm_type)?;
             let bank_specific_data = get_bank_specific_data(bank_redirect_data);
             let bank_name = get_bank_name(&pm_type, bank_redirect_data)?;
+
             Ok((
                 StripePaymentMethodData::BankRedirect(StripeBankRedirectData {
                     payment_method_types: pm_type,
@@ -1253,6 +1278,7 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
             StripePaymentStatus::Failed => Self::Failure,
             StripePaymentStatus::Processing => Self::Authorizing,
             StripePaymentStatus::RequiresCustomerAction => Self::AuthenticationPending,
+            // Make the payment attempt status as failed
             StripePaymentStatus::RequiresPaymentMethod => Self::Failure,
             StripePaymentStatus::RequiresConfirmation => Self::ConfirmationAwaited,
             StripePaymentStatus::Canceled => Self::Voided,
@@ -1299,7 +1325,7 @@ pub struct StripeSourceResponse {
 pub struct AchCreditTransferResponse {
     pub account_number: Secret<String>,
     pub bank_name: Secret<String>,
-    pub routing_number: String,
+    pub routing_number: Secret<String>,
     pub swift_code: Secret<String>,
 }
 
@@ -1427,6 +1453,7 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
                 | StripePaymentMethodOptions::WechatPay {}
                 | StripePaymentMethodOptions::Alipay {}
                 | StripePaymentMethodOptions::Sepa {}
+                | StripePaymentMethodOptions::Bancontact {}
                 | StripePaymentMethodOptions::Przelewy24 {} => None,
             }),
             payment_method_id: Some(payment_method_id),
@@ -1839,6 +1866,7 @@ pub enum StripePaymentMethodOptions {
     Becs {},
     #[serde(rename = "bacs_debit")]
     Bacs {},
+    Bancontact {},
     WechatPay {},
     Alipay {},
     #[serde(rename = "p24")]

@@ -1,6 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData};
 
-use api_models::payments::NextStepsRequirements;
+use common_utils::fp_utils;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -52,6 +52,10 @@ where
         payment_data.creds_identifier.to_owned(),
     )
     .await?;
+
+    fp_utils::when(merchant_connector_account.is_disabled(), || {
+        Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
+    })?;
 
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -501,19 +505,20 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
 
 pub fn bank_transfer_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
-) -> RouterResult<Option<NextStepsRequirements>> {
+) -> RouterResult<Option<api_models::payments::NextStepsRequirements>> {
     let bank_transfer_next_step = if let Some(storage_models::enums::PaymentMethod::BankTransfer) =
         payment_attempt.payment_method
     {
-        let bank_transfer_next_steps: Option<NextStepsRequirements> = payment_attempt
-            .connector_metadata
-            .map(|metadata| {
-                metadata
-                    .parse_value("NextStepsRequirements")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to parse the Value to NextRequirements struct")
-            })
-            .transpose()?;
+        let bank_transfer_next_steps: Option<api_models::payments::NextStepsRequirements> =
+            payment_attempt
+                .connector_metadata
+                .map(|metadata| {
+                    metadata
+                        .parse_value("NextStepsRequirements")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse the Value to NextRequirements struct")
+                })
+                .transpose()?;
         bank_transfer_next_steps
     } else {
         None

@@ -76,6 +76,12 @@ impl ForeignFrom<storage_enums::MandateStatus> for api_enums::MandateStatus {
     }
 }
 
+impl ForeignFrom<api_enums::MandateStatus> for storage_enums::MandateStatus {
+    fn foreign_from(status: api_enums::MandateStatus) -> Self {
+        frunk::labelled_convert_from(status)
+    }
+}
+
 impl ForeignFrom<api_enums::PaymentMethod> for storage_enums::PaymentMethod {
     fn foreign_from(pm_type: api_enums::PaymentMethod) -> Self {
         frunk::labelled_convert_from(pm_type)
@@ -522,6 +528,18 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponsePaym
             connector_created_at: dispute.connector_created_at,
             connector_updated_at: dispute.connector_updated_at,
             created_at: dispute.created_at,
+        }
+    }
+}
+
+impl ForeignFrom<storage::FileMetadata> for api_models::files::FileMetadataResponse {
+    fn foreign_from(file_metadata: storage::FileMetadata) -> Self {
+        Self {
+            file_id: file_metadata.file_id,
+            file_name: file_metadata.file_name,
+            file_size: file_metadata.file_size,
+            file_type: file_metadata.file_type,
+            available: file_metadata.available,
         }
     }
 }
