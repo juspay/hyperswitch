@@ -304,6 +304,8 @@ impl Vaultable for api::BankPayout {
             customer_id,
             iban: self.iban.to_owned(),
             bank_name: self.bank_name.to_owned(),
+            bank_country_code: self.bank_country_code.to_owned(),
+            bank_city: self.bank_city.to_owned(),
         };
 
         utils::Encode::<api::TokenizedBankValue2>::encode_to_string_of_json(&value2)
@@ -334,6 +336,8 @@ impl Vaultable for api::BankPayout {
             blz: value1.blz,
             bank_transit_number: value1.bank_transit_number,
             bank_name: value2.bank_name,
+            bank_country_code: value2.bank_country_code,
+            bank_city: value2.bank_city,
         };
 
         let supp_data = SupplementaryVaultData {

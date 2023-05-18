@@ -612,4 +612,6 @@ pub struct TokenizedBankValue2 {
     pub customer_id: Option<String>,
     pub iban: Option<String>,
     pub bank_name: String,
+    pub bank_country_code: api_enums::CountryAlpha2,
+    pub bank_city: String,
 }

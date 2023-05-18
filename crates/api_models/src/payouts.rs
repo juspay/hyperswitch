@@ -182,6 +182,14 @@ pub struct Bank {
     /// Bank name
     #[schema(value_type = String, example = "Deutsche Bank")]
     pub bank_name: String,
+
+    /// Bank country code
+    #[schema(value_type = String, example = "US")]
+    pub bank_country_code: api_enums::CountryAlpha2,
+
+    /// Bank city
+    #[schema(value_type = String, example = "California")]
+    pub bank_city: String,
 }
 
 impl Default for Bank {
@@ -195,6 +203,8 @@ impl Default for Bank {
             blz: None,
             bank_transit_number: None,
             bank_name: "Deutsche Bank".to_string(),
+            bank_country_code: api_enums::CountryAlpha2::US,
+            bank_city: "California".to_string(),
         }
     }
 }
@@ -215,6 +225,8 @@ impl<'de> Deserialize<'de> for Bank {
             blz: Option<String>,
             bank_transit_number: Option<String>,
             bank_name: String,
+            bank_country_code: api_enums::CountryAlpha2,
+            bank_city: String,
         }
 
         let p = BankParams::deserialize(deserializer)?;
@@ -239,12 +251,6 @@ impl<'de> Deserialize<'de> for Bank {
                 Err(
                     de::Error::custom(
                         "Invalid bank details, bank_account_number is required when passing bank_routing_number"
-                    )
-                ),
-            (None, _, _, Some(_), _, _, _) =>
-                Err(
-                    de::Error::custom(
-                        "Invalid bank details, bank_account_number is required when passing bic"
                     )
                 ),
             (None, _, _, _, Some(_), _, _) =>
@@ -281,6 +287,8 @@ impl<'de> Deserialize<'de> for Bank {
                     blz: p.blz,
                     bank_transit_number: p.bank_transit_number,
                     bank_name: p.bank_name,
+                    bank_country_code: p.bank_country_code,
+                    bank_city: p.bank_city,
                 }),
         }
     }
