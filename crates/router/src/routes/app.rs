@@ -389,7 +389,6 @@ impl Configs {
     pub fn server(config: AppState) -> Scope {
         web::scope("/configs")
             .app_data(web::Data::new(config))
-            .service(web::resource("/").route(web::post().to(config_key_create)))
             .service(
                 web::resource("/{key}")
                     .route(web::get().to(config_key_retrieve))
@@ -430,10 +429,6 @@ impl Disputes {
                     .route(web::post().to(submit_dispute_evidence))
                     .route(web::put().to(attach_dispute_evidence)),
             )
-            .service(
-                web::resource("/evidence/{dispute_id}")
-                    .route(web::get().to(retrieve_dispute_evidence)),
-            )
             .service(web::resource("/{dispute_id}").route(web::get().to(retrieve_dispute)))
     }
 }
@@ -470,6 +465,6 @@ impl Cache {
     pub fn server(state: AppState) -> Scope {
         web::scope("/cache")
             .app_data(web::Data::new(state))
-            .service(web::resource("/remove/{key}").route(web::post().to(remove)))
+            .service(web::resource("/invalidate/{key}").route(web::post().to(invalidate)))
     }
 }
