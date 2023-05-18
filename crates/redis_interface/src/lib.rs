@@ -159,7 +159,7 @@ impl Drop for RedisConnectionPool {
     // safety: panics when invoked without a current tokio runtime
     fn drop(&mut self) {
         let rt = tokio::runtime::Handle::current();
-        // rt.block_on(self.close_connections())
+        rt.block_on(self.close_connections())
     }
 }
 
