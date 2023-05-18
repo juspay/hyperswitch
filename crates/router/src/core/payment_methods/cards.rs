@@ -629,7 +629,13 @@ pub async fn mock_add_card(
         card_fingerprint: response.card_fingerprint.into(),
         card_global_fingerprint: response.card_global_fingerprint.into(),
         merchant_id: Some(response.merchant_id),
-        card_number: Some(response.card_number.into()),
+        card_number: response
+            .card_number
+            .try_into()
+            .into_report()
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Invalid card number format from the mock locker")
+            .map(Some)?,
         card_exp_year: Some(response.card_exp_year.into()),
         card_exp_month: Some(response.card_exp_month.into()),
         name_on_card: response.name_on_card.map(|c| c.into()),
@@ -656,7 +662,13 @@ pub async fn mock_get_card<'a>(
         card_fingerprint: locker_mock_up.card_fingerprint.into(),
         card_global_fingerprint: locker_mock_up.card_global_fingerprint.into(),
         merchant_id: Some(locker_mock_up.merchant_id),
-        card_number: Some(locker_mock_up.card_number.into()),
+        card_number: locker_mock_up
+            .card_number
+            .try_into()
+            .into_report()
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Invalid card number format from the mock locker")
+            .map(Some)?,
         card_exp_year: Some(locker_mock_up.card_exp_year.into()),
         card_exp_month: Some(locker_mock_up.card_exp_month.into()),
         name_on_card: locker_mock_up.name_on_card.map(|card| card.into()),
@@ -1666,11 +1678,7 @@ impl BasiliskCardSupport {
         card: api::CardDetailFromLocker,
         pm: &storage::PaymentMethod,
     ) -> errors::RouterResult<api::CardDetailFromLocker> {
-        let card_number = card
-            .card_number
-            .clone()
-            .expose_option()
-            .get_required_value("card_number")?;
+        let card_number = card.card_number.clone().get_required_value("card_number")?;
         let card_exp_month = card
             .expiry_month
             .clone()
@@ -1765,11 +1773,7 @@ impl BasiliskCardSupport {
         card: api::CardDetailFromLocker,
         pm: &storage::PaymentMethod,
     ) -> errors::RouterResult<api::CardDetailFromLocker> {
-        let card_number = card
-            .card_number
-            .clone()
-            .expose_option()
-            .get_required_value("card_number")?;
+        let card_number = card.card_number.clone().get_required_value("card_number")?;
         let card_exp_month = card
             .expiry_month
             .clone()

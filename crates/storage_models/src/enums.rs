@@ -319,6 +319,7 @@ pub enum EventObjectType {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    PaymentFailed,
     PaymentProcessing,
     ActionRequired,
     RefundSucceeded,
@@ -719,6 +720,24 @@ pub enum BankNames {
     VolksbankGruppe,
     VolkskreditbankAg,
     VrBankBraunau,
+    PlusBank,
+    EtransferPocztowy24,
+    BankiSpbdzielcze,
+    BankNowyBfgSa,
+    GetinBank,
+    Blik,
+    NoblePay,
+    IdeaBank,
+    EnveloBank,
+    NestPrzelew,
+    MbankMtransfer,
+    Inteligo,
+    PbacZIpko,
+    BnpParibas,
+    BankPekaoSa,
+    VolkswagenBank,
+    AliorBank,
+    Boz,
 }
 
 #[derive(
@@ -795,27 +814,4 @@ pub enum DisputeStatus {
     DisputeChallenged,
     DisputeWon,
     DisputeLost,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Default,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "text")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum FileUploadProvider {
-    #[default]
-    Router,
-    Stripe,
-    Checkout,
 }

@@ -1,10 +1,17 @@
-#![allow(clippy::expect_used, clippy::panic, clippy::unwrap_used)]
+#![allow(
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unwrap_in_result,
+    clippy::unwrap_used
+)]
 
 mod aci;
 mod adyen;
+mod adyen_ui;
 mod airwallex;
 mod authorizedotnet;
 mod bambora;
+mod bitpay;
 mod bluesnap;
 mod checkout;
 mod coinbase;
@@ -16,9 +23,12 @@ mod dummyconnector;
 mod fiserv;
 mod forte;
 mod globalpay;
+mod iatapay;
 mod mollie;
 mod multisafepay;
 mod nexinets;
+mod nmi;
+mod noon;
 mod nuvei;
 mod nuvei_ui;
 mod opennode;

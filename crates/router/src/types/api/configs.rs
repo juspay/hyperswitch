@@ -1,4 +1,4 @@
-#[derive(Clone, serde::Serialize, Debug)]
+#[derive(Clone, serde::Serialize, Debug, serde::Deserialize)]
 pub struct Config {
     pub key: String,
     pub value: String,

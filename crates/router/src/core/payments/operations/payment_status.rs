@@ -230,6 +230,14 @@ async fn get_tracker_for_sync<
             )
         })?;
 
+    let disputes = db
+        .find_disputes_by_merchant_id_payment_id(merchant_id, &payment_id_str)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!("Error while retrieving dispute list for, merchant_id: {merchant_id}, payment_id: {payment_id_str}")
+        })?;
+
     let contains_encoded_data = connector_response.encoded_data.is_some();
 
     let creds_identifier = request
@@ -253,7 +261,12 @@ async fn get_tracker_for_sync<
             currency,
             amount,
             email: None,
-            mandate_id: None,
+            mandate_id: payment_attempt.mandate_id.clone().map(|id| {
+                api_models::payments::MandateIds {
+                    mandate_id: id,
+                    mandate_reference_id: None,
+                }
+            }),
             setup_mandate: None,
             token: None,
             address: PaymentAddress {
@@ -271,6 +284,7 @@ async fn get_tracker_for_sync<
             ),
             payment_attempt,
             refunds,
+            disputes,
             sessions_token: vec![],
             card_cvc: None,
             creds_identifier,

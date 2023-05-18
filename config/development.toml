@@ -57,6 +57,7 @@ cards = [
     "airwallex",
     "authorizedotnet",
     "bambora",
+    "bitpay",
     "bluesnap",
     "braintree",
     "checkout",
@@ -67,9 +68,12 @@ cards = [
     "fiserv",
     "forte",
     "globalpay",
+    "iatapay",
     "mollie",
     "multisafepay",
     "nexinets",
+    "nmi",
+    "noon",
     "nuvei",
     "opennode",
     "payeezy",
@@ -103,6 +107,7 @@ airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
+bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
 checkout.base_url = "https://api.sandbox.checkout.com/"
@@ -113,10 +118,13 @@ dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
+iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 nexinets.base_url = "https://apitest.payengine.de/v1"
+nmi.base_url = "https://secure.nmi.com/"
+noon.base_url = "https://api-test.noonpayments.com/"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
@@ -140,6 +148,11 @@ stream = "SCHEDULER_STREAM"
 [scheduler.consumer]
 disabled = false
 consumer_group = "SCHEDULER_GROUP"
+
+[email]
+from_email = "notify@example.com"
+aws_region = ""
+base_url = ""
 
 [bank_config.eps]
 stripe = { banks = "arzte_und_apotheker_bank,austrian_anadi_bank_ag,bank_austria,bankhaus_carl_spangler,bankhaus_schelhammer_und_schattera_ag,bawag_psk_ag,bks_bank_ag,brull_kallmus_bank_ag,btv_vier_lander_bank,capital_bank_grawe_gruppe_ag,dolomitenbank,easybank_ag,erste_bank_und_sparkassen,hypo_alpeadriabank_international_ag,hypo_noe_lb_fur_niederosterreich_u_wien,hypo_oberosterreich_salzburg_steiermark,hypo_tirol_bank_ag,hypo_vorarlberg_bank_ag,hypo_bank_burgenland_aktiengesellschaft,marchfelder_bank,oberbank_ag,raiffeisen_bankengruppe_osterreich,schoellerbank_ag,sparda_bank_wien,volksbank_gruppe,volkskreditbank_ag,vr_bank_braunau" }
@@ -226,7 +239,7 @@ debit = { currency = "USD" }
 
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
-checkout = { long_lived_token = false, payment_method = "wallet"}
+checkout = { long_lived_token = false, payment_method = "wallet" }
 
 [connector_customer]
 connector_list = "bluesnap,stripe"
@@ -235,3 +248,10 @@ connector_list = "bluesnap,stripe"
 payment_ttl = 172800
 payment_duration = 1000
 payment_tolerance = 100
+payment_retrieve_duration = 500
+payment_retrieve_tolerance = 100
+refund_ttl = 172800
+refund_duration = 1000
+refund_tolerance = 100
+refund_retrieve_duration = 500
+refund_retrieve_tolerance = 100

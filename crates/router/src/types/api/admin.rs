@@ -22,7 +22,6 @@ impl ForeignTryFrom<storage::MerchantAccount> for MerchantAccountResponse {
         Ok(Self {
             merchant_id: item.merchant_id,
             merchant_name: item.merchant_name,
-            api_key: item.api_key,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
             payment_response_hash_key: item.payment_response_hash_key,
@@ -36,6 +35,7 @@ impl ForeignTryFrom<storage::MerchantAccount> for MerchantAccountResponse {
             metadata: item.metadata,
             locker_id: item.locker_id,
             primary_business_details,
+            frm_routing_algorithm: item.frm_routing_algorithm,
             intent_fulfillment_time: item.intent_fulfillment_time,
         })
     }

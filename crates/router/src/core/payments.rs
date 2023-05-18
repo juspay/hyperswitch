@@ -89,6 +89,7 @@ where
             &merchant_account,
         )
         .await?;
+
     authenticate_client_secret(
         req.get_client_secret(),
         &payment_data.payment_intent,
@@ -765,10 +766,18 @@ where
 {
     let connector = payment_data.payment_attempt.connector.to_owned();
 
+    let is_mandate = payment_data
+        .mandate_id
+        .as_ref()
+        .and_then(|inner| inner.mandate_reference_id.as_ref())
+        .map(|mandate_reference| match mandate_reference {
+            api_models::payments::MandateReferenceId::ConnectorMandateId(_) => true,
+            api_models::payments::MandateReferenceId::NetworkMandateId(_) => false,
+        })
+        .unwrap_or(false);
+
     let payment_data_and_tokenization_action = match connector {
-        Some(_) if payment_data.mandate_id.is_some() => {
-            (payment_data, TokenizationAction::SkipConnectorTokenization)
-        }
+        Some(_) if is_mandate => (payment_data, TokenizationAction::SkipConnectorTokenization),
         Some(connector) if is_operation_confirm(&operation) => {
             let payment_method = &payment_data
                 .payment_attempt
@@ -871,6 +880,7 @@ where
     pub force_sync: Option<bool>,
     pub payment_method_data: Option<api::PaymentMethodData>,
     pub refunds: Vec<storage::Refund>,
+    pub disputes: Vec<storage::Dispute>,
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<Secret<String>>,
     pub email: Option<Email>,

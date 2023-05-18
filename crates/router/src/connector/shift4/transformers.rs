@@ -1,4 +1,5 @@
 use api_models::payments;
+use cards::CardNumber;
 use common_utils::pii::SecretSerdeValue;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
@@ -30,7 +31,7 @@ pub struct Shift43DSRequest {
     amount: String,
     currency: String,
     #[serde(rename = "card[number]")]
-    pub card_number: Secret<String, common_utils::pii::CardNumber>,
+    pub card_number: CardNumber,
     #[serde(rename = "card[expMonth]")]
     pub card_exp_month: Secret<String>,
     #[serde(rename = "card[expYear]")]
@@ -96,7 +97,7 @@ pub struct DeviceData;
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    pub number: Secret<String, common_utils::pii::CardNumber>,
+    pub number: CardNumber,
     pub exp_month: Secret<String>,
     pub exp_year: Secret<String>,
     pub cardholder_name: Secret<String>,

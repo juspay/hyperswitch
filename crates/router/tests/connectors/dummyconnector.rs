@@ -1,3 +1,6 @@
+use std::str::FromStr;
+
+use cards::CardNumber;
 use masking::Secret;
 use router::types::{self, api, storage::enums};
 
@@ -13,8 +16,8 @@ impl utils::Connector for DummyConnectorTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::DummyConnector;
         types::api::ConnectorData {
-            connector: Box::new(&DummyConnector),
-            connector_name: types::Connector::DummyConnector,
+            connector: Box::new(&DummyConnector::<1>),
+            connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
         }
     }
@@ -303,7 +306,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("1234567891011".to_string()),
+                    card_number: CardNumber::from_str("1234567891011").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -315,29 +318,6 @@ async fn should_fail_payment_for_incorrect_card_number() {
     assert_eq!(
         response.response.unwrap_err().message,
         "Your card number is incorrect.".to_string(),
-    );
-}
-
-// Creates a payment with empty card number.
-#[actix_web::test]
-async fn should_fail_payment_for_empty_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    let x = response.response.unwrap_err();
-    assert_eq!(
-        x.message,
-        "You passed an empty string for 'payment_method_data[card][number]'.",
     );
 }
 

@@ -3,8 +3,9 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use super::enums::{DisputeStage, DisputeStatus};
+use crate::files;
 
-#[derive(Default, Clone, Debug, Serialize, ToSchema)]
+#[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
 pub struct DisputeResponse {
     /// The identifier for dispute
     pub dispute_id: String,
@@ -35,12 +36,67 @@ pub struct DisputeResponse {
     pub challenge_required_by: Option<PrimitiveDateTime>,
     /// Dispute created time sent by connector
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub created_at: Option<PrimitiveDateTime>,
+    pub connector_created_at: Option<PrimitiveDateTime>,
     /// Dispute updated time sent by connector
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub updated_at: Option<PrimitiveDateTime>,
+    pub connector_updated_at: Option<PrimitiveDateTime>,
     /// Time at which dispute is received
-    pub received_at: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+}
+
+#[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
+pub struct DisputeResponsePaymentsRetrieve {
+    /// The identifier for dispute
+    pub dispute_id: String,
+    /// Stage of the dispute
+    pub dispute_stage: DisputeStage,
+    /// Status of the dispute
+    pub dispute_status: DisputeStatus,
+    /// Status of the dispute sent by connector
+    pub connector_status: String,
+    /// Dispute id sent by connector
+    pub connector_dispute_id: String,
+    /// Reason of dispute sent by connector
+    pub connector_reason: Option<String>,
+    /// Reason code of dispute sent by connector
+    pub connector_reason_code: Option<String>,
+    /// Evidence deadline of dispute sent by connector
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub challenge_required_by: Option<PrimitiveDateTime>,
+    /// Dispute created time sent by connector
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub connector_created_at: Option<PrimitiveDateTime>,
+    /// Dispute updated time sent by connector
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub connector_updated_at: Option<PrimitiveDateTime>,
+    /// Time at which dispute is received
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+}
+
+#[derive(Debug, Serialize, strum::Display, Clone)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum EvidenceType {
+    CancellationPolicy,
+    CustomerCommunication,
+    CustomerSignature,
+    Receipt,
+    RefundPolicy,
+    ServiceDocumentation,
+    ShippingDocumentation,
+    InvoiceShowingDistinctTransactions,
+    RecurringTransactionAgreement,
+    UncategorizedFile,
+}
+
+#[derive(Clone, Debug, Serialize, ToSchema)]
+pub struct DisputeEvidenceBlock {
+    /// Evidence type
+    pub evidence_type: EvidenceType,
+    /// File metadata
+    pub file_metadata_response: files::FileMetadataResponse,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]

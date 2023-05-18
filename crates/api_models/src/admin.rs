@@ -1,5 +1,5 @@
 use common_utils::pii;
-use masking::{Secret, StrongSecret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url;
 use utoipa::ToSchema;
@@ -17,10 +17,6 @@ pub struct MerchantAccountCreate {
     /// Name of the Merchant Account
     #[schema(example = "NewAge Retailer")]
     pub merchant_name: Option<String>,
-
-    /// API key that will be used for server side API access
-    #[schema(value_type = Option<String>, example = "Ah2354543543523")]
-    pub api_key: Option<StrongSecret<String>>,
 
     /// Merchant related details
     pub merchant_details: Option<MerchantDetails>,
@@ -75,6 +71,11 @@ pub struct MerchantAccountCreate {
     #[cfg(not(feature = "multiple_mca"))]
     #[schema(value_type = Option<PrimaryBusinessDetails>)]
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
+
+    /// The frm routing algorithm to be used for routing payments to desired FRM's
+    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
+    pub frm_routing_algorithm: Option<serde_json::Value>,
+
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
     #[schema(example = 900)]
@@ -140,6 +141,10 @@ pub struct MerchantAccountUpdate {
     ///Default business details for connector routing
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
 
+    /// The frm routing algorithm to be used for routing payments to desired FRM's
+    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
+    pub frm_routing_algorithm: Option<serde_json::Value>,
+
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
     pub intent_fulfillment_time: Option<u32>,
@@ -154,10 +159,6 @@ pub struct MerchantAccountResponse {
     /// Name of the Merchant Account
     #[schema(example = "NewAge Retailer")]
     pub merchant_name: Option<String>,
-
-    /// API key that will be used for server side API access
-    #[schema(value_type = Option<String>, example = "Ah2354543543523")]
-    pub api_key: Option<StrongSecret<String>>,
 
     /// The URL to redirect after the completion of the operation
     #[schema(max_length = 255, example = "https://www.example.com/success")]
@@ -209,6 +210,10 @@ pub struct MerchantAccountResponse {
     ///Default business details for connector routing
     #[schema(value_type = Vec<PrimaryBusinessDetails>)]
     pub primary_business_details: Vec<PrimaryBusinessDetails>,
+
+    /// The frm routing algorithm to be used to process the incoming request from merchant to outgoing payment FRM.
+    #[schema(value_type = Option<RoutingAlgorithm>, max_length = 255, example = r#"{"type": "single", "data": "stripe" }"#)]
+    pub frm_routing_algorithm: Option<serde_json::Value>,
 
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
