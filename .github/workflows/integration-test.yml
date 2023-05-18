@@ -94,4 +94,4 @@ jobs:
       #     args: test_api
 
       - name: Cargo integration tests
-        run: cargo test test_api
+        run: cargo test --package router --test integ_test -- test_api
