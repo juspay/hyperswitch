@@ -685,7 +685,7 @@ impl
         match &req.request.payment_method_data {
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data.deref() {
-                    api_models::payments::BankTransferData::AchBankTransfer(_) => {
+                    api_models::payments::BankTransferData::AchBankTransfer { .. } => {
                         Ok(format!("{}{}", self.base_url(connectors), "v1/charges"))
                     }
                     _ => Ok(format!(
@@ -1685,9 +1685,6 @@ impl api::IncomingWebhook for Stripe {
             }
             stripe::WebhookEventType::SourceChargeable => {
                 api::IncomingWebhookEvent::SourceChargeable
-            }
-            stripe::WebhookEventType::SourceTransactionCreated => {
-                api::IncomingWebhookEvent::SourceTransactionCreated
             }
             stripe::WebhookEventType::ChargeSucceeded => api::IncomingWebhookEvent::ChargeSucceeded,
             stripe::WebhookEventType::DisputeCreated => api::IncomingWebhookEvent::DisputeOpened,

@@ -57,27 +57,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        payment_intent.setup_future_usage = request
-            .setup_future_usage
-            .map(ForeignInto::foreign_into)
-            .or(payment_intent.setup_future_usage);
-
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
             &[
-                storage_enums::IntentStatus::Failed,
+                storage_enums::IntentStatus::Cancelled,
                 storage_enums::IntentStatus::Succeeded,
+                storage_enums::IntentStatus::Processing,
+                storage_enums::IntentStatus::RequiresCapture,
+                storage_enums::IntentStatus::RequiresMerchantAction,
             ],
             "confirm",
         )?;
-
-        let (token, payment_method, setup_mandate) = helpers::get_token_pm_type_mandate_details(
-            state,
-            request,
-            mandate_type.clone(),
-            merchant_account,
-        )
-        .await?;
 
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -88,6 +78,32 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        let attempt_type =
+            helpers::get_attempt_type(&payment_intent, &payment_attempt, request, "confirm")?;
+
+        (payment_intent, payment_attempt) = attempt_type
+            .modify_payment_intent_and_payment_attempt(
+                request,
+                payment_intent,
+                payment_attempt,
+                db,
+                storage_scheme,
+            )
+            .await?;
+
+        payment_intent.setup_future_usage = request
+            .setup_future_usage
+            .map(ForeignInto::foreign_into)
+            .or(payment_intent.setup_future_usage);
+
+        let (token, payment_method, setup_mandate) = helpers::get_token_pm_type_mandate_details(
+            state,
+            request,
+            mandate_type.clone(),
+            merchant_account,
+        )
+        .await?;
 
         let browser_info = request
             .browser_info
@@ -121,6 +137,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .map(|experience| experience.foreign_into())
             .or(payment_attempt.payment_experience);
 
+        payment_attempt.capture_method = request
+            .capture_method
+            .or(payment_attempt.capture_method.map(|cm| cm.foreign_into()))
+            .map(|cm| cm.foreign_into());
+
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.amount.into();
 
@@ -151,15 +172,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )
         .await?;
 
-        connector_response = db
-            .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                &payment_attempt.payment_id,
-                &payment_attempt.merchant_id,
-                &payment_attempt.attempt_id,
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        connector_response = attempt_type
+            .get_connector_response(&payment_attempt, db, storage_scheme)
+            .await?;
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);

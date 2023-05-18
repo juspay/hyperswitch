@@ -3,6 +3,9 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs, missing_debug_implementations)]
 
+#[cfg(feature = "email")]
+pub mod email;
+
 #[cfg(feature = "kms")]
 pub mod kms;
 

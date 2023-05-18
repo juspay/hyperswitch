@@ -100,5 +100,8 @@ pub enum OutgoingWebhookContent {
     DisputeDetails(Box<disputes::DisputeResponse>),
 }
 
-pub trait OutgoingWebhookType: Serialize + From<OutgoingWebhook> + Sync + Send {}
+pub trait OutgoingWebhookType:
+    Serialize + From<OutgoingWebhook> + Sync + Send + std::fmt::Debug
+{
+}
 impl OutgoingWebhookType for OutgoingWebhook {}

@@ -263,10 +263,16 @@ fn get_bank_name(
                 },
             )?)?,
         })),
-        (StripePaymentMethodType::Sofort | StripePaymentMethodType::Giropay, _) => Ok(None),
+        (
+            StripePaymentMethodType::Sofort
+            | StripePaymentMethodType::Giropay
+            | StripePaymentMethodType::Bancontact,
+            _,
+        ) => Ok(None),
         _ => Err(errors::ConnectorError::MismatchedPaymentData),
     }
 }
+
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeBankRedirectData {
     #[serde(rename = "payment_method_types[]")]
@@ -388,15 +394,6 @@ pub struct BankTransferData {
     pub email: Email,
 }
 
-// #[derive(Debug, Eq, PartialEq, Serialize)]
-// pub struct StripeAchSourceRequest {
-//     #[serde(rename = "type")]
-//     pub transfer_type: StripePaymentMethodType,
-//     #[serde(rename = "owner[email]")]
-//     pub email: Email,
-//     pub currency: String,
-// }
-
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum StripeBankTransferData {
@@ -492,6 +489,7 @@ pub enum StripePaymentMethodType {
     Becs,
     #[serde(rename = "bacs_debit")]
     Bacs,
+    Bancontact,
     #[serde(rename = "wechat_pay")]
     Wechatpay,
     Alipay,
@@ -737,6 +735,10 @@ fn infer_stripe_bank_redirect_issuer(
         Some(storage_models::enums::PaymentMethodType::Sofort) => {
             Ok(StripePaymentMethodType::Sofort)
         }
+
+        Some(storage_models::enums::PaymentMethodType::BancontactCard) => {
+            Ok(StripePaymentMethodType::Bancontact)
+        }
         Some(storage_models::enums::PaymentMethodType::Przelewy24) => {
             Ok(StripePaymentMethodType::Przelewy24)
         }
@@ -842,7 +844,19 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             payments::BankRedirectData::Przelewy24 {
                 billing_details, ..
             } => Ok(Self {
-                email: Some(billing_details.email.clone()),
+                email: billing_details.email.clone(),
+                ..Self::default()
+            }),
+            payments::BankRedirectData::BancontactCard {
+                billing_details, ..
+            } => Ok(Self {
+                name: billing_details
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "bancontact_card.billing_name",
+                    })?
+                    .billing_name
+                    .clone(),
                 ..Self::default()
             }),
             _ => Ok(Self::default()),
@@ -914,6 +928,7 @@ fn get_bank_debit_data(
             billing_details,
             account_number,
             sort_code,
+            ..
         } => {
             let bacs_data = BankDebitData::Bacs {
                 account_number: account_number.to_owned(),
@@ -986,6 +1001,7 @@ fn create_stripe_payment_method(
             let pm_type = infer_stripe_bank_redirect_issuer(pm_type)?;
             let bank_specific_data = get_bank_specific_data(bank_redirect_data);
             let bank_name = get_bank_name(&pm_type, bank_redirect_data)?;
+
             Ok((
                 StripePaymentMethodData::BankRedirect(StripeBankRedirectData {
                     payment_method_types: pm_type,
@@ -1055,36 +1071,39 @@ fn create_stripe_payment_method(
         }
         payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
             match bank_transfer_data.deref() {
-                payments::BankTransferData::AchBankTransfer(ach_bank_transfer_data) => Ok((
+                payments::BankTransferData::AchBankTransfer { billing_details } => Ok((
                     StripePaymentMethodData::BankTransfer(StripeBankTransferData::AchBankTransfer(
                         AchBankTransferData {
-                            email: ach_bank_transfer_data.billing_details.email.to_owned(),
+                            email: billing_details.email.to_owned(),
                         },
                     )),
                     StripePaymentMethodType::AchCreditTransfer,
                     StripeBillingAddress::default(),
                 )),
-                payments::BankTransferData::SepaBankTransfer(sepa_bank_transfer_data) => Ok((
+                payments::BankTransferData::SepaBankTransfer {
+                    billing_details,
+                    country,
+                } => Ok((
                     StripePaymentMethodData::BankTransfer(
                         StripeBankTransferData::SepaBankTransfer(SepaBankTransferData {
                             payment_method_data_type: StripePaymentMethodType::CustomerBalance,
-                            email: sepa_bank_transfer_data.billing_details.email.to_owned(),
-                            name: sepa_bank_transfer_data.billing_details.name.to_owned(),
+                            email: billing_details.email.to_owned(),
+                            name: billing_details.name.to_owned(),
                             bank_transfer_type: BankTransferType::EuBankTransfer,
                             balance_funding_type: BankTransferType::BankTransfers,
                             payment_method_type: StripePaymentMethodType::CustomerBalance,
-                            country: sepa_bank_transfer_data.country.to_owned(),
+                            country: country.to_owned(),
                         }),
                     ),
                     StripePaymentMethodType::CustomerBalance,
                     StripeBillingAddress::default(),
                 )),
-                payments::BankTransferData::BacsBankTransfer(bacs_bank_transfer_data) => Ok((
+                payments::BankTransferData::BacsBankTransfer { billing_details } => Ok((
                     StripePaymentMethodData::BankTransfer(
                         StripeBankTransferData::BacsBankTransfers(BacsBankTransferData {
                             payment_method_data_type: StripePaymentMethodType::CustomerBalance,
-                            email: bacs_bank_transfer_data.billing_details.email.to_owned(),
-                            name: bacs_bank_transfer_data.billing_details.name.to_owned(),
+                            email: billing_details.email.to_owned(),
+                            name: billing_details.name.to_owned(),
                             bank_transfer_type: BankTransferType::GbBankTransfer,
                             balance_funding_type: BankTransferType::BankTransfers,
                             payment_method_type: StripePaymentMethodType::CustomerBalance,
@@ -1353,6 +1372,7 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
             StripePaymentStatus::Failed => Self::Failure,
             StripePaymentStatus::Processing => Self::Authorizing,
             StripePaymentStatus::RequiresCustomerAction => Self::AuthenticationPending,
+            // Make the payment attempt status as failed
             StripePaymentStatus::RequiresPaymentMethod => Self::Failure,
             StripePaymentStatus::RequiresConfirmation => Self::ConfirmationAwaited,
             StripePaymentStatus::Canceled => Self::Voided,
@@ -1399,7 +1419,7 @@ pub struct StripeSourceResponse {
 pub struct AchCreditTransferResponse {
     pub account_number: Secret<String>,
     pub bank_name: Secret<String>,
-    pub routing_number: String,
+    pub routing_number: Secret<String>,
     pub swift_code: Secret<String>,
 }
 
@@ -1542,6 +1562,7 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
                 | StripePaymentMethodOptions::WechatPay {}
                 | StripePaymentMethodOptions::Alipay {}
                 | StripePaymentMethodOptions::Sepa {}
+                | StripePaymentMethodOptions::Bancontact {}
                 | StripePaymentMethodOptions::Przelewy24 {}
                 | StripePaymentMethodOptions::CustomerBalance {} => None,
             }),
@@ -2071,6 +2092,7 @@ pub enum StripePaymentMethodOptions {
     Becs {},
     #[serde(rename = "bacs_debit")]
     Bacs {},
+    Bancontact {},
     WechatPay {},
     Alipay {},
     #[serde(rename = "p24")]
@@ -2511,32 +2533,33 @@ impl
             }
             api::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data.deref() {
-                    payments::BankTransferData::AchBankTransfer(ach_bank_transfer_data) => {
+                    payments::BankTransferData::AchBankTransfer { billing_details } => {
                         Ok(Self::BankTransfer(StripeBankTransferData::AchBankTransfer(
                             AchBankTransferData {
-                                email: ach_bank_transfer_data.billing_details.email.to_owned(),
+                                email: billing_details.email.to_owned(),
                             },
                         )))
                     }
-                    payments::BankTransferData::SepaBankTransfer(sepa_bank_transfer_data) => {
-                        Ok(Self::BankTransfer(
-                            StripeBankTransferData::SepaBankTransfer(SepaBankTransferData {
-                                payment_method_data_type: StripePaymentMethodType::CustomerBalance,
-                                email: sepa_bank_transfer_data.billing_details.email.to_owned(),
-                                name: sepa_bank_transfer_data.billing_details.name.to_owned(),
-                                bank_transfer_type: BankTransferType::EuBankTransfer,
-                                balance_funding_type: BankTransferType::BankTransfers,
-                                payment_method_type: StripePaymentMethodType::CustomerBalance,
-                                country: sepa_bank_transfer_data.country.to_owned(),
-                            }),
-                        ))
-                    }
-                    payments::BankTransferData::BacsBankTransfer(bacs_bank_transfer_data) => {
+                    payments::BankTransferData::SepaBankTransfer {
+                        billing_details,
+                        country,
+                    } => Ok(Self::BankTransfer(
+                        StripeBankTransferData::SepaBankTransfer(SepaBankTransferData {
+                            payment_method_data_type: StripePaymentMethodType::CustomerBalance,
+                            email: billing_details.email.to_owned(),
+                            name: billing_details.name.to_owned(),
+                            bank_transfer_type: BankTransferType::EuBankTransfer,
+                            balance_funding_type: BankTransferType::BankTransfers,
+                            payment_method_type: StripePaymentMethodType::CustomerBalance,
+                            country: country.to_owned(),
+                        }),
+                    )),
+                    payments::BankTransferData::BacsBankTransfer { billing_details } => {
                         Ok(Self::BankTransfer(
                             StripeBankTransferData::BacsBankTransfers(BacsBankTransferData {
                                 payment_method_data_type: StripePaymentMethodType::CustomerBalance,
-                                email: bacs_bank_transfer_data.billing_details.email.to_owned(),
-                                name: bacs_bank_transfer_data.billing_details.name.to_owned(),
+                                email: billing_details.email.to_owned(),
+                                name: billing_details.name.to_owned(),
                                 bank_transfer_type: BankTransferType::GbBankTransfer,
                                 balance_funding_type: BankTransferType::BankTransfers,
                                 payment_method_type: StripePaymentMethodType::CustomerBalance,
@@ -2567,7 +2590,7 @@ pub fn get_bank_transfer_request_data(
     bank_transfer_data: &api_models::payments::BankTransferData,
 ) -> CustomResult<Option<String>, errors::ConnectorError> {
     match bank_transfer_data {
-        api_models::payments::BankTransferData::AchBankTransfer(_) => {
+        api_models::payments::BankTransferData::AchBankTransfer { .. } => {
             let req = ChargesRequest::try_from(req)?;
             let request = utils::Encode::<ChargesRequest>::url_encode(&req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -2588,7 +2611,7 @@ pub fn get_bank_transfer_authorize_response(
     bank_transfer_data: &api_models::payments::BankTransferData,
 ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
     match bank_transfer_data {
-        api_models::payments::BankTransferData::AchBankTransfer(_) => {
+        api_models::payments::BankTransferData::AchBankTransfer { .. } => {
             let response: ChargesResponse = res
                 .response
                 .parse_struct("ChargesResponse")
