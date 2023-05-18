@@ -1,68 +1,40 @@
 use std::collections::{HashMap, HashSet};
 
-use syn::{self, parse_quote};
+use syn::{self, parse_quote, punctuated::Punctuated, Token};
 
-/// For a field, return the schemas where this field has to be marked as mandatory
-fn get_ident_from_attr(tokens: proc_macro2::TokenStream) -> Vec<syn::Ident> {
-    tokens
-        .into_iter()
-        .filter_map(|token| {
-            if let proc_macro2::TokenTree::Group(token_group) = token {
-                // Filter out punctuation marks
-                let res = token_group
-                    .stream()
-                    .into_iter()
-                    .filter_map(|token| {
-                        if let proc_macro2::TokenTree::Ident(ident) = token {
-                            Some(ident)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                Some(res)
-            } else {
-                None
-            }
-        })
-        .flatten()
-        .collect::<Vec<_>>()
-}
-
-/// Parse schemas from #[mandatory_in] attribute
+/// Parse schemas from attribute
 /// Example
 ///
 /// #[mandatory_in(PaymentsCreateRequest, PaymentsUpdateRequest)]
 /// would return
 ///
 /// [PaymentsCreateRequest, PaymentsUpdateRequest]
-fn get_schemas_to_create(attributes: Vec<syn::Attribute>) -> syn::Result<Vec<syn::Ident>> {
-    let attributes = attributes
-        .iter()
-        .filter(|attribute| {
-            attribute
-                .path
-                .segments
-                .first()
-                .map(|path_segment| path_segment.ident.to_string().eq("generate_schemas"))
-                .unwrap_or(false)
-        })
-        .flat_map(|attribute| get_ident_from_attr(attribute.tokens.to_owned()))
-        .collect::<Vec<_>>();
-
-    if attributes.is_empty() {
-        Err(syn::Error::new(
-            proc_macro2::Span::call_site(),
-            "At least one schema has to be passed in #[generate_schemas]",
-        ))?
-    } else {
-        Ok(attributes)
-    }
+fn get_inner_path_ident(attribute: &syn::Attribute) -> syn::Result<Vec<syn::Ident>> {
+    Ok(attribute
+        .parse_args_with(Punctuated::<syn::Ident, Token!(,)>::parse_terminated)?
+        .into_iter()
+        .collect::<Vec<_>>())
 }
 
-fn get_struct_fields(
-    data: syn::Data,
-) -> syn::Result<syn::punctuated::Punctuated<syn::Field, syn::token::Comma>> {
+fn get_schemas_to_create(attributes: Vec<syn::Attribute>) -> syn::Result<Vec<syn::Ident>> {
+    let generate_schema_attribute = attributes
+        .into_iter()
+        .find(|attribute| {
+            attribute
+                .path
+                .get_ident()
+                .map(|ident| ident.to_string().eq("generate_schemas"))
+                .unwrap_or(false)
+        })
+        .ok_or(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "At least one schema has to be passed in #[generate_schemas]",
+        ))?;
+
+    get_inner_path_ident(&generate_schema_attribute)
+}
+
+fn get_struct_fields(data: syn::Data) -> syn::Result<Punctuated<syn::Field, syn::token::Comma>> {
     if let syn::Data::Struct(syn::DataStruct {
         fields: syn::Fields::Named(syn::FieldsNamed { ref named, .. }),
         ..
@@ -75,6 +47,17 @@ fn get_struct_fields(
             "This macro cannot be used on structs with no fields",
         ))
     }
+}
+
+fn check_if_attribute_ident_matches_given_ident_string(
+    attribute: &syn::Attribute,
+    idnet_name: &str,
+) -> bool {
+    attribute
+        .path
+        .get_ident()
+        .map(|path_ident| path_ident.to_string().eq(idnet_name))
+        .unwrap_or(false)
 }
 
 pub fn polymorphic_macro_derive_inner(
@@ -100,28 +83,15 @@ pub fn polymorphic_macro_derive_inner(
         // Rest of the attributes ( include only the schema attribute, serde is not required)
         let (mandatory_attribute, other_attributes) =
             field.attrs.iter().partition::<Vec<_>, _>(|attribute| {
-                attribute
-                    .path
-                    .segments
-                    .clone()
-                    .into_iter()
-                    .any(|path_segment| path_segment.ident.to_string().eq("mandatory_in"))
+                check_if_attribute_ident_matches_given_ident_string(attribute, "mandatory_in")
             });
 
         // Other attributes ( schema ) are to be printed as is
         other_attributes
             .iter()
             .filter(|attribute| {
-                attribute
-                    .path
-                    .segments
-                    .clone()
-                    .into_iter()
-                    .any(|path_segment| {
-                        // Include the #schema and doc attribute
-                        path_segment.ident.to_string().eq("schema")
-                            || path_segment.ident.to_string().eq("doc")
-                    })
+                check_if_attribute_ident_matches_given_ident_string(attribute, "schema")
+                    || check_if_attribute_ident_matches_given_ident_string(attribute, "doc")
             })
             .for_each(|attribute| {
                 // Since attributes will be modified, the field should not contain any attributes
@@ -141,17 +111,19 @@ pub fn polymorphic_macro_derive_inner(
         // (PaymentsConfirmRequest, "currency")
         //
         // For these attributes, we need to later add #[schema(required = true)] attribute
-        mandatory_attribute
+        _ = mandatory_attribute
             .iter()
             // Filter only #[mandatory_in] attributes
-            .map(|attribute| get_ident_from_attr(attribute.tokens.to_owned()))
-            .for_each(|schemas| {
+            .map(|&attribute| get_inner_path_ident(attribute))
+            .try_for_each(|schemas| {
                 let res = schemas
+                    .map_err(|error| syn::Error::new(proc_macro2::Span::call_site(), error))?
                     .iter()
                     .filter_map(|schema| field.ident.to_owned().zip(Some(schema.to_owned())))
                     .collect::<HashSet<_>>();
 
                 mandatory_hashset.extend(res);
+                Ok::<_, syn::Error>(())
             });
     });
 
