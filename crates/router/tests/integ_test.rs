@@ -33,14 +33,13 @@ fn get_master_data() -> MasterData{
 
 
 #[actix_web::test]
-#[allow(warnings)]
 async fn test_api() -> Result<(), Box<dyn std::error::Error>> {
   let mut master_data = get_master_data();
   let server = mk_service_with_db().await;
-  execute_merchant_account_create_test(&mut master_data,&server);
-  execute_api_key_create_tests(&mut master_data,&server);
-  execute_connector_create_test(&mut master_data,&server);
-  execute_payment_create_test(&mut master_data,&server);
+  execute_merchant_account_create_test(&mut master_data,&server).await;
+  execute_api_key_create_tests(&mut master_data,&server).await;
+  execute_connector_create_test(&mut master_data,&server).await;
+  execute_payment_create_test(&mut master_data,&server).await;
   
   println!("{:?}",master_data);
   Ok(())
