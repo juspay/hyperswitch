@@ -50,7 +50,6 @@ split_commits = false
 # regex for preprocessing the commit messages
 commit_preprocessors = [
     { pattern = " +", replace = " " }, # replace multiple spaces with a single space
-    { pattern = "^([a-zA-Z]+(\\([a-zA-Z]+\\))?) *:", replace = "${1}:" }, # remove spaces after group and optional scope
     { pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/juspay/hyperswitch/pull/${1}))" }, # replace PR numbers with links
     { pattern = "(\\n?Co-authored-by: .+ <.+@.+>\\n?)+", replace = "" }, # remove co-author information
     { pattern = "(\\n?Signed-off-by: .+ <.+@.+>\\n?)+", replace = "" }, # remove sign-off information
@@ -59,16 +58,16 @@ commit_preprocessors = [
 # the HTML comments (`<!-- N -->`) are a workaround to get sections in custom order, since `git-cliff` sorts sections in alphabetical order
 # reference: https://github.com/orhun/git-cliff/issues/9
 commit_parsers = [
-    { message = "^(?i)(feat|enhance|enhan)", group = "<!-- 0 -->Features" },
-    { message = "^(?i)(fix|bugfix)", group = "<!-- 1 -->Bug Fixes" },
+    { message = "^(?i)(feat)", group = "<!-- 0 -->Features" },
+    { message = "^(?i)(fix)", group = "<!-- 1 -->Bug Fixes" },
     { message = "^(?i)(perf)", group = "<!-- 2 -->Performance" },
     { body = ".*security", group = "<!-- 3 -->Security" },
     { message = "^(?i)(refactor)", group = "<!-- 4 -->Refactors" },
     { message = "^(?i)(test)", group = "<!-- 5 -->Testing" },
-    { message = "^(?i)(doc)", group = "<!-- 6 -->Documentation" },
+    { message = "^(?i)(docs)", group = "<!-- 6 -->Documentation" },
     { message = "^(?i)(chore\\(release\\)): prepare for", skip = true },
     { message = "^(?i)(chore)", group = "<!-- 7 -->Miscellaneous Tasks" },
-    { message = "^(?i)(build|deps)", group = "<!-- 8 -->Build System / Dependencies" },
+    { message = "^(?i)(build)", group = "<!-- 8 -->Build System / Dependencies" },
     { message = "^(?i)(ci)", skip = true },
 ]
 # protect breaking changes from being skipped due to matching a skipping commit_parser

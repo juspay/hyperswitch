@@ -55,7 +55,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     >
 {
     async fn decide_flows<'a>(
-        self,
+        mut self,
         state: &AppState,
         connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
@@ -84,7 +84,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
 
 impl types::PaymentsCompleteAuthorizeRouterData {
     pub async fn decide_flow<'a, 'b>(
-        &'b self,
+        &'b mut self,
         state: &'a AppState,
         connector: &api::ConnectorData,
         _maybe_customer: &Option<storage::Customer>,

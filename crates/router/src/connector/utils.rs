@@ -159,6 +159,16 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     }
 }
 
+pub trait PaymentsPreProcessingData {
+    fn get_email(&self) -> Result<Email, Error>;
+}
+
+impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+}
+
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;

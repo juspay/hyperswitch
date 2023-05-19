@@ -365,6 +365,8 @@ impl Mandates {
 
         #[cfg(feature = "olap")]
         {
+            route =
+                route.service(web::resource("/list").route(web::get().to(retrieve_mandates_list)));
             route = route.service(web::resource("/{id}").route(web::get().to(get_mandate)));
         }
         #[cfg(feature = "oltp")]
