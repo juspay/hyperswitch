@@ -112,7 +112,6 @@ impl ConnectorCommon for Cybersource {
                     .map_or(consts::NO_ERROR_MESSAGE.to_string(), |message| message),
             ),
         };
-        println!("code: {}, message: {}", code, message);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code,
