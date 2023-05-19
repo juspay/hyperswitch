@@ -78,14 +78,18 @@ impl ConnectorCommon for Checkout {
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = if res.response.is_empty() {
+            let (error_codes, error_type) = if res.status_code == 401 || res.status_code == 422 {
+                (
+                    Some(vec!["invalid_api_key".to_string()]),
+                    Some("Invalid api key".to_string()),
+                )
+            } else {
+                (None, None)
+            };
             checkout::ErrorResponse {
                 request_id: None,
-                error_codes: if res.status_code == 401 || res.status_code == 422 {
-                    Some(vec!["Invalid Api Key".to_owned()])
-                } else {
-                    None
-                },
-                error_type: None,
+                error_codes,
+                error_type,
             }
         } else {
             res.response
