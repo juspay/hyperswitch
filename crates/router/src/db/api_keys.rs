@@ -1,14 +1,13 @@
 use error_stack::IntoReport;
 
 use super::{MockDb, Store};
+#[cfg(feature = "accounts_cache")]
+use crate::cache::{self, ACCOUNTS_CACHE};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
-
-#[cfg(feature = "accounts_cache")]
-use crate::cache::{self, ACCOUNTS_CACHE};
 
 #[async_trait::async_trait]
 pub trait ApiKeyInterface {
