@@ -738,7 +738,7 @@ pub enum BankTransferData {
     },
     SepaBankTransfer {
         billing_details: SepaAndBacsBillingDetails,
-        country: String,
+        country: api_enums::CountryAlpha2,
     },
     BacsBankTransfer {
         billing_details: SepaAndBacsBillingDetails,

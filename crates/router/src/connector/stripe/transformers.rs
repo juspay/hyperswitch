@@ -15,7 +15,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    collect_missing_value_keys, consts,
+    collect_missing_value_keys, connector, consts,
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
@@ -317,7 +317,7 @@ pub struct SepaBankTransferData {
     #[serde(
         rename = "payment_method_options[customer_balance][bank_transfer][eu_bank_transfer][country]"
     )]
-    pub country: String,
+    pub country: api_models::enums::CountryAlpha2,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1439,11 +1439,10 @@ pub struct AchReceiverDetails {
     pub amount_charged: i64,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct SepaAndBacsBankTransferInstructions {
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub bacs_bank_instructions: Option<BacsFinancialDetails>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub sepa_bank_instructions: Option<SepaFinancialDetails>,
     pub receiver: SepaAndBacsReceiver,
 }
@@ -1600,31 +1599,6 @@ impl<F, T>
             types::MandateReference::foreign_from((item.response.payment_method_options, pm))
         });
 
-        let connector_metadata =
-            item.response
-                .next_action
-                .as_ref()
-                .and_then(|next_action_response| match next_action_response {
-                    StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
-                        Some(SepaAndBacsBankTransferInstructions {
-                            sepa_bank_instructions: response.financial_addresses[0].iban.to_owned(),
-                            bacs_bank_instructions: response.financial_addresses[0]
-                                .sort_code
-                                .to_owned(),
-                            receiver: SepaAndBacsReceiver {
-                                amount_received: item.response.amount_received,
-                                amount_remaining: response.amount_remaining,
-                            },
-                        })
-                    }
-                    _ => None,
-                }).map(|response| {
-                     common_utils::ext_traits::Encode::<SepaAndBacsBankTransferInstructions>::encode_to_value(
-                &response,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)
-                }).transpose()?;
-
         //Note: we might have to call retrieve_setup_intent to get the network_transaction_id in case its not sent in PaymentIntentResponse
         // Or we identify the mandate txns before hand and always call SetupIntent in case of mandate payment call
         let network_txn_id = Option::foreign_from(item.response.latest_attempt);
@@ -1639,13 +1613,41 @@ impl<F, T>
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data,
                 mandate_reference,
-                connector_metadata,
+                connector_metadata: None,
                 network_txn_id,
             }),
             amount_captured: Some(item.response.amount_received),
             ..item.data
         })
     }
+}
+
+pub fn get_connector_metadata(
+    next_action: Option<&StripeNextActionResponse>,
+    amount: i64,
+) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
+    let next_action_response = next_action
+            .and_then(|next_action_response| match next_action_response {
+                    StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
+                        Some(SepaAndBacsBankTransferInstructions {
+                            sepa_bank_instructions: response.financial_addresses[0].iban.to_owned(),
+                            bacs_bank_instructions: response.financial_addresses[0]
+                                .sort_code
+                                .to_owned(),
+                            receiver: SepaAndBacsReceiver {
+                                amount_received: amount - response.amount_remaining,
+                                amount_remaining: response.amount_remaining,
+                            },
+                        })
+                    }
+                    _ => None,
+                }).map(|response| {
+                     common_utils::ext_traits::Encode::<SepaAndBacsBankTransferInstructions>::encode_to_value(
+                &response,
+            )
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+                }).transpose()?;
+    Ok(next_action_response)
 }
 
 impl<F, T>
@@ -1686,29 +1688,7 @@ impl<F, T>
                 });
 
         let connector_metadata =
-            item.response
-                .next_action
-                .as_ref()
-                .and_then(|next_action_response| match next_action_response {
-                    StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
-                        Some(SepaAndBacsBankTransferInstructions {
-                            sepa_bank_instructions: response.financial_addresses[0].iban.to_owned(),
-                            bacs_bank_instructions: response.financial_addresses[0]
-                                .sort_code
-                                .to_owned(),
-                            receiver: SepaAndBacsReceiver {
-                                amount_received: item.response.amount - response.amount_remaining,
-                                amount_remaining: response.amount_remaining,
-                            },
-                        })
-                    }
-                    _ => None,
-                }).map(|response| {
-                     common_utils::ext_traits::Encode::<SepaAndBacsBankTransferInstructions>::encode_to_value(
-                &response,
-            )
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
-                }).transpose()?;
+            get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
 
         let response = error_res.map_or(
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -2126,14 +2106,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeAchSourceRequest
         Ok(Self {
             transfer_type: StripePaymentMethodType::AchCreditTransfer,
             payment_method_data: AchBankTransferData {
-                email: item
-                    .request
-                    .email
-                    .clone()
-                    .get_required_value("email")
-                    .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "email",
-                    })?,
+                email: connector::utils::PaymentsPreProcessingData::get_email(&item.request)?,
             },
             currency: item
                 .request
@@ -2598,7 +2571,6 @@ pub fn get_bank_transfer_authorize_response(
                 data: data.clone(),
                 http_code: res.status_code,
             })
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
         }
         _ => {
             let response: PaymentIntentResponse = res
@@ -2611,7 +2583,6 @@ pub fn get_bank_transfer_authorize_response(
                 data: data.clone(),
                 http_code: res.status_code,
             })
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
         }
     }
 }
