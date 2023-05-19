@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-use api_models::payments;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, pii,
@@ -25,7 +24,8 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payment_methods::{cards, vault}
+        payment_methods::{cards, vault},
+        payments
     },
     db::StorageInterface,
     routes::{metrics, AppState},
@@ -1201,7 +1201,7 @@ pub fn generate_mandate(
     payment_method_id: String,
     connector_mandate_id: Option<pii::SecretSerdeValue>,
     network_txn_id: Option<String>,
-    payment_method_data_option: Option<payments::PaymentMethodData>
+    payment_method_data_option: Option<api_models::payments::PaymentMethodData>
 ) -> CustomResult<Option<storage::MandateNew>, errors::ApiErrorResponse> {
     match (setup_mandate_details, customer) {
         (Some(data), Some(cus)) => {
