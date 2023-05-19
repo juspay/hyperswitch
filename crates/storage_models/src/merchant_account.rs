@@ -1,6 +1,5 @@
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
-use masking::StrongSecret;
 
 use crate::{enums as storage_enums, schema::merchant_account};
 
@@ -34,10 +33,10 @@ pub struct MerchantAccount {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub primary_business_details: serde_json::Value,
-    pub api_key: Option<StrongSecret<String>>,
     pub intent_fulfillment_time: Option<i64>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub frm_routing_algorithm: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -58,8 +57,8 @@ pub struct MerchantAccountNew {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub primary_business_details: serde_json::Value,
-    pub api_key: Option<StrongSecret<String>>,
     pub intent_fulfillment_time: Option<i64>,
+    pub frm_routing_algorithm: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]
@@ -80,6 +79,7 @@ pub enum MerchantAccountUpdate {
         routing_algorithm: Option<serde_json::Value>,
         primary_business_details: Option<serde_json::Value>,
         intent_fulfillment_time: Option<i64>,
+        frm_routing_algorithm: Option<serde_json::Value>,
     },
     StorageSchemeUpdate {
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -106,6 +106,7 @@ pub struct MerchantAccountUpdateInternal {
     primary_business_details: Option<serde_json::Value>,
     modified_at: Option<time::PrimitiveDateTime>,
     intent_fulfillment_time: Option<i64>,
+    frm_routing_algorithm: Option<serde_json::Value>,
 }
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
@@ -127,6 +128,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 metadata,
                 primary_business_details,
                 intent_fulfillment_time,
+                frm_routing_algorithm,
             } => Self {
                 merchant_name,
                 merchant_details,
@@ -144,6 +146,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 primary_business_details,
                 modified_at: Some(common_utils::date_time::now()),
                 intent_fulfillment_time,
+                frm_routing_algorithm,
                 ..Default::default()
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {

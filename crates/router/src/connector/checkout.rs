@@ -80,7 +80,7 @@ impl ConnectorCommon for Checkout {
         let response: checkout::ErrorResponse = if res.response.is_empty() {
             checkout::ErrorResponse {
                 request_id: None,
-                error_type: if res.status_code == 401 | 422 {
+                error_type: if res.status_code == 401 || res.status_code == 422 {
                     Some("Invalid Api Key".to_owned())
                 } else {
                     None
@@ -92,17 +92,18 @@ impl ConnectorCommon for Checkout {
                 .parse_struct("ErrorResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
         };
-
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
-                .error_codes
-                .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
-                .join(" & "),
-            message: response
                 .error_type
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .error_codes
+                .as_ref()
+                .and_then(|error_codes| error_codes.first().cloned())
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error_codes.map(|errors| errors.join(" & ")),
         })
     }
 }
@@ -1075,11 +1076,16 @@ impl api::IncomingWebhook for Checkout {
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .find_config_by_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-        Ok(secret.config.into_bytes())
+        let secret = match db.find_config_by_key(&key).await {
+            Ok(config) => Some(config),
+            Err(e) => {
+                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
+                None
+            }
+        };
+        Ok(secret
+            .map(|conf| conf.config.into_bytes())
+            .unwrap_or_default())
     }
     fn get_webhook_object_reference_id(
         &self,
@@ -1119,7 +1125,7 @@ impl api::IncomingWebhook for Checkout {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: checkout::CheckoutWebhookBody = request
+        let details: checkout::CheckoutWebhookEventTypeBody = request
             .body
             .parse_struct("CheckoutWebhookBody")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
@@ -1143,7 +1149,7 @@ impl api::IncomingWebhook for Checkout {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
-        let dispute_details: checkout::CheckoutWebhookBody = request
+        let dispute_details: checkout::CheckoutDisputeWebhookBody = request
             .body
             .parse_struct("CheckoutWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;

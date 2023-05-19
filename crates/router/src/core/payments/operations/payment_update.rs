@@ -267,6 +267,15 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .transpose()?;
 
+        // The operation merges mandate data from both request and payment_attempt
+        let setup_mandate = setup_mandate.map(|mandate_data| api_models::payments::MandateData {
+            customer_acceptance: mandate_data.customer_acceptance,
+            mandate_type: mandate_data.mandate_type.or(payment_attempt
+                .mandate_details
+                .clone()
+                .map(ForeignInto::foreign_into)),
+        });
+
         Ok((
             next_operation,
             PaymentData {
@@ -294,6 +303,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                ephemeral_key: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -359,6 +369,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
+        _payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
     }
@@ -461,7 +472,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     currency: payment_data.currency,
                     setup_future_usage,
                     status: intent_status,
-                    customer_id,
+                    customer_id: customer_id.clone(),
                     shipping_address_id: shipping_address,
                     billing_address_id: billing_address,
                     return_url,

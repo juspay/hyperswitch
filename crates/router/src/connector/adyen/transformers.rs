@@ -152,7 +152,8 @@ impl ForeignFrom<(bool, AdyenStatus)> for storage_enums::AttemptStatus {
             AdyenStatus::AuthenticationNotRequired => Self::Pending,
             AdyenStatus::Authorised => match is_manual_capture {
                 true => Self::Authorized,
-                false => Self::Charged,
+                // Final outcome of the payment can be confirmed only through webhooks
+                false => Self::Pending,
             },
             AdyenStatus::Cancelled => Self::Voided,
             AdyenStatus::ChallengeShopper | AdyenStatus::RedirectShopper => {
@@ -279,6 +280,9 @@ pub enum AdyenPaymentMethod<'a> {
     Walley(Box<WalleyData>),
     WeChatPayWeb(Box<WeChatPayWebData>),
     AchDirectDebit(Box<AchDirectDebitData>),
+    #[serde(rename = "sepadirectdebit")]
+    SepaDirectDebit(Box<SepaDirectDebitData>),
+    BacsDirectDebit(Box<BacsDirectDebitData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -289,6 +293,25 @@ pub struct AchDirectDebitData {
     bank_account_number: Secret<String>,
     bank_location_id: Secret<String>,
     owner_name: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SepaDirectDebitData {
+    #[serde(rename = "sepa.ownerName")]
+    owner_name: Secret<String>,
+    #[serde(rename = "sepa.ibanNumber")]
+    iban_number: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BacsDirectDebitData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+    bank_account_number: Secret<String>,
+    bank_location_id: Secret<String>,
+    holder_name: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -663,6 +686,9 @@ pub enum PaymentType {
     WeChatPayWeb,
     #[serde(rename = "ach")]
     AchDirectDebit,
+    SepaDirectDebit,
+    #[serde(rename = "directdebit_GB")]
+    BacsDirectDebit,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -870,18 +896,31 @@ fn get_address_info(address: Option<&api_models::payments::Address>) -> Option<A
 }
 
 fn get_line_items(item: &types::PaymentsAuthorizeRouterData) -> Vec<LineItem> {
-    let order_details = item.request.order_details.as_ref();
-    let line_item = LineItem {
-        amount_including_tax: Some(item.request.amount),
-        amount_excluding_tax: Some(item.request.amount),
-        description: order_details.map(|details| details.product_name.clone()),
-        // We support only one product details in payment request as of now, therefore hard coded the id.
-        // If we begin to support multiple product details in future then this logic should be made to create ID dynamically
-        id: Some(String::from("Items #1")),
-        tax_amount: None,
-        quantity: Some(order_details.map_or(1, |details| details.quantity)),
-    };
-    vec![line_item]
+    let order_details = item.request.order_details.clone();
+    match order_details {
+        Some(od) => od
+            .iter()
+            .map(|data| LineItem {
+                amount_including_tax: Some(item.request.amount),
+                amount_excluding_tax: Some(item.request.amount),
+                description: Some(data.product_name.clone()),
+                id: Some(String::from("Items #1")),
+                tax_amount: None,
+                quantity: Some(data.quantity),
+            })
+            .collect(),
+        None => {
+            let line_item = LineItem {
+                amount_including_tax: Some(item.request.amount),
+                amount_excluding_tax: Some(item.request.amount),
+                description: None,
+                id: Some(String::from("Items #1")),
+                tax_amount: None,
+                quantity: Some(1),
+            };
+            vec![line_item]
+        }
+    }
 }
 
 fn get_telephone_number(item: &types::PaymentsAuthorizeRouterData) -> Option<Secret<String>> {
@@ -928,21 +967,51 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
             payments::BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
-                billing_details: _,
-                bank_account_holder_name,
+                card_holder_name,
+                ..
             } => Ok(AdyenPaymentMethod::AchDirectDebit(Box::new(
                 AchDirectDebitData {
                     payment_type: PaymentType::AchDirectDebit,
                     bank_account_number: account_number.clone(),
                     bank_location_id: routing_number.clone(),
+                    owner_name: card_holder_name.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "card_holder_name",
+                        },
+                    )?,
+                },
+            ))),
+            payments::BankDebitData::SepaBankDebit {
+                iban,
+                bank_account_holder_name,
+                ..
+            } => Ok(AdyenPaymentMethod::SepaDirectDebit(Box::new(
+                SepaDirectDebitData {
                     owner_name: bank_account_holder_name.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "bank_account_holder_name",
+                        },
+                    )?,
+                    iban_number: iban.clone(),
+                },
+            ))),
+            payments::BankDebitData::BacsBankDebit {
+                account_number,
+                sort_code,
+                bank_account_holder_name,
+                ..
+            } => Ok(AdyenPaymentMethod::BacsDirectDebit(Box::new(
+                BacsDirectDebitData {
+                    payment_type: PaymentType::BacsDirectDebit,
+                    bank_account_number: account_number.clone(),
+                    bank_location_id: sort_code.clone(),
+                    holder_name: bank_account_holder_name.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
                             field_name: "bank_account_holder_name",
                         },
                     )?,
                 },
             ))),
-
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
@@ -1077,14 +1146,35 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                 card_exp_month,
                 card_exp_year,
                 card_holder_name,
+                ..
             } => Ok(AdyenPaymentMethod::BancontactCard(Box::new(
                 BancontactCardData {
                     payment_type: PaymentType::Scheme,
                     brand: "bcmc".to_string(),
-                    number: card_number.clone(),
-                    expiry_month: card_exp_month.clone(),
-                    expiry_year: card_exp_year.clone(),
-                    holder_name: card_holder_name.clone(),
+                    number: card_number
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "bancontact_card.card_number",
+                        })?
+                        .clone(),
+                    expiry_month: card_exp_month
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "bancontact_card.card_exp_month",
+                        })?
+                        .clone(),
+                    expiry_year: card_exp_year
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "bancontact_card.card_exp_year",
+                        })?
+                        .clone(),
+                    holder_name: card_holder_name
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "bancontact_card.card_holder_name",
+                        })?
+                        .clone(),
                 },
             ))),
             api_models::payments::BankRedirectData::Blik { blik_code } => {
@@ -1140,11 +1230,11 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                     payment_type: PaymentType::Sofort,
                 })),
             ),
-            api_models::payments::BankRedirectData::Trustly {} => Ok(AdyenPaymentMethod::Trustly(
-                Box::new(BankRedirectionPMData {
+            api_models::payments::BankRedirectData::Trustly { .. } => Ok(
+                AdyenPaymentMethod::Trustly(Box::new(BankRedirectionPMData {
                     payment_type: PaymentType::Trustly,
-                }),
-            )),
+                })),
+            ),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
@@ -1696,15 +1786,11 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
     fn try_from(
         item: types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>,
     ) -> Result<Self, Self::Error> {
-        let (status, amount_captured) = match item.response.status.as_str() {
-            "received" => (
-                storage_enums::AttemptStatus::Charged,
-                Some(item.response.amount.value),
-            ),
-            _ => (storage_enums::AttemptStatus::Pending, None),
-        };
         Ok(Self {
-            status,
+            // From the docs, the only value returned is "received", outcome of refund is available
+            // through refund notification webhook
+            // For more info: https://docs.adyen.com/online-payments/capture
+            status: storage_enums::AttemptStatus::Pending,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
                 redirection_data: None,
@@ -1712,7 +1798,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 connector_metadata: None,
                 network_txn_id: None,
             }),
-            amount_captured,
+            amount_captured: Some(item.response.amount.value),
             ..item.data
         })
     }
@@ -1776,16 +1862,13 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AdyenRefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<F, AdyenRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = match item.response.status.as_str() {
-            // From the docs, the only value returned is "received", outcome of refund is available
-            // through refund notification webhook
-            "received" => storage_enums::RefundStatus::Success,
-            _ => storage_enums::RefundStatus::Pending,
-        };
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.reference,
-                refund_status,
+                // From the docs, the only value returned is "received", outcome of refund is available
+                // through refund notification webhook
+                // For more info: https://docs.adyen.com/online-payments/refund
+                refund_status: storage_enums::RefundStatus::Pending,
             }),
             ..item.data
         })

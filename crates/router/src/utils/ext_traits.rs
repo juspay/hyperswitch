@@ -39,6 +39,8 @@ where
         })
     }
 
+    // This will allow the error message that was generated in this function to point to the call site
+    #[track_caller]
     fn get_required_value(self, field_name: &'static str) -> RouterResult<T> {
         match self {
             Some(v) => Ok(v),
@@ -57,11 +59,11 @@ where
     {
         let value = self
             .get_required_value(enum_name)
-            .change_context(errors::ParsingError)?;
+            .change_context(errors::ParsingError::UnknownError)?;
 
         E::from_str(value.as_ref())
             .into_report()
-            .change_context(errors::ParsingError)
+            .change_context(errors::ParsingError::UnknownError)
             .attach_printable_lazy(|| format!("Invalid {{ {enum_name}: {value:?} }} "))
     }
 
@@ -72,7 +74,7 @@ where
     {
         let value = self
             .get_required_value(type_name)
-            .change_context(errors::ParsingError)?;
+            .change_context(errors::ParsingError::UnknownError)?;
         value.parse_value(type_name)
     }
 

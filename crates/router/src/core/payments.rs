@@ -6,7 +6,7 @@ pub mod operations;
 pub mod tokenization;
 pub mod transformers;
 
-use std::{fmt::Debug, marker::PhantomData, time::Instant};
+use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
 use api_models::payments::Metadata;
 use common_utils::pii::Email;
@@ -14,6 +14,7 @@ use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
 use router_env::{instrument, tracing};
+use storage_models::ephemeral_key;
 use time;
 
 pub use self::operations::{
@@ -78,7 +79,6 @@ where
         .validate_request(&req, &merchant_account)?;
 
     tracing::Span::current().record("payment_id", &format!("{}", validate_result.payment_id));
-
     let (operation, mut payment_data, customer_details) = operation
         .to_get_tracker()?
         .get_trackers(
@@ -89,6 +89,7 @@ where
             &merchant_account,
         )
         .await?;
+
     authenticate_client_secret(
         req.get_client_secret(),
         &payment_data.payment_intent,
@@ -120,16 +121,9 @@ where
         get_connector_tokenization_action(state, &operation, payment_data, &validate_result)
             .await?;
 
-    let connector_string = connector
-        .as_ref()
-        .and_then(|connector_type| match connector_type {
-            api::ConnectorCallType::Single(connector) => Some(connector.connector_name.to_string()),
-            _ => None,
-        });
-
-    let updated_customer = call_create_connector_customer(
+    let updated_customer = call_create_connector_customer_if_required(
         state,
-        &connector_string,
+        &payment_data.payment_attempt.connector.clone(),
         &customer,
         &merchant_account,
         &mut payment_data,
@@ -149,10 +143,12 @@ where
         .await?;
 
     if let Some(connector_details) = connector {
-        operation
-            .to_domain()?
-            .add_task_to_process_tracker(state, &payment_data.payment_attempt)
-            .await?;
+        if should_add_task_to_process_tracker(&payment_data)? {
+            operation
+                .to_domain()?
+                .add_task_to_process_tracker(state, &payment_data.payment_attempt)
+                .await?;
+        }
 
         payment_data = match connector_details {
             api::ConnectorCallType::Single(connector) => {
@@ -194,8 +190,7 @@ where
                 .await?
             }
         };
-        if payment_data.payment_intent.status != storage_enums::IntentStatus::RequiresCustomerAction
-        {
+        if should_delete_pm_from_locker(payment_data.payment_intent.status) {
             vault::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token)
                 .await
         }
@@ -505,7 +500,7 @@ where
         .add_access_token(state, &connector, merchant_account)
         .await?;
 
-    let should_continue_payment = access_token::update_router_data_with_access_token_result(
+    let mut should_continue_payment = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
@@ -518,6 +513,15 @@ where
     if let Some(payment_method_token) = pm_token {
         router_data.payment_method_token = Some(payment_method_token);
     };
+
+    (router_data, should_continue_payment) = complete_preprocessing_steps_if_required(
+        state,
+        &connector,
+        payment_data,
+        router_data,
+        should_continue_payment,
+    )
+    .await?;
 
     let router_data_res = if should_continue_payment {
         router_data
@@ -543,7 +547,7 @@ where
 pub async fn call_multiple_connectors_service<F, Op, Req>(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
-    connectors: Vec<api::ConnectorData>,
+    connectors: Vec<api::SessionConnectorData>,
     _operation: &Op,
     mut payment_data: PaymentData<F>,
     customer: &Option<storage::Customer>,
@@ -565,15 +569,16 @@ where
     let call_connectors_start_time = Instant::now();
     let mut join_handlers = Vec::with_capacity(connectors.len());
 
-    for connector in connectors.iter() {
-        let connector_id = connector.connector.id();
+    for session_connector_data in connectors.iter() {
+        let connector_id = session_connector_data.connector.connector.id();
+
         let router_data = payment_data
             .construct_router_data(state, connector_id, merchant_account, customer)
             .await?;
 
         let res = router_data.decide_flows(
             state,
-            connector,
+            &session_connector_data.connector,
             customer,
             CallConnectorAction::Trigger,
             merchant_account,
@@ -584,8 +589,8 @@ where
 
     let result = join_all(join_handlers).await;
 
-    for (connector_res, connector) in result.into_iter().zip(connectors) {
-        let connector_name = connector.connector_name.to_string();
+    for (connector_res, session_connector) in result.into_iter().zip(connectors) {
+        let connector_name = session_connector.connector.connector_name.to_string();
         match connector_res {
             Ok(connector_response) => {
                 if let Ok(types::PaymentsResponseData::SessionResponse { session_token }) =
@@ -612,7 +617,7 @@ where
     Ok(payment_data)
 }
 
-pub async fn call_create_connector_customer<F, Req>(
+pub async fn call_create_connector_customer_if_required<F, Req>(
     state: &AppState,
     connector_name: &Option<String>,
     customer: &Option<storage::Customer>,
@@ -640,17 +645,68 @@ where
                 connector_name,
                 api::GetToken::Connector,
             )?;
-            let router_data = payment_data
-                .construct_router_data(state, connector.connector.id(), merchant_account, customer)
-                .await?;
-            let (connector_customer, customer_update) = router_data
-                .create_connector_customer(state, &connector, customer)
-                .await?;
-            payment_data.connector_customer_id = connector_customer;
-            Ok(customer_update)
+            let (is_eligible, connector_customer_id, connector_customer_map) =
+                customers::should_call_connector_create_customer(state, &connector, customer)?;
+
+            if is_eligible {
+                // Create customer at connector and update the customer table to store this data
+                let router_data = payment_data
+                    .construct_router_data(
+                        state,
+                        connector.connector.id(),
+                        merchant_account,
+                        customer,
+                    )
+                    .await?;
+
+                let (connector_customer, customer_update) = router_data
+                    .create_connector_customer(state, &connector, connector_customer_map)
+                    .await?;
+
+                payment_data.connector_customer_id = connector_customer;
+                Ok(customer_update)
+            } else {
+                // Customer already created in previous calls use the same value, no need to update
+                payment_data.connector_customer_id = connector_customer_id;
+                Ok(None)
+            }
         }
         None => Ok(None),
     }
+}
+
+async fn complete_preprocessing_steps_if_required<F, Req, Res>(
+    state: &AppState,
+    connector: &api::ConnectorData,
+    payment_data: &PaymentData<F>,
+    router_data: types::RouterData<F, Req, Res>,
+    should_continue_payment: bool,
+) -> RouterResult<(types::RouterData<F, Req, Res>, bool)>
+where
+    F: Send + Clone + Sync,
+    Req: Send + Sync,
+    types::RouterData<F, Req, Res>: Feature<F, Req> + Send,
+    dyn api::Connector: services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,
+{
+    //TODO: For ACH transfers, if preprocessing_step is not required for connectors encountered in future, add the check
+    let router_data_and_should_continue_payment = match payment_data.payment_method_data.clone() {
+        Some(api_models::payments::PaymentMethodData::BankTransfer(data)) => match data.deref() {
+            api_models::payments::BankTransferData::AchBankTransfer { .. } => {
+                if payment_data.payment_attempt.preprocessing_step_id.is_none() {
+                    (
+                        router_data.preprocessing_steps(state, connector).await?,
+                        false,
+                    )
+                } else {
+                    (router_data, should_continue_payment)
+                }
+            }
+            _ => (router_data, should_continue_payment),
+        },
+        _ => (router_data, should_continue_payment),
+    };
+
+    Ok(router_data_and_should_continue_payment)
 }
 
 fn is_payment_method_tokenization_enabled_for_connector(
@@ -754,10 +810,18 @@ where
 {
     let connector = payment_data.payment_attempt.connector.to_owned();
 
+    let is_mandate = payment_data
+        .mandate_id
+        .as_ref()
+        .and_then(|inner| inner.mandate_reference_id.as_ref())
+        .map(|mandate_reference| match mandate_reference {
+            api_models::payments::MandateReferenceId::ConnectorMandateId(_) => true,
+            api_models::payments::MandateReferenceId::NetworkMandateId(_) => false,
+        })
+        .unwrap_or(false);
+
     let payment_data_and_tokenization_action = match connector {
-        Some(_) if payment_data.mandate_id.is_some() => {
-            (payment_data, TokenizationAction::SkipConnectorTokenization)
-        }
+        Some(_) if is_mandate => (payment_data, TokenizationAction::SkipConnectorTokenization),
         Some(connector) if is_operation_confirm(&operation) => {
             let payment_method = &payment_data
                 .payment_attempt
@@ -867,6 +931,7 @@ where
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
+    pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
 }
 
 #[derive(Debug, Default)]
@@ -956,6 +1021,13 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         "PaymentSession" => true,
         _ => false,
     }
+}
+
+pub fn should_delete_pm_from_locker(status: storage_enums::IntentStatus) -> bool {
+    !matches!(
+        status,
+        storage_models::enums::IntentStatus::RequiresCustomerAction
+    )
 }
 
 pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
@@ -1067,18 +1139,13 @@ where
 {
     let connector_choice = operation
         .to_domain()?
-        .get_connector(merchant_account, state, req)
+        .get_connector(merchant_account, state, req, &payment_data.payment_intent)
         .await?;
 
     let connector = if should_call_connector(operation, payment_data) {
         Some(match connector_choice {
             api::ConnectorChoice::SessionMultiple(session_connectors) => {
-                api::ConnectorCallType::Multiple(
-                    session_connectors
-                        .into_iter()
-                        .map(|c| c.connector)
-                        .collect(),
-                )
+                api::ConnectorCallType::Multiple(session_connectors)
             }
 
             api::ConnectorChoice::StraightThrough(straight_through) => connector_selection(
@@ -1113,6 +1180,18 @@ pub fn connector_selection<F>(
 where
     F: Send + Clone,
 {
+    if let Some(ref connector_name) = payment_data.payment_attempt.connector {
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            connector_name,
+            api::GetToken::Connector,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("invalid connector name received in payment attempt")?;
+
+        return Ok(api::ConnectorCallType::Single(connector_data));
+    }
+
     let mut routing_data = storage::RoutingData {
         routed_through: payment_data.payment_attempt.connector.clone(),
         algorithm: payment_data
@@ -1230,4 +1309,24 @@ pub fn decide_connector(
     routing_data.routed_through = Some(connector_name);
 
     Ok(api::ConnectorCallType::Single(connector_data))
+}
+
+pub fn should_add_task_to_process_tracker<F: Clone>(
+    payment_data: &PaymentData<F>,
+) -> RouterResult<bool> {
+    let pm = payment_data
+        .payment_attempt
+        .payment_method
+        .get_required_value("payment_method")?;
+    let connector = payment_data
+        .payment_attempt
+        .connector
+        .clone()
+        .get_required_value("connector")?;
+    let add_task_check = if matches!(pm, storage_enums::PaymentMethod::BankTransfer) {
+        !connector.eq("stripe")
+    } else {
+        true
+    };
+    Ok(add_task_check)
 }
