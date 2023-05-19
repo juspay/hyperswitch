@@ -80,12 +80,12 @@ impl ConnectorCommon for Checkout {
         let response: checkout::ErrorResponse = if res.response.is_empty() {
             checkout::ErrorResponse {
                 request_id: None,
-                error_type: if res.status_code == 401 || res.status_code == 422 {
-                    Some("Invalid Api Key".to_owned())
+                error_codes: if res.status_code == 401 || res.status_code == 422 {
+                    Some(vec!["Invalid Api Key".to_owned()])
                 } else {
                     None
                 },
-                error_codes: None,
+                error_type: None,
             }
         } else {
             res.response
