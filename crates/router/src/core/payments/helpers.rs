@@ -1227,8 +1227,8 @@ pub fn generate_mandate(
                         .get_ip_address()
                         .map(masking::Secret::new),
                 )
-                .set_customer_user_agent(data.customer_acceptance.get_user_agent())
-                .set_customer_accepted_at(Some(data.customer_acceptance.get_accepted_at()))
+                .set_customer_user_agent(customer_acceptance.get_user_agent())
+                .set_customer_accepted_at(Some(customer_acceptance.get_accepted_at()))
                 .set_metadata(payment_method_data_option.map(|payment_method_data| {
                     pii::SecretSerdeValue::new(
                         serde_json::to_value(payment_method_data).unwrap_or_default(),
@@ -1248,8 +1248,9 @@ pub fn generate_mandate(
                         .set_mandate_amount(Some(data.amount))
                         .set_mandate_currency(Some(data.currency.foreign_into()))
                         .set_start_date(data.start_date)
-                        .set_end_date(data.end_date)
-                        .set_metadata(data.metadata),
+                        .set_end_date(data.end_date),
+                        // .set_metadata(data.metadata),
+                        // we are storing PaymentMethodData in metadata of mandate
                     None => &mut new_mandate,
                 }
                 .set_mandate_type(storage_enums::MandateType::MultiUse)
