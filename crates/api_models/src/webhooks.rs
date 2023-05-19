@@ -12,6 +12,9 @@ pub enum IncomingWebhookEvent {
     PaymentIntentProcessing,
     PaymentActionRequired,
     EventNotSupported,
+    SourceChargeable,
+    SourceTransactionCreated,
+    ChargeSucceeded,
     RefundFailure,
     RefundSuccess,
     DisputeOpened,
@@ -32,6 +35,7 @@ pub enum WebhookFlow {
     Dispute,
     Subscription,
     ReturnResponse,
+    BankTransfer,
 }
 
 impl From<IncomingWebhookEvent> for WebhookFlow {
@@ -52,6 +56,9 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::DisputeWon => Self::Dispute,
             IncomingWebhookEvent::DisputeLost => Self::Dispute,
             IncomingWebhookEvent::EndpointVerification => Self::ReturnResponse,
+            IncomingWebhookEvent::SourceChargeable
+            | IncomingWebhookEvent::SourceTransactionCreated => Self::BankTransfer,
+            IncomingWebhookEvent::ChargeSucceeded => Self::Payment,
         }
     }
 }

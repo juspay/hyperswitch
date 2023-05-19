@@ -119,6 +119,7 @@ where
         reference_id: None,
         payment_method_token: payment_data.pm_token,
         connector_customer: payment_data.connector_customer_id,
+        preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
     };
 
     Ok(router_data)
@@ -301,16 +302,29 @@ where
                 }))
             } else {
                 let mut next_action_response = None;
-                if payment_intent.status == enums::IntentStatus::RequiresCustomerAction {
+
+                let bank_transfer_next_steps =
+                    bank_transfer_next_steps_check(payment_attempt.clone())?;
+
+                if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
+                    || bank_transfer_next_steps.is_some()
+                {
+                    let next_action_type = if bank_transfer_next_steps.is_some() {
+                        api::NextActionType::DisplayBankTransferInformation
+                    } else {
+                        api::NextActionType::RedirectToUrl
+                    };
                     next_action_response = Some(api::NextAction {
-                        next_action_type: api::NextActionType::RedirectToUrl,
+                        next_action_type,
                         redirect_to_url: Some(helpers::create_startpay_url(
                             server,
                             &payment_attempt,
                             &payment_intent,
                         )),
-                    })
-                }
+                        bank_transfer_steps_and_charges_details: bank_transfer_next_steps,
+                    });
+                };
+
                 let mut response: api::PaymentsResponse = Default::default();
                 let routed_through = payment_attempt.connector.clone();
 
@@ -504,6 +518,29 @@ impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralK
     }
 }
 
+pub fn bank_transfer_next_steps_check(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::NextStepsRequirements>> {
+    let bank_transfer_next_step = if let Some(storage_models::enums::PaymentMethod::BankTransfer) =
+        payment_attempt.payment_method
+    {
+        let bank_transfer_next_steps: Option<api_models::payments::NextStepsRequirements> =
+            payment_attempt
+                .connector_metadata
+                .map(|metadata| {
+                    metadata
+                        .parse_value("NextStepsRequirements")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse the Value to NextRequirements struct")
+                })
+                .transpose()?;
+        bank_transfer_next_steps
+    } else {
+        None
+    };
+    Ok(bank_transfer_next_step)
+}
+
 #[derive(Clone)]
 pub struct PaymentAdditionalData<'a, F>
 where
@@ -594,6 +631,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             router_return_url,
             webhook_url,
             complete_authorize_url,
+            customer_id: None,
         })
     }
 }
@@ -798,6 +836,18 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             connector_transaction_id: payment_data.connector_response.connector_transaction_id,
             payload: json_payload,
             connector_meta: payment_data.payment_attempt.connector_metadata,
+        })
+    }
+}
+
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProcessingData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        Ok(Self {
+            email: payment_data.email,
+            currency: Some(payment_data.currency),
         })
     }
 }

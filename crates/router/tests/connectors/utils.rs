@@ -402,6 +402,7 @@ pub trait ConnectorActions: Connector {
             reference_id: None,
             payment_method_token: None,
             connector_customer: None,
+            preprocessing_id: None,
         }
     }
 
@@ -418,6 +419,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
             Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
             Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
             Err(_) => None,
         }
@@ -515,6 +517,7 @@ impl Default for PaymentAuthorizeType {
             router_return_url: None,
             complete_authorize_url: None,
             webhook_url: None,
+            customer_id: None,
         };
         Self(data)
     }
@@ -603,6 +606,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
         Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
         Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
         Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
         Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
         Err(_) => None,
