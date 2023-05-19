@@ -5,6 +5,7 @@ use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::{self, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
+use storage_models::ephemeral_key;
 use uuid::Uuid;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -17,6 +18,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         self,
         api::{self, PaymentIdTypeExt},
@@ -48,7 +50,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         Option<CustomerDetails>,
     )> {
         let db = &*state.store;
-
+        let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_account).await;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
 
@@ -238,6 +240,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                ephemeral_key,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -575,6 +578,31 @@ impl PaymentCreate {
             connector_transaction_id: None,
             authentication_data: None,
             encoded_data: None,
+        }
+    }
+
+    #[instrument(skip_all)]
+    pub async fn get_ephemeral_key(
+        request: &api::PaymentsRequest,
+        state: &AppState,
+        merchant_account: &storage::MerchantAccount,
+    ) -> Option<ephemeral_key::EphemeralKey> {
+        match request.customer_id.clone() {
+            Some(customer_id) => helpers::make_ephemeral_key(
+                state,
+                customer_id,
+                merchant_account.merchant_id.clone(),
+            )
+            .await
+            .ok()
+            .and_then(|ek| {
+                if let services::ApplicationResponse::Json(ek) = ek {
+                    Some(ek)
+                } else {
+                    None
+                }
+            }),
+            None => None,
         }
     }
 }

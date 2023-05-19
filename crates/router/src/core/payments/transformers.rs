@@ -3,6 +3,7 @@ use std::{fmt::Debug, marker::PhantomData};
 use common_utils::fp_utils;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
+use storage_models::ephemeral_key;
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
@@ -164,6 +165,7 @@ where
             server,
             payment_data.connector_response.authentication_data,
             operation,
+            payment_data.ephemeral_key,
         )
     }
 }
@@ -254,6 +256,7 @@ pub fn payments_to_payments_response<R, Op>(
     server: &Server,
     redirection_data: Option<serde_json::Value>,
     operation: Op,
+    ephemeral_key_option: Option<ephemeral_key::EphemeralKey>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
@@ -418,6 +421,7 @@ where
                             parsed_metadata
                                 .and_then(|metadata| metadata.allowed_payment_method_types),
                         )
+                        .set_ephemeral_key(ephemeral_key_option.map(ForeignFrom::foreign_from))
                         .to_owned(),
                 )
             }
@@ -485,6 +489,17 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_method: pa.payment_method.map(ForeignInto::foreign_into),
             payment_method_type: pa.payment_method_type.map(ForeignInto::foreign_into),
             ..Default::default()
+        }
+    }
+}
+
+impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralKeyCreateResponse {
+    fn foreign_from(from: ephemeral_key::EphemeralKey) -> Self {
+        Self {
+            customer_id: from.customer_id,
+            created_at: from.created_at,
+            expires: from.expires,
+            secret: from.secret,
         }
     }
 }
