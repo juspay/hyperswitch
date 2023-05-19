@@ -166,7 +166,10 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for AirwallexCompleteR
             three_ds: AirwallexThreeDsData {
                 acs_response: item
                     .request
-                    .payload
+                    .redirect_response
+                    .as_ref()
+                    .map(|f| f.payload.to_owned())
+                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                     .as_ref()
                     .map(|data| Secret::new(serde_json::Value::to_string(data))),
             },

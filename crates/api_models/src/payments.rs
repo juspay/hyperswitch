@@ -1448,9 +1448,8 @@ pub struct Metadata {
     #[schema(value_type = Object, example = r#"{ "city": "NY", "unit": "245" }"#)]
     #[serde(flatten)]
     pub data: pii::SecretSerdeValue,
-    /// Payload coming in request as a metadata field
-    pub payload: Option<pii::SecretSerdeValue>,
-
+    /// Redirection response coming in request as metadata field only for redirection scenarios
+    pub redirect_response: Option<RedirectResponse>,
     /// Allowed payment method types for a payment intent
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
@@ -1915,4 +1914,10 @@ mod tests {
             r#"{"multi_use":null}"#
         )
     }
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq, Clone)]
+pub struct RedirectResponse {
+    pub param: Option<String>,
+    pub json_payload: Option<serde_json::Value>,
 }

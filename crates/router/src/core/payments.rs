@@ -344,7 +344,10 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             metadata: Some(Metadata {
                 order_details: None,
                 data: masking::Secret::new("{}".into()),
-                payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
+                redirect_response: Some(api_models::payments::RedirectResponse {
+                    param: req.param.clone(),
+                    json_payload: Some(req.json_payload.clone().unwrap_or(serde_json::json!({}))),
+                }),
                 allowed_payment_method_types: None,
             }),
             ..Default::default()
@@ -395,7 +398,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             // If the status is terminal status, then redirect to merchant return url to provide status
             api_models::enums::IntentStatus::Succeeded
             | api_models::enums::IntentStatus::Failed
-            | api_models::enums::IntentStatus::Cancelled | api_models::enums::IntentStatus::RequiresCapture=> helpers::get_handle_response_url(
+            | api_models::enums::IntentStatus::Cancelled | api_models::enums::IntentStatus::RequiresCapture | api_models::enums::IntentStatus::Processing => helpers::get_handle_response_url(
                 payment_id,
                 &merchant_account,
                 payments_response,
@@ -886,6 +889,7 @@ where
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
+    pub redirect_response: Option<api_models::payments::RedirectResponse>,
 }
 
 #[derive(Debug, Default)]
