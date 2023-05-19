@@ -42,7 +42,16 @@ pub struct BankCodeResponse {
     pub eligible_connectors: Vec<String>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(
+    Default,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    ToSchema,
+    router_derive::PolymorphicSchema,
+)]
+#[generate_schemas(PaymentsCreateRequest)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRequest {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
@@ -64,6 +73,8 @@ pub struct PaymentsRequest {
     /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(value_type = Option<u64>, example = 6540)]
     #[serde(default, deserialize_with = "amount::deserialize_option")]
+    #[mandatory_in(PaymentsCreateRequest)]
+    // Makes the field mandatory in PaymentsCreateRequest
     pub amount: Option<Amount>,
 
     #[schema(value_type = Option<RoutingAlgorithm>, example = json!({
@@ -78,6 +89,7 @@ pub struct PaymentsRequest {
 
     /// The currency of the payment request can be specified here
     #[schema(value_type = Option<Currency>, example = "USD")]
+    #[mandatory_in(PaymentsCreateRequest)]
     pub currency: Option<api_enums::Currency>,
 
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
@@ -205,7 +217,7 @@ pub struct PaymentsRequest {
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// Business country of the merchant for this payment
-    #[schema(value_type = CountryAlpha2, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// Business label of the merchant for this payment
@@ -213,6 +225,7 @@ pub struct PaymentsRequest {
     pub business_label: Option<String>,
 
     /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 
     /// Allowed Payment Method Types for a given PaymentIntent
@@ -637,7 +650,13 @@ pub enum BankRedirectData {
         /// The billing details for bank redirection
         billing_details: BankRedirectBilling,
         /// Bank account details for Giropay
+
+        #[schema(value_type = Option<String>)]
+        /// Bank account bic code
         bank_account_bic: Option<Secret<String>>,
+
+        /// Bank account iban
+        #[schema(value_type = Option<String>)]
         bank_account_iban: Option<Secret<String>>,
     },
     Ideal {
@@ -653,26 +672,32 @@ pub enum BankRedirectData {
         #[schema(value_type = CountryAlpha2, example = "US")]
         country: api_enums::CountryAlpha2,
 
+        #[schema(value_type = String, example = "john.doe@example.com")]
         email: Email,
     },
     OnlineBankingCzechRepublic {
         // Issuer banks
+        #[schema(value_type = BankNames)]
         issuer: api_enums::BankNames,
     },
     OnlineBankingFinland {
         // Shopper Email
+        #[schema(value_type = Option<String>)]
         email: Option<Email>,
     },
     OnlineBankingPoland {
         // Issuer banks
+        #[schema(value_type = BankNames)]
         issuer: api_enums::BankNames,
     },
     OnlineBankingSlovakia {
         // Issuer value corresponds to the bank
+        #[schema(value_type = BankNames)]
         issuer: api_enums::BankNames,
     },
     Przelewy24 {
         //Issuer banks
+        #[schema(value_type = Option<BankNames>)]
         bank_name: Option<api_enums::BankNames>,
 
         // The billing details for bank redirect
@@ -796,6 +821,7 @@ pub struct MobilePayRedirection {}
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MbWayRedirection {
     /// Telephone number of the shopper. Should be Portuguese phone number.
+    #[schema(value_type = String)]
     pub telephone_number: Secret<String>,
 }
 
@@ -1008,6 +1034,7 @@ pub struct PaymentsCaptureRequest {
     /// Concatenated with the statement descriptor suffix that’s set on the account to form the complete statement descriptor.
     pub statement_descriptor_prefix: Option<String>,
     /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
@@ -1231,6 +1258,7 @@ pub struct PaymentsResponse {
     pub connector_label: Option<String>,
 
     /// The business country of merchant for this payment
+    #[schema(value_type = CountryAlpha2)]
     pub business_country: api_enums::CountryAlpha2,
 
     /// The business label of merchant for this payment
@@ -1487,6 +1515,7 @@ pub struct PaymentsRetrieveRequest {
     /// The name of the connector
     pub connector: Option<String>,
     /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
@@ -1510,7 +1539,9 @@ pub struct Metadata {
     #[schema(value_type = Object, example = r#"{ "city": "NY", "unit": "245" }"#)]
     #[serde(flatten)]
     pub data: pii::SecretSerdeValue,
+
     /// Payload coming in request as a metadata field
+    #[schema(value_type = Option<Object>)]
     pub payload: Option<pii::SecretSerdeValue>,
 
     /// Allowed payment method types for a payment intent
@@ -1528,6 +1559,7 @@ pub struct PaymentsSessionRequest {
     #[schema(value_type = Vec<PaymentMethodType>)]
     pub wallets: Vec<api_enums::PaymentMethodType>,
     /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
@@ -1796,6 +1828,7 @@ pub struct PaymentsCancelRequest {
     /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
     /// Merchant connector details used to make payments.
+    #[schema(value_type = MerchantConnectorDetailsWrap)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
