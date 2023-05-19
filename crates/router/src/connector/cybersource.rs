@@ -94,13 +94,11 @@ impl ConnectorCommon for Cybersource {
             .parse_struct("Cybersource ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let details = response.details.unwrap_or(vec![]);
-        let mut connector_reason = String::new();
-        for det in details.iter() {
-            if connector_reason.is_empty() {
-                connector_reason.push_str(&format!("{} : {}", det.field, det.reason));
-            }
-            connector_reason.push_str(&format!(", {} : {}", det.field, det.reason));
-        }
+        let connector_reason = details
+            .iter()
+            .map(|det| format!("{} : {}", det.field, det.reason))
+            .collect::<Vec<_>>()
+            .join(", ");
         let (code, message) = match response.error_information {
             Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
             None => (
@@ -114,6 +112,7 @@ impl ConnectorCommon for Cybersource {
                     .map_or(consts::NO_ERROR_MESSAGE.to_string(), |message| message),
             ),
         };
+        println!("code: {}, message: {}", code, message);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code,

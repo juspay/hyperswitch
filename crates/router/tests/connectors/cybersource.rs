@@ -170,7 +170,10 @@ async fn should_fail_payment_for_invalid_exp_month() {
         x.message,
         r#"Declined - One or more fields in the request contains invalid data"#,
     );
-    assert_eq!(x.reason,Some("paymentInformation.card.expirationMonth : INVALID_DATA, paymentInformation.card.expirationMonth : INVALID_DATA".to_string()))
+    assert_eq!(
+        x.reason,
+        Some("paymentInformation.card.expirationMonth : INVALID_DATA".to_string())
+    );
 }
 #[actix_web::test]
 async fn should_fail_payment_for_invalid_exp_year() {
@@ -210,7 +213,10 @@ async fn should_fail_payment_for_invalid_card_cvc() {
         x.message,
         r#"Declined - One or more fields in the request contains invalid data"#,
     );
-    assert_eq!(x.reason, Some("paymentInformation.card.securityCode : INVALID_DATA, paymentInformation.card.securityCode : INVALID_DATA".to_string()));
+    assert_eq!(
+        x.reason,
+        Some("paymentInformation.card.securityCode : INVALID_DATA".to_string())
+    );
 }
 // Voids a payment using automatic capture flow (Non 3DS).
 #[actix_web::test]
