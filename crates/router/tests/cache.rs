@@ -29,6 +29,10 @@ async fn invalidate_cache_success() {
         .push(cache_key.clone(), cache_key_value.clone())
         .await;
 
+    cache::ACCOUNTS_CACHE
+        .push(cache_key.clone(), cache_key_value.clone())
+        .await;
+
     // Act
     let mut response = client
         .post(format!(
@@ -44,6 +48,7 @@ async fn invalidate_cache_success() {
     println!("invalidate Cache: {response:?} : {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::OK);
     assert!(cache::CONFIG_CACHE.get(&cache_key).is_none());
+    assert!(cache::ACCOUNTS_CACHE.get(&cache_key).is_none());
 }
 
 #[actix_web::test]
