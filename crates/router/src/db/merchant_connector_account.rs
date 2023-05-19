@@ -4,12 +4,14 @@ use masking::ExposeInterface;
 
 use super::{MockDb, Store};
 use crate::{
-    cache::{self, ACCOUNTS_CACHE},
     connection,
     core::errors::{self, CustomResult},
     services::logger,
     types::{self, storage},
 };
+
+#[cfg(feature = "accounts_cache")]
+use crate::cache::{self, ACCOUNTS_CACHE};
 
 #[async_trait::async_trait]
 pub trait ConnectorAccessToken {

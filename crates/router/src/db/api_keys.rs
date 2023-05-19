@@ -1,12 +1,14 @@
-use error_stack::{report, IntoReport};
+use error_stack::IntoReport;
 
 use super::{MockDb, Store};
 use crate::{
-    cache::{self, ACCOUNTS_CACHE},
     connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
+
+#[cfg(feature = "accounts_cache")]
+use crate::cache::{self, ACCOUNTS_CACHE};
 
 #[async_trait::async_trait]
 pub trait ApiKeyInterface {
@@ -84,6 +86,8 @@ impl ApiKeyInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
+            use error_stack::report;
+
             // We need to fetch api_key here because the key that's saved in cache in HashedApiKey.
             // Used function from storage model to reuse the connection that made here instead of
             // creating new.
@@ -127,6 +131,8 @@ impl ApiKeyInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
+            use error_stack::report;
+
             // We need to fetch api_key here because the key that's saved in cache in HashedApiKey.
             // Used function from storage model to reuse the connection that made here instead of
             // creating new.
