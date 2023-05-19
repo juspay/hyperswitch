@@ -296,8 +296,6 @@ pub struct AchBankTransferData {
 pub struct BacsBankTransferData {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
-    #[serde(flatten)]
-    pub billing_address: StripeBillingAddress,
     #[serde(rename = "payment_method_options[customer_balance][bank_transfer][type]")]
     pub bank_transfer_type: BankTransferType,
     #[serde(rename = "payment_method_options[customer_balance][funding_type]")]
@@ -310,8 +308,6 @@ pub struct BacsBankTransferData {
 pub struct SepaBankTransferData {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
-    #[serde(flatten)]
-    pub billing_address: StripeBillingAddress,
     #[serde(rename = "payment_method_options[customer_balance][bank_transfer][type]")]
     pub bank_transfer_type: BankTransferType,
     #[serde(rename = "payment_method_options[customer_balance][funding_type]")]
@@ -333,6 +329,7 @@ pub struct StripeAchSourceRequest {
     pub currency: String,
 }
 
+// Remove untagged when Deserialize is added
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum StripePaymentMethodData {
@@ -393,9 +390,9 @@ pub struct BankTransferData {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum StripeBankTransferData {
-    AchBankTransfer(AchBankTransferData),
-    SepaBankTransfer(SepaBankTransferData),
-    BacsBankTransfers(BacsBankTransferData),
+    AchBankTransfer(Box<AchBankTransferData>),
+    SepaBankTransfer(Box<SepaBankTransferData>),
+    BacsBankTransfers(Box<BacsBankTransferData>),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1069,9 +1066,9 @@ fn create_stripe_payment_method(
             match bank_transfer_data.deref() {
                 payments::BankTransferData::AchBankTransfer { billing_details } => Ok((
                     StripePaymentMethodData::BankTransfer(StripeBankTransferData::AchBankTransfer(
-                        AchBankTransferData {
+                        Box::new(AchBankTransferData {
                             email: billing_details.email.to_owned(),
-                        },
+                        }),
                     )),
                     StripePaymentMethodType::AchCreditTransfer,
                     StripeBillingAddress::default(),
@@ -1079,41 +1076,51 @@ fn create_stripe_payment_method(
                 payments::BankTransferData::SepaBankTransfer {
                     billing_details,
                     country,
-                } => Ok((
-                    StripePaymentMethodData::BankTransfer(
-                        StripeBankTransferData::SepaBankTransfer(SepaBankTransferData {
-                            payment_method_data_type: StripePaymentMethodType::CustomerBalance,
-                            billing_address: StripeBillingAddress {
-                                email: Some(billing_details.email.clone()),
-                                name: Some(billing_details.name.clone().into()),
-                                ..Default::default()
-                            },
-                            bank_transfer_type: BankTransferType::EuBankTransfer,
-                            balance_funding_type: BankTransferType::BankTransfers,
-                            payment_method_type: StripePaymentMethodType::CustomerBalance,
-                            country: country.to_owned(),
-                        }),
-                    ),
-                    StripePaymentMethodType::CustomerBalance,
-                    StripeBillingAddress::default(),
-                )),
-                payments::BankTransferData::BacsBankTransfer { billing_details } => Ok((
-                    StripePaymentMethodData::BankTransfer(
-                        StripeBankTransferData::BacsBankTransfers(BacsBankTransferData {
-                            payment_method_data_type: StripePaymentMethodType::CustomerBalance,
-                            billing_address: StripeBillingAddress {
-                                email: Some(billing_details.email.clone()),
-                                name: Some(billing_details.name.clone().into()),
-                                ..Default::default()
-                            },
-                            bank_transfer_type: BankTransferType::GbBankTransfer,
-                            balance_funding_type: BankTransferType::BankTransfers,
-                            payment_method_type: StripePaymentMethodType::CustomerBalance,
-                        }),
-                    ),
-                    StripePaymentMethodType::CustomerBalance,
-                    StripeBillingAddress::default(),
-                )),
+                } => {
+                    let billing_details = StripeBillingAddress {
+                        email: Some(billing_details.email.clone()),
+                        name: Some(billing_details.name.clone()),
+                        ..Default::default()
+                    };
+                    Ok((
+                        StripePaymentMethodData::BankTransfer(
+                            StripeBankTransferData::SepaBankTransfer(Box::new(
+                                SepaBankTransferData {
+                                    payment_method_data_type:
+                                        StripePaymentMethodType::CustomerBalance,
+                                    bank_transfer_type: BankTransferType::EuBankTransfer,
+                                    balance_funding_type: BankTransferType::BankTransfers,
+                                    payment_method_type: StripePaymentMethodType::CustomerBalance,
+                                    country: country.to_owned(),
+                                },
+                            )),
+                        ),
+                        StripePaymentMethodType::CustomerBalance,
+                        billing_details,
+                    ))
+                }
+                payments::BankTransferData::BacsBankTransfer { billing_details } => {
+                    let billing_details = StripeBillingAddress {
+                        email: Some(billing_details.email.clone()),
+                        name: Some(billing_details.name.clone()),
+                        ..Default::default()
+                    };
+                    Ok((
+                        StripePaymentMethodData::BankTransfer(
+                            StripeBankTransferData::BacsBankTransfers(Box::new(
+                                BacsBankTransferData {
+                                    payment_method_data_type:
+                                        StripePaymentMethodType::CustomerBalance,
+                                    bank_transfer_type: BankTransferType::GbBankTransfer,
+                                    balance_funding_type: BankTransferType::BankTransfers,
+                                    payment_method_type: StripePaymentMethodType::CustomerBalance,
+                                },
+                            )),
+                        ),
+                        StripePaymentMethodType::CustomerBalance,
+                        billing_details,
+                    ))
+                }
             }
         }
         _ => Err(errors::ConnectorError::NotImplemented(
@@ -1582,20 +1589,11 @@ impl<F, T>
         item: types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirect_data = item.response.next_action.clone();
-        let redirection_data =
-            if let Some(redirection) = redirect_data {
-                match redirection {
-                    StripeNextActionResponse::DisplayBankTransferInstructions(_) => None,
-                    _ => Some(services::RedirectForm::from((
-                        redirection.get_url().ok_or(
-                            errors::ConnectorError::MissingRequiredField { field_name: "url" },
-                        )?,
-                        services::Method::Get,
-                    ))),
-                }
-            } else {
-                None
-            };
+        let redirection_data = redirect_data
+            .and_then(|redirection_data| redirection_data.get_url())
+            .map(|redirection_url| {
+                services::RedirectForm::from((redirection_url, services::Method::Get))
+            });
 
         let mandate_reference = item.response.payment_method.map(|pm| {
             types::MandateReference::foreign_from((item.response.payment_method_options, pm))
@@ -1662,21 +1660,12 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let redirect_data = item.response.next_action.to_owned();
-        let redirection_data =
-            if let Some(redirection) = redirect_data {
-                match redirection {
-                    StripeNextActionResponse::DisplayBankTransferInstructions(_) => None,
-                    _ => Some(services::RedirectForm::from((
-                        redirection.get_url().ok_or(
-                            errors::ConnectorError::MissingRequiredField { field_name: "url" },
-                        )?,
-                        services::Method::Get,
-                    ))),
-                }
-            } else {
-                None
-            };
+        let redirect_data = item.response.next_action.clone();
+        let redirection_data = redirect_data
+            .and_then(|redirection_data| redirection_data.get_url())
+            .map(|redirection_url| {
+                services::RedirectForm::from((redirection_url, services::Method::Get))
+            });
 
         let mandate_reference = item.response.payment_method.clone().map(|pm| {
             types::MandateReference::foreign_from((
@@ -1717,7 +1706,7 @@ impl<F, T>
                      common_utils::ext_traits::Encode::<SepaAndBacsBankTransferInstructions>::encode_to_value(
                 &response,
             )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
                 }).transpose()?;
 
         let response = error_res.map_or(
@@ -1748,21 +1737,12 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirect_data = item.response.next_action;
-        let redirection_data =
-            if let Some(redirection) = redirect_data {
-                match redirection {
-                    StripeNextActionResponse::DisplayBankTransferInstructions(_) => None,
-                    _ => Some(services::RedirectForm::from((
-                        redirection.get_url().ok_or(
-                            errors::ConnectorError::MissingRequiredField { field_name: "url" },
-                        )?,
-                        services::Method::Get,
-                    ))),
-                }
-            } else {
-                None
-            };
+        let redirect_data = item.response.next_action.clone();
+        let redirection_data = redirect_data
+            .and_then(|redirection_data| redirection_data.get_url())
+            .map(|redirection_url| {
+                services::RedirectForm::from((redirection_url, services::Method::Get))
+            });
 
         let mandate_reference = item.response.payment_method.map(|pm| {
             types::MandateReference::foreign_from((item.response.payment_method_options, pm))
@@ -2537,43 +2517,30 @@ impl
                 match bank_transfer_data.deref() {
                     payments::BankTransferData::AchBankTransfer { billing_details } => {
                         Ok(Self::BankTransfer(StripeBankTransferData::AchBankTransfer(
-                            AchBankTransferData {
+                            Box::new(AchBankTransferData {
                                 email: billing_details.email.to_owned(),
-                            },
+                            }),
                         )))
                     }
-                    payments::BankTransferData::SepaBankTransfer {
-                        billing_details,
-                        country,
-                    } => Ok(Self::BankTransfer(
-                        StripeBankTransferData::SepaBankTransfer(SepaBankTransferData {
-                            payment_method_data_type: StripePaymentMethodType::CustomerBalance,
-                            billing_address: StripeBillingAddress {
-                                email: Some(billing_details.email.clone()),
-                                name: Some(billing_details.name.clone().into()),
-                                ..Default::default()
-                            },
-                            bank_transfer_type: BankTransferType::EuBankTransfer,
-                            balance_funding_type: BankTransferType::BankTransfers,
-                            payment_method_type: StripePaymentMethodType::CustomerBalance,
-                            country: country.to_owned(),
-                        }),
-                    )),
-                    payments::BankTransferData::BacsBankTransfer { billing_details } => {
-                        Ok(Self::BankTransfer(
-                            StripeBankTransferData::BacsBankTransfers(BacsBankTransferData {
+                    payments::BankTransferData::SepaBankTransfer { country, .. } => Ok(
+                        Self::BankTransfer(StripeBankTransferData::SepaBankTransfer(Box::new(
+                            SepaBankTransferData {
                                 payment_method_data_type: StripePaymentMethodType::CustomerBalance,
-                                billing_address: StripeBillingAddress {
-                                    email: Some(billing_details.email.clone()),
-                                    name: Some(billing_details.name.clone().into()),
-                                    ..Default::default()
-                                },
-                                bank_transfer_type: BankTransferType::GbBankTransfer,
+                                bank_transfer_type: BankTransferType::EuBankTransfer,
                                 balance_funding_type: BankTransferType::BankTransfers,
                                 payment_method_type: StripePaymentMethodType::CustomerBalance,
-                            }),
-                        ))
-                    }
+                                country: country.to_owned(),
+                            },
+                        ))),
+                    ),
+                    payments::BankTransferData::BacsBankTransfer { .. } => Ok(Self::BankTransfer(
+                        StripeBankTransferData::BacsBankTransfers(Box::new(BacsBankTransferData {
+                            payment_method_data_type: StripePaymentMethodType::CustomerBalance,
+                            bank_transfer_type: BankTransferType::GbBankTransfer,
+                            balance_funding_type: BankTransferType::BankTransfers,
+                            payment_method_type: StripePaymentMethodType::CustomerBalance,
+                        })),
+                    )),
                 }
             }
             api::PaymentMethodData::MandatePayment | api::PaymentMethodData::Crypto(_) => {
