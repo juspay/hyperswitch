@@ -920,8 +920,43 @@ pub(crate) fn validate_payment_method_fields_present(
         },
     )?;
 
+    utils::when(
+        !matches!(req.payment_method, Some(api_enums::PaymentMethod::Card))
+            &&(req.payment_method_type.is_none()),
+        || {
+            Err(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "payment_method_type",
+            })
+        },
+    )?;
+
+    let payment_method = match req.payment_method_type{  
+        Some(payment_method_type) => {
+            match payment_method_type{
+                api_enums::PaymentMethodType::ApplePay => {
+                    api_enums::PaymentMethod::Wallet
+                },
+                api_enums::PaymentMethodType::GooglePay => {
+                    api_enums::PaymentMethod::Wallet
+                }
+            }
+        }
+        None => {}
+    };
+
+    utils::when(
+        !matches!(req.payment_method, Some(api_enums::PaymentMethod::Card))
+            &&(!match_payment_method_parent(req.payment_method, map_to_payment_method(req.payment_method_type)) || !validate_payment_method_data(req.payment_method,req.payment_method_data)),
+        || {
+            Err(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "payment_method_data",
+            })
+        },
+    )?;
+
     Ok(())
 }
+
 
 pub fn check_force_psync_precondition(
     status: &storage_enums::AttemptStatus,
