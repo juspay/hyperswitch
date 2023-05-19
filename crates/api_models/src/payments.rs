@@ -724,13 +724,14 @@ pub enum BankRedirectData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct AchBankTransferData {
-    pub billing_details: AchBillingDetails,
+pub struct AchBillingDetails {
+    pub email: Email,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct AchBillingDetails {
+pub struct SepaAndBacsBillingDetails {
     pub email: Email,
+    pub name: Secret<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -757,7 +758,16 @@ pub struct BankRedirectBilling {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferData {
-    AchBankTransfer(AchBankTransferData),
+    AchBankTransfer {
+        billing_details: AchBillingDetails,
+    },
+    SepaBankTransfer {
+        billing_details: SepaAndBacsBillingDetails,
+        country: api_enums::CountryAlpha2,
+    },
+    BacsBankTransfer {
+        billing_details: SepaAndBacsBillingDetails,
+    },
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
@@ -878,6 +888,7 @@ pub struct CardResponse {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
     Card(CardResponse),
@@ -1071,8 +1082,32 @@ pub struct NextAction {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct NextStepsRequirements {
-    pub ach_credit_transfer: AchTransfer,
+    #[serde(flatten)]
+    pub bank_transfer_instructions: BankTransferInstructions,
     pub receiver: ReceiverDetails,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BankTransferInstructions {
+    AchCreditTransfer(Box<AchTransfer>),
+    SepaBankInstructions(Box<SepaBankTransferInstructions>),
+    BacsBankInstructions(Box<BacsBankTransferInstructions>),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct SepaBankTransferInstructions {
+    pub account_holder_name: Secret<String>,
+    pub bic: Secret<String>,
+    pub country: String,
+    pub iban: Secret<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct BacsBankTransferInstructions {
+    pub account_holder_name: Secret<String>,
+    pub account_number: Secret<String>,
+    pub sort_code: Secret<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1085,8 +1120,9 @@ pub struct AchTransfer {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ReceiverDetails {
-    pub amount_received: i64,
-    pub amount_charged: i64,
+    amount_received: i64,
+    amount_charged: Option<i64>,
+    amount_remaining: Option<i64>,
 }
 
 #[derive(Setter, Clone, Default, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
