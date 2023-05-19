@@ -1096,6 +1096,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 .and_then(|mandate_details| {
                     mandate_details
                         .customer_acceptance
+                        .as_ref()?
                         .online
                         .as_ref()
                         .map(|online_details| StripeMandateRequest {

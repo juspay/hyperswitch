@@ -18,6 +18,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
+    utils::OptionExt,
 };
 
 #[derive(Debug, Serialize, Default, Deserialize)]
@@ -712,7 +713,12 @@ fn get_card_info<F>(
         let (is_rebilling, additional_params, user_token_id) =
             match item.request.setup_mandate_details.clone() {
                 Some(mandate_data) => {
-                    let details = match mandate_data.mandate_type {
+                    let details = match mandate_data
+                        .mandate_type
+                        .get_required_value("mandate_type")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "mandate_type",
+                        })? {
                         payments::MandateType::SingleUse(details) => details,
                         payments::MandateType::MultiUse(details) => {
                             details.ok_or(errors::ConnectorError::MissingRequiredField {
