@@ -87,6 +87,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         webhook_url: None,
         complete_authorize_url: None,
         capture_method: None,
+        customer_id: None,
     })
 }
 

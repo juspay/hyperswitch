@@ -1,6 +1,7 @@
 use api_models::payments;
 use common_utils::{ext_traits::Encode, pii};
 use error_stack::{report, ResultExt};
+use futures::future;
 use router_env::{instrument, logger, tracing};
 use storage_models::enums as storage_enums;
 
@@ -224,11 +225,9 @@ where
                         maybe_customer,
                         pm_id.get_required_value("payment_method_id")?,
                         mandate_ids,
-                        (
-                            network_txn_id,
-                            get_insensitive_payment_method_data_if_exists(&resp),
-                        ),
-                    ) {
+                        network_txn_id,
+                        get_insensitive_payment_method_data_if_exists(&resp)
+                    )? {
                         let connector = new_mandate_data.connector.clone();
                         logger::debug!("{:?}", new_mandate_data);
                         resp.request
@@ -276,6 +275,25 @@ where
         },
     }
     Ok(resp)
+}
+
+#[instrument(skip(state))]
+pub async fn retrieve_mandates_list(
+    state: &AppState,
+    merchant_account: storage::MerchantAccount,
+    constraints: api_models::mandates::MandateListConstraints,
+) -> RouterResponse<Vec<api_models::mandates::MandateResponse>> {
+    let mandates = state
+        .store
+        .find_mandates_by_merchant_id(&merchant_account.merchant_id, constraints)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to retrieve mandates")?;
+    let mandates_list = future::try_join_all(mandates.into_iter().map(|mandate| {
+        mandates::MandateResponse::from_db_mandate(state, mandate, &merchant_account)
+    }))
+    .await?;
+    Ok(services::ApplicationResponse::Json(mandates_list))
 }
 
 impl ForeignTryFrom<Result<types::PaymentsResponseData, types::ErrorResponse>>

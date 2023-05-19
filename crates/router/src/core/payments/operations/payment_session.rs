@@ -172,6 +172,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 pm_token: None,
                 connector_customer_id: None,
                 mandate_metadata: None,
+                ephemeral_key: None,
             },
             Some(customer_details),
         ))
@@ -377,11 +378,13 @@ where
         for (connector, payment_method_type, business_sub_label) in
             connector_and_supporting_payment_method_type
         {
-            match api::ConnectorData::get_connector_by_name(
-                connectors,
-                &connector,
-                api::GetToken::from(payment_method_type),
-            ) {
+            let connector_type = get_connector_type_for_session_token(
+                payment_method_type,
+                request,
+                connector.to_owned(),
+            );
+            match api::ConnectorData::get_connector_by_name(connectors, &connector, connector_type)
+            {
                 Ok(connector_data) => session_connector_data.push(api::SessionConnectorData {
                     payment_method_type,
                     connector: connector_data,
@@ -406,5 +409,21 @@ impl From<api_models::enums::PaymentMethodType> for api::GetToken {
             api_models::enums::PaymentMethodType::ApplePay => Self::ApplePayMetadata,
             _ => Self::Connector,
         }
+    }
+}
+
+pub fn get_connector_type_for_session_token(
+    payment_method_type: api_models::enums::PaymentMethodType,
+    _request: &api::PaymentsSessionRequest,
+    connector: String,
+) -> api::GetToken {
+    if payment_method_type == api_models::enums::PaymentMethodType::ApplePay {
+        if connector == *"bluesnap" {
+            api::GetToken::Connector
+        } else {
+            api::GetToken::ApplePayMetadata
+        }
+    } else {
+        api::GetToken::from(payment_method_type)
     }
 }

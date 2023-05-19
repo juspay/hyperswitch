@@ -105,6 +105,7 @@ impl TryFrom<types::VerifyRequestData> for types::ConnectorCustomerData {
             description: None,
             phone: None,
             name: None,
+            preprocessing_id: None,
         })
     }
 }
