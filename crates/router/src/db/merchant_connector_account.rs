@@ -4,6 +4,7 @@ use masking::ExposeInterface;
 
 use super::{MockDb, Store};
 use crate::{
+    cache::{self, ACCOUNTS_CACHE},
     connection,
     core::errors::{self, CustomResult},
     services::logger,
@@ -141,33 +142,18 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_id: &str,
         connector_label: &str,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::MerchantConnectorAccount::find_by_merchant_id_connector(
-            &conn,
-            merchant_id,
-            connector_label,
-        )
-        .await
-        .map_err(Into::into)
-        .into_report()
-    }
-
-    async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-        &self,
-        merchant_id: &str,
-        merchant_connector_id: &str,
-    ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
         let find_call = || async {
             let conn = connection::pg_connection_read(self).await?;
-            storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
+            storage::MerchantConnectorAccount::find_by_merchant_id_connector(
                 &conn,
                 merchant_id,
-                merchant_connector_id,
+                connector_label,
             )
             .await
             .map_err(Into::into)
             .into_report()
         };
+
         #[cfg(not(feature = "accounts_cache"))]
         {
             find_call().await
@@ -175,8 +161,30 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_redis(self, merchant_connector_id, find_call).await
+            super::cache::get_or_populate_in_memory(
+                self,
+                &format!("{}_{}", merchant_id, connector_label),
+                find_call,
+                &ACCOUNTS_CACHE,
+            )
+            .await
         }
+    }
+
+    async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+        &self,
+        merchant_id: &str,
+        merchant_connector_id: &str,
+    ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
+            &conn,
+            merchant_id,
+            merchant_connector_id,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
     }
 
     async fn insert_merchant_connector_account(
@@ -204,7 +212,8 @@ impl MerchantConnectorAccountInterface for Store {
         this: storage::MerchantConnectorAccount,
         merchant_connector_account: storage::MerchantConnectorAccountUpdate,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let _merchant_connector_id = this.merchant_connector_id.clone();
+        let _merchant_id = this.merchant_id.clone();
+        let _merchant_connector_label = this.connector_label.clone();
         let update_call = || async {
             let conn = connection::pg_connection_write(self).await?;
             this.update(&conn, merchant_connector_account)
@@ -215,7 +224,14 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::redact_cache(self, &_merchant_connector_id, update_call, None).await
+            super::cache::publish_and_redact(
+                self,
+                cache::CacheKind::Accounts(
+                    format!("{}_{}", _merchant_id, _merchant_connector_label).into(),
+                ),
+                update_call,
+            )
+            .await
         }
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -230,14 +246,48 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_connector_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::MerchantConnectorAccount::delete_by_merchant_id_merchant_connector_id(
-            &conn,
-            merchant_id,
-            merchant_connector_id,
-        )
-        .await
-        .map_err(Into::into)
-        .into_report()
+
+        let delete_call = || async {
+            storage::MerchantConnectorAccount::delete_by_merchant_id_merchant_connector_id(
+                &conn,
+                merchant_id,
+                merchant_connector_id,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
+        };
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            // We need to fetch mca here because the key that's saved in cache in
+            // {merchant_id}_{connector_label}.
+            // Used function from storage model to reuse the connection that made here instead of
+            // creating new.
+
+            let mca = storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
+                &conn,
+                merchant_id,
+                merchant_connector_id,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()?;
+
+            super::cache::publish_and_redact(
+                self,
+                cache::CacheKind::Accounts(
+                    format!("{}_{}", mca.merchant_id, mca.connector_label).into(),
+                ),
+                delete_call,
+            )
+            .await
+        }
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            delete_call().await
+        }
     }
 }
 

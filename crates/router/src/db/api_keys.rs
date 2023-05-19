@@ -1,7 +1,8 @@
-use error_stack::IntoReport;
+use error_stack::{report, IntoReport};
 
 use super::{MockDb, Store};
 use crate::{
+    cache::{self, ACCOUNTS_CACHE},
     connection,
     core::errors::{self, CustomResult},
     types::storage,
@@ -67,10 +68,44 @@ impl ApiKeyInterface for Store {
         api_key: storage::ApiKeyUpdate,
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::ApiKey::update_by_merchant_id_key_id(&conn, merchant_id, key_id, api_key)
+        let _merchant_id = merchant_id.clone();
+        let _key_id = key_id.clone();
+        let update_call = || async {
+            storage::ApiKey::update_by_merchant_id_key_id(&conn, merchant_id, key_id, api_key)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            update_call().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            // We need to fetch api_key here because the key that's saved in cache in HashedApiKey.
+            // Used function from storage model to reuse the connection that made here instead of
+            // creating new.
+            let api_key = storage::ApiKey::find_optional_by_merchant_id_key_id(
+                &conn,
+                &_merchant_id,
+                &_key_id,
+            )
             .await
             .map_err(Into::into)
-            .into_report()
+            .into_report()?
+            .ok_or(report!(errors::StorageError::ValueNotFound(format!(
+                "ApiKey of {_key_id} not found"
+            ))))?;
+
+            super::cache::publish_and_redact(
+                self,
+                cache::CacheKind::Accounts(api_key.hashed_api_key.into_inner().into()),
+                update_call,
+            )
+            .await
+        }
     }
 
     async fn revoke_api_key(
@@ -79,10 +114,39 @@ impl ApiKeyInterface for Store {
         key_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::ApiKey::revoke_by_merchant_id_key_id(&conn, merchant_id, key_id)
+        let delete_call = || async {
+            storage::ApiKey::revoke_by_merchant_id_key_id(&conn, merchant_id, key_id)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            delete_call().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            // We need to fetch api_key here because the key that's saved in cache in HashedApiKey.
+            // Used function from storage model to reuse the connection that made here instead of
+            // creating new.
+
+            let api_key =
+                storage::ApiKey::find_optional_by_merchant_id_key_id(&conn, merchant_id, key_id)
+                    .await
+                    .map_err(Into::into)
+                    .into_report()?
+                    .ok_or(report!(errors::StorageError::ValueNotFound(format!(
+                        "ApiKey of {key_id} not found"
+                    ))))?;
+
+            super::cache::publish_and_redact(
+                self,
+                cache::CacheKind::Accounts(api_key.hashed_api_key.into_inner().into()),
+                delete_call,
+            )
             .await
-            .map_err(Into::into)
-            .into_report()
+        }
     }
 
     async fn find_api_key_by_merchant_id_key_id_optional(
@@ -101,11 +165,30 @@ impl ApiKeyInterface for Store {
         &self,
         hashed_api_key: storage::HashedApiKey,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::ApiKey::find_optional_by_hashed_api_key(&conn, hashed_api_key)
+        let _hashed_api_key = hashed_api_key.clone();
+        let find_call = || async {
+            let conn = connection::pg_connection_read(self).await?;
+            storage::ApiKey::find_optional_by_hashed_api_key(&conn, hashed_api_key)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            find_call().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            super::cache::get_or_populate_in_memory(
+                self,
+                &_hashed_api_key.into_inner(),
+                find_call,
+                &ACCOUNTS_CACHE,
+            )
             .await
-            .map_err(Into::into)
-            .into_report()
+        }
     }
 
     async fn list_api_keys_by_merchant_id(
