@@ -164,6 +164,7 @@ pub struct StripePaymentIntentRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     pub mandate_id: Option<String>,
     pub off_session: Option<bool>,
+    pub payment_method_type: Option<api_enums::PaymentMethodType>
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
@@ -233,6 +234,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             setup_future_usage: item.setup_future_usage,
             mandate_id: item.mandate_id,
             off_session: item.off_session,
+            payment_method_type: item.payment_method_type,
             ..Self::default()
         });
         request
