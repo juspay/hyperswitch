@@ -353,42 +353,30 @@ pub enum AciPaymentType {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.mandate_id.as_ref() {
-            Some(_) => {
-                let instruction = get_instruction_details(item);
-                let txn_details = get_transaction_details(item)?;
-                let aci_payment_request = Self {
-                    txn_details,
-                    payment_method: PaymentDetails::Mandate,
-                    instruction,
-                    shopper_result_url: item.request.router_return_url.clone(),
-                };
-                Ok(aci_payment_request)
+        match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Card(ref card_data) => Self::try_from((item, card_data)),
+            api::PaymentMethodData::Wallet(ref wallet_data) => Self::try_from((item, wallet_data)),
+            api::PaymentMethodData::PayLater(ref pay_later_data) => {
+                Self::try_from((item, pay_later_data))
             }
-            None => {
-                match item.request.payment_method_data.clone() {
-                    api::PaymentMethodData::Card(ref card_data) => Self::try_from((item, card_data)),
-    
-                    api::PaymentMethodData::Wallet(ref wallet_data) => {
-                        Self::try_from((item, wallet_data))
-                    }
-                    api::PaymentMethodData::PayLater(ref pay_later_data) => {
-                        Self::try_from((item, pay_later_data))
-                    }
-                    api::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
-                        Self::try_from((item, bank_redirect_data))
-                    }
-                    api::PaymentMethodData::Crypto(_)
-                    | api::PaymentMethodData::BankDebit(_)
-                    | api::PaymentMethodData::MandatePayment => {
-                        Err(errors::ConnectorError::NotSupported {
-                            message: format!("{:?}", item.payment_method),
-                            connector: "Aci",
-                            payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                                .to_string(),
-                        })?
-                    }
-                }
+            api::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
+                Self::try_from((item, bank_redirect_data))
+            }
+            api::PaymentMethodData::MandatePayment => {
+                let mandate_id = item.request.mandate_id.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "mandate_id",
+                    },
+                )?;
+                Self::try_from((item, mandate_id))
+            }
+            api::PaymentMethodData::Crypto(_) | api::PaymentMethodData::BankDebit(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: format!("{:?}", item.payment_method),
+                    connector: "Aci",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                })?
             }
         }
     }
@@ -487,6 +475,32 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &api::Card)> for AciPaymentsR
             payment_method,
             instruction,
             shopper_result_url: None,
+        })
+    }
+}
+
+impl
+    TryFrom<(
+        &types::PaymentsAuthorizeRouterData,
+        api_models::payments::MandateIds,
+    )> for AciPaymentsRequest
+{
+    type Error = Error;
+    fn try_from(
+        value: (
+            &types::PaymentsAuthorizeRouterData,
+            api_models::payments::MandateIds,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, _mandate_data) = value;
+        let instruction = get_instruction_details(item);
+        let txn_details = get_transaction_details(item)?;
+
+        Ok(Self {
+            txn_details,
+            payment_method: PaymentDetails::Mandate,
+            instruction,
+            shopper_result_url: item.request.router_return_url.clone(),
         })
     }
 }
