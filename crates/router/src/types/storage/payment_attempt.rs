@@ -12,6 +12,7 @@ pub struct RoutingData {
 impl crate::utils::storage_partitioning::KvStorePartition for PaymentAttempt {}
 
 #[cfg(test)]
+#[cfg(feature = "dummy_connector")]
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]
     use tokio::sync::oneshot;
@@ -34,7 +35,7 @@ mod tests {
 
         let payment_id = Uuid::new_v4().to_string();
         let current_time = common_utils::date_time::now();
-        let connector = types::Connector::Dummy.to_string();
+        let connector = types::Connector::DummyConnector1.to_string();
         let payment_attempt = PaymentAttemptNew {
             payment_id: payment_id.clone(),
             connector: Some(connector),
@@ -66,7 +67,7 @@ mod tests {
         let payment_id = Uuid::new_v4().to_string();
         let attempt_id = Uuid::new_v4().to_string();
         let merchant_id = Uuid::new_v4().to_string();
-        let connector = types::Connector::Dummy.to_string();
+        let connector = types::Connector::DummyConnector1.to_string();
 
         let payment_attempt = PaymentAttemptNew {
             payment_id: payment_id.clone(),
@@ -105,11 +106,11 @@ mod tests {
     async fn test_payment_attempt_mandate_field() {
         use crate::configs::settings::Settings;
         let conf = Settings::new().expect("invalid settings");
-        let uuid = uuid::Uuid::new_v4().to_string();
+        let uuid = Uuid::new_v4().to_string();
         let tx: oneshot::Sender<()> = oneshot::channel().0;
         let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
         let current_time = common_utils::date_time::now();
-        let connector = types::Connector::Dummy.to_string();
+        let connector = types::Connector::DummyConnector1.to_string();
 
         let payment_attempt = PaymentAttemptNew {
             payment_id: uuid.clone(),
