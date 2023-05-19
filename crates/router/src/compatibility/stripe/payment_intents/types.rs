@@ -48,7 +48,7 @@ pub struct StripeCard {
 #[derive(Serialize, PartialEq, Eq, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum StripeWallet {
-    ApplePay(payments::ApplePayWalletData)
+    ApplePay(payments::ApplePayWalletData),
 }
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -56,14 +56,14 @@ pub enum StripeWallet {
 pub enum StripePaymentMethodType {
     #[default]
     Card,
-    Wallet
+    Wallet,
 }
 
 impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
     fn from(item: StripePaymentMethodType) -> Self {
         match item {
             StripePaymentMethodType::Card => Self::Card,
-            StripePaymentMethodType::Wallet => Self::Wallet
+            StripePaymentMethodType::Wallet => Self::Wallet,
         }
     }
 }
@@ -82,7 +82,7 @@ pub struct StripePaymentMethodData {
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodDetails {
     Card(StripeCard),
-    Wallet(StripeWallet)
+    Wallet(StripeWallet),
 }
 
 impl From<StripeCard> for payments::Card {
@@ -99,10 +99,10 @@ impl From<StripeCard> for payments::Card {
     }
 }
 
-impl From<StripeWallet> for payments::WalletData{
+impl From<StripeWallet> for payments::WalletData {
     fn from(wallet: StripeWallet) -> Self {
         match wallet {
-            StripeWallet::ApplePay(data) => Self::ApplePay(data)
+            StripeWallet::ApplePay(data) => Self::ApplePay(data),
         }
     }
 }
@@ -111,7 +111,9 @@ impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
     fn from(item: StripePaymentMethodDetails) -> Self {
         match item {
             StripePaymentMethodDetails::Card(card) => Self::Card(payments::Card::from(card)),
-            StripePaymentMethodDetails::Wallet(wallet) => Self::Wallet(payments::WalletData::from(wallet))
+            StripePaymentMethodDetails::Wallet(wallet) => {
+                Self::Wallet(payments::WalletData::from(wallet))
+            }
         }
     }
 }
@@ -164,7 +166,7 @@ pub struct StripePaymentIntentRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     pub mandate_id: Option<String>,
     pub off_session: Option<bool>,
-    pub payment_method_type: Option<api_enums::PaymentMethodType>
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
