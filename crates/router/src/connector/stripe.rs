@@ -454,10 +454,11 @@ impl
                 x
             )),
             Ok(x) => Ok(format!(
-                "{}{}/{}",
+                "{}{}/{}{}",
                 self.base_url(connectors),
                 "v1/payment_intents",
-                x
+                x,
+                "?expand[0]=latest_charge"
             )),
             x => x.change_context(errors::ConnectorError::MissingConnectorTransactionID),
         }
@@ -1612,9 +1613,10 @@ impl services::ConnectorRedirectResponse for Stripe {
             .map_or(
                 payments::CallConnectorAction::Trigger,
                 |status| match status {
-                    transformers::StripePaymentStatus::Failed => {
-                        payments::CallConnectorAction::Trigger
-                    }
+                    //after customer_action, we need to sync the payment to update payment_method_id in db if needed
+                    transformers::StripePaymentStatus::Failed
+                    | transformers::StripePaymentStatus::Pending
+                    | transformers::StripePaymentStatus::Succeeded=> payments::CallConnectorAction::Trigger,
                     _ => payments::CallConnectorAction::StatusUpdate(enums::AttemptStatus::from(
                         status,
                     )),

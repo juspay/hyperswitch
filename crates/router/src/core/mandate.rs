@@ -133,11 +133,8 @@ where
     FData: MandateBehaviour,
 {
     match &router_data.request.get_payment_method_data() {
-        api_models::payments::PaymentMethodData::BankDebit(_) => {
-            Some(router_data.request.get_payment_method_data())
-        }
         api_models::payments::PaymentMethodData::Card(_) => None,
-        _ => None,
+        _ => Some(router_data.request.get_payment_method_data()),
     }
 }
 

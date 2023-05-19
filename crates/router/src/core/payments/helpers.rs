@@ -228,10 +228,7 @@ pub async fn get_token_for_recurring_mandate(
 
             Ok((Some(token), Some(payment_method.payment_method), None))
         }
-        storage_enums::PaymentMethod::BankDebit => {
-            Ok((None, Some(payment_method.payment_method), mandate.metadata))
-        }
-        _ => Ok((None, Some(payment_method.payment_method), None)),
+        _ => Ok((None, Some(payment_method.payment_method), mandate.metadata)),
     }
 }
 
