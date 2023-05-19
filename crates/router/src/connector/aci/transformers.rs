@@ -353,45 +353,41 @@ pub enum AciPaymentType {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        if item.request.setup_mandate_details.is_some() {
-            match item.request.payment_method_data.clone() {
-                api::PaymentMethodData::Card(ref card_data) => Self::try_from((item, card_data)),
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?,
+        match item.request.mandate_id.as_ref() {
+            Some(_) => {
+                let instruction = get_instruction_details(item);
+                let txn_details = get_transaction_details(item)?;
+                let aci_payment_request = Self {
+                    txn_details,
+                    payment_method: PaymentDetails::Mandate,
+                    instruction,
+                    shopper_result_url: item.request.router_return_url.clone(),
+                };
+                Ok(aci_payment_request)
             }
-        } else if item.request.mandate_id.is_some() {
-            let instruction = get_instruction_details(item);
-            let txn_details = get_transaction_details(item)?;
-            let aci_payment_request = Self {
-                txn_details,
-                payment_method: PaymentDetails::Mandate,
-                instruction,
-                shopper_result_url: item.request.router_return_url.clone(),
-            };
-            Ok(aci_payment_request)
-        } else {
-            match item.request.payment_method_data.clone() {
-                api::PaymentMethodData::Card(ref card_data) => Self::try_from((item, card_data)),
-
-                api::PaymentMethodData::Wallet(ref wallet_data) => {
-                    Self::try_from((item, wallet_data))
-                }
-                api::PaymentMethodData::PayLater(ref pay_later_data) => {
-                    Self::try_from((item, pay_later_data))
-                }
-                api::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
-                    Self::try_from((item, bank_redirect_data))
-                }
-                api::PaymentMethodData::Crypto(_)
-                | api::PaymentMethodData::BankDebit(_)
-                | api::PaymentMethodData::MandatePayment => {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: format!("{:?}", item.payment_method),
-                        connector: "Aci",
-                        payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                            .to_string(),
-                    })?
+            None => {
+                match item.request.payment_method_data.clone() {
+                    api::PaymentMethodData::Card(ref card_data) => Self::try_from((item, card_data)),
+    
+                    api::PaymentMethodData::Wallet(ref wallet_data) => {
+                        Self::try_from((item, wallet_data))
+                    }
+                    api::PaymentMethodData::PayLater(ref pay_later_data) => {
+                        Self::try_from((item, pay_later_data))
+                    }
+                    api::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
+                        Self::try_from((item, bank_redirect_data))
+                    }
+                    api::PaymentMethodData::Crypto(_)
+                    | api::PaymentMethodData::BankDebit(_)
+                    | api::PaymentMethodData::MandatePayment => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: format!("{:?}", item.payment_method),
+                            connector: "Aci",
+                            payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                                .to_string(),
+                        })?
+                    }
                 }
             }
         }
