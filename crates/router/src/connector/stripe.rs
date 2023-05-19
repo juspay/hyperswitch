@@ -458,7 +458,7 @@ impl
                 self.base_url(connectors),
                 "v1/payment_intents",
                 x,
-                "?expand[0]=latest_charge"
+                "?expand[0]=latest_charge" //updated payment_id(if present) reside inside latest_change field
             )),
             x => x.change_context(errors::ConnectorError::MissingConnectorTransactionID),
         }
