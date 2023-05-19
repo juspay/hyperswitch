@@ -4,6 +4,7 @@ pub mod configs;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
+pub mod ephemeral_key;
 pub mod files;
 pub mod mandates;
 pub mod payment_methods;
@@ -224,6 +225,7 @@ impl ConnectorData {
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "mollie" => Ok(Box::new(&connector::Mollie)),
             "nmi" => Ok(Box::new(&connector::Nmi)),
+            // "noon" => Ok(Box::new(&connector::Noon)), added as template code for future usage
             "nuvei" => Ok(Box::new(&connector::Nuvei)),
             "opennode" => Ok(Box::new(&connector::Opennode)),
             // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage

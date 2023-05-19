@@ -123,6 +123,10 @@ pub enum PaymentIntentUpdate {
     PaymentAttemptUpdate {
         active_attempt_id: String,
     },
+    StatusAndAttemptUpdate {
+        status: storage_enums::IntentStatus,
+        active_attempt_id: String,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -270,6 +274,14 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentAttemptUpdate { active_attempt_id } => Self {
+                active_attempt_id: Some(active_attempt_id),
+                ..Default::default()
+            },
+            PaymentIntentUpdate::StatusAndAttemptUpdate {
+                status,
+                active_attempt_id,
+            } => Self {
+                status: Some(status),
                 active_attempt_id: Some(active_attempt_id),
                 ..Default::default()
             },

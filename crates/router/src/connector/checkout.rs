@@ -80,7 +80,7 @@ impl ConnectorCommon for Checkout {
         let response: checkout::ErrorResponse = if res.response.is_empty() {
             checkout::ErrorResponse {
                 request_id: None,
-                error_type: if res.status_code == 401 | 422 {
+                error_type: if res.status_code == 401 || res.status_code == 422 {
                     Some("Invalid Api Key".to_owned())
                 } else {
                     None
@@ -92,17 +92,18 @@ impl ConnectorCommon for Checkout {
                 .parse_struct("ErrorResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
         };
-
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
-                .error_codes
-                .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
-                .join(" & "),
-            message: response
                 .error_type
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .error_codes
+                .as_ref()
+                .and_then(|error_codes| error_codes.first().cloned())
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error_codes.map(|errors| errors.join(" & ")),
         })
     }
 }
@@ -1124,7 +1125,7 @@ impl api::IncomingWebhook for Checkout {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: checkout::CheckoutWebhookBody = request
+        let details: checkout::CheckoutWebhookEventTypeBody = request
             .body
             .parse_struct("CheckoutWebhookBody")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;

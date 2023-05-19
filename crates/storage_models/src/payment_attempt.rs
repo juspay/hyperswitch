@@ -46,6 +46,8 @@ pub struct PaymentAttempt {
     pub payment_method_data: Option<serde_json::Value>,
     pub business_sub_label: Option<String>,
     pub straight_through_algorithm: Option<serde_json::Value>,
+    // providing a location to store mandate details intermediately for transaction
+    pub mandate_details: Option<storage_enums::MandateDataType>,
 }
 
 #[derive(
@@ -91,6 +93,7 @@ pub struct PaymentAttemptNew {
     pub payment_method_data: Option<serde_json::Value>,
     pub business_sub_label: Option<String>,
     pub straight_through_algorithm: Option<serde_json::Value>,
+    pub mandate_details: Option<storage_enums::MandateDataType>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

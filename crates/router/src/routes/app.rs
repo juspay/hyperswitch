@@ -1,4 +1,6 @@
 use actix_web::{web, Scope};
+#[cfg(feature = "email")]
+use external_services::email::{AwsSes, EmailClient};
 use tokio::sync::oneshot;
 
 #[cfg(feature = "dummy_connector")]
@@ -22,12 +24,16 @@ pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
     pub conf: Settings,
+    #[cfg(feature = "email")]
+    pub email_client: Box<dyn EmailClient>,
 }
 
 pub trait AppStateInfo {
     fn conf(&self) -> Settings;
     fn flow_name(&self) -> String;
     fn store(&self) -> Box<dyn StorageInterface>;
+    #[cfg(feature = "email")]
+    fn email_client(&self) -> Box<dyn EmailClient>;
 }
 
 impl AppStateInfo for AppState {
@@ -39,6 +45,10 @@ impl AppStateInfo for AppState {
     }
     fn store(&self) -> Box<dyn StorageInterface> {
         self.store.to_owned()
+    }
+    #[cfg(feature = "email")]
+    fn email_client(&self) -> Box<dyn EmailClient> {
+        self.email_client.to_owned()
     }
 }
 
@@ -56,10 +66,15 @@ impl AppState {
             StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
         };
 
+        #[cfg(feature = "email")]
+        #[allow(clippy::expect_used)]
+        let email_client = Box::new(AwsSes::new(&conf.email).await);
         Self {
             flow_name: String::from("default"),
             store,
             conf,
+            #[cfg(feature = "email")]
+            email_client,
         }
     }
 
@@ -350,6 +365,8 @@ impl Mandates {
 
         #[cfg(feature = "olap")]
         {
+            route =
+                route.service(web::resource("/list").route(web::get().to(retrieve_mandates_list)));
             route = route.service(web::resource("/{id}").route(web::get().to(get_mandate)));
         }
         #[cfg(feature = "oltp")]
@@ -429,6 +446,10 @@ impl Disputes {
                 web::resource("/evidence")
                     .route(web::post().to(submit_dispute_evidence))
                     .route(web::put().to(attach_dispute_evidence)),
+            )
+            .service(
+                web::resource("/evidence/{dispute_id}")
+                    .route(web::get().to(retrieve_dispute_evidence)),
             )
             .service(web::resource("/{dispute_id}").route(web::get().to(retrieve_dispute)))
     }

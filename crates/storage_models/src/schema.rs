@@ -252,6 +252,7 @@ diesel::table! {
         intent_fulfillment_time -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        frm_routing_algorithm -> Nullable<Jsonb>,
     }
 }
 
@@ -320,6 +321,7 @@ diesel::table! {
         payment_method_data -> Nullable<Jsonb>,
         business_sub_label -> Nullable<Varchar>,
         straight_through_algorithm -> Nullable<Jsonb>,
+        mandate_details -> Nullable<Jsonb>,
     }
 }
 

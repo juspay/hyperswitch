@@ -1093,12 +1093,16 @@ pub async fn list_payment_methods(
             api::PaymentMethodListResponse {
                 redirect_url: merchant_account.return_url,
                 payment_methods: payment_method_responses,
+                mandate_payment: payment_attempt
+                    .and_then(|inner| inner.mandate_details)
+                    // The data stored in the payment attempt only corresponds to a setup mandate.
+                    .map(|_mandate_data| api_models::payments::MandateTxnType::NewMandateTxn),
             },
         )))
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn filter_payment_methods(
+pub async fn filter_payment_methods(
     payment_methods: Vec<serde_json::Value>,
     req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,

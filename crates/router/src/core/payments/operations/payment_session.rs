@@ -170,6 +170,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                ephemeral_key: None,
             },
             Some(customer_details),
         ))
@@ -401,5 +402,21 @@ impl From<api_models::enums::PaymentMethodType> for api::GetToken {
             api_models::enums::PaymentMethodType::ApplePay => Self::ApplePayMetadata,
             _ => Self::Connector,
         }
+    }
+}
+
+pub fn get_connector_type_for_session_token(
+    payment_method_type: api_models::enums::PaymentMethodType,
+    _request: &api::PaymentsSessionRequest,
+    connector: String,
+) -> api::GetToken {
+    if payment_method_type == api_models::enums::PaymentMethodType::ApplePay {
+        if connector == *"bluesnap" {
+            api::GetToken::Connector
+        } else {
+            api::GetToken::ApplePayMetadata
+        }
+    } else {
+        api::GetToken::from(payment_method_type)
     }
 }

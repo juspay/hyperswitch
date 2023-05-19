@@ -14,6 +14,7 @@ use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
 use router_env::{instrument, tracing};
+use storage_models::ephemeral_key;
 use time;
 
 pub use self::operations::{
@@ -78,7 +79,6 @@ where
         .validate_request(&req, &merchant_account)?;
 
     tracing::Span::current().record("payment_id", &format!("{}", validate_result.payment_id));
-
     let (operation, mut payment_data, customer_details) = operation
         .to_get_tracker()?
         .get_trackers(
@@ -89,6 +89,7 @@ where
             &merchant_account,
         )
         .await?;
+
     authenticate_client_secret(
         req.get_client_secret(),
         &payment_data.payment_intent,
@@ -886,6 +887,7 @@ where
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
+    pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
 }
 
 #[derive(Debug, Default)]
@@ -1127,6 +1129,18 @@ pub fn connector_selection<F>(
 where
     F: Send + Clone,
 {
+    if let Some(ref connector_name) = payment_data.payment_attempt.connector {
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            connector_name,
+            api::GetToken::Connector,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("invalid connector name received in payment attempt")?;
+
+        return Ok(api::ConnectorCallType::Single(connector_data));
+    }
+
     let mut routing_data = storage::RoutingData {
         routed_through: payment_data.payment_attempt.connector.clone(),
         algorithm: payment_data
