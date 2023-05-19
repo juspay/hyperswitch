@@ -7,7 +7,9 @@ use router_derive::Setter;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{admin, disputes, enums as api_enums, refunds};
+use crate::{
+    admin, disputes, enums as api_enums, ephemeral_key::EphemeralKeyCreateResponse, refunds,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -298,7 +300,8 @@ impl From<PaymentsRequest> for VerifyRequest {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum MandateTxnType {
     NewMandateTxn,
     RecurringMandateTxn,
@@ -331,13 +334,15 @@ impl MandateIds {
     }
 }
 
+// The fields on this struct are optional, as we want to allow the merchant to provide partial
+// information about creating mandates
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MandateData {
     /// A concent from the customer to store the payment method
-    pub customer_acceptance: CustomerAcceptance,
+    pub customer_acceptance: Option<CustomerAcceptance>,
     /// A way to select the type of mandate used
-    pub mandate_type: MandateType,
+    pub mandate_type: Option<MandateType>,
 }
 
 #[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -1273,6 +1278,9 @@ pub struct PaymentsResponse {
     /// Allowed Payment Method Types for a given PaymentIntent
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
+
+    /// ephemeral_key for the customer_id mentioned
+    pub ephemeral_key: Option<EphemeralKeyCreateResponse>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]

@@ -322,6 +322,7 @@ diesel::table! {
         business_sub_label -> Nullable<Varchar>,
         straight_through_algorithm -> Nullable<Jsonb>,
         preprocessing_step_id -> Nullable<Varchar>,
+        mandate_details -> Nullable<Jsonb>,
     }
 }
 

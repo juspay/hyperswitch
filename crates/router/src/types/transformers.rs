@@ -161,6 +161,55 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
     }
 }
 
+impl ForeignFrom<api_models::payments::MandateType> for storage_enums::MandateDataType {
+    fn foreign_from(from: api_models::payments::MandateType) -> Self {
+        match from {
+            api_models::payments::MandateType::SingleUse(inner) => {
+                Self::SingleUse(inner.foreign_into())
+            }
+            api_models::payments::MandateType::MultiUse(inner) => {
+                Self::MultiUse(inner.map(ForeignInto::foreign_into))
+            }
+        }
+    }
+}
+impl ForeignFrom<storage_enums::MandateDataType> for api_models::payments::MandateType {
+    fn foreign_from(from: storage_enums::MandateDataType) -> Self {
+        match from {
+            storage_enums::MandateDataType::SingleUse(inner) => {
+                Self::SingleUse(inner.foreign_into())
+            }
+            storage_enums::MandateDataType::MultiUse(inner) => {
+                Self::MultiUse(inner.map(ForeignInto::foreign_into))
+            }
+        }
+    }
+}
+
+impl ForeignFrom<storage_enums::MandateAmountData> for api_models::payments::MandateAmountData {
+    fn foreign_from(from: storage_enums::MandateAmountData) -> Self {
+        Self {
+            amount: from.amount,
+            currency: from.currency.foreign_into(),
+            start_date: from.start_date,
+            end_date: from.end_date,
+            metadata: from.metadata,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::payments::MandateAmountData> for storage_enums::MandateAmountData {
+    fn foreign_from(from: api_models::payments::MandateAmountData) -> Self {
+        Self {
+            amount: from.amount,
+            currency: from.currency.foreign_into(),
+            start_date: from.start_date,
+            end_date: from.end_date,
+            metadata: from.metadata,
+        }
+    }
+}
+
 impl ForeignTryFrom<api_enums::IntentStatus> for storage_enums::EventType {
     type Error = errors::ValidationError;
 

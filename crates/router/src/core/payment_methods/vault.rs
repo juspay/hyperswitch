@@ -1,4 +1,6 @@
 use common_utils::generate_id_with_default_len;
+#[cfg(feature = "basilisk")]
+use error_stack::report;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "basilisk")]
 use external_services::kms;
@@ -707,7 +709,7 @@ pub async fn add_delete_tokenized_data_task(
     db: &dyn db::StorageInterface,
     lookup_key: &str,
     pm: enums::PaymentMethod,
-) -> RouterResult<storage::ProcessTracker> {
+) -> RouterResult<()> {
     let runner = "DELETE_TOKENIZE_DATA_WORKFLOW";
     let current_time = common_utils::date_time::now();
     let tracking_data = serde_json::to_value(storage::TokenizeCoreWorkflow {
@@ -735,14 +737,14 @@ pub async fn add_delete_tokenized_data_task(
         created_at: current_time,
         updated_at: current_time,
     };
-    let response = db
-        .insert_process(process_tracker_entry)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            format!("Failed while inserting task in process_tracker: lookup_key: {lookup_key}")
-        })?;
-    Ok(response)
+    let response = db.insert_process(process_tracker_entry).await;
+    response.map(|_| ()).or_else(|err| {
+        if err.current_context().is_db_unique_violation() {
+            Ok(())
+        } else {
+            Err(report!(errors::ApiErrorResponse::InternalServerError))
+        }
+    })
 }
 
 #[cfg(feature = "basilisk")]

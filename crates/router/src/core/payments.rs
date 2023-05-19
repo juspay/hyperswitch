@@ -14,6 +14,7 @@ use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
 use router_env::{instrument, tracing};
+use storage_models::ephemeral_key;
 use time;
 
 pub use self::operations::{
@@ -78,7 +79,6 @@ where
         .validate_request(&req, &merchant_account)?;
 
     tracing::Span::current().record("payment_id", &format!("{}", validate_result.payment_id));
-
     let (operation, mut payment_data, customer_details) = operation
         .to_get_tracker()?
         .get_trackers(
@@ -931,6 +931,7 @@ where
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
+    pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
 }
 
 #[derive(Debug, Default)]
