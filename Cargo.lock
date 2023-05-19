@@ -876,6 +876,7 @@ version = "0.55.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22d2a2bcc16e5c4d949ffd2b851da852b9bbed4bb364ed4ae371b42137ca06d9"
 dependencies = [
+ "aws-smithy-eventstream",
  "aws-smithy-types",
  "bytes",
  "crc32fast",

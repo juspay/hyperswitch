@@ -652,6 +652,7 @@ impl
     }
 }
 
+#[async_trait::async_trait]
 impl
     services::ConnectorIntegration<
         api::Authorize,
