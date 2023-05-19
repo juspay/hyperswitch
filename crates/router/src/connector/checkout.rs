@@ -80,8 +80,8 @@ impl ConnectorCommon for Checkout {
         let response: checkout::ErrorResponse = if res.response.is_empty() {
             let (error_codes, error_type) = if res.status_code == 401 || res.status_code == 422 {
                 (
-                    Some(vec!["invalid_api_key".to_string()]),
-                    Some("Invalid api key".to_string()),
+                    Some(vec!["Invalid api key".to_string()]),
+                    Some("invalid_api_key".to_string()),
                 )
             } else {
                 (None, None)
