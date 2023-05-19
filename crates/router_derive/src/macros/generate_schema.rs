@@ -13,7 +13,7 @@ use crate::macros::helpers;
 /// [PaymentsCreateRequest, PaymentsUpdateRequest]
 fn get_inner_path_ident(attribute: &syn::Attribute) -> syn::Result<Vec<syn::Ident>> {
     Ok(attribute
-        .parse_args_with(Punctuated::<syn::Ident, Token!(,)>::parse_terminated)?
+        .parse_args_with(Punctuated::<syn::Ident, Token![,]>::parse_terminated)?
         .into_iter()
         .collect::<Vec<_>>())
 }
@@ -37,7 +37,7 @@ pub fn polymorphic_macro_derive_inner(
     input: syn::DeriveInput,
 ) -> syn::Result<proc_macro2::TokenStream> {
     let schemas_to_create =
-        helpers::get_metadata_inner::<syn::Ident>("mandatory_in", &input.attrs)?;
+        helpers::get_metadata_inner::<syn::Ident>("generate_schemas", &input.attrs)?;
 
     let fields = get_struct_fields(input.data)
         .map_err(|error| syn::Error::new(proc_macro2::Span::call_site(), error))?;
