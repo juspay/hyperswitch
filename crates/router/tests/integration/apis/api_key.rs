@@ -8,13 +8,13 @@ use actix_web::{
 pub struct ApiKey;
 
 impl RequestBuilder for ApiKey{
-  fn make_request_body(data : &MasterData) -> TestRequest{
+  fn make_request_body(data : &MasterData) -> Option<TestRequest>{
     let request_body = Value::clone(&data.api_key_create);
     let mid = data.merchant_id.as_ref().unwrap();
-    TestRequest::post()
+    Some(TestRequest::post()
         .uri(&format!("http://localhost:8080/api_keys/{}", mid))
         .insert_header(("api-key",data.admin_api_key.as_str()))
-        .set_json(&request_body)
+        .set_json(&request_body))
   }
 
   fn verify_response(resp : &Value) -> Self{
@@ -38,7 +38,15 @@ impl RequestBuilder for ApiKey{
 }
 
 pub async fn execute_api_key_create_tests(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
-  let api_resp = call_and_read_body_json(&server,ApiKey::make_request_body(&master_data).to_request()).await;
-  ApiKey::verify_response(&api_resp).update_master_data(master_data,&api_resp);
-  println!("{:?}",api_resp);
+  let opt_test_request = ApiKey::make_request_body(&master_data);
+  match opt_test_request{
+    Some(test_request) => {
+      let api_resp = call_and_read_body_json(&server,test_request.to_request()).await;
+      ApiKey::verify_response(&api_resp).update_master_data(master_data,&api_resp);
+      println!("APIKEY Create Respone : {:?}",api_resp);
+    },
+    None => {
+      println!("Skipping APIKEY Create Test")
+    },
+  }
 }

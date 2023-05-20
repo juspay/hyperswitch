@@ -8,12 +8,12 @@ use actix_web::{
 pub struct PaymentCreate;
 
 impl RequestBuilder for PaymentCreate{
-  fn make_request_body(data : &MasterData) -> TestRequest{
+  fn make_request_body(data : &MasterData) -> Option<TestRequest>{
     let request_body = Value::clone(&data.payments_create);
-    TestRequest::post()
+    Some(TestRequest::post()
         .uri(&String::from("http://localhost:8080/payments"))
         .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str()))
-        .set_json(&request_body)
+        .set_json(&request_body))
   }
 
   fn verify_response(resp : &Value) -> Self{
@@ -36,19 +36,28 @@ impl RequestBuilder for PaymentCreate{
 
 
 pub async fn execute_payment_create_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
-  let payment_create_resp = call_and_read_body_json(&server,PaymentCreate::make_request_body(&master_data).to_request()).await;
-  PaymentCreate::verify_response(&payment_create_resp).update_master_data(master_data,&payment_create_resp);
-  println!("{:?}",payment_create_resp);
+  let opt_test_request = PaymentCreate::make_request_body(&master_data);
+  match opt_test_request{
+    Some(test_request) => {
+      let payment_create_resp = call_and_read_body_json(&server,test_request.to_request()).await;
+      PaymentCreate::verify_response(&payment_create_resp).update_master_data(master_data,&payment_create_resp);
+      println!("{:?}",payment_create_resp);
+    },
+    None => {
+      println!("Skipping Connector Create Test!")
+    },
+  }
+
 }
 
 pub struct PaymentRetrieve;
 
 impl RequestBuilder for PaymentRetrieve{
-  fn make_request_body(data : &MasterData) -> TestRequest{
+  fn make_request_body(data : &MasterData) -> Option<TestRequest>{
     let payment_id = data.payment_id.as_ref().unwrap();
-    TestRequest::get()
+    Some(TestRequest::get()
         .uri(&format!("http://localhost:8080/payments/{}", payment_id))
-        .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str()))
+        .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str())))
   }
 
   fn verify_response(resp : &Value) -> Self{
@@ -64,11 +73,11 @@ impl RequestBuilder for PaymentRetrieve{
 pub struct PaymentCapture;
 
 impl RequestBuilder for PaymentCapture{
-  fn make_request_body(data : &MasterData) -> TestRequest{
+  fn make_request_body(data : &MasterData) -> Option<TestRequest>{
     let payment_id = data.payment_id.as_ref().unwrap();
-    TestRequest::get()
+    Some(TestRequest::get()
         .uri(&format!("http://localhost:8080/payments/{}/capture", payment_id))
-        .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str()))
+        .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str())))
   }
 
   fn verify_response(resp : &Value) -> Self{
@@ -85,11 +94,11 @@ impl RequestBuilder for PaymentCapture{
 pub struct PaymentConfirm;
 
 impl RequestBuilder for PaymentConfirm{
-  fn make_request_body(data : &MasterData) -> TestRequest{
+  fn make_request_body(data : &MasterData) -> Option<TestRequest>{
     let payment_id = data.payment_id.as_ref().unwrap();
-    TestRequest::get()
+    Some(TestRequest::get()
         .uri(&format!("http://localhost:8080/payments/{}/confirm", payment_id))
-        .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str()))
+        .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str())))
   }
 
   fn verify_response(resp : &Value) -> Self{

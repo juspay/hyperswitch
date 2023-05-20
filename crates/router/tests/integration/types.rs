@@ -17,7 +17,7 @@ pub struct MasterData{
 }
 
 pub trait RequestBuilder{
-  fn make_request_body(data : &MasterData) -> TestRequest;
+  fn make_request_body(data : &MasterData) -> Option<TestRequest>;
   fn verify_response(s : &Value) -> Self;
   fn update_master_data(&self,data : &mut MasterData, resp : &Value);
 }

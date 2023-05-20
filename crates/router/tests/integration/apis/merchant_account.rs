@@ -10,12 +10,12 @@ use actix_web::{
 pub struct MerchantAccount;
 
 impl RequestBuilder for MerchantAccount{
-  fn make_request_body(data : &MasterData) -> TestRequest{
+  fn make_request_body(data : &MasterData) -> Option<TestRequest>{
     let request_body = Value::clone(&data.merchant_account);
-    TestRequest::post()
+    Some(TestRequest::post()
         .uri(&String::from("http://localhost:8080/accounts"))
         .insert_header(("api-key",data.admin_api_key.as_str()))
-        .set_json(&request_body)
+        .set_json(&request_body))
   }
 
   fn verify_response(resp : &Value) -> Self{
@@ -39,7 +39,15 @@ impl RequestBuilder for MerchantAccount{
 }
 
 pub async fn execute_merchant_account_create_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
-  let merchant_account_create_resp = call_and_read_body_json(&server,MerchantAccount::make_request_body(&master_data).to_request()).await;
-  MerchantAccount::verify_response(&merchant_account_create_resp).update_master_data(master_data,&merchant_account_create_resp);
-  println!("{:?}",merchant_account_create_resp);
+  let opt_test_req = MerchantAccount::make_request_body(&master_data);
+  match opt_test_req{
+    Some(test_request) => {
+      let merchant_account_create_resp = call_and_read_body_json(&server,test_request.to_request()).await;
+      MerchantAccount::verify_response(&merchant_account_create_resp).update_master_data(master_data,&merchant_account_create_resp);
+      println!("{:?}",merchant_account_create_resp);
+    },
+    None => {
+      println!("Skipping Payment Create Test!")
+    },
+  }
 }
