@@ -1293,30 +1293,30 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             .setup_mandate_details
             .as_ref()
             .and_then(
-                |mandate_details| match &mandate_details.customer_acceptance{
-                    Some(customer_acceptance) => {
-                        match customer_acceptance.acceptance_type{
-                            payments::AcceptanceType::Online => {
-                                let online_mandate = customer_acceptance.online.clone()?;
-                                Some(StripeMandateRequest{
-                                    mandate_type: StripeMandateType::Online { 
-                                        ip_address: online_mandate.ip_address,
-                                        user_agent: online_mandate.user_agent 
-                                    }
-                                })
-                            },
-                            payments::AcceptanceType::Offline => Some(StripeMandateRequest{
-                                mandate_type: StripeMandateType::Offline
-                            }),
+                |mandate_details| match &mandate_details.customer_acceptance {
+                    Some(customer_acceptance) => match customer_acceptance.acceptance_type {
+                        payments::AcceptanceType::Online => {
+                            let online_mandate = customer_acceptance.online.clone()?;
+                            Some(StripeMandateRequest {
+                                mandate_type: StripeMandateType::Online {
+                                    ip_address: online_mandate.ip_address,
+                                    user_agent: online_mandate.user_agent,
+                                },
+                            })
                         }
+                        payments::AcceptanceType::Offline => Some(StripeMandateRequest {
+                            mandate_type: StripeMandateType::Offline,
+                        }),
                     },
                     None => None,
-                }
+                },
             )
             .or_else(|| {
                 //stripe requires us to send mandate_data while making payment through saved bank debit
-                if payment_method.is_some() {//check if payment is done through saved payment method
-                    match &payment_method_types {//check if payment method is bank debit
+                if payment_method.is_some() {
+                    //check if payment is done through saved payment method
+                    match &payment_method_types {
+                        //check if payment method is bank debit
                         Some(
                             StripePaymentMethodType::Ach
                             | StripePaymentMethodType::Sepa

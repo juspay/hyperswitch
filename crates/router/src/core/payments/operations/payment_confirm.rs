@@ -97,13 +97,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .map(ForeignInto::foreign_into)
             .or(payment_intent.setup_future_usage);
 
-        let (token, payment_method, setup_mandate, mandate_metadata) = helpers::get_token_pm_type_mandate_details(
-            state,
-            request,
-            mandate_type.clone(),
-            merchant_account,
-        )
-        .await?;
+        let (token, payment_method, setup_mandate, mandate_metadata) =
+            helpers::get_token_pm_type_mandate_details(
+                state,
+                request,
+                mandate_type.clone(),
+                merchant_account,
+            )
+            .await?;
 
         let browser_info = request
             .browser_info

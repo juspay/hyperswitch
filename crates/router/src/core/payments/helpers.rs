@@ -25,7 +25,7 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{cards, vault},
-        payments
+        payments,
     },
     db::StorageInterface,
     routes::{metrics, AppState},
@@ -1201,7 +1201,7 @@ pub fn generate_mandate(
     payment_method_id: String,
     connector_mandate_id: Option<pii::SecretSerdeValue>,
     network_txn_id: Option<String>,
-    payment_method_data_option: Option<api_models::payments::PaymentMethodData>
+    payment_method_data_option: Option<api_models::payments::PaymentMethodData>,
 ) -> CustomResult<Option<storage::MandateNew>, errors::ApiErrorResponse> {
     match (setup_mandate_details, customer) {
         (Some(data), Some(cus)) => {
@@ -1243,19 +1243,20 @@ pub fn generate_mandate(
                         .set_mandate_type(storage_enums::MandateType::SingleUse)
                         .to_owned(),
 
-                api::MandateType::MultiUse(op_data) => match op_data {
-                    Some(data) => new_mandate
-                        .set_mandate_amount(Some(data.amount))
-                        .set_mandate_currency(Some(data.currency.foreign_into()))
-                        .set_start_date(data.start_date)
-                        .set_end_date(data.end_date),
+                    api::MandateType::MultiUse(op_data) => match op_data {
+                        Some(data) => new_mandate
+                            .set_mandate_amount(Some(data.amount))
+                            .set_mandate_currency(Some(data.currency.foreign_into()))
+                            .set_start_date(data.start_date)
+                            .set_end_date(data.end_date),
                         // .set_metadata(data.metadata),
                         // we are storing PaymentMethodData in metadata of mandate
-                    None => &mut new_mandate,
-                }
-                .set_mandate_type(storage_enums::MandateType::MultiUse)
-                .to_owned(),
-            }))
+                        None => &mut new_mandate,
+                    }
+                    .set_mandate_type(storage_enums::MandateType::MultiUse)
+                    .to_owned(),
+                },
+            ))
         }
         (_, _) => Ok(None),
     }
