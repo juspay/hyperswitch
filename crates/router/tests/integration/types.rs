@@ -11,6 +11,7 @@ pub struct MasterData{
   pub connector_create : Value,
   pub api_key_create : Value,
   pub payments_create : Value,
+  pub payments_retrieve : Option<Value>,
   pub customer_id : Option<String>,
   pub api_key : Option<String>,
   pub payment_id : Option<String>,
@@ -18,6 +19,7 @@ pub struct MasterData{
 
 pub trait RequestBuilder{
   fn make_request_body(data : &MasterData) -> Option<TestRequest>;
-  fn verify_response(s : &Value) -> Self;
+  fn verify_success_response(response : &Value, data : &MasterData) -> Self;
+  fn verify_failure_response(response : &Value, data : &MasterData) -> Self;
   fn update_master_data(&self,data : &mut MasterData, resp : &Value);
 }

@@ -17,10 +17,14 @@ impl RequestBuilder for ApiKey{
         .set_json(&request_body))
   }
 
-  fn verify_response(resp : &Value) -> Self{
+  fn verify_success_response(resp : &Value, data : &MasterData) -> Self{
       let api_key = resp.get("api_key");
       assert_ne!(api_key,None);
       Self
+  }
+
+  fn verify_failure_response(response : &Value, data : &MasterData) -> Self{
+    unimplemented!();
   }
 
   fn update_master_data(&self,data : &mut MasterData, resp : &Value){
@@ -42,7 +46,7 @@ pub async fn execute_api_key_create_tests(master_data : &mut MasterData, server:
   match opt_test_request{
     Some(test_request) => {
       let api_resp = call_and_read_body_json(&server,test_request.to_request()).await;
-      ApiKey::verify_response(&api_resp).update_master_data(master_data,&api_resp);
+      ApiKey::verify_success_response(&api_resp,master_data).update_master_data(master_data,&api_resp);
       println!("APIKEY Create Respone : {:?}",api_resp);
     },
     None => {

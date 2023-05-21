@@ -18,9 +18,13 @@ impl RequestBuilder for ConnectorCreate{
         .set_json(&request_body))
   }
 
-  fn verify_response(s : &Value) -> Self{
+  fn verify_success_response(s : &Value, data : &MasterData) -> Self{
       assert_eq!(true,true);
       Self
+  }
+
+  fn verify_failure_response(response : &Value, data : &MasterData) -> Self{
+    unimplemented!();
   }
 
   fn update_master_data(&self,data : &mut MasterData, resp : &Value){
@@ -34,7 +38,7 @@ pub async fn execute_connector_create_test(master_data : &mut MasterData, server
   match opt_test_request{
     Some(test_request) => {
       let connector_create_resp = call_and_read_body_json(&server,test_request.to_request()).await;
-      ConnectorCreate::verify_response(&connector_create_resp).update_master_data(master_data,&connector_create_resp);
+      ConnectorCreate::verify_success_response(&connector_create_resp,master_data).update_master_data(master_data,&connector_create_resp);
       println!("Connector Create Response {:?}",connector_create_resp);
     },
     None => {

@@ -16,9 +16,13 @@ impl RequestBuilder for PaymentCreate{
         .set_json(&request_body))
   }
 
-  fn verify_response(resp : &Value) -> Self{
+  fn verify_success_response(resp : &Value, data : &MasterData) -> Self{
       assert_eq!(true,true);
       Self
+    }
+
+  fn verify_failure_response(response : &Value, data : &MasterData) -> Self{
+      unimplemented!();
     }
 
   fn update_master_data(&self,data : &mut MasterData, resp : &Value){
@@ -40,34 +44,57 @@ pub async fn execute_payment_create_test(master_data : &mut MasterData, server: 
   match opt_test_request{
     Some(test_request) => {
       let payment_create_resp = call_and_read_body_json(&server,test_request.to_request()).await;
-      PaymentCreate::verify_response(&payment_create_resp).update_master_data(master_data,&payment_create_resp);
+      PaymentCreate::verify_success_response(&payment_create_resp,master_data).update_master_data(master_data,&payment_create_resp);
       println!("{:?}",payment_create_resp);
     },
     None => {
-      println!("Skipping Connector Create Test!")
+      println!("Skipping Payment Create Test!")
     },
   }
-
 }
 
 pub struct PaymentRetrieve;
 
 impl RequestBuilder for PaymentRetrieve{
   fn make_request_body(data : &MasterData) -> Option<TestRequest>{
-    let payment_id = data.payment_id.as_ref().unwrap();
-    Some(TestRequest::get()
-        .uri(&format!("http://localhost:8080/payments/{}", payment_id))
-        .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str())))
+    match &data.payments_retrieve{
+      Some(payments_retrieve_request) => {
+        let payment_id = data.payment_id.as_ref().unwrap();
+        Some(TestRequest::get()
+            .uri(&format!("http://localhost:8080/payments/{}", payment_id))
+            .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str())))
+      }
+      None => None,
+    }
+    
   }
 
-  fn verify_response(resp : &Value) -> Self{
+  fn verify_success_response(response : &Value, data : &MasterData) -> Self{
       assert_eq!(true,true);
       Self
+    }
+
+  fn verify_failure_response(response : &Value, data : &MasterData) -> Self{
+      unimplemented!();
     }
 
   fn update_master_data(&self,data : &mut MasterData, resp : &Value){
     
     }
+}
+
+pub async fn execute_payment_retrieve_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+  let opt_test_request = PaymentRetrieve::make_request_body(&master_data);
+  match opt_test_request{
+    Some(test_request) => {
+      let payment_create_resp = call_and_read_body_json(&server,test_request.to_request()).await;
+      PaymentRetrieve::verify_success_response(&payment_create_resp,master_data).update_master_data(master_data,&payment_create_resp);
+      println!("{:?}",payment_create_resp);
+    },
+    None => {
+      println!("Skipping Payment Retrieve Test!")
+    },
+  }
 }
 
 pub struct PaymentCapture;
@@ -80,9 +107,13 @@ impl RequestBuilder for PaymentCapture{
         .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str())))
   }
 
-  fn verify_response(resp : &Value) -> Self{
+  fn verify_success_response(resp : &Value, data : &MasterData) -> Self{
       assert_eq!(true,true);
       Self
+    }
+
+  fn verify_failure_response(response : &Value, data : &MasterData) -> Self{
+      unimplemented!();
     }
 
   fn update_master_data(&self,data : &mut MasterData, resp : &Value){
@@ -101,9 +132,13 @@ impl RequestBuilder for PaymentConfirm{
         .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str())))
   }
 
-  fn verify_response(resp : &Value) -> Self{
+  fn verify_success_response(resp : &Value, data : &MasterData) -> Self{
       assert_eq!(true,true);
       Self
+    }
+  
+  fn verify_failure_response(response : &Value, data : &MasterData) -> Self{
+      unimplemented!();
     }
 
   fn update_master_data(&self,data : &mut MasterData, resp : &Value){
