@@ -686,9 +686,14 @@ impl
         match &req.request.payment_method_data {
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data.deref() {
-                    api_models::payments::BankTransferData::AchBankTransfer(_) => {
+                    api_models::payments::BankTransferData::AchBankTransfer { .. } => {
                         Ok(format!("{}{}", self.base_url(connectors), "v1/charges"))
                     }
+                    _ => Ok(format!(
+                        "{}{}",
+                        self.base_url(connectors),
+                        "v1/payment_intents"
+                    )),
                 }
             }
             _ => Ok(format!(
@@ -1682,9 +1687,6 @@ impl api::IncomingWebhook for Stripe {
             stripe::WebhookEventType::SourceChargeable => {
                 api::IncomingWebhookEvent::SourceChargeable
             }
-            stripe::WebhookEventType::SourceTransactionCreated => {
-                api::IncomingWebhookEvent::SourceTransactionCreated
-            }
             stripe::WebhookEventType::ChargeSucceeded => api::IncomingWebhookEvent::ChargeSucceeded,
             stripe::WebhookEventType::DisputeCreated => api::IncomingWebhookEvent::DisputeOpened,
             stripe::WebhookEventType::DisputeClosed => api::IncomingWebhookEvent::DisputeCancelled,
@@ -1695,6 +1697,12 @@ impl api::IncomingWebhook for Stripe {
                     .status
                     .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?,
             )?,
+            stripe::WebhookEventType::PaymentIntentPartiallyFunded => {
+                api::IncomingWebhookEvent::PaymentIntentPartiallyFunded
+            }
+            stripe::WebhookEventType::PaymentIntentRequiresAction => {
+                api::IncomingWebhookEvent::PaymentActionRequired
+            }
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
         })
     }

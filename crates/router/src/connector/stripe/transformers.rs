@@ -15,7 +15,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    collect_missing_value_keys, consts,
+    collect_missing_value_keys, connector, consts,
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
@@ -287,6 +287,61 @@ pub struct StripeBankRedirectData {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct AchBankTransferData {
+    #[serde(rename = "owner[email]")]
+    pub email: Email,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct BacsBankTransferData {
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_data_type: StripePaymentMethodType,
+    #[serde(rename = "payment_method_options[customer_balance][bank_transfer][type]")]
+    pub bank_transfer_type: BankTransferType,
+    #[serde(rename = "payment_method_options[customer_balance][funding_type]")]
+    pub balance_funding_type: BankTransferType,
+    #[serde(rename = "payment_method_types[0]")]
+    pub payment_method_type: StripePaymentMethodType,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct SepaBankTransferData {
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_data_type: StripePaymentMethodType,
+    #[serde(rename = "payment_method_options[customer_balance][bank_transfer][type]")]
+    pub bank_transfer_type: BankTransferType,
+    #[serde(rename = "payment_method_options[customer_balance][funding_type]")]
+    pub balance_funding_type: BankTransferType,
+    #[serde(rename = "payment_method_types[0]")]
+    pub payment_method_type: StripePaymentMethodType,
+    #[serde(
+        rename = "payment_method_options[customer_balance][bank_transfer][eu_bank_transfer][country]"
+    )]
+    pub country: api_models::enums::CountryAlpha2,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeAchSourceRequest {
+    #[serde(rename = "type")]
+    pub transfer_type: StripePaymentMethodType,
+    #[serde(flatten)]
+    pub payment_method_data: AchBankTransferData,
+    pub currency: String,
+}
+
+// Remove untagged when Deserialize is added
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum StripePaymentMethodData {
+    Card(StripeCardData),
+    PayLater(StripePayLaterData),
+    Wallet(StripeWallet),
+    BankRedirect(StripeBankRedirectData),
+    BankDebit(StripeBankDebitData),
+    BankTransfer(StripeBankTransferData),
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(tag = "payment_method_data[type]")]
 pub enum BankDebitData {
     #[serde(rename = "us_bank_account")]
@@ -333,23 +388,11 @@ pub struct BankTransferData {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct StripeAchSourceRequest {
-    #[serde(rename = "type")]
-    pub transfer_type: StripePaymentMethodType,
-    #[serde(rename = "owner[email]")]
-    pub email: Email,
-    pub currency: String,
-}
-
-#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
-pub enum StripePaymentMethodData {
-    Card(StripeCardData),
-    PayLater(StripePayLaterData),
-    Wallet(StripeWallet),
-    BankRedirect(StripeBankRedirectData),
-    BankDebit(StripeBankDebitData),
-    AchBankTransfer(BankTransferData),
+pub enum StripeBankTransferData {
+    AchBankTransfer(Box<AchBankTransferData>),
+    SepaBankTransfer(Box<SepaBankTransferData>),
+    BacsBankTransfers(Box<BacsBankTransferData>),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -445,6 +488,16 @@ pub enum StripePaymentMethodType {
     Alipay,
     #[serde(rename = "p24")]
     Przelewy24,
+    CustomerBalance,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum BankTransferType {
+    GbBankTransfer,
+    EuBankTransfer,
+    #[serde(rename = "bank_transfer")]
+    BankTransfers,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -1011,13 +1064,63 @@ fn create_stripe_payment_method(
         }
         payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
             match bank_transfer_data.deref() {
-                payments::BankTransferData::AchBankTransfer(ach_bank_transfer_data) => Ok((
-                    StripePaymentMethodData::AchBankTransfer(BankTransferData {
-                        email: ach_bank_transfer_data.billing_details.email.to_owned(),
-                    }),
+                payments::BankTransferData::AchBankTransfer { billing_details } => Ok((
+                    StripePaymentMethodData::BankTransfer(StripeBankTransferData::AchBankTransfer(
+                        Box::new(AchBankTransferData {
+                            email: billing_details.email.to_owned(),
+                        }),
+                    )),
                     StripePaymentMethodType::AchCreditTransfer,
                     StripeBillingAddress::default(),
                 )),
+                payments::BankTransferData::SepaBankTransfer {
+                    billing_details,
+                    country,
+                } => {
+                    let billing_details = StripeBillingAddress {
+                        email: Some(billing_details.email.clone()),
+                        name: Some(billing_details.name.clone()),
+                        ..Default::default()
+                    };
+                    Ok((
+                        StripePaymentMethodData::BankTransfer(
+                            StripeBankTransferData::SepaBankTransfer(Box::new(
+                                SepaBankTransferData {
+                                    payment_method_data_type:
+                                        StripePaymentMethodType::CustomerBalance,
+                                    bank_transfer_type: BankTransferType::EuBankTransfer,
+                                    balance_funding_type: BankTransferType::BankTransfers,
+                                    payment_method_type: StripePaymentMethodType::CustomerBalance,
+                                    country: country.to_owned(),
+                                },
+                            )),
+                        ),
+                        StripePaymentMethodType::CustomerBalance,
+                        billing_details,
+                    ))
+                }
+                payments::BankTransferData::BacsBankTransfer { billing_details } => {
+                    let billing_details = StripeBillingAddress {
+                        email: Some(billing_details.email.clone()),
+                        name: Some(billing_details.name.clone()),
+                        ..Default::default()
+                    };
+                    Ok((
+                        StripePaymentMethodData::BankTransfer(
+                            StripeBankTransferData::BacsBankTransfers(Box::new(
+                                BacsBankTransferData {
+                                    payment_method_data_type:
+                                        StripePaymentMethodType::CustomerBalance,
+                                    bank_transfer_type: BankTransferType::GbBankTransfer,
+                                    balance_funding_type: BankTransferType::BankTransfers,
+                                    payment_method_type: StripePaymentMethodType::CustomerBalance,
+                                },
+                            )),
+                        ),
+                        StripePaymentMethodType::CustomerBalance,
+                        billing_details,
+                    ))
+                }
             }
         }
         _ => Err(errors::ConnectorError::NotImplemented(
@@ -1336,6 +1439,20 @@ pub struct AchReceiverDetails {
     pub amount_charged: i64,
 }
 
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct SepaAndBacsBankTransferInstructions {
+    pub bacs_bank_instructions: Option<BacsFinancialDetails>,
+    pub sepa_bank_instructions: Option<SepaFinancialDetails>,
+    pub receiver: SepaAndBacsReceiver,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct SepaAndBacsReceiver {
+    pub amount_received: i64,
+    pub amount_remaining: i64,
+}
+
 #[derive(Debug, Default, Eq, PartialEq, Deserialize)]
 pub struct PaymentSyncResponse {
     #[serde(flatten)]
@@ -1455,7 +1572,8 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
                 | StripePaymentMethodOptions::Alipay {}
                 | StripePaymentMethodOptions::Sepa {}
                 | StripePaymentMethodOptions::Bancontact {}
-                | StripePaymentMethodOptions::Przelewy24 {} => None,
+                | StripePaymentMethodOptions::Przelewy24 {}
+                | StripePaymentMethodOptions::CustomerBalance {} => None,
             }),
             payment_method_id: Some(payment_method_id),
         }
@@ -1470,9 +1588,12 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item.response.next_action.map(|next_action_response| {
-            services::RedirectForm::from((next_action_response.get_url(), services::Method::Get))
-        });
+        let redirect_data = item.response.next_action.clone();
+        let redirection_data = redirect_data
+            .and_then(|redirection_data| redirection_data.get_url())
+            .map(|redirection_url| {
+                services::RedirectForm::from((redirection_url, services::Method::Get))
+            });
 
         let mandate_reference = item.response.payment_method.map(|pm| {
             types::MandateReference::foreign_from((item.response.payment_method_options, pm))
@@ -1501,6 +1622,34 @@ impl<F, T>
     }
 }
 
+pub fn get_connector_metadata(
+    next_action: Option<&StripeNextActionResponse>,
+    amount: i64,
+) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
+    let next_action_response = next_action
+            .and_then(|next_action_response| match next_action_response {
+                    StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
+                        Some(SepaAndBacsBankTransferInstructions {
+                            sepa_bank_instructions: response.financial_addresses[0].iban.to_owned(),
+                            bacs_bank_instructions: response.financial_addresses[0]
+                                .sort_code
+                                .to_owned(),
+                            receiver: SepaAndBacsReceiver {
+                                amount_received: amount - response.amount_remaining,
+                                amount_remaining: response.amount_remaining,
+                            },
+                        })
+                    }
+                    _ => None,
+                }).map(|response| {
+                     common_utils::ext_traits::Encode::<SepaAndBacsBankTransferInstructions>::encode_to_value(
+                &response,
+            )
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+                }).transpose()?;
+    Ok(next_action_response)
+}
+
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaymentIntentSyncResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
@@ -1514,15 +1663,11 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item
-            .response
-            .next_action
-            .as_ref()
-            .map(|next_action_response| {
-                services::RedirectForm::from((
-                    next_action_response.get_url(),
-                    services::Method::Get,
-                ))
+        let redirect_data = item.response.next_action.clone();
+        let redirection_data = redirect_data
+            .and_then(|redirection_data| redirection_data.get_url())
+            .map(|redirection_url| {
+                services::RedirectForm::from((redirection_url, services::Method::Get))
             });
 
         let mandate_reference = item.response.payment_method.clone().map(|pm| {
@@ -1542,12 +1687,15 @@ impl<F, T>
                     status_code: item.http_code,
                 });
 
+        let connector_metadata =
+            get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
+
         let response = error_res.map_or(
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference,
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
             }),
             Err,
@@ -1570,9 +1718,12 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item.response.next_action.map(|next_action_response| {
-            services::RedirectForm::from((next_action_response.get_url(), services::Method::Get))
-        });
+        let redirect_data = item.response.next_action.clone();
+        let redirection_data = redirect_data
+            .and_then(|redirection_data| redirection_data.get_url())
+            .map(|redirection_url| {
+                services::RedirectForm::from((redirection_url, services::Method::Get))
+            });
 
         let mandate_reference = item.response.payment_method.map(|pm| {
             types::MandateReference::foreign_from((item.response.payment_method_options, pm))
@@ -1616,18 +1767,20 @@ pub enum StripeNextActionResponse {
     AlipayHandleRedirect(StripeRedirectToUrlResponse),
     VerifyWithMicrodeposits(StripeVerifyWithMicroDepositsResponse),
     WechatPayDisplayQrCode(StripeRedirectToQr),
+    DisplayBankTransferInstructions(StripeBankTransferDetails),
 }
 
 impl StripeNextActionResponse {
-    fn get_url(&self) -> Url {
+    fn get_url(&self) -> Option<Url> {
         match self {
             Self::RedirectToUrl(redirect_to_url) | Self::AlipayHandleRedirect(redirect_to_url) => {
-                redirect_to_url.url.to_owned()
+                Some(redirect_to_url.url.to_owned())
             }
-            Self::WechatPayDisplayQrCode(redirect_to_url) => redirect_to_url.data.to_owned(),
+            Self::WechatPayDisplayQrCode(redirect_to_url) => Some(redirect_to_url.data.to_owned()),
             Self::VerifyWithMicrodeposits(verify_with_microdeposits) => {
-                verify_with_microdeposits.hosted_verification_url.to_owned()
+                Some(verify_with_microdeposits.hosted_verification_url.to_owned())
             }
+            Self::DisplayBankTransferInstructions(_) => None,
         }
     }
 }
@@ -1666,6 +1819,41 @@ pub struct StripeRedirectToQr {
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct StripeVerifyWithMicroDepositsResponse {
     hosted_verification_url: Url,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeBankTransferDetails {
+    pub amount_remaining: i64,
+    pub currency: String,
+    pub financial_addresses: Vec<StripeFinanicalInformation>,
+    pub hosted_instructions_url: Option<String>,
+    pub reference: Option<String>,
+    #[serde(rename = "type")]
+    pub bank_transfer_type: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeFinanicalInformation {
+    pub iban: Option<SepaFinancialDetails>,
+    pub sort_code: Option<BacsFinancialDetails>,
+    pub supported_networks: Vec<String>,
+    #[serde(rename = "type")]
+    pub financial_info_type: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct SepaFinancialDetails {
+    pub account_holder_name: String,
+    pub bic: String,
+    pub country: String,
+    pub iban: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct BacsFinancialDetails {
+    pub account_holder_name: String,
+    pub account_number: String,
+    pub sort_code: String,
 }
 
 // REFUND :
@@ -1872,6 +2060,7 @@ pub enum StripePaymentMethodOptions {
     Alipay {},
     #[serde(rename = "p24")]
     Przelewy24 {},
+    CustomerBalance {},
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -1916,14 +2105,9 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeAchSourceRequest
     fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             transfer_type: StripePaymentMethodType::AchCreditTransfer,
-            email: item
-                .request
-                .email
-                .clone()
-                .get_required_value("email")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "email",
-                })?,
+            payment_method_data: AchBankTransferData {
+                email: connector::utils::PaymentsPreProcessingData::get_email(&item.request)?,
+            },
             currency: item
                 .request
                 .currency
@@ -2006,7 +2190,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
             common_utils::ext_traits::Encode::<StripeSourceResponse>::encode_to_value(
                 &connector_source_response.source,
             )
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -2185,6 +2369,8 @@ pub enum WebhookEventType {
     SourceChargeable,
     #[serde(rename = "source.transaction.created")]
     SourceTransactionCreated,
+    #[serde(rename = "payment_intent.partially_funded")]
+    PaymentIntentPartiallyFunded,
 }
 
 #[derive(Debug, Serialize, strum::Display, Deserialize, PartialEq)]
@@ -2303,11 +2489,32 @@ impl
             }
             api::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data.deref() {
-                    payments::BankTransferData::AchBankTransfer(ach_bank_transfer_data) => {
-                        Ok(Self::AchBankTransfer(BankTransferData {
-                            email: ach_bank_transfer_data.billing_details.email.to_owned(),
-                        }))
+                    payments::BankTransferData::AchBankTransfer { billing_details } => {
+                        Ok(Self::BankTransfer(StripeBankTransferData::AchBankTransfer(
+                            Box::new(AchBankTransferData {
+                                email: billing_details.email.to_owned(),
+                            }),
+                        )))
                     }
+                    payments::BankTransferData::SepaBankTransfer { country, .. } => Ok(
+                        Self::BankTransfer(StripeBankTransferData::SepaBankTransfer(Box::new(
+                            SepaBankTransferData {
+                                payment_method_data_type: StripePaymentMethodType::CustomerBalance,
+                                bank_transfer_type: BankTransferType::EuBankTransfer,
+                                balance_funding_type: BankTransferType::BankTransfers,
+                                payment_method_type: StripePaymentMethodType::CustomerBalance,
+                                country: country.to_owned(),
+                            },
+                        ))),
+                    ),
+                    payments::BankTransferData::BacsBankTransfer { .. } => Ok(Self::BankTransfer(
+                        StripeBankTransferData::BacsBankTransfers(Box::new(BacsBankTransferData {
+                            payment_method_data_type: StripePaymentMethodType::CustomerBalance,
+                            bank_transfer_type: BankTransferType::GbBankTransfer,
+                            balance_funding_type: BankTransferType::BankTransfers,
+                            payment_method_type: StripePaymentMethodType::CustomerBalance,
+                        })),
+                    )),
                 }
             }
             api::PaymentMethodData::MandatePayment | api::PaymentMethodData::Crypto(_) => {
@@ -2326,35 +2533,58 @@ impl
 pub struct StripeGpayToken {
     pub id: String,
 }
+
 pub fn get_bank_transfer_request_data(
     req: &types::PaymentsAuthorizeRouterData,
     bank_transfer_data: &api_models::payments::BankTransferData,
 ) -> CustomResult<Option<String>, errors::ConnectorError> {
     match bank_transfer_data {
-        api_models::payments::BankTransferData::AchBankTransfer(_) => {
+        api_models::payments::BankTransferData::AchBankTransfer { .. } => {
             let req = ChargesRequest::try_from(req)?;
             let request = utils::Encode::<ChargesRequest>::url_encode(&req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
             Ok(Some(request))
         }
+        _ => {
+            let req = PaymentIntentRequest::try_from(req)?;
+            let request = utils::Encode::<PaymentIntentRequest>::url_encode(&req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            Ok(Some(request))
+        }
     }
 }
+
 pub fn get_bank_transfer_authorize_response(
     data: &types::PaymentsAuthorizeRouterData,
     res: types::Response,
-    _bank_transfer_data: &api_models::payments::BankTransferData,
+    bank_transfer_data: &api_models::payments::BankTransferData,
 ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-    let response: ChargesResponse = res
-        .response
-        .parse_struct("ChargesResponse")
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    match bank_transfer_data {
+        api_models::payments::BankTransferData::AchBankTransfer { .. } => {
+            let response: ChargesResponse = res
+                .response
+                .parse_struct("ChargesResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-    types::RouterData::try_from(types::ResponseRouterData {
-        response,
-        data: data.clone(),
-        http_code: res.status_code,
-    })
-    .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            types::RouterData::try_from(types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        }
+        _ => {
+            let response: PaymentIntentResponse = res
+                .response
+                .parse_struct("PaymentIntentResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+            types::RouterData::try_from(types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+        }
+    }
 }
 
 pub fn construct_file_upload_request(
