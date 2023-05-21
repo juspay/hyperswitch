@@ -6,6 +6,7 @@ use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use transformers as noon;
 
+use super::utils::PaymentsSyncRequestData;
 use crate::{
     configs::settings,
     consts,
@@ -22,8 +23,6 @@ use crate::{
     },
     utils::{self, BytesExt},
 };
-
-use super::utils::PaymentsSyncRequestData;
 
 #[derive(Debug, Clone)]
 pub struct Noon;
