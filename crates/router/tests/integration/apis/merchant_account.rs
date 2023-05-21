@@ -47,7 +47,8 @@ pub async fn execute_merchant_account_create_test(master_data : &mut MasterData,
     Some(test_request) => {
       let merchant_account_create_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       MerchantAccount::verify_success_response(&merchant_account_create_resp,master_data).update_master_data(master_data,&merchant_account_create_resp);
-      println!("{:?}",merchant_account_create_resp);
+      //println!("{:?}",merchant_account_create_resp);
+      println!("Merchant Account Create Test successful!")
     },
     None => {
       println!("Skipping Payment Create Test!")

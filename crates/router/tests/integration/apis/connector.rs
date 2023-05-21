@@ -40,7 +40,8 @@ pub async fn execute_connector_create_test(master_data : &mut MasterData, server
     Some(test_request) => {
       let connector_create_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       ConnectorCreate::verify_success_response(&connector_create_resp,master_data).update_master_data(master_data,&connector_create_resp);
-      println!("Connector Create Response {:?}",connector_create_resp);
+      //println!("Connector Create Response {:?}",connector_create_resp);
+      println!("Connector Create Test successful!")
     },
     None => {
       println!("Skipping Connector Create Test!")

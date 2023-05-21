@@ -46,7 +46,8 @@ pub async fn execute_customer_create_test(master_data : &mut MasterData, server:
     Some(test_request) => {
       let customer_create_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       Customer::verify_success_response(&customer_create_resp,master_data).update_master_data(master_data,&customer_create_resp);
-      println!("Customer Create Response : {:?}",customer_create_resp);
+      //println!("Customer Create Response : {:?}",customer_create_resp);
+      println!("Customer Create Test successful!")
     },
     None => {
       println!("Skipping Customer Create Test!")

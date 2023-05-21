@@ -46,7 +46,8 @@ pub async fn execute_payment_create_test(master_data : &mut MasterData, server: 
     Some(test_request) => {
       let payment_create_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       PaymentCreate::verify_success_response(&payment_create_resp,master_data).update_master_data(master_data,&payment_create_resp);
-      println!("{:?}",payment_create_resp);
+      //println!("{:?}",payment_create_resp);
+      println!("Payment Create Test successful!")
     },
     None => {
       println!("Skipping Payment Create Test!")
@@ -90,7 +91,8 @@ pub async fn execute_payment_retrieve_test(master_data : &mut MasterData, server
     Some(test_request) => {
       let payment_create_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       PaymentRetrieve::verify_success_response(&payment_create_resp,master_data).update_master_data(master_data,&payment_create_resp);
-      println!("{:?}",payment_create_resp);
+      //println!("{:?}",payment_create_resp);
+      println!("Payment Retrieve Test successful!")
     },
     None => {
       println!("Skipping Payment Retrieve Test!")

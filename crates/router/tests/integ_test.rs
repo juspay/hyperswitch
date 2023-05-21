@@ -25,7 +25,7 @@ use serde_json;
 fn get_master_data(test_file_path : std::path::PathBuf) -> MasterData{
     let contents = fs::read_to_string(&test_file_path).expect("Failed to read file");
     let master_data: MasterData = serde_json::from_str(&contents).expect("Failed to parse JSON");
-    println!("Initial Master Data : \n {:?}",master_data);
+    //println!("Initial Master Data : \n {:?}",master_data);
     return master_data;
 }
 
@@ -59,7 +59,7 @@ async fn test_api(master_data : &mut MasterData) -> Result<(), Box<dyn std::erro
   execute_customer_create_test(master_data,&server).await;
   execute_connector_create_test(master_data,&server).await;
   execute_payment_create_test(master_data,&server).await;
-  
-  println!("Final Master Data : \n{:?}",master_data);
+  execute_payment_retrieve_test(master_data,&server).await;
+  //println!("Final Master Data : \n{:?}",master_data);
   Ok(())
 }

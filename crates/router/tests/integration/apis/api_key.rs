@@ -47,10 +47,11 @@ pub async fn execute_api_key_create_tests(master_data : &mut MasterData, server:
     Some(test_request) => {
       let api_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       ApiKey::verify_success_response(&api_resp,master_data).update_master_data(master_data,&api_resp);
-      println!("APIKEY Create Respone : {:?}",api_resp);
+      //println!("APIKEY Create Respone : {:?}",api_resp);
+      println!("APIKEY Create Test successful!")
     },
     None => {
-      println!("Skipping APIKEY Create Test")
+      println!("Skipping APIKEY Create Test!")
     },
   }
 }
