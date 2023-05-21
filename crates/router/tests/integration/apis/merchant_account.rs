@@ -19,8 +19,8 @@ impl RequestBuilder for MerchantAccount{
   }
 
   fn verify_success_response(resp : &Value, data : &MasterData) -> Self{
+      let req_mid = data.merchant_account.get("merchant_id");
       let res = resp.get("merchant_id");
-      let req_mid = resp.get("merchant_id");
       assert_eq!(req_mid,res);
       Self
     }

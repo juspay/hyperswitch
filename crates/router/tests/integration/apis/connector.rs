@@ -18,8 +18,9 @@ impl RequestBuilder for ConnectorCreate{
         .set_json(&request_body))
   }
 
-  fn verify_success_response(s : &Value, data : &MasterData) -> Self{
-      assert_eq!(true,true);
+  fn verify_success_response(resp : &Value, data : &MasterData) -> Self{
+      let merchant_connector_id = resp.get("merchant_connector_id"); 
+      assert_ne!(merchant_connector_id,None);
       Self
   }
 

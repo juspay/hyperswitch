@@ -17,7 +17,8 @@ impl RequestBuilder for PaymentCreate{
   }
 
   fn verify_success_response(resp : &Value, data : &MasterData) -> Self{
-      assert_eq!(true,true);
+      let payment_id = resp.get("payment_id"); 
+      assert_ne!(payment_id,None);
       Self
     }
 

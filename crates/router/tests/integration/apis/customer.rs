@@ -22,8 +22,11 @@ impl RequestBuilder for Customer{
     }
   }
 
-  fn verify_success_response(s : &Value, data : &MasterData) -> Self{
-      assert_eq!(true,true);
+  fn verify_success_response(resp : &Value, data : &MasterData) -> Self{
+      let customer_id = resp.get("customer_id");
+      let req_customer_id = data.customers.as_ref().and_then(|customer_req| customer_req.get("customer_id"));
+      assert_ne!(customer_id,None);
+      assert_eq!(customer_id,req_customer_id);
       Self
   }
 
