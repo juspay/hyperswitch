@@ -116,7 +116,7 @@ async fn should_partially_capture_already_authorized_payment() {
 }
 
 #[actix_web::test]
-#[ignore]
+#[ignore = "Status field is missing in the response, Communication is being done with cybersource team"]
 async fn should_sync_payment() {
     let connector = Cybersource {};
     let response = connector
@@ -169,7 +169,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let x = response.response.unwrap_err();
     assert_eq!(
         x.message,
-        r#"Declined - One or more fields in the request contains invalid data"#,
+        "Declined - One or more fields in the request contains invalid data",
     );
     assert_eq!(
         x.reason,
@@ -212,7 +212,7 @@ async fn should_fail_payment_for_invalid_card_cvc() {
     let x = response.response.unwrap_err();
     assert_eq!(
         x.message,
-        r#"Declined - One or more fields in the request contains invalid data"#,
+        "Declined - One or more fields in the request contains invalid data",
     );
     assert_eq!(
         x.reason,
@@ -255,7 +255,7 @@ async fn should_fail_capture_for_invalid_payment() {
     let err = response.response.unwrap_err();
     assert_eq!(
         err.message,
-        r#"Declined - One or more fields in the request contains invalid data"#
+        "Declined - One or more fields in the request contains invalid data"
     );
     assert_eq!(err.code, "InvalidData".to_string());
 }
@@ -313,7 +313,7 @@ async fn should_partially_refund_succeeded_payment() {
 }
 
 #[actix_web::test]
-#[ignore = "Connector Error, needs to be looked into and fixed"]
+#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
 async fn should_partially_refund_manually_captured_payment() {
     let connector = Cybersource {};
     let response = connector
@@ -353,7 +353,7 @@ async fn should_fail_refund_for_invalid_amount() {
     );
 }
 #[actix_web::test]
-#[ignore = "Connector Error, needs to be looked into and fixed"]
+#[ignore = "Status field is missing in the response, Communication is being done with cybersource team"]
 async fn should_sync_refund() {
     let connector = Cybersource {};
     let response = connector
