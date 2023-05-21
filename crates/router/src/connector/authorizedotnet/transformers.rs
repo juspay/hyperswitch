@@ -1039,12 +1039,12 @@ pub struct AuthorizedotnetQueryParams {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaypalConfirmRequest {
-    create_transaction_request: PaypalConfirmTransacitonRequest,
+    create_transaction_request: PaypalConfirmTransactionRequest,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PaypalConfirmTransacitonRequest {
+pub struct PaypalConfirmTransactionRequest {
     merchant_authentication: MerchantAuthentication,
     transaction_request: TransactionConfirmRequest,
 }
@@ -1104,7 +1104,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for PaypalConfirmReque
         let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
 
         Ok(Self {
-            create_transaction_request: PaypalConfirmTransacitonRequest {
+            create_transaction_request: PaypalConfirmTransactionRequest {
                 merchant_authentication,
                 transaction_request,
             },
