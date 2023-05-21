@@ -282,7 +282,7 @@ pub fn validate_mandate(
     req: impl Into<api::MandateValidationFields>,
 ) -> RouterResult<Option<api::MandateTxnType>> {
     let req: api::MandateValidationFields = req.into();
-    match req.is_mandate() {
+    match req.is_mandate()?.change_context {
         Some(api::MandateTxnType::NewMandateTxn) => {
             validate_new_mandate_request(req)?;
             Ok(Some(api::MandateTxnType::NewMandateTxn))

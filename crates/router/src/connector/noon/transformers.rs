@@ -17,12 +17,26 @@ pub enum NoonChannels {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum NoonSubscriptonType {
+    Unscheduled,
+}
+
+#[derive(Debug, Serialize)]
+pub struct NoonSubscriptionData {
+    #[serde(rename = "type")]
+    subscription_type: NoonSubscriptonType,
+    //Short description about the subscription.
+    name: String,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonOrder {
     amount: String,
-    currency: storage_models::enums::Currency,
+    currency: Option<storage_models::enums::Currency>,
     channel: NoonChannels,
-    category: String,
+    category: Option<String>,
     //Short description of the order.
     name: String,
 }
@@ -37,8 +51,16 @@ pub enum NoonPaymentActions {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonConfiguration {
+    tokenize_c_c: Option<bool>,
     payment_action: NoonPaymentActions,
     return_url: Option<String>,
+    webhook_url: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonSubscription {
+    subscription_identifier: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -55,6 +77,7 @@ pub struct NoonCard {
 #[serde(tag = "type", content = "data")]
 pub enum NoonPaymentData {
     Card(NoonCard),
+    Subscription(NoonSubscription),
 }
 
 #[derive(Debug, Serialize)]
@@ -72,30 +95,61 @@ pub struct NoonPaymentsRequest {
     order: NoonOrder,
     configuration: NoonConfiguration,
     payment_data: NoonPaymentData,
+    subscription: Option<NoonSubscriptionData>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let payment_data = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => Ok(NoonPaymentData::Card(NoonCard {
-                name_on_card: req_card.card_holder_name,
-                number_plain: req_card.card_number,
-                expiry_month: req_card.card_exp_month,
-                expiry_year: req_card.card_exp_year,
-                cvv: req_card.card_cvc,
-            })),
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment methods".to_string(),
-            )),
-        }?;
-
+        let (payment_data, currency, category) = if item.request.mandate_id.is_some() {
+            (
+                NoonPaymentData::Subscription(NoonSubscription {
+                    subscription_identifier: item.request.connector_mandate_id().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "mandate_id",
+                        },
+                    )?,
+                }),
+                None,
+                None,
+            )
+        } else {
+            (
+                match item.request.payment_method_data.clone() {
+                    api::PaymentMethodData::Card(req_card) => Ok(NoonPaymentData::Card(NoonCard {
+                        name_on_card: req_card.card_holder_name,
+                        number_plain: req_card.card_number,
+                        expiry_month: req_card.card_exp_month,
+                        expiry_year: req_card.card_exp_year,
+                        cvv: req_card.card_cvc,
+                    })),
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Payment methods".to_string(),
+                    )),
+                }?,
+                Some(item.request.currency),
+                Some("pay".to_string()),
+            )
+        };
+        let name = item.get_description()?;
+        let (subscription, tokenize_c_c) = if !item.request.mandate_id.is_some() {
+            match item.request.setup_future_usage.is_some().then_some((
+                NoonSubscriptionData {
+                    subscription_type: NoonSubscriptonType::Unscheduled,
+                    name: name.clone(),
+                },
+                true,
+            )) {
+                Some((a, b)) => (Some(a), Some(b)),
+                None => (None, None),
+            };
+        };
         let order = NoonOrder {
             amount: conn_utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
-            currency: item.request.currency,
+            currency,
             channel: NoonChannels::Web,
-            category: "pay".to_string(),
-            name: item.get_description()?,
+            category,
+            name,
         };
         let payment_action = if item.request.is_auto_capture()? {
             NoonPaymentActions::Sale
@@ -108,8 +162,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             configuration: NoonConfiguration {
                 payment_action,
                 return_url: item.request.router_return_url.clone(),
+                webhook_url: Some(
+                    "https://webhook.site/1a33fc52-3f43-4a59-80cc-ed560176ac64".to_string(),
+                ),
+                tokenize_c_c,
             },
             payment_data,
+            subscription,
         })
     }
 }
@@ -162,6 +221,11 @@ impl From<NoonPaymentStatus> for enums::AttemptStatus {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct NoonSubscriptionResponse {
+    identifier: String,
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsOrderResponse {
     status: NoonPaymentStatus,
@@ -179,6 +243,7 @@ pub struct NoonCheckoutData {
 pub struct NoonPaymentsResponseResult {
     order: NoonPaymentsOrderResponse,
     checkout_data: Option<NoonCheckoutData>,
+    subscription: Option<NoonSubscriptionResponse>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -201,6 +266,14 @@ impl<F, T>
                 form_fields: std::collections::HashMap::new(),
             }
         });
+        let mandate_reference =
+            item.response
+                .result
+                .subscription
+                .map(|subscription_data| types::MandateReference {
+                    connector_mandate_id: Some(subscription_data.identifier),
+                    payment_method_id: None,
+                });
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.result.order.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -208,7 +281,7 @@ impl<F, T>
                     item.response.result.order.id.to_string(),
                 ),
                 redirection_data,
-                mandate_reference: None,
+                mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
             }),
