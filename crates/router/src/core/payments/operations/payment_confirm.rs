@@ -108,6 +108,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let browser_info = request
             .browser_info
             .clone()
+            .or(payment_attempt.browser_info)
             .map(|x| utils::Encode::<types::BrowserInformation>::encode_to_value(&x))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -133,7 +134,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_attempt.payment_experience = request
             .payment_experience
-            .map(|experience| experience.foreign_into());
+            .map(|experience| experience.foreign_into())
+            .or(payment_attempt.payment_experience);
 
         payment_attempt.capture_method = request
             .capture_method
@@ -176,7 +178,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
-        payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
+        payment_intent.return_url = request
+            .return_url
+            .as_ref()
+            .map(|a| a.to_string())
+            .or(payment_intent.return_url);
 
         payment_attempt.business_sub_label = request
             .business_sub_label
@@ -200,6 +206,16 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             })
             .await
             .transpose()?;
+
+        // The operation merges mandate data from both request and payment_attempt
+        let setup_mandate = setup_mandate.map(|mandate_data| api_models::payments::MandateData {
+            customer_acceptance: mandate_data.customer_acceptance,
+            mandate_type: payment_attempt
+                .mandate_details
+                .clone()
+                .map(ForeignInto::foreign_into)
+                .or(mandate_data.mandate_type),
+        });
 
         Ok((
             Box::new(self),
@@ -228,6 +244,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                ephemeral_key: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),

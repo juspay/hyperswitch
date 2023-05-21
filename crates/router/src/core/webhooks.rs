@@ -1,7 +1,7 @@
 pub mod transformers;
 pub mod utils;
 
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
 
@@ -26,7 +26,7 @@ use crate::{
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 
 #[instrument(skip_all)]
-async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
+pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
     merchant_account: storage::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
@@ -95,7 +95,7 @@ async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
 }
 
 #[instrument(skip_all)]
-async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
+pub async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
     merchant_account: storage::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
@@ -196,8 +196,8 @@ async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     Ok(())
 }
 
-async fn get_payment_attempt_from_object_reference_id(
-    state: AppState,
+pub async fn get_payment_attempt_from_object_reference_id(
+    state: &AppState,
     object_reference_id: api_models::webhooks::ObjectReferenceId,
     merchant_account: &storage::MerchantAccount,
 ) -> CustomResult<storage_models::payment_attempt::PaymentAttempt, errors::WebhooksFlowError> {
@@ -219,11 +219,19 @@ async fn get_payment_attempt_from_object_reference_id(
             )
             .await
             .change_context(errors::WebhooksFlowError::ResourceNotFound),
+        api::ObjectReferenceId::PaymentId(api::PaymentIdType::PreprocessingId(ref id)) => db
+            .find_payment_attempt_by_preprocessing_id_merchant_id(
+                id,
+                &merchant_account.merchant_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::WebhooksFlowError::ResourceNotFound),
         _ => Err(errors::WebhooksFlowError::ResourceNotFound).into_report(),
     }
 }
 
-async fn get_or_update_dispute_object(
+pub async fn get_or_update_dispute_object(
     state: AppState,
     option_dispute: Option<storage_models::dispute::Dispute>,
     dispute_details: api::disputes::DisputePayload,
@@ -295,7 +303,7 @@ async fn get_or_update_dispute_object(
 }
 
 #[instrument(skip_all)]
-async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
+pub async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
     merchant_account: storage::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
@@ -311,7 +319,7 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             .get_dispute_details(request_details)
             .change_context(errors::WebhooksFlowError::WebhookEventObjectCreationFailed)?;
         let payment_attempt = get_payment_attempt_from_object_reference_id(
-            state.clone(),
+            &state,
             webhook_details.object_reference_id,
             &merchant_account,
         )
@@ -359,9 +367,79 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     }
 }
 
+async fn bank_transfer_webhook_flow<W: api::OutgoingWebhookType>(
+    state: AppState,
+    merchant_account: storage::MerchantAccount,
+    webhook_details: api::IncomingWebhookDetails,
+    source_verified: bool,
+) -> CustomResult<(), errors::WebhooksFlowError> {
+    let response = if source_verified {
+        let payment_attempt = get_payment_attempt_from_object_reference_id(
+            &state,
+            webhook_details.object_reference_id,
+            &merchant_account,
+        )
+        .await?;
+        let payment_id = payment_attempt.payment_id;
+        let request = api::PaymentsRequest {
+            payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
+                payment_id,
+            )),
+            payment_token: payment_attempt.payment_token,
+            ..Default::default()
+        };
+        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
+            &state,
+            merchant_account.to_owned(),
+            payments::PaymentConfirm,
+            request,
+            services::api::AuthFlow::Merchant,
+            payments::CallConnectorAction::Trigger,
+        )
+        .await
+        .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)
+    } else {
+        Err(report!(
+            errors::WebhooksFlowError::WebhookSourceVerificationFailed
+        ))
+    };
+
+    match response? {
+        services::ApplicationResponse::Json(payments_response) => {
+            let payment_id = payments_response
+                .payment_id
+                .clone()
+                .get_required_value("payment_id")
+                .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?;
+
+            let event_type: enums::EventType = payments_response
+                .status
+                .foreign_try_into()
+                .into_report()
+                .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?;
+
+            create_event_and_trigger_outgoing_webhook::<W>(
+                state,
+                merchant_account,
+                event_type,
+                enums::EventClass::Payments,
+                None,
+                payment_id,
+                enums::EventObjectType::PaymentDetails,
+                api::OutgoingWebhookContent::PaymentDetails(payments_response),
+            )
+            .await?;
+        }
+
+        _ => Err(errors::WebhooksFlowError::PaymentsCoreFailed).into_report()?,
+    }
+
+    Ok(())
+}
+
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookType>(
+pub async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookType>(
     state: AppState,
     merchant_account: storage::MerchantAccount,
     event_type: enums::EventType,
@@ -413,7 +491,7 @@ async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookType>(
     Ok(())
 }
 
-async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
+pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
     merchant_account: storage::MerchantAccount,
     webhook: api::OutgoingWebhook,
     state: &AppState,
@@ -600,6 +678,16 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Incoming webhook flow for disputes failed")?,
+
+            api::WebhookFlow::BankTransfer => bank_transfer_webhook_flow::<W>(
+                state.clone(),
+                merchant_account,
+                webhook_details,
+                source_verified,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Incoming bank-transfer webhook flow failed")?,
 
             api::WebhookFlow::ReturnResponse => {}
 

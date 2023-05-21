@@ -462,6 +462,8 @@ pub enum WebhooksFlowError {
     DisputeWebhookValidationFailed,
     #[error("Outgoing webhook body encoding failed")]
     OutgoingWebhookEncodingFailed,
+    #[error("Missing required field: {field_name}")]
+    MissingRequiredField { field_name: &'static str },
 }
 
 #[cfg(feature = "detailed_errors")]

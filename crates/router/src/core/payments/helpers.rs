@@ -296,14 +296,6 @@ pub fn validate_mandate(
 }
 
 fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResult<()> {
-    let confirm = req.confirm.get_required_value("confirm")?;
-
-    if !confirm {
-        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: "`confirm` must be `true` for mandates".into()
-        }))?
-    }
-
     let _ = req.customer_id.as_ref().get_required_value("customer_id")?;
 
     let mandate_data = req
@@ -321,8 +313,11 @@ fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResu
         }))?
     };
 
-    if (mandate_data.customer_acceptance.acceptance_type == api::AcceptanceType::Online)
-        && mandate_data.customer_acceptance.online.is_none()
+    // Only use this validation if the customer_acceptance is present
+    if mandate_data
+        .customer_acceptance
+        .map(|inner| inner.acceptance_type == api::AcceptanceType::Online && inner.online.is_none())
+        .unwrap_or(false)
     {
         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
             message: "`mandate_data.customer_acceptance.online` is required when \
@@ -332,8 +327,9 @@ fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResu
     }
 
     let mandate_details = match mandate_data.mandate_type {
-        api_models::payments::MandateType::SingleUse(details) => Some(details),
-        api_models::payments::MandateType::MultiUse(details) => details,
+        Some(api_models::payments::MandateType::SingleUse(details)) => Some(details),
+        Some(api_models::payments::MandateType::MultiUse(details)) => details,
+        None => None,
     };
     mandate_details.and_then(|md| md.start_date.zip(md.end_date)).map(|(start_date, end_date)|
         utils::when (start_date >= end_date, || {
@@ -807,6 +803,20 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     }
                 }
 
+                Some(api::PaymentMethodData::BankTransfer(bank_transfer)) => {
+                    payment_data.payment_attempt.payment_method =
+                        Some(storage_enums::PaymentMethod::BankTransfer);
+                    let updated_pm = api::PaymentMethodData::BankTransfer(bank_transfer);
+                    vault::Vault::store_payment_method_data_in_locker(
+                        state,
+                        Some(hyperswitch_token),
+                        &updated_pm,
+                        payment_data.payment_intent.customer_id.to_owned(),
+                        enums::PaymentMethod::BankTransfer,
+                    )
+                    .await?;
+                    Some(updated_pm)
+                }
                 Some(_) => Err(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
                     .attach_printable(
@@ -832,6 +842,18 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::BankRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Crypto(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::BankDebit(_)), _) => Ok(pm.to_owned()),
+        (pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)), _) => {
+            let token = vault::Vault::store_payment_method_data_in_locker(
+                state,
+                None,
+                pm,
+                payment_data.payment_intent.customer_id.to_owned(),
+                enums::PaymentMethod::BankTransfer,
+            )
+            .await?;
+            payment_data.token = Some(token);
+            Ok(pm_opt.to_owned())
+        }
         (pm_opt @ Some(pm @ api::PaymentMethodData::Wallet(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
                 state,
@@ -1167,7 +1189,7 @@ pub fn generate_mandate(
     payment_method_id: String,
     connector_mandate_id: Option<pii::SecretSerdeValue>,
     network_txn_id: Option<String>,
-) -> Option<storage::MandateNew> {
+) -> CustomResult<Option<storage::MandateNew>, errors::ApiErrorResponse> {
     match (setup_mandate_details, customer) {
         (Some(data), Some(cus)) => {
             let mandate_id = utils::generate_id(consts::ID_LENGTH, "man");
@@ -1175,6 +1197,9 @@ pub fn generate_mandate(
             // The construction of the mandate new must be visible
             let mut new_mandate = storage::MandateNew::default();
 
+            let customer_acceptance = data
+                .customer_acceptance
+                .get_required_value("customer_acceptance")?;
             new_mandate
                 .set_mandate_id(mandate_id)
                 .set_customer_id(cus.customer_id.clone())
@@ -1185,34 +1210,36 @@ pub fn generate_mandate(
                 .set_connector_mandate_ids(connector_mandate_id)
                 .set_network_transaction_id(network_txn_id)
                 .set_customer_ip_address(
-                    data.customer_acceptance
+                    customer_acceptance
                         .get_ip_address()
                         .map(masking::Secret::new),
                 )
-                .set_customer_user_agent(data.customer_acceptance.get_user_agent())
-                .set_customer_accepted_at(Some(data.customer_acceptance.get_accepted_at()));
+                .set_customer_user_agent(customer_acceptance.get_user_agent())
+                .set_customer_accepted_at(Some(customer_acceptance.get_accepted_at()));
 
-            Some(match data.mandate_type {
-                api::MandateType::SingleUse(data) => new_mandate
-                    .set_mandate_amount(Some(data.amount))
-                    .set_mandate_currency(Some(data.currency.foreign_into()))
-                    .set_mandate_type(storage_enums::MandateType::SingleUse)
-                    .to_owned(),
-
-                api::MandateType::MultiUse(op_data) => match op_data {
-                    Some(data) => new_mandate
+            Ok(Some(
+                match data.mandate_type.get_required_value("mandate_type")? {
+                    api::MandateType::SingleUse(data) => new_mandate
                         .set_mandate_amount(Some(data.amount))
                         .set_mandate_currency(Some(data.currency.foreign_into()))
-                        .set_start_date(data.start_date)
-                        .set_end_date(data.end_date)
-                        .set_metadata(data.metadata),
-                    None => &mut new_mandate,
-                }
-                .set_mandate_type(storage_enums::MandateType::MultiUse)
-                .to_owned(),
-            })
+                        .set_mandate_type(storage_enums::MandateType::SingleUse)
+                        .to_owned(),
+
+                    api::MandateType::MultiUse(op_data) => match op_data {
+                        Some(data) => new_mandate
+                            .set_mandate_amount(Some(data.amount))
+                            .set_mandate_currency(Some(data.currency.foreign_into()))
+                            .set_start_date(data.start_date)
+                            .set_end_date(data.end_date)
+                            .set_metadata(data.metadata),
+                        None => &mut new_mandate,
+                    }
+                    .set_mandate_type(storage_enums::MandateType::MultiUse)
+                    .to_owned(),
+                },
+            ))
         }
-        (_, _) => None,
+        (_, _) => Ok(None),
     }
 }
 
@@ -1682,6 +1709,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         payment_method_token: router_data.payment_method_token,
         customer_id: router_data.customer_id,
         connector_customer: router_data.connector_customer,
+        preprocessing_id: router_data.preprocessing_id,
     }
 }
 
@@ -1821,6 +1849,8 @@ impl AttemptType {
             business_sub_label: old_payment_attempt.business_sub_label,
             // If the algorithm is entered in Create call from server side, it needs to be populated here, however it could be overridden from the request.
             straight_through_algorithm: old_payment_attempt.straight_through_algorithm,
+            mandate_details: old_payment_attempt.mandate_details,
+            preprocessing_step_id: None,
         }
     }
 
