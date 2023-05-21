@@ -5,7 +5,7 @@ pub struct EphemeralKeyNew {
     pub secret: String,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct EphemeralKey {
     pub id: String,
     pub merchant_id: String,

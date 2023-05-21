@@ -46,6 +46,9 @@ pub struct PaymentAttempt {
     pub payment_method_data: Option<serde_json::Value>,
     pub business_sub_label: Option<String>,
     pub straight_through_algorithm: Option<serde_json::Value>,
+    pub preprocessing_step_id: Option<String>,
+    // providing a location to store mandate details intermediately for transaction
+    pub mandate_details: Option<storage_enums::MandateDataType>,
 }
 
 #[derive(
@@ -91,6 +94,8 @@ pub struct PaymentAttemptNew {
     pub payment_method_data: Option<serde_json::Value>,
     pub business_sub_label: Option<String>,
     pub straight_through_algorithm: Option<serde_json::Value>,
+    pub preprocessing_step_id: Option<String>,
+    pub mandate_details: Option<storage_enums::MandateDataType>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -163,6 +168,12 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
     },
+    PreprocessingUpdate {
+        status: storage_enums::AttemptStatus,
+        payment_method_id: Option<Option<String>>,
+        connector_metadata: Option<serde_json::Value>,
+        preprocessing_step_id: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -189,6 +200,7 @@ pub struct PaymentAttemptUpdateInternal {
     payment_experience: Option<storage_enums::PaymentExperience>,
     business_sub_label: Option<String>,
     straight_through_algorithm: Option<serde_json::Value>,
+    preprocessing_step_id: Option<String>,
 }
 
 impl PaymentAttemptUpdate {
@@ -211,6 +223,10 @@ impl PaymentAttemptUpdate {
             browser_info: pa_update.browser_info.or(source.browser_info),
             modified_at: common_utils::date_time::now(),
             payment_token: pa_update.payment_token.or(source.payment_token),
+            connector_metadata: pa_update.connector_metadata.or(source.connector_metadata),
+            preprocessing_step_id: pa_update
+                .preprocessing_step_id
+                .or(source.preprocessing_step_id),
             ..source
         }
     }
@@ -359,6 +375,19 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 modified_at: Some(common_utils::date_time::now()),
                 error_code,
                 error_message,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::PreprocessingUpdate {
+                status,
+                payment_method_id,
+                connector_metadata,
+                preprocessing_step_id,
+            } => Self {
+                status: Some(status),
+                payment_method_id,
+                modified_at: Some(common_utils::date_time::now()),
+                connector_metadata,
+                preprocessing_step_id,
                 ..Default::default()
             },
         }

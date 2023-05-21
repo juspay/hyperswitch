@@ -1,15 +1,17 @@
+use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::disputes as dispute_models;
 use router_env::{instrument, tracing, Flow};
+pub mod utils;
 
 use super::app::AppState;
 use crate::{
     core::disputes,
     services::{api, authentication as auth},
-    types::api::disputes::{self as dispute_types},
+    types::api::disputes as dispute_types,
 };
 
-/// Diputes - Retrieve Dispute
+/// Disputes - Retrieve Dispute
 #[utoipa::path(
     get,
     path = "/disputes/{dispute_id}",
@@ -45,7 +47,7 @@ pub async fn retrieve_dispute(
     .await
 }
 
-/// Diputes - List Disputes
+/// Disputes - List Disputes
 #[utoipa::path(
     get,
     path = "/disputes/list",
@@ -88,7 +90,7 @@ pub async fn retrieve_disputes_list(
     .await
 }
 
-/// Diputes - Accept Dispute
+/// Disputes - Accept Dispute
 #[utoipa::path(
     get,
     path = "/disputes/accept/{dispute_id}",
@@ -124,7 +126,7 @@ pub async fn accept_dispute(
     .await
 }
 
-/// Diputes - Submit Dispute Evidence
+/// Disputes - Submit Dispute Evidence
 #[utoipa::path(
     post,
     path = "/disputes/evidence",
@@ -150,6 +152,81 @@ pub async fn submit_dispute_evidence(
         &req,
         json_payload.into_inner(),
         disputes::submit_evidence,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+    )
+    .await
+}
+
+/// Disputes - Attach Evidence to Dispute
+///
+/// To attach an evidence file to dispute
+#[utoipa::path(
+    put,
+    path = "/disputes/evidence",
+    request_body=MultipartRequestWithFile,
+    responses(
+        (status = 200, description = "Evidence attached to dispute", body = CreateFileResponse),
+        (status = 400, description = "Bad Request")
+    ),
+    tag = "Disputes",
+    operation_id = "Attach Evidence to Dispute",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::AttachDisputeEvidence))]
+pub async fn attach_dispute_evidence(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: Multipart,
+) -> HttpResponse {
+    let flow = Flow::AttachDisputeEvidence;
+    //Get attach_evidence_request from the multipart request
+    let attach_evidence_request_result = utils::get_attach_evidence_request(payload).await;
+    let attach_evidence_request = match attach_evidence_request_result {
+        Ok(valid_request) => valid_request,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        attach_evidence_request,
+        disputes::attach_evidence,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+    )
+    .await
+}
+
+/// Diputes - Retrieve Dispute
+#[utoipa::path(
+    get,
+    path = "/disputes/evidence/{dispute_id}",
+    params(
+        ("dispute_id" = String, Path, description = "The identifier for dispute")
+    ),
+    responses(
+        (status = 200, description = "The dispute evidence was retrieved successfully", body = DisputeResponse),
+        (status = 404, description = "Dispute does not exist in our records")
+    ),
+    tag = "Disputes",
+    operation_id = "Retrieve a Dispute Evidence",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::RetrieveDisputeEvidence))]
+pub async fn retrieve_dispute_evidence(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::RetrieveDisputeEvidence;
+    let dispute_id = dispute_types::DisputeId {
+        dispute_id: path.into_inner(),
+    };
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        dispute_id,
+        disputes::retrieve_dispute_evidence,
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await

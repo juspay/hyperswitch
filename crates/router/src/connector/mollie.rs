@@ -7,6 +7,7 @@ use transformers as mollie;
 
 use crate::{
     configs::settings,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -82,10 +83,12 @@ impl ConnectorCommon for Mollie {
             .parse_struct("MollieErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
+            status_code: response.status,
+            code: response
+                .title
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response.detail,
             reason: response.field,
-            status_code: response.status,
-            ..Default::default()
         })
     }
 }
