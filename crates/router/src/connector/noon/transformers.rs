@@ -2,19 +2,21 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self as conn_utils, RefundsRequestData, RouterData},
+    connector::utils::{
+        self as conn_utils, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
+    },
     core::errors,
     services,
     types::{self, api, storage::enums},
 };
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum NoonChannels {
     Web,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonOrder {
     amount: String,
@@ -25,21 +27,21 @@ pub struct NoonOrder {
     name: String,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum NoonPaymentActions {
     Authorize,
     Sale,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonConfiguration {
     payment_action: NoonPaymentActions,
     return_url: Option<String>,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonCard {
     name_on_card: Secret<String>,
@@ -49,13 +51,13 @@ pub struct NoonCard {
     cvv: Secret<String>,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(tag = "type", content = "data")]
 pub enum NoonPaymentData {
     Card(NoonCard),
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum NoonApiOperations {
     Initiate,
@@ -63,7 +65,7 @@ pub enum NoonApiOperations {
     Reverse,
     Refund,
 }
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsRequest {
     api_operation: NoonApiOperations,
@@ -95,9 +97,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             category: "pay".to_string(),
             name: item.get_description()?,
         };
-        let payment_action = match item.request.capture_method {
-            Some(enums::CaptureMethod::Manual) => NoonPaymentActions::Authorize,
-            _ => NoonPaymentActions::Sale,
+        let payment_action = if item.request.is_auto_capture()? {
+            NoonPaymentActions::Sale
+        } else {
+            NoonPaymentActions::Authorize
         };
         Ok(Self {
             api_operation: NoonApiOperations::Initiate,
@@ -135,7 +138,7 @@ impl TryFrom<&types::ConnectorAuthType> for NoonAuthType {
         }
     }
 }
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum NoonPaymentStatus {
     Authorized,
@@ -158,27 +161,27 @@ impl From<NoonPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsOrderResponse {
     status: NoonPaymentStatus,
     id: u64,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonCheckoutData {
     post_url: url::Url,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsResponseResult {
     order: NoonPaymentsOrderResponse,
     checkout_data: Option<NoonCheckoutData>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct NoonPaymentsResponse {
     result: NoonPaymentsResponseResult,
 }
@@ -214,20 +217,20 @@ impl<F, T>
     }
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonActionTransaction {
     amount: String,
     currency: storage_models::enums::Currency,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonActionOrder {
     id: String,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsActionRequest {
     api_operation: NoonApiOperations,
@@ -256,7 +259,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NoonPaymentsActionRequest {
     }
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsCancelRequest {
     api_operation: NoonApiOperations,
@@ -297,10 +300,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NoonPaymentsActionRequest {
     }
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Default, Deserialize, Clone)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Success,
@@ -319,19 +319,19 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsTransactionResponse {
     id: String,
     status: RefundStatus,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Default, Debug, Deserialize)]
 pub struct NoonRefundResponseResult {
     transaction: NoonPaymentsTransactionResponse,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Deserialize)]
 pub struct RefundResponse {
     result: NoonRefundResponseResult,
 }
@@ -353,18 +353,18 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Deserialize)]
 pub struct NoonRefundResponseTransactions {
     id: String,
     status: RefundStatus,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Deserialize)]
 pub struct NoonRefundSyncResponseResult {
     transactions: Vec<NoonRefundResponseTransactions>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Deserialize)]
 pub struct RefundSyncResponse {
     result: NoonRefundSyncResponseResult,
 }
@@ -395,7 +395,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonErrorResponse {
     pub result_code: u32,

@@ -23,6 +23,8 @@ use crate::{
     utils::{self, BytesExt},
 };
 
+use super::utils::PaymentsSyncRequestData;
+
 #[derive(Debug, Clone)]
 pub struct Noon;
 
@@ -229,12 +231,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_transaction_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-
+        let connector_transaction_id = req.request.get_connector_transaction_id()?;
         Ok(format!(
             "{}payment/v1/order/{connector_transaction_id}",
             self.base_url(connectors)
