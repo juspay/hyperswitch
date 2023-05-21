@@ -86,7 +86,6 @@ pub struct PayPalDetails {
 
 #[derive(Serialize, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct WalletDetails {
     pub data_descriptor: WalletMethod,
     pub data_value: String,
@@ -430,8 +429,8 @@ pub struct RefundResponse {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct SecureAcceptance {
-    #[serde(rename = "SecureAcceptanceUrl")]
     secure_acceptance_url: Option<url::Url>,
 }
 
