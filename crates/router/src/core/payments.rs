@@ -346,7 +346,10 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             metadata: Some(Metadata {
                 order_details: None,
                 data: masking::Secret::new("{}".into()),
-                payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
+                redirect_response: Some(api_models::payments::RedirectResponse {
+                    param: req.param.clone(),
+                    json_payload: Some(req.json_payload.clone().unwrap_or(serde_json::json!({}))),
+                }),
                 allowed_payment_method_types: None,
             }),
             ..Default::default()
@@ -932,6 +935,7 @@ where
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
+    pub redirect_response: Option<api_models::payments::RedirectResponse>,
 }
 
 #[derive(Debug, Default)]

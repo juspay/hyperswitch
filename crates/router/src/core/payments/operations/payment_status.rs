@@ -291,6 +291,7 @@ async fn get_tracker_for_sync<
             pm_token: None,
             connector_customer_id: None,
             ephemeral_key: None,
+            redirect_response: None,
         },
         None,
     ))

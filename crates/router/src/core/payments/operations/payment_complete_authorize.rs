@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 
 use async_trait::async_trait;
 use error_stack::ResultExt;
-use masking::ExposeOptionInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -146,7 +145,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         )
         .await?;
 
-        let mut connector_response = db
+        let connector_response = db
             .find_connector_response_by_payment_id_merchant_id_attempt_id(
                 &payment_attempt.payment_id,
                 &payment_attempt.merchant_id,
@@ -156,12 +155,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        connector_response.encoded_data = request.metadata.clone().and_then(|secret_metadata| {
-            secret_metadata
-                .payload
-                .expose_option()
-                .map(|exposed_payload| exposed_payload.to_string())
-        });
+        let redirect_response = request
+            .metadata
+            .as_ref()
+            .and_then(|secret_metadata| secret_metadata.redirect_response.to_owned());
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
@@ -205,6 +202,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 pm_token: None,
                 connector_customer_id: None,
                 ephemeral_key: None,
+                redirect_response,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),

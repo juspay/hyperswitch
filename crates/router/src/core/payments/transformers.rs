@@ -1,7 +1,7 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use common_utils::fp_utils;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 use storage_models::ephemeral_key;
 
@@ -813,13 +813,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 field_name: "browser_info",
             })?;
 
-        let json_payload = payment_data
-            .connector_response
-            .encoded_data
-            .map(|s| serde_json::from_str::<serde_json::Value>(&s))
-            .transpose()
-            .into_report()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let redirect_response = payment_data.redirect_response.map(|redirect| {
+            types::CompleteAuthorizeRedirectResponse {
+                params: redirect.param,
+                payload: redirect.json_payload,
+            }
+        });
+
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
@@ -834,7 +834,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             email: payment_data.email,
             payment_method_data: payment_data.payment_method_data,
             connector_transaction_id: payment_data.connector_response.connector_transaction_id,
-            payload: json_payload,
+            redirect_response,
             connector_meta: payment_data.payment_attempt.connector_metadata,
         })
     }

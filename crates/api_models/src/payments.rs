@@ -1576,13 +1576,19 @@ pub struct Metadata {
     #[serde(flatten)]
     pub data: pii::SecretSerdeValue,
 
-    /// Payload coming in request as a metadata field
-    #[schema(value_type = Option<Object>)]
-    pub payload: Option<pii::SecretSerdeValue>,
+    /// Redirection response coming in request as metadata field only for redirection scenarios
+    pub redirect_response: Option<RedirectResponse>,
 
     /// Allowed payment method types for a payment intent
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
+}
+
+#[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct RedirectResponse {
+    pub param: Option<String>,
+    #[schema(value_type = Option<Object>)]
+    pub json_payload: Option<serde_json::Value>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
