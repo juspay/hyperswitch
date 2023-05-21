@@ -45,6 +45,7 @@ pub struct RefundRequest {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
@@ -120,6 +121,9 @@ pub struct RefundResponse {
     /// The timestamp at which refund is updated
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub updated_at: Option<PrimitiveDateTime>,
+    /// The connector used for the refund and the corresponding payment
+    #[schema(example = "stripe")]
+    pub connector: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]

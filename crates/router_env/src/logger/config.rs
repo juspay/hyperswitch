@@ -99,6 +99,8 @@ pub struct LogTelemetry {
     pub otel_exporter_otlp_endpoint: Option<String>,
     /// Timeout (in milliseconds) for sending metrics and traces.
     pub otel_exporter_otlp_timeout: Option<u64>,
+    /// Whether to use xray ID generator, (enable this if you plan to use AWS-XRAY)
+    pub use_xray_generator: bool,
 }
 
 /// Telemetry / tracing.

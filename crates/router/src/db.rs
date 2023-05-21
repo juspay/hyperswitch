@@ -25,7 +25,10 @@ use std::sync::Arc;
 
 use futures::lock::Mutex;
 
-use crate::{services::Store, types::storage};
+use crate::{
+    services::{self, Store},
+    types::storage,
+};
 
 #[derive(PartialEq, Eq)]
 pub enum StorageImpl {
@@ -61,15 +64,16 @@ pub trait StorageInterface:
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + cards_info::CardsInfoInterface
+    + services::RedisConnInterface
     + 'static
 {
 }
-
 #[async_trait::async_trait]
 impl StorageInterface for Store {}
 
 #[derive(Clone)]
 pub struct MockDb {
+    addresses: Arc<Mutex<Vec<storage::Address>>>,
     merchant_accounts: Arc<Mutex<Vec<storage::MerchantAccount>>>,
     merchant_connector_accounts: Arc<Mutex<Vec<storage::MerchantConnectorAccount>>>,
     payment_attempts: Arc<Mutex<Vec<storage::PaymentAttempt>>>,
@@ -79,11 +83,13 @@ pub struct MockDb {
     processes: Arc<Mutex<Vec<storage::ProcessTracker>>>,
     connector_response: Arc<Mutex<Vec<storage::ConnectorResponse>>>,
     redis: Arc<redis_interface::RedisConnectionPool>,
+    api_keys: Arc<Mutex<Vec<storage::ApiKey>>>,
 }
 
 impl MockDb {
     pub async fn new(redis: &crate::configs::settings::Settings) -> Self {
         Self {
+            addresses: Default::default(),
             merchant_accounts: Default::default(),
             merchant_connector_accounts: Default::default(),
             payment_attempts: Default::default(),
@@ -93,6 +99,7 @@ impl MockDb {
             processes: Default::default(),
             connector_response: Default::default(),
             redis: Arc::new(crate::connection::redis_connection(redis).await),
+            api_keys: Default::default(),
         }
     }
 }
@@ -103,7 +110,7 @@ impl StorageInterface for MockDb {}
 pub async fn get_and_deserialize_key<T>(
     db: &dyn StorageInterface,
     key: &str,
-    type_name: &str,
+    type_name: &'static str,
 ) -> common_utils::errors::CustomResult<T, redis_interface::errors::RedisError>
 where
     T: serde::de::DeserializeOwned,
@@ -115,6 +122,12 @@ where
     bytes
         .parse_struct(type_name)
         .change_context(redis_interface::errors::RedisError::JsonDeserializationFailed)
+}
+
+impl services::RedisConnInterface for MockDb {
+    fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool> {
+        self.redis.clone()
+    }
 }
 
 dyn_clone::clone_trait_object!(StorageInterface);

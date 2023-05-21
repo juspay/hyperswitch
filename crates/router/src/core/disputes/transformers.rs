@@ -1,9 +1,16 @@
+use api_models::disputes::EvidenceType;
 use common_utils::errors::CustomResult;
+use error_stack::ResultExt;
 
 use crate::{
     core::{errors, files::helpers::retrieve_file_and_provider_file_id_from_file_id},
     routes::AppState,
-    types::SubmitEvidenceRequestData,
+    types::{
+        api::{self, DisputeEvidence},
+        storage,
+        transformers::ForeignFrom,
+        SubmitEvidenceRequestData,
+    },
 };
 
 pub async fn get_evidence_request_data(
@@ -17,6 +24,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.cancellation_policy,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (customer_communication, customer_communication_provider_file_id) =
@@ -24,6 +32,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.customer_communication,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (customer_signature, customer_signature_provider_file_id) =
@@ -31,12 +40,14 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.customer_signature,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (receipt, receipt_provider_file_id) = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.receipt,
         merchant_account,
+        api::FileDataRequired::NotRequired,
     )
     .await?;
     let (refund_policy, refund_policy_provider_file_id) =
@@ -44,6 +55,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.refund_policy,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (service_documentation, service_documentation_provider_file_id) =
@@ -51,6 +63,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.service_documentation,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (shipping_documentation, shipping_documentation_provider_file_id) =
@@ -58,6 +71,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.shipping_documentation,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (
@@ -67,6 +81,7 @@ pub async fn get_evidence_request_data(
         state,
         evidence_request.invoice_showing_distinct_transactions,
         merchant_account,
+        api::FileDataRequired::NotRequired,
     )
     .await?;
     let (recurring_transaction_agreement, recurring_transaction_agreement_provider_file_id) =
@@ -74,6 +89,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.recurring_transaction_agreement,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (uncategorized_file, uncategorized_file_provider_file_id) =
@@ -81,6 +97,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.uncategorized_file,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     Ok(SubmitEvidenceRequestData {
@@ -123,4 +140,196 @@ pub async fn get_evidence_request_data(
         uncategorized_file_provider_file_id,
         uncategorized_text: evidence_request.uncategorized_text,
     })
+}
+
+pub fn update_dispute_evidence(
+    dispute_evidence: DisputeEvidence,
+    evidence_type: api::EvidenceType,
+    file_id: String,
+) -> DisputeEvidence {
+    match evidence_type {
+        api::EvidenceType::CancellationPolicy => DisputeEvidence {
+            cancellation_policy: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::CustomerCommunication => DisputeEvidence {
+            customer_communication: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::CustomerSignature => DisputeEvidence {
+            customer_signature: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::Receipt => DisputeEvidence {
+            receipt: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::RefundPolicy => DisputeEvidence {
+            refund_policy: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::ServiceDocumentation => DisputeEvidence {
+            service_documentation: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::ShippingDocumentation => DisputeEvidence {
+            shipping_documentation: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::InvoiceShowingDistinctTransactions => DisputeEvidence {
+            invoice_showing_distinct_transactions: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::RecurringTransactionAgreement => DisputeEvidence {
+            recurring_transaction_agreement: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::UncategorizedFile => DisputeEvidence {
+            uncategorized_file: Some(file_id),
+            ..dispute_evidence
+        },
+    }
+}
+
+pub async fn get_dispute_evidence_block(
+    state: &AppState,
+    merchant_account: &storage::MerchantAccount,
+    evidence_type: EvidenceType,
+    file_id: String,
+) -> CustomResult<api_models::disputes::DisputeEvidenceBlock, errors::ApiErrorResponse> {
+    let file_metadata = state
+        .store
+        .find_file_metadata_by_merchant_id_file_id(&merchant_account.merchant_id, &file_id)
+        .await
+        .change_context(errors::ApiErrorResponse::FileNotFound)
+        .attach_printable("Unable to retrieve file_metadata")?;
+    let file_metadata_response =
+        api_models::files::FileMetadataResponse::foreign_from(file_metadata);
+    Ok(api_models::disputes::DisputeEvidenceBlock {
+        evidence_type,
+        file_metadata_response,
+    })
+}
+
+pub async fn get_dispute_evidence_vec(
+    state: &AppState,
+    merchant_account: storage::MerchantAccount,
+    dispute_evidence: DisputeEvidence,
+) -> CustomResult<Vec<api_models::disputes::DisputeEvidenceBlock>, errors::ApiErrorResponse> {
+    let mut dispute_evidence_blocks: Vec<api_models::disputes::DisputeEvidenceBlock> = vec![];
+    if let Some(cancellation_policy_block) = dispute_evidence.cancellation_policy {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::CancellationPolicy,
+                cancellation_policy_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(customer_communication_block) = dispute_evidence.customer_communication {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::CustomerCommunication,
+                customer_communication_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(customer_signature_block) = dispute_evidence.customer_signature {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::CustomerSignature,
+                customer_signature_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(receipt_block) = dispute_evidence.receipt {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::Receipt,
+                receipt_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(refund_policy_block) = dispute_evidence.refund_policy {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::RefundPolicy,
+                refund_policy_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(service_documentation_block) = dispute_evidence.service_documentation {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::ServiceDocumentation,
+                service_documentation_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(shipping_documentation_block) = dispute_evidence.shipping_documentation {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::ShippingDocumentation,
+                shipping_documentation_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(invoice_showing_distinct_transactions_block) =
+        dispute_evidence.invoice_showing_distinct_transactions
+    {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::InvoiceShowingDistinctTransactions,
+                invoice_showing_distinct_transactions_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(recurring_transaction_agreement_block) =
+        dispute_evidence.recurring_transaction_agreement
+    {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::RecurringTransactionAgreement,
+                recurring_transaction_agreement_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(uncategorized_file_block) = dispute_evidence.uncategorized_file {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::UncategorizedFile,
+                uncategorized_file_block,
+            )
+            .await?,
+        )
+    }
+    Ok(dispute_evidence_blocks)
 }

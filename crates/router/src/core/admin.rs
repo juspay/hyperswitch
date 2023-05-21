@@ -1,19 +1,17 @@
 use api_models::admin::PrimaryBusinessDetails;
 use common_utils::ext_traits::ValueExt;
-use error_stack::{report, FutureExt, IntoReport, ResultExt};
-use masking::Secret; //PeekInterface
+use error_stack::{report, FutureExt, ResultExt};
+use masking::Secret;
 use storage_models::{enums, merchant_account};
 use uuid::Uuid;
 
 use crate::{
     consts,
     core::{
-        api_keys,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payments::helpers,
     },
     db::StorageInterface,
-    routes::AppState,
     services::api as service_api,
     types::{
         self, api,
@@ -58,37 +56,10 @@ fn get_primary_business_details(
 }
 
 pub async fn create_merchant_account(
-    state: &AppState,
+    db: &dyn StorageInterface,
     req: api::MerchantAccountCreate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
-    let db = &*state.store;
     let publishable_key = Some(create_merchant_publishable_key());
-
-    let api_key_request = api::CreateApiKeyRequest {
-        name: "Default API key".into(),
-        description: Some(
-            "An API key created by default when a user signs up on the HyperSwitch dashboard"
-                .into(),
-        ),
-        expiration: api::ApiKeyExpiration::Never,
-    };
-    let api_key = match api_keys::create_api_key(
-        db,
-        &state.conf.api_keys,
-        #[cfg(feature = "kms")]
-        &state.conf.kms,
-        api_key_request,
-        req.merchant_id.clone(),
-    )
-    .await?
-    {
-        service_api::ApplicationResponse::Json(api::CreateApiKeyResponse { api_key, .. }) => {
-            Ok(api_key)
-        }
-        _ => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
-            .attach_printable("Unexpected create API key response"),
-    }?;
 
     let primary_business_details = utils::Encode::<Vec<PrimaryBusinessDetails>>::encode_to_value(
         &get_primary_business_details(&req),
@@ -132,7 +103,6 @@ pub async fn create_merchant_account(
     let merchant_account = storage::MerchantAccountNew {
         merchant_id: req.merchant_id,
         merchant_name: req.merchant_name,
-        api_key: Some(api_key),
         merchant_details,
         return_url: req.return_url.map(|a| a.to_string()),
         webhook_details,
@@ -151,6 +121,7 @@ pub async fn create_merchant_account(
         locker_id: req.locker_id,
         metadata: req.metadata,
         primary_business_details,
+        frm_routing_algorithm: req.frm_routing_algorithm,
         intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
     };
 
@@ -258,6 +229,7 @@ pub async fn merchant_account_update(
         metadata: req.metadata,
         publishable_key: None,
         primary_business_details,
+        frm_routing_algorithm: req.frm_routing_algorithm,
         intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
     };
 
@@ -449,7 +421,9 @@ pub async fn retrieve_payment_connector(
             &merchant_connector_id,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.clone(),
+        })?;
 
     Ok(service_api::ApplicationResponse::Json(
         ForeignTryFrom::foreign_try_from(mca)?,
@@ -469,7 +443,7 @@ pub async fn list_payment_connectors(
     let merchant_connector_accounts = store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(&merchant_id, true)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
     let mut response = vec![];
 
     // The can be eliminated once [#79711](https://github.com/rust-lang/rust/issues/79711) is stabilized
@@ -497,7 +471,9 @@ pub async fn update_payment_connector(
             merchant_connector_id,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.to_string(),
+        })?;
 
     let payment_methods_enabled = req.payment_methods_enabled.map(|pm_enabled| {
         pm_enabled
@@ -557,7 +533,9 @@ pub async fn delete_payment_connector(
             &merchant_connector_id,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.clone(),
+        })?;
     let response = api::MerchantConnectorDeleteResponse {
         merchant_id,
         merchant_connector_id,
