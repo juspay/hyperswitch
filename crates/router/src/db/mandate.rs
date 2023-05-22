@@ -4,7 +4,7 @@ use super::{MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    types::storage,
+    types::storage::{self, MandateDbExt},
 };
 
 #[async_trait::async_trait]
@@ -27,6 +27,12 @@ pub trait MandateInterface {
         mandate_id: &str,
         mandate: storage::MandateUpdate,
     ) -> CustomResult<storage::Mandate, errors::StorageError>;
+
+    async fn find_mandates_by_merchant_id(
+        &self,
+        merchant_id: &str,
+        mandate_constraints: api_models::mandates::MandateListConstraints,
+    ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError>;
 
     async fn insert_mandate(
         &self,
@@ -73,6 +79,18 @@ impl MandateInterface for Store {
             .into_report()
     }
 
+    async fn find_mandates_by_merchant_id(
+        &self,
+        merchant_id: &str,
+        mandate_constraints: api_models::mandates::MandateListConstraints,
+    ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Mandate::filter_by_constraints(&conn, merchant_id, mandate_constraints)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
     async fn insert_mandate(
         &self,
         mandate: storage::MandateNew,
@@ -112,6 +130,15 @@ impl MandateInterface for MockDb {
         _mandate_id: &str,
         _mandate: storage::MandateUpdate,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn find_mandates_by_merchant_id(
+        &self,
+        _merchant_id: &str,
+        _mandate_constraints: api_models::mandates::MandateListConstraints,
+    ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }

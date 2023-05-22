@@ -39,6 +39,8 @@ where
         })
     }
 
+    // This will allow the error message that was generated in this function to point to the call site
+    #[track_caller]
     fn get_required_value(self, field_name: &'static str) -> RouterResult<T> {
         match self {
             Some(v) => Ok(v),

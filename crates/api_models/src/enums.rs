@@ -426,6 +426,7 @@ pub enum PaymentMethodType {
     Giropay,
     GooglePay,
     Ideal,
+    Interac,
     Klarna,
     MbWay,
     MobilePay,
@@ -467,6 +468,7 @@ pub enum PaymentMethod {
     PayLater,
     Wallet,
     BankRedirect,
+    BankTransfer,
     Crypto,
     BankDebit,
 }
@@ -567,7 +569,6 @@ pub enum MandateStatus {
     Clone,
     Copy,
     Debug,
-    Default,
     Eq,
     PartialEq,
     ToSchema,
@@ -584,7 +585,6 @@ pub enum Connector {
     Aci,
     Adyen,
     Airwallex,
-    Applepay,
     Authorizedotnet,
     Bitpay,
     Bluesnap,
@@ -592,8 +592,6 @@ pub enum Connector {
     Checkout,
     Coinbase,
     Cybersource,
-    #[default]
-    Dummy,
     Iatapay,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "dummyconnector1")]
