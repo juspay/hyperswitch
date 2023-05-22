@@ -50,7 +50,7 @@ impl ProcessTrackerWorkflow for ApiKeyExpiryWorkflow {
                     email_id.ok_or_else(|| errors::ProcessTrackerError::MissingRequiredField)?,
                     "API Key Expiry Notice".to_string(),
                     format!("Dear Merchant,\n
-It has come to our attention that your API key is due in {expires_in} days. To ensure uninterrupted access to our platform and continued smooth operation of your services, we kindly request that you take the necessary actions as soon as possible.\n\n
+It has come to our attention that your API key will expire in {expires_in} days. To ensure uninterrupted access to our platform and continued smooth operation of your services, we kindly request that you take the necessary actions as soon as possible.\n\n
 Thanks,\n
 Team Hyperswitch"),
                 )
