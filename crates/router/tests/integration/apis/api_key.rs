@@ -40,11 +40,16 @@ impl RequestBuilder for ApiKey{
     else{
       data.api_key = None
     }
+    let api_key_id = resp.get("key_id");
+    match api_key_id{
+      Some(Value::String(key_id))=> data.api_key_id=Some(key_id.to_string()),
+      _ => data.api_key_id=None,
+    }
   }
 
 }
 
-pub async fn execute_api_key_create_tests(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+pub async fn execute_api_key_create_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
   let opt_test_request = ApiKey::make_request_body(&master_data);
   match opt_test_request{
     Some(test_request) => {
@@ -55,6 +60,47 @@ pub async fn execute_api_key_create_tests(master_data : &mut MasterData, server:
     },
     None => {
       println!("Skipping APIKEY Create Test!")
+    },
+  }
+}
+
+pub struct ApiKeyDelete;
+
+impl RequestBuilder for ApiKeyDelete{
+  fn make_request_body(data : &MasterData) -> Option<TestRequest>{
+    let mid = data.merchant_id.as_ref().unwrap();
+    let api_key_id = data.api_key_id.as_ref().unwrap();
+    Some(TestRequest::delete()
+        .uri(&format!("http://localhost:8080/api_keys/{}/{}", mid,api_key_id))
+        .insert_header(("api-key",data.admin_api_key.as_str())))
+  }
+
+  fn verify_success_response(resp : &Value, data : &MasterData) -> Self{
+      let revoked = resp.get("revoked");
+      assert_eq!(revoked,Some(&Value::Bool(true)));
+      Self
+  }
+
+  fn verify_failure_response(response : &Value, data : &MasterData) -> Self{
+    unimplemented!();
+  }
+
+  fn update_master_data(&self,data : &mut MasterData, resp : &Value){
+  }
+
+}
+
+pub async fn execute_api_key_delete_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+  let opt_test_request = ApiKeyDelete::make_request_body(&master_data);
+  match opt_test_request{
+    Some(test_request) => {
+      let api_resp = call_and_read_body_json(&server,test_request.to_request()).await;
+      ApiKeyDelete::verify_success_response(&api_resp,master_data).update_master_data(master_data,&api_resp);
+      //println!("APIKEY Delete Respone : {:?}",api_resp);
+      println!("APIKEY Delete Test successful!")
+    },
+    None => {
+      println!("Skipping APIKEY Delete Test!")
     },
   }
 }

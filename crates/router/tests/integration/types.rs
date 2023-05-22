@@ -16,6 +16,7 @@ pub struct MasterData{
   pub payment_capture : Option<Value>,
   pub customer_id : Option<String>,
   pub api_key : Option<String>,
+  pub api_key_id : Option<String>,
   pub payment_id : Option<String>,
 }
 

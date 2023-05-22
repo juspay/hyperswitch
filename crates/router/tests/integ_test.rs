@@ -37,6 +37,7 @@ async fn run_integration_test(){
           if let Ok(test_file) = test_file {
               let test_file_path = test_file.path();
               if test_file_path.is_file() {
+                println!("Test execution started for : {:?}\n",test_file.path());
                 let mut master_data = get_master_data(test_file_path);
                 let test_result = test_api(&mut master_data).await;
                 match test_result{
@@ -51,16 +52,17 @@ async fn run_integration_test(){
   }
 
 }
-
+//TODO: Add brackets to create and delete resources
 async fn test_api(master_data : &mut MasterData) -> Result<(), Box<dyn std::error::Error>> {
   let server = mk_service_with_db().await;
   execute_merchant_account_create_test(master_data,&server).await;
-  execute_api_key_create_tests(master_data,&server).await;
+  execute_api_key_create_test(master_data,&server).await;
   execute_customer_create_test(master_data,&server).await;
   execute_connector_create_test(master_data,&server).await;
   execute_payment_create_test(master_data,&server).await;
   execute_payment_confirm_test(master_data,&server).await;
   execute_payment_retrieve_test(master_data,&server).await;
+  execute_api_key_delete_test(master_data,&server).await;
   execute_merchant_account_delete_test(master_data,&server).await;
   //println!("Final Master Data : \n{:?}",master_data);
   Ok(())
