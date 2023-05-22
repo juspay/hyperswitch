@@ -268,6 +268,7 @@ pub enum Currency {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    PaymentFailed,
     PaymentProcessing,
     ActionRequired,
     RefundSucceeded,
@@ -425,6 +426,7 @@ pub enum PaymentMethodType {
     Giropay,
     GooglePay,
     Ideal,
+    Interac,
     Klarna,
     MbWay,
     MobilePay,
@@ -466,6 +468,7 @@ pub enum PaymentMethod {
     PayLater,
     Wallet,
     BankRedirect,
+    BankTransfer,
     Crypto,
     BankDebit,
 }
@@ -566,7 +569,6 @@ pub enum MandateStatus {
     Clone,
     Copy,
     Debug,
-    Default,
     Eq,
     PartialEq,
     ToSchema,
@@ -583,19 +585,26 @@ pub enum Connector {
     Aci,
     Adyen,
     Airwallex,
-    Applepay,
     Authorizedotnet,
+    Bitpay,
     Bluesnap,
     Braintree,
     Checkout,
     Coinbase,
     Cybersource,
-    #[default]
-    Dummy,
+    Iatapay,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector")]
-    #[strum(serialize = "dummyconnector")]
-    DummyConnector,
+    #[serde(rename = "dummyconnector1")]
+    #[strum(serialize = "dummyconnector1")]
+    DummyConnector1,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector2")]
+    #[strum(serialize = "dummyconnector2")]
+    DummyConnector2,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector3")]
+    #[strum(serialize = "dummyconnector3")]
+    DummyConnector3,
     Opennode,
     Bambora,
     Dlocal,
@@ -607,6 +616,8 @@ pub enum Connector {
     Mollie,
     Multisafepay,
     Nexinets,
+    Nmi,
+    // Noon, added as template code for future usage
     Nuvei,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paypal,
@@ -630,6 +641,7 @@ impl Connector {
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
+                | (Self::Iatapay, _)
         )
     }
     pub fn supports_file_storage_module(&self) -> bool {
@@ -656,13 +668,22 @@ impl Connector {
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector")]
-    #[strum(serialize = "dummyconnector")]
-    DummyConnector,
+    #[serde(rename = "dummyconnector1")]
+    #[strum(serialize = "dummyconnector1")]
+    DummyConnector1,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector2")]
+    #[strum(serialize = "dummyconnector2")]
+    DummyConnector2,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector3")]
+    #[strum(serialize = "dummyconnector3")]
+    DummyConnector3,
     Aci,
     Adyen,
     Airwallex,
     Authorizedotnet,
+    Bitpay,
     Bambora,
     Bluesnap,
     Braintree,
@@ -673,11 +694,14 @@ pub enum RoutableConnectors {
     Fiserv,
     Forte,
     Globalpay,
+    Iatapay,
     Intuit,
     Klarna,
     Mollie,
     Multisafepay,
     Nexinets,
+    Nmi,
+    // Noon, added as template code for future usage
     Nuvei,
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
@@ -816,6 +840,24 @@ pub enum BankNames {
     VeloBank,
     #[serde(rename = "e-transfer Pocztowy24")]
     ETransferPocztowy24,
+    PlusBank,
+    EtransferPocztowy24,
+    BankiSpbdzielcze,
+    BankNowyBfgSa,
+    GetinBank,
+    Blik,
+    NoblePay,
+    IdeaBank,
+    EnveloBank,
+    NestPrzelew,
+    MbankMtransfer,
+    Inteligo,
+    PbacZIpko,
+    BnpParibas,
+    BankPekaoSa,
+    VolkswagenBank,
+    AliorBank,
+    Boz,
 }
 
 #[derive(
@@ -843,39 +885,6 @@ pub enum CardNetwork {
     Interac,
     RuPay,
     Maestro,
-}
-
-impl From<AttemptStatus> for IntentStatus {
-    fn from(s: AttemptStatus) -> Self {
-        match s {
-            AttemptStatus::Charged | AttemptStatus::AutoRefunded => Self::Succeeded,
-
-            AttemptStatus::ConfirmationAwaited => Self::RequiresConfirmation,
-            AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
-
-            AttemptStatus::Authorized => Self::RequiresCapture,
-            AttemptStatus::AuthenticationPending | AttemptStatus::DeviceDataCollectionPending => {
-                Self::RequiresCustomerAction
-            }
-            AttemptStatus::Unresolved => Self::RequiresMerchantAction,
-            AttemptStatus::PartialCharged
-            | AttemptStatus::Started
-            | AttemptStatus::AuthenticationSuccessful
-            | AttemptStatus::Authorizing
-            | AttemptStatus::CodInitiated
-            | AttemptStatus::VoidInitiated
-            | AttemptStatus::CaptureInitiated
-            | AttemptStatus::Pending => Self::Processing,
-
-            AttemptStatus::AuthenticationFailed
-            | AttemptStatus::AuthorizationFailed
-            | AttemptStatus::VoidFailed
-            | AttemptStatus::RouterDeclined
-            | AttemptStatus::CaptureFailed
-            | AttemptStatus::Failure => Self::Failed,
-            AttemptStatus::Voided => Self::Cancelled,
-        }
-    }
 }
 
 #[derive(

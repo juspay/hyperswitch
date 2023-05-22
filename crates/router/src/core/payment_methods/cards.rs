@@ -837,10 +837,14 @@ pub async fn list_payment_methods(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    logger::debug!(mca_before_filtering=?all_mcas);
+    // filter out connectors based on the business country
+    let filtered_mcas =
+        helpers::filter_mca_based_on_business_details(all_mcas, payment_intent.as_ref());
+
+    logger::debug!(mca_before_filtering=?filtered_mcas);
 
     let mut response: Vec<ResponsePaymentMethodIntermediate> = vec![];
-    for mca in all_mcas {
+    for mca in filtered_mcas {
         let payment_methods = match mca.payment_methods_enabled {
             Some(pm) => pm,
             None => continue,
@@ -873,6 +877,12 @@ pub async fn list_payment_methods(
 
     let mut banks_consolidated_hm: HashMap<api_enums::PaymentMethodType, Vec<String>> =
         HashMap::new();
+
+    let mut bank_debits_consolidated_hm =
+        HashMap::<api_enums::PaymentMethodType, Vec<String>>::new();
+
+    let mut bank_transfer_consolidated_hm =
+        HashMap::<api_enums::PaymentMethodType, Vec<String>>::new();
 
     for element in response.clone() {
         let payment_method = element.payment_method;
@@ -964,6 +974,28 @@ pub async fn list_payment_methods(
                 banks_consolidated_hm.insert(element.payment_method_type, vec![connector]);
             }
         }
+
+        if element.payment_method == api_enums::PaymentMethod::BankDebit {
+            let connector = element.connector.clone();
+            if let Some(vector_of_connectors) =
+                bank_debits_consolidated_hm.get_mut(&element.payment_method_type)
+            {
+                vector_of_connectors.push(connector);
+            } else {
+                bank_debits_consolidated_hm.insert(element.payment_method_type, vec![connector]);
+            }
+        }
+
+        if element.payment_method == api_enums::PaymentMethod::BankTransfer {
+            let connector = element.connector.clone();
+            if let Some(vector_of_connectors) =
+                bank_transfer_consolidated_hm.get_mut(&element.payment_method_type)
+            {
+                vector_of_connectors.push(connector);
+            } else {
+                bank_transfer_consolidated_hm.insert(element.payment_method_type, vec![connector]);
+            }
+        }
     }
 
     let mut payment_method_responses: Vec<ResponsePaymentMethodsEnabled> = vec![];
@@ -983,6 +1015,8 @@ pub async fn list_payment_methods(
                 payment_experience: Some(payment_experience_types),
                 card_networks: None,
                 bank_names: None,
+                bank_debits: None,
+                bank_transfers: None,
             })
         }
 
@@ -1008,6 +1042,8 @@ pub async fn list_payment_methods(
                 card_networks: Some(card_network_types),
                 payment_experience: None,
                 bank_names: None,
+                bank_debits: None,
+                bank_transfers: None,
             })
         }
 
@@ -1017,26 +1053,80 @@ pub async fn list_payment_methods(
         })
     }
 
-    let mut bank_payment_method_types = vec![];
+    let mut bank_redirect_payment_method_types = vec![];
 
     for key in banks_consolidated_hm.iter() {
         let payment_method_type = *key.0;
         let connectors = key.1.clone();
         let bank_names = get_banks(state, payment_method_type, connectors)?;
-        bank_payment_method_types.push({
+        bank_redirect_payment_method_types.push({
             ResponsePaymentMethodTypes {
                 payment_method_type,
                 bank_names: Some(bank_names),
                 payment_experience: None,
                 card_networks: None,
+                bank_debits: None,
+                bank_transfers: None,
             }
         })
     }
 
-    if !bank_payment_method_types.is_empty() {
+    if !bank_redirect_payment_method_types.is_empty() {
         payment_method_responses.push(ResponsePaymentMethodsEnabled {
             payment_method: api_enums::PaymentMethod::BankRedirect,
-            payment_method_types: bank_payment_method_types,
+            payment_method_types: bank_redirect_payment_method_types,
+        });
+    }
+
+    let mut bank_debit_payment_method_types = vec![];
+
+    for key in bank_debits_consolidated_hm.iter() {
+        let payment_method_type = *key.0;
+        let connectors = key.1.clone();
+        bank_debit_payment_method_types.push({
+            ResponsePaymentMethodTypes {
+                payment_method_type,
+                bank_names: None,
+                payment_experience: None,
+                card_networks: None,
+                bank_debits: Some(api_models::payment_methods::BankDebitTypes {
+                    eligible_connectors: connectors.clone(),
+                }),
+                bank_transfers: None,
+            }
+        })
+    }
+
+    if !bank_debit_payment_method_types.is_empty() {
+        payment_method_responses.push(ResponsePaymentMethodsEnabled {
+            payment_method: api_enums::PaymentMethod::BankDebit,
+            payment_method_types: bank_debit_payment_method_types,
+        });
+    }
+
+    let mut bank_transfer_payment_method_types = vec![];
+
+    for key in bank_transfer_consolidated_hm.iter() {
+        let payment_method_type = *key.0;
+        let connectors = key.1.clone();
+        bank_transfer_payment_method_types.push({
+            ResponsePaymentMethodTypes {
+                payment_method_type,
+                bank_names: None,
+                payment_experience: None,
+                card_networks: None,
+                bank_debits: None,
+                bank_transfers: Some(api_models::payment_methods::BankTransferTypes {
+                    eligible_connectors: connectors,
+                }),
+            }
+        })
+    }
+
+    if !bank_transfer_payment_method_types.is_empty() {
+        payment_method_responses.push(ResponsePaymentMethodsEnabled {
+            payment_method: api_enums::PaymentMethod::BankTransfer,
+            payment_method_types: bank_transfer_payment_method_types,
         });
     }
 
@@ -1047,12 +1137,16 @@ pub async fn list_payment_methods(
             api::PaymentMethodListResponse {
                 redirect_url: merchant_account.return_url,
                 payment_methods: payment_method_responses,
+                mandate_payment: payment_attempt
+                    .and_then(|inner| inner.mandate_details)
+                    // The data stored in the payment attempt only corresponds to a setup mandate.
+                    .map(|_mandate_data| api_models::payments::MandateTxnType::NewMandateTxn),
             },
         )))
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn filter_payment_methods(
+pub async fn filter_payment_methods(
     payment_methods: Vec<serde_json::Value>,
     req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,

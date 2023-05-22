@@ -1,5 +1,6 @@
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use crate::{enums as api_enums, payments};
@@ -59,4 +60,34 @@ pub struct MandateCardDetails {
     #[schema(value_type = Option<String>)]
     /// A unique identifier alias to identify a particular card
     pub card_fingerprint: Option<Secret<String>>,
+}
+
+#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MandateListConstraints {
+    /// limit on the number of objects to return
+    pub limit: Option<i64>,
+    /// status of the mandate
+    pub mandate_status: Option<api_enums::MandateStatus>,
+    /// connector linked to mandate
+    pub connector: Option<String>,
+    /// The time at which mandate is created
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    pub created_time: Option<PrimitiveDateTime>,
+    /// Time less than the mandate created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(rename = "created_time.lt")]
+    pub created_time_lt: Option<PrimitiveDateTime>,
+    /// Time greater than the mandate created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(rename = "created_time.gt")]
+    pub created_time_gt: Option<PrimitiveDateTime>,
+    /// Time less than or equals to the mandate created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(rename = "created_time.lte")]
+    pub created_time_lte: Option<PrimitiveDateTime>,
+    /// Time greater than or equals to the mandate created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(rename = "created_time.gte")]
+    pub created_time_gte: Option<PrimitiveDateTime>,
 }

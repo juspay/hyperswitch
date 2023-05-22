@@ -20,7 +20,7 @@ pub struct StripeUpdateRefundRequest {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
-#[derive(Clone, Serialize, PartialEq, Eq)]
+#[derive(Clone, Serialize, PartialEq, Eq, Debug)]
 pub struct StripeRefundResponse {
     pub id: String,
     pub amount: i64,
@@ -31,7 +31,7 @@ pub struct StripeRefundResponse {
     pub metadata: pii::SecretSerdeValue,
 }
 
-#[derive(Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, Eq, PartialEq, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum StripeRefundStatus {
     Succeeded,

@@ -58,6 +58,12 @@ pub async fn construct_refund_router_data<'a, F>(
         .payment_method
         .get_required_value("payment_method_type")?;
 
+    let webhook_url = Some(helpers::create_webhook_url(
+        &state.conf.server.base_url.clone(),
+        &merchant_account.merchant_id,
+        &connector_id.to_string(),
+    ));
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
@@ -82,6 +88,7 @@ pub async fn construct_refund_router_data<'a, F>(
             refund_amount: refund.refund_amount,
             currency,
             amount,
+            webhook_url,
             connector_metadata: payment_attempt.connector_metadata.clone(),
             reason: refund.refund_reason.clone(),
             connector_refund_id: refund.connector_refund_id.clone(),
@@ -96,6 +103,7 @@ pub async fn construct_refund_router_data<'a, F>(
         reference_id: None,
         payment_method_token: None,
         connector_customer: None,
+        preprocessing_id: None,
     };
 
     Ok(router_data)
@@ -280,6 +288,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         payment_method_token: None,
         connector_customer: None,
         customer_id: None,
+        preprocessing_id: None,
     };
     Ok(router_data)
 }
@@ -338,6 +347,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         payment_method_token: None,
         connector_customer: None,
         customer_id: None,
+        preprocessing_id: None,
     };
     Ok(router_data)
 }
@@ -397,6 +407,7 @@ pub async fn construct_upload_file_router_data<'a>(
         payment_method_token: None,
         connector_customer: None,
         customer_id: None,
+        preprocessing_id: None,
     };
     Ok(router_data)
 }
@@ -458,6 +469,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         payment_method_token: None,
         customer_id: None,
         connector_customer: None,
+        preprocessing_id: None,
     };
     Ok(router_data)
 }
@@ -517,6 +529,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        preprocessing_id: None,
     };
     Ok(router_data)
 }

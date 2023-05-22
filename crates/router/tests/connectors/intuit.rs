@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use async_once::AsyncOnce;
 use lazy_static::lazy_static;
 use masking::Secret;

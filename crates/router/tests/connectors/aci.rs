@@ -62,6 +62,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             router_return_url: None,
             webhook_url: None,
             complete_authorize_url: None,
+            customer_id: None,
         },
         response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
@@ -73,6 +74,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         reference_id: None,
         payment_method_token: None,
         connector_customer: None,
+        preprocessing_id: None,
     }
 }
 
@@ -101,6 +103,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             refund_id: uuid::Uuid::new_v4().to_string(),
             connector_transaction_id: String::new(),
             refund_amount: 100,
+            webhook_url: None,
             connector_metadata: None,
             reason: None,
             connector_refund_id: None,
@@ -115,6 +118,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         reference_id: None,
         payment_method_token: None,
         connector_customer: None,
+        preprocessing_id: None,
     }
 }
 
