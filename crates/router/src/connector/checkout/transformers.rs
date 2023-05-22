@@ -97,7 +97,7 @@ impl<F, T>
 pub struct CardSource {
     #[serde(rename = "type")]
     pub source_type: CheckoutSourceTypes,
-    pub number: pii::Secret<String, pii::CardNumber>,
+    pub number: cards::CardNumber,
     pub expiry_month: pii::Secret<String>,
     pub expiry_year: pii::Secret<String>,
     pub cvv: pii::Secret<String>,
@@ -581,7 +581,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CheckoutRefundResponse
 #[derive(Debug, Default, Eq, PartialEq, Deserialize)]
 pub struct ErrorResponse {
     pub request_id: Option<String>,
-    #[serde(rename = "type")]
     pub error_type: Option<String>,
     pub error_codes: Option<Vec<String>>,
 }
@@ -704,27 +703,55 @@ pub fn is_chargeback_event(event_code: &CheckoutTransactionType) -> bool {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct CheckoutWebhookEventTypeBody {
+    #[serde(rename = "type")]
+    pub transaction_type: CheckoutTransactionType,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct CheckoutWebhookData {
     pub id: String,
     pub payment_id: Option<String>,
     pub action_id: Option<String>,
     pub amount: i32,
     pub currency: String,
-    pub evidence_required_by: Option<PrimitiveDateTime>,
-    pub reason_code: Option<String>,
-    pub date: Option<PrimitiveDateTime>,
 }
+
 #[derive(Debug, Deserialize)]
 pub struct CheckoutWebhookBody {
     #[serde(rename = "type")]
     pub transaction_type: CheckoutTransactionType,
     pub data: CheckoutWebhookData,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CheckoutDisputeWebhookData {
+    pub id: String,
+    pub payment_id: Option<String>,
+    pub action_id: Option<String>,
+    pub amount: i32,
+    pub currency: String,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub evidence_required_by: Option<PrimitiveDateTime>,
+    pub reason_code: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub date: Option<PrimitiveDateTime>,
+}
+#[derive(Debug, Deserialize)]
+pub struct CheckoutDisputeWebhookBody {
+    #[serde(rename = "type")]
+    pub transaction_type: CheckoutTransactionType,
+    pub data: CheckoutDisputeWebhookData,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created_on: Option<PrimitiveDateTime>,
 }
 #[derive(Debug, Deserialize, strum::Display, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum CheckoutTransactionType {
+    AuthenticationStarted,
+    AuthenticationApproved,
     PaymentApproved,
+    PaymentCaptured,
     PaymentDeclined,
     PaymentRefunded,
     PaymentRefundDeclined,
@@ -744,8 +771,11 @@ pub enum CheckoutTransactionType {
 impl From<CheckoutTransactionType> for api::IncomingWebhookEvent {
     fn from(transaction_type: CheckoutTransactionType) -> Self {
         match transaction_type {
-            CheckoutTransactionType::PaymentApproved => Self::PaymentIntentSuccess,
-            CheckoutTransactionType::PaymentDeclined => Self::PaymentIntentSuccess,
+            CheckoutTransactionType::AuthenticationStarted => Self::EventNotSupported,
+            CheckoutTransactionType::AuthenticationApproved => Self::EventNotSupported,
+            CheckoutTransactionType::PaymentApproved => Self::EventNotSupported,
+            CheckoutTransactionType::PaymentCaptured => Self::PaymentIntentSuccess,
+            CheckoutTransactionType::PaymentDeclined => Self::PaymentIntentFailure,
             CheckoutTransactionType::PaymentRefunded => Self::RefundSuccess,
             CheckoutTransactionType::PaymentRefundDeclined => Self::RefundFailure,
             CheckoutTransactionType::DisputeReceived

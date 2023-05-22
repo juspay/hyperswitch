@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, Encode};
+use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -187,26 +187,38 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
                     .await
                     .change_context(errors::ApiErrorResponse::MandateNotFound);
-                Some(mandate.map(|mandate_obj| api_models::payments::MandateIds {
-                    mandate_id: mandate_obj.mandate_id,
-                    mandate_reference_id: {
-                        match (
-                            mandate_obj.network_transaction_id,
-                            mandate_obj.connector_mandate_id,
-                        ) {
-                            (Some(network_tx_id), _) => {
-                                Some(api_models::payments::MandateReferenceId::NetworkMandateId(
+                Some(mandate.and_then(|mandate_obj| {
+                    match (
+                        mandate_obj.network_transaction_id,
+                        mandate_obj.connector_mandate_ids,
+                    ) {
+                        (Some(network_tx_id), _) => Ok(api_models::payments::MandateIds {
+                            mandate_id: mandate_obj.mandate_id,
+                            mandate_reference_id: Some(
+                                api_models::payments::MandateReferenceId::NetworkMandateId(
                                     network_tx_id,
-                                ))
-                            }
-                            (_, Some(connector_mandate_id)) => Some(
-                                api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                    connector_mandate_id,
                                 ),
                             ),
-                            (_, _) => None,
-                        }
-                    },
+                        }),
+                        (_, Some(connector_mandate_id)) => connector_mandate_id
+                        .parse_value("ConnectorMandateId")
+                        .change_context(errors::ApiErrorResponse::MandateNotFound)
+                        .map(|connector_id: api_models::payments::ConnectorMandateReferenceId| {
+                            api_models::payments::MandateIds {
+                                mandate_id: mandate_obj.mandate_id,
+                                mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                                    api_models::payments::ConnectorMandateReferenceId {
+                                        connector_mandate_id: connector_id.connector_mandate_id,
+                                        payment_method_id: connector_id.payment_method_id,
+                                    },
+                                ))
+                            }
+                         }),
+                        (_, _) => Ok(api_models::payments::MandateIds {
+                            mandate_id: mandate_obj.mandate_id,
+                            mandate_reference_id: None,
+                        }),
+                    }
                 }))
             })
             .await
@@ -256,6 +268,15 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .transpose()?;
 
+        // The operation merges mandate data from both request and payment_attempt
+        let setup_mandate = setup_mandate.map(|mandate_data| api_models::payments::MandateData {
+            customer_acceptance: mandate_data.customer_acceptance,
+            mandate_type: mandate_data.mandate_type.or(payment_attempt
+                .mandate_details
+                .clone()
+                .map(ForeignInto::foreign_into)),
+        });
+
         Ok((
             next_operation,
             PaymentData {
@@ -276,12 +297,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 payment_method_data: request.payment_method_data.clone(),
                 force_sync: None,
                 refunds: vec![],
+                disputes: vec![],
                 connector_response,
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                ephemeral_key: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -347,6 +370,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
+        _payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
     }
@@ -449,7 +473,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     currency: payment_data.currency,
                     setup_future_usage,
                     status: intent_status,
-                    customer_id,
+                    customer_id: customer_id.clone(),
                     shipping_address_id: shipping_address,
                     billing_address_id: billing_address,
                     return_url,

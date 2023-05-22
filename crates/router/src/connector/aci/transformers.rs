@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use common_utils::pii::Email;
 use error_stack::report;
 use masking::Secret;
 use reqwest::Url;
@@ -7,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use super::result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
 use crate::{
+    connector::utils,
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -35,7 +37,7 @@ impl TryFrom<&types::ConnectorAuthType> for AciAuthType {
 #[serde(rename_all = "camelCase")]
 pub struct AciPaymentsRequest {
     pub entity_id: String,
-    pub amount: i64,
+    pub amount: String,
     pub currency: String,
     pub payment_type: AciPaymentType,
     #[serde(flatten)]
@@ -55,8 +57,7 @@ pub enum PaymentDetails {
     #[serde(rename = "card")]
     AciCard(Box<CardDetails>),
     BankRedirect(Box<BankRedirectionPMData>),
-    #[serde(rename = "bank")]
-    Wallet,
+    Wallet(Box<WalletPMData>),
     Klarna,
 }
 
@@ -72,22 +73,44 @@ pub struct BankRedirectionPMData {
     bank_account_bic: Option<Secret<String>>,
     #[serde(rename = "bankAccount.iban")]
     bank_account_iban: Option<Secret<String>>,
+    #[serde(rename = "billing.country")]
+    billing_country: Option<api_models::enums::CountryAlpha2>,
+    #[serde(rename = "customer.email")]
+    customer_email: Option<Email>,
+    #[serde(rename = "customer.merchantCustomerId")]
+    merchant_customer_id: Option<Secret<String>>,
+    merchant_transaction_id: Option<Secret<String>>,
+    shopper_result_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WalletPMData {
+    payment_brand: PaymentBrand,
+    #[serde(rename = "virtualAccount.accountId")]
+    account_id: Option<Secret<String>>,
     shopper_result_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentBrand {
     Eps,
     Ideal,
     Giropay,
     Sofortueberweisung,
+    InteracOnline,
+    Przelewy,
+    Trustly,
+    Mbway,
+    #[serde(rename = "ALIPAY")]
+    AliPay,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct CardDetails {
     #[serde(rename = "card.number")]
-    pub card_number: Secret<String, common_utils::pii::CardNumber>,
+    pub card_number: cards::CardNumber,
     #[serde(rename = "card.holder")]
     pub card_holder: Secret<String>,
     #[serde(rename = "card.expiryMonth")]
@@ -134,7 +157,25 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                 card_cvv: ccard.card_cvc,
             })),
             api::PaymentMethodData::PayLater(_) => PaymentDetails::Klarna,
-            api::PaymentMethodData::Wallet(_) => PaymentDetails::Wallet,
+            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                api_models::payments::WalletData::MbWay(data) => {
+                    PaymentDetails::Wallet(Box::new(WalletPMData {
+                        payment_brand: PaymentBrand::Mbway,
+                        account_id: Some(data.telephone_number.clone()),
+                        shopper_result_url: item.request.router_return_url.clone(),
+                    }))
+                }
+                api_models::payments::WalletData::AliPay { .. } => {
+                    PaymentDetails::Wallet(Box::new(WalletPMData {
+                        payment_brand: PaymentBrand::AliPay,
+                        account_id: None,
+                        shopper_result_url: item.request.router_return_url.clone(),
+                    }))
+                }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Payment method".to_string(),
+                ))?,
+            },
             api::PaymentMethodData::BankRedirect(ref redirect_banking_data) => {
                 match redirect_banking_data {
                     api_models::payments::BankRedirectData::Eps { .. } => {
@@ -144,6 +185,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             bank_account_bank_name: None,
                             bank_account_bic: None,
                             bank_account_iban: None,
+                            billing_country: None,
+                            merchant_customer_id: None,
+                            merchant_transaction_id: None,
+                            customer_email: None,
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
                     }
@@ -157,6 +202,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                         bank_account_bank_name: None,
                         bank_account_bic: bank_account_bic.clone(),
                         bank_account_iban: bank_account_iban.clone(),
+                        billing_country: None,
+                        merchant_customer_id: None,
+                        merchant_transaction_id: None,
+                        customer_email: None,
                         shopper_result_url: item.request.router_return_url.clone(),
                     })),
                     api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
@@ -166,6 +215,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             bank_account_bank_name: Some(bank_name.to_string()),
                             bank_account_bic: None,
                             bank_account_iban: None,
+                            billing_country: None,
+                            merchant_customer_id: None,
+                            merchant_transaction_id: None,
+                            customer_email: None,
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
                     }
@@ -176,15 +229,75 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             bank_account_bank_name: None,
                             bank_account_bic: None,
                             bank_account_iban: None,
+                            billing_country: None,
+                            merchant_customer_id: None,
+                            merchant_transaction_id: None,
+                            customer_email: None,
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
                     }
+
+                    api_models::payments::BankRedirectData::Przelewy24 {
+                        billing_details, ..
+                    } => PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
+                        payment_brand: PaymentBrand::Przelewy,
+                        bank_account_country: None,
+                        bank_account_bank_name: None,
+                        bank_account_bic: None,
+                        bank_account_iban: None,
+                        billing_country: None,
+                        merchant_customer_id: None,
+                        merchant_transaction_id: None,
+                        customer_email: billing_details.email.clone(),
+                        shopper_result_url: item.request.router_return_url.clone(),
+                    })),
+
+                    api_models::payments::BankRedirectData::Interac { email, country } => {
+                        PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
+                            payment_brand: PaymentBrand::InteracOnline,
+                            bank_account_country: Some(*country),
+                            bank_account_bank_name: None,
+                            bank_account_bic: None,
+                            bank_account_iban: None,
+                            billing_country: None,
+                            merchant_customer_id: None,
+                            merchant_transaction_id: None,
+                            customer_email: Some(email.to_owned()),
+                            shopper_result_url: item.request.router_return_url.clone(),
+                        }))
+                    }
+
+                    api_models::payments::BankRedirectData::Trustly { country } => {
+                        PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
+                            payment_brand: PaymentBrand::Trustly,
+                            bank_account_country: None,
+                            bank_account_bank_name: None,
+                            bank_account_bic: None,
+                            bank_account_iban: None,
+                            billing_country: Some(*country),
+                            merchant_customer_id: Some(Secret::new(
+                                item.customer_id.clone().ok_or(
+                                    errors::ConnectorError::MissingRequiredField {
+                                        field_name: "customer_id",
+                                    },
+                                )?,
+                            )),
+                            merchant_transaction_id: Some(Secret::new(item.payment_id.clone())),
+                            customer_email: None,
+                            shopper_result_url: item.request.router_return_url.clone(),
+                        }))
+                    }
+
                     _ => Err(errors::ConnectorError::NotImplemented(
                         "Payment method".to_string(),
                     ))?,
                 }
             }
-            api::PaymentMethodData::Crypto(_) | api::PaymentMethodData::BankDebit(_) => {
+
+            api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::MandatePayment => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.payment_method),
                     connector: "Aci",
@@ -198,7 +311,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
         let aci_payment_request = Self {
             payment_method: payment_details,
             entity_id: auth.entity_id,
-            amount: item.request.amount,
+            amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency: item.request.currency.to_string(),
             payment_type: AciPaymentType::Debit,
         };
@@ -347,7 +460,7 @@ impl<F, T>
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciRefundRequest {
-    pub amount: i64,
+    pub amount: String,
     pub currency: String,
     pub payment_type: AciPaymentType,
     pub entity_id: String,
@@ -356,7 +469,8 @@ pub struct AciRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for AciRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let amount = item.request.refund_amount;
+        let amount =
+            utils::to_currency_base_unit(item.request.refund_amount, item.request.currency)?;
         let currency = item.request.currency;
         let payment_type = AciPaymentType::Refund;
         let auth = AciAuthType::try_from(&item.connector_auth_type)?;

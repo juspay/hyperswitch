@@ -57,7 +57,7 @@ impl ConnectorAccessToken for Store {
         let access_token: Option<types::AccessToken> = maybe_token
             .map(|token| token.parse_struct("AccessToken"))
             .transpose()
-            .change_context(errors::ParsingError)
+            .change_context(errors::ParsingError::UnknownError)
             .change_context(errors::StorageError::DeserializationFailed)?;
 
         Ok(access_token)

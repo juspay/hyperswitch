@@ -62,13 +62,14 @@ pub mod headers {
     pub const X_TRANS_KEY: &str = "X-Trans-Key";
     pub const X_VERSION: &str = "X-Version";
     pub const X_CC_VERSION: &str = "X-CC-Version";
+    pub const X_ACCEPT_VERSION: &str = "X-Accept-Version";
     pub const X_DATE: &str = "X-Date";
 }
 
 pub mod pii {
     //! Personal Identifiable Information protection.
 
-    pub(crate) use common_utils::pii::{CardNumber, Email};
+    pub(crate) use common_utils::pii::Email;
     #[doc(inline)]
     pub use masking::*;
 }
@@ -94,6 +95,12 @@ pub fn mk_app(
             utoipa_swagger_ui::SwaggerUi::new("/docs/{_:.*}")
                 .url("/docs/openapi.json", openapi::ApiDoc::openapi()),
         );
+    }
+
+    #[cfg(feature = "dummy_connector")]
+    {
+        use routes::DummyConnector;
+        server_app = server_app.service(DummyConnector::server(state.clone()));
     }
 
     #[cfg(any(feature = "olap", feature = "oltp"))]

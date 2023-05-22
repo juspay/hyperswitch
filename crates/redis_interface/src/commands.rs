@@ -80,6 +80,32 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn serialize_and_set_key_with_expiry<V>(
+        &self,
+        key: &str,
+        value: V,
+        seconds: i64,
+    ) -> CustomResult<(), errors::RedisError>
+    where
+        V: serde::Serialize + Debug,
+    {
+        let serialized = Encode::<V>::encode_to_vec(&value)
+            .change_context(errors::RedisError::JsonSerializationFailed)?;
+
+        self.pool
+            .set(
+                key,
+                serialized.as_slice(),
+                Some(Expiration::EX(seconds)),
+                None,
+                false,
+            )
+            .await
+            .into_report()
+            .change_context(errors::RedisError::SetExFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn get_key<V>(&self, key: &str) -> CustomResult<V, errors::RedisError>
     where
         V: FromRedis + Unpin + Send + 'static,
@@ -107,7 +133,7 @@ impl super::RedisConnectionPool {
     pub async fn get_and_deserialize_key<T>(
         &self,
         key: &str,
-        type_name: &str,
+        type_name: &'static str,
     ) -> CustomResult<T, errors::RedisError>
     where
         T: serde::de::DeserializeOwned,
@@ -265,6 +291,46 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn get_multiple_keys<K, V>(
+        &self,
+        keys: K,
+    ) -> CustomResult<Vec<Option<V>>, errors::RedisError>
+    where
+        V: FromRedis + Unpin + Send + 'static,
+        K: Into<MultipleKeys> + Send + Debug,
+    {
+        self.pool
+            .mget(keys)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::GetFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn get_and_deserialize_multiple_keys<K, V>(
+        &self,
+        keys: K,
+        type_name: &'static str,
+    ) -> CustomResult<Vec<Option<V>>, errors::RedisError>
+    where
+        K: Into<MultipleKeys> + Send + Debug,
+        V: serde::de::DeserializeOwned,
+    {
+        let data = self.get_multiple_keys::<K, Vec<u8>>(keys).await?;
+        data.into_iter()
+            .map(|value_bytes| {
+                value_bytes
+                    .map(|bytes| {
+                        bytes
+                            .parse_struct(type_name)
+                            .change_context(errors::RedisError::JsonSerializationFailed)
+                    })
+                    .transpose()
+            })
+            .collect()
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn serialize_and_set_multiple_hash_field_if_not_exist<V>(
         &self,
         kv: &[(&str, V)],
@@ -354,7 +420,7 @@ impl super::RedisConnectionPool {
         &self,
         key: &str,
         field: &str,
-        type_name: &str,
+        type_name: &'static str,
     ) -> CustomResult<V, errors::RedisError>
     where
         V: serde::de::DeserializeOwned,

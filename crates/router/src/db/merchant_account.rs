@@ -1,9 +1,9 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 
-#[cfg(feature = "accounts_cache")]
-use super::cache;
 use super::{MockDb, Store};
+#[cfg(feature = "accounts_cache")]
+use crate::cache::{self, ACCOUNTS_CACHE};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -100,7 +100,7 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            cache::get_or_populate_redis(self, merchant_id, fetch_func)
+            super::cache::get_or_populate_in_memory(self, merchant_id, fetch_func, &ACCOUNTS_CACHE)
                 .await?
                 .convert(self, merchant_id, self.get_migration_timestamp())
                 .await
@@ -138,7 +138,12 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            cache::redact_cache(self, &_merchant_id, update_func, None).await
+            super::cache::publish_and_redact(
+                self,
+                cache::CacheKind::Accounts((&_merchant_id).into()),
+                update_func,
+            )
+            .await
         }
     }
 
@@ -172,7 +177,7 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            cache::redact_cache(self, merchant_id, update_func, None).await
+            super::cache::redact_cache(self, merchant_id, update_func, None).await
         }
     }
 
@@ -213,7 +218,7 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            cache::redact_cache(self, merchant_id, delete_func, None).await
+            super::cache::redact_cache(self, merchant_id, delete_func, None).await
         }
     }
 }

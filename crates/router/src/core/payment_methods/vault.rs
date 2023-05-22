@@ -1,4 +1,6 @@
 use common_utils::generate_id_with_default_len;
+#[cfg(feature = "basilisk")]
+use error_stack::report;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "basilisk")]
 use external_services::kms;
@@ -94,7 +96,12 @@ impl Vaultable for api::Card {
             .attach_printable("Could not deserialize into card value2")?;
 
         let card = Self {
-            card_number: value1.card_number.into(),
+            card_number: value1
+                .card_number
+                .try_into()
+                .into_report()
+                .change_context(errors::VaultError::ResponseDeserializationFailed)
+                .attach_printable("Invalid card number format from the mock locker")?,
             card_exp_month: value1.exp_month.into(),
             card_exp_year: value1.exp_year.into(),
             card_holder_name: value1.name_on_card.unwrap_or_default().into(),
@@ -109,6 +116,50 @@ impl Vaultable for api::Card {
         };
 
         Ok((card, supp_data))
+    }
+}
+
+impl Vaultable for api_models::payments::BankTransferData {
+    fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+        let value1 = api_models::payment_methods::TokenizedBankTransferValue1 {
+            data: self.to_owned(),
+        };
+
+        utils::Encode::<api_models::payment_methods::TokenizedBankTransferValue1>::encode_to_string_of_json(&value1)
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank transfer data")
+    }
+
+    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+        let value2 = api_models::payment_methods::TokenizedBankTransferValue2 { customer_id };
+
+        utils::Encode::<api_models::payment_methods::TokenizedBankTransferValue2>::encode_to_string_of_json(&value2)
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank transfer supplementary data")
+    }
+
+    fn from_values(
+        value1: String,
+        value2: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let value1: api_models::payment_methods::TokenizedBankTransferValue1 = value1
+            .parse_struct("TokenizedBankTransferValue1")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into bank transfer data")?;
+
+        let value2: api_models::payment_methods::TokenizedBankTransferValue2 = value2
+            .parse_struct("TokenizedBankTransferValue2")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into supplementary bank transfer data")?;
+
+        let bank_transfer_data = value1.data;
+
+        let supp_data = SupplementaryVaultData {
+            customer_id: value2.customer_id,
+            payment_method_id: None,
+        };
+
+        Ok((bank_transfer_data, supp_data))
     }
 }
 
@@ -161,6 +212,7 @@ impl Vaultable for api::WalletData {
 pub enum VaultPaymentMethod {
     Card(String),
     Wallet(String),
+    BankTransfer(String),
 }
 
 impl Vaultable for api::PaymentMethodData {
@@ -168,6 +220,9 @@ impl Vaultable for api::PaymentMethodData {
         let value1 = match self {
             Self::Card(card) => VaultPaymentMethod::Card(card.get_value1(customer_id)?),
             Self::Wallet(wallet) => VaultPaymentMethod::Wallet(wallet.get_value1(customer_id)?),
+            Self::BankTransfer(bank_transfer) => {
+                VaultPaymentMethod::BankTransfer(bank_transfer.get_value1(customer_id)?)
+            }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .into_report()
                 .attach_printable("Payment method not supported")?,
@@ -182,6 +237,9 @@ impl Vaultable for api::PaymentMethodData {
         let value2 = match self {
             Self::Card(card) => VaultPaymentMethod::Card(card.get_value2(customer_id)?),
             Self::Wallet(wallet) => VaultPaymentMethod::Wallet(wallet.get_value2(customer_id)?),
+            Self::BankTransfer(bank_transfer) => {
+                VaultPaymentMethod::BankTransfer(bank_transfer.get_value2(customer_id)?)
+            }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .into_report()
                 .attach_printable("Payment method not supported")?,
@@ -214,6 +272,14 @@ impl Vaultable for api::PaymentMethodData {
             (VaultPaymentMethod::Wallet(mvalue1), VaultPaymentMethod::Wallet(mvalue2)) => {
                 let (wallet, supp_data) = api::WalletData::from_values(mvalue1, mvalue2)?;
                 Ok((Self::Wallet(wallet), supp_data))
+            }
+            (
+                VaultPaymentMethod::BankTransfer(mvalue1),
+                VaultPaymentMethod::BankTransfer(mvalue2),
+            ) => {
+                let (bank_transfer, supp_data) =
+                    api_models::payments::BankTransferData::from_values(mvalue1, mvalue2)?;
+                Ok((Self::BankTransfer(Box::new(bank_transfer)), supp_data))
             }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .into_report()
@@ -643,7 +709,7 @@ pub async fn add_delete_tokenized_data_task(
     db: &dyn db::StorageInterface,
     lookup_key: &str,
     pm: enums::PaymentMethod,
-) -> RouterResult<storage::ProcessTracker> {
+) -> RouterResult<()> {
     let runner = "DELETE_TOKENIZE_DATA_WORKFLOW";
     let current_time = common_utils::date_time::now();
     let tracking_data = serde_json::to_value(storage::TokenizeCoreWorkflow {
@@ -671,14 +737,14 @@ pub async fn add_delete_tokenized_data_task(
         created_at: current_time,
         updated_at: current_time,
     };
-    let response = db
-        .insert_process(process_tracker_entry)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            format!("Failed while inserting task in process_tracker: lookup_key: {lookup_key}")
-        })?;
-    Ok(response)
+    let response = db.insert_process(process_tracker_entry).await;
+    response.map(|_| ()).or_else(|err| {
+        if err.current_context().is_db_unique_violation() {
+            Ok(())
+        } else {
+            Err(report!(errors::ApiErrorResponse::InternalServerError))
+        }
+    })
 }
 
 #[cfg(feature = "basilisk")]

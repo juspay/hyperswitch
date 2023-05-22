@@ -6,13 +6,16 @@ use futures::TryStreamExt;
 use crate::{
     core::{
         errors::{self, StorageErrorExt},
-        files, payments, utils,
+        files,
+        payments::{self, helpers as payments_helpers},
+        utils,
     },
     routes::AppState,
     services,
     types::{
         self, api,
         domain::{self},
+        transformers::ForeignTryFrom,
     },
 };
 
@@ -147,10 +150,66 @@ pub async fn delete_file_using_file_id(
     }
 }
 
+pub async fn retrieve_file_from_connector(
+    state: &AppState,
+    file_metadata: storage_models::file::FileMetadata,
+    merchant_account: &domain::MerchantAccount,
+) -> CustomResult<Vec<u8>, errors::ApiErrorResponse> {
+    let connector = &types::Connector::foreign_try_from(
+        file_metadata
+            .file_upload_provider
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .into_report()
+            .attach_printable("Missing file upload provider")?,
+    )?
+    .to_string();
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        connector,
+        api::GetToken::Connector,
+    )?;
+    let connector_integration: services::BoxedConnectorIntegration<
+        '_,
+        api::Retrieve,
+        types::RetrieveFileRequestData,
+        types::RetrieveFileResponse,
+    > = connector_data.connector.get_connector_integration();
+    let router_data = utils::construct_retrieve_file_router_data(
+        state,
+        merchant_account,
+        &file_metadata,
+        connector,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed constructing the retrieve file router data")?;
+    let response = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &router_data,
+        payments::CallConnectorAction::Trigger,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed while calling retrieve file connector api")?;
+    let retrieve_file_response =
+        response
+            .response
+            .map_err(|err| errors::ApiErrorResponse::ExternalConnectorError {
+                code: err.code,
+                message: err.message,
+                connector: connector.to_string(),
+                status_code: err.status_code,
+                reason: err.reason,
+            })?;
+    Ok(retrieve_file_response.file_data)
+}
+
 pub async fn retrieve_file_and_provider_file_id_from_file_id(
     state: &AppState,
     file_id: Option<String>,
     merchant_account: &domain::MerchantAccount,
+    is_connector_file_data_required: api::FileDataRequired,
 ) -> CustomResult<(Option<Vec<u8>>, Option<String>), errors::ApiErrorResponse> {
     match file_id {
         None => Ok((None, None)),
@@ -162,10 +221,13 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                 .change_context(errors::ApiErrorResponse::FileNotFound)?;
             let (provider, provider_file_id) = match (
                 file_metadata_object.file_upload_provider,
-                file_metadata_object.provider_file_id,
+                file_metadata_object.provider_file_id.clone(),
+                file_metadata_object.available,
             ) {
-                (Some(provider), Some(provider_file_id)) => (provider, provider_file_id),
-                _ => Err(errors::ApiErrorResponse::FileNotFound)?,
+                (Some(provider), Some(provider_file_id), true) => (provider, provider_file_id),
+                _ => Err(errors::ApiErrorResponse::FileNotAvailable)
+                    .into_report()
+                    .attach_printable("File not available")?,
             };
             match provider {
                 storage_models::enums::FileUploadProvider::Router => Ok((
@@ -179,20 +241,39 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                     ),
                     Some(provider_file_id),
                 )),
-                //TODO: Handle Retrieve for other providers
-                _ => Ok((None, Some(provider_file_id))),
+                _ => {
+                    let connector_file_data = match is_connector_file_data_required {
+                        api::FileDataRequired::Required => Some(
+                            retrieve_file_from_connector(
+                                state,
+                                file_metadata_object,
+                                merchant_account,
+                            )
+                            .await?,
+                        ),
+                        api::FileDataRequired::NotRequired => None,
+                    };
+                    Ok((connector_file_data, Some(provider_file_id)))
+                }
             }
         }
     }
 }
 
 //Upload file to connector if it supports / store it in S3 and return file_upload_provider, provider_file_id accordingly
-pub async fn upload_and_get_provider_provider_file_id(
+pub async fn upload_and_get_provider_provider_file_id_connector_label(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     create_file_request: &api::CreateFileRequest,
     file_key: String,
-) -> CustomResult<(String, api::FileUploadProvider), errors::ApiErrorResponse> {
+) -> CustomResult<
+    (
+        String,
+        api_models::enums::FileUploadProvider,
+        Option<String>,
+    ),
+    errors::ApiErrorResponse,
+> {
     match create_file_request.purpose {
         api::FilePurpose::DisputeEvidence => {
             let dispute_id = create_file_request
@@ -228,6 +309,12 @@ pub async fn upload_and_get_provider_provider_file_id(
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+                let connector_label = payments_helpers::get_connector_label(
+                    payment_intent.business_country,
+                    &payment_intent.business_label,
+                    payment_attempt.business_sub_label.as_ref(),
+                    &dispute.connector,
+                );
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,
                     api::Upload,
@@ -242,6 +329,7 @@ pub async fn upload_and_get_provider_provider_file_id(
                     create_file_request,
                     &dispute.connector,
                     file_key,
+                    connector_label.clone(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -266,7 +354,10 @@ pub async fn upload_and_get_provider_provider_file_id(
                 })?;
                 Ok((
                     upload_file_response.provider_file_id,
-                    api::FileUploadProvider::try_from(&connector_data.connector_name)?,
+                    api_models::enums::FileUploadProvider::foreign_try_from(
+                        &connector_data.connector_name,
+                    )?,
+                    Some(connector_label),
                 ))
             } else {
                 upload_file(
@@ -276,7 +367,11 @@ pub async fn upload_and_get_provider_provider_file_id(
                     create_file_request.file.clone(),
                 )
                 .await?;
-                Ok((file_key, api::FileUploadProvider::Router))
+                Ok((
+                    file_key,
+                    api_models::enums::FileUploadProvider::Router,
+                    None,
+                ))
             }
         }
     }

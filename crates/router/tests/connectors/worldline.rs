@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use api_models::payments::{Address, AddressDetails};
 use masking::Secret;
 use router::{
@@ -64,7 +66,7 @@ impl WorldlineTest {
             amount: 3500,
             currency: enums::Currency::USD,
             payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
-                card_number: Secret::new(card_number.to_string()),
+                card_number: cards::CardNumber::from_str(card_number).unwrap(),
                 card_exp_month: Secret::new(card_exp_month.to_string()),
                 card_exp_year: Secret::new(card_exp_year.to_string()),
                 card_holder_name: Secret::new("John Doe".to_string()),
@@ -91,6 +93,7 @@ impl WorldlineTest {
             router_return_url: None,
             webhook_url: None,
             complete_authorize_url: None,
+            customer_id: None,
         })
     }
 }

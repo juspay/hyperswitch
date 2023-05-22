@@ -105,7 +105,6 @@ pub async fn encrypt_merchant_account_fields(
             webhook_details: None,
             sub_merchants_enabled: None,
             parent_merchant_id: None,
-            api_key: m.api_key.clone(),
             primary_business_details: None,
             enable_payment_response_hash: None,
             payment_response_hash_key: None,
@@ -115,6 +114,7 @@ pub async fn encrypt_merchant_account_fields(
             publishable_key: None,
             metadata: None,
             intent_fulfillment_time: None,
+            frm_routing_algorithm: None,
         };
         crate::logger::warn!("Started for {}", merchant_id);
         state

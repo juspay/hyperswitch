@@ -7,6 +7,8 @@ use std::{
 use api_models::enums;
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
+#[cfg(feature = "email")]
+use external_services::email::EmailSettings;
 #[cfg(feature = "kms")]
 use external_services::kms;
 use redis_interface::RedisSettings;
@@ -69,6 +71,10 @@ pub struct Settings {
     pub file_upload_config: FileUploadConfig,
     pub tokenization: TokenizationConfig,
     pub connector_customer: ConnectorCustomer,
+    #[cfg(feature = "dummy_connector")]
+    pub dummy_connector: DummyConnector,
+    #[cfg(feature = "email")]
+    pub email: EmailSettings,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -95,11 +101,43 @@ where
         .collect())
 }
 
+#[cfg(feature = "dummy_connector")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DummyConnector {
+    pub payment_ttl: i64,
+    pub payment_duration: u64,
+    pub payment_tolerance: u64,
+    pub payment_retrieve_duration: u64,
+    pub payment_retrieve_tolerance: u64,
+    pub refund_ttl: i64,
+    pub refund_duration: u64,
+    pub refund_tolerance: u64,
+    pub refund_retrieve_duration: u64,
+    pub refund_retrieve_tolerance: u64,
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentMethodTokenFilter {
     #[serde(deserialize_with = "pm_deser")]
     pub payment_method: HashSet<storage_models::enums::PaymentMethod>,
+    pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(
+    deny_unknown_fields,
+    tag = "type",
+    content = "list",
+    rename_all = "snake_case"
+)]
+pub enum PaymentMethodTypeTokenFilter {
+    #[serde(deserialize_with = "pm_type_deser")]
+    EnableOnly(HashSet<storage_models::enums::PaymentMethodType>),
+    #[serde(deserialize_with = "pm_type_deser")]
+    DisableOnly(HashSet<storage_models::enums::PaymentMethodType>),
+    #[default]
+    AllAccepted,
 }
 
 fn pm_deser<'a, D>(
@@ -113,6 +151,21 @@ where
         .trim()
         .split(',')
         .map(storage_models::enums::PaymentMethod::from_str)
+        .collect::<Result<_, _>>()
+        .map_err(D::Error::custom)
+}
+
+fn pm_type_deser<'a, D>(
+    deserializer: D,
+) -> Result<HashSet<storage_models::enums::PaymentMethodType>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <String>::deserialize(deserializer)?;
+    value
+        .trim()
+        .split(',')
+        .map(storage_models::enums::PaymentMethodType::from_str)
         .collect::<Result<_, _>>()
         .map_err(D::Error::custom)
 }
@@ -154,6 +207,7 @@ pub struct CurrencyCountryFlowFilter {
     pub country: Option<HashSet<api_models::enums::CountryAlpha2>>,
     pub not_available_flows: Option<NotAvailableFlows>,
 }
+
 #[derive(Debug, Deserialize, Copy, Clone, Default)]
 #[serde(default)]
 pub struct NotAvailableFlows {
@@ -270,6 +324,7 @@ pub struct Jwekey {
     pub locker_decryption_key2: String,
     pub vault_encryption_key: String,
     pub vault_private_key: String,
+    pub tunnel_private_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -320,6 +375,7 @@ pub struct Connectors {
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
     pub bambora: ConnectorParams,
+    pub bitpay: ConnectorParams,
     pub bluesnap: ConnectorParams,
     pub braintree: ConnectorParams,
     pub checkout: ConnectorParams,
@@ -331,10 +387,13 @@ pub struct Connectors {
     pub fiserv: ConnectorParams,
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
+    pub iatapay: ConnectorParams,
     pub klarna: ConnectorParams,
     pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
     pub nexinets: ConnectorParams,
+    pub nmi: ConnectorParams,
+    pub noon: ConnectorParams,
     pub nuvei: ConnectorParams,
     pub opennode: ConnectorParams,
     pub payeezy: ConnectorParams,

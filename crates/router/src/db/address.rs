@@ -1,5 +1,6 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
+use storage_models::address::AddressUpdateInternal;
 
 use super::{MasterKeyInterface, MockDb, Store};
 use crate::{
@@ -144,36 +145,115 @@ impl AddressInterface for Store {
 impl AddressInterface for MockDb {
     async fn find_address(
         &self,
-        _address_id: &str,
+        address_id: &str,
     ) -> CustomResult<domain::Address, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        match self
+            .addresses
+            .lock()
+            .await
+            .iter()
+            .find(|address| address.address_id == address_id)
+        {
+            Some(address) => {
+                let merchant_id = address.merchant_id.clone();
+                address
+                    .clone()
+                    .convert(self, &merchant_id, self.get_migration_timestamp())
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            }
+            None => {
+                return Err(
+                    errors::StorageError::ValueNotFound("address not found".to_string()).into(),
+                )
+            }
+        }
     }
 
     async fn update_address(
         &self,
-        _address_id: String,
-        _address: storage::AddressUpdate,
+        address_id: String,
+        address_update: storage::AddressUpdate,
     ) -> CustomResult<domain::Address, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        match self
+            .addresses
+            .lock()
+            .await
+            .iter_mut()
+            .find(|address| address.address_id == address_id)
+            .map(|a| {
+                let address_updated =
+                    AddressUpdateInternal::from(address_update).create_address(a.clone());
+                *a = address_updated.clone();
+                address_updated
+            }) {
+            Some(address_updated) => {
+                let merchant_id = address_updated.merchant_id.clone();
+                address_updated
+                    .convert(self, &merchant_id, self.get_migration_timestamp())
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            }
+            None => {
+                return Err(errors::StorageError::ValueNotFound(
+                    "cannot find address to update".to_string(),
+                )
+                .into())
+            }
+        }
     }
 
     async fn insert_address(
         &self,
-        _address: domain::Address,
+        address_new: domain::Address,
     ) -> CustomResult<domain::Address, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let mut addresses = self.addresses.lock().await;
+
+        let address = Conversion::convert(address_new)
+            .await
+            .change_context(errors::StorageError::EncryptionError)?;
+
+        let merchant_id = address.merchant_id.clone();
+        addresses.push(address.clone());
+
+        address
+            .convert(self, &merchant_id, self.get_migration_timestamp())
+            .await
+            .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn update_address_by_merchant_id_customer_id(
         &self,
-        _customer_id: &str,
-        _merchant_id: &str,
-        _address: storage::AddressUpdate,
+        customer_id: &str,
+        merchant_id: &str,
+        address_update: storage::AddressUpdate,
     ) -> CustomResult<Vec<domain::Address>, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        match self
+            .addresses
+            .lock()
+            .await
+            .iter_mut()
+            .find(|address| {
+                address.customer_id == customer_id && address.merchant_id == merchant_id
+            })
+            .map(|a| {
+                let address_updated =
+                    AddressUpdateInternal::from(address_update).create_address(a.clone());
+                *a = address_updated.clone();
+                address_updated
+            }) {
+            Some(address) => {
+                let address: domain::Address = address
+                    .convert(self, merchant_id, self.get_migration_timestamp())
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)?;
+                Ok(vec![address])
+            }
+            None => {
+                return Err(
+                    errors::StorageError::ValueNotFound("address not found".to_string()).into(),
+                )
+            }
+        }
     }
 }

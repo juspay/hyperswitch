@@ -1,9 +1,9 @@
 use common_utils::{
-    crypto::{Encryptable, OptionalEncryptableName, OptionalEncryptableValue},
+    crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time, pii,
 };
 use error_stack::ResultExt;
-use masking::Secret;
+
 use storage_models::{
     encryption::Encryption, enums, merchant_account::MerchantAccountUpdateInternal,
 };
@@ -32,8 +32,8 @@ pub struct MerchantAccount {
     pub locker_id: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
-    pub api_key: Option<Encryptable<Secret<String>>>,
     pub primary_business_details: serde_json::Value,
+    pub frm_routing_algorithm: Option<serde_json::Value>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub intent_fulfillment_time: Option<i64>,
@@ -57,8 +57,8 @@ pub enum MerchantAccountUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         routing_algorithm: Option<serde_json::Value>,
         primary_business_details: Option<serde_json::Value>,
-        api_key: OptionalEncryptableName,
         intent_fulfillment_time: Option<i64>,
+        frm_routing_algorithm: Option<serde_json::Value>,
     },
     StorageSchemeUpdate {
         storage_scheme: enums::MerchantStorageScheme,
@@ -83,12 +83,12 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 locker_id,
                 metadata,
                 primary_business_details,
-                api_key,
                 intent_fulfillment_time,
+                frm_routing_algorithm,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
-                api_key: api_key.map(Encryption::from),
+                frm_routing_algorithm,
                 return_url,
                 webhook_details,
                 routing_algorithm,
@@ -138,11 +138,11 @@ impl super::behaviour::Conversion for MerchantAccount {
             locker_id: self.locker_id,
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
-            api_key: self.api_key.map(|api_key| api_key.into()),
             primary_business_details: self.primary_business_details,
             created_at: self.created_at,
             modified_at: self.modified_at,
             intent_fulfillment_time: self.intent_fulfillment_time,
+            frm_routing_algorithm: self.frm_routing_algorithm,
         })
     }
 
@@ -189,12 +189,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 locker_id: item.locker_id,
                 metadata: item.metadata,
                 routing_algorithm: item.routing_algorithm,
-                api_key: item
-                    .api_key
-                    .async_lift(|value| {
-                        types::decrypt(value, &key, modified_at, migration_timestamp)
-                    })
-                    .await?,
+                frm_routing_algorithm: item.frm_routing_algorithm,
                 primary_business_details: item.primary_business_details,
                 created_at: item.created_at,
                 modified_at: item.modified_at,
@@ -224,11 +219,11 @@ impl super::behaviour::Conversion for MerchantAccount {
             locker_id: self.locker_id,
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
-            api_key: self.api_key.map(Encryption::from),
             primary_business_details: self.primary_business_details,
             created_at: now,
             modified_at: now,
             intent_fulfillment_time: self.intent_fulfillment_time,
+            frm_routing_algorithm: self.frm_routing_algorithm,
         })
     }
 }

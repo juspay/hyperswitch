@@ -173,11 +173,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 address: types::PaymentAddress::default(),
                 force_sync: None,
                 refunds: vec![],
+                disputes: vec![],
                 sessions_token: vec![],
                 card_cvc: None,
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                ephemeral_key: None,
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -278,6 +280,7 @@ where
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         _request: &api::VerifyRequest,
+        _payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
     }

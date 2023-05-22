@@ -130,11 +130,12 @@ diesel::table! {
         connector_reason -> Nullable<Varchar>,
         connector_reason_code -> Nullable<Varchar>,
         challenge_required_by -> Nullable<Timestamp>,
-        dispute_created_at -> Nullable<Timestamp>,
-        updated_at -> Nullable<Timestamp>,
+        connector_created_at -> Nullable<Timestamp>,
+        connector_updated_at -> Nullable<Timestamp>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         connector -> Varchar,
+        evidence -> Jsonb,
     }
 }
 
@@ -169,6 +170,7 @@ diesel::table! {
         file_upload_provider -> Nullable<Varchar>,
         available -> Bool,
         created_at -> Timestamp,
+        connector_label -> Nullable<Varchar>,
     }
 }
 
@@ -221,6 +223,7 @@ diesel::table! {
         start_date -> Nullable<Timestamp>,
         end_date -> Nullable<Timestamp>,
         metadata -> Nullable<Jsonb>,
+        connector_mandate_ids -> Nullable<Jsonb>,
     }
 }
 
@@ -245,11 +248,11 @@ diesel::table! {
         locker_id -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
-        api_key -> Nullable<Bytea>,
         primary_business_details -> Json,
         intent_fulfillment_time -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        frm_routing_algorithm -> Nullable<Jsonb>,
     }
 }
 
@@ -329,6 +332,8 @@ diesel::table! {
         payment_method_data -> Nullable<Jsonb>,
         business_sub_label -> Nullable<Varchar>,
         straight_through_algorithm -> Nullable<Jsonb>,
+        preprocessing_step_id -> Nullable<Varchar>,
+        mandate_details -> Nullable<Jsonb>,
     }
 }
 
@@ -362,6 +367,7 @@ diesel::table! {
         active_attempt_id -> Varchar,
         business_country -> CountryAlpha2,
         business_label -> Varchar,
+        meta_data -> Nullable<Jsonb>,
     }
 }
 
