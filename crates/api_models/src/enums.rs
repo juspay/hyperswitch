@@ -268,6 +268,7 @@ pub enum Currency {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    PaymentFailed,
     PaymentProcessing,
     ActionRequired,
     RefundSucceeded,
@@ -409,19 +410,39 @@ pub enum PaymentExperience {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentMethodType {
-    Credit,
-    Debit,
-    Giropay,
-    Ideal,
-    Sofort,
-    Eps,
-    Klarna,
+    Ach,
     Affirm,
     AfterpayClearpay,
-    GooglePay,
+    AliPay,
     ApplePay,
-    Paypal,
+    Bacs,
+    BancontactCard,
+    Becs,
+    Blik,
+    Credit,
     CryptoCurrency,
+    Debit,
+    Eps,
+    Giropay,
+    GooglePay,
+    Ideal,
+    Interac,
+    Klarna,
+    MbWay,
+    MobilePay,
+    OnlineBankingCzechRepublic,
+    OnlineBankingFinland,
+    OnlineBankingPoland,
+    OnlineBankingSlovakia,
+    PayBright,
+    Paypal,
+    Przelewy24,
+    Sepa,
+    Sofort,
+    Swish,
+    Trustly,
+    Walley,
+    WeChatPay,
 }
 
 #[derive(
@@ -447,7 +468,9 @@ pub enum PaymentMethod {
     PayLater,
     Wallet,
     BankRedirect,
+    BankTransfer,
     Crypto,
+    BankDebit,
 }
 
 #[derive(
@@ -546,7 +569,6 @@ pub enum MandateStatus {
     Clone,
     Copy,
     Debug,
-    Default,
     Eq,
     PartialEq,
     ToSchema,
@@ -563,23 +585,38 @@ pub enum Connector {
     Aci,
     Adyen,
     Airwallex,
-    Applepay,
     Authorizedotnet,
+    Bitpay,
     Bluesnap,
     Braintree,
     Checkout,
     Coinbase,
     Cybersource,
-    #[default]
-    Dummy,
+    Iatapay,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector1")]
+    #[strum(serialize = "dummyconnector1")]
+    DummyConnector1,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector2")]
+    #[strum(serialize = "dummyconnector2")]
+    DummyConnector2,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector3")]
+    #[strum(serialize = "dummyconnector3")]
+    DummyConnector3,
     Opennode,
     Bambora,
     Dlocal,
     Fiserv,
+    Forte,
     Globalpay,
     Klarna,
     Mollie,
     Multisafepay,
+    Nexinets,
+    Nmi,
+    // Noon, added as template code for future usage
     Nuvei,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paypal,
@@ -587,9 +624,10 @@ pub enum Connector {
     Rapyd,
     Shift4,
     Stripe,
+    Trustpay,
     Worldline,
     Worldpay,
-    Trustpay,
+    Zen,
 }
 
 impl Connector {
@@ -601,7 +639,14 @@ impl Connector {
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
+                | (Self::Iatapay, _)
         )
+    }
+    pub fn supports_file_storage_module(&self) -> bool {
+        matches!(self, Self::Stripe | Self::Checkout)
+    }
+    pub fn requires_defend_dispute(&self) -> bool {
+        matches!(self, Self::Checkout)
     }
 }
 
@@ -620,10 +665,23 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector1")]
+    #[strum(serialize = "dummyconnector1")]
+    DummyConnector1,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector2")]
+    #[strum(serialize = "dummyconnector2")]
+    DummyConnector2,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector3")]
+    #[strum(serialize = "dummyconnector3")]
+    DummyConnector3,
     Aci,
     Adyen,
     Airwallex,
     Authorizedotnet,
+    Bitpay,
     Bambora,
     Bluesnap,
     Braintree,
@@ -632,10 +690,15 @@ pub enum RoutableConnectors {
     Cybersource,
     Dlocal,
     Fiserv,
+    Forte,
     Globalpay,
+    Iatapay,
     Klarna,
     Mollie,
     Multisafepay,
+    Nexinets,
+    Nmi,
+    // Noon, added as template code for future usage
     Nuvei,
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
@@ -647,16 +710,7 @@ pub enum RoutableConnectors {
     Trustpay,
     Worldline,
     Worldpay,
-}
-
-/// Wallets which support obtaining session object
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum SupportedWallets {
-    Paypal,
-    ApplePay,
-    Klarna,
-    Gpay,
+    Zen,
 }
 
 /// Name of banks supported by Hyperswitch
@@ -680,6 +734,8 @@ pub enum BankNames {
     AmericanExpress,
     BankOfAmerica,
     Barclays,
+    #[serde(rename = "BLIK - PSP")]
+    BlikPSP,
     CapitalOne,
     Chase,
     Citi,
@@ -707,31 +763,98 @@ pub enum BankNames {
     Bank99Ag,
     BankhausCarlSpangler,
     BankhausSchelhammerUndSchatteraAg,
+    #[serde(rename = "Bank Millennium")]
+    BankMillennium,
+    #[serde(rename = "Bank PEKAO S.A.")]
+    BankPEKAOSA,
     BawagPskAg,
     BksBankAg,
     BrullKallmusBankAg,
     BtvVierLanderBank,
     CapitalBankGraweGruppeAg,
+    #[serde(rename = "Česká spořitelna")]
+    CeskaSporitelna,
     Dolomitenbank,
     EasybankAg,
+    #[serde(rename = "ePlatby VÚB")]
+    EPlatbyVUB,
     ErsteBankUndSparkassen,
+    FrieslandBank,
     HypoAlpeadriabankInternationalAg,
     HypoNoeLbFurNiederosterreichUWien,
     HypoOberosterreichSalzburgSteiermark,
     HypoTirolBankAg,
     HypoVorarlbergBankAg,
     HypoBankBurgenlandAktiengesellschaft,
+    #[serde(rename = "Komercní banka")]
+    KomercniBanka,
+    #[serde(rename = "mBank - mTransfer")]
+    MBank,
     MarchfelderBank,
     OberbankAg,
     OsterreichischeArzteUndApothekerbank,
+    #[serde(rename = "Pay with ING")]
+    PayWithING,
+    #[serde(rename = "Płacę z iPKO")]
+    PlaceZIPKO,
+    #[serde(rename = "Płatność online kartą płatniczą")]
+    PlatnoscOnlineKartaPlatnicza,
     PosojilnicaBankEGen,
+    #[serde(rename = "Poštová banka")]
+    PostovaBanka,
     RaiffeisenBankengruppeOsterreich,
     SchelhammerCapitalBankAg,
     SchoellerbankAg,
     SpardaBankWien,
+    SporoPay,
+    #[serde(rename = "Santander-Przelew24")]
+    SantanderPrzelew24,
+    TatraPay,
+    Viamo,
     VolksbankGruppe,
     VolkskreditbankAg,
     VrBankBraunau,
+    #[serde(rename = "Pay with Alior Bank")]
+    PayWithAliorBank,
+    #[serde(rename = "Banki Spółdzielcze")]
+    BankiSpoldzielcze,
+    #[serde(rename = "Pay with Inteligo")]
+    PayWithInteligo,
+    #[serde(rename = "BNP Paribas Poland")]
+    BNPParibasPoland,
+    #[serde(rename = "Bank Nowy S.A.")]
+    BankNowySA,
+    #[serde(rename = "Credit Agricole")]
+    CreditAgricole,
+    #[serde(rename = "Pay with BOŚ")]
+    PayWithBOS,
+    #[serde(rename = "Pay with CitiHandlowy")]
+    PayWithCitiHandlowy,
+    #[serde(rename = "Pay with Plus Bank")]
+    PayWithPlusBank,
+    #[serde(rename = "Toyota Bank")]
+    ToyotaBank,
+    VeloBank,
+    #[serde(rename = "e-transfer Pocztowy24")]
+    ETransferPocztowy24,
+    PlusBank,
+    EtransferPocztowy24,
+    BankiSpbdzielcze,
+    BankNowyBfgSa,
+    GetinBank,
+    Blik,
+    NoblePay,
+    IdeaBank,
+    EnveloBank,
+    NestPrzelew,
+    MbankMtransfer,
+    Inteligo,
+    PbacZIpko,
+    BnpParibas,
+    BankPekaoSa,
+    VolkswagenBank,
+    AliorBank,
+    Boz,
 }
 
 #[derive(
@@ -761,39 +884,6 @@ pub enum CardNetwork {
     Maestro,
 }
 
-impl From<AttemptStatus> for IntentStatus {
-    fn from(s: AttemptStatus) -> Self {
-        match s {
-            AttemptStatus::Charged | AttemptStatus::AutoRefunded => Self::Succeeded,
-
-            AttemptStatus::ConfirmationAwaited => Self::RequiresConfirmation,
-            AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
-
-            AttemptStatus::Authorized => Self::RequiresCapture,
-            AttemptStatus::AuthenticationPending | AttemptStatus::DeviceDataCollectionPending => {
-                Self::RequiresCustomerAction
-            }
-            AttemptStatus::Unresolved => Self::RequiresMerchantAction,
-            AttemptStatus::PartialCharged
-            | AttemptStatus::Started
-            | AttemptStatus::AuthenticationSuccessful
-            | AttemptStatus::Authorizing
-            | AttemptStatus::CodInitiated
-            | AttemptStatus::VoidInitiated
-            | AttemptStatus::CaptureInitiated
-            | AttemptStatus::Pending => Self::Processing,
-
-            AttemptStatus::AuthenticationFailed
-            | AttemptStatus::AuthorizationFailed
-            | AttemptStatus::VoidFailed
-            | AttemptStatus::RouterDeclined
-            | AttemptStatus::CaptureFailed
-            | AttemptStatus::Failure => Self::Failed,
-            AttemptStatus::Voided => Self::Cancelled,
-        }
-    }
-}
-
 #[derive(
     Clone,
     Default,
@@ -808,6 +898,7 @@ impl From<AttemptStatus> for IntentStatus {
     frunk::LabelledGeneric,
     ToSchema,
 )]
+#[serde(rename_all = "snake_case")]
 pub enum DisputeStage {
     PreDispute,
     #[default]
@@ -829,6 +920,7 @@ pub enum DisputeStage {
     frunk::LabelledGeneric,
     ToSchema,
 )]
+#[serde(rename_all = "snake_case")]
 pub enum DisputeStatus {
     #[default]
     DisputeOpened,
@@ -842,6 +934,40 @@ pub enum DisputeStatus {
     DisputeLost,
 }
 
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum FrmAction {
+    CancelTxn,
+    AutoRefund,
+    ManualReview,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum FrmPreferredFlowTypes {
+    Pre,
+    Post,
+}
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct UnresolvedResponseReason {
     pub code: String,

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use masking::Secret;
 use router::types::{self, api, storage::enums};
 use serde_json::json;
@@ -39,7 +41,7 @@ impl utils::Connector for FiservTest {
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-            card_number: Secret::new("4005550000000019".to_string()),
+            card_number: cards::CardNumber::from_str("4005550000000019").unwrap(),
             card_exp_month: Secret::new("02".to_string()),
             card_exp_year: Secret::new("2035".to_string()),
             card_holder_name: Secret::new("John Doe".to_string()),
@@ -341,7 +343,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("1234567891011".to_string()),
+                    card_number: cards::CardNumber::from_str("1234567891011").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -354,27 +356,6 @@ async fn should_fail_payment_for_incorrect_card_number() {
         response.response.unwrap_err().message,
         "Unable to assign card to brand: Invalid.".to_string(),
     );
-}
-
-// Creates a payment with empty card number.
-#[actix_web::test]
-#[serial_test::serial]
-async fn should_fail_payment_for_empty_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    let x = response.response.unwrap_err();
-    assert_eq!(x.message, "Invalid or Missing Field Data",);
 }
 
 // Creates a payment with incorrect CVC.

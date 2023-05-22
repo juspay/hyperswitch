@@ -12,7 +12,7 @@ use crate::{enums, schema::address};
 pub struct AddressNew {
     pub address_id: String,
     pub city: Option<String>,
-    pub country: Option<enums::CountryCode>,
+    pub country: Option<enums::CountryAlpha2>,
     pub line1: Option<Secret<String>>,
     pub line2: Option<Secret<String>>,
     pub line3: Option<Secret<String>>,
@@ -34,7 +34,7 @@ pub struct Address {
     #[serde(skip_serializing)]
     pub address_id: String,
     pub city: Option<String>,
-    pub country: Option<enums::CountryCode>,
+    pub country: Option<enums::CountryAlpha2>,
     pub line1: Option<Secret<String>>,
     pub line2: Option<Secret<String>>,
     pub line3: Option<Secret<String>>,
@@ -58,7 +58,7 @@ pub struct Address {
 pub enum AddressUpdate {
     Update {
         city: Option<String>,
-        country: Option<enums::CountryCode>,
+        country: Option<enums::CountryAlpha2>,
         line1: Option<Secret<String>>,
         line2: Option<Secret<String>>,
         line3: Option<Secret<String>>,
@@ -75,7 +75,7 @@ pub enum AddressUpdate {
 #[diesel(table_name = address)]
 pub struct AddressUpdateInternal {
     city: Option<String>,
-    country: Option<enums::CountryCode>,
+    country: Option<enums::CountryAlpha2>,
     line1: Option<Secret<String>>,
     line2: Option<Secret<String>>,
     line3: Option<Secret<String>>,
@@ -86,6 +86,27 @@ pub struct AddressUpdateInternal {
     phone_number: Option<Secret<String>>,
     country_code: Option<String>,
     modified_at: PrimitiveDateTime,
+}
+
+impl AddressUpdateInternal {
+    pub fn create_address(self, source: Address) -> Address {
+        Address {
+            city: self.city,
+            country: self.country,
+            line1: self.line1,
+            line2: self.line2,
+            line3: self.line3,
+            state: self.state,
+            zip: self.zip,
+            first_name: self.first_name,
+            last_name: self.last_name,
+            phone_number: self.phone_number,
+            country_code: self.country_code,
+            modified_at: self.modified_at,
+
+            ..source
+        }
+    }
 }
 
 impl From<AddressUpdate> for AddressUpdateInternal {

@@ -1,45 +1,45 @@
 use crate::{core::errors, logger};
 
-pub trait StorageErrorExt {
+pub trait StorageErrorExt<T, E> {
     #[track_caller]
-    fn to_not_found_response(
-        self,
-        not_found_response: errors::ApiErrorResponse,
-    ) -> error_stack::Report<errors::ApiErrorResponse>;
+    fn to_not_found_response(self, not_found_response: E) -> error_stack::Result<T, E>;
 
     #[track_caller]
-    fn to_duplicate_response(
-        self,
-        duplicate_response: errors::ApiErrorResponse,
-    ) -> error_stack::Report<errors::ApiErrorResponse>;
+    fn to_duplicate_response(self, duplicate_response: E) -> error_stack::Result<T, E>;
 }
 
-impl StorageErrorExt for error_stack::Report<errors::StorageError> {
+impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
+    for error_stack::Result<T, errors::StorageError>
+{
     #[track_caller]
     fn to_not_found_response(
         self,
         not_found_response: errors::ApiErrorResponse,
-    ) -> error_stack::Report<errors::ApiErrorResponse> {
-        if self.current_context().is_db_not_found() {
-            return self.change_context(not_found_response);
-        }
-        match self.current_context() {
-            errors::StorageError::CustomerRedacted => {
-                self.change_context(errors::ApiErrorResponse::CustomerRedacted)
+    ) -> error_stack::Result<T, errors::ApiErrorResponse> {
+        self.map_err(|err| {
+            if err.current_context().is_db_not_found() {
+                return err.change_context(not_found_response);
+            };
+            match err.current_context() {
+                errors::StorageError::CustomerRedacted => {
+                    err.change_context(errors::ApiErrorResponse::CustomerRedacted)
+                }
+                _ => err.change_context(errors::ApiErrorResponse::InternalServerError),
             }
-            _ => self.change_context(errors::ApiErrorResponse::InternalServerError),
-        }
+        })
     }
 
     fn to_duplicate_response(
         self,
         duplicate_response: errors::ApiErrorResponse,
-    ) -> error_stack::Report<errors::ApiErrorResponse> {
-        if self.current_context().is_db_unique_violation() {
-            self.change_context(duplicate_response)
-        } else {
-            self.change_context(errors::ApiErrorResponse::InternalServerError)
-        }
+    ) -> error_stack::Result<T, errors::ApiErrorResponse> {
+        self.map_err(|err| {
+            if err.current_context().is_db_unique_violation() {
+                err.change_context(duplicate_response)
+            } else {
+                err.change_context(errors::ApiErrorResponse::InternalServerError)
+            }
+        })
     }
 }
 
@@ -107,8 +107,8 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
                         "payment_method_data, payment_method_type and payment_experience does not match",
                 }
             },
-            errors::ConnectorError::NotSupported { payment_method, connector, payment_experience } => {
-                errors::ApiErrorResponse::NotSupported { message: format!("Payment method type {payment_method} is not supported by {connector} through payment experience {payment_experience}") }
+            errors::ConnectorError::NotSupported { message, connector, payment_experience } => {
+                errors::ApiErrorResponse::NotSupported { message: format!("{message} is not supported by {connector} through payment experience {payment_experience}") }
             },
             errors::ConnectorError::FlowNotSupported{ flow, connector } => {
                 errors::ApiErrorResponse::FlowNotSupported { flow: flow.to_owned(), connector: connector.to_owned() }
@@ -119,10 +119,11 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
     }
 
     fn to_verify_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse> {
-        let data = match self.current_context() {
+        let error = self.current_context();
+        let data = match error {
             errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
                 let response_str = std::str::from_utf8(bytes);
-                match response_str {
+                let error_response = match response_str {
                     Ok(s) => serde_json::from_str(s)
                         .map_err(|err| logger::error!(%err, "Failed to convert response to JSON"))
                         .ok(),
@@ -130,11 +131,20 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
                         logger::error!(%err, "Failed to convert response to UTF8 string");
                         None
                     }
+                };
+                errors::ApiErrorResponse::PaymentAuthorizationFailed {
+                    data: error_response,
                 }
             }
-            _ => None,
+            errors::ConnectorError::MissingRequiredField { field_name } => {
+                errors::ApiErrorResponse::MissingRequiredField { field_name }
+            }
+            _ => {
+                logger::error!(%error,"Verify flow failed");
+                errors::ApiErrorResponse::PaymentAuthorizationFailed { data: None }
+            }
         };
-        self.change_context(errors::ApiErrorResponse::PaymentAuthorizationFailed { data })
+        self.change_context(data)
     }
 }
 

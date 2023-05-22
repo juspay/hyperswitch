@@ -12,6 +12,9 @@ pub(crate) const ALPHABETS: [char; 62] = [
 /// API client request timeout (in seconds)
 pub const REQUEST_TIME_OUT: u64 = 30;
 
+///Payment intent fulfillment default timeout (in seconds)
+pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;
+
 // String literals
 pub(crate) const NO_ERROR_MESSAGE: &str = "No error message";
 pub(crate) const NO_ERROR_CODE: &str = "No error code";
@@ -24,3 +27,7 @@ pub(crate) const BASE64_ENGINE_URL_SAFE: base64::engine::GeneralPurpose =
 
 pub(crate) const API_KEY_LENGTH: usize = 64;
 pub(crate) const PUB_SUB_CHANNEL: &str = "hyperswitch_invalidate";
+
+// Apple Pay validation url
+pub(crate) const APPLEPAY_VALIDATION_URL: &str =
+    "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";

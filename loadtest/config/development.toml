@@ -1,0 +1,147 @@
+[log.file]
+enabled = false
+
+[log.console]
+enabled = false
+
+[log.telemetry]
+traces_enabled = true
+metrics_enabled = true
+ignore_errors = false
+
+[master_database]
+username = "postgres"
+password = "postgres"
+host = "db"
+port = 5432
+dbname = "loadtest_router"
+pool_size = 20
+connection_timeout = 10
+
+[server]
+host = "0.0.0.0"
+
+[redis]
+host = "redis-queue"
+
+[secrets]
+admin_api_key = "test_admin"
+jwt_secret = "secret"
+
+[locker]
+host = ""
+mock_locker = true
+basilisk_host = ""
+
+[eph_key]
+validity = 1
+
+[refund]
+max_attempts = 10
+max_age = 365
+
+[jwekey]
+locker_key_identifier1 = ""
+locker_key_identifier2 = ""
+locker_encryption_key1 = ""
+locker_encryption_key2 = ""
+locker_decryption_key1 = ""
+locker_decryption_key2 = ""
+vault_encryption_key = ""
+vault_private_key = ""
+
+[webhooks]
+outgoing_enabled = true
+
+[api_keys]
+hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+[connectors]
+aci.base_url = "https://eu-test.oppwa.com/"
+adyen.base_url = "https://checkout-test.adyen.com/"
+airwallex.base_url = "https://api-demo.airwallex.com/"
+applepay.base_url = "https://apple-pay-gateway.apple.com/"
+authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
+bambora.base_url = "https://api.na.bambora.com"
+bitpay.base_url = "https://test.bitpay.com"
+bluesnap.base_url = "https://sandbox.bluesnap.com/"
+braintree.base_url = "https://api.sandbox.braintreegateway.com/"
+checkout.base_url = "https://api.sandbox.checkout.com/"
+coinbase.base_url = "https://api.commerce.coinbase.com"
+cybersource.base_url = "https://apitest.cybersource.com/"
+dlocal.base_url = "https://sandbox.dlocal.com/"
+dummyconnector.base_url = "http://localhost:8080/dummy-connector"
+fiserv.base_url = "https://cert.api.fiservapps.com/"
+forte.base_url = "https://sandbox.forte.net/api/v3"
+globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
+iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
+klarna.base_url = "https://api-na.playground.klarna.com/"
+mollie.base_url = "https://api.mollie.com/v2/"
+multisafepay.base_url = "https://testapi.multisafepay.com/"
+nexinets.base_url = "https://apitest.payengine.de/v1"
+nmi.base_url = "https://secure.nmi.com/"
+noon.base_url = "https://api-test.noonpayments.com/"
+nuvei.base_url = "https://ppp-test.nuvei.com/"
+opennode.base_url = "https://dev-api.opennode.com"
+payeezy.base_url = "https://api-cert.payeezy.com/"
+paypal.base_url = "https://www.sandbox.paypal.com/"
+payu.base_url = "https://secure.snd.payu.com/"
+rapyd.base_url = "https://sandboxapi.rapyd.net"
+shift4.base_url = "https://api.shift4.com/"
+stripe.base_url = "https://api.stripe.com/"
+stripe.base_url_file_upload = "https://files.stripe.com/"
+worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
+worldpay.base_url = "https://try.access.worldpay.com/"
+trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
+zen.base_url = "https://api.zen-test.com/"
+
+[connectors.supported]
+wallets = ["klarna", "braintree", "applepay"]
+cards = [
+    "aci",
+    "adyen",
+    "airwallex",
+    "authorizedotnet",
+    "bambora",
+    "bitpay",
+    "bluesnap",
+    "braintree",
+    "checkout",
+    "coinbase",
+    "cybersource",
+    "dlocal",
+    "dummyconnector",
+    "fiserv",
+    "forte",
+    "globalpay",
+    "iatapay",
+    "mollie",
+    "multisafepay",
+    "nexinets",
+    "nmi",
+    "noon",
+    "nuvei",
+    "opennode",
+    "payeezy",
+    "paypal",
+    "payu",
+    "shift4",
+    "stripe",
+    "trustpay",
+    "worldline",
+    "worldpay",
+    "zen",
+]
+
+[dummy_connector]
+payment_ttl = 172800
+payment_duration = 1000
+payment_tolerance = 100
+payment_retrieve_duration = 500
+payment_retrieve_tolerance = 100
+refund_ttl = 172800
+refund_duration = 1000
+refund_tolerance = 100
+refund_retrieve_duration = 500
+refund_retrieve_tolerance = 100

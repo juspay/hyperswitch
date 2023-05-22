@@ -1,3 +1,5 @@
+use error_stack::ResultExt;
+
 use crate::{
     core::errors::{self, utils::StorageErrorExt, RouterResponse},
     db::StorageInterface,
@@ -5,11 +7,27 @@ use crate::{
     types::{api, transformers::ForeignInto},
 };
 
+pub async fn set_config(
+    store: &dyn StorageInterface,
+    config: api::Config,
+) -> RouterResponse<api::Config> {
+    let config = store
+        .insert_config(storage_models::configs::ConfigNew {
+            key: config.key,
+            config: config.value,
+        })
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unknown error, while setting config key")?;
+
+    Ok(ApplicationResponse::Json(config.foreign_into()))
+}
+
 pub async fn read_config(store: &dyn StorageInterface, key: &str) -> RouterResponse<api::Config> {
     let config = store
         .find_config_by_key_cached(key)
         .await
-        .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::ConfigNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::ConfigNotFound)?;
     Ok(ApplicationResponse::Json(config.foreign_into()))
 }
 
@@ -20,6 +38,6 @@ pub async fn update_config(
     let config = store
         .update_config_cached(&config_update.key, config_update.foreign_into())
         .await
-        .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::ConfigNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::ConfigNotFound)?;
     Ok(ApplicationResponse::Json(config.foreign_into()))
 }

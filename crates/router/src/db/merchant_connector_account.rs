@@ -48,7 +48,7 @@ impl ConnectorAccessToken for Store {
         let access_token: Option<types::AccessToken> = maybe_token
             .map(|token| token.parse_struct("AccessToken"))
             .transpose()
-            .change_context(errors::ParsingError)
+            .change_context(errors::ParsingError::UnknownError)
             .change_context(errors::StorageError::DeserializationFailed)?;
 
         Ok(access_token)
@@ -287,6 +287,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             merchant_connector_id: t.merchant_connector_id,
             payment_methods_enabled: t.payment_methods_enabled,
             metadata: t.metadata,
+            frm_configs: t.frm_configs,
             connector_type: t
                 .connector_type
                 .unwrap_or(crate::types::storage::enums::ConnectorType::FinOperations),
@@ -294,6 +295,8 @@ impl MerchantConnectorAccountInterface for MockDb {
             business_country: t.business_country,
             business_label: t.business_label,
             business_sub_label: t.business_sub_label,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
         };
         accounts.push(account.clone());
         Ok(account)

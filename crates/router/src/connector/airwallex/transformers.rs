@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::{
     connector::utils,
     core::errors,
-    pii::{self, Secret},
+    pii::Secret,
     services,
     types::{self, api, storage::enums},
 };
@@ -57,7 +57,7 @@ pub struct AirwallexCard {
 pub struct AirwallexCardDetails {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
-    number: Secret<String, pii::CardNumber>,
+    number: cards::CardNumber,
     cvc: Secret<String>,
 }
 
@@ -92,9 +92,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
                     }));
                 Ok(AirwallexPaymentMethod::Card(AirwallexCard {
                     card: AirwallexCardDetails {
-                        number: ccard
-                            .card_number
-                            .map(|card| card.split_whitespace().collect()),
+                        number: ccard.card_number,
                         expiry_month: ccard.card_exp_month.clone(),
                         expiry_year: ccard.card_exp_year.clone(),
                         cvc: ccard.card_cvc,
@@ -150,7 +148,7 @@ pub struct AirwallexCompleteRequest {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexThreeDsData {
-    acs_response: Option<common_utils::pii::SecretSerdeValue>,
+    acs_response: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -166,7 +164,11 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for AirwallexCompleteR
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
             three_ds: AirwallexThreeDsData {
-                acs_response: item.request.payload.clone().map(Secret::new),
+                acs_response: item
+                    .request
+                    .payload
+                    .as_ref()
+                    .map(|data| Secret::new(serde_json::Value::to_string(data))),
             },
             three_ds_type: AirwallexThreeDsType::ThreeDSContinue,
         })
@@ -285,7 +287,7 @@ pub struct AirwallexPaymentsResponse {
 fn get_redirection_form(
     response_url_data: AirwallexPaymentsNextAction,
 ) -> Option<services::RedirectForm> {
-    Some(services::RedirectForm {
+    Some(services::RedirectForm::Form {
         endpoint: response_url_data.url.to_string(),
         method: response_url_data.method,
         form_fields: std::collections::HashMap::from([
@@ -378,6 +380,7 @@ impl<F, T>
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })
@@ -480,8 +483,128 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AirwallexWebhookData {
-    pub source_id: String,
-    pub name: String,
+    pub source_id: Option<String>,
+    pub name: AirwallexWebhookEventType,
+    pub data: AirwallexObjectData,
+}
+
+#[derive(Debug, Deserialize, strum::Display, PartialEq)]
+pub enum AirwallexWebhookEventType {
+    #[serde(rename = "payment_intent.created")]
+    PaymentIntentCreated,
+    #[serde(rename = "payment_intent.requires_payment_method")]
+    PaymentIntentRequiresPaymentMethod,
+    #[serde(rename = "payment_intent.cancelled")]
+    PaymentIntentCancelled,
+    #[serde(rename = "payment_intent.succeeded")]
+    PaymentIntentSucceeded,
+    #[serde(rename = "payment_intent.requires_capture")]
+    PaymentIntentRequiresCapture,
+    #[serde(rename = "payment_intent.requires_customer_action")]
+    PaymentIntentRequiresCustomerAction,
+    #[serde(rename = "payment_attempt.authorized")]
+    PaymentAttemptAuthorized,
+    #[serde(rename = "payment_attempt.authorization_failed")]
+    PaymentAttemptAuthorizationFailed,
+    #[serde(rename = "payment_attempt.capture_requested")]
+    PaymentAttemptCaptureRequested,
+    #[serde(rename = "payment_attempt.capture_failed")]
+    PaymentAttemptCaptureFailed,
+    #[serde(rename = "payment_attempt.authentication_redirected")]
+    PaymentAttemptAuthenticationRedirected,
+    #[serde(rename = "payment_attempt.authentication_failed")]
+    PaymentAttemptAuthenticationFailed,
+    #[serde(rename = "payment_attempt.failed_to_process")]
+    PaymentAttemptFailedToProcess,
+    #[serde(rename = "payment_attempt.cancelled")]
+    PaymentAttemptCancelled,
+    #[serde(rename = "payment_attempt.expired")]
+    PaymentAttemptExpired,
+    #[serde(rename = "payment_attempt.risk_declined")]
+    PaymentAttemptRiskDeclined,
+    #[serde(rename = "payment_attempt.settled")]
+    PaymentAttemptSettled,
+    #[serde(rename = "payment_attempt.paid")]
+    PaymentAttemptPaid,
+    #[serde(rename = "refund.received")]
+    RefundReceived,
+    #[serde(rename = "refund.accepted")]
+    RefundAccepted,
+    #[serde(rename = "refund.succeeded")]
+    RefundSucceeded,
+    #[serde(rename = "refund.failed")]
+    RefundFailed,
+    #[serde(rename = "dispute.rfi_responded_by_merchant")]
+    DisputeRfiRespondedByMerchant,
+    #[serde(rename = "dispute.dispute.pre_chargeback_accepted")]
+    DisputePreChargebackAccepted,
+    #[serde(rename = "dispute.accepted")]
+    DisputeAccepted,
+    #[serde(rename = "dispute.dispute_received_by_merchant")]
+    DisputeReceivedByMerchant,
+    #[serde(rename = "dispute.dispute_responded_by_merchant")]
+    DisputeRespondedByMerchant,
+    #[serde(rename = "dispute.won")]
+    DisputeWon,
+    #[serde(rename = "dispute.lost")]
+    DisputeLost,
+    #[serde(rename = "dispute.dispute_reversed")]
+    DisputeReversed,
+}
+
+pub fn is_transaction_event(event_code: &AirwallexWebhookEventType) -> bool {
+    matches!(
+        event_code,
+        AirwallexWebhookEventType::PaymentAttemptFailedToProcess
+            | AirwallexWebhookEventType::PaymentAttemptAuthorized
+    )
+}
+
+pub fn is_refund_event(event_code: &AirwallexWebhookEventType) -> bool {
+    matches!(
+        event_code,
+        AirwallexWebhookEventType::RefundSucceeded | AirwallexWebhookEventType::RefundFailed
+    )
+}
+
+pub fn is_dispute_event(event_code: &AirwallexWebhookEventType) -> bool {
+    matches!(
+        event_code,
+        AirwallexWebhookEventType::DisputeAccepted
+            | AirwallexWebhookEventType::DisputePreChargebackAccepted
+            | AirwallexWebhookEventType::DisputeRespondedByMerchant
+            | AirwallexWebhookEventType::DisputeWon
+            | AirwallexWebhookEventType::DisputeLost
+    )
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AirwallexObjectData {
+    pub object: serde_json::Value,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AirwallexDisputeObject {
+    pub payment_intent_id: String,
+    pub dispute_amount: i64,
+    pub dispute_currency: String,
+    pub stage: AirwallexDisputeStage,
+    pub dispute_id: String,
+    pub dispute_reason_type: Option<String>,
+    pub dispute_original_reason_code: Option<String>,
+    pub status: String,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub created_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub updated_at: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Deserialize, strum::Display, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum AirwallexDisputeStage {
+    Rfi,
+    Dispute,
+    Arbitration,
 }
 
 #[derive(Debug, Deserialize)]
@@ -499,4 +622,34 @@ pub struct AirwallexErrorResponse {
     pub code: String,
     pub message: String,
     pub source: Option<String>,
+}
+
+impl TryFrom<AirwallexWebhookEventType> for api_models::webhooks::IncomingWebhookEvent {
+    type Error = errors::ConnectorError;
+    fn try_from(value: AirwallexWebhookEventType) -> Result<Self, Self::Error> {
+        Ok(match value {
+            AirwallexWebhookEventType::PaymentAttemptFailedToProcess => Self::PaymentIntentFailure,
+            AirwallexWebhookEventType::PaymentAttemptAuthorized => Self::PaymentIntentSuccess,
+            AirwallexWebhookEventType::RefundSucceeded => Self::RefundSuccess,
+            AirwallexWebhookEventType::RefundFailed => Self::RefundFailure,
+            AirwallexWebhookEventType::DisputeAccepted
+            | AirwallexWebhookEventType::DisputePreChargebackAccepted => Self::DisputeAccepted,
+            AirwallexWebhookEventType::DisputeRespondedByMerchant => Self::DisputeChallenged,
+            AirwallexWebhookEventType::DisputeWon | AirwallexWebhookEventType::DisputeReversed => {
+                Self::DisputeWon
+            }
+            AirwallexWebhookEventType::DisputeLost => Self::DisputeLost,
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
+        })
+    }
+}
+
+impl From<AirwallexDisputeStage> for api_models::enums::DisputeStage {
+    fn from(code: AirwallexDisputeStage) -> Self {
+        match code {
+            AirwallexDisputeStage::Rfi => Self::PreDispute,
+            AirwallexDisputeStage::Dispute => Self::Dispute,
+            AirwallexDisputeStage::Arbitration => Self::PreArbitration,
+        }
+    }
 }

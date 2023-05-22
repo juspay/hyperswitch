@@ -5,16 +5,17 @@ pub use storage_models::payment_attempt::{
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RoutingData {
     pub routed_through: Option<String>,
-    pub algorithm: Option<api_models::admin::RoutingAlgorithm>,
+    pub algorithm: Option<api_models::admin::StraightThroughAlgorithm>,
 }
 
 #[cfg(feature = "kv_store")]
 impl crate::utils::storage_partitioning::KvStorePartition for PaymentAttempt {}
 
 #[cfg(test)]
+#[cfg(feature = "dummy_connector")]
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used)]
-
+    use tokio::sync::oneshot;
     use uuid::Uuid;
 
     use super::*;
@@ -29,12 +30,12 @@ mod tests {
     #[ignore]
     async fn test_payment_attempt_insert() {
         let conf = Settings::new().expect("invalid settings");
-
-        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
 
         let payment_id = Uuid::new_v4().to_string();
         let current_time = common_utils::date_time::now();
-        let connector = types::Connector::Dummy.to_string();
+        let connector = types::Connector::DummyConnector1.to_string();
         let payment_attempt = PaymentAttemptNew {
             payment_id: payment_id.clone(),
             connector: Some(connector),
@@ -59,13 +60,14 @@ mod tests {
     async fn test_find_payment_attempt() {
         use crate::configs::settings::Settings;
         let conf = Settings::new().expect("invalid settings");
-        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
 
         let current_time = common_utils::date_time::now();
         let payment_id = Uuid::new_v4().to_string();
         let attempt_id = Uuid::new_v4().to_string();
         let merchant_id = Uuid::new_v4().to_string();
-        let connector = types::Connector::Dummy.to_string();
+        let connector = types::Connector::DummyConnector1.to_string();
 
         let payment_attempt = PaymentAttemptNew {
             payment_id: payment_id.clone(),
@@ -104,10 +106,11 @@ mod tests {
     async fn test_payment_attempt_mandate_field() {
         use crate::configs::settings::Settings;
         let conf = Settings::new().expect("invalid settings");
-        let uuid = uuid::Uuid::new_v4().to_string();
-        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+        let uuid = Uuid::new_v4().to_string();
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
         let current_time = common_utils::date_time::now();
-        let connector = types::Connector::Dummy.to_string();
+        let connector = types::Connector::DummyConnector1.to_string();
 
         let payment_attempt = PaymentAttemptNew {
             payment_id: uuid.clone(),

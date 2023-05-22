@@ -8,7 +8,7 @@ diesel::table! {
         id -> Int4,
         address_id -> Varchar,
         city -> Nullable<Varchar>,
-        country -> Nullable<CountryCode>,
+        country -> Nullable<CountryAlpha2>,
         line1 -> Nullable<Varchar>,
         line2 -> Nullable<Varchar>,
         line3 -> Nullable<Varchar>,
@@ -106,6 +106,8 @@ diesel::table! {
         description -> Nullable<Varchar>,
         created_at -> Timestamp,
         metadata -> Nullable<Json>,
+        connector_customer -> Nullable<Jsonb>,
+        modified_at -> Timestamp,
     }
 }
 
@@ -127,12 +129,13 @@ diesel::table! {
         connector_dispute_id -> Varchar,
         connector_reason -> Nullable<Varchar>,
         connector_reason_code -> Nullable<Varchar>,
-        challenge_required_by -> Nullable<Varchar>,
-        dispute_created_at -> Nullable<Varchar>,
-        updated_at -> Nullable<Varchar>,
+        challenge_required_by -> Nullable<Timestamp>,
+        connector_created_at -> Nullable<Timestamp>,
+        connector_updated_at -> Nullable<Timestamp>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         connector -> Varchar,
+        evidence -> Jsonb,
     }
 }
 
@@ -150,6 +153,24 @@ diesel::table! {
         primary_object_id -> Varchar,
         primary_object_type -> EventObjectType,
         created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    file_metadata (file_id, merchant_id) {
+        file_id -> Varchar,
+        merchant_id -> Varchar,
+        file_name -> Nullable<Varchar>,
+        file_size -> Int4,
+        file_type -> Varchar,
+        provider_file_id -> Nullable<Varchar>,
+        file_upload_provider -> Nullable<Varchar>,
+        available -> Bool,
+        created_at -> Timestamp,
+        connector_label -> Nullable<Varchar>,
     }
 }
 
@@ -199,6 +220,10 @@ diesel::table! {
         amount_captured -> Nullable<Int8>,
         connector -> Varchar,
         connector_mandate_id -> Nullable<Varchar>,
+        start_date -> Nullable<Timestamp>,
+        end_date -> Nullable<Timestamp>,
+        metadata -> Nullable<Jsonb>,
+        connector_mandate_ids -> Nullable<Jsonb>,
     }
 }
 
@@ -224,7 +249,10 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
         primary_business_details -> Json,
-        api_key -> Nullable<Varchar>,
+        intent_fulfillment_time -> Nullable<Int8>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+        frm_routing_algorithm -> Nullable<Jsonb>,
     }
 }
 
@@ -244,9 +272,12 @@ diesel::table! {
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
         connector_label -> Varchar,
-        business_country -> CountryCode,
+        business_country -> CountryAlpha2,
         business_label -> Varchar,
         business_sub_label -> Nullable<Varchar>,
+        frm_configs -> Nullable<Jsonb>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
     }
 }
 
@@ -290,6 +321,8 @@ diesel::table! {
         payment_method_data -> Nullable<Jsonb>,
         business_sub_label -> Nullable<Varchar>,
         straight_through_algorithm -> Nullable<Jsonb>,
+        preprocessing_step_id -> Nullable<Varchar>,
+        mandate_details -> Nullable<Jsonb>,
     }
 }
 
@@ -321,8 +354,9 @@ diesel::table! {
         off_session -> Nullable<Bool>,
         client_secret -> Nullable<Varchar>,
         active_attempt_id -> Varchar,
-        business_country -> CountryCode,
+        business_country -> CountryAlpha2,
         business_label -> Varchar,
+        meta_data -> Nullable<Jsonb>,
     }
 }
 
@@ -429,6 +463,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     customers,
     dispute,
     events,
+    file_metadata,
     locker_mock_up,
     mandate,
     merchant_account,

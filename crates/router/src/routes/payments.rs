@@ -18,7 +18,7 @@ use crate::{
 #[utoipa::path(
     post,
     path = "/payments",
-    request_body=PaymentsRequest,
+    request_body=PaymentsCreateRequest,
     responses(
         (status = 200, description = "Payment created", body = PaymentsResponse),
         (status = 400, description = "Missing Mandatory fields")
@@ -321,7 +321,6 @@ pub async fn payments_confirm(
     let payment_id = path.into_inner();
     payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));
     payload.confirm = Some(true);
-
     let (auth_type, auth_flow) =
         match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
             Ok(auth) => auth,
@@ -624,7 +623,6 @@ pub async fn payments_cancel(
     let mut payload = json_payload.into_inner();
     let payment_id = path.into_inner();
     payload.payment_id = payment_id;
-
     api::server_wrap(
         flow,
         state.get_ref(),

@@ -1,4 +1,4 @@
-use common_utils::pii;
+use common_utils::{pii, pii::Email};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::Secret;
 use time::PrimitiveDateTime;
@@ -11,11 +11,12 @@ pub struct CustomerNew {
     pub customer_id: String,
     pub merchant_id: String,
     pub name: Option<String>,
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
     pub description: Option<String>,
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Identifiable, Queryable)]
@@ -25,23 +26,29 @@ pub struct Customer {
     pub customer_id: String,
     pub merchant_id: String,
     pub name: Option<String>,
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
     pub description: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Option<serde_json::Value>,
+    pub modified_at: PrimitiveDateTime,
 }
 
 #[derive(Debug)]
 pub enum CustomerUpdate {
     Update {
         name: Option<String>,
-        email: Option<Secret<String, pii::Email>>,
+        email: Option<Email>,
         phone: Option<Secret<String>>,
         description: Option<String>,
         phone_country_code: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,
+        connector_customer: Option<serde_json::Value>,
+    },
+    ConnectorCustomer {
+        connector_customer: Option<serde_json::Value>,
     },
 }
 
@@ -49,11 +56,13 @@ pub enum CustomerUpdate {
 #[diesel(table_name = customers)]
 pub struct CustomerUpdateInternal {
     name: Option<String>,
-    email: Option<Secret<String, pii::Email>>,
+    email: Option<Email>,
     phone: Option<Secret<String>>,
     description: Option<String>,
     phone_country_code: Option<String>,
     metadata: Option<pii::SecretSerdeValue>,
+    connector_customer: Option<serde_json::Value>,
+    modified_at: Option<PrimitiveDateTime>,
 }
 
 impl From<CustomerUpdate> for CustomerUpdateInternal {
@@ -66,6 +75,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 description,
                 phone_country_code,
                 metadata,
+                connector_customer,
             } => Self {
                 name,
                 email,
@@ -73,6 +83,13 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 description,
                 phone_country_code,
                 metadata,
+                connector_customer,
+                modified_at: Some(common_utils::date_time::now()),
+            },
+            CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
+                connector_customer,
+                modified_at: Some(common_utils::date_time::now()),
+                ..Default::default()
             },
         }
     }

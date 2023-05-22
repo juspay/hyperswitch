@@ -55,9 +55,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         payment_intent.setup_future_usage = request
             .setup_future_usage
             .map(ForeignInto::foreign_into)
@@ -80,11 +78,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         )
         .await?;
 
-        helpers::authenticate_client_secret(
-            request.client_secret.as_ref(),
-            payment_intent.client_secret.as_ref(),
-        )?;
-
         let browser_info = request
             .browser_info
             .clone()
@@ -102,9 +95,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
@@ -163,9 +154,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         connector_response.encoded_data = request.metadata.clone().and_then(|secret_metadata| {
             secret_metadata
@@ -177,6 +166,16 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
         payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
+
+        // The operation merges mandate data from both request and payment_attempt
+        let setup_mandate = setup_mandate.map(|mandate_data| api_models::payments::MandateData {
+            customer_acceptance: mandate_data.customer_acceptance,
+            mandate_type: payment_attempt
+                .mandate_details
+                .clone()
+                .map(ForeignInto::foreign_into)
+                .or(mandate_data.mandate_type),
+        });
 
         Ok((
             Box::new(self),
@@ -199,10 +198,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 payment_method_data: request.payment_method_data.clone(),
                 force_sync: None,
                 refunds: vec![],
+                disputes: vec![],
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
                 creds_identifier: None,
                 pm_token: None,
+                connector_customer_id: None,
+                ephemeral_key: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -275,6 +277,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
+        _payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         // Use a new connector in the confirm call or use the same one which was passed when
         // creating the payment or if none is passed then use the routing algorithm
@@ -292,6 +295,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Comple
         payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,

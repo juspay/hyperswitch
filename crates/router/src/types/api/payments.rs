@@ -67,6 +67,7 @@ pub struct AuthorizeSessionToken;
 
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorize;
+
 #[derive(Debug, Clone)]
 pub struct InitPayment;
 #[derive(Debug, Clone)]
@@ -84,7 +85,13 @@ pub struct Session;
 pub struct PaymentMethodToken;
 
 #[derive(Debug, Clone)]
+pub struct CreateConnectorCustomer;
+
+#[derive(Debug, Clone)]
 pub struct Verify;
+
+#[derive(Debug, Clone)]
+pub struct PreProcessing;
 
 pub(crate) trait PaymentIdTypeExt {
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError>;
@@ -94,13 +101,13 @@ impl PaymentIdTypeExt for PaymentIdType {
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError> {
         match self {
             Self::PaymentIntentId(id) => Ok(id.clone()),
-            Self::ConnectorTransactionId(_) | Self::PaymentAttemptId(_) => {
-                Err(errors::ValidationError::IncorrectValueProvided {
-                    field_name: "payment_id",
-                })
-                .into_report()
-                .attach_printable("Expected payment intent ID but got connector transaction ID")
-            }
+            Self::ConnectorTransactionId(_)
+            | Self::PaymentAttemptId(_)
+            | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "payment_id",
+            })
+            .into_report()
+            .attach_printable("Expected payment intent ID but got connector transaction ID"),
         }
     }
 }
@@ -169,6 +176,24 @@ pub trait PaymentToken:
 {
 }
 
+pub trait ConnectorCustomer:
+    api::ConnectorIntegration<
+    CreateConnectorCustomer,
+    types::ConnectorCustomerData,
+    types::PaymentsResponseData,
+>
+{
+}
+
+pub trait PaymentsPreProcessing:
+    api::ConnectorIntegration<
+    PreProcessing,
+    types::PaymentsPreProcessingData,
+    types::PaymentsResponseData,
+>
+{
+}
+
 pub trait Payment:
     api_types::ConnectorCommon
     + PaymentAuthorize
@@ -179,6 +204,8 @@ pub trait Payment:
     + PreVerify
     + PaymentSession
     + PaymentToken
+    + PaymentsPreProcessing
+    + ConnectorCustomer
 {
 }
 
@@ -191,7 +218,7 @@ mod payments_test {
     #[allow(dead_code)]
     fn card() -> Card {
         Card {
-            card_number: "1234432112344321".to_string().into(),
+            card_number: "1234432112344321".to_string().try_into().unwrap(),
             card_exp_month: "12".to_string().into(),
             card_exp_year: "99".to_string().into(),
             card_holder_name: "JohnDoe".to_string().into(),

@@ -12,7 +12,7 @@ pub struct {{project-name | downcase | pascal_case}}PaymentsRequest {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct {{project-name | downcase | pascal_case}}Card {
     name: Secret<String>,
-    number: Secret<String, common_utils::pii::CardNumber>,
+    number: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvc: Secret<String>,
@@ -30,7 +30,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for {{project-name | downcase 
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
                     cvc: req_card.card_cvc,
-                    complete: item.request.is_auto_capture(),
+                    complete: item.request.is_auto_capture()?,
                 };
                 Ok(Self {
                     amount: item.request.amount,

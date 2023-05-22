@@ -12,8 +12,6 @@ use crate::{
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
-    pii,
-    pii::Secret,
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -54,9 +52,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
@@ -75,9 +71,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.amount.into();
@@ -128,11 +122,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 payment_intent,
                 currency,
                 amount,
-                email: None::<Secret<String, pii::Email>>,
+                email: None,
                 mandate_id: None,
                 connector_response,
                 setup_mandate: None,
-                token: None,
+                token: payment_attempt.payment_token.clone(),
                 address: PaymentAddress {
                     shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
                     billing: billing_address.as_ref().map(|a| a.foreign_into()),
@@ -142,10 +136,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 payment_method_data: None,
                 force_sync: None,
                 refunds: vec![],
+                disputes: vec![],
                 sessions_token: vec![],
                 card_cvc: None,
                 creds_identifier: None,
                 pm_token: None,
+                connector_customer_id: None,
+                ephemeral_key: None,
             },
             Some(customer_details),
         ))
@@ -162,6 +159,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
         payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsStartRequest>,
         PaymentData<F>,
@@ -252,6 +250,7 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsStartRequest,
+        _payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
     }

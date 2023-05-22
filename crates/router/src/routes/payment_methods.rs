@@ -48,7 +48,7 @@ pub async fn create_payment_method_api(
 /// To filter and list the applicable payment methods for a particular Merchant ID
 #[utoipa::path(
     get,
-    path = "/payment_methods/{account_id}",
+    path = "/account/payment_methods",
     params (
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
         ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
@@ -75,7 +75,6 @@ pub async fn list_payment_method_api(
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsList;
     let payload = json_payload.into_inner();
-
     let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
@@ -97,7 +96,7 @@ pub async fn list_payment_method_api(
 /// To filter and list the applicable payment methods for a particular Customer ID
 #[utoipa::path(
     get,
-    path = "/payment_methods/{customer_id}",
+    path = "/customer/{customer_id}/payment_methods",
     params (
         ("customer_id" = String, Path, description = "The unique identifier for the customer account"),
         ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),

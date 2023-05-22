@@ -5,10 +5,12 @@ on:
     branches:
       - main
 
-  pull_request:
-
   schedule:
-    - cron: '5 0 * * *'
+    - cron: "5 0 * * *"
+
+  merge_group:
+    types:
+      - checks_requested
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -41,7 +43,7 @@ jobs:
   test_connectors:
     name: Run tests on stable toolchain for connectors
     runs-on: ubuntu-latest
-    
+
     services:
       redis:
         image: redis
@@ -60,7 +62,7 @@ jobs:
           - stripe
           - aci
           - adyen
-          #- authorizedotnet 
+          #- authorizedotnet
           #- checkout
           #- cybersource
           - shift4
@@ -78,7 +80,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3.1.0
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
@@ -98,4 +100,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --package router --test connectors -- ${{ matrix.connector }} --test-threads=1
+          args: --package router --test connectors -- "${{ matrix.connector }}::" --test-threads=1

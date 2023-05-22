@@ -6,12 +6,14 @@ pub mod logger;
 use std::sync::{atomic, Arc};
 
 use error_stack::{IntoReport, ResultExt};
-use redis_interface::{errors as redis_errors, PubsubInterface};
+use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
+use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
 use crate::{
     async_spawn,
-    cache::CONFIG_CACHE,
+    cache::{CacheKind, ACCOUNTS_CACHE, CONFIG_CACHE},
+    configs::settings,
     connection::{diesel_make_pg_pool, PgPool},
     consts,
     core::errors,
@@ -24,10 +26,10 @@ pub trait PubSubInterface {
         channel: &str,
     ) -> errors::CustomResult<usize, redis_errors::RedisError>;
 
-    async fn publish(
+    async fn publish<'a>(
         &self,
         channel: &str,
-        key: &str,
+        key: CacheKind<'a>,
     ) -> errors::CustomResult<usize, redis_errors::RedisError>;
 
     async fn on_message(&self) -> errors::CustomResult<(), redis_errors::RedisError>;
@@ -48,13 +50,13 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
     }
 
     #[inline]
-    async fn publish(
+    async fn publish<'a>(
         &self,
         channel: &str,
-        key: &str,
+        key: CacheKind<'a>,
     ) -> errors::CustomResult<usize, redis_errors::RedisError> {
         self.publisher
-            .publish(channel, key)
+            .publish(channel, RedisValue::from(key).into_inner())
             .await
             .into_report()
             .change_context(redis_errors::RedisError::SubscribeError)
@@ -64,16 +66,26 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
     async fn on_message(&self) -> errors::CustomResult<(), redis_errors::RedisError> {
         let mut rx = self.subscriber.on_message();
         while let Ok(message) = rx.recv().await {
-            let key = message
-                .value
-                .as_string()
-                .ok_or::<redis_errors::RedisError>(redis_errors::RedisError::DeleteFailed)?;
-
-            self.delete_key(&key).await?;
-            CONFIG_CACHE.invalidate(&key).await;
+            let key: CacheKind<'_> = RedisValue::new(message.value)
+                .try_into()
+                .change_context(redis_errors::RedisError::OnMessageError)?;
+            match key {
+                CacheKind::Config(key) => {
+                    self.delete_key(key.as_ref()).await?;
+                    CONFIG_CACHE.invalidate(key.as_ref()).await;
+                }
+                CacheKind::Accounts(key) => {
+                    self.delete_key(key.as_ref()).await?;
+                    ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
+                }
+            }
         }
         Ok(())
     }
+}
+
+pub trait RedisConnInterface {
+    fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool>;
 }
 
 #[derive(Clone)]
@@ -94,22 +106,24 @@ pub(crate) struct StoreConfig {
 }
 
 impl Store {
-    pub async fn new(config: &crate::configs::settings::Settings, test_transaction: bool) -> Self {
+    pub async fn new(
+        config: &settings::Settings,
+        test_transaction: bool,
+        shut_down_signal: oneshot::Sender<()>,
+    ) -> Self {
         let redis_conn = Arc::new(crate::connection::redis_connection(config).await);
         let redis_clone = redis_conn.clone();
 
         let subscriber_conn = redis_conn.clone();
 
         redis_conn.subscribe(consts::PUB_SUB_CHANNEL).await.ok();
-
         async_spawn!({
             if let Err(e) = subscriber_conn.on_message().await {
                 logger::error!(pubsub_err=?e);
             }
         });
-
         async_spawn!({
-            redis_clone.on_error().await;
+            redis_clone.on_error(shut_down_signal).await;
         });
 
         Self {
@@ -179,5 +193,11 @@ impl Store {
             )
             .await
             .change_context(crate::core::errors::StorageError::KVError)
+    }
+}
+
+impl RedisConnInterface for Store {
+    fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool> {
+        self.redis_conn.clone()
     }
 }

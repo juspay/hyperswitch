@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, ExpressionMethods};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::{instrument, tracing};
 
 use super::generics;
@@ -18,14 +18,22 @@ impl ApiKeyNew {
 
 impl ApiKey {
     #[instrument(skip(conn))]
-    pub async fn update_by_key_id(
+    pub async fn update_by_merchant_id_key_id(
         conn: &PgPooledConn,
+        merchant_id: String,
         key_id: String,
         api_key_update: ApiKeyUpdate,
     ) -> StorageResult<Self> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
             conn,
-            key_id.clone(),
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::key_id.eq(key_id.to_owned())),
             ApiKeyUpdateInternal::from(api_key_update),
         )
         .await
@@ -35,8 +43,13 @@ impl ApiKey {
                     Err(error.attach_printable("API key with the given key ID does not exist"))
                 }
                 errors::DatabaseError::NoFieldsToUpdate => {
-                    generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, key_id)
-                        .await
+                    generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+                        conn,
+                        dsl::merchant_id
+                            .eq(merchant_id.to_owned())
+                            .and(dsl::key_id.eq(key_id.to_owned())),
+                    )
+                    .await
                 }
                 _ => Err(error),
             },
@@ -45,22 +58,31 @@ impl ApiKey {
     }
 
     #[instrument(skip(conn))]
-    pub async fn revoke_by_key_id(conn: &PgPooledConn, key_id: &str) -> StorageResult<bool> {
+    pub async fn revoke_by_merchant_id_key_id(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        key_id: &str,
+    ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
-            dsl::key_id.eq(key_id.to_owned()),
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::key_id.eq(key_id.to_owned())),
         )
         .await
     }
 
     #[instrument(skip(conn))]
-    pub async fn find_optional_by_key_id(
+    pub async fn find_optional_by_merchant_id_key_id(
         conn: &PgPooledConn,
+        merchant_id: &str,
         key_id: &str,
     ) -> StorageResult<Option<Self>> {
-        generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
+        generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
             conn,
-            key_id.to_owned(),
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::key_id.eq(key_id.to_owned())),
         )
         .await
     }

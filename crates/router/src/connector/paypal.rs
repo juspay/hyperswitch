@@ -19,6 +19,7 @@ use crate::{
     types::{
         self,
         api::{self, CompleteAuthorize, ConnectorCommon, ConnectorCommonExt},
+        storage::enums as storage_enums,
         ErrorResponse, Response,
     },
     utils::{self, BytesExt},
@@ -44,10 +45,19 @@ impl api::RefundSync for Paypal {}
 impl Paypal {
     pub fn connector_transaction_id(
         &self,
+        payment_method: Option<storage_enums::PaymentMethod>,
         connector_meta: &Option<serde_json::Value>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let meta: PaypalMeta = to_connector_meta(connector_meta.clone())?;
-        Ok(meta.authorize_id)
+        match payment_method {
+            Some(storage_models::enums::PaymentMethod::Wallet) => {
+                let meta: PaypalMeta = to_connector_meta(connector_meta.clone())?;
+                Ok(Some(meta.order_id))
+            }
+            _ => {
+                let meta: PaypalMeta = to_connector_meta(connector_meta.clone())?;
+                Ok(meta.authorize_id)
+            }
+        }
     }
 
     pub fn get_order_error_response(
@@ -61,37 +71,32 @@ impl Paypal {
             .parse_struct("Paypal ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let message = match response.details {
-            Some(mes) => {
-                let mut des = "".to_owned();
-                for item in mes.iter() {
-                    let mut description = format!("description - {}", item.to_owned().description);
-
-                    if let Some(data) = &item.value {
-                        description.push_str(format!(", value - {}", data.to_owned()).as_str());
+        let error_reason = match response.details {
+            Some(order_errors) => order_errors
+                .iter()
+                .map(|error| {
+                    let mut reason = format!("description - {}", error.description);
+                    if let Some(value) = &error.value {
+                        reason.push_str(&format!(", value - {value}"));
                     }
-
-                    if let Some(data) = &item.field {
-                        let field = data
-                            .clone()
-                            .split('/')
-                            .last()
-                            .unwrap_or_default()
-                            .to_owned();
-
-                        description.push_str(format!(", field - {};", field).as_str());
+                    if let Some(field) = error
+                        .field
+                        .as_ref()
+                        .and_then(|field| field.split('/').last())
+                    {
+                        reason.push_str(&format!(", field - {field}"));
                     }
-                    des.push_str(description.as_str())
-                }
-                des
-            }
+                    reason.push(';');
+                    reason
+                })
+                .collect::<String>(),
             None => consts::NO_ERROR_MESSAGE.to_string(),
         };
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.name,
-            message,
-            reason: None,
+            message: response.message,
+            reason: Some(error_reason),
         })
     }
 }
@@ -158,24 +163,18 @@ impl ConnectorCommon for Paypal {
             .parse_struct("Paypal ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let message = match response.details {
-            Some(mes) => {
-                let mut des = "".to_owned();
-                for item in mes.iter() {
-                    let x = item.clone().description;
-                    let st = format!("description - {} ; ", x);
-                    des.push_str(&st);
-                }
-                des
-            }
+        let error_reason = match response.details {
+            Some(error_details) => error_details
+                .iter()
+                .map(|error| format!("description - {} ; ", error.description))
+                .collect::<String>(),
             None => consts::NO_ERROR_MESSAGE.to_string(),
         };
-
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.name,
-            message,
-            reason: None,
+            message: response.message,
+            reason: Some(error_reason),
         })
     }
 }
@@ -187,13 +186,11 @@ impl
         types::PaymentsResponseData,
     > for Paypal
 {
-    // Not Implemented (R)
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Paypal
 {
-    //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
@@ -317,7 +314,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}v2/checkout/orders", self.base_url(connectors),))
+        Ok(format!("{}v2/checkout/orders", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -355,15 +352,30 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: paypal::PaypalOrdersResponse = res
-            .response
-            .parse_struct("Paypal PaymentsAuthorizeResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        match data.payment_method {
+            storage_models::enums::PaymentMethod::Wallet => {
+                let response: paypal::PaypalRedirectResponse = res
+                    .response
+                    .parse_struct("paypal PaymentsRedirectResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+            _ => {
+                let response: paypal::PaypalOrdersResponse = res
+                    .response
+                    .parse_struct("paypal PaymentsOrderResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+        }
     }
 
     fn get_error_response(
@@ -381,6 +393,74 @@ impl
         types::PaymentsResponseData,
     > for Paypal
 {
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
+        Ok(format!(
+            "{}v2/checkout/orders/{}/capture",
+            self.base_url(connectors),
+            paypal_meta.order_id
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                    self, req,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCompleteAuthorizeRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
+        let response: paypal::PaypalOrdersResponse = res
+            .response
+            .parse_struct("paypal PaymentsOrderResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
 }
 
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
@@ -403,22 +483,31 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let capture_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
-        let psync_url = match paypal_meta.psync_flow {
-            transformers::PaypalPaymentIntent::Authorize => format!(
-                "v2/payments/authorizations/{}",
-                paypal_meta.authorize_id.unwrap_or_default()
-            ),
-            transformers::PaypalPaymentIntent::Capture => {
-                format!("v2/payments/captures/{}", capture_id)
+        match req.payment_method {
+            storage_models::enums::PaymentMethod::Wallet => Ok(format!(
+                "{}v2/checkout/orders/{}",
+                self.base_url(connectors),
+                paypal_meta.order_id
+            )),
+            _ => {
+                let capture_id = req
+                    .request
+                    .connector_transaction_id
+                    .get_connector_transaction_id()
+                    .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+                let psync_url = match paypal_meta.psync_flow {
+                    transformers::PaypalPaymentIntent::Authorize => format!(
+                        "v2/payments/authorizations/{}",
+                        paypal_meta.authorize_id.unwrap_or_default()
+                    ),
+                    transformers::PaypalPaymentIntent::Capture => {
+                        format!("v2/payments/captures/{}", capture_id)
+                    }
+                };
+                Ok(format!("{}{}", self.base_url(connectors), psync_url))
             }
-        };
-        Ok(format!("{}{}", self.base_url(connectors), psync_url,))
+        }
     }
 
     fn build_request(
@@ -440,15 +529,30 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: paypal::PaypalPaymentsSyncResponse = res
-            .response
-            .parse_struct("paypal PaymentsSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        match data.payment_method {
+            storage_models::enums::PaymentMethod::Wallet => {
+                let response: paypal::PaypalOrdersResponse = res
+                    .response
+                    .parse_struct("paypal PaymentsOrderResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+            _ => {
+                let response: paypal::PaypalPaymentsSyncResponse = res
+                    .response
+                    .parse_struct("paypal PaymentsSyncResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+        }
     }
 
     fn get_error_response(
