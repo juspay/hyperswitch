@@ -49,9 +49,7 @@ use crate::{
 };
 
 pub fn filter_mca_based_on_business_details(
-    merchant_connector_accounts: Vec<
-        domain::MerchantConnectorAccount,
-    >,
+    merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
     payment_intent: Option<&storage_models::payment_intent::PaymentIntent>,
 ) -> Vec<domain::MerchantConnectorAccount> {
     if let Some(payment_intent) = payment_intent {

@@ -1,9 +1,8 @@
 use api_models::admin::PrimaryBusinessDetails;
 use common_utils::{crypto::OptionalSecretValue, date_time, ext_traits::ValueExt};
 use error_stack::{report, FutureExt, ResultExt};
-
 use masking::Secret; //PeekInterface
-use storage_models::{enums};
+use storage_models::enums;
 use uuid::Uuid;
 
 use crate::{

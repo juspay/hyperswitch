@@ -11,6 +11,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types, AsExpression,
 };
+use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret, Strategy, WithType};
 
 use crate::{
@@ -18,7 +19,6 @@ use crate::{
     errors::{self, ValidationError},
     validation::validate_email,
 };
-use error_stack::{IntoReport, ResultExt};
 
 /// A string constant representing a redacted or masked value.
 pub const REDACTED: &str = "Redacted";

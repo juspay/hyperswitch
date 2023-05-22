@@ -3,7 +3,6 @@ use common_utils::{
     date_time, pii,
 };
 use error_stack::ResultExt;
-
 use storage_models::{
     encryption::Encryption, enums, merchant_account::MerchantAccountUpdateInternal,
 };
