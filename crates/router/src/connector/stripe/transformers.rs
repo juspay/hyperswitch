@@ -115,7 +115,7 @@ pub struct PaymentIntentRequest {
     pub setup_future_usage: Option<enums::FutureUsage>,
     pub off_session: Option<bool>,
     #[serde(rename = "payment_method_types[0]")]
-    pub payment_method_types: Option<StripePaymentMethodType>
+    pub payment_method_types: Option<StripePaymentMethodType>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -263,7 +263,7 @@ pub struct StripeBankRedirectData {
     #[serde(rename = "payment_method_data[billing_details][name]")]
     pub billing_name: Option<Secret<String>>,
     #[serde(rename = "payment_method_data[billing_details][email]")]
-    pub email: Option<Email>
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -897,8 +897,8 @@ fn create_stripe_payment_method(
             let pm_type = infer_stripe_bank_redirect_issuer(pm_type)?;
             let bank_specific_data = get_bank_specific_data(bank_redirect_data);
             let bank_name = get_bank_name(&pm_type, bank_redirect_data)?;
-            let billing_details = get_billing_details_if_exists(&bank_redirect_data);
-            
+            let billing_details = get_billing_details_if_exists(bank_redirect_data);
+
             Ok((
                 StripePaymentMethodData::BankRedirect(StripeBankRedirectData {
                     payment_method_data_type: pm_type,
@@ -960,11 +960,9 @@ fn create_stripe_payment_method(
         payments::PaymentMethodData::BankDebit(bank_debit_data) => {
             let (pm_type, bank_debit_data, billing_address) = get_bank_debit_data(bank_debit_data);
 
-            let pm_data = StripePaymentMethodData::BankDebit(
-                StripeBankDebitData {
-                    bank_specific_data: bank_debit_data,
-                },
-            );
+            let pm_data = StripePaymentMethodData::BankDebit(StripeBankDebitData {
+                bank_specific_data: bank_debit_data,
+            });
 
             Ok((pm_data, pm_type, billing_address))
         }
@@ -979,20 +977,32 @@ fn get_billing_details_if_exists(
     bank_redirect_data: &api_models::payments::BankRedirectData,
 ) -> Option<api_models::payments::BankRedirectBilling> {
     match bank_redirect_data {
-        payments::BankRedirectData::BancontactCard { billing_details, ..} => billing_details.to_owned(),
-        payments::BankRedirectData::Blik {..} => None,
-        payments::BankRedirectData::Eps {billing_details, ..} => Some(billing_details.to_owned()),
-        payments::BankRedirectData::Giropay {billing_details, ..} => Some(billing_details.to_owned()),
-        payments::BankRedirectData::Ideal { billing_details, ..} => Some(billing_details.to_owned()),
-        payments::BankRedirectData::Interac { ..} => None,
-        payments::BankRedirectData::OnlineBankingCzechRepublic { ..} => None,
-        payments::BankRedirectData::OnlineBankingFinland { ..} => None,
-        payments::BankRedirectData::OnlineBankingPoland { ..} => None,
+        payments::BankRedirectData::BancontactCard {
+            billing_details, ..
+        } => billing_details.to_owned(),
+        payments::BankRedirectData::Blik { .. } => None,
+        payments::BankRedirectData::Eps {
+            billing_details, ..
+        } => Some(billing_details.to_owned()),
+        payments::BankRedirectData::Giropay {
+            billing_details, ..
+        } => Some(billing_details.to_owned()),
+        payments::BankRedirectData::Ideal {
+            billing_details, ..
+        } => Some(billing_details.to_owned()),
+        payments::BankRedirectData::Interac { .. } => None,
+        payments::BankRedirectData::OnlineBankingCzechRepublic { .. } => None,
+        payments::BankRedirectData::OnlineBankingFinland { .. } => None,
+        payments::BankRedirectData::OnlineBankingPoland { .. } => None,
         payments::BankRedirectData::OnlineBankingSlovakia { .. } => None,
-        payments::BankRedirectData::Przelewy24 {billing_details, ..} => Some(billing_details.to_owned()),
-        payments::BankRedirectData::Sofort {billing_details, ..} => Some(billing_details.to_owned()),
+        payments::BankRedirectData::Przelewy24 {
+            billing_details, ..
+        } => Some(billing_details.to_owned()),
+        payments::BankRedirectData::Sofort {
+            billing_details, ..
+        } => Some(billing_details.to_owned()),
         payments::BankRedirectData::Swish {} => None,
-        payments::BankRedirectData::Trustly { ..} => None,
+        payments::BankRedirectData::Trustly { .. } => None,
     }
 }
 
@@ -1064,7 +1074,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                     connector_mandate_ids.payment_method_id,
                     connector_mandate_ids.connector_mandate_id,
                     StripeBillingAddress::default(),
-                    None
+                    None,
                 ),
                 Some(api_models::payments::MandateReferenceId::NetworkMandateId(
                     network_transaction_id,
@@ -1092,14 +1102,21 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         &payment_method_type,
                     )?;
 
-                    (Some(payment_method_data), None, None, billing_address, Some(payment_method_type))
+                    (
+                        Some(payment_method_data),
+                        None,
+                        None,
+                        billing_address,
+                        Some(payment_method_type),
+                    )
                 }
             }
         };
 
-        let payment_method_types = if payment_method.is_some() { //if recurring payment
+        let payment_method_types = if payment_method.is_some() {
+            //if recurring payment
             get_payment_method_type_from_mandate_metadata_for_recurring_payment(item)
-        }else{
+        } else {
             payment_method_types
         };
         payment_data = match item.request.payment_method_data {
@@ -1141,11 +1158,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 //stripe requires us to send mandate_data while making payment through saved bank debit
                 if payment_method.is_some() {
                     //check if payment is done through saved payment method
-                    match &payment_method_types { //check if payment method is bank debit
-                        Some(StripePaymentMethodType::Ach 
-                            | StripePaymentMethodType::Sepa 
-                            | StripePaymentMethodType::Becs 
-                            | StripePaymentMethodType::Bacs) => Some(StripeMandateRequest {
+                    match &payment_method_types {
+                        //check if payment method is bank debit
+                        Some(
+                            StripePaymentMethodType::Ach
+                            | StripePaymentMethodType::Sepa
+                            | StripePaymentMethodType::Becs
+                            | StripePaymentMethodType::Bacs,
+                        ) => Some(StripeMandateRequest {
                             mandate_type: StripeMandateType::Offline,
                         }),
                         _ => None,
@@ -1180,7 +1200,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             setup_mandate_details,
             off_session: item.request.off_session,
             setup_future_usage: item.request.setup_future_usage,
-            payment_method_types
+            payment_method_types,
         })
     }
 }
@@ -1195,22 +1215,33 @@ fn get_payment_method_type_from_mandate_metadata_for_recurring_payment(
                     .ok(); //deserializing payment method data
             match payment_method_data {
                 Some(payments::PaymentMethodData::BankDebit(bank_debit_data)) => {
-                    match bank_debit_data{
-                        payments::BankDebitData::AchBankDebit { .. } => Some(StripePaymentMethodType::Ach),
-                        payments::BankDebitData::SepaBankDebit { .. } => Some(StripePaymentMethodType::Sepa),
-                        payments::BankDebitData::BecsBankDebit { .. } => Some(StripePaymentMethodType::Becs),
-                        payments::BankDebitData::BacsBankDebit { .. } => Some(StripePaymentMethodType::Bacs),
+                    match bank_debit_data {
+                        payments::BankDebitData::AchBankDebit { .. } => {
+                            Some(StripePaymentMethodType::Ach)
+                        }
+                        payments::BankDebitData::SepaBankDebit { .. } => {
+                            Some(StripePaymentMethodType::Sepa)
+                        }
+                        payments::BankDebitData::BecsBankDebit { .. } => {
+                            Some(StripePaymentMethodType::Becs)
+                        }
+                        payments::BankDebitData::BacsBankDebit { .. } => {
+                            Some(StripePaymentMethodType::Bacs)
+                        }
                     }
                 }
                 Some(payments::PaymentMethodData::BankRedirect(bank_redirect_data)) => {
-                    match bank_redirect_data{
+                    match bank_redirect_data {
                         payments::BankRedirectData::BancontactCard { .. }
-                        | payments::BankRedirectData::Ideal { .. } 
-                        | payments::BankRedirectData::Sofort { .. } => Some(StripePaymentMethodType::Sepa),
-                        _ => None
+                        | payments::BankRedirectData::Ideal { .. }
+                        | payments::BankRedirectData::Sofort { .. } => {
+                            Some(StripePaymentMethodType::Sepa)
+                        }
+                        // bank redirect of bancontact,ideal and sofort is converted sepa direct debit for future usage by stripe
+                        _ => None,
                     }
-                },
-                _ => todo!(),
+                }
+                _ => None,
             }
         }
         None => None,
@@ -1363,7 +1394,7 @@ pub struct PaymentIntentSyncResponse {
     #[serde(flatten)]
     payment_intent_fields: PaymentIntentResponse,
     pub last_payment_error: Option<LastPaymentError>,
-    pub latest_charge: Option<StripeCharge>
+    pub latest_charge: Option<StripeCharge>,
 }
 
 impl std::ops::Deref for PaymentIntentSyncResponse {
@@ -1374,23 +1405,23 @@ impl std::ops::Deref for PaymentIntentSyncResponse {
     }
 }
 
-#[derive(Deserialize, Clone,Debug)]
-pub struct StripeCharge{
+#[derive(Deserialize, Clone, Debug)]
+pub struct StripeCharge {
     pub id: String,
-    pub payment_method_details: Option<StripePaymentMethodDetailsResponse>
+    pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
 }
-#[derive(Deserialize, Clone,Debug)]
+#[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "snake_case", tag = "type")]
-pub enum StripePaymentMethodDetailsResponse{ 
+pub enum StripePaymentMethodDetailsResponse {
     //only ideal, sofort and bancontact is supported by stripe for recurring payment in bank redirect
-    Ideal{
-        ideal : StripeBankRedirectDetails,
+    Ideal {
+        ideal: StripeBankRedirectDetails,
     },
-    Sofort{
-        sofort : StripeBankRedirectDetails,
+    Sofort {
+        sofort: StripeBankRedirectDetails,
     },
-    Bancontact{
-        bancontact : StripeBankRedirectDetails,
+    Bancontact {
+        bancontact: StripeBankRedirectDetails,
     },
 
     //other payment method types supported by stripe. To avoid deserialization error.
@@ -1416,12 +1447,11 @@ pub enum StripePaymentMethodDetailsResponse{
     #[serde(rename = "wechat_pay")]
     Wechatpay,
     Alipay,
-    
 }
-#[derive(Deserialize,Clone,Debug)]
-pub struct StripeBankRedirectDetails{
+#[derive(Deserialize, Clone, Debug)]
+pub struct StripeBankRedirectDetails {
     #[serde(rename = "generated_sepa_debit")]
-    attached_payment_method : Option<String>,
+    attached_payment_method: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -1444,7 +1474,7 @@ impl From<SetupIntentSyncResponse> for PaymentIntentSyncResponse {
         Self {
             payment_intent_fields: value.setup_intent_fields.into(),
             last_payment_error: value.last_payment_error,
-            latest_charge: None
+            latest_charge: None,
         }
     }
 }
@@ -1581,11 +1611,17 @@ impl<F, T>
         let mandate_reference = item.response.payment_method.clone().map(|pm| {
             types::MandateReference::foreign_from((
                 item.response.payment_method_options.clone(),
-                match item.response.latest_charge.clone(){
-                    Some(charge) => match charge.payment_method_details{
-                        Some(StripePaymentMethodDetailsResponse::Bancontact{ bancontact }) => bancontact.attached_payment_method.unwrap_or(pm),
-                        Some(StripePaymentMethodDetailsResponse::Ideal{ideal }) => ideal.attached_payment_method.unwrap_or(pm),
-                        Some(StripePaymentMethodDetailsResponse::Sofort{sofort}) => sofort.attached_payment_method.unwrap_or(pm),
+                match item.response.latest_charge.clone() {
+                    Some(charge) => match charge.payment_method_details {
+                        Some(StripePaymentMethodDetailsResponse::Bancontact { bancontact }) => {
+                            bancontact.attached_payment_method.unwrap_or(pm)
+                        }
+                        Some(StripePaymentMethodDetailsResponse::Ideal { ideal }) => {
+                            ideal.attached_payment_method.unwrap_or(pm)
+                        }
+                        Some(StripePaymentMethodDetailsResponse::Sofort { sofort }) => {
+                            sofort.attached_payment_method.unwrap_or(pm)
+                        }
                         _ => pm,
                     },
                     None => pm,
@@ -2198,7 +2234,7 @@ impl
                     bank_name: None,
                     bank_specific_data: None,
                     billing_name: None,
-                    email: None,   
+                    email: None,
                 }))
             }
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
@@ -2238,11 +2274,9 @@ impl
             api::PaymentMethodData::BankDebit(bank_debit_data) => {
                 let (_pm_type, bank_data, _) = get_bank_debit_data(&bank_debit_data);
 
-                Ok(Self::BankDebit(
-                    StripeBankDebitData {
-                        bank_specific_data: bank_data,
-                    },
-                ))
+                Ok(Self::BankDebit(StripeBankDebitData {
+                    bank_specific_data: bank_data,
+                }))
             }
             api::PaymentMethodData::MandatePayment | api::PaymentMethodData::Crypto(_) => {
                 Err(errors::ConnectorError::NotSupported {

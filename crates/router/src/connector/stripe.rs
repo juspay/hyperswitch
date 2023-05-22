@@ -1616,7 +1616,9 @@ impl services::ConnectorRedirectResponse for Stripe {
                     //after customer_action, we need to sync the payment to update payment_method_id in db if needed
                     transformers::StripePaymentStatus::Failed
                     | transformers::StripePaymentStatus::Pending
-                    | transformers::StripePaymentStatus::Succeeded=> payments::CallConnectorAction::Trigger,
+                    | transformers::StripePaymentStatus::Succeeded => {
+                        payments::CallConnectorAction::Trigger
+                    }
                     _ => payments::CallConnectorAction::StatusUpdate(enums::AttemptStatus::from(
                         status,
                     )),
