@@ -292,8 +292,8 @@ pub struct CompleteAuthorizeData {
 
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorizeRedirectResponse {
-    pub params: Option<String>,
-    pub payload: Option<serde_json::Value>,
+    pub params: Option<Secret<String>>,
+    pub payload: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Default, Clone)]

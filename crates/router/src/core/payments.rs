@@ -347,8 +347,8 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 order_details: None,
                 data: masking::Secret::new("{}".into()),
                 redirect_response: Some(api_models::payments::RedirectResponse {
-                    param: req.param.clone(),
-                    json_payload: Some(req.json_payload.clone().unwrap_or(serde_json::json!({}))),
+                    param: req.param.map(Secret::new),
+                    json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
                 }),
                 allowed_payment_method_types: None,
             }),
