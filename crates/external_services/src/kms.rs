@@ -121,3 +121,22 @@ impl KmsConfig {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn test_kms_client() {
+        let config = KmsConfig {
+            key_id: "6d0f44c4-c69c-4626-8cae-44073a96552f".to_string(),
+            region: "us-east-1".to_string(),
+        };
+
+        let encrypted_data = "AQICAHjsViMlnMFMVqK4mddLnYfafazFNmV4eS7bUrtfaNv5tgFKB7TTGyjREKDQRNojx4Z8AAAAajBoBgkqhkiG9w0BBwagWzBZAgEAMFQGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMm+3rVg2JC0FXX2CWAgEQgCfvuE+Z9n3r1skvl16oJlUX2ikyUl3v/2l7mEKvEQ/MUznTfRYibw4=";
+        let client = KmsClient::new(&config).await;
+
+        let output = client.decrypt(encrypted_data).await.unwrap();
+        assert_eq!("{}", output);
+        
+    }
+}
