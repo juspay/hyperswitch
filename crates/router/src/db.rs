@@ -101,7 +101,7 @@ impl MockDb {
             connector_response: Default::default(),
             redis: Arc::new(crate::connection::redis_connection(redis).await),
             api_keys: Default::default(),
-            disputes: Default::default()
+            disputes: Default::default(),
         }
     }
 }

@@ -135,7 +135,10 @@ impl DisputeInterface for MockDb {
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         let mut locked_disputes = self.disputes.lock().await;
 
-        if locked_disputes.iter().any(|d| d.dispute_id == dispute.dispute_id) {
+        if locked_disputes
+            .iter()
+            .any(|d| d.dispute_id == dispute.dispute_id)
+        {
             Err(errors::StorageError::MockDbError)
         }
 
