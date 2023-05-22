@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-router = { version = "0.2.0", path = "../router", features = [ "kms" ] }
+router = { version = "0.2.0", path = "../router" }
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext"] }
 cards = { version = "0.1.0", path = "../cards" }

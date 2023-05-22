@@ -32,6 +32,7 @@ connection_timeout = 10
 
 [secrets]
 admin_api_key = "test_admin"
+kms_encrypted_jwt_secret = "AQICAHjsViMlnMFMVqK4mddLnYfafazFNmV4eS7bUrtfaNv5tgFKB7TTGyjREKDQRNojx4Z8AAAAajBoBgkqhkiG9w0BBwagWzBZAgEAMFQGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMm+3rVg2JC0FXX2CWAgEQgCfvuE+Z9n3r1skvl16oJlUX2ikyUl3v/2l7mEKvEQ/MUznTfRYibw4="
 
 [locker]
 host = ""
@@ -256,3 +257,8 @@ refund_duration = 1000
 refund_tolerance = 100
 refund_retrieve_duration = 500
 refund_retrieve_tolerance = 100
+
+
+[kms]
+key_id = "6d0f44c4-c69c-4626-8cae-44073a96552f"
+region = "us-east-1"

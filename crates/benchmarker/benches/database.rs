@@ -1,6 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use router::{configs::settings::Settings, routes::AppState};
-use storage_models::merchant_account::MerchantAccountNew;
 use tokio::sync::oneshot;
 use uuid::Uuid;
 
@@ -11,28 +10,13 @@ async fn create_service() -> AppState {
     AppState::with_storage(conf, router::db::StorageImpl::Postgresql, tx).await
 }
 
-async fn insert_merchant(state: &AppState) {
-    let merchant_account = MerchantAccountNew {
-        merchant_id: format!("config:benchmark_{}", Uuid::new_v4()),
-        merchant_name: Some("123".to_string()),
-        merchant_details: None,
-        return_url: Some("123".to_string()),
-        webhook_details: None,
-        sub_merchants_enabled: Some(false),
-        parent_merchant_id: None,
-        enable_payment_response_hash: None,
-        payment_response_hash_key: Some("123".to_string()),
-        redirect_to_merchant_with_http_post: None,
-        publishable_key: None,
-        locker_id: None,
-        metadata: None,
-        routing_algorithm: None,
-        primary_business_details: None::<i32>.into(),
-        intent_fulfillment_time: None,
-        frm_routing_algorithm: None,
+async fn insert_config(state: &AppState) {
+    let config = storage_models::configs::ConfigNew {
+        key: format!("bench-{}", Uuid::new_v4()),
+        config: "Hi!".to_string(),
     };
 
-    state.store.insert_merchant(merchant_account).await.unwrap();
+    state.store.insert_config(config).await.unwrap();
 }
 
 fn crit_insert_merchant(c: &mut Criterion) {
@@ -43,8 +27,8 @@ fn crit_insert_merchant(c: &mut Criterion) {
     let _guard = rt.enter();
     let state = rt.block_on(create_service());
 
-    c.bench_function("insert merchant", move |b| {
-        b.to_async(&rt).iter(|| insert_merchant(&state));
+    c.bench_function("insert config", move |b| {
+        b.to_async(&rt).iter(|| insert_config(&state));
     });
 }
 
