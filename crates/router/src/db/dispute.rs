@@ -208,13 +208,60 @@ impl DisputeInterface for MockDb {
 
     async fn update_dispute(
         &self,
-        _this: storage::Dispute,
-        _dispute: storage::DisputeUpdate,
+        this: storage::Dispute,
+        dispute: storage::DisputeUpdate,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
+        let mut locked_disputes = self.disputes.lock().await;
 
+        let mut dispute_to_update = locked_disputes
+            .iter_mut()
+            .find(|d| d.dispute_id == this.dispute_id)
+            .ok_or(errors::StorageError::MockDbError)?;
 
+        match dispute {
+            storage::DisputeUpdate::Update {
+                dispute_stage,
+                dispute_status,
+                connector_status,
+                connector_reason,
+                connector_reason_code,
+                challenge_required_by,
+                connector_updated_at,
+            } => {
+                if connector_reason.is_some() {
+                    dispute_to_update.connector_reason = connector_reason;
+                }
 
-        // TODO: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+                if connector_reason_code.is_some() {
+                    dispute_to_update.connector_reason_code = connector_reason_code;
+                }
+
+                if challenge_required_by.is_some() {
+                    dispute_to_update.challenge_required_by = challenge_required_by;
+                }
+
+                if connector_updated_at.is_some() {
+                    dispute_to_update.connector_updated_at = connector_updated_at;
+                }
+
+                dispute_to_update.dispute_stage = dispute_stage;
+                dispute_to_update.dispute_status = dispute_status;
+                dispute_to_update.connector_status = connector_status;
+            }
+            storage::DisputeUpdate::StatusUpdate {
+                dispute_status,
+                connector_status,
+            } => {
+                if let Some(status) = connector_status {
+                    dispute_to_update.connector_status = status;
+                }
+                dispute_to_update.dispute_status = dispute_status;
+            }
+            storage::DisputeUpdate::EvidenceUpdate { evidence } => {
+                dispute_to_update.evidence = evidence;
+            }
+        }
+
+        Ok(dispute_to_update.clone())
     }
 }
