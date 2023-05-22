@@ -80,7 +80,7 @@ pub trait SeleniumTest {
                                 .iter()
                                 .any(|key| url.query().unwrap().contains(key)))
                         }
-                        _ => assert!(driver.title().await?.contains(search_keys.get(0).unwrap())),
+                        _ => assert!(driver.title().await?.contains(search_keys.first().unwrap())),
                     },
                     Assert::Eq(_selector, text) => assert_eq!(driver.title().await?, text),
                     Assert::IsPresent(text) => {
@@ -107,7 +107,7 @@ pub trait SeleniumTest {
                                 self.complete_actions(driver, events).await?;
                             }
                         }
-                        _ => assert!(driver.title().await?.contains(keys.get(0).unwrap())),
+                        _ => assert!(driver.title().await?.contains(keys.first().unwrap())),
                     },
                     Assert::Eq(_selector, text) => {
                         if text == driver.title().await? {
@@ -154,7 +154,7 @@ pub trait SeleniumTest {
                             )
                             .await?;
                         }
-                        _ => assert!(driver.title().await?.contains(keys.get(0).unwrap())),
+                        _ => assert!(driver.title().await?.contains(keys.first().unwrap())),
                     },
                     Assert::Eq(_selector, text) => {
                         self.complete_actions(
@@ -202,15 +202,15 @@ pub trait SeleniumTest {
                         let script = &[
                             format!("localStorage.configs='{configs_url}'").as_str(),
                             format!("localStorage.hs_api_configs='{conf}'").as_str(),
-                            format!("localStorage.current_connector=\"{}\";", self.get_connector_name().clone()).as_str(),
+                            format!(
+                                "localStorage.current_connector=\"{}\";",
+                                self.get_connector_name().clone()
+                            )
+                            .as_str(),
                         ]
                         .join(";");
 
-                        driver
-                            .execute(script,
-                                Vec::new(),
-                            )
-                            .await?;
+                        driver.execute(script, Vec::new()).await?;
                         driver
                             .add_cookie(new_cookie("hs_base_url", hs_base_url).clone())
                             .await?;
