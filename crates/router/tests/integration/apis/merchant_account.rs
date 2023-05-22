@@ -67,6 +67,8 @@ impl RequestBuilder for MerchantAccountDelete{
   }
 
   fn verify_success_response(resp : &Value, data : &MasterData) -> Self{
+      let deleted = resp.get("deleted");
+      assert_eq!(deleted,Some(&Value::Bool(true)));
       Self
     }
   fn verify_failure_response(response : &Value, data : &MasterData) -> Self{
@@ -74,6 +76,21 @@ impl RequestBuilder for MerchantAccountDelete{
     }
   
   fn update_master_data(&self,data : &mut MasterData, resp : &Value){
-      unimplemented!();
+  }
+}
+
+
+pub async fn execute_merchant_account_delete_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+  let opt_test_req = MerchantAccountDelete::make_request_body(&master_data);
+  match opt_test_req{
+    Some(test_request) => {
+      let merchant_account_delete_resp = call_and_read_body_json(&server,test_request.to_request()).await;
+      MerchantAccountDelete::verify_success_response(&merchant_account_delete_resp,master_data).update_master_data(master_data,&merchant_account_delete_resp);
+      //println!("{:?}",merchant_account_delete_resp);
+      println!("Merchant Account Delete Test successful!")
+    },
+    None => {
+      println!("Skipping Payment Delete Test!")
+    },
   }
 }

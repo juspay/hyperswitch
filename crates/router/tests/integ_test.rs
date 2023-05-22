@@ -61,6 +61,7 @@ async fn test_api(master_data : &mut MasterData) -> Result<(), Box<dyn std::erro
   execute_payment_create_test(master_data,&server).await;
   execute_payment_confirm_test(master_data,&server).await;
   execute_payment_retrieve_test(master_data,&server).await;
+  execute_merchant_account_delete_test(master_data,&server).await;
   //println!("Final Master Data : \n{:?}",master_data);
   Ok(())
 }
