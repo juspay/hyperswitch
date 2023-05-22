@@ -6,7 +6,6 @@ ALTER TABLE merchant_connector_account
 
 ALTER TABLE merchant_account
     ALTER COLUMN merchant_name TYPE VARCHAR(128) USING convert_from(merchant_name, 'UTF8')::text,
-    ALTER COLUMN api_key TYPE VARCHAR(128) USING convert_from(api_key, 'UTF8')::text,
     ALTER merchant_details TYPE JSON USING convert_from(merchant_details, 'UTF8')::json;
 
 ALTER TABLE address

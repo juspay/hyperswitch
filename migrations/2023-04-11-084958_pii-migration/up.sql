@@ -5,7 +5,6 @@ ALTER TABLE merchant_connector_account
 
 ALTER TABLE merchant_account
     ALTER COLUMN merchant_name TYPE bytea USING convert_to(merchant_name, 'UTF8'),
-    ALTER COLUMN api_key TYPE bytea USING convert_to(api_key, 'UTF8'),
     ALTER merchant_details TYPE bytea USING convert_to(merchant_details::text, 'UTF8');
 
 ALTER TABLE address
