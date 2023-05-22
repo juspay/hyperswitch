@@ -6,7 +6,6 @@
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret, Strategy};
 use quick_xml::de;
-use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{self, CustomResult};
@@ -433,26 +432,5 @@ impl XmlExt for &str {
         T: serde::de::DeserializeOwned,
     {
         de::from_str(self)
-    }
-}
-
-/// Extension trait for logging the error of a Result and then discarding the error
-pub trait ResultExtLog<T> {
-    ///
-    /// Log error if it is of `Err` type else return the `Ok` value wrapped in `Some`
-    ///
-    fn log_err_and_ok(self, key: &str) -> Option<T>;
-}
-
-impl<T, E> ResultExtLog<T> for Result<T, E>
-where
-    E: std::fmt::Display,
-{
-    fn log_err_and_ok(self, key: &str) -> Option<T> {
-        self.map_err(|err| {
-            logger::error!("{} = {}", key, err);
-            err
-        })
-        .ok()
     }
 }
