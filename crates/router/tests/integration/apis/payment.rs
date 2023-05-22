@@ -150,3 +150,18 @@ impl RequestBuilder for PaymentConfirm{
     
     }
 }
+
+pub async fn execute_payment_confirm_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+  let opt_test_request = PaymentConfirm::make_request_body(&master_data);
+  match opt_test_request{
+    Some(test_request) => {
+      let payment_confirm_resp = call_and_read_body_json(&server,test_request.to_request()).await;
+      PaymentConfirm::verify_success_response(&payment_confirm_resp,master_data).update_master_data(master_data,&payment_confirm_resp);
+      //println!("{:?}",payment_confirm_resp);
+      println!("Payment Confirm Test successful!")
+    },
+    None => {
+      println!("Skipping Payment Confirm Test!")
+    },
+  }
+}
