@@ -1,11 +1,11 @@
 mod transformers;
 use std::fmt::Debug;
 
-use api_models::webhooks;
+
 use base64::Engine;
 use common_utils::{date_time, ext_traits::StringExt};
 use error_stack::{IntoReport, ResultExt};
-use http::request;
+
 use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
 use transformers as rapyd;
@@ -841,14 +841,6 @@ impl api::IncomingWebhook for Rapyd {
                 let rapyd_response: transformers::RapydPaymentsResponse = payment_data.into();
                 Ok(rapyd_response)
             }
-            // transformers::WebhookData::RefundData(refund_data) => {
-            //     let rapyd_response: transformers::RapydPaymentsResponse = refund_data.into();
-            //     Ok(rapyd_response)
-            // }
-            // transformers::WebhookData::DisputeData(dispute_data) => {
-            //     let rapyd_response: transformers::RapydPaymentsResponse = dispute_data.into();
-            //     Ok(rapyd_response)
-            // }
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound),
         }?;
         let res_json =
@@ -873,7 +865,7 @@ impl api::IncomingWebhook for Rapyd {
             connector_dispute_id: webhook.token,
             connector_reason: Some(webhook.dispute_reason_description),
             connector_reason_code: None,
-            challenge_required_by: Some(webhook.due_date.to_string()),
+            challenge_required_by: Some(webhook.due_date),
             connector_status: webhook.status.to_string(),
             created_at: Some(webhook.created_at),
             updated_at: Some(webhook.updated_at),
