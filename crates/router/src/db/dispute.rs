@@ -131,10 +131,40 @@ impl DisputeInterface for Store {
 impl DisputeInterface for MockDb {
     async fn insert_dispute(
         &self,
-        _dispute: storage::DisputeNew,
+        dispute: storage::DisputeNew,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        // TODO: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let mut locked_disputes = self.disputes.lock().await;
+
+        if locked_disputes.iter().any(|d| d.dispute_id == dispute.dispute_id) {
+            Err(errors::StorageError::MockDbError)
+        }
+
+        let new_dispute = storage::Dispute {
+            id: locked_disputes.len() as i32,
+            dispute_id: dispute.dispute_id,
+            amount: dispute.amount,
+            currency: dispute.currency,
+            dispute_stage: dispute.dispute_stage,
+            dispute_status: dispute.dispute_status,
+            payment_id: dispute.payment_id,
+            attempt_id: dispute.attempt_id,
+            merchant_id: dispute.merchant_id,
+            connector_status: dispute.connector_status,
+            connector_dispute_id: dispute.connector_dispute_id,
+            connector_reason: dispute.connector_reason,
+            connector_reason_code: dispute.connector_reason_code,
+            challenge_required_by: dispute.challenge_required_by,
+            connector_created_at: dispute.connector_created_at,
+            connector_updated_at: dispute.connector_updated_at,
+            created_at: dispute.created_at,
+            modified_at: dispute.modified_at,
+            connector: dispute.connector,
+            evidence: dispute.evidence.unwrap(),
+        };
+
+        locked_disputes.push(new_dispute.clone());
+
+        Ok(new_dispute)
     }
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
         &self,
@@ -178,6 +208,9 @@ impl DisputeInterface for MockDb {
         _this: storage::Dispute,
         _dispute: storage::DisputeUpdate,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
+
+
+
         // TODO: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
