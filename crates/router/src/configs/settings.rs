@@ -7,6 +7,8 @@ use std::{
 use api_models::enums;
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
+#[cfg(feature = "email")]
+use external_services::email::EmailSettings;
 #[cfg(feature = "kms")]
 use external_services::kms;
 use redis_interface::RedisSettings;
@@ -69,6 +71,8 @@ pub struct Settings {
     pub connector_customer: ConnectorCustomer,
     #[cfg(feature = "dummy_connector")]
     pub dummy_connector: DummyConnector,
+    #[cfg(feature = "email")]
+    pub email: EmailSettings,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

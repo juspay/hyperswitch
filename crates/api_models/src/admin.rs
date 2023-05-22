@@ -71,6 +71,11 @@ pub struct MerchantAccountCreate {
     #[cfg(not(feature = "multiple_mca"))]
     #[schema(value_type = Option<PrimaryBusinessDetails>)]
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
+
+    /// The frm routing algorithm to be used for routing payments to desired FRM's
+    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
+    pub frm_routing_algorithm: Option<serde_json::Value>,
+
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
     #[schema(example = 900)]
@@ -135,6 +140,10 @@ pub struct MerchantAccountUpdate {
 
     ///Default business details for connector routing
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
+
+    /// The frm routing algorithm to be used for routing payments to desired FRM's
+    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
+    pub frm_routing_algorithm: Option<serde_json::Value>,
 
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
@@ -201,6 +210,10 @@ pub struct MerchantAccountResponse {
     ///Default business details for connector routing
     #[schema(value_type = Vec<PrimaryBusinessDetails>)]
     pub primary_business_details: Vec<PrimaryBusinessDetails>,
+
+    /// The frm routing algorithm to be used to process the incoming request from merchant to outgoing payment FRM.
+    #[schema(value_type = Option<RoutingAlgorithm>, max_length = 255, example = r#"{"type": "single", "data": "stripe" }"#)]
+    pub frm_routing_algorithm: Option<serde_json::Value>,
 
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins

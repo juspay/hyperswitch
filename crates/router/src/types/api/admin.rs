@@ -35,6 +35,7 @@ impl ForeignTryFrom<storage::MerchantAccount> for MerchantAccountResponse {
             metadata: item.metadata,
             locker_id: item.locker_id,
             primary_business_details,
+            frm_routing_algorithm: item.frm_routing_algorithm,
             intent_fulfillment_time: item.intent_fulfillment_time,
         })
     }

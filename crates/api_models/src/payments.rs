@@ -7,7 +7,9 @@ use router_derive::Setter;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{admin, disputes, enums as api_enums, refunds};
+use crate::{
+    admin, disputes, enums as api_enums, ephemeral_key::EphemeralKeyCreateResponse, refunds,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -232,6 +234,10 @@ pub struct PaymentsRequest {
 
     /// Business sub label for the payment
     pub business_sub_label: Option<String>,
+
+    /// If enabled payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted.
+    #[serde(default)]
+    pub manual_retry: bool,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
@@ -307,7 +313,8 @@ impl From<PaymentsRequest> for VerifyRequest {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum MandateTxnType {
     NewMandateTxn,
     RecurringMandateTxn,
@@ -340,13 +347,15 @@ impl MandateIds {
     }
 }
 
+// The fields on this struct are optional, as we want to allow the merchant to provide partial
+// information about creating mandates
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MandateData {
     /// A concent from the customer to store the payment method
-    pub customer_acceptance: CustomerAcceptance,
+    pub customer_acceptance: Option<CustomerAcceptance>,
     /// A way to select the type of mandate used
-    pub mandate_type: MandateType,
+    pub mandate_type: Option<MandateType>,
 }
 
 #[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -551,6 +560,7 @@ pub enum PaymentMethodData {
     PayLater(PayLaterData),
     BankRedirect(BankRedirectData),
     BankDebit(BankDebitData),
+    BankTransfer(Box<BankTransferData>),
     Crypto(CryptoData),
     MandatePayment,
 }
@@ -567,6 +577,7 @@ pub enum AdditionalPaymentData {
     },
     Wallet {},
     PayLater {},
+    BankTransfer {},
     Crypto {},
     BankDebit {},
     MandatePayment {},
@@ -593,6 +604,7 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
             },
             PaymentMethodData::Wallet(_) => Self::Wallet {},
             PaymentMethodData::PayLater(_) => Self::PayLater {},
+            PaymentMethodData::BankTransfer(_) => Self::BankTransfer {},
             PaymentMethodData::Crypto(_) => Self::Crypto {},
             PaymentMethodData::BankDebit(_) => Self::BankDebit {},
             PaymentMethodData::MandatePayment => Self::MandatePayment {},
@@ -711,6 +723,16 @@ pub enum BankRedirectData {
     },
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct AchBankTransferData {
+    pub billing_details: AchBillingDetails,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct AchBillingDetails {
+    pub email: Email,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct CryptoData {}
@@ -730,6 +752,12 @@ pub struct BankRedirectBilling {
     /// The billing email for bank redirect
     #[schema(value_type = String, example = "example@example.com")]
     pub email: Option<Email>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BankTransferData {
+    AchBankTransfer(AchBankTransferData),
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
@@ -853,8 +881,7 @@ pub struct CardResponse {
 pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
     Card(CardResponse),
-    #[serde(rename(deserialize = "bank_transfer"))]
-    BankTransfer,
+    BankTransfer(BankTransferData),
     Wallet(WalletData),
     PayLater(PayLaterData),
     Paypal,
@@ -872,6 +899,8 @@ pub enum PaymentIdType {
     ConnectorTransactionId(String),
     /// The identifier for payment attempt
     PaymentAttemptId(String),
+    /// The identifier for preprocessing step
+    PreprocessingId(String),
 }
 
 impl std::fmt::Display for PaymentIdType {
@@ -886,6 +915,9 @@ impl std::fmt::Display for PaymentIdType {
             ),
             Self::PaymentAttemptId(payment_attempt_id) => {
                 write!(f, "payment_attempt_id = \"{payment_attempt_id}\"")
+            }
+            Self::PreprocessingId(preprocessing_id) => {
+                write!(f, "preprocessing_id = \"{preprocessing_id}\"")
             }
         }
     }
@@ -1022,15 +1054,39 @@ pub enum NextActionType {
     DisplayQrCode,
     InvokeSdkClient,
     TriggerApi,
+    DisplayBankTransferInformation,
 }
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct NextAction {
     /// Specifying the action type to be performed next
     #[serde(rename = "type")]
     pub next_action_type: NextActionType,
+    //TODO: Make an enum having redirect_to_url and bank_transfer_steps_and_charges_details and use here
     /// Contains the url for redirection flow
     #[schema(example = "https://router.juspay.io/redirect/fakushdfjlksdfasklhdfj")]
     pub redirect_to_url: Option<String>,
+    /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
+    pub bank_transfer_steps_and_charges_details: Option<NextStepsRequirements>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct NextStepsRequirements {
+    pub ach_credit_transfer: AchTransfer,
+    pub receiver: ReceiverDetails,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct AchTransfer {
+    pub account_number: Secret<String>,
+    pub bank_name: String,
+    pub routing_number: Secret<String>,
+    pub swift_code: Secret<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ReceiverDetails {
+    pub amount_received: i64,
+    pub amount_charged: i64,
 }
 
 #[derive(Setter, Clone, Default, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -1214,6 +1270,9 @@ pub struct PaymentsResponse {
     /// Allowed Payment Method Types for a given PaymentIntent
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
+
+    /// ephemeral_key for the customer_id mentioned
+    pub ephemeral_key: Option<EphemeralKeyCreateResponse>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
@@ -1407,6 +1466,9 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 Self::BankRedirect(bank_redirect_data)
             }
+            PaymentMethodData::BankTransfer(bank_transfer_data) => {
+                Self::BankTransfer(*bank_transfer_data)
+            }
             PaymentMethodData::Crypto(crpto_data) => Self::Crypto(crpto_data),
             PaymentMethodData::BankDebit(bank_debit_data) => Self::BankDebit(bank_debit_data),
             PaymentMethodData::MandatePayment => Self::MandatePayment,
@@ -1555,7 +1617,7 @@ pub struct GpayTransactionInfo {
     /// The total price status (ex: 'FINAL')
     pub total_price_status: String,
     /// The total price
-    pub total_price: i64,
+    pub total_price: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

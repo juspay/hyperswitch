@@ -76,6 +76,12 @@ impl ForeignFrom<storage_enums::MandateStatus> for api_enums::MandateStatus {
     }
 }
 
+impl ForeignFrom<api_enums::MandateStatus> for storage_enums::MandateStatus {
+    fn foreign_from(status: api_enums::MandateStatus) -> Self {
+        frunk::labelled_convert_from(status)
+    }
+}
+
 impl ForeignFrom<api_enums::PaymentMethod> for storage_enums::PaymentMethod {
     fn foreign_from(pm_type: api_enums::PaymentMethod) -> Self {
         frunk::labelled_convert_from(pm_type)
@@ -155,6 +161,55 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
     }
 }
 
+impl ForeignFrom<api_models::payments::MandateType> for storage_enums::MandateDataType {
+    fn foreign_from(from: api_models::payments::MandateType) -> Self {
+        match from {
+            api_models::payments::MandateType::SingleUse(inner) => {
+                Self::SingleUse(inner.foreign_into())
+            }
+            api_models::payments::MandateType::MultiUse(inner) => {
+                Self::MultiUse(inner.map(ForeignInto::foreign_into))
+            }
+        }
+    }
+}
+impl ForeignFrom<storage_enums::MandateDataType> for api_models::payments::MandateType {
+    fn foreign_from(from: storage_enums::MandateDataType) -> Self {
+        match from {
+            storage_enums::MandateDataType::SingleUse(inner) => {
+                Self::SingleUse(inner.foreign_into())
+            }
+            storage_enums::MandateDataType::MultiUse(inner) => {
+                Self::MultiUse(inner.map(ForeignInto::foreign_into))
+            }
+        }
+    }
+}
+
+impl ForeignFrom<storage_enums::MandateAmountData> for api_models::payments::MandateAmountData {
+    fn foreign_from(from: storage_enums::MandateAmountData) -> Self {
+        Self {
+            amount: from.amount,
+            currency: from.currency.foreign_into(),
+            start_date: from.start_date,
+            end_date: from.end_date,
+            metadata: from.metadata,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::payments::MandateAmountData> for storage_enums::MandateAmountData {
+    fn foreign_from(from: api_models::payments::MandateAmountData) -> Self {
+        Self {
+            amount: from.amount,
+            currency: from.currency.foreign_into(),
+            start_date: from.start_date,
+            end_date: from.end_date,
+            metadata: from.metadata,
+        }
+    }
+}
+
 impl ForeignTryFrom<api_enums::IntentStatus> for storage_enums::EventType {
     type Error = errors::ValidationError;
 
@@ -167,6 +222,47 @@ impl ForeignTryFrom<api_enums::IntentStatus> for storage_enums::EventType {
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "intent_status",
             }),
+        }
+    }
+}
+
+impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
+    fn foreign_from(payment_method_type: api_enums::PaymentMethodType) -> Self {
+        match payment_method_type {
+            api_enums::PaymentMethodType::ApplePay
+            | api_enums::PaymentMethodType::GooglePay
+            | api_enums::PaymentMethodType::Paypal
+            | api_enums::PaymentMethodType::AliPay
+            | api_enums::PaymentMethodType::MbWay
+            | api_enums::PaymentMethodType::MobilePay
+            | api_enums::PaymentMethodType::WeChatPay => Self::Wallet,
+            api_enums::PaymentMethodType::Affirm
+            | api_enums::PaymentMethodType::AfterpayClearpay
+            | api_enums::PaymentMethodType::Klarna
+            | api_enums::PaymentMethodType::PayBright
+            | api_enums::PaymentMethodType::Walley => Self::PayLater,
+            api_enums::PaymentMethodType::Giropay
+            | api_enums::PaymentMethodType::Ideal
+            | api_enums::PaymentMethodType::Sofort
+            | api_enums::PaymentMethodType::Eps
+            | api_enums::PaymentMethodType::BancontactCard
+            | api_enums::PaymentMethodType::Blik
+            | api_enums::PaymentMethodType::OnlineBankingCzechRepublic
+            | api_enums::PaymentMethodType::OnlineBankingFinland
+            | api_enums::PaymentMethodType::OnlineBankingPoland
+            | api_enums::PaymentMethodType::OnlineBankingSlovakia
+            | api_enums::PaymentMethodType::Przelewy24
+            | api_enums::PaymentMethodType::Swish
+            | api_enums::PaymentMethodType::Trustly
+            | api_enums::PaymentMethodType::Interac => Self::BankRedirect,
+            api_enums::PaymentMethodType::CryptoCurrency => Self::Crypto,
+            api_enums::PaymentMethodType::Ach
+            | api_enums::PaymentMethodType::Sepa
+            | api_enums::PaymentMethodType::Bacs
+            | api_enums::PaymentMethodType::Becs => Self::BankDebit,
+            api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
+                Self::Card
+            }
         }
     }
 }

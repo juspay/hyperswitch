@@ -227,6 +227,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::mandates::MandateRevokedResponse,
         api_models::mandates::MandateResponse,
         api_models::mandates::MandateCardDetails,
+        api_models::ephemeral_key::EphemeralKeyCreateResponse,
         crate::types::api::admin::MerchantAccountResponse,
         crate::types::api::admin::MerchantConnectorId,
         crate::types::api::admin::MerchantDetails,
