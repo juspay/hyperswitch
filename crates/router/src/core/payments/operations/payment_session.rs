@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -14,7 +14,6 @@ use crate::{
         payments::{self, helpers, operations, PaymentData},
     },
     db::StorageInterface,
-    logger,
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -335,9 +334,12 @@ where
                             .parse_value::<PaymentMethodsEnabled>("payment_methods_enabled")
                     })
                     .filter_map(|parsed_payment_method_result| {
-                        let error = parsed_payment_method_result.as_ref().err();
-                        logger::error!(session_token_parsing_error=?error);
-                        parsed_payment_method_result.ok()
+                        parsed_payment_method_result
+                            .map_err(|err| {
+                                logger::error!(session_token_parsing_error=?err);
+                                err
+                            })
+                            .ok()
                     })
                     .flat_map(|parsed_payment_methods_enabled| {
                         parsed_payment_methods_enabled
@@ -378,22 +380,21 @@ where
         for (connector, payment_method_type, business_sub_label) in
             connector_and_supporting_payment_method_type
         {
-            let connector_type = get_connector_type_for_session_token(
-                payment_method_type,
-                request,
-                connector.to_owned(),
-            );
-            match api::ConnectorData::get_connector_by_name(connectors, &connector, connector_type)
-            {
-                Ok(connector_data) => session_connector_data.push(api::SessionConnectorData {
+            if let Ok(connector_data) = api::ConnectorData::get_connector_by_name(
+                connectors,
+                &connector,
+                api::GetToken::from(payment_method_type),
+            )
+            .map_err(|err| {
+                logger::error!(session_token_error=?err);
+                err
+            }) {
+                session_connector_data.push(api::SessionConnectorData {
                     payment_method_type,
                     connector: connector_data,
                     business_sub_label,
-                }),
-                Err(error) => {
-                    logger::error!(session_token_error=?error)
-                }
-            }
+                })
+            };
         }
 
         Ok(api::ConnectorChoice::SessionMultiple(
