@@ -10,16 +10,13 @@ pub struct Customer;
 
 impl RequestBuilder for Customer{
   fn make_request_body(data : &MasterData) -> Option<TestRequest>{
-    match &data.customers {
-      Some(customer_data) => {
-        let request_body = Value::clone(customer_data);
-        Some(TestRequest::post()
-            .uri(&String::from("http://localhost:8080/customers"))
-            .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str()))
-            .set_json(&request_body))
-      }
-      None => None,
-    }
+    data.customers.as_ref().map(|customer_data|{
+      let request_body = Value::clone(customer_data);
+      TestRequest::post()
+          .uri(&String::from("http://localhost:8080/customers"))
+          .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str()))
+          .set_json(&request_body)
+    })
   }
 
   fn verify_success_response(resp : &Value, data : &MasterData) -> Self{

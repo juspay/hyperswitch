@@ -55,3 +55,25 @@ pub async fn execute_merchant_account_create_test(master_data : &mut MasterData,
     },
   }
 }
+
+pub struct MerchantAccountDelete;
+
+impl RequestBuilder for MerchantAccountDelete{
+  fn make_request_body(data : &MasterData) -> Option<TestRequest>{
+    let merchant_id = data.merchant_id.as_ref().unwrap();
+    Some(TestRequest::delete()
+        .uri(&format!("http://localhost:8080/accounts/{}",merchant_id))
+        .insert_header(("api-key",data.admin_api_key.as_str())))
+  }
+
+  fn verify_success_response(resp : &Value, data : &MasterData) -> Self{
+      Self
+    }
+  fn verify_failure_response(response : &Value, data : &MasterData) -> Self{
+      unimplemented!();
+    }
+  
+  fn update_master_data(&self,data : &mut MasterData, resp : &Value){
+      unimplemented!();
+  }
+}

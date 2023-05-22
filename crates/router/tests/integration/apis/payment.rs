@@ -59,16 +59,12 @@ pub struct PaymentRetrieve;
 
 impl RequestBuilder for PaymentRetrieve{
   fn make_request_body(data : &MasterData) -> Option<TestRequest>{
-    match &data.payments_retrieve{
-      Some(payments_retrieve_request) => {
-        let payment_id = data.payment_id.as_ref().unwrap();
-        Some(TestRequest::get()
+    data.payments_retrieve.as_ref().map(|_payments_retrieve_request|{
+      let payment_id = data.payment_id.as_ref().unwrap();
+      TestRequest::get()
             .uri(&format!("http://localhost:8080/payments/{}", payment_id))
-            .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str())))
-      }
-      None => None,
-    }
-    
+            .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str()))
+    })
   }
 
   fn verify_success_response(response : &Value, data : &MasterData) -> Self{
@@ -104,10 +100,13 @@ pub struct PaymentCapture;
 
 impl RequestBuilder for PaymentCapture{
   fn make_request_body(data : &MasterData) -> Option<TestRequest>{
-    let payment_id = data.payment_id.as_ref().unwrap();
-    Some(TestRequest::get()
-        .uri(&format!("http://localhost:8080/payments/{}/capture", payment_id))
-        .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str())))
+    data.payment_capture.as_ref().map(|_payment_capture_req|{
+      let payment_id = data.payment_id.as_ref().unwrap();
+      TestRequest::get()
+          .uri(&format!("http://localhost:8080/payments/{}/capture", payment_id))
+          .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str()))
+    })
+    
   }
 
   fn verify_success_response(resp : &Value, data : &MasterData) -> Self{
@@ -129,10 +128,13 @@ pub struct PaymentConfirm;
 
 impl RequestBuilder for PaymentConfirm{
   fn make_request_body(data : &MasterData) -> Option<TestRequest>{
-    let payment_id = data.payment_id.as_ref().unwrap();
-    Some(TestRequest::get()
-        .uri(&format!("http://localhost:8080/payments/{}/confirm", payment_id))
-        .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str())))
+    data.payment_confirm.as_ref().map(|payment_confirm_request|{
+      let payment_id = data.payment_id.as_ref().unwrap();
+      TestRequest::post()
+          .uri(&format!("http://localhost:8080/payments/{}/confirm", payment_id))
+          .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str()))
+          .set_json(payment_confirm_request)
+    })
   }
 
   fn verify_success_response(resp : &Value, data : &MasterData) -> Self{

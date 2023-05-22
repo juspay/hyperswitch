@@ -40,8 +40,8 @@ async fn run_integration_test(){
                 let mut master_data = get_master_data(test_file_path);
                 let test_result = test_api(&mut master_data).await;
                 match test_result{
-                  Ok(()) => println!("Test execution successfull : {:?}",test_file.path()),
-                  Err(error) => println!("Test execution failed for path: {:?} with error : {}",test_file.path(),error),
+                  Ok(()) => println!("Test execution successful : {:?}\n",test_file.path()),
+                  Err(error) => println!("Test execution failed for path: {:?} with error : {}\n",test_file.path(),error),
                 }
               }
           }

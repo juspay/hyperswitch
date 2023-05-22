@@ -19,7 +19,10 @@ impl RequestBuilder for ApiKey{
 
   fn verify_success_response(resp : &Value, data : &MasterData) -> Self{
       let api_key = resp.get("api_key");
+      let res_merchant_id = resp.get("merchant_id");
+      let req_merchant_id = data.merchant_account.get("merchant_id");
       assert_ne!(api_key,None);
+      assert_eq!(res_merchant_id,req_merchant_id);
       Self
   }
 
