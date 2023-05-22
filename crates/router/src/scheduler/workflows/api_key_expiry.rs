@@ -74,7 +74,7 @@ Team Hyperswitch"),
                 tracking_data
                     .api_key_expiry
                     .unwrap()
-                    .saturating_sub(time::Duration::minutes(
+                    .saturating_sub(time::Duration::days(
                         i64::try_from(expiry_reminder_day).unwrap(),
                     ));
             let updated_process_tracker_data = storage::ProcessTrackerUpdate::Update {
