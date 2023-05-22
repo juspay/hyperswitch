@@ -1366,14 +1366,23 @@ pub struct PaymentIntentSyncResponse {
     pub latest_charge: Option<StripeCharge>
 }
 
+impl std::ops::Deref for PaymentIntentSyncResponse {
+    type Target = PaymentIntentResponse;
+
+    fn deref(&self) -> &Self::Target {
+        &self.payment_intent_fields
+    }
+}
+
 #[derive(Deserialize, Clone,Debug)]
 pub struct StripeCharge{
     pub id: String,
-    pub payment_method_details: Option<StripeBankRedirectPaymentMethodDetails>
+    pub payment_method_details: Option<StripePaymentMethodDetailsResponse>
 }
 #[derive(Deserialize, Clone,Debug)]
 #[serde(rename_all = "snake_case", tag = "type")]
-pub enum StripeBankRedirectPaymentMethodDetails{ //only bank redirect payment methods that support recurring payments in stripe (ideal, sofort, bancontact)
+pub enum StripePaymentMethodDetailsResponse{ 
+    //only ideal, sofort and bancontact is supported by stripe for recurring payment in bank redirect
     Ideal{
         ideal : StripeBankRedirectDetails,
     },
@@ -1382,20 +1391,37 @@ pub enum StripeBankRedirectPaymentMethodDetails{ //only bank redirect payment me
     },
     Bancontact{
         bancontact : StripeBankRedirectDetails,
-    }
+    },
+
+    //other payment method types supported by stripe. To avoid deserialization error.
+    Blik,
+    Eps,
+    Fpx,
+    Giropay,
+    #[serde(rename = "p24")]
+    Przelewy24,
+    Card,
+    Klarna,
+    Affirm,
+    AfterpayClearpay,
+    ApplePay,
+    #[serde(rename = "us_bank_account")]
+    Ach,
+    #[serde(rename = "sepa_debit")]
+    Sepa,
+    #[serde(rename = "au_becs_debit")]
+    Becs,
+    #[serde(rename = "bacs_debit")]
+    Bacs,
+    #[serde(rename = "wechat_pay")]
+    Wechatpay,
+    Alipay,
+    
 }
 #[derive(Deserialize,Clone,Debug)]
 pub struct StripeBankRedirectDetails{
     #[serde(rename = "generated_sepa_debit")]
     attached_payment_method : Option<String>,
-}
-
-impl std::ops::Deref for PaymentIntentSyncResponse {
-    type Target = PaymentIntentResponse;
-
-    fn deref(&self) -> &Self::Target {
-        &self.payment_intent_fields
-    }
 }
 
 #[derive(Deserialize)]
@@ -1557,10 +1583,10 @@ impl<F, T>
                 item.response.payment_method_options.clone(),
                 match item.response.latest_charge.clone(){
                     Some(charge) => match charge.payment_method_details{
-                        Some(StripeBankRedirectPaymentMethodDetails::Bancontact{ bancontact }) => bancontact.attached_payment_method.unwrap_or(pm),
-                        Some(StripeBankRedirectPaymentMethodDetails::Ideal{ideal }) => ideal.attached_payment_method.unwrap_or(pm),
-                        Some(StripeBankRedirectPaymentMethodDetails::Sofort{sofort}) => sofort.attached_payment_method.unwrap_or(pm),
-                        None => pm,
+                        Some(StripePaymentMethodDetailsResponse::Bancontact{ bancontact }) => bancontact.attached_payment_method.unwrap_or(pm),
+                        Some(StripePaymentMethodDetailsResponse::Ideal{ideal }) => ideal.attached_payment_method.unwrap_or(pm),
+                        Some(StripePaymentMethodDetailsResponse::Sofort{sofort}) => sofort.attached_payment_method.unwrap_or(pm),
+                        _ => pm,
                     },
                     None => pm,
                 },
