@@ -1,10 +1,10 @@
 use std::env;
 
 use router::types::ConnectorAuthType;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Clone)]
-pub(crate) struct ConnectorAuthentication {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConnectorAuthentication {
     pub aci: Option<BodyKey>,
     pub adyen: Option<BodyKey>,
     pub airwallex: Option<BodyKey>,
@@ -39,6 +39,18 @@ pub(crate) struct ConnectorAuthentication {
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
     pub zen: Option<HeaderKey>,
+    pub hs_base_url: Option<String>,
+    pub hs_api_key: Option<String>,
+    pub hs_test_browser: Option<String>,
+    pub chrome_profile_path: Option<String>,
+    pub firefox_profile_path: Option<String>,
+    pub pypl_email: Option<String>,
+    pub pypl_pass: Option<String>,
+    pub gmail_email: Option<String>,
+    pub gmail_pass: Option<String>,
+    pub configs_url: Option<String>,
+    pub stripe_pub_key: Option<String>,
+    pub testcases_path: Option<String>,
 }
 
 impl ConnectorAuthentication {
@@ -55,8 +67,8 @@ impl ConnectorAuthentication {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub(crate) struct HeaderKey {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct HeaderKey {
     pub api_key: String,
 }
 
@@ -68,8 +80,8 @@ impl From<HeaderKey> for ConnectorAuthType {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub(crate) struct BodyKey {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BodyKey {
     pub api_key: String,
     pub key1: String,
 }
@@ -83,8 +95,8 @@ impl From<BodyKey> for ConnectorAuthType {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub(crate) struct SignatureKey {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SignatureKey {
     pub api_key: String,
     pub key1: String,
     pub api_secret: String,
@@ -100,8 +112,8 @@ impl From<SignatureKey> for ConnectorAuthType {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub(crate) struct MultiAuthKey {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MultiAuthKey {
     pub api_key: String,
     pub key1: String,
     pub api_secret: String,
