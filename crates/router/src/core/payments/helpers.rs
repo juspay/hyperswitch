@@ -803,6 +803,20 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     }
                 }
 
+                Some(api::PaymentMethodData::BankTransfer(bank_transfer)) => {
+                    payment_data.payment_attempt.payment_method =
+                        Some(storage_enums::PaymentMethod::BankTransfer);
+                    let updated_pm = api::PaymentMethodData::BankTransfer(bank_transfer);
+                    vault::Vault::store_payment_method_data_in_locker(
+                        state,
+                        Some(hyperswitch_token),
+                        &updated_pm,
+                        payment_data.payment_intent.customer_id.to_owned(),
+                        enums::PaymentMethod::BankTransfer,
+                    )
+                    .await?;
+                    Some(updated_pm)
+                }
                 Some(_) => Err(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
                     .attach_printable(
@@ -828,6 +842,18 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::BankRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Crypto(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::BankDebit(_)), _) => Ok(pm.to_owned()),
+        (pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)), _) => {
+            let token = vault::Vault::store_payment_method_data_in_locker(
+                state,
+                None,
+                pm,
+                payment_data.payment_intent.customer_id.to_owned(),
+                enums::PaymentMethod::BankTransfer,
+            )
+            .await?;
+            payment_data.token = Some(token);
+            Ok(pm_opt.to_owned())
+        }
         (pm_opt @ Some(pm @ api::PaymentMethodData::Wallet(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
                 state,
@@ -1683,6 +1709,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         payment_method_token: router_data.payment_method_token,
         customer_id: router_data.customer_id,
         connector_customer: router_data.connector_customer,
+        preprocessing_id: router_data.preprocessing_id,
     }
 }
 
@@ -1823,6 +1850,7 @@ impl AttemptType {
             // If the algorithm is entered in Create call from server side, it needs to be populated here, however it could be overridden from the request.
             straight_through_algorithm: old_payment_attempt.straight_through_algorithm,
             mandate_details: old_payment_attempt.mandate_details,
+            preprocessing_step_id: None,
         }
     }
 

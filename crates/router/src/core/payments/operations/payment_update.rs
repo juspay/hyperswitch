@@ -472,7 +472,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     currency: payment_data.currency,
                     setup_future_usage,
                     status: intent_status,
-                    customer_id,
+                    customer_id: customer_id.clone(),
                     shipping_address_id: shipping_address,
                     billing_address_id: billing_address,
                     return_url,

@@ -244,9 +244,7 @@ where
                             .store
                             .insert_mandate(new_mandate_data)
                             .await
-                            .to_duplicate_response(
-                                errors::ApiErrorResponse::DuplicateRefundRequest,
-                            )?;
+                            .to_duplicate_response(errors::ApiErrorResponse::DuplicateMandate)?;
                         metrics::MANDATE_COUNT.add(
                             &metrics::CONTEXT,
                             1,

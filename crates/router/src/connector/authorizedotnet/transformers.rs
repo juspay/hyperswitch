@@ -70,6 +70,7 @@ enum PaymentDetails {
     Paypal,
     #[serde(rename = "bankRedirect")]
     BankRedirect,
+    BankTransfer,
 }
 
 fn get_pm_and_subsequent_auth_detail(
@@ -137,7 +138,8 @@ fn get_pm_and_subsequent_auth_detail(
             }
             api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::MandatePayment => {
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::BankTransfer(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.request.payment_method_data),
                     connector: "AuthorizeDotNet",

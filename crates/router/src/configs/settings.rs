@@ -205,6 +205,7 @@ pub struct CurrencyCountryFlowFilter {
     pub country: Option<HashSet<api_models::enums::CountryAlpha2>>,
     pub not_available_flows: Option<NotAvailableFlows>,
 }
+
 #[derive(Debug, Deserialize, Copy, Clone, Default)]
 #[serde(default)]
 pub struct NotAvailableFlows {
