@@ -183,7 +183,7 @@ pub async fn create_api_key(
 
 // Add api_key_expiry task to the process_tracker table.
 // Construct ProcessTrackerNew struct with schedule_time as current_time, because we want
-// consumer to pick this task immeditaly once api_key is created and then update the
+// consumer to pick this task immediately once api_key is created and then update the
 // schedule_time based on retry_count in execute_workflow().
 #[cfg(feature = "email")]
 #[instrument(skip_all)]
@@ -328,7 +328,7 @@ pub async fn update_api_key(
 }
 
 // Update api_key_expiry task in the process_tracker table.
-// Construct Update varient of ProcessTrackerUpdate with new tracking_data.
+// Construct Update variant of ProcessTrackerUpdate with new tracking_data.
 #[cfg(feature = "email")]
 #[instrument(skip_all)]
 pub async fn update_api_key_expiry_task(
@@ -421,7 +421,7 @@ pub async fn revoke_api_key(
 }
 
 // Function to revoke api_key_expiry task in the process_tracker table when api_key is revoked.
-// Construct StatusUpdate varient of ProcessTrackerUpdate by setting status to 'finish'.
+// Construct StatusUpdate variant of ProcessTrackerUpdate by setting status to 'finish'.
 #[cfg(feature = "email")]
 #[instrument(skip_all)]
 pub async fn revoke_api_key_expiry_task(
