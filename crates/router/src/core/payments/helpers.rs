@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use api_models::{payments::PaymentMethodData, enums::PaymentMethod};
+use api_models::{enums::PaymentMethod, payments::PaymentMethodData};
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, pii,
@@ -35,7 +35,7 @@ use crate::{
         self,
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         storage::{self, enums as storage_enums, ephemeral_key},
-        transformers::ForeignInto,
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::{
         self,
@@ -902,7 +902,7 @@ pub(crate) fn validate_payment_method_fields_present(
     req: &api::PaymentsRequest,
 ) -> RouterResult<()> {
     utils::when(
-        req.payment_method.is_none() && req.payment_method_data.is_some(),
+        req.payment_method.is_some() != req.payment_method_data.is_some(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method",
@@ -923,7 +923,7 @@ pub(crate) fn validate_payment_method_fields_present(
 
     utils::when(
         !matches!(req.payment_method, Some(api_enums::PaymentMethod::Card))
-            &&(req.payment_method_type.is_none()),
+            && (req.payment_method_type.is_none()),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method_type",
@@ -931,97 +931,95 @@ pub(crate) fn validate_payment_method_fields_present(
         },
     )?;
 
-    // let mut _payment_method = match req.payment_method_type{  
-    //     Some(payment_method_type) => {
-    //         match payment_method_type{
-    //             api_enums::PaymentMethodType::ApplePay | api_enums::PaymentMethodType::GooglePay | api_enums::PaymentMethodType::Paypal | api_enums::PaymentMethodType::AliPay | api_enums::PaymentMethodType::MbWay | api_enums::PaymentMethodType::MobilePay | api_enums::PaymentMethodType::WeChatPay => {
-    //                 api_enums::PaymentMethod::Wallet
-    //             },
-    //             api_enums::PaymentMethodType::Affirm | api_enums::PaymentMethodType::AfterpayClearpay | api_enums::PaymentMethodType::Klarna | api_enums::PaymentMethodType::PayBright | api_enums::PaymentMethodType::Walley => {
-    //                 api_enums::PaymentMethod::PayLater
-    //             },
-    //             api_enums::PaymentMethodType::Giropay | api_enums::PaymentMethodType::Ideal | api_enums::PaymentMethodType::Sofort | api_enums::PaymentMethodType::Eps | api_enums::PaymentMethodType::BancontactCard | api_enums::PaymentMethodType::Blik | api_enums::PaymentMethodType::OnlineBankingCzechRepublic | api_enums::PaymentMethodType::OnlineBankingFinland | api_enums::PaymentMethodType::OnlineBankingPoland | api_enums::PaymentMethodType::OnlineBankingSlovakia | api_enums::PaymentMethodType::Przelewy24 | api_enums::PaymentMethodType::Swish | api_enums::PaymentMethodType::Trustly => {
-    //                 api_enums::PaymentMethod::BankRedirect
-    //             },
-    //             api_enums::PaymentMethodType::CryptoCurrency => {
-    //                 api_enums::PaymentMethod::Crypto
-    //             },
-    //             api_enums::PaymentMethodType::Ach | api_enums::PaymentMethodType::Sepa | api_enums::PaymentMethodType::Klarna | api_enums::PaymentMethodType::Bacs | api_enums::PaymentMethodType::Becs => {
-    //                 api_enums::PaymentMethod::BankDebit
-    //             },
-    //             api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
-    //                 api_enums::PaymentMethod::Card
-    //             }
-    //         }
-    //     }
-    //     None => {
-    //         api_enums::PaymentMethod::Card
-    //     }
-    // };
-
-    // let _payment_method = PaymentMethodTemp::from(req.payment_method_type);
+    let payment_method: Option<PaymentMethod> = (req.payment_method_type)
+        .clone()
+        .map(ForeignInto::foreign_into);
 
     utils::when(
-        req.payment_method_type.is_some()
-        &&(!matches!(req.payment_method, _payment_method)),
+        req.payment_method.is_some()
+            && req.payment_method_type.is_some()
+            && (req.payment_method != payment_method),
         || {
-            Err(errors::ApiErrorResponse::InvalidRequestData { message: ( "payment_method_type is not matching with the specified payment_method".to_string()) })
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: ("payment_method_type is not matching with the specified payment_method"
+                    .to_string()),
+            })
         },
     )?;
 
-    // match req.payment_method.as_ref().zip(req.payment_method_data.as_ref()) {
-    //     Some((api_enums::PaymentMethod::Card, PaymentMethodData::Card(..))
-    //             | (api_enums::PaymentMethod::Wallet, PaymentMethodData::Wallet(..))
-    //             | ()) => {},
-        
-    //     _ => error()
-    // }
-
     utils::when(
-        (matches!(req.payment_method, Some(api_enums::PaymentMethod::Card)) && !matches!(req.payment_method_data, Some(PaymentMethodData::Card(..))))
-        | (matches!(req.payment_method, Some(api_enums::PaymentMethod::Wallet)) && !matches!(req.payment_method_data, Some(PaymentMethodData::Wallet(..))))
-        | (matches!(req.payment_method, Some(api_enums::PaymentMethod::PayLater)) && !matches!(req.payment_method_data, Some(PaymentMethodData::PayLater(..))))
-        | (matches!(req.payment_method, Some(api_enums::PaymentMethod::BankRedirect)) && !matches!(req.payment_method_data, Some(PaymentMethodData::BankRedirect(..))))
-        | (matches!(req.payment_method, Some(api_enums::PaymentMethod::BankDebit)) && !matches!(req.payment_method_data, Some(PaymentMethodData::BankDebit(..))))
-        | (matches!(req.payment_method, Some(api_enums::PaymentMethod::Crypto)) && !matches!(req.payment_method_data, Some(PaymentMethodData::Crypto(..)))),
+        !matches!(
+            req.payment_method
+                .as_ref()
+                .zip(req.payment_method_data.as_ref()),
+            Some(
+                (api_enums::PaymentMethod::Card, PaymentMethodData::Card(..))
+                    | (
+                        api_enums::PaymentMethod::Wallet,
+                        PaymentMethodData::Wallet(..)
+                    )
+                    | (
+                        api_enums::PaymentMethod::PayLater,
+                        PaymentMethodData::PayLater(..)
+                    )
+                    | (
+                        api_enums::PaymentMethod::BankRedirect,
+                        PaymentMethodData::BankRedirect(..)
+                    )
+                    | (
+                        api_enums::PaymentMethod::BankDebit,
+                        PaymentMethodData::BankDebit(..)
+                    )
+                    | (
+                        api_enums::PaymentMethod::Crypto,
+                        PaymentMethodData::Crypto(..)
+                    )
+            ) | None
+        ),
         || {
-            Err(errors::ApiErrorResponse::InvalidRequestData { message: ( "payment_method_data is not matching with the specified payment_method".to_string()) })
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "payment_method_data doesn't correspond to the specified payment_method"
+                    .to_string(),
+            })
         },
     )?;
 
     Ok(())
-
 }
 
-#[derive(Debug, Eq, Clone, Copy, PartialEq,Default)]
-pub enum PaymentMethodTemp {
-    #[default]
-    Card,
-    PayLater,
-    Wallet,
-    BankRedirect,
-    Crypto,
-    BankDebit,
-}
-
-impl From<api_enums::PaymentMethodType> for PaymentMethodTemp{
-    fn from(payment_method_type: api_enums::PaymentMethodType) -> Self {
+impl ForeignFrom<api_enums::PaymentMethodType> for PaymentMethod {
+    fn foreign_from(payment_method_type: api_enums::PaymentMethodType) -> Self {
         match payment_method_type {
-            api_enums::PaymentMethodType::ApplePay | api_enums::PaymentMethodType::GooglePay | api_enums::PaymentMethodType::Paypal | api_enums::PaymentMethodType::AliPay | api_enums::PaymentMethodType::MbWay | api_enums::PaymentMethodType::MobilePay | api_enums::PaymentMethodType::WeChatPay => { 
-                Self::Wallet
-            },
-            api_enums::PaymentMethodType::Affirm | api_enums::PaymentMethodType::AfterpayClearpay | api_enums::PaymentMethodType::Klarna | api_enums::PaymentMethodType::PayBright | api_enums::PaymentMethodType::Walley => {
-                Self::PayLater
-            },
-            api_enums::PaymentMethodType::Giropay | api_enums::PaymentMethodType::Ideal | api_enums::PaymentMethodType::Sofort | api_enums::PaymentMethodType::Eps | api_enums::PaymentMethodType::BancontactCard | api_enums::PaymentMethodType::Blik | api_enums::PaymentMethodType::OnlineBankingCzechRepublic | api_enums::PaymentMethodType::OnlineBankingFinland | api_enums::PaymentMethodType::OnlineBankingPoland | api_enums::PaymentMethodType::OnlineBankingSlovakia | api_enums::PaymentMethodType::Przelewy24 | api_enums::PaymentMethodType::Swish | api_enums::PaymentMethodType::Trustly => {
-                Self::BankRedirect
-            },
-            api_enums::PaymentMethodType::CryptoCurrency => {
-                Self::Crypto
-            },
-            api_enums::PaymentMethodType::Ach | api_enums::PaymentMethodType::Sepa | api_enums::PaymentMethodType::Klarna | api_enums::PaymentMethodType::Bacs | api_enums::PaymentMethodType::Becs => {
-                Self::BankDebit
-            },
+            api_enums::PaymentMethodType::ApplePay
+            | api_enums::PaymentMethodType::GooglePay
+            | api_enums::PaymentMethodType::Paypal
+            | api_enums::PaymentMethodType::AliPay
+            | api_enums::PaymentMethodType::MbWay
+            | api_enums::PaymentMethodType::MobilePay
+            | api_enums::PaymentMethodType::WeChatPay => Self::Wallet,
+            api_enums::PaymentMethodType::Affirm
+            | api_enums::PaymentMethodType::AfterpayClearpay
+            | api_enums::PaymentMethodType::Klarna
+            | api_enums::PaymentMethodType::PayBright
+            | api_enums::PaymentMethodType::Walley => Self::PayLater,
+            api_enums::PaymentMethodType::Giropay
+            | api_enums::PaymentMethodType::Ideal
+            | api_enums::PaymentMethodType::Sofort
+            | api_enums::PaymentMethodType::Eps
+            | api_enums::PaymentMethodType::BancontactCard
+            | api_enums::PaymentMethodType::Blik
+            | api_enums::PaymentMethodType::OnlineBankingCzechRepublic
+            | api_enums::PaymentMethodType::OnlineBankingFinland
+            | api_enums::PaymentMethodType::OnlineBankingPoland
+            | api_enums::PaymentMethodType::OnlineBankingSlovakia
+            | api_enums::PaymentMethodType::Przelewy24
+            | api_enums::PaymentMethodType::Swish
+            | api_enums::PaymentMethodType::Trustly => Self::BankRedirect,
+            api_enums::PaymentMethodType::CryptoCurrency => Self::Crypto,
+            api_enums::PaymentMethodType::Ach
+            | api_enums::PaymentMethodType::Sepa
+            | api_enums::PaymentMethodType::Bacs
+            | api_enums::PaymentMethodType::Becs => Self::BankDebit,
             api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
                 Self::Card
             }
