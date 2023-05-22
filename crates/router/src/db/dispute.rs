@@ -171,12 +171,21 @@ impl DisputeInterface for MockDb {
     }
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
         &self,
-        _merchant_id: &str,
-        _payment_id: &str,
-        _connector_dispute_id: &str,
+        merchant_id: &str,
+        payment_id: &str,
+        connector_dispute_id: &str,
     ) -> CustomResult<Option<storage::Dispute>, errors::StorageError> {
-        // TODO: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        Ok(self
+            .disputes
+            .lock()
+            .await
+            .iter()
+            .find(|d| {
+                d.merchant_id == merchant_id
+                    && d.payment_id == payment_id
+                    && d.connector_dispute_id == connector_dispute_id
+            })
+            .cloned())
     }
 
     async fn find_dispute_by_merchant_id_dispute_id(
