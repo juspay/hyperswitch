@@ -1,9 +1,11 @@
 mod transformers;
 use std::fmt::Debug;
 
+use api_models::webhooks;
 use base64::Engine;
 use common_utils::{date_time, ext_traits::StringExt};
 use error_stack::{IntoReport, ResultExt};
+use http::request;
 use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
 use transformers as rapyd;
@@ -807,8 +809,23 @@ impl api::IncomingWebhook for Rapyd {
             .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-
-        webhook.webhook_type.try_into()
+        Ok(match webhook.webhook_type {
+            rapyd::RapydWebhookObjectEventType::PaymentCompleted => api::IncomingWebhookEvent::PaymentIntentFailure,
+            rapyd::RapydWebhookObjectEventType::PaymentCaptured => api::IncomingWebhookEvent::PaymentIntentSuccess,
+            rapyd::RapydWebhookObjectEventType::PaymentFailed => api::IncomingWebhookEvent::PaymentIntentFailure,
+            rapyd::RapydWebhookObjectEventType::PaymentRefundFailed => api::IncomingWebhookEvent::RefundFailure,
+            rapyd::RapydWebhookObjectEventType::RefundCompleted => api::IncomingWebhookEvent::RefundSuccess,
+            rapyd::RapydWebhookObjectEventType::PaymentDisputeCreated => api::IncomingWebhookEvent::DisputeOpened,
+            rapyd::RapydWebhookObjectEventType::PaymentDisputeUpdated => {
+                match webhook.data {
+                    rapyd::WebhookData::DisputeData(data ) => {
+                        api::IncomingWebhookEvent::try_from(data.status)?
+                    },
+                    _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
+                }
+            },
+             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+        })
     }
 
     fn get_webhook_resource_object(
@@ -856,8 +873,8 @@ impl api::IncomingWebhook for Rapyd {
             connector_dispute_id: webhook.token,
             connector_reason: Some(webhook.dispute_reason_description),
             connector_reason_code: None,
-            challenge_required_by: webhook.due_date,
-            connector_status: webhook.status,
+            challenge_required_by: Some(webhook.due_date.to_string()),
+            connector_status: webhook.status.to_string(),
             created_at: Some(webhook.created_at),
             updated_at: Some(webhook.updated_at),
         })

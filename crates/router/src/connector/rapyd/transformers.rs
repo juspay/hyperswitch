@@ -237,17 +237,15 @@ pub struct ResponseData {
     pub failure_message: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct DesputeResponseData {
     pub id: String,
     pub amount: i64,
     pub currency: String,
-    //Stage is None
     pub token: String,
     pub dispute_reason_description: String,
-    //Reason code is None
-    pub due_date: i64,                          //its in timestamp requires conversion
-    pub status: String,
+    pub due_date: i64,                          
+    pub status: RapydWebhookDisputeStatus,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -465,25 +463,40 @@ pub enum RapydWebhookObjectEventType {
     PaymentDisputeUpdated,              
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, strum::Display)]
 pub enum RapydWebhookDisputeStatus {
-    ACT,                                //Wen dont have
+    ACT,                                //DisputeOpened
     RVW,                                //DisputeChallenged
     LOS,                                //DisputeLost
     WIN,                                //DisputeWon
 }
 
-impl TryFrom<RapydWebhookObjectEventType> for api::IncomingWebhookEvent {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: RapydWebhookObjectEventType) -> Result<Self, Self::Error> {
-        match value {
-            RapydWebhookObjectEventType::PaymentCompleted => Ok(Self::PaymentIntentSuccess),
-            RapydWebhookObjectEventType::PaymentCaptured => Ok(Self::PaymentIntentSuccess),
-            RapydWebhookObjectEventType::PaymentFailed => Ok(Self::PaymentIntentFailure),
-            RapydWebhookObjectEventType::PaymentRefundFailed => Ok(Self::RefundFailure),
-            RapydWebhookObjectEventType::RefundCompleted => Ok(Self::RefundSuccess),
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
-        }
+// impl TryFrom<RapydWebhookObjectEventType> for api::IncomingWebhookEvent {
+//     type Error = error_stack::Report<errors::ConnectorError>;
+//     fn try_from(value: RapydWebhookObjectEventType) -> Result<Self, Self::Error> {
+//         match value {
+//             RapydWebhookObjectEventType::PaymentCompleted => Ok(Self::PaymentIntentSuccess),
+//             RapydWebhookObjectEventType::PaymentCaptured => Ok(Self::PaymentIntentSuccess),
+//             RapydWebhookObjectEventType::PaymentFailed => Ok(Self::PaymentIntentFailure),
+//             RapydWebhookObjectEventType::PaymentRefundFailed => Ok(Self::RefundFailure),
+//             RapydWebhookObjectEventType::RefundCompleted => Ok(Self::RefundSuccess),
+//             RapydWebhookObjectEventType::PaymentDisputeCreated => Ok(Self::DisputeOpened),
+//             RapydWebhookObjectEventType::PaymentDisputeUpdated => {}
+//             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+//         }
+//     }
+// }
+
+impl TryFrom<RapydWebhookDisputeStatus> for api_models::webhooks::IncomingWebhookEvent {
+    type Error = errors::ConnectorError;
+    fn try_from(value: RapydWebhookDisputeStatus) -> Result<Self, Self::Error> {
+        Ok(match value {
+            RapydWebhookDisputeStatus::ACT => Self::DisputeOpened,
+            RapydWebhookDisputeStatus::RVW => Self::DisputeChallenged,
+            RapydWebhookDisputeStatus::LOS => Self::DisputeLost,
+            RapydWebhookDisputeStatus::WIN => Self::DisputeWon,
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
+        })
     }
 }
 
