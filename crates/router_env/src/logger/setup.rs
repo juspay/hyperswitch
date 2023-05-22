@@ -134,7 +134,7 @@ fn setup_tracing_pipeline(
 {
     global::set_text_map_propagator(TraceContextPropagator::new());
 
-    let trace_config = trace::config()
+    let mut trace_config = trace::config()
         .with_sampler(trace::Sampler::TraceIdRatioBased(
             config.sampling_rate.unwrap_or(1.0),
         ))
@@ -142,6 +142,9 @@ fn setup_tracing_pipeline(
             "service.name",
             service_name,
         )]));
+    if config.use_xray_generator {
+        trace_config = trace_config.with_id_generator(trace::XrayIdGenerator::default());
+    }
     let traces_layer_result = opentelemetry_otlp::new_pipeline()
         .tracing()
         .with_exporter(get_opentelemetry_exporter(config))

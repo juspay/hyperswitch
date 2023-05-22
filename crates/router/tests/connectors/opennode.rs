@@ -86,6 +86,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         webhook_url: Some(String::from("https://google.com/")),
         complete_authorize_url: None,
         capture_method: None,
+        customer_id: None,
     })
 }
 
