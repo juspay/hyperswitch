@@ -141,6 +141,7 @@ impl DisputeInterface for MockDb {
         {
             Err(errors::StorageError::MockDbError)
         }
+        let now = common_utils::date_time::now();
 
         let new_dispute = storage::Dispute {
             id: locked_disputes.len() as i32,
@@ -159,8 +160,8 @@ impl DisputeInterface for MockDb {
             challenge_required_by: dispute.challenge_required_by,
             connector_created_at: dispute.connector_created_at,
             connector_updated_at: dispute.connector_updated_at,
-            created_at: dispute.created_at,
-            modified_at: dispute.modified_at,
+            created_at: now,
+            modified_at: now,
             connector: dispute.connector,
             evidence: dispute.evidence.unwrap(),
         };
@@ -199,11 +200,63 @@ impl DisputeInterface for MockDb {
 
     async fn find_disputes_by_merchant_id(
         &self,
-        _merchant_id: &str,
-        _dispute_constraints: api_models::disputes::DisputeListConstraints,
+        merchant_id: &str,
+        dispute_constraints: api_models::disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
-        // TODO: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let locked_disputes = self.disputes.lock().await;
+
+        Ok(locked_disputes
+            .iter()
+            .filter(|d| {
+                let mut filtering_condition = d.merchant_id == merchant_id;
+
+                if let Some(dispute_status) = dispute_constraints.dispute_status {
+                    filtering_condition &= d.dispute_status == dispute_status
+                }
+
+                if let Some(dispute_stage) = dispute_constraints.dispute_stage {
+                    filtering_condition &= d.dispute_stage == dispute_stage
+                }
+
+                if d.connector_reason.is_some() {
+                    if let Some(reason) = dispute_constraints.reason {
+                        filtering_condition &= d.connector_reason.unwrap() == reason
+                    }
+                }
+
+                if let Some(connector) = dispute_constraints.connector {
+                    filtering_condition &= d.connector == connector
+                }
+
+                if let Some(received_time) = dispute_constraints.received_time {
+                    filtering_condition &= d.created_at == received_time
+                }
+
+                if let Some(received_time_lt) = dispute_constraints.received_time_lt {
+                    filtering_condition &= d.created_at < received_time_lt
+                }
+
+                if let Some(received_time_gt) = dispute_constraints.received_time_gt {
+                    filtering_condition &= d.created_at > received_time_gt
+                }
+
+                if let Some(received_time_lte) = dispute_constraints.received_time_lte {
+                    filtering_condition &= d.created_at <= received_time_lte
+                }
+
+                if let Some(received_time_gte) = dispute_constraints.received_time_gte {
+                    filtering_condition &= d.created_at >= received_time_gte
+                }
+
+                filtering_condition
+            })
+            .take(if let Some(limit) = dispute_constraints.limit {
+                limit as usize
+            } else {
+                usize::MAX
+            })
+            .cloned()
+            .collect())
     }
 
     async fn find_disputes_by_merchant_id_payment_id(
@@ -226,6 +279,8 @@ impl DisputeInterface for MockDb {
             .iter_mut()
             .find(|d| d.dispute_id == this.dispute_id)
             .ok_or(errors::StorageError::MockDbError)?;
+
+        let now = common_utils::date_time::now();
 
         match dispute {
             storage::DisputeUpdate::Update {
@@ -270,6 +325,8 @@ impl DisputeInterface for MockDb {
                 dispute_to_update.evidence = evidence;
             }
         }
+
+        dispute_to_update.modified_at = now;
 
         Ok(dispute_to_update.clone())
     }
