@@ -57,7 +57,7 @@ pub trait SeleniumTest {
         )
         .expect("Failed to read connector authentication config file")
     }
-    fn get_connector_name() -> String;
+    fn get_connector_name(&self) -> String;
     async fn complete_actions(
         &self,
         driver: &WebDriver,
@@ -76,7 +76,9 @@ pub trait SeleniumTest {
                     Assert::ContainsAny(selector, search_keys) => match selector {
                         Selector::QueryParamStr => {
                             let url = driver.current_url().await?;
-                            assert!(search_keys.iter().any(|key| url.query().unwrap().contains(key)))
+                            assert!(search_keys
+                                .iter()
+                                .any(|key| url.query().unwrap().contains(key)))
                         }
                         _ => assert!(driver.title().await?.contains(search_keys.get(0).unwrap())),
                     },
@@ -106,7 +108,7 @@ pub trait SeleniumTest {
                             }
                         }
                         _ => assert!(driver.title().await?.contains(keys.get(0).unwrap())),
-                    }
+                    },
                     Assert::Eq(_selector, text) => {
                         if text == driver.title().await? {
                             self.complete_actions(driver, events).await?;
@@ -192,18 +194,25 @@ pub trait SeleniumTest {
                     Trigger::Goto(url) => {
                         driver.goto(url).await?;
                         let conf = serde_json::to_string(&self.get_configs()).unwrap();
-                        println!(">>{:?}", conf);
-                        let hs_base_url = self.get_configs().hs_base_url.unwrap_or_else(||
-                            env::var("HS_BASE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string()),
-                        );
-                        let hs_api_key = self.get_configs().hs_api_key.unwrap_or_else(||
-                            env::var("HS_API_KEY").expect("Hyperswitch user API key not present"),
-                        );
+                        let hs_base_url = self.get_configs().hs_base_url.unwrap_or_else(|| {
+                            env::var("HS_BASE_URL")
+                                .unwrap_or_else(|_| "http://localhost:8080".to_string())
+                        });
+                        let configs_url = self.get_configs().configs_url.unwrap();
+                        let script = &[
+                            format!("localStorage.configs='{configs_url}'").as_str(),
+                            format!("localStorage.hs_api_configs='{conf}'").as_str(),
+                            format!("localStorage.current_connector=\"{}\";", self.get_connector_name().clone()).as_str(),
+                        ]
+                        .join(";");
+
                         driver
-                            .add_cookie(new_cookie("hs_base_url", hs_base_url).clone())
+                            .execute(script,
+                                Vec::new(),
+                            )
                             .await?;
                         driver
-                            .add_cookie(new_cookie("hs_api_key", hs_api_key).clone())
+                            .add_cookie(new_cookie("hs_base_url", hs_base_url).clone())
                             .await?;
                     }
                     Trigger::Click(by) => {
@@ -288,12 +297,9 @@ pub trait SeleniumTest {
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
         let config = self.get_configs();
-        println!(">>{:?}", config);
-        let conf = serde_json::to_string(&self.get_configs()).unwrap();
-        println!(">>{:?}", conf);
         let (email, pass) = (
-            &config.gmail_email.unwrap_or_else(||get_env("GMAIL_EMAIL")),
-            &config.gmail_pass.unwrap_or_else(||get_env("GMAIL_PASS")),
+            &config.gmail_email.unwrap_or_else(|| get_env("GMAIL_EMAIL")),
+            &config.gmail_pass.unwrap_or_else(|| get_env("GMAIL_PASS")),
         );
         let default_actions = vec![
             Event::Trigger(Trigger::Goto(url)),
@@ -348,8 +354,11 @@ pub trait SeleniumTest {
             &self
                 .get_configs()
                 .pypl_email
-                .unwrap_or_else(||get_env("PYPL_EMAIL")),
-            &self.get_configs().pypl_pass.unwrap_or_else(||get_env("PYPL_PASS")),
+                .unwrap_or_else(|| get_env("PYPL_EMAIL")),
+            &self
+                .get_configs()
+                .pypl_pass
+                .unwrap_or_else(|| get_env("PYPL_PASS")),
         );
         let mut pypl_actions = vec![
             Event::EitherOr(

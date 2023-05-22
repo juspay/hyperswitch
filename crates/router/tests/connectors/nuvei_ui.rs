@@ -6,7 +6,7 @@ use crate::{selenium::*, tester};
 struct NuveiSeleniumTest;
 
 impl SeleniumTest for NuveiSeleniumTest {
-    fn get_connector_name() -> String {
+    fn get_connector_name(&self) -> String {
         "nuvei".to_string()
     }
 }

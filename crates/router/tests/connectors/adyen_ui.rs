@@ -6,7 +6,7 @@ use crate::{selenium::*, tester};
 struct AdyenSeleniumTest;
 
 impl SeleniumTest for AdyenSeleniumTest {
-    fn get_connector_name() -> String {
+    fn get_connector_name(&self) -> String {
         "adyen".to_string()
     }
 }
@@ -29,7 +29,7 @@ async fn should_make_adyen_gpay_mandate_payment(c: WebDriver) -> Result<(), WebD
         Event::Assert(Assert::IsPresent("succeeded")),
         Event::Assert(Assert::IsPresent("Mandate ID")),
         Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
-        Event::Trigger(Trigger::Click(By::Id("pm-mandate-btn"))),
+        Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
         Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
         Event::Assert(Assert::IsPresent("succeeded")),
     ]).await?;
@@ -46,7 +46,7 @@ async fn should_make_adyen_gpay_zero_dollar_mandate_payment(
         Event::Assert(Assert::IsPresent("succeeded")),
         Event::Assert(Assert::IsPresent("Mandate ID")),
         Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
-        Event::Trigger(Trigger::Click(By::Id("pm-mandate-btn"))),
+        Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
         Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
         Event::Assert(Assert::IsPresent("succeeded")),
     ]).await?;
@@ -74,7 +74,7 @@ async fn should_make_adyen_klarna_mandate_payment(c: WebDriver) -> Result<(), We
             Event::Assert(Assert::IsPresent("succeeded")),
             Event::Assert(Assert::IsPresent("Mandate ID")),
             Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
-            Event::Trigger(Trigger::Click(By::Id("pm-mandate-btn"))),
+            Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
             Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
             Event::Assert(Assert::IsPresent("succeeded")),
     ]).await?;
