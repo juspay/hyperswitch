@@ -941,7 +941,7 @@ impl TryFrom<&types::RefundExecuteRouterData> for NuveiPaymentFlowRequest {
         Self::try_from(NuveiPaymentRequestData {
             client_request_id: item.attempt_id.clone(),
             connector_auth_type: item.connector_auth_type.clone(),
-            amount: item.request.amount.to_string(),
+            amount: item.request.refund_amount.to_string(),
             currency: item.request.currency,
             related_transaction_id: Some(item.request.connector_transaction_id.clone()),
             ..Default::default()

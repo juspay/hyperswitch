@@ -425,7 +425,7 @@ pub struct RefundsData {
     pub connector_refund_id: Option<String>,
     pub currency: storage_enums::Currency,
     /// Amount for the payment against which this refund is issued
-    pub amount: i64,
+    pub payment_amount: i64,
     pub reason: Option<String>,
     pub webhook_url: Option<String>,
     /// Amount to be refunded

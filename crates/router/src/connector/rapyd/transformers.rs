@@ -249,7 +249,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RapydRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             payment: item.request.connector_transaction_id.to_string(),
-            amount: Some(item.request.amount),
+            amount: Some(item.request.refund_amount),
             currency: Some(item.request.currency),
         })
     }
