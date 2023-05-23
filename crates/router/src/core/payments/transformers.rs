@@ -309,20 +309,19 @@ where
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                     || bank_transfer_next_steps.is_some()
                 {
-                    let next_action_type = if bank_transfer_next_steps.is_some() {
-                        api::NextActionType::DisplayBankTransferInformation
-                    } else {
-                        api::NextActionType::RedirectToUrl
-                    };
-                    next_action_response = Some(api::NextAction {
-                        next_action_type,
-                        redirect_to_url: Some(helpers::create_startpay_url(
-                            server,
-                            &payment_attempt,
-                            &payment_intent,
-                        )),
-                        bank_transfer_steps_and_charges_details: bank_transfer_next_steps,
-                    });
+                    next_action_response = bank_transfer_next_steps
+                        .map(|bank_transfer| {
+                            api_models::payments::NextActionData::DisplayBankTransferInformation {
+                                bank_transfer_steps_and_charges_details: bank_transfer,
+                            }
+                        })
+                        .or(Some(api_models::payments::NextActionData::RedirectToUrl {
+                            redirect_to_url: helpers::create_startpay_url(
+                                server,
+                                &payment_attempt,
+                                &payment_intent,
+                            ),
+                        }));
                 };
 
                 let mut response: api::PaymentsResponse = Default::default();

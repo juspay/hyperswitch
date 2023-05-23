@@ -1067,17 +1067,16 @@ pub enum NextActionType {
     TriggerApi,
     DisplayBankTransferInformation,
 }
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
-pub struct NextAction {
-    /// Specifying the action type to be performed next
-    #[serde(rename = "type")]
-    pub next_action_type: NextActionType,
-    //TODO: Make an enum having redirect_to_url and bank_transfer_steps_and_charges_details and use here
-    /// Contains the url for redirection flow
-    #[schema(example = "https://router.juspay.io/redirect/fakushdfjlksdfasklhdfj")]
-    pub redirect_to_url: Option<String>,
-    /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
-    pub bank_transfer_steps_and_charges_details: Option<NextStepsRequirements>,
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NextActionData {
+    RedirectToUrl {
+        redirect_to_url: String,
+    },
+    DisplayBankTransferInformation {
+        bank_transfer_steps_and_charges_details: NextStepsRequirements,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1268,7 +1267,7 @@ pub struct PaymentsResponse {
     pub statement_descriptor_suffix: Option<String>,
 
     /// Additional information required for redirection
-    pub next_action: Option<NextAction>,
+    pub next_action: Option<NextActionData>,
 
     /// If the payment was cancelled the reason provided here
     pub cancellation_reason: Option<String>,
