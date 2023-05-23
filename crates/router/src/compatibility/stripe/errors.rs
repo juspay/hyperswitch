@@ -373,7 +373,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 }
             }
             errors::ApiErrorResponse::MissingRequiredFields { field_names } => {
-                // Instead of creating a new error varient in StripeErrorCode for MissingRequiredFields, converted vec<&str> to String
+                // Instead of creating a new error variant in StripeErrorCode for MissingRequiredFields, converted vec<&str> to String
                 Self::ParameterMissing {
                     field_name: field_names.clone().join(", "),
                     param: field_names.clone().join(", "),
