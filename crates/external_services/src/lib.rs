@@ -20,11 +20,14 @@ pub mod consts {
 /// Metrics for interactions with external systems.
 #[cfg(feature = "kms")]
 pub mod metrics {
-    use router_env::{counter_metric, global_meter, metrics_context};
+    use router_env::{counter_metric, global_meter, histogram_metric, metrics_context};
 
     metrics_context!(CONTEXT);
     global_meter!(GLOBAL_METER, "EXTERNAL_SERVICES");
 
     #[cfg(feature = "kms")]
     counter_metric!(AWS_KMS_FAILURES, GLOBAL_METER); // No. of AWS KMS API failures
+
+    #[cfg(feature = "kms")]
+    histogram_metric!(AWS_KMS_DECRYPT_TIME, GLOBAL_METER);
 }
