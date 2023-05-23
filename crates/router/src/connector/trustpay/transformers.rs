@@ -823,15 +823,15 @@ impl TryFrom<&types::PaymentsSessionRouterData> for TrustpayCreateIntentRequest 
 #[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustpayCreateIntentResponse {
-    pub secrets: SDKSecretInfo,
+    pub secrets: SdkSecretInfo,
     pub apple_init_result_data: TrustpayApplePayResponse,
 }
 
 #[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SDKSecretInfo {
-    pub display: String,
-    pub payment: String,
+pub struct SdkSecretInfo {
+    pub display: Secret<String>,
+    pub payment: Secret<String>,
 }
 
 #[derive(Default, Debug, Deserialize)]
@@ -864,8 +864,8 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<TrustpayCreateIntentRespon
                 session_token: types::api::SessionToken::ApplePay(Box::new(
                     api_models::payments::ApplepaySessionTokenResponse {
                         session_token_data:
-                            api_models::payments::ApplePaySessionResponse::ThirdPartySDK(
-                                api_models::payments::ThirdPartySDKSessionResponse {
+                            api_models::payments::ApplePaySessionResponse::ThirdPartySdk(
+                                api_models::payments::ThirdPartySdkSessionResponse {
                                     secrets: response.secrets.into(),
                                     country_code: response
                                         .apple_init_result_data
@@ -897,8 +897,8 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<TrustpayCreateIntentRespon
     }
 }
 
-impl From<SDKSecretInfo> for api_models::payments::SecretInfoToInitiateSDK {
-    fn from(value: SDKSecretInfo) -> Self {
+impl From<SdkSecretInfo> for api_models::payments::SecretInfoToInitiateSdk {
+    fn from(value: SdkSecretInfo) -> Self {
         Self {
             display: value.display,
             payment: value.payment,

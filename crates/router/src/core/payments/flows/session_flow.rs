@@ -216,10 +216,10 @@ async fn create_applepay_session_token(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failure in calling connector api")?;
-        let session_response: payment_types::NoThirdPartySDKSessionResponse = match response {
+        let session_response: payment_types::NoThirdPartySdkSessionResponse = match response {
             Ok(resp) => resp
                 .response
-                .parse_struct("NoThirdPartySDKSessionResponse")
+                .parse_struct("NoThirdPartySdkSessionResponse")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse ApplePaySessionResponse struct"),
             Err(err) => {
@@ -231,8 +231,8 @@ async fn create_applepay_session_token(
                 Err(
                     report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
                         format!(
-                            "Failed with {} status code and the error response is {:?}",
-                            err.status_code, error_response
+                            "Failed with {} status code and the error message is {:?}",
+                            error_response.status_code, error_response.status_message
                         ),
                     ),
                 )
@@ -243,7 +243,7 @@ async fn create_applepay_session_token(
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: payment_types::SessionToken::ApplePay(Box::new(
                     payment_types::ApplepaySessionTokenResponse {
-                        session_token_data: payment_types::ApplePaySessionResponse::NoThirdPartySDK(
+                        session_token_data: payment_types::ApplePaySessionResponse::NoThirdPartySdk(
                             session_response,
                         ),
                         payment_request_data: Some(applepay_payment_request),
@@ -282,7 +282,14 @@ fn create_gpay_session_token(
         country_code: session_data.country.unwrap_or_default(),
         currency_code: router_data.request.currency.to_string(),
         total_price_status: "Final".to_string(),
-        total_price: router_data.request.amount,
+        total_price: utils::to_currency_base_unit(
+            router_data.request.amount,
+            router_data.request.currency,
+        )
+        .attach_printable("Cannot convert given amount to base currency denomination".to_string())
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "amount",
+        })?,
     };
 
     let response_router_data = types::PaymentsSessionRouterData {

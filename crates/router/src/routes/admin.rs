@@ -158,9 +158,9 @@ pub async fn delete_merchant_account(
 #[utoipa::path(
     post,
     path = "/accounts/{account_id}/connectors",
-    request_body = MerchantConnector,
+    request_body = MerchantConnectorCreate,
     responses(
-        (status = 200, description = "Merchant Connector Created", body = MerchantConnector),
+        (status = 200, description = "Merchant Connector Created", body = MerchantConnectorResponse),
         (status = 400, description = "Missing Mandatory fields"),
     ),
     tag = "Merchant Connector Account",
@@ -198,7 +198,7 @@ pub async fn payment_connector_create(
         ("connector_id" = i32, Path, description = "The unique identifier for the Merchant Connector")
     ),
     responses(
-        (status = 200, description = "Merchant Connector retrieved successfully", body = MerchantConnector),
+        (status = 200, description = "Merchant Connector retrieved successfully", body = MerchantConnectorResponse),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),
@@ -242,7 +242,7 @@ pub async fn payment_connector_retrieve(
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
     ),
     responses(
-        (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<MerchantConnector>),
+        (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<MerchantConnectorResponse>),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),
@@ -275,13 +275,13 @@ pub async fn payment_connector_list(
 #[utoipa::path(
     post,
     path = "/accounts/{account_id}/connectors/{connector_id}",
-    request_body = MerchantConnector,
+    request_body = MerchantConnectorUpdate,
     params(
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
         ("connector_id" = i32, Path, description = "The unique identifier for the Merchant Connector")
     ),
     responses(
-        (status = 200, description = "Merchant Connector Updated", body = MerchantConnector),
+        (status = 200, description = "Merchant Connector Updated", body = MerchantConnectorResponse),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),

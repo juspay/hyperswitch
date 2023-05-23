@@ -18,6 +18,7 @@ traces_enabled = false                                      # Whether traces are
 metrics_enabled = false                                     # Whether metrics are enabled.
 ignore_errors = false                                       # Whether to ignore errors during traces or metrics pipeline setup.
 otel_exporter_otlp_endpoint = "https://otel-collector:4317" # Endpoint to send metrics and traces to.
+use_xray_generator = false
 
 [master_database]
 username = "db_user"
@@ -91,6 +92,7 @@ mollie.base_url = "https://api.mollie.com/v2/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nmi.base_url = "https://secure.nmi.com/"
+noon.base_url = "https://api-test.noonpayments.com/"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
@@ -131,6 +133,7 @@ cards = [
     "multisafepay",
     "nexinets",
     "nmi",
+    "noon",
     "nuvei",
     "opennode",
     "payeezy",
