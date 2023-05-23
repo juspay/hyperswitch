@@ -112,4 +112,6 @@ api_secret = "secrect"
 api_key = "API Key"
 
 [noon]
-api_key = "API Key"
+api_key = "Application API KEY"
+api_secret = "Application Identifier"
+key1 = "Business Identifier"
