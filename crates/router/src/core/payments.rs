@@ -143,7 +143,7 @@ where
         .await?;
 
     if let Some(connector_details) = connector {
-        if should_add_task_to_process_tracker(&payment_data)? {
+        if should_add_task_to_process_tracker(&payment_data) {
             operation
                 .to_domain()?
                 .add_task_to_process_tracker(state, &payment_data.payment_attempt)
@@ -1311,22 +1311,14 @@ pub fn decide_connector(
     Ok(api::ConnectorCallType::Single(connector_data))
 }
 
-pub fn should_add_task_to_process_tracker<F: Clone>(
-    payment_data: &PaymentData<F>,
-) -> RouterResult<bool> {
-    let pm = payment_data
-        .payment_attempt
-        .payment_method
-        .get_required_value("payment_method")?;
-    let connector = payment_data
-        .payment_attempt
-        .connector
-        .clone()
-        .get_required_value("connector")?;
-    let add_task_check = if matches!(pm, storage_enums::PaymentMethod::BankTransfer) {
-        !connector.eq("stripe")
-    } else {
-        true
-    };
-    Ok(add_task_check)
+pub fn should_add_task_to_process_tracker<F: Clone>(payment_data: &PaymentData<F>) -> bool {
+    let connector = payment_data.payment_attempt.connector.as_deref();
+
+    !matches!(
+        (payment_data.payment_attempt.payment_method, connector),
+        (
+            Some(storage_enums::PaymentMethod::BankTransfer),
+            Some("stripe")
+        )
+    )
 }
