@@ -87,6 +87,8 @@ pub enum ApiErrorResponse {
     NotSupported { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_20", message = "{flow} flow not supported by the {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_21", message = "Missing required params: {field_names:?}")]
+    MissingRequiredFields { field_names: Vec<&'static str> },
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
         code: String,
@@ -229,6 +231,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::InvalidRequestUrl => StatusCode::NOT_FOUND, // 404
             Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
             Self::MissingRequiredField { .. }
+            | Self::MissingRequiredFields { .. }
             | Self::InvalidDataValue { .. }
             | Self::InvalidCardIin
             | Self::InvalidCardIinLength => StatusCode::BAD_REQUEST, // 400
@@ -390,6 +393,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 19,
                 "The provided client_secret has expired", None
             )),
+            Self::MissingRequiredFields { field_names } => AER::BadRequest(
+                ApiError::new("IR", 21, format!("Missing required params: {field_names:?}"), None),
+            ),
             Self::ExternalConnectorError {
                 code,
                 message,
