@@ -615,8 +615,8 @@ impl api::IncomingWebhook for Noon {
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
         let message = format!(
             "{},{},{},{},{}",
-            webhook_body.order_id.to_string(),
-            webhook_body.order_status.to_string(),
+            webhook_body.order_id,
+            webhook_body.order_status,
             webhook_body.event_id,
             webhook_body.event_type,
             webhook_body.time_stamp,
