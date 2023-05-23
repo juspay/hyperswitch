@@ -953,8 +953,8 @@ pub(crate) fn validate_payment_method_fields_present(
         },
     )?;
 
-    let payment_method: Option<api_enums::PaymentMethod> = (req.payment_method_type)
-        .map(ForeignInto::foreign_into);
+    let payment_method: Option<api_enums::PaymentMethod> =
+        (req.payment_method_type).map(ForeignInto::foreign_into);
 
     utils::when(
         req.payment_method.is_some()
