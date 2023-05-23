@@ -439,8 +439,7 @@ pub struct PaymentMethodListResponse {
     ))]
     pub payment_methods: Vec<ResponsePaymentMethodsEnabled>,
     /// Value indicating if the current payment is a mandate payment
-    #[schema(example = "new_mandate_txn")]
-    pub mandate_payment: Option<payments::MandateTxnType>,
+    pub mandate_payment: Option<payments::MandateType>,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
