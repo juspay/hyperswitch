@@ -336,14 +336,17 @@ impl MerchantConnectorAccountInterface for MockDb {
         merchant_connector_id: &str,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
         let accounts = self.merchant_connector_accounts.lock().await;
-        Ok(accounts
-            .iter()
-            .find(|account| {
-                account.merchant_id == merchant_id
-                    && account.merchant_connector_id == merchant_connector_id
-            })
-            .cloned()
-            .unwrap())
+
+        match accounts.iter().find(|account| {
+            account.merchant_id == merchant_id
+                && account.merchant_connector_id == merchant_connector_id
+        }) {
+            Some(account) => Ok(account.clone()),
+            None => Err(errors::StorageError::ValueNotFound(
+                "cannot find merchant connector account".to_string(),
+            )
+            .into()),
+        }
     }
 
     #[allow(clippy::panic)]
@@ -389,7 +392,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         Ok(accounts
             .iter()
             .filter(|account: &&storage::MerchantConnectorAccount| {
-                account.merchant_id == merchant_id && account.disabled.unwrap() == get_disabled
+                account.merchant_id == merchant_id && account.disabled == Some(get_disabled)
             })
             .cloned()
             .collect::<Vec<storage::MerchantConnectorAccount>>())
@@ -430,14 +433,20 @@ impl MerchantConnectorAccountInterface for MockDb {
         merchant_connector_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let mut accounts = self.merchant_connector_accounts.lock().await;
-        let index: usize = accounts
-            .iter()
-            .position(|account| {
-                account.merchant_id == merchant_id
-                    && account.merchant_connector_id == merchant_connector_id
-            })
-            .unwrap();
-        accounts.remove(index);
-        Ok(true)
+        match accounts.iter().position(|account| {
+            account.merchant_id == merchant_id
+                && account.merchant_connector_id == merchant_connector_id
+        }) {
+            Some(index) => {
+                accounts.remove(index);
+                return Ok(true);
+            }
+            None => {
+                return Err(errors::StorageError::ValueNotFound(
+                    "cannot find merchant connector account to delete".to_string(),
+                )
+                .into())
+            }
+        }
     }
 }
