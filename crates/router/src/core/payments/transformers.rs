@@ -519,11 +519,11 @@ impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralK
 
 pub fn bank_transfer_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
-) -> RouterResult<Option<api_models::payments::NextStepsRequirements>> {
+) -> RouterResult<Option<api_models::payments::BankTransferNextStepsData>> {
     let bank_transfer_next_step = if let Some(storage_models::enums::PaymentMethod::BankTransfer) =
         payment_attempt.payment_method
     {
-        let bank_transfer_next_steps: Option<api_models::payments::NextStepsRequirements> =
+        let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
             payment_attempt
                 .connector_metadata
                 .map(|metadata| {

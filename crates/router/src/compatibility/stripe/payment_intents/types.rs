@@ -617,7 +617,7 @@ pub enum StripeNextAction {
         redirect_to_url: RedirectUrl,
     },
     DisplayBankTransferInformation {
-        bank_transfer_steps_and_charges_details: payments::NextStepsRequirements,
+        bank_transfer_steps_and_charges_details: payments::BankTransferNextStepsData,
     },
 }
 

@@ -1071,16 +1071,16 @@ pub enum NextActionType {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NextActionData {
-    RedirectToUrl {
-        redirect_to_url: String,
-    },
+    /// Contains the url for redirection flow
+    RedirectToUrl { redirect_to_url: String },
+    /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
     DisplayBankTransferInformation {
-        bank_transfer_steps_and_charges_details: NextStepsRequirements,
+        bank_transfer_steps_and_charges_details: BankTransferNextStepsData,
     },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct NextStepsRequirements {
+pub struct BankTransferNextStepsData {
     #[serde(flatten)]
     pub bank_transfer_instructions: BankTransferInstructions,
     pub receiver: ReceiverDetails,

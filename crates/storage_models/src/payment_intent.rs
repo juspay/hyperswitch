@@ -293,14 +293,15 @@ fn make_client_secret_null_based_on_status(
     status: storage_enums::IntentStatus,
 ) -> Option<Option<String>> {
     match status {
-        storage_enums::IntentStatus::Succeeded
-        | storage_enums::IntentStatus::Failed
-        | storage_enums::IntentStatus::Cancelled => Some(None),
+        storage_enums::IntentStatus::Succeeded | storage_enums::IntentStatus::Cancelled => {
+            Some(None)
+        }
         storage_enums::IntentStatus::Processing
         | storage_enums::IntentStatus::RequiresCustomerAction
         | storage_enums::IntentStatus::RequiresMerchantAction
         | storage_enums::IntentStatus::RequiresPaymentMethod
         | storage_enums::IntentStatus::RequiresConfirmation
-        | storage_enums::IntentStatus::RequiresCapture => None,
+        | storage_enums::IntentStatus::RequiresCapture
+        | storage_enums::IntentStatus::Failed => None,
     }
 }
