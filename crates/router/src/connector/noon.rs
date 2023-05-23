@@ -649,7 +649,7 @@ impl api::IncomingWebhook for Noon {
         let details: noon::NoonWebhookOrderId = request
             .body
             .parse_struct("NoonWebhookOrderId")
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
             api_models::payments::PaymentIdType::ConnectorTransactionId(
                 details.order_id.to_string(),

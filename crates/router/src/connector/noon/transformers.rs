@@ -101,20 +101,15 @@ pub struct NoonPaymentsRequest {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let (payment_data, currency, category) = if item.request.mandate_id.is_some() {
-            (
+        let (payment_data, currency, category) = match item.request.connector_mandate_id() {
+            Some(subscription_identifier) => (
                 NoonPaymentData::Subscription(NoonSubscription {
-                    subscription_identifier: item.request.connector_mandate_id().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "mandate_id",
-                        },
-                    )?,
+                    subscription_identifier,
                 }),
                 None,
                 None,
-            )
-        } else {
-            (
+            ),
+            _ => (
                 match item.request.payment_method_data.clone() {
                     api::PaymentMethodData::Card(req_card) => Ok(NoonPaymentData::Card(NoonCard {
                         name_on_card: req_card.card_holder_name,
@@ -129,7 +124,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 }?,
                 Some(item.request.currency),
                 item.request.order_category.clone(),
-            )
+            ),
         };
         let name = item.get_description()?;
         let (subscription, tokenize_c_c) =
