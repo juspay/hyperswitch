@@ -75,10 +75,12 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
                 CacheKind::Config(key) => {
                     self.delete_key(key.as_ref()).await?;
                     CONFIG_CACHE.invalidate(key.as_ref()).await;
+                    logger::debug!("Successfully deleted {key}");
                 }
                 CacheKind::Accounts(key) => {
                     self.delete_key(key.as_ref()).await?;
                     ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
+                    logger::debug!("Successfully deleted {key}");
                 }
             }
         }
