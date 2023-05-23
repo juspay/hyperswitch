@@ -29,5 +29,5 @@ pub mod metrics {
     counter_metric!(AWS_KMS_FAILURES, GLOBAL_METER); // No. of AWS KMS API failures
 
     #[cfg(feature = "kms")]
-    histogram_metric!(AWS_KMS_DECRYPT_TIME, GLOBAL_METER);
+    histogram_metric!(AWS_KMS_DECRYPT_TIME, GLOBAL_METER); // Histogram for KMS decryption time (in sec)
 }
