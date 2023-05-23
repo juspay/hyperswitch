@@ -1,3 +1,5 @@
+use common_utils::ext_traits::ValueExt;
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -28,6 +30,11 @@ pub struct NoonSubscriptionData {
     subscription_type: NoonSubscriptonType,
     //Short description about the subscription.
     name: String,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct NoonOrderCategory {
+    category: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -114,6 +121,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 None,
             )
         } else {
+            let metadata = item.get_connector_meta()?;
+            let order_category = metadata
+                .parse_value::<NoonOrderCategory>("NoonOrderCategory")
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
             (
                 match item.request.payment_method_data.clone() {
                     api::PaymentMethodData::Card(req_card) => Ok(NoonPaymentData::Card(NoonCard {
@@ -128,11 +139,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                     )),
                 }?,
                 Some(item.request.currency),
-                Some("pay".to_string()),
+                Some(order_category.category),
             )
         };
         let name = item.get_description()?;
-        let (subscription, tokenize_c_c) = if !item.request.mandate_id.is_some() {
+        let (subscription, tokenize_c_c) =
             match item.request.setup_future_usage.is_some().then_some((
                 NoonSubscriptionData {
                     subscription_type: NoonSubscriptonType::Unscheduled,
@@ -143,7 +154,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 Some((a, b)) => (Some(a), Some(b)),
                 None => (None, None),
             };
-        };
         let order = NoonOrder {
             amount: conn_utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency,
@@ -162,9 +172,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             configuration: NoonConfiguration {
                 payment_action,
                 return_url: item.request.router_return_url.clone(),
-                webhook_url: Some(
-                    "https://webhook.site/1a33fc52-3f43-4a59-80cc-ed560176ac64".to_string(),
-                ),
+                webhook_url: item.request.webhook_url.clone(),
                 tokenize_c_c,
             },
             payment_data,
@@ -197,12 +205,14 @@ impl TryFrom<&types::ConnectorAuthType> for NoonAuthType {
         }
     }
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, strum::Display)]
 #[serde(rename_all = "UPPERCASE")]
+#[strum(serialize_all = "UPPERCASE")]
 pub enum NoonPaymentStatus {
     Authorized,
     Captured,
     Reversed,
+    Cancelled,
     #[serde(rename = "3DS_ENROLL_INITIATED")]
     ThreeDsEnrollInitiated,
     Failed,
@@ -214,6 +224,7 @@ impl From<NoonPaymentStatus> for enums::AttemptStatus {
             NoonPaymentStatus::Authorized => Self::Authorized,
             NoonPaymentStatus::Captured => Self::Charged,
             NoonPaymentStatus::Reversed => Self::Voided,
+            NoonPaymentStatus::Cancelled => Self::AuthenticationFailed,
             NoonPaymentStatus::ThreeDsEnrollInitiated => Self::AuthenticationPending,
             NoonPaymentStatus::Failed => Self::Failure,
         }
@@ -466,6 +477,44 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
             ..item.data
         })
     }
+}
+
+#[derive(Debug, Deserialize, strum::Display)]
+pub enum NoonWebhookEventTypes {
+    Authenticate,
+    Authorize,
+    Capture,
+    Fail,
+    Refund,
+    Sale,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonWebhookBody {
+    pub order_id: u64,
+    pub order_status: NoonPaymentStatus,
+    pub event_type: NoonWebhookEventTypes,
+    pub event_id: String,
+    pub time_stamp: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NoonWebhookSignature {
+    pub signature: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonWebhookOrderId {
+    pub order_id: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonWebhookEvent {
+    pub order_status: NoonPaymentStatus,
+    pub event_type: NoonWebhookEventTypes,
 }
 
 #[derive(Debug, Deserialize)]
