@@ -296,8 +296,6 @@ pub fn validate_mandate(
 }
 
 fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResult<()> {
-    let _ = req.customer_id.as_ref().get_required_value("customer_id")?;
-
     let mandate_data = req
         .mandate_data
         .clone()
