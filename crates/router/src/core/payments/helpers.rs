@@ -786,40 +786,16 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     }
                 }
 
-                Some(api::PaymentMethodData::Wallet(wallet_data)) => {
+                Some(api::PaymentMethodData::Wallet(_)) => {
                     payment_data.payment_attempt.payment_method =
                         Some(storage_enums::PaymentMethod::Wallet);
-                    // TODO: Remove redundant update from wallets.
-                    match wallet_data {
-                        api_models::payments::WalletData::PaypalRedirect(_) => pm,
-                        _ => {
-                            let updated_pm = api::PaymentMethodData::Wallet(wallet_data);
-                            vault::Vault::store_payment_method_data_in_locker(
-                                state,
-                                Some(hyperswitch_token),
-                                &updated_pm,
-                                payment_data.payment_intent.customer_id.to_owned(),
-                                enums::PaymentMethod::Wallet,
-                            )
-                            .await?;
-                            Some(updated_pm)
-                        }
-                    }
+                    pm
                 }
 
-                Some(api::PaymentMethodData::BankTransfer(bank_transfer)) => {
+                Some(api::PaymentMethodData::BankTransfer(_)) => {
                     payment_data.payment_attempt.payment_method =
                         Some(storage_enums::PaymentMethod::BankTransfer);
-                    let updated_pm = api::PaymentMethodData::BankTransfer(bank_transfer);
-                    vault::Vault::store_payment_method_data_in_locker(
-                        state,
-                        Some(hyperswitch_token),
-                        &updated_pm,
-                        payment_data.payment_intent.customer_id.to_owned(),
-                        enums::PaymentMethod::BankTransfer,
-                    )
-                    .await?;
-                    Some(updated_pm)
+                    pm
                 }
                 Some(_) => Err(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
