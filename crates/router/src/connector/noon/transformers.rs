@@ -1,5 +1,3 @@
-use common_utils::ext_traits::ValueExt;
-use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -30,11 +28,6 @@ pub struct NoonSubscriptionData {
     subscription_type: NoonSubscriptonType,
     //Short description about the subscription.
     name: String,
-}
-
-#[derive(Debug, Deserialize, Default)]
-pub struct NoonOrderCategory {
-    category: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -121,10 +114,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 None,
             )
         } else {
-            let metadata = item.get_connector_meta()?;
-            let order_category = metadata
-                .parse_value::<NoonOrderCategory>("NoonOrderCategory")
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
             (
                 match item.request.payment_method_data.clone() {
                     api::PaymentMethodData::Card(req_card) => Ok(NoonPaymentData::Card(NoonCard {
@@ -139,7 +128,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                     )),
                 }?,
                 Some(item.request.currency),
-                Some(order_category.category),
+                item.request.order_category.clone(),
             )
         };
         let name = item.get_description()?;
@@ -205,7 +194,7 @@ impl TryFrom<&types::ConnectorAuthType> for NoonAuthType {
         }
     }
 }
-#[derive(Debug, Deserialize, strum::Display)]
+#[derive(Default, Debug, Deserialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum NoonPaymentStatus {
