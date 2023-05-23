@@ -551,7 +551,7 @@ where
 }
 
 #[instrument(
-    skip(request, payload, state, func, api_auth),
+    skip(request, state, func, api_auth),
     fields(request_method, request_url_path)
 )]
 pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut, E>(
