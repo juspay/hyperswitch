@@ -18,14 +18,14 @@ pub enum NoonChannels {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum NoonSubscriptonType {
+pub enum NoonSubscriptionType {
     Unscheduled,
 }
 
 #[derive(Debug, Serialize)]
 pub struct NoonSubscriptionData {
     #[serde(rename = "type")]
-    subscription_type: NoonSubscriptonType,
+    subscription_type: NoonSubscriptionType,
     //Short description about the subscription.
     name: String,
 }
@@ -130,7 +130,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
         let (subscription, tokenize_c_c) =
             match item.request.setup_future_usage.is_some().then_some((
                 NoonSubscriptionData {
-                    subscription_type: NoonSubscriptonType::Unscheduled,
+                    subscription_type: NoonSubscriptionType::Unscheduled,
                     name: name.clone(),
                 },
                 true,
