@@ -1,5 +1,7 @@
 use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
+use storage_models::merchant_connector_account::MerchantConnectorAccountUpdateInternal;
 
 #[cfg(feature = "accounts_cache")]
 use super::cache;
@@ -330,11 +332,18 @@ impl MerchantConnectorAccountInterface for MockDb {
 
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
-        _merchant_id: &str,
-        _merchant_connector_id: &str,
-    ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        merchant_id: &str,
+        merchant_connector_id: &str,
+    ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
+        let accounts = self.merchant_connector_accounts.lock().await;
+        Ok(accounts
+            .iter()
+            .find(|account| {
+                account.merchant_id == merchant_id
+                    && account.merchant_connector_id == merchant_connector_id
+            })
+            .cloned()
+            .unwrap())
     }
 
     #[allow(clippy::panic)]
@@ -373,28 +382,62 @@ impl MerchantConnectorAccountInterface for MockDb {
 
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
-        _merchant_id: &str,
-        _get_disabled: bool,
-    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        merchant_id: &str,
+        get_disabled: bool,
+    ) -> CustomResult<Vec<storage::MerchantConnectorAccount>, errors::StorageError> {
+        let accounts = self.merchant_connector_accounts.lock().await;
+        Ok(accounts
+            .iter()
+            .filter(|account: &&storage::MerchantConnectorAccount| {
+                account.merchant_id == merchant_id && account.disabled.unwrap() == get_disabled
+            })
+            .cloned()
+            .collect::<Vec<storage::MerchantConnectorAccount>>())
     }
 
     async fn update_merchant_connector_account(
         &self,
-        _this: domain::MerchantConnectorAccount,
-        _merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
-    ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        merchant_connector_account: storage::MerchantConnectorAccount,
+        updated_merchant_connector_account: storage::MerchantConnectorAccountUpdate,
+    ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
+        match self
+            .merchant_connector_accounts
+            .lock()
+            .await
+            .iter_mut()
+            .find(|account| account.id == merchant_connector_account.id)
+            .map(|a| {
+                let updated = MerchantConnectorAccountUpdateInternal::from(
+                    updated_merchant_connector_account,
+                )
+                .create_account(a.clone());
+                *a = updated.clone();
+                updated
+            }) {
+            Some(account) => Ok(account),
+            None => {
+                return Err(errors::StorageError::ValueNotFound(
+                    "cannot find merchant connector account to update".to_string(),
+                )
+                .into())
+            }
+        }
     }
 
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
-        _merchant_id: &str,
-        _merchant_connector_id: &str,
+        merchant_id: &str,
+        merchant_connector_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let mut accounts = self.merchant_connector_accounts.lock().await;
+        let index: usize = accounts
+            .iter()
+            .position(|account| {
+                account.merchant_id == merchant_id
+                    && account.merchant_connector_id == merchant_connector_id
+            })
+            .unwrap();
+        accounts.remove(index);
+        Ok(true)
     }
 }
