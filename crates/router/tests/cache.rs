@@ -8,7 +8,7 @@ use router::{
 mod utils;
 
 #[actix_web::test]
-async fn invalidate_cache_success() {
+async fn invalidate_existing_cache_success() {
     // Arrange
     utils::setup().await;
     let (tx, _) = tokio::sync::oneshot::channel();
@@ -52,7 +52,7 @@ async fn invalidate_cache_success() {
 }
 
 #[actix_web::test]
-async fn invalidate_cache_failure() {
+async fn invalidate_non_existing_cache_success() {
     // Arrange
     utils::setup().await;
     let cache_key = "cacheKey".to_string();
@@ -72,5 +72,5 @@ async fn invalidate_cache_failure() {
     // Assert
     let response_body = response.body().await;
     println!("invalidate Cache: {response:?} : {response_body:?}");
-    assert_eq!(response.status(), awc::http::StatusCode::NOT_FOUND);
+    assert_eq!(response.status(), awc::http::StatusCode::OK);
 }

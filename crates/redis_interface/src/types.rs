@@ -237,10 +237,7 @@ impl fred::types::FromRedis for DelReply {
     fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
         match value {
             fred::types::RedisValue::Integer(1) => Ok(Self::KeyDeleted),
-            fred::types::RedisValue::Integer(0) => Err(fred::error::RedisError::new(
-                fred::error::RedisErrorKind::NotFound,
-                "Key not found in redis",
-            )),
+            fred::types::RedisValue::Integer(0) => Ok(Self::KeyNotDeleted),
             _ => Err(fred::error::RedisError::new(
                 fred::error::RedisErrorKind::Unknown,
                 "Unexpected del command reply",

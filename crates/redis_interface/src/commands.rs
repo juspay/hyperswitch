@@ -687,8 +687,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_delete_non_existing_key_failure() {
-        let (is_error, is_not_found_error) = tokio::task::spawn_blocking(move || {
+    async fn test_delete_non_existing_key_success() {
+        let is_success = tokio::task::spawn_blocking(move || {
             futures::executor::block_on(async {
                 // Arrange
                 let pool = RedisConnectionPool::new(&RedisSettings::default())
@@ -699,16 +699,12 @@ mod tests {
                 let result = pool.delete_key("key not exists").await;
 
                 // Assert Setup
-                (
-                    result.is_err(),
-                    *result.unwrap_err().current_context() == RedisError::NotFound,
-                )
+                result.is_ok()
             })
         })
         .await
         .expect("Spawn block failure");
 
-        assert!(is_error);
-        assert!(is_not_found_error);
+        assert!(is_success);
     }
 }
