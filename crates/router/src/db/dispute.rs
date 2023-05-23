@@ -265,11 +265,16 @@ impl DisputeInterface for MockDb {
 
     async fn find_disputes_by_merchant_id_payment_id(
         &self,
-        _merchant_id: &str,
-        _payment_id: &str,
+        merchant_id: &str,
+        payment_id: &str,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
-        // TODO: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let locked_disputes = self.disputes.lock().await;
+
+        Ok(locked_disputes
+            .iter()
+            .filter(|d| d.merchant_id == merchant_id && d.payment_id == payment_id)
+            .cloned()
+            .collect())
     }
 
     async fn update_dispute(
