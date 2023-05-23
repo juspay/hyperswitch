@@ -703,6 +703,12 @@ pub fn is_chargeback_event(event_code: &CheckoutTransactionType) -> bool {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct CheckoutWebhookEventTypeBody {
+    #[serde(rename = "type")]
+    pub transaction_type: CheckoutTransactionType,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct CheckoutWebhookData {
     pub id: String,
     pub payment_id: Option<String>,
@@ -710,6 +716,7 @@ pub struct CheckoutWebhookData {
     pub amount: i32,
     pub currency: String,
 }
+
 #[derive(Debug, Deserialize)]
 pub struct CheckoutWebhookBody {
     #[serde(rename = "type")]
@@ -741,7 +748,10 @@ pub struct CheckoutDisputeWebhookBody {
 #[derive(Debug, Deserialize, strum::Display, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum CheckoutTransactionType {
+    AuthenticationStarted,
+    AuthenticationApproved,
     PaymentApproved,
+    PaymentCaptured,
     PaymentDeclined,
     PaymentRefunded,
     PaymentRefundDeclined,
@@ -761,8 +771,11 @@ pub enum CheckoutTransactionType {
 impl From<CheckoutTransactionType> for api::IncomingWebhookEvent {
     fn from(transaction_type: CheckoutTransactionType) -> Self {
         match transaction_type {
-            CheckoutTransactionType::PaymentApproved => Self::PaymentIntentSuccess,
-            CheckoutTransactionType::PaymentDeclined => Self::PaymentIntentSuccess,
+            CheckoutTransactionType::AuthenticationStarted => Self::EventNotSupported,
+            CheckoutTransactionType::AuthenticationApproved => Self::EventNotSupported,
+            CheckoutTransactionType::PaymentApproved => Self::EventNotSupported,
+            CheckoutTransactionType::PaymentCaptured => Self::PaymentIntentSuccess,
+            CheckoutTransactionType::PaymentDeclined => Self::PaymentIntentFailure,
             CheckoutTransactionType::PaymentRefunded => Self::RefundSuccess,
             CheckoutTransactionType::PaymentRefundDeclined => Self::RefundFailure,
             CheckoutTransactionType::DisputeReceived

@@ -378,3 +378,27 @@ pub async fn attach_evidence(
         })?;
     Ok(create_file_response)
 }
+
+#[instrument(skip(state))]
+pub async fn retrieve_dispute_evidence(
+    state: &AppState,
+    merchant_account: storage::MerchantAccount,
+    req: disputes::DisputeId,
+) -> RouterResponse<Vec<api_models::disputes::DisputeEvidenceBlock>> {
+    let dispute = state
+        .store
+        .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, &req.dispute_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
+            dispute_id: req.dispute_id,
+        })?;
+    let dispute_evidence: api::DisputeEvidence = dispute
+        .evidence
+        .clone()
+        .parse_value("DisputeEvidence")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while parsing dispute evidence record")?;
+    let dispute_evidence_vec =
+        transformers::get_dispute_evidence_vec(state, merchant_account, dispute_evidence).await?;
+    Ok(services::ApplicationResponse::Json(dispute_evidence_vec))
+}

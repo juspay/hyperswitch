@@ -73,6 +73,7 @@ impl StorageInterface for Store {}
 
 #[derive(Clone)]
 pub struct MockDb {
+    addresses: Arc<Mutex<Vec<storage::Address>>>,
     merchant_accounts: Arc<Mutex<Vec<storage::MerchantAccount>>>,
     merchant_connector_accounts: Arc<Mutex<Vec<storage::MerchantConnectorAccount>>>,
     payment_attempts: Arc<Mutex<Vec<storage::PaymentAttempt>>>,
@@ -82,11 +83,13 @@ pub struct MockDb {
     processes: Arc<Mutex<Vec<storage::ProcessTracker>>>,
     connector_response: Arc<Mutex<Vec<storage::ConnectorResponse>>>,
     redis: Arc<redis_interface::RedisConnectionPool>,
+    api_keys: Arc<Mutex<Vec<storage::ApiKey>>>,
 }
 
 impl MockDb {
     pub async fn new(redis: &crate::configs::settings::Settings) -> Self {
         Self {
+            addresses: Default::default(),
             merchant_accounts: Default::default(),
             merchant_connector_accounts: Default::default(),
             payment_attempts: Default::default(),
@@ -96,6 +99,7 @@ impl MockDb {
             processes: Default::default(),
             connector_response: Default::default(),
             redis: Arc::new(crate::connection::redis_connection(redis).await),
+            api_keys: Default::default(),
         }
     }
 }

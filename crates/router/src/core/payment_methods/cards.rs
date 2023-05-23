@@ -881,6 +881,9 @@ pub async fn list_payment_methods(
     let mut bank_debits_consolidated_hm =
         HashMap::<api_enums::PaymentMethodType, Vec<String>>::new();
 
+    let mut bank_transfer_consolidated_hm =
+        HashMap::<api_enums::PaymentMethodType, Vec<String>>::new();
+
     for element in response.clone() {
         let payment_method = element.payment_method;
         let payment_method_type = element.payment_method_type;
@@ -982,6 +985,17 @@ pub async fn list_payment_methods(
                 bank_debits_consolidated_hm.insert(element.payment_method_type, vec![connector]);
             }
         }
+
+        if element.payment_method == api_enums::PaymentMethod::BankTransfer {
+            let connector = element.connector.clone();
+            if let Some(vector_of_connectors) =
+                bank_transfer_consolidated_hm.get_mut(&element.payment_method_type)
+            {
+                vector_of_connectors.push(connector);
+            } else {
+                bank_transfer_consolidated_hm.insert(element.payment_method_type, vec![connector]);
+            }
+        }
     }
 
     let mut payment_method_responses: Vec<ResponsePaymentMethodsEnabled> = vec![];
@@ -1002,6 +1016,7 @@ pub async fn list_payment_methods(
                 card_networks: None,
                 bank_names: None,
                 bank_debits: None,
+                bank_transfers: None,
             })
         }
 
@@ -1028,6 +1043,7 @@ pub async fn list_payment_methods(
                 payment_experience: None,
                 bank_names: None,
                 bank_debits: None,
+                bank_transfers: None,
             })
         }
 
@@ -1050,6 +1066,7 @@ pub async fn list_payment_methods(
                 payment_experience: None,
                 card_networks: None,
                 bank_debits: None,
+                bank_transfers: None,
             }
         })
     }
@@ -1073,8 +1090,9 @@ pub async fn list_payment_methods(
                 payment_experience: None,
                 card_networks: None,
                 bank_debits: Some(api_models::payment_methods::BankDebitTypes {
-                    eligible_connectors: connectors,
+                    eligible_connectors: connectors.clone(),
                 }),
+                bank_transfers: None,
             }
         })
     }
@@ -1086,6 +1104,32 @@ pub async fn list_payment_methods(
         });
     }
 
+    let mut bank_transfer_payment_method_types = vec![];
+
+    for key in bank_transfer_consolidated_hm.iter() {
+        let payment_method_type = *key.0;
+        let connectors = key.1.clone();
+        bank_transfer_payment_method_types.push({
+            ResponsePaymentMethodTypes {
+                payment_method_type,
+                bank_names: None,
+                payment_experience: None,
+                card_networks: None,
+                bank_debits: None,
+                bank_transfers: Some(api_models::payment_methods::BankTransferTypes {
+                    eligible_connectors: connectors,
+                }),
+            }
+        })
+    }
+
+    if !bank_transfer_payment_method_types.is_empty() {
+        payment_method_responses.push(ResponsePaymentMethodsEnabled {
+            payment_method: api_enums::PaymentMethod::BankTransfer,
+            payment_method_types: bank_transfer_payment_method_types,
+        });
+    }
+
     response
         .is_empty()
         .then(|| Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)))
@@ -1093,12 +1137,16 @@ pub async fn list_payment_methods(
             api::PaymentMethodListResponse {
                 redirect_url: merchant_account.return_url,
                 payment_methods: payment_method_responses,
+                mandate_payment: payment_attempt
+                    .and_then(|inner| inner.mandate_details)
+                    // The data stored in the payment attempt only corresponds to a setup mandate.
+                    .map(|_mandate_data| api_models::payments::MandateTxnType::NewMandateTxn),
             },
         )))
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn filter_payment_methods(
+pub async fn filter_payment_methods(
     payment_methods: Vec<serde_json::Value>,
     req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,
