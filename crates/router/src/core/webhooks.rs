@@ -32,6 +32,7 @@ pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
+    println!("source_verification : {}",source_verified);
     let consume_or_trigger_flow = if source_verified {
         payments::CallConnectorAction::HandleResponse(webhook_details.resource_object)
     } else {
