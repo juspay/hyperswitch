@@ -206,27 +206,31 @@ impl TryFrom<&types::ConnectorAuthType> for NoonAuthType {
     }
 }
 #[derive(Debug, Deserialize, strum::Display)]
-#[serde(rename_all = "UPPERCASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum NoonPaymentStatus {
     Authorized,
     Captured,
+    PartiallyCaptured,
     Reversed,
     Cancelled,
     #[serde(rename = "3DS_ENROLL_INITIATED")]
     ThreeDsEnrollInitiated,
     Failed,
+    #[default]
+    Pending,
 }
 
 impl From<NoonPaymentStatus> for enums::AttemptStatus {
     fn from(item: NoonPaymentStatus) -> Self {
         match item {
             NoonPaymentStatus::Authorized => Self::Authorized,
-            NoonPaymentStatus::Captured => Self::Charged,
+            NoonPaymentStatus::Captured | NoonPaymentStatus::PartiallyCaptured => Self::Charged,
             NoonPaymentStatus::Reversed => Self::Voided,
             NoonPaymentStatus::Cancelled => Self::AuthenticationFailed,
             NoonPaymentStatus::ThreeDsEnrollInitiated => Self::AuthenticationPending,
             NoonPaymentStatus::Failed => Self::Failure,
+            NoonPaymentStatus::Pending => Self::Pending,
         }
     }
 }
@@ -236,7 +240,7 @@ pub struct NoonSubscriptionResponse {
     identifier: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsOrderResponse {
     status: NoonPaymentStatus,
