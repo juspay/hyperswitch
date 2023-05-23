@@ -92,6 +92,7 @@ ignore_errors = false                                 # boolean [true or false],
 sampling_rate = 0.1                                   # decimal rate between 0.0 - 1.0
 otel_exporter_otlp_endpoint = "http://localhost:4317" # endpoint to send metrics and traces to, can include port number
 otel_exporter_otlp_timeout = 5000                     # timeout (in milliseconds) for sending metrics and traces
+use_xray_generator = false                            # Set this to true for AWS X-ray compatible traces
 
 # This section provides some secret values.
 [secrets]
@@ -241,6 +242,12 @@ paypal = { currency = "USD,INR", country = "US" }
 [kms]
 key_id = "" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "" # The AWS region used by the KMS SDK for decrypting data.
+
+# EmailClient configuration. Only applicable when the `email` feature flag is enabled.
+[email]
+from_email = "notify@example.com" # Sender email
+aws_region = "" # AWS region used by AWS SES 
+base_url = "" # Base url used when adding links that should redirect to self
 
 [dummy_connector]
 payment_ttl = 172800             # Time to live for dummy connector payment in redis
