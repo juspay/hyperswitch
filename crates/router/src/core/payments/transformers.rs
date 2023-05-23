@@ -436,6 +436,10 @@ where
                                 .and_then(|metadata| metadata.allowed_payment_method_types),
                         )
                         .set_ephemeral_key(ephemeral_key_option.map(ForeignFrom::foreign_from))
+                        .set_manual_retry_allowed(helpers::is_manual_retry_allowed(
+                            &payment_intent.status,
+                            &payment_attempt.status,
+                        ))
                         .to_owned(),
                 )
             }
@@ -478,6 +482,10 @@ where
             cancellation_reason: payment_attempt.cancellation_reason,
             payment_token: payment_attempt.payment_token,
             metadata: payment_intent.metadata,
+            manual_retry_allowed: helpers::is_manual_retry_allowed(
+                &payment_intent.status,
+                &payment_attempt.status,
+            ),
             ..Default::default()
         }),
     })

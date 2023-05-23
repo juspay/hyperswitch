@@ -1309,6 +1309,9 @@ pub struct PaymentsResponse {
 
     /// ephemeral_key for the customer_id mentioned
     pub ephemeral_key: Option<EphemeralKeyCreateResponse>,
+
+    /// If true the payment can be retried with same or different payment method which means the confirm call can be made again.
+    pub manual_retry_allowed: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
