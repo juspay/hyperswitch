@@ -35,7 +35,7 @@ use crate::{
         self,
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         storage::{self, enums as storage_enums, ephemeral_key},
-        transformers::{ForeignInto},
+        transformers::ForeignInto,
     },
     utils::{
         self,
@@ -954,7 +954,6 @@ pub(crate) fn validate_payment_method_fields_present(
     )?;
 
     let payment_method: Option<api_enums::PaymentMethod> = (req.payment_method_type)
-        .clone()
         .map(ForeignInto::foreign_into);
 
     utils::when(
@@ -975,27 +974,25 @@ pub(crate) fn validate_payment_method_fields_present(
                 .as_ref()
                 .zip(req.payment_method_data.as_ref()),
             Some(
-                (api_enums::PaymentMethod::Card, api::PaymentMethodData::Card(..))
-                    | (
-                        api_enums::PaymentMethod::Wallet,
-                        api::PaymentMethodData::Wallet(..)
-                    )
-                    | (
-                        api_enums::PaymentMethod::PayLater,
-                        api::PaymentMethodData::PayLater(..)
-                    )
-                    | (
-                        api_enums::PaymentMethod::BankRedirect,
-                        api::PaymentMethodData::BankRedirect(..)
-                    )
-                    | (
-                        api_enums::PaymentMethod::BankDebit,
-                        api::PaymentMethodData::BankDebit(..)
-                    )
-                    | (
-                        api_enums::PaymentMethod::Crypto,
-                        api::PaymentMethodData::Crypto(..)
-                    )
+                (
+                    api_enums::PaymentMethod::Card,
+                    api::PaymentMethodData::Card(..)
+                ) | (
+                    api_enums::PaymentMethod::Wallet,
+                    api::PaymentMethodData::Wallet(..)
+                ) | (
+                    api_enums::PaymentMethod::PayLater,
+                    api::PaymentMethodData::PayLater(..)
+                ) | (
+                    api_enums::PaymentMethod::BankRedirect,
+                    api::PaymentMethodData::BankRedirect(..)
+                ) | (
+                    api_enums::PaymentMethod::BankDebit,
+                    api::PaymentMethodData::BankDebit(..)
+                ) | (
+                    api_enums::PaymentMethod::Crypto,
+                    api::PaymentMethodData::Crypto(..)
+                )
             ) | None
         ),
         || {
@@ -1007,7 +1004,6 @@ pub(crate) fn validate_payment_method_fields_present(
     )?;
 
     Ok(())
-    
 }
 
 pub fn check_force_psync_precondition(
