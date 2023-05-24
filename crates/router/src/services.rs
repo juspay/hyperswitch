@@ -68,21 +68,26 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
     async fn on_message(&self) -> errors::CustomResult<(), redis_errors::RedisError> {
         let mut rx = self.subscriber.on_message();
         while let Ok(message) = rx.recv().await {
+            logger::debug!("Invalidating {message:?}");
             let key: CacheKind<'_> = RedisValue::new(message.value)
                 .try_into()
                 .change_context(redis_errors::RedisError::OnMessageError)?;
-            match key {
+
+            let key = match key {
                 CacheKind::Config(key) => {
-                    self.delete_key(key.as_ref()).await?;
                     CONFIG_CACHE.invalidate(key.as_ref()).await;
-                    logger::debug!("Successfully deleted {key}");
+                    key
                 }
                 CacheKind::Accounts(key) => {
-                    self.delete_key(key.as_ref()).await?;
                     ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
-                    logger::debug!("Successfully deleted {key}");
+                    key
                 }
-            }
+            };
+
+            self.delete_key(key.as_ref())
+                .await
+                .map_err(|err| logger::error!("Error while deleting redis key: {err:?}"))
+                .ok();
         }
         Ok(())
     }
