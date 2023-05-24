@@ -246,9 +246,9 @@ impl
                     _ => None,
                 };
                 let man_id =
-                    connector_mandate_id.ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "mandate_id",
-                    })?;
+                    connector_mandate_id.ok_or(
+                        errors::ConnectorError::MissingConnectorMandateID
+                    )?;
                 Ok(format!(
                     "{}v1/registrations/{}/payments",
                     self.base_url(connectors),

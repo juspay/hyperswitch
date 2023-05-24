@@ -111,10 +111,10 @@ impl
     ) -> Result<Self, Self::Error> {
         let (item, bank_redirect_data) = value;
         let payment_data = match bank_redirect_data {
-            api_models::payments::BankRedirectData::Eps { .. } => {
+            api_models::payments::BankRedirectData::Eps { country, .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Eps,
-                    bank_account_country: Some(api_models::enums::CountryAlpha2::AT),
+                    bank_account_country: Some(*country),
                     bank_account_bank_name: None,
                     bank_account_bic: None,
                     bank_account_iban: None,
@@ -127,10 +127,11 @@ impl
             api_models::payments::BankRedirectData::Giropay {
                 bank_account_bic,
                 bank_account_iban,
+                country,
                 ..
             } => Self::BankRedirect(Box::new(BankRedirectionPMData {
                 payment_brand: PaymentBrand::Giropay,
-                bank_account_country: Some(api_models::enums::CountryAlpha2::DE),
+                bank_account_country: Some(*country),
                 bank_account_bank_name: None,
                 bank_account_bic: bank_account_bic.clone(),
                 bank_account_iban: bank_account_iban.clone(),
@@ -139,10 +140,10 @@ impl
                 merchant_transaction_id: None,
                 customer_email: None,
             })),
-            api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
+            api_models::payments::BankRedirectData::Ideal { bank_name, country, .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Ideal,
-                    bank_account_country: Some(api_models::enums::CountryAlpha2::NL),
+                    bank_account_country: Some(*country),
                     bank_account_bank_name: Some(bank_name.to_string()),
                     bank_account_bic: None,
                     bank_account_iban: None,
@@ -287,14 +288,14 @@ pub struct CardDetails {
     pub card_cvv: Secret<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum InstructionMode {
     Initial,
     Repeated,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum InstructionType {
     Recurring,
@@ -302,7 +303,7 @@ pub enum InstructionType {
     Unscheduled,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum InstructionSource {
     // Cardholder initiated transaction
@@ -311,7 +312,7 @@ pub enum InstructionSource {
     Mit,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Instruction {
     #[serde(rename = "standingInstruction.mode")]

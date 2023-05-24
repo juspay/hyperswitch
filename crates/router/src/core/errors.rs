@@ -263,6 +263,8 @@ pub enum ConnectorError {
     FlowNotSupported { flow: String, connector: String },
     #[error("Capture method not supported")]
     CaptureMethodNotSupported,
+    #[error("Missing connector mandate ID")]
+    MissingConnectorMandateID,
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]

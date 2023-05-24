@@ -645,6 +645,11 @@ pub enum BankRedirectData {
         /// The hyperswitch bank code for eps
         #[schema(value_type = BankNames, example = "triodos_bank")]
         bank_name: api_enums::BankNames,
+
+        /// The country for bank payment
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: api_enums::CountryAlpha2,
+
     },
     Giropay {
         /// The billing details for bank redirection
@@ -658,6 +663,10 @@ pub enum BankRedirectData {
         /// Bank account iban
         #[schema(value_type = Option<String>)]
         bank_account_iban: Option<Secret<String>>,
+
+        /// The country for bank payment
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: api_enums::CountryAlpha2,
     },
     Ideal {
         /// The billing details for bank redirection
@@ -666,6 +675,10 @@ pub enum BankRedirectData {
         /// The hyperswitch bank code for ideal
         #[schema(value_type = BankNames, example = "abn_amro")]
         bank_name: api_enums::BankNames,
+
+        /// The country for bank payment
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: api_enums::CountryAlpha2,
     },
     Interac {
         /// The country for bank payment
