@@ -13,7 +13,7 @@ use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refu
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
-    configs::settings::Settings,
+    configs::settings,
     db::{MockDb, StorageImpl, StorageInterface},
     routes::cards_info::card_iin_info,
     services::Store,
@@ -23,13 +23,15 @@ use crate::{
 pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
-    pub conf: Settings,
+    pub conf: settings::Settings,
     #[cfg(feature = "email")]
     pub email_client: Box<dyn EmailClient>,
+    #[cfg(feature = "kms")]
+    pub kms_secrets: settings::ActiveKmsSecrets,
 }
 
 pub trait AppStateInfo {
-    fn conf(&self) -> Settings;
+    fn conf(&self) -> settings::Settings;
     fn flow_name(&self) -> String;
     fn store(&self) -> Box<dyn StorageInterface>;
     #[cfg(feature = "email")]
@@ -37,7 +39,7 @@ pub trait AppStateInfo {
 }
 
 impl AppStateInfo for AppState {
-    fn conf(&self) -> Settings {
+    fn conf(&self) -> settings::Settings {
         self.conf.to_owned()
     }
     fn flow_name(&self) -> String {
@@ -54,7 +56,7 @@ impl AppStateInfo for AppState {
 
 impl AppState {
     pub async fn with_storage(
-        conf: Settings,
+        conf: settings::Settings,
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
     ) -> Self {
@@ -66,6 +68,20 @@ impl AppState {
             StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
         };
 
+        #[cfg(feature = "kms")]
+        let kms_secrets = retry(
+            || {
+                crate::configs::kms::KmsDecrypt::decrypt_inner(
+                    settings::ActiveKmsSecrets {
+                        jwekey: conf.jwekey.clone().into(),
+                    },
+                    &conf.kms,
+                )
+            },
+            3,
+        )
+        .await;
+
         #[cfg(feature = "email")]
         #[allow(clippy::expect_used)]
         let email_client = Box::new(AwsSes::new(&conf.email).await);
@@ -75,12 +91,39 @@ impl AppState {
             conf,
             #[cfg(feature = "email")]
             email_client,
+            #[cfg(feature = "kms")]
+            kms_secrets,
         }
     }
 
-    pub async fn new(conf: Settings, shut_down_signal: oneshot::Sender<()>) -> Self {
+    pub async fn new(conf: settings::Settings, shut_down_signal: oneshot::Sender<()>) -> Self {
         Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal).await
     }
+}
+
+#[allow(clippy::panic)]
+///
+/// # Panics
+/// panics of the function fails 2 times
+///
+pub async fn retry<F, T, E, Fut>(func: F, retry_count: u8) -> T
+where
+    F: FnOnce() -> Fut + Copy,
+    Fut: futures::Future<Output = Result<T, E>>,
+    E: std::fmt::Debug,
+{
+    for attempt_count in 0..retry_count {
+        let output = func().await;
+        match output {
+            Ok(value) => return value,
+            Err(err) => {
+                router_env::logger::error!(?attempt_count, ?err, "Failed while decrypting kms keys")
+            }
+        }
+    }
+    // safety: It would try to perform kms decryption `retry_count` times, other wise it should
+    // fail to start the application
+    panic!("Failed while decrypting `ActiveKmsSecrets`")
 }
 
 pub struct Health;

@@ -39,6 +39,13 @@ pub enum Subcommand {
     GenerateOpenapiSpec,
 }
 
+#[cfg(feature = "kms")]
+/// Store the decrypted kms secret values for active use in the application
+#[derive(Clone)]
+pub struct ActiveKmsSecrets {
+    pub jwekey: masking::Secret<Jwekey>,
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Settings {
