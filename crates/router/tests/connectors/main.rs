@@ -38,6 +38,7 @@ mod payu;
 mod rapyd;
 mod selenium;
 mod shift4;
+mod shift4_ui;
 mod stripe;
 mod stripe_ui;
 mod trustpay;
