@@ -8,24 +8,34 @@ use crate::files;
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
 pub struct DisputeResponse {
     /// The identifier for dispute
+    #[schema(value_type = Option<String>)]
     pub dispute_id: String,
     /// The identifier for payment_intent
+    #[schema(value_type = Option<String>)]
     pub payment_id: String,
     /// The identifier for payment_attempt
+    #[schema(value_type = Option<String>)]
     pub attempt_id: String,
     /// The dispute amount
+    #[schema(value_type = Option<String>)]
     pub amount: String,
     /// The three-letter ISO currency code
+    #[schema(value_type = Option<String>)]
     pub currency: String,
     /// Stage of the dispute
+    #[schema(value_type = Option<DisputeStage>)]
     pub dispute_stage: DisputeStage,
     /// Status of the dispute
+    #[schema(value_type = Option<DisputeStage>)]
     pub dispute_status: DisputeStatus,
     /// connector to which dispute is associated with
+    #[schema(value_type = Option<String>)]
     pub connector: String,
     /// Status of the dispute sent by connector
+    #[schema(value_type = Option<String>)]
     pub connector_status: String,
     /// Dispute id sent by connector
+    #[schema(value_type = Option<String>)]
     pub connector_dispute_id: String,
     /// Reason of dispute sent by connector
     pub connector_reason: Option<String>,
@@ -42,6 +52,7 @@ pub struct DisputeResponse {
     pub connector_updated_at: Option<PrimitiveDateTime>,
     /// Time at which dispute is received
     #[serde(with = "common_utils::custom_serde::iso8601")]
+    #[schema(value_type = Option<PrimitiveDateTime>)]
     pub created_at: PrimitiveDateTime,
 }
 
