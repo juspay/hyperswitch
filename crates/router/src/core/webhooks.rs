@@ -553,7 +553,7 @@ pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
     )];
 
     if let Some(signature) = outgoing_webhooks_signature {
-        header.push((headers::X_WEBHOOOK_SIGNATURE.to_string(), signature))
+        header.push((headers::X_WEBHOOK_SIGNATURE.to_string(), signature))
     }
 
     let request = services::RequestBuilder::new()
