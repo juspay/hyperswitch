@@ -1215,7 +1215,7 @@ pub struct PaymentsResponse {
     pub capture_method: Option<api_enums::CaptureMethod>,
 
     /// The payment method that is to be used
-    #[schema(value_type = PaymentMethodType, example = "bank_transfer")]
+    #[schema(value_type = Option<PaymentMethodType>, example = "bank_transfer")]
     #[auth_based]
     pub payment_method: Option<api_enums::PaymentMethod>,
 
@@ -1829,11 +1829,13 @@ pub struct ApplepayErrorResponse {
 #[derive(Default, Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsSessionResponse {
     /// The identifier for the payment
+    #[schema(value_type = Option<String>)]
     pub payment_id: String,
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
-    #[schema(value_type = String)]
+    #[schema(value_type = Option<String>)]
     pub client_secret: Secret<String, pii::ClientSecret>,
     /// The list of session token object
+    #[schema(value_type = Option<Vec<SessionToken>>)]
     pub session_token: Vec<SessionToken>,
 }
 

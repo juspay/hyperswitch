@@ -97,16 +97,21 @@ pub enum RefundType {
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundResponse {
     /// The identifier for refund
+    #[schema(value_type = Option<String>)]
     pub refund_id: String,
     /// The identifier for payment
+    #[schema(value_type = Option<String>)]
     pub payment_id: String,
     /// The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc
+    #[schema(value_type = Option<i64>)]
     pub amount: i64,
     /// The three-letter ISO currency code
+    #[schema(value_type = Option<String>)]
     pub currency: String,
     /// An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive
     pub reason: Option<String>,
     /// The status for refund
+    #[schema(value_type = Option<RefundStatus>)]
     pub status: RefundStatus,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object
     #[schema(value_type = Option<Object>)]
@@ -122,7 +127,7 @@ pub struct RefundResponse {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub updated_at: Option<PrimitiveDateTime>,
     /// The connector used for the refund and the corresponding payment
-    #[schema(example = "stripe")]
+    #[schema(value_type = Option<String>, example = "stripe")]
     pub connector: String,
 }
 
@@ -160,8 +165,10 @@ pub struct RefundListRequest {
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundListResponse {
     /// The number of refunds included in the list
+    #[schema(value_type = Option<usize>)]
     pub size: usize,
     /// The List of refund response object
+    #[schema(value_type = Option<Vec<RefundResponse>>)]
     pub data: Vec<RefundResponse>,
 }
 
