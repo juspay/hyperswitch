@@ -54,7 +54,6 @@ pub struct NoonConfiguration {
     tokenize_c_c: Option<bool>,
     payment_action: NoonPaymentActions,
     return_url: Option<String>,
-    webhook_url: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -156,7 +155,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             configuration: NoonConfiguration {
                 payment_action,
                 return_url: item.request.router_return_url.clone(),
-                webhook_url: item.request.webhook_url.clone(),
                 tokenize_c_c,
             },
             payment_data,
