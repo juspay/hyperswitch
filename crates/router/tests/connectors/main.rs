@@ -43,5 +43,6 @@ mod stripe_ui;
 mod trustpay;
 mod utils;
 mod worldline;
+mod worldline_ui;
 mod worldpay;
 mod zen;
