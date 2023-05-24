@@ -1,0 +1,2 @@
+localStorage.clear()
+localStorage.configs='https://api.npoint.io/6c735e30b1ce90131c9c' 
