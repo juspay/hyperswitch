@@ -1215,7 +1215,7 @@ pub struct PaymentsResponse {
     pub capture_method: Option<api_enums::CaptureMethod>,
 
     /// The payment method that is to be used
-    #[schema(value_type = Option<PaymentMethodType>, example = "bank_transfer")]
+    #[schema(value_type = PaymentMethodType, example = "bank_transfer")]
     #[auth_based]
     pub payment_method: Option<api_enums::PaymentMethod>,
 
