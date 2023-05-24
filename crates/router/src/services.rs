@@ -86,6 +86,8 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
                 .await
                 .map_err(|err| logger::error!("Error while deleting redis key: {err:?}"))
                 .ok();
+
+            logger::debug!("Done invalidating {key}");
         }
         Ok(())
     }
