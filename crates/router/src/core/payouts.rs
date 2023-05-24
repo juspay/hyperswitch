@@ -48,7 +48,7 @@ pub async fn payouts_create_core(
 where
 {
     // TODO: Remove hardcoded connector
-    let connector_name = api_enums::Connector::Adyen;
+    let connector_name = api_enums::Connector::Wise;
 
     // Validate create request
     let payout_id = validator::validate_create_request(state, &merchant_account, &req).await?;
@@ -262,7 +262,7 @@ pub async fn payouts_cancel_core(
     // Trigger connector's cancellation
     } else {
         // TODO: Remove hardcoded connector
-        let connector_name = api_enums::Connector::Adyen;
+        let connector_name = api_enums::Connector::Wise;
         let connector_data: api::ConnectorData = api::ConnectorData::get_connector_by_name(
             &state.conf.connectors,
             &connector_name.to_string(),
@@ -320,7 +320,7 @@ pub async fn payouts_fulfill_core(
     }
 
     // TODO: Remove hardcoded connector
-    let connector_name = api_enums::Connector::Adyen;
+    let connector_name = api_enums::Connector::Wise;
 
     // Form connector data
     let connector_data: api::ConnectorData = api::ConnectorData::get_connector_by_name(
@@ -406,6 +406,13 @@ pub async fn call_connector_payout(
         if payout_data.payouts.payout_type == storage_enums::PayoutType::Bank
             && payout_data.payout_create.status == storage_enums::PayoutStatus::RequiresCreation
         {
+            // Create customer flow
+            *payout_data =
+                create_recipient(state, merchant_account, req, &connector_data, payout_data)
+                    .await
+                    .attach_printable("Creation of customer failed")?;
+
+            // Create payout flow
             *payout_data =
                 create_payout(state, merchant_account, req, &connector_data, payout_data)
                     .await
@@ -445,7 +452,78 @@ pub async fn call_connector_payout(
     .await
 }
 
-#[allow(clippy::too_many_arguments)]
+pub async fn create_recipient(
+    state: &AppState,
+    merchant_account: &storage::merchant_account::MerchantAccount,
+    req: &payouts::PayoutCreateRequest,
+    connector_data: &api::ConnectorData,
+    payout_data: &mut PayoutData,
+) -> RouterResult<PayoutData> {
+    let customer_details = payout_data.customer_details.to_owned();
+    let (is_eligible, _connector_customer_id, _connector_customer_map) =
+        payments::customers::should_call_connector_create_customer(
+            state,
+            connector_data,
+            &customer_details,
+        )?;
+    if is_eligible {
+        // 1. Form router data
+        let customer_router_data = core_utils::construct_payout_router_data(
+            state,
+            &connector_data.connector_name.to_string(),
+            merchant_account,
+            &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
+            payout_data,
+        )
+        .await?;
+
+        // 2. Fetch connector integration details
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::PRecipient,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > = connector_data.connector.get_connector_integration();
+
+        // 3. Call connector service
+        let router_resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &customer_router_data,
+            payments::CallConnectorAction::Trigger,
+        )
+        .await
+        .map_err(|error| error.to_payout_failed_response())?;
+
+        match router_resp.response {
+            Ok(recipient_create_data) => {
+                if let Some(customer) = customer_details {
+                    let db = &*state.store;
+                    let customer_id = customer.customer_id.to_owned();
+                    let merchant_id = merchant_account.merchant_id.to_owned();
+                    let updated_customer = storage::CustomerUpdate::ConnectorCustomer {
+                        connector_customer: Some(
+                            serde_json::json!({"id": recipient_create_data.connector_payout_id}),
+                        ),
+                    };
+                    payout_data.customer_details = Some(
+                        db.update_customer_by_customer_id_merchant_id(
+                            customer_id,
+                            merchant_id,
+                            updated_customer,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error updating customers in db")?,
+                    )
+                }
+            }
+            Err(_err) => {}
+        }
+    }
+    Ok(payout_data.clone())
+}
+
 pub async fn check_payout_eligibility(
     state: &AppState,
     merchant_account: &storage::merchant_account::MerchantAccount,
@@ -547,7 +625,7 @@ pub async fn create_payout(
     payout_data: &mut PayoutData,
 ) -> RouterResult<PayoutData> {
     // 1. Form Router data
-    let router_data = core_utils::construct_payout_router_data(
+    let mut router_data = core_utils::construct_payout_router_data(
         state,
         &connector_data.connector_name.to_string(),
         merchant_account,
@@ -564,7 +642,13 @@ pub async fn create_payout(
         types::PayoutsResponseData,
     > = connector_data.connector.get_connector_integration();
 
-    // 3. Call connector service
+    // 3. Execute pretasks
+    connector_integration
+        .execute_pretasks(&mut router_data, state)
+        .await
+        .map_err(|error| error.to_payout_failed_response())?;
+
+    // 4. Call connector service
     let router_data_resp = services::execute_connector_processing_step(
         state,
         connector_integration,
@@ -574,7 +658,7 @@ pub async fn create_payout(
     .await
     .map_err(|error| error.to_payout_failed_response())?;
 
-    // 4. Process data returned by the connector
+    // 5. Process data returned by the connector
     let db = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
     let payout_id = &payout_data.payouts.payout_id;
@@ -772,7 +856,7 @@ pub async fn fulfill_payout(
                 .status
                 .unwrap_or(payout_create.status.to_owned());
             let updated_payouts = storage::payout_create::PayoutCreateUpdate::StatusUpdate {
-                connector_payout_id: payout_response_data.connector_payout_id,
+                connector_payout_id: payout_create.connector_payout_id.to_owned(),
                 status,
                 error_code: None,
                 error_message: None,

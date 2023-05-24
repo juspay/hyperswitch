@@ -19,6 +19,12 @@ pub struct PEligibility;
 #[derive(Debug, Clone)]
 pub struct PFulfill;
 
+#[derive(Debug, Clone)]
+pub struct PQuote;
+
+#[derive(Debug, Clone)]
+pub struct PRecipient;
+
 pub trait PayoutCancel:
     api::ConnectorIntegration<PCancel, types::PayoutsData, types::PayoutsResponseData>
 {
@@ -39,7 +45,23 @@ pub trait PayoutFulfill:
 {
 }
 
+pub trait PayoutQuote:
+    api::ConnectorIntegration<PQuote, types::PayoutsData, types::PayoutsResponseData>
+{
+}
+
+pub trait PayoutRecipient:
+    api::ConnectorIntegration<PRecipient, types::PayoutsData, types::PayoutsResponseData>
+{
+}
+
 pub trait Payouts:
-    ConnectorCommon + PayoutCancel + PayoutCreate + PayoutEligibility + PayoutFulfill
+    ConnectorCommon
+    + PayoutCancel
+    + PayoutCreate
+    + PayoutEligibility
+    + PayoutFulfill
+    + PayoutQuote
+    + PayoutRecipient
 {
 }
