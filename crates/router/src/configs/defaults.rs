@@ -52,6 +52,7 @@ impl Default for super::settings::Locker {
             basilisk_host: "localhost".into(),
             locker_setup: super::settings::LockerSetup::LegacyLocker,
             locker_signing_key_id: "1".into(),
+            tokenization_host: "".into(),
         }
     }
 }

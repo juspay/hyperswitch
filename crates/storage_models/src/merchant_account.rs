@@ -37,6 +37,8 @@ pub struct MerchantAccount {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub frm_routing_algorithm: Option<serde_json::Value>,
+    pub token_locker_id: Option<String>,
+    pub locker_name: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -84,6 +86,10 @@ pub enum MerchantAccountUpdate {
     StorageSchemeUpdate {
         storage_scheme: storage_enums::MerchantStorageScheme,
     },
+    TokenizationUpdate {
+        token_locker_id: Option<String>,
+        locker_name: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -107,6 +113,8 @@ pub struct MerchantAccountUpdateInternal {
     modified_at: Option<time::PrimitiveDateTime>,
     intent_fulfillment_time: Option<i64>,
     frm_routing_algorithm: Option<serde_json::Value>,
+    token_locker_id: Option<String>,
+    locker_name: Option<String>,
 }
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
@@ -151,6 +159,14 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
                 storage_scheme: Some(storage_scheme),
+                ..Default::default()
+            },
+            MerchantAccountUpdate::TokenizationUpdate {
+                token_locker_id,
+                locker_name,
+            } => Self {
+                token_locker_id,
+                locker_name,
                 ..Default::default()
             },
         }

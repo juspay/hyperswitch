@@ -113,6 +113,7 @@ pub(super) fn create_client(
 pub(super) fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
     let locker_host = locker.host.to_owned();
     let basilisk_host = locker.basilisk_host.to_owned();
+    let tokenization_host = locker.tokenization_host.to_owned();
     vec![
         format!("{locker_host}/cards/add"),
         format!("{locker_host}/cards/retrieve"),
@@ -124,5 +125,8 @@ pub(super) fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
         format!("{basilisk_host}/tokenize/get"),
         format!("{basilisk_host}/tokenize/delete"),
         format!("{basilisk_host}/tokenize/delete/token"),
+        format!("{tokenization_host}/tokenization/getTrid"),
+        format!("{tokenization_host}/v2/tokenization/add"),
+        format!("{tokenization_host}/tokenization/get"),
     ]
 }

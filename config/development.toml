@@ -38,6 +38,7 @@ host = ""
 mock_locker = true
 basilisk_host = ""
 locker_setup = "legacy_locker"
+tokenization_host = ""
 
 [jwekey]
 locker_key_identifier1 = ""

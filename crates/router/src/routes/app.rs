@@ -11,7 +11,7 @@ use super::{admin::*, api_keys::*, disputes::*, files::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
 #[cfg(feature = "oltp")]
-use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
+use super::{ephemeral_key::*, payment_methods::*, tokenization::*, webhooks::*};
 use crate::{
     configs::settings::Settings,
     db::{MockDb, StorageImpl, StorageInterface},
@@ -478,5 +478,16 @@ impl Files {
                     .route(web::delete().to(files_delete))
                     .route(web::get().to(files_retrieve)),
             )
+    }
+}
+
+pub struct Tokenization;
+
+#[cfg(feature = "oltp")]
+impl Tokenization {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/tokenization")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/getTrid").route(web::post().to(get_trid)))
     }
 }

@@ -253,6 +253,8 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         frm_routing_algorithm -> Nullable<Jsonb>,
+        token_locker_id -> Nullable<Varchar>,
+        locker_name -> Nullable<Varchar>,
     }
 }
 

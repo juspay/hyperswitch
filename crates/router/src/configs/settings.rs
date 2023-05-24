@@ -286,6 +286,7 @@ pub struct Locker {
     pub basilisk_host: String,
     pub locker_setup: LockerSetup,
     pub locker_signing_key_id: String,
+    pub tokenization_host: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
