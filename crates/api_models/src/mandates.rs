@@ -13,22 +13,26 @@ pub struct MandateId {
 #[derive(Default, Debug, Deserialize, Serialize, ToSchema)]
 pub struct MandateRevokedResponse {
     /// The identifier for mandate
+    #[schema(value_type = Option<String>)]
     pub mandate_id: String,
     /// The status for mandates
-    #[schema(value_type = MandateStatus)]
+    #[schema(value_type = Option<MandateStatus>)]
     pub status: api_enums::MandateStatus,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize, ToSchema)]
 pub struct MandateResponse {
     /// The identifier for mandate
+    #[schema(value_type = Option<String>)]
     pub mandate_id: String,
     /// The status for mandates
-    #[schema(value_type = MandateStatus)]
+    #[schema(value_type = Option<MandateStatus>)]
     pub status: api_enums::MandateStatus,
     /// The identifier for payment method
+    #[schema(value_type = Option<String>)]
     pub payment_method_id: String,
     /// The payment method
+    #[schema(value_type = Option<String>)]
     pub payment_method: String,
     /// The card details for mandate
     pub card: Option<MandateCardDetails>,
