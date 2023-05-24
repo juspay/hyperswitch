@@ -3,12 +3,9 @@ name: Postman Api test
 on:
   push:
     branches:
-      - api-integration-tests
-  # push:
-  #   branches:
-  #     - main
-  # schedule:
-  #     - cron: "15 0 * * *"
+      - main
+  schedule:
+      - cron: "15 0 * * *"
 
   pull_request:
 
@@ -48,4 +45,4 @@ jobs:
         run: portman --cliOptionsFile postman/portman-cli.json
 
       - name: Run Newman
-        run: newman run postman/collection.postman.json --env-var apiKey=${{ secrets.INTEG_API_KEY }} baseUrl='https://integ.hyperswitch.io'
+        run: newman run postman/collection.postman.json --env-var apiKey=${{ secrets.INTEG_ADMIN_API_KEY }} baseUrl='https://integ.hyperswitch.io'
