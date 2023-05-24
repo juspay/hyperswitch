@@ -108,17 +108,32 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
-    ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)> {
+        // connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
+    ) -> RouterResult<Option<String>> {
         customers::create_connector_customer(
             state,
             connector,
             self,
             types::ConnectorCustomerData::try_from(self)?,
-            connector_customer_map,
         )
         .await
     }
+
+    // async fn create_connector_customer<'a>(
+    //     &self,
+    //     state: &AppState,
+    //     connector: &api::ConnectorData,
+    //     connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
+    // ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)> {
+    //     customers::create_connector_customer(
+    //         state,
+    //         connector,
+    //         self,
+    //         types::ConnectorCustomerData::try_from(self)?,
+    //         connector_customer_map,
+    //     )
+    //     .await
+    // }
 }
 
 impl types::PaymentsAuthorizeRouterData {

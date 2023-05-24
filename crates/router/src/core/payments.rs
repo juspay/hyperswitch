@@ -619,7 +619,7 @@ where
 
 pub async fn call_create_connector_customer_if_required<F, Req>(
     state: &AppState,
-    connector_name: &Option<String>,
+    _connector_name: &Option<String>,
     customer: &Option<storage::Customer>,
     merchant_account: &storage::MerchantAccount,
     payment_data: &mut PaymentData<F>,
@@ -638,17 +638,25 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, Req>,
 {
+    let connector_name = payment_data.payment_attempt.connector.clone();
+
     match connector_name {
         Some(connector_name) => {
             let connector = api::ConnectorData::get_connector_by_name(
                 &state.conf.connectors,
-                connector_name,
+                &connector_name,
                 api::GetToken::Connector,
             )?;
-            let (is_eligible, connector_customer_id, connector_customer_map) =
-                customers::should_call_connector_create_customer(state, &connector, customer)?;
 
-            if is_eligible {
+            println!("hola");
+
+            let (should_call_connector, existing_connector_customer_id) =
+                customers::should_call_connector_create_customer(state, &connector, customer);
+
+            println!("bola");
+
+            if should_call_connector {
+                println!("kola");
                 // Create customer at connector and update the customer table to store this data
                 let router_data = payment_data
                     .construct_router_data(
@@ -659,15 +667,25 @@ where
                     )
                     .await?;
 
-                let (connector_customer, customer_update) = router_data
-                    .create_connector_customer(state, &connector, connector_customer_map)
+                let connector_customer_id = router_data
+                    .create_connector_customer(state, &connector)
                     .await?;
 
-                payment_data.connector_customer_id = connector_customer;
+                let customer_update = customers::update_connector_customer_in_customers(
+                    &connector_name,
+                    customer.as_ref(),
+                    &connector_customer_id,
+                )
+                .await;
+
+                println!("customer_update = {connector_customer_id:?}");
+
+                payment_data.connector_customer_id = connector_customer_id;
                 Ok(customer_update)
             } else {
                 // Customer already created in previous calls use the same value, no need to update
-                payment_data.connector_customer_id = connector_customer_id;
+                payment_data.connector_customer_id =
+                    existing_connector_customer_id.map(ToOwned::to_owned);
                 Ok(None)
             }
         }
