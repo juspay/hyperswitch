@@ -380,7 +380,10 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             api_models::enums::IntentStatus::RequiresCustomerAction => {
                 let startpay_url = payments_response
                     .next_action
-                    .and_then(|next_action| next_action.redirect_to_url)
+                    .and_then(|next_action_data| match next_action_data {
+                        api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
+                        api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
+                    })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
                     .attach_printable(
