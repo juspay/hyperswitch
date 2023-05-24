@@ -1,7 +1,7 @@
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
     CustomerAcceptance, MandateData, MandateTxnType, MandateType, MandateValidationFields,
-    NextAction, NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
+    NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
     PaymentListResponse, PaymentMethodData, PaymentMethodDataResponse, PaymentOp,
     PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsCancelRequest,
     PaymentsCaptureRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRequest,
