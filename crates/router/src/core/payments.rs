@@ -852,9 +852,7 @@ where
                         .to_domain()?
                         .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
                         .await?;
-                    if payment_data.payment_method_data.is_none() {
-                        payment_data.payment_method_data = payment_method_data;
-                    }
+                    payment_data.payment_method_data = payment_method_data;
                     TokenizationAction::SkipConnectorTokenization
                 }
 
@@ -864,10 +862,7 @@ where
                         .to_domain()?
                         .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
                         .await?;
-
-                    if payment_data.payment_method_data.is_none() {
-                        payment_data.payment_method_data = payment_method_data;
-                    }
+                    payment_data.payment_method_data = payment_method_data;
                     TokenizationAction::TokenizeInConnector
                 }
                 TokenizationAction::ConnectorToken(token) => {
@@ -885,9 +880,8 @@ where
                 .to_domain()?
                 .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
                 .await?;
-            if payment_data.payment_method_data.is_none() {
-                payment_data.payment_method_data = payment_method_data;
-            }
+            
+            payment_data.payment_method_data = payment_method_data;
             (payment_data, TokenizationAction::SkipConnectorTokenization)
         }
     };
