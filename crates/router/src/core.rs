@@ -11,6 +11,5 @@ pub mod metrics;
 pub mod payment_methods;
 pub mod payments;
 pub mod refunds;
-pub mod tokenization;
 pub mod utils;
 pub mod webhooks;

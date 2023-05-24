@@ -10,7 +10,6 @@ pub mod mandates;
 pub mod payment_methods;
 pub mod payments;
 pub mod refunds;
-pub mod tokenization;
 pub mod webhooks;
 
 use std::{fmt::Debug, str::FromStr};

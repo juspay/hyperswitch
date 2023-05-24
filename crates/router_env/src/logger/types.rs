@@ -184,8 +184,6 @@ pub enum Flow {
     AttachDisputeEvidence,
     /// Retrieve Dispute Evidence flow
     RetrieveDisputeEvidence,
-    /// Tokenization onboarding
-    TokenizationGetTrid,
 }
 
 ///

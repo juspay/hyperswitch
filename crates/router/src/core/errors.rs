@@ -326,16 +326,6 @@ pub enum VaultError {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum TokenizationError {
-    #[error("Failed to get trid in tokenization onboarding")]
-    GetTridFailed,
-    #[error("Failed to tokenize card in card tokenization")]
-    CardTokenizationFailed,
-    #[error("Failed to get tokenized card token in tokenization")]
-    GetTokenFailed,
-}
-
-#[derive(Debug, thiserror::Error)]
 pub enum KmsError {
     #[error("Failed to base64 decode input data")]
     Base64DecodingFailed,
