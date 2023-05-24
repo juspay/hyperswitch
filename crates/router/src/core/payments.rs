@@ -8,6 +8,7 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
+use actix_web::ResponseError;
 use api_models::payments::Metadata;
 use common_utils::pii::Email;
 use error_stack::{IntoReport, ResultExt};
@@ -34,7 +35,7 @@ use crate::{
     },
     db::StorageInterface,
     logger,
-    routes::AppState,
+    routes::{metrics::request::status_code_metrics, AppState},
     scheduler::utils as pt_utils,
     services::{self, api::Authenticate},
     types::{
@@ -224,6 +225,7 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
 {
+    let merchant_id = merchant_account.merchant_id.to_string();
     let (payment_data, req, customer) = payments_operation_core(
         state,
         merchant_account,

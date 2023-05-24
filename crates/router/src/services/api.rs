@@ -9,7 +9,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::{body, HttpRequest, HttpResponse, Responder};
+use actix_web::{body, HttpRequest, HttpResponse, Responder, ResponseError};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
@@ -528,6 +528,7 @@ pub enum AuthFlow {
 
 #[instrument(skip(request, payload, state, func, api_auth))]
 pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
+    flow: &'a impl router_env::types::FlowMetric,
     state: &'b A,
     request: &'a HttpRequest,
     payload: T,
@@ -536,18 +537,36 @@ pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
     F: Fn(&'b A, U, T) -> Fut,
+    'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
     A: AppStateInfo,
+    U: auth::AuthInfo,
     CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
     CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
+    OErr: ResponseError + Sync + Send + 'static,
 {
     let auth_out = api_auth
         .authenticate_and_fetch(request.headers(), state)
         .await
         .switch()?;
-    func(state, auth_out, payload).await.switch()
+    let metric_merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
+
+    let output = func(state, auth_out, payload).await.switch();
+
+    match output {
+        Ok(res) => Ok(res),
+        Err(err) => {
+            let status_code = err.current_context().status_code().as_u16().into();
+            metrics::request::status_code_metrics(
+                status_code,
+                flow.to_string(),
+                metric_merchant_id.to_string(),
+            );
+            Err(err)
+        }
+    }
 }
 
 #[instrument(
@@ -567,6 +586,7 @@ where
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
+    U: auth::AuthInfo,
     A: AppStateInfo,
     CustomResult<ApplicationResponse<Q>, E>:
         ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
@@ -579,8 +599,8 @@ where
     let start_instant = Instant::now();
     logger::info!(tag = ?Tag::BeginRequest);
     let res = match metrics::request::record_request_time_metric(
-        server_wrap_util(state, request, payload, func, api_auth),
-        flow,
+        server_wrap_util(&flow, state, request, payload, func, api_auth),
+        &flow,
     )
     .await
     {

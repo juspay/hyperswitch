@@ -12,6 +12,7 @@ use crate::{
         payments::helpers,
     },
     db::StorageInterface,
+    routes::metrics,
     services::api as service_api,
     types::{
         self, api,
@@ -378,6 +379,16 @@ pub async fn create_payment_connector(
         }
         None => None,
     };
+
+    metrics::MCA_CREATE.add(
+        &metrics::CONTEXT,
+        1,
+        &[
+            metrics::request::add_attributes("connector", req.connector_name.to_string()),
+            metrics::request::add_attributes("merchant", merchant_id.to_string()),
+        ],
+    );
+
     let merchant_connector_account = storage::MerchantConnectorAccountNew {
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
