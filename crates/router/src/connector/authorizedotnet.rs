@@ -667,13 +667,13 @@ impl api::IncomingWebhook for Authorizedotnet {
             authorizedotnet::AuthorizedotnetWebhookEvent::RefundCreated => {
                 Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                     api_models::webhooks::RefundIdType::ConnectorRefundId(
-                        authorizedotnet::get_trans_id(details)?,
+                        authorizedotnet::get_trans_id(&details)?,
                     ),
                 ))
             }
             _ => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    authorizedotnet::get_trans_id(details)?,
+                    authorizedotnet::get_trans_id(&details)?,
                 ),
             )),
         }
@@ -716,11 +716,12 @@ impl api::IncomingWebhook for Authorizedotnet {
             .body
             .parse_struct("AuthorizedotnetWebhookObjectId")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        println!("payload: {:#?}", payload);
-        let data = authorizedotnet::AuthorizedotnetSyncResponse::try_from(payload)?;
-        let x = serde_json::to_value(data).into_report()
+        let sync_payload = serde_json::to_value(
+            authorizedotnet::AuthorizedotnetSyncResponse::try_from(payload)?,
+        )
+        .into_report()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-        Ok(x)
+        Ok(sync_payload)
     }
 }
 
