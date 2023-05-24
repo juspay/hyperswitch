@@ -1,6 +1,7 @@
 pub mod transformers;
 pub mod utils;
 
+use common_utils::{crypto::SignMessage, ext_traits};
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
@@ -478,9 +479,33 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookTy
             timestamp: event.created_at,
         };
 
+        let webhook_signature_payload =
+            ext_traits::Encode::<serde_json::Value>::encode_to_string_of_json(&outgoing_webhook)
+                .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)?;
+
+        let outgoing_webhooks_signature = merchant_account
+            .payment_response_hash_key
+            .clone()
+            .map(|key| {
+                common_utils::crypto::HmacSha512::sign_message(
+                    &common_utils::crypto::HmacSha512,
+                    key.as_bytes(),
+                    webhook_signature_payload.as_bytes(),
+                )
+            })
+            .transpose()
+            .change_context(errors::WebhooksFlowError::MerchantConfigNotFound)
+            .attach_printable("Failed to sign the message")?
+            .map(hex::encode);
+
         arbiter.spawn(async move {
-            let result =
-                trigger_webhook_to_merchant::<W>(merchant_account, outgoing_webhook, &state).await;
+            let result = trigger_webhook_to_merchant::<W>(
+                merchant_account,
+                outgoing_webhook,
+                outgoing_webhooks_signature,
+                &state,
+            )
+            .await;
 
             if let Err(e) = result {
                 logger::error!(?e);
@@ -494,6 +519,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookTy
 pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
     merchant_account: storage::MerchantAccount,
     webhook: api::OutgoingWebhook,
+    outgoing_webhooks_signature: Option<String>,
     state: &AppState,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     let webhook_details_json = merchant_account
@@ -521,14 +547,20 @@ pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
             .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
             .attach_printable("There was an issue when encoding the outgoing webhook body")?;
 
+    let mut header = vec![(
+        reqwest::header::CONTENT_TYPE.to_string(),
+        "application/json".into(),
+    )];
+
+    if let Some(signature) = outgoing_webhooks_signature {
+        header.push(("x-webhook-signature".to_string(), signature))
+    }
+
     let request = services::RequestBuilder::new()
         .method(services::Method::Post)
         .url(&webhook_url)
         .attach_default_headers()
-        .headers(vec![(
-            reqwest::header::CONTENT_TYPE.to_string(),
-            "application/json".into(),
-        )])
+        .headers(header)
         .body(Some(transformed_outgoing_webhook_string))
         .build();
 
