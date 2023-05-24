@@ -1586,9 +1586,9 @@ pub struct Metadata {
 
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct RedirectResponse {
-    pub param: Option<String>,
+    pub param: Option<Secret<String>>,
     #[schema(value_type = Option<Object>)]
-    pub json_payload: Option<serde_json::Value>,
+    pub json_payload: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
