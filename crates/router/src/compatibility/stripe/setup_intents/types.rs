@@ -284,22 +284,34 @@ pub struct RedirectUrl {
     pub url: Option<String>,
 }
 
-#[derive(Eq, PartialEq, Serialize)]
-pub struct StripeNextAction {
-    #[serde(rename = "type")]
-    stype: payments::NextActionType,
-    redirect_to_url: RedirectUrl,
+#[derive(Eq, PartialEq, serde::Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum StripeNextAction {
+    RedirectToUrl {
+        redirect_to_url: RedirectUrl,
+    },
+    DisplayBankTransferInformation {
+        bank_transfer_steps_and_charges_details: payments::BankTransferNextStepsData,
+    },
 }
 
 pub(crate) fn into_stripe_next_action(
-    next_action: Option<payments::NextAction>,
+    next_action: Option<payments::NextActionData>,
     return_url: Option<String>,
 ) -> Option<StripeNextAction> {
-    next_action.map(|n| StripeNextAction {
-        stype: n.next_action_type,
-        redirect_to_url: RedirectUrl {
-            return_url,
-            url: n.redirect_to_url,
+    next_action.map(|next_action_data| match next_action_data {
+        payments::NextActionData::RedirectToUrl { redirect_to_url } => {
+            StripeNextAction::RedirectToUrl {
+                redirect_to_url: RedirectUrl {
+                    return_url,
+                    url: Some(redirect_to_url),
+                },
+            }
+        }
+        payments::NextActionData::DisplayBankTransferInformation {
+            bank_transfer_steps_and_charges_details,
+        } => StripeNextAction::DisplayBankTransferInformation {
+            bank_transfer_steps_and_charges_details,
         },
     })
 }
