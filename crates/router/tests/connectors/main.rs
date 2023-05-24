@@ -43,6 +43,7 @@ mod stripe;
 mod stripe_ui;
 mod trustpay;
 mod utils;
+mod wise;
 mod worldline;
 mod worldline_ui;
 mod worldpay;

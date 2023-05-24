@@ -68,7 +68,7 @@ pub async fn validate_create_request(
     })?;
 
     let db: &dyn StorageInterface = &*state.store;
-    let payout_id = core_utils::get_or_generate_id("payout_id", &req.payout_id, "payout")?;
+    let payout_id = core_utils::get_or_generate_uuid("payout_id", &req.payout_id)?;
     match validate_uniqueness_of_payout_id_against_merchant_id(db, &payout_id, merchant_id)
         .await
         .change_context(errors::ApiErrorResponse::DuplicatePayout {
