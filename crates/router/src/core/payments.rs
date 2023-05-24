@@ -880,7 +880,7 @@ where
                 .to_domain()?
                 .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
                 .await?;
-            
+
             payment_data.payment_method_data = payment_method_data;
             (payment_data, TokenizationAction::SkipConnectorTokenization)
         }
