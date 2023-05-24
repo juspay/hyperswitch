@@ -1139,8 +1139,7 @@ pub async fn list_payment_methods(
                 payment_methods: payment_method_responses,
                 mandate_payment: payment_attempt
                     .and_then(|inner| inner.mandate_details)
-                    // The data stored in the payment attempt only corresponds to a setup mandate.
-                    .map(|_mandate_data| api_models::payments::MandateTxnType::NewMandateTxn),
+                    .map(ForeignInto::foreign_into),
             },
         )))
 }
