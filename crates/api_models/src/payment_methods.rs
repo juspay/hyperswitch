@@ -91,7 +91,7 @@ pub struct CardDetail {
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodResponse {
     /// Unique identifier for a merchant
-    #[schema(example = "merchant_1671528864")]
+    #[schema(value_type = Option<String>, example = "merchant_1671528864")]
     pub merchant_id: String,
 
     /// The unique identifier of the customer.
@@ -99,11 +99,11 @@ pub struct PaymentMethodResponse {
     pub customer_id: Option<String>,
 
     /// The unique identifier of the Payment method
-    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIy")]
+    #[schema(value_type = Option<String>, example = "card_rGK4Vi5iSW70MY7J2mIy")]
     pub payment_method_id: String,
 
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethodType, example = "card")]
+    #[schema(value_type = Option<PaymentMethodType>, example = "card")]
     pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
@@ -115,11 +115,11 @@ pub struct PaymentMethodResponse {
     pub card: Option<CardDetailFromLocker>,
 
     /// Indicates whether the payment method is eligible for recurring payments
-    #[schema(example = true)]
+    #[schema(value_type = Option<bool>, example = true)]
     pub recurring_enabled: bool,
 
     /// Indicates whether the payment method is eligible for installment payments
-    #[schema(example = true)]
+    #[schema(value_type = Option<bool>, example = true)]
     pub installment_payment_enabled: bool,
 
     /// Type of payment experience enabled with the connector
@@ -191,7 +191,7 @@ pub struct BankDebitTypes {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
-    #[schema(example = "klarna")]
+    #[schema(value_type = Option<PaymentMethodType>, example = "klarna")]
     pub payment_method_type: api_enums::PaymentMethodType,
 
     /// The list of payment experiences enabled, if applicable for a payment method type
@@ -212,10 +212,11 @@ pub struct ResponsePaymentMethodTypes {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ResponsePaymentMethodsEnabled {
     /// The payment method enabled
-    #[schema(value_type = PaymentMethod)]
+    #[schema(value_type = Option<PaymentMethod>)]
     pub payment_method: api_enums::PaymentMethod,
 
     /// The list of payment method types enabled for a connector account
+    #[schema(value_type = Option<Vec<ResponsePaymentMethodTypes>>)]
     pub payment_method_types: Vec<ResponsePaymentMethodTypes>,
 }
 
@@ -425,7 +426,7 @@ pub struct PaymentMethodListResponse {
     pub redirect_url: Option<String>,
 
     /// Information about the payment method
-    #[schema(value_type = Vec<PaymentMethodList>,example = json!(
+    #[schema(value_type = Option<Vec<PaymentMethodList>>,example = json!(
     [
         {
             "payment_method": "wallet",
@@ -437,9 +438,10 @@ pub struct PaymentMethodListResponse {
         }
     ]
     ))]
+    #[schema(value_type = Option<Vec<ResponsePaymentMethodsEnabled>>)]
     pub payment_methods: Vec<ResponsePaymentMethodsEnabled>,
     /// Value indicating if the current payment is a mandate payment
-    #[schema(value_type = MandateType)]
+    #[schema(value_type = Option<MandateType>)]
     pub mandate_payment: Option<payments::MandateType>,
 }
 
@@ -475,17 +477,18 @@ impl serde::Serialize for PaymentMethodList {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethodsListResponse {
     /// List of payment methods for customer
+    #[schema(value_type = Option<Vec<CustomerPaymentMethod>>)]
     pub customer_payment_methods: Vec<CustomerPaymentMethod>,
 }
 
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodDeleteResponse {
     /// The unique identifier of the Payment method
-    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIy")]
+    #[schema(value_type = Option<String>, example = "card_rGK4Vi5iSW70MY7J2mIy")]
     pub payment_method_id: String,
 
     /// Whether payment method was deleted or not
-    #[schema(example = true)]
+    #[schema(value_type = Option<bool>, example = true)]
     pub deleted: bool,
 }
 
