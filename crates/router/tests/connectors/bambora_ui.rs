@@ -12,14 +12,22 @@ impl SeleniumTest for BamboraSeleniumTest {
 }
 
 async fn should_make_3ds_payment(c: WebDriver) -> Result<(), WebDriverError> {
-    let mycon= BamboraSeleniumTest {};
-    mycon.make_redirection_payment(c, vec![
-        Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/33"))),
-        Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
-        Event::Trigger(Trigger::Click(By::Id("continue-transaction"))),
-        Event::Assert(Assert::IsPresent("Google")),
-        Event::Assert(Assert::Contains(Selector::QueryParamStr, "status=succeeded")),
-    ]).await?;
+    let mycon = BamboraSeleniumTest {};
+    mycon
+        .make_redirection_payment(
+            c,
+            vec![
+                Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/33"))),
+                Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+                Event::Trigger(Trigger::Click(By::Id("continue-transaction"))),
+                Event::Assert(Assert::IsPresent("Google")),
+                Event::Assert(Assert::Contains(
+                    Selector::QueryParamStr,
+                    "status=succeeded",
+                )),
+            ],
+        )
+        .await?;
     Ok(())
 }
 
