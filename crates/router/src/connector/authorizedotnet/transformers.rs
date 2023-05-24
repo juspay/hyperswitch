@@ -885,7 +885,7 @@ fn get_err_response(status_code: u16, message: ResponseMessages) -> types::Error
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetWebhookObjectId {
     pub webhook_id: String,
@@ -893,12 +893,12 @@ pub struct AuthorizedotnetWebhookObjectId {
     pub payload: AuthorizedotnetWebhookPayload,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize)]
 pub struct AuthorizedotnetWebhookPayload {
     pub id: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetWebhookEventType {
     pub event_type: AuthorizedotnetWebhookEvent,
@@ -962,7 +962,7 @@ impl TryFrom<AuthorizedotnetWebhookObjectId> for AuthorizedotnetSyncResponse {
         Ok(AuthorizedotnetSyncResponse {
             transaction: Some(SyncTransactionResponse {
                 transaction_id: get_trans_id(&item)?,
-                transaction_status: SyncStatus::from(item.event_type.to_owned()),
+                transaction_status: SyncStatus::from(item.event_type.clone()),
             }),
             messages: ResponseMessages {
                 ..Default::default()
