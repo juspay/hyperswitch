@@ -1,5 +1,5 @@
 use api_models::admin::PrimaryBusinessDetails;
-use common_utils::ext_traits::ValueExt;
+use common_utils::{crypto::generate_cryptographically_secure_random_string, ext_traits::ValueExt};
 use error_stack::{report, FutureExt, ResultExt};
 use masking::Secret;
 use storage_models::{enums, merchant_account};
@@ -100,6 +100,12 @@ pub async fn create_merchant_account(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
+    let enable_payment_response_hash = req.enable_payment_response_hash.or(Some(true));
+
+    let payment_response_hash_key = req
+        .payment_response_hash_key
+        .or(Some(generate_cryptographically_secure_random_string(32)));
+
     let merchant_account = storage::MerchantAccountNew {
         merchant_id: req.merchant_id,
         merchant_name: req.merchant_name,
@@ -114,8 +120,8 @@ pub async fn create_merchant_account(
             req.parent_merchant_id,
         )
         .await?,
-        enable_payment_response_hash: req.enable_payment_response_hash,
-        payment_response_hash_key: req.payment_response_hash_key,
+        enable_payment_response_hash,
+        payment_response_hash_key,
         redirect_to_merchant_with_http_post: req.redirect_to_merchant_with_http_post,
         publishable_key,
         locker_id: req.locker_id,
