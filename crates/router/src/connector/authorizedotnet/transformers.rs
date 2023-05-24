@@ -959,7 +959,7 @@ pub fn get_trans_id(
 impl TryFrom<AuthorizedotnetWebhookObjectId> for AuthorizedotnetSyncResponse {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: AuthorizedotnetWebhookObjectId) -> Result<Self, Self::Error> {
-        Ok(AuthorizedotnetSyncResponse {
+        Ok(Self {
             transaction: Some(SyncTransactionResponse {
                 transaction_id: get_trans_id(&item)?,
                 transaction_status: SyncStatus::from(item.event_type.clone()),
