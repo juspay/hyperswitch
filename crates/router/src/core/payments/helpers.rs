@@ -282,11 +282,11 @@ pub fn validate_mandate(
     req: impl Into<api::MandateValidationFields>,
 ) -> CustomResult<Option<api::MandateTxnType>, errors::ApiErrorResponse> {
     let req: api::MandateValidationFields = req.into();
-    match req
-        .is_mandate()
-        .change_context(errors::ApiErrorResponse::MandateValidationFailed {
+    match req.validate_and_get_mandate_type().change_context(
+        errors::ApiErrorResponse::MandateValidationFailed {
             reason: "Expected one out of mandate_id and mandate_data but got both".to_string(),
-        })? {
+        },
+    )? {
         Some(api::MandateTxnType::NewMandateTxn) => {
             validate_new_mandate_request(req)?;
             Ok(Some(api::MandateTxnType::NewMandateTxn))

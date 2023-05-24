@@ -113,11 +113,15 @@ impl PaymentIdTypeExt for PaymentIdType {
 }
 
 pub(crate) trait MandateValidationFieldsExt {
-    fn is_mandate(&self) -> errors::CustomResult<Option<MandateTxnType>, errors::ValidationError>;
+    fn validate_and_get_mandate_type(
+        &self,
+    ) -> errors::CustomResult<Option<MandateTxnType>, errors::ValidationError>;
 }
 
 impl MandateValidationFieldsExt for MandateValidationFields {
-    fn is_mandate(&self) -> errors::CustomResult<Option<MandateTxnType>, errors::ValidationError> {
+    fn validate_and_get_mandate_type(
+        &self,
+    ) -> errors::CustomResult<Option<MandateTxnType>, errors::ValidationError> {
         match (&self.mandate_data, &self.mandate_id) {
             (None, None) => Ok(None),
             (Some(_), Some(_)) => Err(errors::ValidationError::InvalidValue {
