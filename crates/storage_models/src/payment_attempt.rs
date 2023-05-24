@@ -174,6 +174,9 @@ pub enum PaymentAttemptUpdate {
         connector_metadata: Option<serde_json::Value>,
         preprocessing_step_id: Option<String>,
     },
+    SessionUpdate {
+        connector_transaction_id: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -388,6 +391,12 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 modified_at: Some(common_utils::date_time::now()),
                 connector_metadata,
                 preprocessing_step_id,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::SessionUpdate {
+                connector_transaction_id,
+            } => Self {
+                connector_transaction_id,
                 ..Default::default()
             },
         }

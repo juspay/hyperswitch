@@ -331,8 +331,10 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                         }),
                         connector: "bluesnap".to_string(),
                         delayed_response: false,
+                        override_confirm_to_sync: false,
                     },
                 )),
+                resource_id: types::ResponseId::NoResponseId,
             }),
             ..item.data
         })

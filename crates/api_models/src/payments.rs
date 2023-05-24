@@ -238,6 +238,9 @@ pub struct PaymentsRequest {
     /// If enabled payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted.
     #[serde(default)]
     pub manual_retry: bool,
+
+    /// If enabled, the operation will be changed from confirm to sync
+    pub override_confirm_to_sync: Option<bool>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
@@ -1600,6 +1603,8 @@ pub struct PaymentsSessionRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     /// Identifier for the delayed session response
     pub delayed_session_response: Option<bool>,
+    /// Identifier for the override from confirm to sync
+    pub override_confirm_to_sync: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1764,8 +1769,12 @@ pub struct ApplepaySessionTokenResponse {
     pub session_token_data: ApplePaySessionResponse,
     /// Payment request object for Apple Pay
     pub payment_request_data: Option<ApplePayPaymentRequest>,
+    /// The session response is related to this connector
     pub connector: String,
+    /// The identifier for delayed response
     pub delayed_response: bool,
+    /// The identifier to override confirm to sync call
+    pub override_confirm_to_sync: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]

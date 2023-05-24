@@ -158,6 +158,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 pm_token: None,
                 connector_customer_id: None,
                 ephemeral_key: None,
+                delayed_session_response: None,
+                override_confirm_to_sync: None,
             },
             None,
         ))

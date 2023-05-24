@@ -823,6 +823,7 @@ impl TryFrom<&types::PaymentsSessionRouterData> for TrustpayCreateIntentRequest 
 #[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustpayCreateIntentResponse {
+    pub instance_id: String,
     pub secrets: SdkSecretInfo,
     pub apple_init_result_data: TrustpayApplePayResponse,
 }
@@ -889,8 +890,10 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<TrustpayCreateIntentRespon
                         payment_request_data: None,
                         connector: "trustpay".to_string(),
                         delayed_response: true,
+                        override_confirm_to_sync: true,
                     },
                 )),
+                resource_id: types::ResponseId::ConnectorTransactionId(response.instance_id),
             }),
             ..item.data
         })

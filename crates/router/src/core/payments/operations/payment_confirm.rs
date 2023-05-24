@@ -10,7 +10,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
     db::StorageInterface,
@@ -217,8 +217,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .or(mandate_data.mandate_type),
         });
 
+        let operation = payments::change_operation_from_confirm_to_sync::<_, F>(
+            request.override_confirm_to_sync,
+            self,
+        );
+
         Ok((
-            Box::new(self),
+            operation,
             PaymentData {
                 flow: PhantomData,
                 payment_intent,
@@ -245,6 +250,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 pm_token: None,
                 connector_customer_id: None,
                 ephemeral_key: None,
+                delayed_session_response: None,
+                override_confirm_to_sync: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),

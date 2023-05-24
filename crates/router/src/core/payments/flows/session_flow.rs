@@ -205,8 +205,10 @@ async fn create_applepay_session_token(
                         payment_request_data: None,
                         connector: connector_name.to_string(),
                         delayed_response,
+                        override_confirm_to_sync: false,
                     },
                 )),
+                resource_id: types::ResponseId::NoResponseId,
             }),
             ..router_data.clone()
         }
@@ -249,8 +251,10 @@ async fn create_applepay_session_token(
                         payment_request_data: Some(applepay_payment_request),
                         connector: connector_name.to_string(),
                         delayed_response,
+                        override_confirm_to_sync: false,
                     },
                 )),
+                resource_id: types::ResponseId::NoResponseId,
             }),
             ..router_data.clone()
         }
@@ -302,6 +306,7 @@ fn create_gpay_session_token(
                     connector: connector.connector_name.to_string(),
                 },
             )),
+            resource_id: types::ResponseId::NoResponseId,
         }),
         ..router_data.clone()
     };
