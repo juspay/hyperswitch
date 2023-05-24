@@ -1,0 +1,77 @@
+name: Postman Api test 
+
+on:
+  push:
+    branches:
+      - api-integration-tests
+
+  pull_request:
+
+  merge_group:
+    types:
+      - checks_requested
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Allow more retries for network requests in cargo (downloading crates) and
+  # rustup (installing toolchains). This should help to reduce flaky CI failures
+  # from transient network timeouts or other issues.
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+  # Use cargo's sparse index protocol
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
+jobs:
+  api_tests:
+    name: Run integration tests on backend APIs
+    runs-on: ubuntu-latest
+
+ # Service containers to run with `container-job`
+    # services:
+      # postgres:
+      #   image: postgres
+      #   env:
+      #     POSTGRES_USER: db_user
+      #     POSTGRES_PASSWORD: db_pass
+      #     POSTGRES_DB: hyperswitch_db
+      #   options: >-
+      #     --health-cmd pg_isready
+      #     --health-interval 10s
+      #     --health-timeout 5s
+      #     --health-retries 5
+      #   ports:
+      #     - 5432:5432
+
+      # # Label used to access the service container
+      # redis:
+      #   # Docker Hub image
+      #   image: redis
+      #   # Set health checks to wait until redis has started
+      #   options: >-
+      #     --health-cmd "redis-cli ping"
+      #     --health-interval 10s
+      #     --health-timeout 5s
+      #     --health-retries 5
+        
+      #   ports:
+      #     # Maps port 6379 on service container to the host
+      #     - 6379:6379
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3.1.0
+      
+      - name: Install Newman
+        run: npm install -g newman
+      
+      - name: Install portman
+        run: npm install -g @apideck/portman
+      
+      - name: Generate postman collection
+        run: portman --cliOptionsFile postman/portman-cli.json
+
+      - name: Run Newman
+        run: newman run postman/collection.postman.json
