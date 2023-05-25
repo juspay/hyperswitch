@@ -624,10 +624,7 @@ impl PaymentCreate {
 pub fn payments_create_request_validation(
     req: &api::PaymentsRequest,
 ) -> RouterResult<(api::Amount, enums::Currency)> {
-    let currency = req
-        .currency
-       
-        .get_required_value("currency")?;
+    let currency = req.currency.get_required_value("currency")?;
     let amount = req.amount.get_required_value("amount")?;
     Ok((amount, currency))
 }

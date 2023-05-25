@@ -58,7 +58,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_intent.setup_future_usage = request
             .setup_future_usage
-           
             .or(payment_intent.setup_future_usage);
 
         helpers::validate_payment_status_against_not_allowed_statuses(
@@ -242,12 +241,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_attempt.payment_method_type = request
             .payment_method_type
-           
             .or(payment_attempt.payment_method_type);
 
-        payment_attempt.payment_experience = request
-            .payment_experience
-            ;
+        payment_attempt.payment_experience = request.payment_experience;
 
         let creds_identifier = request
             .merchant_connector_details
@@ -383,6 +379,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
+
         customer: Option<storage::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
@@ -417,8 +414,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
 
-        let payment_method_type = payment_data.payment_attempt.payment_method_type.clone();
-        let payment_experience = payment_data.payment_attempt.payment_experience.clone();
+        let payment_method_type = payment_data.payment_attempt.payment_method_type;
+        let payment_experience = payment_data.payment_attempt.payment_experience;
         payment_data.payment_attempt = db
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,

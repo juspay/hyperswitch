@@ -15,7 +15,7 @@ use crate::{
     types::{
         api::{self, disputes},
         storage::{self, enums as storage_enums},
-        transformers::{ForeignFrom, /*ForeignInto*/},
+        transformers::ForeignFrom,
         AcceptDisputeRequestData, AcceptDisputeResponse, DefendDisputeRequestData,
         DefendDisputeResponse, SubmitEvidenceRequestData, SubmitEvidenceResponse,
     },
@@ -141,10 +141,7 @@ pub async fn accept_dispute(
                 reason: err.reason,
             })?;
     let update_dispute = storage_models::dispute::DisputeUpdate::StatusUpdate {
-        dispute_status: accept_dispute_response
-            .dispute_status
-            .clone()
-           ,
+        dispute_status: accept_dispute_response.dispute_status,
         connector_status: accept_dispute_response.connector_status.clone(),
     };
     let updated_dispute = db
@@ -293,7 +290,7 @@ pub async fn submit_evidence(
             )
         };
     let update_dispute = storage_models::dispute::DisputeUpdate::StatusUpdate {
-        dispute_status: dispute_status,
+        dispute_status,
         connector_status,
     };
     let updated_dispute = db

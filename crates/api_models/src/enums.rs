@@ -1,9 +1,6 @@
 pub use common_enums::*;
 // use utoipa::ToSchema;
 
-
-
-
 // #[derive(
 //     Clone,
 //     Copy,
@@ -597,7 +594,7 @@ pub use common_enums::*;
 //     Cybersource,
 //     Iatapay,
 //     #[cfg(feature = "dummy_connector")]
-//     #[serde(rename = "dummyconnector1")]
+//     #[serde(rename = " onnector1")]
 //     #[strum(serialize = "dummyconnector1")]
 //     DummyConnector1,
 //     #[cfg(feature = "dummy_connector")]

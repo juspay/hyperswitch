@@ -49,8 +49,7 @@ impl MandateDbExt for Mandate {
             filter = filter.filter(dsl::connector.eq(connector));
         }
         if let Some(mandate_status) = mandate_list_constraints.mandate_status {
-            let storage_mandate_status: storage_models::enums::MandateStatus =
-                mandate_status;
+            let storage_mandate_status: storage_models::enums::MandateStatus = mandate_status;
             filter = filter.filter(dsl::mandate_status.eq(storage_mandate_status));
         }
         if let Some(limit) = mandate_list_constraints.limit {

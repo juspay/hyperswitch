@@ -50,13 +50,11 @@ impl DisputeDbExt for Dispute {
             filter = filter.filter(dsl::connector_reason.eq(reason));
         }
         if let Some(dispute_stage) = dispute_list_constraints.dispute_stage {
-            let storage_dispute_stage: storage_models::enums::DisputeStage =
-                dispute_stage;
+            let storage_dispute_stage: storage_models::enums::DisputeStage = dispute_stage;
             filter = filter.filter(dsl::dispute_stage.eq(storage_dispute_stage));
         }
         if let Some(dispute_status) = dispute_list_constraints.dispute_status {
-            let storage_dispute_status: storage_models::enums::DisputeStatus =
-                dispute_status;
+            let storage_dispute_status: storage_models::enums::DisputeStatus = dispute_status;
             filter = filter.filter(dsl::dispute_status.eq(storage_dispute_status));
         }
         if let Some(limit) = dispute_list_constraints.limit {

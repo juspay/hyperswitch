@@ -94,7 +94,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_intent.setup_future_usage = request
             .setup_future_usage
-           
             .or(payment_intent.setup_future_usage);
 
         let (token, payment_method, setup_mandate) = helpers::get_token_pm_type_mandate_details(
@@ -129,18 +128,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_attempt.browser_info = browser_info;
         payment_attempt.payment_method_type = request
             .payment_method_type
-           
             .or(payment_attempt.payment_method_type);
 
         payment_attempt.payment_experience = request
             .payment_experience
-           
             .or(payment_attempt.payment_experience);
 
-        payment_attempt.capture_method = request
-            .capture_method
-            .or(payment_attempt.capture_method)
-            ;
+        payment_attempt.capture_method = request.capture_method.or(payment_attempt.capture_method);
 
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.amount.into();
@@ -354,8 +348,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .straight_through_algorithm
             .clone();
         let payment_token = payment_data.token.clone();
-        let payment_method_type = payment_data.payment_attempt.payment_method_type.clone();
-        let payment_experience = payment_data.payment_attempt.payment_experience.clone();
+        let payment_method_type = payment_data.payment_attempt.payment_method_type;
+        let payment_experience = payment_data.payment_attempt.payment_experience;
         let additional_pm_data = payment_data
             .payment_method_data
             .as_ref()

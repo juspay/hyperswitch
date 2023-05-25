@@ -58,7 +58,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         payment_intent.setup_future_usage = request
             .setup_future_usage
-           
             .or(payment_intent.setup_future_usage);
 
         helpers::validate_payment_status_against_not_allowed_statuses(
@@ -111,11 +110,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         payment_attempt.browser_info = browser_info;
         payment_attempt.payment_method_type = request
             .payment_method_type
-            
             .or(payment_attempt.payment_method_type);
-        payment_attempt.payment_experience = request
-            .payment_experience
-            ;
+        payment_attempt.payment_experience = request.payment_experience;
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.amount.into();
 

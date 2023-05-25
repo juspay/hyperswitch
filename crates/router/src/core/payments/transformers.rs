@@ -226,10 +226,7 @@ where
                 .as_ref()
                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
             mandate_id: data.mandate_id.map(|mandate_ids| mandate_ids.mandate_id),
-            payment_method: data
-                .payment_attempt
-                .payment_method
-            ,
+            payment_method: data.payment_attempt.payment_method,
             payment_method_data: data
                 .payment_method_data
                 .map(api::PaymentMethodDataResponse::from),
@@ -382,9 +379,7 @@ where
                         .set_refunds(refunds_response) // refunds.iter().map(refund_to_refund_response),
                         .set_disputes(disputes_response)
                         .set_payment_method(
-                            payment_attempt
-                                .payment_method
-                               ,
+                            payment_attempt.payment_method,
                             auth_flow == services::AuthFlow::Merchant,
                         )
                         .set_payment_method_data(
@@ -399,33 +394,13 @@ where
                         .set_next_action(next_action_response)
                         .set_return_url(payment_intent.return_url)
                         .set_cancellation_reason(payment_attempt.cancellation_reason)
-                        .set_authentication_type(
-                            payment_attempt
-                                .authentication_type
-                               ,
-                        )
+                        .set_authentication_type(payment_attempt.authentication_type)
                         .set_statement_descriptor_name(payment_intent.statement_descriptor_name)
                         .set_statement_descriptor_suffix(payment_intent.statement_descriptor_suffix)
-                        .set_setup_future_usage(
-                            payment_intent
-                                .setup_future_usage
-                             ,
-                        )
-                        .set_capture_method(
-                            payment_attempt
-                                .capture_method
-                             ,
-                        )
-                        .set_payment_experience(
-                            payment_attempt
-                                .payment_experience
-                              ,
-                        )
-                        .set_payment_method_type(
-                            payment_attempt
-                                .payment_method_type
-                              ,
-                        )
+                        .set_setup_future_usage(payment_intent.setup_future_usage)
+                        .set_capture_method(payment_attempt.capture_method)
+                        .set_payment_experience(payment_attempt.payment_experience)
+                        .set_payment_method_type(payment_attempt.payment_method_type)
                         .set_metadata(payment_intent.metadata)
                         .set_connector_label(connector_label)
                         .set_business_country(payment_intent.business_country)
@@ -454,12 +429,8 @@ where
             description: payment_intent.description,
             refunds: refunds_response,
             disputes: disputes_response,
-            payment_method: payment_attempt
-                .payment_method
-                ,
-            capture_method: payment_attempt
-                .capture_method
-               ,
+            payment_method: payment_attempt.payment_method,
+            capture_method: payment_attempt.capture_method,
             error_message: payment_attempt.error_message,
             error_code: payment_attempt.error_code,
             payment_method_data: payment_method_data.map(api::PaymentMethodDataResponse::from),

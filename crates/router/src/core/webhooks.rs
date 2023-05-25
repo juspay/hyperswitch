@@ -283,7 +283,7 @@ pub async fn get_or_update_dispute_object(
             crate::core::utils::validate_dispute_stage_and_dispute_status(
                 dispute.dispute_stage,
                 dispute.dispute_status,
-                dispute_details.dispute_stage.clone(),
+                dispute_details.dispute_stage,
                 dispute_status,
             )?;
             let update_dispute = storage_models::dispute::DisputeUpdate::Update {

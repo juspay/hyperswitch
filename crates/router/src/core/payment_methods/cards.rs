@@ -38,7 +38,6 @@ use crate::{
     types::{
         api::{self, PaymentMethodCreateExt},
         storage::{self, enums},
-       
     },
     utils::{self, ConnectorResponseExt, OptionExt},
 };
@@ -133,7 +132,7 @@ pub async fn update_customer_payment_method(
         payment_method_type: pm.payment_method_type,
         payment_method_issuer: pm.payment_method_issuer,
         payment_method_issuer_code: pm.payment_method_issuer_code,
-        card:req.card,
+        card: req.card,
         metadata: req.metadata,
         customer_id: Some(pm.customer_id),
         card_network: req
@@ -1235,9 +1234,7 @@ pub async fn filter_payment_methods(
                         payment_attempt,
                         &mut payment_method_object.card_networks,
                         &address.and_then(|inner| inner.country),
-                        payment_attempt
-                            .and_then(|value| value.currency)
-                           ,
+                        payment_attempt.and_then(|value| value.currency),
                     );
 
                     let filter6 = filter_pm_based_on_allowed_types(
@@ -1626,9 +1623,7 @@ pub async fn list_customer_payment_method(
             payment_method_issuer: pm.payment_method_issuer,
             card,
             metadata: pm.metadata,
-            payment_method_issuer_code: pm
-                .payment_method_issuer_code
-               ,
+            payment_method_issuer_code: pm.payment_method_issuer_code,
             recurring_enabled: false,
             installment_payment_enabled: false,
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),

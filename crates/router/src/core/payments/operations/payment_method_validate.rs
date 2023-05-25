@@ -21,7 +21,6 @@ use crate::{
         self,
         api::{self, enums as api_enums, PaymentIdTypeExt},
         storage::{self, enums as storage_enums},
-       
     },
     utils,
 };
@@ -305,7 +304,7 @@ impl PaymentMethodValidate {
             amount: 0,
             currency: Default::default(),
             connector: None,
-            payment_method: payment_method,
+            payment_method,
             confirm: true,
             created_at,
             modified_at,

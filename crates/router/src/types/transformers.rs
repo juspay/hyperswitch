@@ -49,8 +49,6 @@ where
     }
 }
 
-
-
 impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType {
     fn foreign_from(item: api_models::refunds::RefundType) -> Self {
         match item {
@@ -138,7 +136,7 @@ impl ForeignFrom<api_models::payments::MandateAmountData> for storage_enums::Man
     fn foreign_from(from: api_models::payments::MandateAmountData) -> Self {
         Self {
             amount: from.amount,
-            currency: from.currency ,
+            currency: from.currency,
             start_date: from.start_date,
             end_date: from.end_date,
             metadata: from.metadata,
@@ -209,8 +207,6 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
     }
 }
 
-
-
 impl<'a> ForeignFrom<&'a api_types::Address> for storage::AddressUpdate {
     fn foreign_from(address: &api_types::Address) -> Self {
         let address = address;
@@ -271,7 +267,6 @@ impl<'a> ForeignFrom<&'a storage::Address> for api_types::Address {
         }
     }
 }
-
 
 impl ForeignFrom<api_models::payments::AddressDetails> for storage_models::address::AddressNew {
     fn foreign_from(item: api_models::payments::AddressDetails) -> Self {
@@ -346,8 +341,6 @@ impl ForeignFrom<api_models::api_keys::UpdateApiKeyRequest>
         }
     }
 }
-
-
 
 impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::DisputeStatus {
     type Error = errors::ValidationError;

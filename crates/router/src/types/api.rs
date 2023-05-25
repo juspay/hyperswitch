@@ -216,7 +216,7 @@ impl ConnectorData {
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector1 => Ok(Box::new(&connector::DummyConnector::<1>)),
                 #[cfg(feature = "dummy_connector")]
-                enums::Connector:: DummyConnector2 => Ok(Box::new(&connector::DummyConnector::<2>)),
+                enums::Connector::DummyConnector2 => Ok(Box::new(&connector::DummyConnector::<2>)),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector3 => Ok(Box::new(&connector::DummyConnector::<3>)),
                 enums::Connector::Fiserv => Ok(Box::new(&connector::Fiserv)),
