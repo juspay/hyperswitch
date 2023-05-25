@@ -25,14 +25,21 @@ where
     Q: Serialize + std::fmt::Debug + 'a,
     S: TryFrom<Q> + Serialize,
     E: Serialize + error_stack::Context + actix_web::ResponseError + Clone,
+    U: auth::AuthInfo,
     error_stack::Report<E>: services::EmbedError,
     errors::ApiErrorResponse: ErrorSwitch<E>,
     T: std::fmt::Debug,
     A: AppStateInfo,
 {
-    let resp: common_utils::errors::CustomResult<_, E> =
-        api::server_wrap_util(state, request, payload, func, api_authentication).await;
-
+    let resp: common_utils::errors::CustomResult<_, E> = api::server_wrap_util(
+        &router_env::Flow::CompatibilityLayerRequest,
+        state,
+        request,
+        payload,
+        func,
+        api_authentication,
+    )
+    .await;
     handle_application_response::<Q, S, E>(request, resp)
 }
 
