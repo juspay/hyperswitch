@@ -937,9 +937,9 @@ impl From<AuthorizedotnetWebhookEvent> for SyncStatus {
     fn from(event_type: AuthorizedotnetWebhookEvent) -> Self {
         match event_type {
             AuthorizedotnetWebhookEvent::AuthorizationCreated => Self::AuthorizedPendingCapture,
-            AuthorizedotnetWebhookEvent::PriorAuthCapture
+            AuthorizedotnetWebhookEvent::CaptureCreated
             | AuthorizedotnetWebhookEvent::AuthCapCreated => Self::CapturedPendingSettlement,
-            AuthorizedotnetWebhookEvent::CaptureCreated => Self::SettledSuccessfully,
+            AuthorizedotnetWebhookEvent::PriorAuthCapture => Self::SettledSuccessfully,
             AuthorizedotnetWebhookEvent::VoidCreated => Self::Voided,
             AuthorizedotnetWebhookEvent::RefundCreated => Self::RefundPendingSettlement,
         }
