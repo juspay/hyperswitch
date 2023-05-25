@@ -555,26 +555,18 @@ where
 
     let output = func(state, auth_out, payload).await.switch();
 
-    match output {
-        Ok(res) => {
-            let status_code = 200;
-            metrics::request::status_code_metrics(
-                status_code,
-                flow.to_string(),
-                metric_merchant_id.to_string(),
-            );
-            Ok(res)
-        }
-        Err(err) => {
-            let status_code = err.current_context().status_code().as_u16().into();
-            metrics::request::status_code_metrics(
-                status_code,
-                flow.to_string(),
-                metric_merchant_id.to_string(),
-            );
-            Err(err)
-        }
-    }
+    let status_code = match output.as_ref() {
+        Ok(_) => 200,
+        Err(err) => err.current_context().status_code().as_u16().into(),
+    };
+
+    metrics::request::status_code_metrics(
+        status_code,
+        flow.to_string(),
+        metric_merchant_id.to_string(),
+    );
+
+    output
 }
 
 #[instrument(
