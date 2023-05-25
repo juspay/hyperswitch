@@ -570,7 +570,7 @@ where
 }
 
 #[instrument(
-    skip(request, payload, state, func, api_auth),
+    skip(request, state, func, api_auth, payload),
     fields(request_method, request_url_path)
 )]
 pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut, E>(
@@ -597,7 +597,8 @@ where
     tracing::Span::current().record("request_url_path", url_path);
 
     let start_instant = Instant::now();
-    logger::info!(tag = ?Tag::BeginRequest);
+    logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
+
     let res = match metrics::request::record_request_time_metric(
         server_wrap_util(&flow, state, request, payload, func, api_auth),
         &flow,
