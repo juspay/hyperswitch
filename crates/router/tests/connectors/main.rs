@@ -45,3 +45,6 @@ mod utils;
 mod worldline;
 mod worldpay;
 mod zen;
+mod paypal_ui;
+mod authorizedotnet_ui;  
+mod airwallex_ui;
