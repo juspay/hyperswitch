@@ -191,6 +191,92 @@ async fn should_make_adyen_blik_payment(c: WebDriver) -> Result<(), WebDriverErr
     Ok(())
 }
 
+async fn should_make_adyen_bancontact_card_payment(c: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        c,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/68"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::SendKeys(By::Id("username"), "admin")),
+            Event::Trigger(Trigger::SendKeys(By::Id("password"), "Juspay@123")),
+            Event::Trigger(Trigger::Click(By::ClassName("button"))),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=failed"],
+            )),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_wechatpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        c,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/75"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_mbway_payment(c: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        c,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/64"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_ebanking_fi_payment(c: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        c,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/78"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::Click(By::ClassName("css-ns0tbt"))),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=processing"],
+            )),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_onlinebanking_pl_payment(c: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        c,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/79"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::Click(By::Id("user_account_pbl_correct"))),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=processing"],
+            )),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
 #[test]
 #[serial]
 fn should_make_adyen_gpay_payment_test() {
@@ -255,5 +341,35 @@ fn should_make_adyen_eps_payment_test() {
 #[serial]
 fn should_make_adyen_blik_payment_test() {
     tester!(should_make_adyen_blik_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_bancontact_card_payment_test() {
+    tester!(should_make_adyen_bancontact_card_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_wechatpay_payment_test() {
+    tester!(should_make_adyen_wechatpay_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_mbway_payment_test() {
+    tester!(should_make_adyen_mbway_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_ebanking_fi_payment_test() {
+    tester!(should_make_adyen_ebanking_fi_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_onlinebanking_pl_payment_test() {
+    tester!(should_make_adyen_onlinebanking_pl_payment);
 }
 // https://hs-payments-test.netlify.app/paypal-redirect?amount=70.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD&apikey=dev_uFpxA0r6jjbVaxHSY3X0BZLL3erDUzvg3i51abwB1Bknu3fdiPxw475DQgnByn1z
