@@ -277,6 +277,41 @@ async fn should_make_adyen_onlinebanking_pl_payment(c: WebDriver) -> Result<(), 
     Ok(())
 }
 
+#[ignore]
+async fn should_make_adyen_giropay_payment(c: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        c,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/70"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::SendKeys(
+                By::Css("input[id='tags']"),
+                "Testbank Fiducia 44448888 GENODETT488",
+            )),
+            Event::Trigger(Trigger::Click(By::Css("input[id='tags']"))),
+            Event::Trigger(Trigger::Sleep(3)),
+            Event::Trigger(Trigger::Click(By::Id("ui-id-3"))),
+            Event::Trigger(Trigger::Click(By::ClassName("blueButton"))),
+            Event::Trigger(Trigger::SendKeys(By::Name("sc"), "10")),
+            Event::Trigger(Trigger::SendKeys(By::Name("extensionSc"), "4000")),
+            Event::Trigger(Trigger::SendKeys(By::Name("customerName1"), "Hopper")),
+            Event::Trigger(Trigger::SendKeys(
+                By::Name("customerIBAN"),
+                "DE36444488881234567890",
+            )),
+            Event::Trigger(Trigger::Click(By::Css("input[value='Absenden']"))),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=processing"],
+            )),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
 #[test]
 #[serial]
 fn should_make_adyen_gpay_payment_test() {
@@ -371,5 +406,12 @@ fn should_make_adyen_ebanking_fi_payment_test() {
 #[serial]
 fn should_make_adyen_onlinebanking_pl_payment_test() {
     tester!(should_make_adyen_onlinebanking_pl_payment);
+}
+
+#[ignore]
+#[test]
+#[serial]
+fn should_make_adyen_giropay_payment_test() {
+    tester!(should_make_adyen_giropay_payment);
 }
 // https://hs-payments-test.netlify.app/paypal-redirect?amount=70.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD&apikey=dev_uFpxA0r6jjbVaxHSY3X0BZLL3erDUzvg3i51abwB1Bknu3fdiPxw475DQgnByn1z
