@@ -223,7 +223,13 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::publish_and_redact(self, merchant_id, delete_func, None).await
+            super::cache::publish_and_redact(
+                self,
+                cache::CacheKind::Accounts(merchant_id.into()),
+                delete_func,
+                None,
+            )
+            .await
         }
     }
 }
