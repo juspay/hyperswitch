@@ -10,10 +10,12 @@ counter_metric!(AWS_KMS_FAILURES, GLOBAL_METER); // No. of AWS KMS API failures
 
 // API Level Metrics
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
-counter_metric!(FAILED_REQUEST, GLOBAL_METER);
+counter_metric!(REQUEST_STATUS, GLOBAL_METER);
 histogram_metric!(REQUEST_TIME, GLOBAL_METER);
 
 // Operation Level Metrics
+counter_metric!(PAYMENT_OPS_COUNT, GLOBAL_METER);
+
 counter_metric!(PAYMENT_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_PAYMENT, GLOBAL_METER);
 
@@ -41,6 +43,8 @@ counter_metric!(CUSTOMER_REDACTED, GLOBAL_METER);
 
 counter_metric!(API_KEY_CREATED, GLOBAL_METER);
 counter_metric!(API_KEY_REVOKED, GLOBAL_METER);
+
+counter_metric!(MCA_CREATE, GLOBAL_METER);
 
 // Flow Specific Metrics
 
