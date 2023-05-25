@@ -904,7 +904,7 @@ pub struct AuthorizedotnetWebhookEventType {
     pub event_type: AuthorizedotnetWebhookEvent,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize)]
 pub enum AuthorizedotnetWebhookEvent {
     #[serde(rename = "net.authorize.payment.authorization.created")]
     AuthorizationCreated,
@@ -962,7 +962,7 @@ impl TryFrom<AuthorizedotnetWebhookObjectId> for AuthorizedotnetSyncResponse {
         Ok(Self {
             transaction: Some(SyncTransactionResponse {
                 transaction_id: get_trans_id(&item)?,
-                transaction_status: SyncStatus::from(item.event_type.clone()),
+                transaction_status: SyncStatus::from(item.event_type),
             }),
             messages: ResponseMessages {
                 ..Default::default()
