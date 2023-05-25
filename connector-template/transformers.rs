@@ -115,7 +115,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for {{project-name | downcase | pa
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
         Ok(Self {
-            amount: item.request.amount,
+            amount: item.request.refund_amount,
         })
     }
 }
