@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use super::utils as metric_utils;
 
 pub async fn record_request_time_metric<F, R>(

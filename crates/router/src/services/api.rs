@@ -656,7 +656,7 @@ where
 
 pub fn log_and_return_error_response<T>(error: Report<T>) -> HttpResponse
 where
-    T: actix_web::ResponseError + error_stack::Context + Clone,
+    T: error_stack::Context + Clone + ResponseError,
     Report<T>: EmbedError,
 {
     logger::error!(?error);
