@@ -163,7 +163,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
-    fn get_order_details(&self) -> Result<Vec<OrderDetails>, Error>;
+    fn get_order_details(&self) -> Result<OrderDetails, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
@@ -189,7 +189,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
-    fn get_order_details(&self) -> Result<Vec<OrderDetails>, Error> {
+    fn get_order_details(&self) -> Result<OrderDetails, Error> {
         self.order_details
             .clone()
             .ok_or_else(missing_field_err("order_details"))
