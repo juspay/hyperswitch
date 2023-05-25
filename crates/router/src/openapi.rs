@@ -177,7 +177,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::NextActionType,
         api_models::payments::Metadata,
         api_models::payments::WalletData,
-        api_models::payments::NextAction,
+        api_models::payments::NextActionData,
         api_models::payments::PayLaterData,
         api_models::payments::MandateData,
         api_models::payments::PhoneDetails,

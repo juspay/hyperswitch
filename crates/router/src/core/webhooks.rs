@@ -544,6 +544,8 @@ pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
             merchant_account.merchant_id.clone(),
         )],
     );
+    logger::debug!(outgoing_webhook_response=?response);
+
     match response {
         Err(e) => {
             // [#217]: Schedule webhook for retry.
