@@ -38,6 +38,7 @@ use crate::{
     types::{
         api::{self, PaymentMethodCreateExt},
         storage::{self, enums},
+        transformers::ForeignInto
     },
     utils::{self, ConnectorResponseExt, OptionExt},
 };
@@ -1137,8 +1138,8 @@ pub async fn list_payment_methods(
                 redirect_url: merchant_account.return_url,
                 payment_methods: payment_method_responses,
                 mandate_payment: payment_attempt
-                    .and_then(|inner| inner.mandate_details)
-                    .map(ForeignInto::foreign_into),
+                    .and_then(|inner| inner.mandate_details).map(ForeignInto::foreign_into)
+                   ,
             },
         )))
 }

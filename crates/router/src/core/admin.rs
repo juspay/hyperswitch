@@ -16,7 +16,7 @@ use crate::{
     types::{
         self, api,
         storage::{self, MerchantAccount},
-        transformers::{/*ForeignInto*/ ForeignTryFrom, ForeignTryInto},
+        transformers::{ ForeignTryFrom, ForeignTryInto},
     },
     utils::{self, OptionExt},
 };

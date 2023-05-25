@@ -565,70 +565,70 @@ pub use common_enums::*;
 //     Revoked,
 // }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    ToSchema,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-    Hash,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum Connector {
-    Aci,
-    Adyen,
-    Airwallex,
-    Authorizedotnet,
-    Bitpay,
-    Bluesnap,
-    Braintree,
-    Checkout,
-    Coinbase,
-    Cybersource,
-    Iatapay,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector1")]
-    #[strum(serialize = "dummyconnector1")]
-    DummyConnector1,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector2")]
-    #[strum(serialize = "dummyconnector2")]
-    DummyConnector2,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector3")]
-    #[strum(serialize = "dummyconnector3")]
-    DummyConnector3,
-    Opennode,
-    Bambora,
-    Dlocal,
-    Fiserv,
-    Forte,
-    Globalpay,
-    Klarna,
-    Mollie,
-    Multisafepay,
-    Nexinets,
-    Nmi,
-    // Noon, added as template code for future usage
-    Nuvei,
-    // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    Paypal,
-    Payu,
-    Rapyd,
-    Shift4,
-    Stripe,
-    Trustpay,
-    Worldline,
-    Worldpay,
-    Zen,
-}
+// #[derive(
+//     Clone,
+//     Copy,
+//     Debug,
+//     Eq,
+//     PartialEq,
+//     ToSchema,
+//     serde::Deserialize,
+//     serde::Serialize,
+//     strum::Display,
+//     strum::EnumString,
+//     frunk::LabelledGeneric,
+//     Hash,
+// )]
+// #[serde(rename_all = "snake_case")]
+// #[strum(serialize_all = "snake_case")]
+// pub enum Connector {
+//     Aci,
+//     Adyen,
+//     Airwallex,
+//     Authorizedotnet,
+//     Bitpay,
+//     Bluesnap,
+//     Braintree,
+//     Checkout,
+//     Coinbase,
+//     Cybersource,
+//     Iatapay,
+//     #[cfg(feature = "dummy_connector")]
+//     #[serde(rename = " onnector1")]
+//     #[strum(serialize = "dummyconnector1")]
+//     DummyConnector1,
+//     #[cfg(feature = "dummy_connector")]
+//     #[serde(rename = "dummyconnector2")]
+//     #[strum(serialize = "dummyconnector2")]
+//     DummyConnector2,
+//     #[cfg(feature = "dummy_connector")]
+//     #[serde(rename = "dummyconnector3")]
+//     #[strum(serialize = "dummyconnector3")]
+//     DummyConnector3,
+//     Opennode,
+//     Bambora,
+//     Dlocal,
+//     Fiserv,
+//     Forte,
+//     Globalpay,
+//     Klarna,
+//     Mollie,
+//     Multisafepay,
+//     Nexinets,
+//     Nmi,
+//     // Noon, added as template code for future usage
+//     Nuvei,
+//     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
+//     Paypal,
+//     Payu,
+//     Rapyd,
+//     Shift4,
+//     Stripe,
+//     Trustpay,
+//     Worldline,
+//     Worldpay,
+//     Zen,
+// }
 
 // impl Connector {
 //     pub fn supports_access_token(&self, payment_method: PaymentMethod) -> bool {
@@ -650,68 +650,68 @@ pub enum Connector {
 //     }
 // }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum RoutableConnectors {
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector1")]
-    #[strum(serialize = "dummyconnector1")]
-    DummyConnector1,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector2")]
-    #[strum(serialize = "dummyconnector2")]
-    DummyConnector2,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector3")]
-    #[strum(serialize = "dummyconnector3")]
-    DummyConnector3,
-    Aci,
-    Adyen,
-    Airwallex,
-    Authorizedotnet,
-    Bitpay,
-    Bambora,
-    Bluesnap,
-    Braintree,
-    Checkout,
-    Coinbase,
-    Cybersource,
-    Dlocal,
-    Fiserv,
-    Forte,
-    Globalpay,
-    Iatapay,
-    Klarna,
-    Mollie,
-    Multisafepay,
-    Nexinets,
-    Nmi,
-    // Noon, added as template code for future usage
-    Nuvei,
-    Opennode,
-    // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    Paypal,
-    Payu,
-    Rapyd,
-    Shift4,
-    Stripe,
-    Trustpay,
-    Worldline,
-    Worldpay,
-    Zen,
-}
+// #[derive(
+//     Clone,
+//     Copy,
+//     Debug,
+//     Eq,
+//     PartialEq,
+//     serde::Serialize,
+//     serde::Deserialize,
+//     strum::Display,
+//     strum::EnumString,
+//     frunk::LabelledGeneric,
+// )]
+// #[serde(rename_all = "snake_case")]
+// #[strum(serialize_all = "snake_case")]
+// pub enum RoutableConnectors {
+//     #[cfg(feature = "dummy_connector")]
+//     #[serde(rename = "dummyconnector1")]
+//     #[strum(serialize = "dummyconnector1")]
+//     DummyConnector1,
+//     #[cfg(feature = "dummy_connector")]
+//     #[serde(rename = "dummyconnector2")]
+//     #[strum(serialize = "dummyconnector2")]
+//     DummyConnector2,
+//     #[cfg(feature = "dummy_connector")]
+//     #[serde(rename = "dummyconnector3")]
+//     #[strum(serialize = "dummyconnector3")]
+//     DummyConnector3,
+//     Aci,
+//     Adyen,
+//     Airwallex,
+//     Authorizedotnet,
+//     Bitpay,
+//     Bambora,
+//     Bluesnap,
+//     Braintree,
+//     Checkout,
+//     Coinbase,
+//     Cybersource,
+//     Dlocal,
+//     Fiserv,
+//     Forte,
+//     Globalpay,
+//     Iatapay,
+//     Klarna,
+//     Mollie,
+//     Multisafepay,
+//     Nexinets,
+//     Nmi,
+//     // Noon, added as template code for future usage
+//     Nuvei,
+//     Opennode,
+//     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
+//     Paypal,
+//     Payu,
+//     Rapyd,
+//     Shift4,
+//     Stripe,
+//     Trustpay,
+//     Worldline,
+//     Worldpay,
+//     Zen,
+// }
 
 // /// Name of banks supported by Hyperswitch
 // #[derive(
