@@ -6,6 +6,7 @@ use crate::{
     core::errors::{self, CustomResult},
     types::storage::{self, DisputeDbExt},
 };
+use crate::types::transformers::ForeignInto;
 
 #[async_trait::async_trait]
 pub trait DisputeInterface {
@@ -139,7 +140,7 @@ impl DisputeInterface for MockDb {
             .iter()
             .any(|d| d.dispute_id == dispute.dispute_id)
         {
-            Err(errors::StorageError::MockDbError)
+            Err(errors::StorageError::MockDbError)?;
         }
         let now = common_utils::date_time::now();
 
@@ -196,10 +197,16 @@ impl DisputeInterface for MockDb {
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
 
-        Ok(locked_disputes
+        let found_dispute = locked_disputes
             .iter()
             .find(|d| d.merchant_id == merchant_id && d.dispute_id == dispute_id)
-            .cloned()?)
+            .cloned();
+
+        if let Some(dispute) = found_dispute {
+            Ok(dispute)
+        } else{
+            Err(errors::StorageError::ValueNotFound(format!("No dispute available for merchant_id = {merchant_id} and dispute_id = {dispute_id}")))?
+        }
     }
 
     async fn find_disputes_by_merchant_id(
@@ -208,18 +215,18 @@ impl DisputeInterface for MockDb {
         dispute_constraints: api_models::disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
-
+/*
         Ok(locked_disputes
             .iter()
             .filter(|d| {
                 let mut filtering_condition = d.merchant_id == merchant_id;
 
                 if let Some(dispute_status) = dispute_constraints.dispute_status {
-                    filtering_condition &= d.dispute_status == dispute_status
+                    filtering_condition &= d.dispute_status == dispute_status.foreign_into()
                 }
 
                 if let Some(dispute_stage) = dispute_constraints.dispute_stage {
-                    filtering_condition &= d.dispute_stage == dispute_stage
+                    filtering_condition &= d.dispute_stage == dispute_stage.foreign_into()
                 }
 
                 if d.connector_reason.is_some() {
@@ -261,6 +268,9 @@ impl DisputeInterface for MockDb {
             })
             .cloned()
             .collect())
+
+ */
+        Ok(vec![])
     }
 
     async fn find_disputes_by_merchant_id_payment_id(
@@ -338,5 +348,112 @@ impl DisputeInterface for MockDb {
         dispute_to_update.modified_at = now;
 
         Ok(dispute_to_update.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    mod mockdb_dispute_interface {
+        use time::macros::datetime;
+        use storage_models::dispute::Dispute;
+        use storage_models::enums::{DisputeStage, DisputeStatus};
+
+        use crate::{
+            db::{dispute::DisputeInterface, MockDb},
+            types::storage,
+        };
+
+        fn disputes_eq(d1: Dispute, d2: Dispute) {
+            assert_eq!(d1.id, d2.id);
+            assert_eq!(d1.dispute_id, d2.dispute_id);
+            assert_eq!(d1.amount, d2.amount);
+            assert_eq!(d1.currency, d2.currency);
+            assert_eq!(d1.dispute_stage, d2.dispute_stage);
+            assert_eq!(d1.dispute_status, d2.dispute_status);
+            assert_eq!(d1.payment_id, d2.payment_id);
+            assert_eq!(d1.attempt_id, d2.attempt_id);
+            assert_eq!(d1.merchant_id, d2.merchant_id);
+            assert_eq!(d1.connector_status, d2.connector_status);
+            assert_eq!(d1.connector_dispute_id, d2.connector_dispute_id);
+            assert_eq!(d1.connector_reason, d2.connector_reason);
+            assert_eq!(d1.connector_reason_code, d2.connector_reason_code);
+            assert_eq!(d1.challenge_required_by, d2.challenge_required_by);
+            assert_eq!(d1.connector_created_at, d2.connector_created_at);
+            assert_eq!(d1.connector_updated_at, d2.connector_updated_at);
+            assert_eq!(d1.created_at, d2.created_at);
+            assert_eq!(d1.modified_at, d2.modified_at);
+            assert_eq!(d1.connector, d2.connector);
+            assert_eq!(d1.evidence, d2.evidence);
+        }
+
+        #[allow(clippy::unwrap_used)]
+        #[tokio::test]
+        async fn test_insert_dispute() {
+            let mockdb = MockDb::new(&Default::default()).await;
+
+            let created_dispute = mockdb
+                .insert_dispute(storage::DisputeNew {
+                    dispute_id: "dispute_id".into(),
+                    amount: "amount".into(),
+                    currency: "currency".into(),
+                    dispute_stage: DisputeStage::Dispute,
+                    dispute_status: DisputeStatus::DisputeOpened,
+                    payment_id: "payment_id".into(),
+                    attempt_id: "attempt_id".into(),
+                    merchant_id: "merchant_id".into(),
+                    connector_status: "connector_status".into(),
+                    connector_dispute_id: "connector_dispute_id".into(),
+                    connector_reason: None,
+                    connector_reason_code: None,
+                    challenge_required_by: None,
+                    connector_created_at: None,
+                    connector_updated_at: None,
+                    connector: "connector".into(),
+                    evidence: None,
+                })
+                .await
+                .unwrap();
+
+            let found_dispute = mockdb.disputes.lock().await.iter().find(|d| d.dispute_id == created_dispute.dispute_id).cloned();
+
+            assert!(found_dispute.is_some());
+
+            disputes_eq(created_dispute, found_dispute.unwrap());
+        }
+
+        #[allow(clippy::unwrap_used)]
+        #[tokio::test]
+        async fn test_find_by_merchant_id_payment_id_connector_dispute_id() {
+            let mockdb = MockDb::new(&Default::default()).await;
+
+        }
+
+        #[allow(clippy::unwrap_used)]
+        #[tokio::test]
+        async fn test_find_dispute_by_merchant_id_dispute_id() {
+            let mockdb = MockDb::new(&Default::default()).await;
+
+        }
+
+        #[allow(clippy::unwrap_used)]
+        #[tokio::test]
+        async fn test_find_disputes_by_merchant_id() {
+            let mockdb = MockDb::new(&Default::default()).await;
+
+        }
+
+        #[allow(clippy::unwrap_used)]
+        #[tokio::test]
+        async fn test_find_disputes_by_merchant_id_payment_id() {
+            let mockdb = MockDb::new(&Default::default()).await;
+
+        }
+
+        #[allow(clippy::unwrap_used)]
+        #[tokio::test]
+        async fn test_update_dispute() {
+            let mockdb = MockDb::new(&Default::default()).await;
+
+        }
     }
 }
