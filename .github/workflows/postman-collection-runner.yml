@@ -28,6 +28,9 @@ jobs:
       
       - name: Install Newman
         run: npm install -g newman
+
+      - name: Install Newman Reporter
+        run: npm install -g newman-reporter-htmlextra
       
       - name: Install portman
         run: npm install -g @apideck/portman
