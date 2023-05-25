@@ -41,6 +41,9 @@ pub enum Subcommand {
 
 #[cfg(feature = "kms")]
 /// Store the decrypted kms secret values for active use in the application
+/// Currently using `StrongSecret` won't have any effect as this struct have smart pointers to heap
+/// allocations.
+/// note: we can consider adding such behaviour in the future with custom implementation
 #[derive(Clone)]
 pub struct ActiveKmsSecrets {
     pub jwekey: masking::Secret<Jwekey>,

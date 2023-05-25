@@ -12,6 +12,8 @@ use super::{admin::*, api_keys::*, disputes::*, files::*};
 use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
+#[cfg(feature = "kms")]
+use crate::configs::kms;
 use crate::{
     configs::settings,
     db::{MockDb, StorageImpl, StorageInterface},
@@ -69,18 +71,15 @@ impl AppState {
         };
 
         #[cfg(feature = "kms")]
-        let kms_secrets = retry(
-            || {
-                crate::configs::kms::KmsDecrypt::decrypt_inner(
-                    settings::ActiveKmsSecrets {
-                        jwekey: conf.jwekey.clone().into(),
-                    },
-                    &conf.kms,
-                )
+        #[allow(clippy::expect_used)]
+        let kms_secrets = kms::KmsDecrypt::decrypt_inner(
+            settings::ActiveKmsSecrets {
+                jwekey: conf.jwekey.clone().into(),
             },
-            3,
+            &conf.kms,
         )
-        .await;
+        .await
+        .expect("Failed while performing KMS decryption");
 
         #[cfg(feature = "email")]
         #[allow(clippy::expect_used)]
@@ -99,31 +98,6 @@ impl AppState {
     pub async fn new(conf: settings::Settings, shut_down_signal: oneshot::Sender<()>) -> Self {
         Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal).await
     }
-}
-
-#[allow(clippy::panic)]
-///
-/// # Panics
-/// panics of the function fails 2 times
-///
-pub async fn retry<F, T, E, Fut>(func: F, retry_count: u8) -> T
-where
-    F: FnOnce() -> Fut + Copy,
-    Fut: futures::Future<Output = Result<T, E>>,
-    E: std::fmt::Debug,
-{
-    for attempt_count in 0..retry_count {
-        let output = func().await;
-        match output {
-            Ok(value) => return value,
-            Err(err) => {
-                router_env::logger::error!(?attempt_count, ?err, "Failed while decrypting kms keys")
-            }
-        }
-    }
-    // safety: It would try to perform kms decryption `retry_count` times, other wise it should
-    // fail to start the application
-    panic!("Failed while decrypting `ActiveKmsSecrets`")
 }
 
 pub struct Health;

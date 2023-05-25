@@ -19,8 +19,6 @@ impl KmsDecrypt for settings::Jwekey {
 
         // If this pattern required repetition, a macro approach needs to be deviced
         let (
-            locker_key_identifier1,
-            locker_key_identifier2,
             locker_encryption_key1,
             locker_encryption_key2,
             locker_decryption_key1,
@@ -29,8 +27,6 @@ impl KmsDecrypt for settings::Jwekey {
             vault_private_key,
             tunnel_private_key,
         ) = tokio::try_join!(
-            client.decrypt(self.locker_key_identifier1),
-            client.decrypt(self.locker_key_identifier2),
             client.decrypt(self.locker_encryption_key1),
             client.decrypt(self.locker_encryption_key2),
             client.decrypt(self.locker_decryption_key1),
@@ -41,8 +37,8 @@ impl KmsDecrypt for settings::Jwekey {
         )?;
 
         Ok(Self {
-            locker_key_identifier1,
-            locker_key_identifier2,
+            locker_key_identifier1: self.locker_key_identifier1,
+            locker_key_identifier2: self.locker_key_identifier2,
             locker_encryption_key1,
             locker_encryption_key2,
             locker_decryption_key1,
