@@ -32,7 +32,32 @@ where
 {
     let resp: common_utils::errors::CustomResult<_, E> =
         api::server_wrap_util(state, request, payload, func, api_authentication).await;
-    match resp {
+
+    handle_application_response::<Q, S, E>(request, resp)
+}
+
+pub fn handle_application_response<Q, S, E>(
+    request: &HttpRequest,
+    wrap_response: Result<api::ApplicationResponse<Q>, error_stack::Report<E>>,
+) -> HttpResponse
+where
+    Q: Serialize + std::fmt::Debug,
+    E: Serialize + error_stack::Context + actix_web::ResponseError + Clone,
+    S: TryFrom<Q> + Serialize,
+    error_stack::Report<E>: services::EmbedError,
+{
+    match wrap_response {
+        Ok(api::ApplicationResponse::ResponseWithCustomHeader(response, headers)) => {
+            let mut final_response = handle_application_response::<Q, S, E>(request, Ok(*response));
+            let inner_headers = final_response.headers_mut();
+            for ele in headers {
+                match ele {
+                    (Some(name), value) => inner_headers.append(name, value),
+                    _ => continue,
+                }
+            }
+            final_response
+        }
         Ok(api::ApplicationResponse::Json(router_resp)) => {
             let pg_resp = S::try_from(router_resp);
             match pg_resp {
