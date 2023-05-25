@@ -78,10 +78,8 @@ pub async fn get_address_for_payment_request(
                 ),
                 None => {
                     // generate a new address here
-                    let customer_id = customer_id
-                        .as_deref()
-                        .get_required_value("customer_id")
-                        .change_context(errors::ApiErrorResponse::CustomerNotFound)?;
+                    let customer_id = customer_id.as_deref().get_required_value("customer_id")?;
+                    // .change_context(errors::ApiErrorResponse::CustomerNotFound)?;
 
                     let address_details = address.address.clone().unwrap_or_default();
                     Some(
@@ -278,11 +276,12 @@ pub fn validate_request_amount_and_amount_to_capture(
 
 pub fn validate_mandate(
     req: impl Into<api::MandateValidationFields>,
+    is_confirm_operation: bool,
 ) -> RouterResult<Option<api::MandateTxnType>> {
     let req: api::MandateValidationFields = req.into();
     match req.is_mandate() {
         Some(api::MandateTxnType::NewMandateTxn) => {
-            validate_new_mandate_request(req)?;
+            validate_new_mandate_request(req, is_confirm_operation)?;
             Ok(Some(api::MandateTxnType::NewMandateTxn))
         }
         Some(api::MandateTxnType::RecurringMandateTxn) => {
@@ -293,8 +292,18 @@ pub fn validate_mandate(
     }
 }
 
-fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResult<()> {
-    let _ = req.customer_id.as_ref().get_required_value("customer_id")?;
+fn validate_new_mandate_request(
+    req: api::MandateValidationFields,
+    is_confirm_operation: bool,
+) -> RouterResult<()> {
+    // We need not check for customer_id in the confirm request if it is already passed
+    //in create request
+
+    fp_utils::when(!is_confirm_operation && req.customer_id.is_none(), || {
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "`customer_id` is mandatory for mandates".into()
+        }))
+    })?;
 
     let mandate_data = req
         .mandate_data
@@ -655,10 +664,15 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     let req = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
-    let optional_customer = match req.customer_id.as_ref() {
+
+    let customer_id = req
+        .customer_id
+        .or(payment_data.payment_intent.customer_id.clone());
+
+    let optional_customer = match customer_id {
         Some(customer_id) => {
             let customer_data = db
-                .find_customer_optional_by_customer_id_merchant_id(customer_id, merchant_id)
+                .find_customer_optional_by_customer_id_merchant_id(&customer_id, merchant_id)
                 .await?;
             Some(match customer_data {
                 Some(c) => Ok(c),
