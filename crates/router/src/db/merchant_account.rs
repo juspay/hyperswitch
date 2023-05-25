@@ -227,7 +227,6 @@ impl MerchantAccountInterface for Store {
                 self,
                 cache::CacheKind::Accounts(merchant_id.into()),
                 delete_func,
-                None,
             )
             .await
         }
