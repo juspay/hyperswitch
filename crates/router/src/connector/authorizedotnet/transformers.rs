@@ -934,6 +934,7 @@ impl From<AuthorizedotnetWebhookEvent> for api::IncomingWebhookEvent {
 }
 
 impl From<AuthorizedotnetWebhookEvent> for SyncStatus {
+    // status mapping reference https://developer.authorize.net/api/reference/features/webhooks.html#Event_Types_and_Payloads
     fn from(event_type: AuthorizedotnetWebhookEvent) -> Self {
         match event_type {
             AuthorizedotnetWebhookEvent::AuthorizationCreated => Self::AuthorizedPendingCapture,
