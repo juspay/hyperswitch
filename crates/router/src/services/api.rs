@@ -459,7 +459,7 @@ async fn handle_response(
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ApplicationResponse<R> {
-    ResponseWithCustomHeader(Box<ApplicationResponse<R>>, reqwest::header::HeaderMap),
+    ResponseWithCustomHeader(Box<ApplicationResponse<R>>, http::HeaderMap),
     Json(R),
     StatusOk,
     TextPlain(String),
@@ -614,12 +614,9 @@ where
         Ok(ApplicationResponse::ResponseWithCustomHeader(response, headers)) => {
             let mut final_response = handle_application_response::<Q>(request, Ok(*response));
             let inner_headers = final_response.headers_mut();
-            for ele in headers {
-                match ele {
-                    (Some(name), value) => inner_headers.append(name, value),
-                    _ => continue,
-                }
-            }
+            headers
+                .iter()
+                .for_each(|(name, value)| inner_headers.append(name.to_owned(), value.to_owned()));
             final_response
         }
         Ok(ApplicationResponse::Json(response)) => match serde_json::to_string(&response) {

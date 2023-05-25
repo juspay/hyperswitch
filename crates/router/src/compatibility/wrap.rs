@@ -38,7 +38,7 @@ where
 
 pub fn handle_application_response<Q, S, E>(
     request: &HttpRequest,
-    wrap_response: Result<api::ApplicationResponse<Q>, error_stack::Report<E>>,
+    server_resp: Result<api::ApplicationResponse<Q>, error_stack::Report<E>>,
 ) -> HttpResponse
 where
     Q: Serialize + std::fmt::Debug,
@@ -46,16 +46,13 @@ where
     S: TryFrom<Q> + Serialize,
     error_stack::Report<E>: services::EmbedError,
 {
-    match wrap_response {
+    match server_resp {
         Ok(api::ApplicationResponse::ResponseWithCustomHeader(response, headers)) => {
             let mut final_response = handle_application_response::<Q, S, E>(request, Ok(*response));
             let inner_headers = final_response.headers_mut();
-            for ele in headers {
-                match ele {
-                    (Some(name), value) => inner_headers.append(name, value),
-                    _ => continue,
-                }
-            }
+            headers
+                .iter()
+                .for_each(|(name, value)| inner_headers.append(name.to_owned(), value.to_owned()));
             final_response
         }
         Ok(api::ApplicationResponse::Json(router_resp)) => {
