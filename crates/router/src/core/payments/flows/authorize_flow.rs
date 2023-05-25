@@ -147,10 +147,13 @@ impl types::PaymentsAuthorizeRouterData {
                 metrics::EXECUTE_PRETASK_COUNT.add(
                     &metrics::CONTEXT,
                     1,
-                    &[metrics::request::add_attributes(
-                        "connector",
-                        connector.connector_name.to_string(),
-                    )],
+                    &[
+                        metrics::request::add_attributes(
+                            "connector",
+                            connector.connector_name.to_string(),
+                        ),
+                        metrics::request::add_attributes("flow", format!("{:?}", api::Authorize)),
+                    ],
                 );
 
                 logger::debug!(completed_pre_tasks=?true);
@@ -270,10 +273,22 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
         metrics::PREPROCESSING_STEPS_COUNT.add(
             &metrics::CONTEXT,
             1,
-            &[metrics::request::add_attributes(
-                "connector",
-                connector.connector_name.to_string(),
-            )],
+            &[
+                metrics::request::add_attributes("connector", connector.connector_name.to_string()),
+                metrics::request::add_attributes(
+                    "payment_method",
+                    router_data.payment_method.to_string(),
+                ),
+                metrics::request::add_attributes(
+                    "payment_method_type",
+                    router_data
+                        .request
+                        .payment_method_type
+                        .as_ref()
+                        .map(|inner| inner.to_string())
+                        .unwrap_or("null".to_string()),
+                ),
+            ],
         );
 
         let authorize_router_data =
