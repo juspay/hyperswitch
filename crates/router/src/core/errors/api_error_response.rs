@@ -87,7 +87,7 @@ pub enum ApiErrorResponse {
     NotSupported { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_20", message = "{flow} flow not supported by the {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_21", message = "Missing required params: {field_names:?}")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_21", message = "Missing required params")]
     MissingRequiredFields { field_names: Vec<&'static str> },
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
@@ -394,7 +394,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 "The provided client_secret has expired", None
             )),
             Self::MissingRequiredFields { field_names } => AER::BadRequest(
-                ApiError::new("IR", 21, format!("Missing required params: {field_names:?}"), None),
+                ApiError::new("IR", 21, "Missing required params".to_string(), Some(Extra {data: Some(serde_json::json!(field_names)), ..Default::default() })),
             ),
             Self::ExternalConnectorError {
                 code,
