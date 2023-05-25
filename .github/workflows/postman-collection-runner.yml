@@ -36,4 +36,4 @@ jobs:
         run: portman --cliOptionsFile postman/portman-cli.json
 
       - name: Run Newman
-        run: newman run postman/HyperSwitchAPIs.postman_collection.json --env-var apiKey=${{ secrets.INTEG_ADMIN_API_KEY }} --env-var baseUrl=${{ secrets.INTEG_BASE_URL }}
+        run: newman run postman/HyperSwitchAPIs.postman_collection.json --env-var admin_api_key=${{ secrets.INTEG_ADMIN_API_KEY }} --env-var baseUrl=${{ secrets.INTEG_BASE_URL }}
