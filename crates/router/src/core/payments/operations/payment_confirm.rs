@@ -207,6 +207,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .transpose()?;
 
+        let customer_id = request
+            .customer_id
+            .to_owned()
+            .or(payment_intent.customer_id.to_owned());
+
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = setup_mandate.map(|mandate_data| api_models::payments::MandateData {
             customer_acceptance: mandate_data.customer_acceptance,
@@ -247,7 +252,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 ephemeral_key: None,
             },
             Some(CustomerDetails {
-                customer_id: request.customer_id.clone(),
+                customer_id,
                 name: request.name.clone(),
                 email: request.email.clone(),
                 phone: request.phone.clone(),
