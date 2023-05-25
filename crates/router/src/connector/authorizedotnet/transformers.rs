@@ -941,7 +941,7 @@ impl From<AuthorizedotnetWebhookEvent> for SyncStatus {
             | AuthorizedotnetWebhookEvent::AuthCapCreated => Self::CapturedPendingSettlement,
             AuthorizedotnetWebhookEvent::PriorAuthCapture => Self::SettledSuccessfully,
             AuthorizedotnetWebhookEvent::VoidCreated => Self::Voided,
-            AuthorizedotnetWebhookEvent::RefundCreated => Self::RefundPendingSettlement,
+            AuthorizedotnetWebhookEvent::RefundCreated => Self::RefundSettledSuccessfully,
         }
     }
 }
