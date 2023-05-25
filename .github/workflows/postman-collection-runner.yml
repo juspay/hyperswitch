@@ -36,4 +36,4 @@ jobs:
         run: portman --cliOptionsFile postman/portman-cli.json
 
       - name: Run Newman
-        run: newman run postman/collection.postman.json --env-var apiKey=${{ secrets.INTEG_ADMIN_API_KEY }} --env-var baseUrl=${{ secrets.INTEG_BASE_URL }}
+        run: newman run postman/collection.postman.json --reporters cli,request-response --env-var apiKey=${{ secrets.INTEG_ADMIN_API_KEY }} --env-var baseUrl=${{ secrets.INTEG_BASE_URL }}
