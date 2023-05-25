@@ -16,7 +16,7 @@ use crate::{
     types::{
         self, api,
         storage::{self, MerchantAccount},
-        transformers::{ForeignInto, ForeignTryFrom, ForeignTryInto},
+        transformers::{/*ForeignInto*/ ForeignTryFrom, ForeignTryInto},
     },
     utils::{self, OptionExt},
 };
@@ -374,7 +374,7 @@ pub async fn create_payment_connector(
     };
     let merchant_connector_account = storage::MerchantConnectorAccountNew {
         merchant_id: Some(merchant_id.to_string()),
-        connector_type: Some(req.connector_type.foreign_into()),
+        connector_type: Some(req.connector_type),
         connector_name: Some(req.connector_name),
         merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
         connector_account_details: req.connector_account_details,
@@ -494,7 +494,7 @@ pub async fn update_payment_connector(
     };
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: Some(merchant_id.to_string()),
-        connector_type: Some(req.connector_type.foreign_into()),
+        connector_type: Some(req.connector_type),
         merchant_connector_id: Some(merchant_connector_id.to_string()),
         connector_account_details: req.connector_account_details,
         payment_methods_enabled,

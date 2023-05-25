@@ -38,7 +38,7 @@ use crate::{
     types::{
         api::{self, PaymentMethodCreateExt},
         storage::{self, enums},
-        transformers::ForeignInto,
+       
     },
     utils::{self, ConnectorResponseExt, OptionExt},
 };
@@ -57,8 +57,8 @@ pub async fn create_payment_method(
             customer_id: customer_id.to_string(),
             merchant_id: merchant_id.to_string(),
             payment_method_id: payment_method_id.to_string(),
-            payment_method: req.payment_method.foreign_into(),
-            payment_method_type: req.payment_method_type.map(ForeignInto::foreign_into),
+            payment_method: req.payment_method,
+            payment_method_type: req.payment_method_type,
             payment_method_issuer: req.payment_method_issuer.clone(),
             scheme: req.card_network.clone(),
             metadata: pm_metadata.map(masking::Secret::new),
@@ -129,11 +129,11 @@ pub async fn update_customer_payment_method(
         .await?;
     };
     let new_pm = api::PaymentMethodCreate {
-        payment_method: pm.payment_method.foreign_into(),
-        payment_method_type: pm.payment_method_type.map(|x| x.foreign_into()),
+        payment_method: pm.payment_method,
+        payment_method_type: pm.payment_method_type,
         payment_method_issuer: pm.payment_method_issuer,
-        payment_method_issuer_code: pm.payment_method_issuer_code.map(|x| x.foreign_into()),
-        card: req.card,
+        payment_method_issuer_code: pm.payment_method_issuer_code,
+        card:req.card,
         metadata: req.metadata,
         customer_id: Some(pm.customer_id),
         card_network: req
@@ -1237,7 +1237,7 @@ pub async fn filter_payment_methods(
                         &address.and_then(|inner| inner.country),
                         payment_attempt
                             .and_then(|value| value.currency)
-                            .map(|value| value.foreign_into()),
+                           ,
                     );
 
                     let filter6 = filter_pm_based_on_allowed_types(
@@ -1556,8 +1556,8 @@ fn filter_payment_currency_based(
 ) -> bool {
     payment_intent.currency.map_or(true, |currency| {
         pm.accepted_currencies.as_ref().map_or(true, |ac| match ac {
-            admin::AcceptedCurrencies::EnableOnly(acc) => acc.contains(&currency.foreign_into()),
-            admin::AcceptedCurrencies::DisableOnly(den) => !den.contains(&currency.foreign_into()),
+            admin::AcceptedCurrencies::EnableOnly(acc) => acc.contains(&currency),
+            admin::AcceptedCurrencies::DisableOnly(den) => !den.contains(&currency),
             admin::AcceptedCurrencies::AllAccepted => true,
         })
     })
@@ -1621,14 +1621,14 @@ pub async fn list_customer_payment_method(
         let pma = api::CustomerPaymentMethod {
             payment_token: parent_payment_method_token.to_owned(),
             customer_id: pm.customer_id,
-            payment_method: pm.payment_method.foreign_into(),
-            payment_method_type: pm.payment_method_type.map(ForeignInto::foreign_into),
+            payment_method: pm.payment_method,
+            payment_method_type: pm.payment_method_type,
             payment_method_issuer: pm.payment_method_issuer,
             card,
             metadata: pm.metadata,
             payment_method_issuer_code: pm
                 .payment_method_issuer_code
-                .map(ForeignInto::foreign_into),
+               ,
             recurring_enabled: false,
             installment_payment_enabled: false,
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
@@ -1916,8 +1916,8 @@ pub async fn retrieve_payment_method(
             merchant_id: pm.merchant_id,
             customer_id: Some(pm.customer_id),
             payment_method_id: pm.payment_method_id,
-            payment_method: pm.payment_method.foreign_into(),
-            payment_method_type: pm.payment_method_type.map(ForeignInto::foreign_into),
+            payment_method: pm.payment_method,
+            payment_method_type: pm.payment_method_type,
             card,
             metadata: pm.metadata,
             created: Some(pm.created_at),

@@ -496,16 +496,16 @@ impl PaymentCreate {
             currency,
             amount: amount.into(),
             payment_method,
-            capture_method: request.capture_method.map(ForeignInto::foreign_into),
+            capture_method: request.capture_method,
             capture_on: request.capture_on,
             confirm: request.confirm.unwrap_or(false),
             created_at,
             modified_at,
             last_synced,
-            authentication_type: request.authentication_type.map(ForeignInto::foreign_into),
+            authentication_type: request.authentication_type,
             browser_info,
-            payment_experience: request.payment_experience.map(ForeignInto::foreign_into),
-            payment_method_type: request.payment_method_type.map(ForeignInto::foreign_into),
+            payment_experience: request.payment_experience,
+            payment_method_type: request.payment_method_type,
             payment_method_data: additional_pm_data,
             mandate_details: request
                 .mandate_data
@@ -562,7 +562,7 @@ impl PaymentCreate {
             modified_at,
             last_synced,
             client_secret: Some(client_secret),
-            setup_future_usage: request.setup_future_usage.map(ForeignInto::foreign_into),
+            setup_future_usage: request.setup_future_usage,
             off_session: request.off_session,
             return_url: request.return_url.as_ref().map(|a| a.to_string()),
             shipping_address_id,
@@ -626,7 +626,7 @@ pub fn payments_create_request_validation(
 ) -> RouterResult<(api::Amount, enums::Currency)> {
     let currency = req
         .currency
-        .map(ForeignInto::foreign_into)
+       
         .get_required_value("currency")?;
     let amount = req.amount.get_required_value("amount")?;
     Ok((amount, currency))

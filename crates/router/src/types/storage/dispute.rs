@@ -5,7 +5,7 @@ use error_stack::{IntoReport, ResultExt};
 pub use storage_models::dispute::{Dispute, DisputeNew, DisputeUpdate};
 use storage_models::{errors, schema::dispute::dsl};
 
-use crate::{connection::PgPooledConn, logger, types::transformers::ForeignInto};
+use crate::{connection::PgPooledConn, logger};
 
 #[async_trait::async_trait]
 pub trait DisputeDbExt: Sized {
@@ -51,12 +51,12 @@ impl DisputeDbExt for Dispute {
         }
         if let Some(dispute_stage) = dispute_list_constraints.dispute_stage {
             let storage_dispute_stage: storage_models::enums::DisputeStage =
-                dispute_stage.foreign_into();
+                dispute_stage;
             filter = filter.filter(dsl::dispute_stage.eq(storage_dispute_stage));
         }
         if let Some(dispute_status) = dispute_list_constraints.dispute_status {
             let storage_dispute_status: storage_models::enums::DisputeStatus =
-                dispute_status.foreign_into();
+                dispute_status;
             filter = filter.filter(dsl::dispute_status.eq(storage_dispute_status));
         }
         if let Some(limit) = dispute_list_constraints.limit {

@@ -58,7 +58,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_intent.setup_future_usage = request
             .setup_future_usage
-            .map(ForeignInto::foreign_into)
+           
             .or(payment_intent.setup_future_usage);
 
         helpers::validate_payment_status_against_not_allowed_statuses(
@@ -96,7 +96,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         currency = match request.currency {
-            Some(cur) => cur.foreign_into(),
+            Some(cur) => cur,
             None => payment_attempt.currency.get_required_value("currency")?,
         };
 
@@ -242,12 +242,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_attempt.payment_method_type = request
             .payment_method_type
-            .map(|pmt| pmt.foreign_into())
+           
             .or(payment_attempt.payment_method_type);
 
         payment_attempt.payment_experience = request
             .payment_experience
-            .map(|experience| experience.foreign_into());
+            ;
 
         let creds_identifier = request
             .merchant_connector_details

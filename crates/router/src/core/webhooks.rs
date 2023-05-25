@@ -249,7 +249,7 @@ pub async fn get_or_update_dispute_object(
                 dispute_id,
                 amount: dispute_details.amount,
                 currency: dispute_details.currency,
-                dispute_stage: dispute_details.dispute_stage.foreign_into(),
+                dispute_stage: dispute_details.dispute_stage,
                 dispute_status: event_type
                     .foreign_try_into()
                     .into_report()
@@ -281,13 +281,13 @@ pub async fn get_or_update_dispute_object(
                 .into_report()
                 .change_context(errors::WebhooksFlowError::DisputeCoreFailed)?;
             crate::core::utils::validate_dispute_stage_and_dispute_status(
-                dispute.dispute_stage.foreign_into(),
-                dispute.dispute_status.foreign_into(),
+                dispute.dispute_stage,
+                dispute.dispute_status,
                 dispute_details.dispute_stage.clone(),
-                dispute_status.foreign_into(),
+                dispute_status,
             )?;
             let update_dispute = storage_models::dispute::DisputeUpdate::Update {
-                dispute_stage: dispute_details.dispute_stage.foreign_into(),
+                dispute_stage: dispute_details.dispute_stage,
                 dispute_status,
                 connector_status: dispute_details.connector_status,
                 connector_reason: dispute_details.connector_reason,
@@ -473,7 +473,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookTy
         let outgoing_webhook = api::OutgoingWebhook {
             merchant_id: merchant_account.merchant_id.clone(),
             event_id: event.event_id,
-            event_type: event.event_type.foreign_into(),
+            event_type: event.event_type,
             content,
             timestamp: event.created_at,
         };

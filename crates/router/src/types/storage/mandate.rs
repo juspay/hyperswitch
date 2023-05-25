@@ -7,7 +7,7 @@ pub use storage_models::mandate::{
 };
 use storage_models::{errors, schema::mandate::dsl};
 
-use crate::{connection::PgPooledConn, logger, types::transformers::ForeignInto};
+use crate::{connection::PgPooledConn, logger};
 
 #[async_trait::async_trait]
 pub trait MandateDbExt: Sized {
@@ -50,7 +50,7 @@ impl MandateDbExt for Mandate {
         }
         if let Some(mandate_status) = mandate_list_constraints.mandate_status {
             let storage_mandate_status: storage_models::enums::MandateStatus =
-                mandate_status.foreign_into();
+                mandate_status;
             filter = filter.filter(dsl::mandate_status.eq(storage_mandate_status));
         }
         if let Some(limit) = mandate_list_constraints.limit {

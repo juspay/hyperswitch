@@ -11,7 +11,7 @@ errors = [
     "dep:reqwest",
 ]
 multiple_mca = []
-dummy_connector = []
+dummy_connector = ["common_enums/dummy_connector"]
 detailed_errors = []
 
 [dependencies]

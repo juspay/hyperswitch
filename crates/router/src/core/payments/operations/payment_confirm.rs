@@ -94,7 +94,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_intent.setup_future_usage = request
             .setup_future_usage
-            .map(ForeignInto::foreign_into)
+           
             .or(payment_intent.setup_future_usage);
 
         let (token, payment_method, setup_mandate) = helpers::get_token_pm_type_mandate_details(
@@ -129,18 +129,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_attempt.browser_info = browser_info;
         payment_attempt.payment_method_type = request
             .payment_method_type
-            .map(|pmt| pmt.foreign_into())
+           
             .or(payment_attempt.payment_method_type);
 
         payment_attempt.payment_experience = request
             .payment_experience
-            .map(|experience| experience.foreign_into())
+           
             .or(payment_attempt.payment_experience);
 
         payment_attempt.capture_method = request
             .capture_method
-            .or(payment_attempt.capture_method.map(|cm| cm.foreign_into()))
-            .map(|cm| cm.foreign_into());
+            .or(payment_attempt.capture_method)
+            ;
 
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.amount.into();
