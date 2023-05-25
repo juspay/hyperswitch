@@ -7,6 +7,9 @@ on:
   schedule:
       - cron: "15 0 * * *"
 
+env:
+  TZ: 'Asia/Kolkata' 
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -30,4 +33,4 @@ jobs:
         run: portman --cliOptionsFile postman/portman-cli.json
 
       - name: Run Newman
-        run: newman run postman/collection.postman.json --env-var apiKey=${{ secrets.INTEG_ADMIN_API_KEY }} baseUrl=${{ secrets.INTEG_BASE_URL }}
+        run: newman run postman/collection.postman.json --env-var apiKey=${{ secrets.INTEG_ADMIN_API_KEY }} --env-var baseUrl=${{ secrets.INTEG_BASE_URL }}
