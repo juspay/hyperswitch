@@ -602,7 +602,10 @@ where
 
 fn handle_application_response<Q>(
     request: &HttpRequest,
-    wrap_response: Result<ApplicationResponse<Q>, Report<api_models::errors::types::ApiErrorResponse>>,
+    wrap_response: Result<
+        ApplicationResponse<Q>,
+        Report<api_models::errors::types::ApiErrorResponse>,
+    >,
 ) -> HttpResponse
 where
     Q: Serialize + Debug,
