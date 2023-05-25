@@ -35,6 +35,7 @@ mod opennode;
 mod payeezy;
 mod paypal;
 mod payu;
+mod payu_ui;
 mod rapyd;
 mod selenium;
 mod shift4;

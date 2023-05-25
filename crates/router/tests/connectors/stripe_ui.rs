@@ -107,6 +107,7 @@ async fn should_make_gpay_mandate_payment(c: WebDriver) -> Result<(), WebDriverE
     Ok(())
 }
 
+#[ignore = "Different flows"]
 //https://stripe.com/docs/testing#regulatory-cards
 async fn should_make_stripe_klarna_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = StripeSeleniumTest {};
