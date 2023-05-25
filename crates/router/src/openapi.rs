@@ -243,8 +243,6 @@ Never share your secret api keys. Keep them guarded and secure.
 )]
 pub struct ApiDoc;
 
-pub struct MandateRequest;
-
 struct SecurityAddon;
 
 impl utoipa::Modify for SecurityAddon {
