@@ -1,4 +1,5 @@
 use super::utils as metric_utils;
+use crate::services::ApplicationResponse;
 
 pub async fn record_request_time_metric<F, R>(
     future: F,
@@ -48,4 +49,15 @@ pub fn status_code_metrics(status_code: i64, flow: String, merchant_id: String) 
             add_attributes("merchant_id", merchant_id),
         ],
     )
+}
+
+pub fn track_response_status_code<Q>(response: &ApplicationResponse<Q>) -> i64 {
+    match response {
+        ApplicationResponse::Json(_)
+        | ApplicationResponse::StatusOk
+        | ApplicationResponse::TextPlain(_)
+        | ApplicationResponse::Form(_)
+        | ApplicationResponse::FileData(_) => 200,
+        ApplicationResponse::JsonForRedirection(_) => 302,
+    }
 }

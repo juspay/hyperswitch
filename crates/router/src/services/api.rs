@@ -556,7 +556,7 @@ where
     let output = func(state, auth_out, payload).await.switch();
 
     let status_code = match output.as_ref() {
-        Ok(_) => 200,
+        Ok(res) => metrics::request::track_response_status_code(res),
         Err(err) => err.current_context().status_code().as_u16().into(),
     };
 

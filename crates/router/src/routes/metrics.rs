@@ -14,6 +14,8 @@ counter_metric!(REQUEST_STATUS, GLOBAL_METER);
 histogram_metric!(REQUEST_TIME, GLOBAL_METER);
 
 // Operation Level Metrics
+counter_metric!(PAYMENT_OPS_COUNT, GLOBAL_METER);
+
 counter_metric!(PAYMENT_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_PAYMENT, GLOBAL_METER);
 
