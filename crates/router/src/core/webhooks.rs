@@ -24,6 +24,7 @@ use crate::{
 };
 
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
+const MERCHANT_ID: &str = "merchant_id";
 
 #[instrument(skip_all)]
 pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
@@ -535,6 +536,14 @@ pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
     let response =
         services::api::send_request(state, request, Some(OUTGOING_WEBHOOK_TIMEOUT_SECS)).await;
 
+    metrics::WEBHOOK_OUTGOING_COUNT.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::KeyValue::new(
+            MERCHANT_ID,
+            merchant_account.merchant_id.clone(),
+        )],
+    );
     match response {
         Err(e) => {
             // [#217]: Schedule webhook for retry.
@@ -542,6 +551,14 @@ pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
         }
         Ok(res) => {
             if res.status().is_success() {
+                metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[metrics::KeyValue::new(
+                        MERCHANT_ID,
+                        merchant_account.merchant_id.clone(),
+                    )],
+                );
                 let update_event = storage::EventUpdate::UpdateWebhookNotified {
                     is_webhook_notified: Some(true),
                 };
@@ -551,6 +568,14 @@ pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
                     .await
                     .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)?;
             } else {
+                metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[metrics::KeyValue::new(
+                        MERCHANT_ID,
+                        merchant_account.merchant_id.clone(),
+                    )],
+                );
                 // [#217]: Schedule webhook for retry.
                 Err(errors::WebhooksFlowError::NotReceivedByMerchant).into_report()?;
             }
@@ -568,6 +593,15 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     connector_name: &str,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
+    metrics::WEBHOOK_INCOMING_COUNT.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::KeyValue::new(
+            MERCHANT_ID,
+            merchant_account.merchant_id.clone(),
+        )],
+    );
+
     let connector = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         connector_name,
@@ -622,6 +656,17 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("There was an issue in incoming webhook source verification")?;
+
+        if source_verified {
+            metrics::WEBHOOK_SOURCE_VERIFIED_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[metrics::KeyValue::new(
+                    MERCHANT_ID,
+                    merchant_account.merchant_id.clone(),
+                )],
+            );
+        }
 
         let object_ref_id = connector
             .get_webhook_object_reference_id(&request_details)
@@ -695,6 +740,15 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
                 .into_report()
                 .attach_printable("Unsupported Flow Type received in incoming webhooks")?,
         }
+    } else {
+        metrics::WEBHOOK_INCOMING_FILTERED_COUNT.add(
+            &metrics::CONTEXT,
+            1,
+            &[metrics::KeyValue::new(
+                MERCHANT_ID,
+                merchant_account.merchant_id.clone(),
+            )],
+        );
     }
 
     let response = connector
