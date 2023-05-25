@@ -1,9 +1,6 @@
 name: Postman Collection Api test 
 
 on:
-  push:
-    branches:
-      add-api-collections-runner
   pull_request:
     branches:
       - main
