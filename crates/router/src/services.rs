@@ -66,12 +66,20 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
 
     #[inline]
     async fn on_message(&self) -> errors::CustomResult<(), redis_errors::RedisError> {
+        logger::debug!("Started on message");
         let mut rx = self.subscriber.on_message();
         while let Ok(message) = rx.recv().await {
             logger::debug!("Invalidating {message:?}");
-            let key: CacheKind<'_> = RedisValue::new(message.value)
+            let key: CacheKind<'_> = match RedisValue::new(message.value)
                 .try_into()
-                .change_context(redis_errors::RedisError::OnMessageError)?;
+                .change_context(redis_errors::RedisError::OnMessageError)
+            {
+                Ok(value) => value,
+                Err(err) => {
+                    logger::error!(value_conversion_err=?err);
+                    continue;
+                }
+            };
 
             let key = match key {
                 CacheKind::Config(key) => {
@@ -135,7 +143,10 @@ impl Store {
 
         let subscriber_conn = redis_conn.clone();
 
-        redis_conn.subscribe(consts::PUB_SUB_CHANNEL).await.ok();
+        if let Err(e) = redis_conn.subscribe(consts::PUB_SUB_CHANNEL).await {
+            logger::error!(subscribe_err=?e);
+        }
+
         async_spawn!({
             if let Err(e) = subscriber_conn.on_message().await {
                 logger::error!(pubsub_err=?e);
