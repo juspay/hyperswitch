@@ -6,8 +6,6 @@ use common_utils::{
 };
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "kms")]
-use external_services::kms;
 use josekit::jwe;
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
@@ -782,40 +780,16 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     }
                 }
 
-                Some(api::PaymentMethodData::Wallet(wallet_data)) => {
+                Some(api::PaymentMethodData::Wallet(_)) => {
                     payment_data.payment_attempt.payment_method =
                         Some(storage_enums::PaymentMethod::Wallet);
-                    // TODO: Remove redundant update from wallets.
-                    match wallet_data {
-                        api_models::payments::WalletData::PaypalRedirect(_) => pm,
-                        _ => {
-                            let updated_pm = api::PaymentMethodData::Wallet(wallet_data);
-                            vault::Vault::store_payment_method_data_in_locker(
-                                state,
-                                Some(hyperswitch_token),
-                                &updated_pm,
-                                payment_data.payment_intent.customer_id.to_owned(),
-                                enums::PaymentMethod::Wallet,
-                            )
-                            .await?;
-                            Some(updated_pm)
-                        }
-                    }
+                    pm
                 }
 
-                Some(api::PaymentMethodData::BankTransfer(bank_transfer)) => {
+                Some(api::PaymentMethodData::BankTransfer(_)) => {
                     payment_data.payment_attempt.payment_method =
                         Some(storage_enums::PaymentMethod::BankTransfer);
-                    let updated_pm = api::PaymentMethodData::BankTransfer(bank_transfer);
-                    vault::Vault::store_payment_method_data_in_locker(
-                        state,
-                        Some(hyperswitch_token),
-                        &updated_pm,
-                        payment_data.payment_intent.customer_id.to_owned(),
-                        enums::PaymentMethod::BankTransfer,
-                    )
-                    .await?;
-                    Some(updated_pm)
+                    pm
                 }
                 Some(_) => Err(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
@@ -1631,15 +1605,7 @@ pub async fn get_merchant_connector_account(
                 )?;
 
             #[cfg(feature = "kms")]
-            let kms_config = &state.conf.kms;
-
-            #[cfg(feature = "kms")]
-            let private_key = kms::get_kms_client(kms_config)
-                .await
-                .decrypt(state.conf.jwekey.tunnel_private_key.to_owned())
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error getting tunnel private key")?;
+            let private_key = state.kms_secrets.jwekey.peek().tunnel_private_key.clone();
 
             #[cfg(not(feature = "kms"))]
             let private_key = state.conf.jwekey.tunnel_private_key.to_owned();
