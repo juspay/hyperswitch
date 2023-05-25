@@ -344,6 +344,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             payment_id: Some(req.resource_id.clone()),
             merchant_id: req.merchant_id.clone(),
             metadata: Some(Metadata {
+                routing_parameters: None,
                 order_details: None,
                 data: masking::Secret::new("{}".into()),
                 payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),

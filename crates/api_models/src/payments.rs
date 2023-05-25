@@ -1,4 +1,4 @@
-use std::num::NonZeroI64;
+use std::{collections::HashMap, num::NonZeroI64};
 
 use cards::CardNumber;
 use common_utils::{pii, pii::Email};
@@ -1570,6 +1570,8 @@ pub struct OrderDetails {
 pub struct Metadata {
     /// Information about the product and quantity for specific connectors. (e.g. Klarna)
     pub order_details: Option<Vec<OrderDetails>>,
+    /// Information used for routing
+    pub routing_parameters: Option<HashMap<String, String>>,
     /// Any other metadata that is to be provided
     #[schema(value_type = Object, example = r#"{ "city": "NY", "unit": "245" }"#)]
     #[serde(flatten)]
