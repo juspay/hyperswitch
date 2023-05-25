@@ -1,5 +1,9 @@
 use api_models::admin::PrimaryBusinessDetails;
-use common_utils::{crypto::OptionalSecretValue, date_time, ext_traits::ValueExt};
+use common_utils::{
+    crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
+    date_time,
+    ext_traits::ValueExt,
+};
 use error_stack::{report, FutureExt, ResultExt};
 use masking::Secret; //PeekInterface
 use storage_models::enums;
@@ -12,6 +16,7 @@ use crate::{
         payments::helpers,
     },
     db::StorageInterface,
+    routes::metrics,
     services::{self, api as service_api},
     types::{
         self, api,
@@ -120,6 +125,12 @@ pub async fn create_merchant_account(
         created_at: date_time::now(),
     };
 
+    let enable_payment_response_hash = req.enable_payment_response_hash.unwrap_or(true);
+
+    let payment_response_hash_key = req
+        .payment_response_hash_key
+        .or(Some(generate_cryptographically_secure_random_string(32)));
+
     db.insert_merchant_key_store(key_store)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
@@ -142,8 +153,8 @@ pub async fn create_merchant_account(
             routing_algorithm: req.routing_algorithm,
             sub_merchants_enabled: req.sub_merchants_enabled,
             parent_merchant_id,
-            enable_payment_response_hash: req.enable_payment_response_hash.unwrap_or_default(),
-            payment_response_hash_key: req.payment_response_hash_key,
+            enable_payment_response_hash,
+            payment_response_hash_key,
             redirect_to_merchant_with_http_post: req
                 .redirect_to_merchant_with_http_post
                 .unwrap_or_default(),
@@ -428,10 +439,11 @@ pub async fn create_payment_connector(
         }
         None => None,
     };
+
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
         connector_type: req.connector_type.foreign_into(),
-        connector_name: req.connector_name,
+        connector_name: req.connector_name.clone(),
         merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
         connector_account_details: domain_types::encrypt(
             req.connector_account_details.ok_or(
@@ -466,6 +478,15 @@ pub async fn create_payment_connector(
                 connector_label: connector_label.clone(),
             },
         )?;
+
+    metrics::MCA_CREATE.add(
+        &metrics::CONTEXT,
+        1,
+        &[
+            metrics::request::add_attributes("connector", req.connector_name.to_string()),
+            metrics::request::add_attributes("merchant", merchant_id.to_string()),
+        ],
+    );
 
     let mca_response = mca.try_into()?;
 

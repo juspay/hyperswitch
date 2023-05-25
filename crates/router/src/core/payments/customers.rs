@@ -7,7 +7,7 @@ use crate::{
         payments,
     },
     logger,
-    routes::AppState,
+    routes::{metrics, AppState},
     services,
     types::{self, api, domain, storage},
 };
@@ -50,6 +50,15 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
     )
     .await
     .map_err(|error| error.to_payment_failed_response())?;
+
+    metrics::CONNECTOR_CUSTOMER_CREATE.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes(
+            "connector",
+            connector.connector_name.to_string(),
+        )],
+    );
 
     let connector_customer_id = match resp.response {
         Ok(response) => match response {

@@ -1,8 +1,9 @@
 use super::utils as metric_utils;
+use crate::services::ApplicationResponse;
 
 pub async fn record_request_time_metric<F, R>(
     future: F,
-    flow: impl router_env::types::FlowMetric,
+    flow: &impl router_env::types::FlowMetric,
 ) -> R
 where
     F: futures::Future<Output = R>,
@@ -36,4 +37,27 @@ pub fn add_attributes<T: Into<router_env::opentelemetry::Value>>(
     value: T,
 ) -> router_env::opentelemetry::KeyValue {
     router_env::opentelemetry::KeyValue::new(key, value)
+}
+
+pub fn status_code_metrics(status_code: i64, flow: String, merchant_id: String) {
+    super::REQUEST_STATUS.add(
+        &super::CONTEXT,
+        1,
+        &[
+            add_attributes("status_code", status_code),
+            add_attributes("flow", flow),
+            add_attributes("merchant_id", merchant_id),
+        ],
+    )
+}
+
+pub fn track_response_status_code<Q>(response: &ApplicationResponse<Q>) -> i64 {
+    match response {
+        ApplicationResponse::Json(_)
+        | ApplicationResponse::StatusOk
+        | ApplicationResponse::TextPlain(_)
+        | ApplicationResponse::Form(_)
+        | ApplicationResponse::FileData(_) => 200,
+        ApplicationResponse::JsonForRedirection(_) => 302,
+    }
 }

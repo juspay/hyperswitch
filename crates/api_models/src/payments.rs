@@ -1,4 +1,4 @@
-use std::num::NonZeroI64;
+use std::{collections::HashMap, num::NonZeroI64};
 
 use cards::CardNumber;
 use common_utils::{
@@ -1070,21 +1070,20 @@ pub enum NextActionType {
     TriggerApi,
     DisplayBankTransferInformation,
 }
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
-pub struct NextAction {
-    /// Specifying the action type to be performed next
-    #[serde(rename = "type")]
-    pub next_action_type: NextActionType,
-    //TODO: Make an enum having redirect_to_url and bank_transfer_steps_and_charges_details and use here
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NextActionData {
     /// Contains the url for redirection flow
-    #[schema(example = "https://router.juspay.io/redirect/fakushdfjlksdfasklhdfj")]
-    pub redirect_to_url: Option<String>,
+    RedirectToUrl { redirect_to_url: String },
     /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
-    pub bank_transfer_steps_and_charges_details: Option<NextStepsRequirements>,
+    DisplayBankTransferInformation {
+        bank_transfer_steps_and_charges_details: BankTransferNextStepsData,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct NextStepsRequirements {
+pub struct BankTransferNextStepsData {
     #[serde(flatten)]
     pub bank_transfer_instructions: BankTransferInstructions,
     pub receiver: ReceiverDetails,
@@ -1271,7 +1270,7 @@ pub struct PaymentsResponse {
     pub statement_descriptor_suffix: Option<String>,
 
     /// Additional information required for redirection
-    pub next_action: Option<NextAction>,
+    pub next_action: Option<NextActionData>,
 
     /// If the payment was cancelled the reason provided here
     pub cancellation_reason: Option<String>,
@@ -1556,6 +1555,8 @@ pub struct OrderDetails {
 pub struct Metadata {
     /// Information about the product and quantity for specific connectors. (e.g. Klarna)
     pub order_details: Option<Vec<OrderDetails>>,
+    /// Information used for routing
+    pub routing_parameters: Option<HashMap<String, String>>,
     /// Any other metadata that is to be provided
     #[schema(value_type = Object, example = r#"{ "city": "NY", "unit": "245" }"#)]
     #[serde(flatten)]

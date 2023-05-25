@@ -9,7 +9,7 @@ use crate::{
         mandate, payment_methods, payments,
     },
     logger,
-    routes::AppState,
+    routes::{metrics, AppState},
     services,
     types::{
         self,
@@ -230,6 +230,21 @@ pub async fn add_payment_method_token<F: Clone, T: Clone>(
             )
             .await
             .map_err(|error| error.to_payment_failed_response())?;
+
+            metrics::CONNECTOR_PAYMENT_METHOD_TOKENIZATION.add(
+                &metrics::CONTEXT,
+                1,
+                &[
+                    metrics::request::add_attributes(
+                        "connector",
+                        connector.connector_name.to_string(),
+                    ),
+                    metrics::request::add_attributes(
+                        "payment_method",
+                        router_data.payment_method.to_string(),
+                    ),
+                ],
+            );
 
             let pm_token = match resp.response {
                 Ok(response) => match response {

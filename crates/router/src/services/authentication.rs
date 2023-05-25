@@ -17,13 +17,31 @@ use crate::{
     db::StorageInterface,
     routes::app::AppStateInfo,
     services::api,
-    types::domain::{self},
+    types::domain,
     utils::OptionExt,
 };
+
+pub trait AuthInfo {
+    fn get_merchant_id(&self) -> Option<&str>;
+}
+
+impl AuthInfo for () {
+    fn get_merchant_id(&self) -> Option<&str> {
+        None
+    }
+}
+
+impl AuthInfo for domain::MerchantAccount {
+    fn get_merchant_id(&self) -> Option<&str> {
+        Some(&self.merchant_id)
+    }
+}
+
 #[async_trait]
 pub trait AuthenticateAndFetch<T, A>
 where
     A: AppStateInfo,
+    T: AuthInfo,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -303,7 +321,7 @@ impl ClientSecretFetch for api_models::cards_info::CardsInfoRequest {
     }
 }
 
-pub fn jwt_auth_or<'a, T, A: AppStateInfo>(
+pub fn jwt_auth_or<'a, T: AuthInfo, A: AppStateInfo>(
     default_auth: &'a dyn AuthenticateAndFetch<T, A>,
     headers: &HeaderMap,
 ) -> Box<&'a dyn AuthenticateAndFetch<T, A>>

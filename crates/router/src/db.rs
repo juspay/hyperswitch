@@ -116,6 +116,7 @@ pub struct MockDb {
     connector_response: Arc<Mutex<Vec<storage::ConnectorResponse>>>,
     redis: Arc<redis_interface::RedisConnectionPool>,
     api_keys: Arc<Mutex<Vec<storage::ApiKey>>>,
+    cards_info: Arc<Mutex<Vec<storage::CardInfo>>>,
 }
 
 impl MockDb {
@@ -132,6 +133,7 @@ impl MockDb {
             connector_response: Default::default(),
             redis: Arc::new(crate::connection::redis_connection(redis).await),
             api_keys: Default::default(),
+            cards_info: Default::default(),
         }
     }
 }
