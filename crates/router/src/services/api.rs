@@ -459,6 +459,7 @@ async fn handle_response(
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ApplicationResponse<R> {
+    ResponseWithCustomHeader(Box<ApplicationResponse<R>>, reqwest::header::HeaderMap),
     Json(R),
     StatusOk,
     TextPlain(String),
@@ -578,12 +579,46 @@ where
 
     let start_instant = Instant::now();
     logger::info!(tag = ?Tag::BeginRequest);
-    let res = match metrics::request::record_request_time_metric(
-        server_wrap_util(state, request, payload, func, api_auth),
-        flow,
-    )
-    .await
-    {
+    let res = handle_application_response::<Q>(
+        request,
+        metrics::request::record_request_time_metric(
+            server_wrap_util(state, request, payload, func, api_auth),
+            flow,
+        )
+        .await,
+    );
+
+    let response_code = res.status().as_u16();
+    let end_instant = Instant::now();
+    let request_duration = end_instant.saturating_duration_since(start_instant);
+    logger::info!(
+        tag = ?Tag::EndRequest,
+        status_code = response_code,
+        time_taken_ms = request_duration.as_millis(),
+    );
+
+    res
+}
+
+fn handle_application_response<Q>(
+    request: &HttpRequest,
+    wrap_response: Result<ApplicationResponse<Q>, Report<api_models::errors::types::ApiErrorResponse>>,
+) -> HttpResponse
+where
+    Q: Serialize + Debug,
+{
+    match wrap_response {
+        Ok(ApplicationResponse::ResponseWithCustomHeader(response, headers)) => {
+            let mut final_response = handle_application_response::<Q>(request, Ok(*response));
+            let inner_headers = final_response.headers_mut();
+            for ele in headers {
+                match ele {
+                    (Some(name), value) => inner_headers.append(name, value),
+                    _ => continue,
+                }
+            }
+            final_response
+        }
         Ok(ApplicationResponse::Json(response)) => match serde_json::to_string(&response) {
             Ok(res) => http_response_json(res),
             Err(_) => http_response_err(
@@ -620,18 +655,7 @@ where
         .respond_to(request)
         .map_into_boxed_body(),
         Err(error) => log_and_return_error_response(error),
-    };
-
-    let response_code = res.status().as_u16();
-    let end_instant = Instant::now();
-    let request_duration = end_instant.saturating_duration_since(start_instant);
-    logger::info!(
-        tag = ?Tag::EndRequest,
-        status_code = response_code,
-        time_taken_ms = request_duration.as_millis(),
-    );
-
-    res
+    }
 }
 
 pub fn log_and_return_error_response<T>(error: Report<T>) -> HttpResponse
