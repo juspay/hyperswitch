@@ -81,8 +81,8 @@ pub fn should_call_connector_create_customer<'a>(
     state: &AppState,
     connector: &api::ConnectorData,
     customer: &'a Option<storage::Customer>,
+    connector_label: &str,
 ) -> (bool, Option<&'a str>) {
-    let connector_name = connector.connector_name.to_string();
     // Check if create customer is required for the connector
     let connector_needs_customer = state
         .conf
@@ -92,7 +92,7 @@ pub fn should_call_connector_create_customer<'a>(
 
     if connector_needs_customer {
         let connector_customer_details = customer.as_ref().and_then(|customer| {
-            get_connector_customer_details_if_present(customer, &connector_name)
+            get_connector_customer_details_if_present(customer, &connector_label)
         });
         let should_call_connector = connector_customer_details.is_none();
         (should_call_connector, connector_customer_details)
@@ -103,7 +103,7 @@ pub fn should_call_connector_create_customer<'a>(
 
 #[instrument]
 pub async fn update_connector_customer_in_customers(
-    connector_name: &str,
+    connector_label: &str,
     customer: Option<&storage::Customer>,
     connector_customer_id: &Option<String>,
 ) -> Option<storage::CustomerUpdate> {
@@ -118,7 +118,7 @@ pub async fn update_connector_customer_in_customers(
             let mut connector_customer_map = connector_customer_map;
             let connector_customer_value =
                 serde_json::Value::String(connector_customer_id.to_string());
-            connector_customer_map.insert(connector_name.to_string(), connector_customer_value);
+            connector_customer_map.insert(connector_label.to_string(), connector_customer_value);
             connector_customer_map
         });
 

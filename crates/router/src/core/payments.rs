@@ -648,15 +648,22 @@ where
                 api::GetToken::Connector,
             )?;
 
-            println!("hola");
+            let connector_label = helpers::get_connector_label(
+                payment_data.payment_intent.business_country,
+                &payment_data.payment_intent.business_label,
+                payment_data.payment_attempt.business_sub_label.as_ref(),
+                &connector_name,
+            );
 
             let (should_call_connector, existing_connector_customer_id) =
-                customers::should_call_connector_create_customer(state, &connector, customer);
-
-            println!("bola");
+                customers::should_call_connector_create_customer(
+                    state,
+                    &connector,
+                    customer,
+                    &connector_label,
+                );
 
             if should_call_connector {
-                println!("kola");
                 // Create customer at connector and update the customer table to store this data
                 let router_data = payment_data
                     .construct_router_data(
@@ -672,13 +679,11 @@ where
                     .await?;
 
                 let customer_update = customers::update_connector_customer_in_customers(
-                    &connector_name,
+                    &connector_label,
                     customer.as_ref(),
                     &connector_customer_id,
                 )
                 .await;
-
-                println!("customer_update = {connector_customer_id:?}");
 
                 payment_data.connector_customer_id = connector_customer_id;
                 Ok(customer_update)
