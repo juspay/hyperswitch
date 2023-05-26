@@ -35,7 +35,12 @@ async fn should_make_3ds_payment(c: WebDriver) -> Result<(), WebDriverError> {
 
 async fn should_make_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = BluesnapSeleniumTest {};
-    let pub_key = conn.get_configs().bluesnap_gateway_merchant_id.unwrap();
+    let pub_key = conn
+        .get_configs()
+        .automation_configs
+        .unwrap()
+        .bluesnap_gateway_merchant_id
+        .unwrap();
     conn.make_gpay_payment(c,
         &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=bluesnap&gatewaymerchantid={pub_key}&amount=11.00&country=US&currency=USD"),
         vec![
