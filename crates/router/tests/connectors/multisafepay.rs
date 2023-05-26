@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use api_models::payments::{Address, AddressDetails};
 use masking::Secret;
 use router::types::{self, api, storage::enums, PaymentAddress};
