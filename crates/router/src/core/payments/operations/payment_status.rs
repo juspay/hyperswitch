@@ -290,6 +290,7 @@ async fn get_tracker_for_sync<
             creds_identifier,
             pm_token: None,
             connector_customer_id: None,
+            ephemeral_key: None,
         },
         None,
     ))
@@ -366,6 +367,23 @@ pub async fn get_payment_intent_payment_attempt(
                 pa = db
                     .find_payment_attempt_by_attempt_id_merchant_id(id, merchant_id, storage_scheme)
                     .await?;
+                pi = db
+                    .find_payment_intent_by_payment_id_merchant_id(
+                        pa.payment_id.as_str(),
+                        merchant_id,
+                        storage_scheme,
+                    )
+                    .await?;
+            }
+            api_models::payments::PaymentIdType::PreprocessingId(ref id) => {
+                pa = db
+                    .find_payment_attempt_by_preprocessing_id_merchant_id(
+                        id,
+                        merchant_id,
+                        storage_scheme,
+                    )
+                    .await?;
+
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
                         pa.payment_id.as_str(),

@@ -1,9 +1,9 @@
 pub use api_models::admin::{
     MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
     MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
-    MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantDetails,
-    MerchantId, PaymentMethodsEnabled, RoutingAlgorithm, StraightThroughAlgorithm, ToggleKVRequest,
-    ToggleKVResponse, WebhookDetails,
+    MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId,
+    MerchantConnectorResponse, MerchantDetails, MerchantId, PaymentMethodsEnabled,
+    RoutingAlgorithm, StraightThroughAlgorithm, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
 };
 use common_utils::ext_traits::ValueExt;
 
@@ -35,6 +35,7 @@ impl ForeignTryFrom<storage::MerchantAccount> for MerchantAccountResponse {
             metadata: item.metadata,
             locker_id: item.locker_id,
             primary_business_details,
+            frm_routing_algorithm: item.frm_routing_algorithm,
             intent_fulfillment_time: item.intent_fulfillment_time,
         })
     }

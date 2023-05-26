@@ -70,6 +70,19 @@ pub trait Feature<F, T> {
         Ok(None)
     }
 
+    async fn preprocessing_steps<'a>(
+        self,
+        _state: &AppState,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Self>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(self)
+    }
+
     async fn create_connector_customer<'a>(
         &self,
         _state: &AppState,
@@ -129,6 +142,7 @@ default_imp_for_complete_authorize!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
+    connector::Noon,
     connector::Opennode,
     connector::Payeezy,
     connector::Payu,
@@ -188,6 +202,7 @@ default_imp_for_create_customer!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
+    connector::Noon,
     connector::Nuvei,
     connector::Opennode,
     connector::Payeezy,
@@ -287,6 +302,7 @@ default_imp_for_connector_request_id!(
     connector::Mollie,
     connector::Multisafepay,
     connector::Nmi,
+    connector::Noon,
     connector::Nuvei,
     connector::Opennode,
     connector::Payeezy,
@@ -351,6 +367,7 @@ default_imp_for_accept_dispute!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
+    connector::Noon,
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
@@ -435,6 +452,7 @@ default_imp_for_file_upload!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
+    connector::Noon,
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
@@ -496,6 +514,7 @@ default_imp_for_submit_evidence!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
+    connector::Noon,
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
@@ -557,6 +576,7 @@ default_imp_for_defend_dispute!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
+    connector::Noon,
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
@@ -566,6 +586,69 @@ default_imp_for_defend_dispute!(
     connector::Shift4,
     connector::Trustpay,
     connector::Opennode,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+macro_rules! default_imp_for_pre_processing_steps{
+    ($($path:ident::$connector:ident),*)=> {
+        $(
+            impl api::PaymentsPreProcessing for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::PreProcessing,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentsPreProcessing for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::PreProcessing,
+        types::PaymentsPreProcessingData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_pre_processing_steps!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Dlocal,
+    connector::Iatapay,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Paypal,
+    connector::Payu,
+    connector::Rapyd,
+    connector::Shift4,
+    connector::Trustpay,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen

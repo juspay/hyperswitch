@@ -251,7 +251,14 @@ fn create_gpay_session_token(
         country_code: session_data.country.unwrap_or_default(),
         currency_code: router_data.request.currency.to_string(),
         total_price_status: "Final".to_string(),
-        total_price: router_data.request.amount,
+        total_price: utils::to_currency_base_unit(
+            router_data.request.amount,
+            router_data.request.currency,
+        )
+        .attach_printable("Cannot convert given amount to base currency denomination".to_string())
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "amount",
+        })?,
     };
 
     let response_router_data = types::PaymentsSessionRouterData {
