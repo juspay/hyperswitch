@@ -58,7 +58,7 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::DisputeLost => Self::Dispute,
             IncomingWebhookEvent::EndpointVerification => Self::ReturnResponse,
             IncomingWebhookEvent::SourceChargeable
-            | IncomingWebhookEvent::SourceTransactionCreated => Self::BankTransfer
+            | IncomingWebhookEvent::SourceTransactionCreated => Self::BankTransfer,
         }
     }
 }

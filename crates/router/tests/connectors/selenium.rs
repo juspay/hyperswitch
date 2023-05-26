@@ -194,14 +194,25 @@ pub trait SeleniumTest {
                     Trigger::Goto(url) => {
                         driver.goto(url).await?;
                         let conf = serde_json::to_string(&self.get_configs()).unwrap();
-                        let hs_base_url = self.get_configs().automation_configs.unwrap().hs_base_url.unwrap_or_else(|| {
-                            env::var("HS_BASE_URL")
-                                .unwrap_or_else(|_| "http://localhost:8080".to_string())
-                        });
-                        let configs_url = self.get_configs().automation_configs.unwrap().configs_url.unwrap();
+                        let hs_base_url = self
+                            .get_configs()
+                            .automation_configs
+                            .unwrap()
+                            .hs_base_url
+                            .unwrap_or_else(|| {
+                                env::var("HS_BASE_URL")
+                                    .unwrap_or_else(|_| "http://localhost:8080".to_string())
+                            });
+                        let configs_url = self
+                            .get_configs()
+                            .automation_configs
+                            .unwrap()
+                            .configs_url
+                            .unwrap();
                         let script = &[
                             format!("localStorage.configs='{configs_url}'").as_str(),
                             format!("localStorage.hs_api_configs='{conf}'").as_str(),
+                            "localStorage.force_sync='true'",
                             format!(
                                 "localStorage.current_connector=\"{}\";",
                                 self.get_connector_name().clone()
@@ -353,11 +364,14 @@ pub trait SeleniumTest {
         let (email, pass) = (
             &self
                 .get_configs()
-                .automation_configs.unwrap()
+                .automation_configs
+                .unwrap()
                 .pypl_email
                 .unwrap_or_else(|| get_env("PYPL_EMAIL")),
             &self
-                .get_configs().automation_configs.unwrap()
+                .get_configs()
+                .automation_configs
+                .unwrap()
                 .pypl_pass
                 .unwrap_or_else(|| get_env("PYPL_PASS")),
         );
