@@ -144,7 +144,7 @@ pub async fn create_api_key(
     let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
     let api_key = storage::ApiKeyNew {
         key_id: PlaintextApiKey::new_key_id(),
-        merchant_id,
+        merchant_id: merchant_id.to_owned(),
         name: api_key.name,
         description: api_key.description,
         hashed_api_key: plaintext_api_key.keyed_hash(hash_key.peek()).into(),
@@ -160,7 +160,11 @@ pub async fn create_api_key(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert new API key")?;
 
-    metrics::API_KEY_CREATED.add(&metrics::CONTEXT, 1, &[]);
+    metrics::API_KEY_CREATED.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes("merchant", merchant_id)],
+    );
 
     // Add process to process_tracker for email reminder, only if expiry is set to future date
     #[cfg(feature = "email")]
