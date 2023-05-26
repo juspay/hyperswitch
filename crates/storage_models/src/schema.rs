@@ -106,8 +106,8 @@ diesel::table! {
         description -> Nullable<Varchar>,
         created_at -> Timestamp,
         metadata -> Nullable<Json>,
-        modified_at -> Timestamp,
         connector_customer -> Nullable<Jsonb>,
+        modified_at -> Timestamp,
     }
 }
 
@@ -248,11 +248,10 @@ diesel::table! {
         locker_id -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
-        api_key -> Nullable<Varchar>,
         primary_business_details -> Json,
+        intent_fulfillment_time -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
-        intent_fulfillment_time -> Nullable<Int8>,
         frm_routing_algorithm -> Nullable<Jsonb>,
     }
 }
@@ -277,8 +276,7 @@ diesel::table! {
         business_label -> Varchar,
         business_sub_label -> Nullable<Varchar>,
         frm_configs -> Nullable<Jsonb>,
-        created_at -> Nullable<Timestamp>,
-        updated_at -> Nullable<Timestamp>,
+        created_at -> Timestamp,
         modified_at -> Timestamp,
     }
 }
@@ -358,7 +356,6 @@ diesel::table! {
         active_attempt_id -> Varchar,
         business_country -> CountryAlpha2,
         business_label -> Varchar,
-        meta_data -> Nullable<Jsonb>,
     }
 }
 
