@@ -36,6 +36,7 @@ tokio = { version = "1.27.0", features = [
 thiserror = "1.0.40"
 time = { version = "0.3.20", features = ["serde", "serde-well-known", "std"] }
 md5 = "0.7.0"
+phonenumber = "0.3.2+8.13.9"
 
 # First party crates
 masking = { version = "0.1.0", path = "../masking" }
@@ -47,3 +48,4 @@ signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"], optional =
 [dev-dependencies]
 fake = "2.5.0"
 proptest = "1.1.0"
+test-case = "3.1.0"

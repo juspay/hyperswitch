@@ -29,11 +29,14 @@ pub enum ParsingError {
     /// Failed to parse email
     #[error("Failed to parse email")]
     EmailParsingError,
+    /// Failed to parse email
+    #[error("Failed to parse phone number")]
+    PhoneNumberParsingError,
 }
 
 /// Validation errors.
 #[allow(missing_docs)] // Only to prevent warnings about struct fields not being documented
-#[derive(Debug, thiserror::Error, Clone)]
+#[derive(Debug, thiserror::Error, Clone, PartialEq)]
 pub enum ValidationError {
     /// The provided input is missing a required field.
     #[error("Missing required field: {field_name}")]

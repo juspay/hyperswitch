@@ -1064,6 +1064,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bincode"
+version = "1.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "bit-set"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1355,6 +1364,7 @@ dependencies = [
  "md5",
  "nanoid",
  "once_cell",
+ "phonenumber",
  "proptest",
  "quick-xml",
  "rand 0.8.5",
@@ -1366,6 +1376,7 @@ dependencies = [
  "serde_urlencoded",
  "signal-hook",
  "signal-hook-tokio",
+ "test-case",
  "thiserror",
  "time 0.3.21",
  "tokio",
@@ -2741,6 +2752,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lru-cache"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31e24f1ad8321ca0e8a1e0ac13f23cb668e6f5466c2c57319f6a5cf1cc8e3b1c"
+dependencies = [
+ "linked-hash-map",
+]
+
+[[package]]
 name = "luhn"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3012,6 +3032,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7e5500299e16ebb147ae15a00a942af264cf3688f47923b8fc2cd5858f23ad3"
 
 [[package]]
+name = "oncemutex"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44d11de466f4a3006fe8a5e7ec84e93b79c70cb992ae0aa0eb631ad2df8abfe2"
+
+[[package]]
 name = "openssl"
 version = "0.10.52"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3058,7 +3084,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry"
 version = "0.18.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "opentelemetry_api",
  "opentelemetry_sdk",
@@ -3067,7 +3093,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry-otlp"
 version = "0.11.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "async-trait",
  "futures",
@@ -3084,7 +3110,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry-proto"
 version = "0.1.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "futures",
  "futures-util",
@@ -3096,7 +3122,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry_api"
 version = "0.18.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "fnv",
  "futures-channel",
@@ -3111,7 +3137,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry_sdk"
 version = "0.18.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "async-trait",
  "crossbeam-channel",
@@ -3255,6 +3281,26 @@ dependencies = [
  "once_cell",
  "pest",
  "sha2",
+]
+
+[[package]]
+name = "phonenumber"
+version = "0.3.2+8.13.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34749f64ea9d76f10cdc8a859588b57775f59177c7dd91f744d620bd62982d6f"
+dependencies = [
+ "bincode",
+ "either",
+ "fnv",
+ "itertools",
+ "lazy_static",
+ "nom",
+ "quick-xml",
+ "regex",
+ "regex-cache",
+ "serde",
+ "serde_derive",
+ "thiserror",
 ]
 
 [[package]]
@@ -3645,6 +3691,18 @@ version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c230d73fb8d8c1b9c0b3135c5142a8acee3a0558fb8db5cf1cb65f8d7862132"
 dependencies = [
+ "regex-syntax 0.6.29",
+]
+
+[[package]]
+name = "regex-cache"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f7b62d69743b8b94f353b6b7c3deb4c5582828328bcb8d5fedf214373808793"
+dependencies = [
+ "lru-cache",
+ "oncemutex",
+ "regex",
  "regex-syntax 0.6.29",
 ]
 
@@ -4479,6 +4537,41 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be55cf8942feac5c765c2c993422806843c9a9a45d4d5c407ad6dd2ea95eb9b6"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "test-case"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a1d6e7bde536b0412f20765b76e921028059adfd1b90d8974d33fd3c91b25df"
+dependencies = [
+ "test-case-macros",
+]
+
+[[package]]
+name = "test-case-core"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d10394d5d1e27794f772b6fc854c7e91a2dc26e2cbf807ad523370c2a59c0cee"
+dependencies = [
+ "cfg-if",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "test-case-macros"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eeb9a44b1c6a54c1ba58b152797739dba2a83ca74e18168a68c980eb142f9404"
+dependencies = [
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+ "test-case-core",
 ]
 
 [[package]]
