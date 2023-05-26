@@ -472,8 +472,8 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &api::Card)> for AciPaymentsR
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::try_from(card_data.clone())?;
         let instruction = match get_instruction_details(item){
-            Ok(instruction) => Some(instruction),
-            Err(errors::ConnectorError::MissingConnectorMandateID) => None,
+            Ok(instruction) => Some(instruction), // Inititial Mandate Payment
+            Err(errors::ConnectorError::MissingConnectorMandateID) => None, // Card Payment
             Err(err) => Err(err)?
         };
 
@@ -501,8 +501,7 @@ impl
     ) -> Result<Self, Self::Error> {
         let (item, _mandate_data) = value;
         let instruction = match get_instruction_details(item){
-            Ok(instruction) => Some(instruction),
-            Err(errors::ConnectorError::MissingConnectorMandateID) => None,
+            Ok(instruction) => Some(instruction), // Recurring Mandate Payment
             Err(err) => Err(err)?
         };
         let txn_details = get_transaction_details(item)?;
