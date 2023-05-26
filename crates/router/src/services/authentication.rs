@@ -10,6 +10,7 @@ use masking::{PeekInterface, StrongSecret};
 
 use crate::{
     configs::settings,
+    consts,
     core::{
         api_keys,
         errors::{self, RouterResult},
@@ -382,14 +383,14 @@ where
     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
 
-pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
+pub async fn is_ephemeral_or_api_auth<A: AppStateInfo + Sync>(
     headers: &HeaderMap,
     db: &dyn StorageInterface,
     customer_id: &str,
 ) -> RouterResult<Box<dyn AuthenticateAndFetch<storage::MerchantAccount, A>>> {
     let api_key = get_api_key(headers)?;
 
-    if !api_key.starts_with("epk") {
+    if !api_key.starts_with(consts::EPHEMERAL_KEY_PREFIX) {
         return Ok(Box::new(ApiKeyAuth));
     }
 
@@ -403,6 +404,27 @@ pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
     }
 
     Ok(Box::new(MerchantIdAuth(ephemeral_key.merchant_id)))
+}
+
+pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
+    headers: &HeaderMap,
+    db: &dyn StorageInterface,
+) -> RouterResult<(
+    Box<dyn AuthenticateAndFetch<storage::MerchantAccount, A>>,
+    Option<String>,
+)> {
+    let api_key = get_api_key(headers)?;
+    if !api_key.starts_with(consts::EPHEMERAL_KEY_PREFIX) {
+        return Err(report!(errors::ApiErrorResponse::InvalidEphemeralKey));
+    }
+    let ephemeral_key = db
+        .get_ephemeral_key(api_key)
+        .await
+        .change_context(errors::ApiErrorResponse::Unauthorized)?;
+    Ok((
+        Box::new(MerchantIdAuth(ephemeral_key.merchant_id)),
+        Some(ephemeral_key.customer_id),
+    ))
 }
 
 pub fn is_jwt_auth(headers: &HeaderMap) -> bool {

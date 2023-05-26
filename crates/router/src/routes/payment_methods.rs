@@ -1,9 +1,10 @@
 use actix_web::{web, HttpRequest, HttpResponse};
+use error_stack::report;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::payment_methods::cards,
+    core::{errors, payment_methods::cards},
     services::{api, authentication as auth},
     types::api::payment_methods::{self, PaymentMethodId},
 };
@@ -96,7 +97,7 @@ pub async fn list_payment_method_api(
 /// To filter and list the applicable payment methods for a particular Customer ID
 #[utoipa::path(
     get,
-    path = "/customer/{customer_id}/payment_methods",
+    path = "/customer/payment_methods",
     params (
         ("customer_id" = String, Path, description = "The unique identifier for the customer account"),
         ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
@@ -118,17 +119,19 @@ pub async fn list_payment_method_api(
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
-    customer_id: web::Path<(String,)>,
     req: HttpRequest,
     json_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
     let flow = Flow::CustomerPaymentMethodsList;
-    let customer_id = customer_id.into_inner().0;
-
-    let auth_type = match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await
+    let (auth_type, customer_id) = match auth::is_ephemeral_auth(req.headers(), &*state.store).await
     {
-        Ok(auth_type) => auth_type,
+        Ok((auth_type, Some(customer_id))) => (auth_type, customer_id),
         Err(err) => return api::log_and_return_error_response(err),
+        Ok((_, None)) => {
+            return api::log_and_return_error_response(report!(
+                errors::ApiErrorResponse::InvalidEphemeralKey
+            ))
+        } //will never come to this
     };
 
     api::server_wrap(

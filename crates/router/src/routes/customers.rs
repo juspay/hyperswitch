@@ -69,7 +69,9 @@ pub async fn customers_retrieve(
     .into_inner();
 
     let auth =
-        match auth::is_ephemeral_auth(req.headers(), &*state.store, &payload.customer_id).await {
+        match auth::is_ephemeral_or_api_auth(req.headers(), &*state.store, &payload.customer_id)
+            .await
+        {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(err),
         };
