@@ -437,6 +437,7 @@ pub struct PaymentMethodListResponse {
         }
     ]
     ))]
+    pub merchant_name: Option<String>,
     pub payment_methods: Vec<ResponsePaymentMethodsEnabled>,
     /// Value indicating if the current payment is a mandate payment
     #[schema(value_type = MandateType)]
