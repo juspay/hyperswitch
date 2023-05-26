@@ -51,6 +51,8 @@ pub struct ConnectorAuthentication {
     pub configs_url: Option<String>,
     pub stripe_pub_key: Option<String>,
     pub testcases_path: Option<String>,
+    pub bluesnap_gateway_merchant_id: Option<String>,
+    pub globalpay_gateway_merchant_id: Option<String>,
 }
 
 impl ConnectorAuthentication {
