@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::{self, ResultExt};
-use masking::Secret;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 use storage_models::ephemeral_key;
@@ -546,7 +545,6 @@ impl PaymentCreate {
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Encoding Metadata to value failed")?;
-        let meta_data = metadata.clone().map(Secret::new);
 
         let (business_country, business_label) = helpers::get_business_details(
             request.business_country,
@@ -576,7 +574,6 @@ impl PaymentCreate {
             business_country,
             business_label,
             active_attempt_id,
-            meta_data,
             ..storage::PaymentIntentNew::default()
         })
     }
