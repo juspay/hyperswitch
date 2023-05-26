@@ -100,6 +100,7 @@ pub async fn make_stream_available(
         .delete_key(stream_name_flag)
         .await
         .map_err(DrainerError::from)
+        .map(|_r| ())
         .into_report()
 }
 
