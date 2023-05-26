@@ -6,8 +6,6 @@ use common_utils::{
 };
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "kms")]
-use external_services::kms;
 use josekit::jwe;
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
@@ -1604,15 +1602,7 @@ pub async fn get_merchant_connector_account(
                 )?;
 
             #[cfg(feature = "kms")]
-            let kms_config = &state.conf.kms;
-
-            #[cfg(feature = "kms")]
-            let private_key = kms::get_kms_client(kms_config)
-                .await
-                .decrypt(state.conf.jwekey.tunnel_private_key.to_owned())
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error getting tunnel private key")?;
+            let private_key = state.kms_secrets.jwekey.peek().tunnel_private_key.clone();
 
             #[cfg(not(feature = "kms"))]
             let private_key = state.conf.jwekey.tunnel_private_key.to_owned();
