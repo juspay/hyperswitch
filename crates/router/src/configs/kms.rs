@@ -6,7 +6,7 @@ use crate::configs::settings;
 
 #[async_trait::async_trait]
 // This trait performs inplace decryption of the structure on which this is implemented
-pub(crate) trait KmsDecrypt {
+pub trait KmsDecrypt {
     async fn decrypt_inner(self, kms_config: &kms::KmsConfig) -> CustomResult<Self, kms::KmsError>
     where
         Self: Sized;
