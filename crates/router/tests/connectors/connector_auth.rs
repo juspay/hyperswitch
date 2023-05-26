@@ -39,20 +39,8 @@ pub struct ConnectorAuthentication {
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
     pub zen: Option<HeaderKey>,
-    pub hs_base_url: Option<String>,
-    pub hs_api_key: Option<String>,
-    pub hs_test_browser: Option<String>,
-    pub chrome_profile_path: Option<String>,
-    pub firefox_profile_path: Option<String>,
-    pub pypl_email: Option<String>,
-    pub pypl_pass: Option<String>,
-    pub gmail_email: Option<String>,
-    pub gmail_pass: Option<String>,
-    pub configs_url: Option<String>,
-    pub stripe_pub_key: Option<String>,
-    pub testcases_path: Option<String>,
-    pub bluesnap_gateway_merchant_id: Option<String>,
-    pub globalpay_gateway_merchant_id: Option<String>,
+    #[serde(flatten)]
+    pub automation_configs: Option<AutomationConfigs>,
 }
 
 impl ConnectorAuthentication {
@@ -131,4 +119,22 @@ impl From<MultiAuthKey> for ConnectorAuthType {
             key2: key.key2,
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AutomationConfigs {
+    pub hs_base_url: Option<String>,
+    pub hs_api_key: Option<String>,
+    pub hs_test_browser: Option<String>,
+    pub chrome_profile_path: Option<String>,
+    pub firefox_profile_path: Option<String>,
+    pub pypl_email: Option<String>,
+    pub pypl_pass: Option<String>,
+    pub gmail_email: Option<String>,
+    pub gmail_pass: Option<String>,
+    pub configs_url: Option<String>,
+    pub stripe_pub_key: Option<String>,
+    pub testcases_path: Option<String>,
+    pub bluesnap_gateway_merchant_id: Option<String>,
+    pub globalpay_gateway_merchant_id: Option<String>,
 }
