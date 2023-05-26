@@ -134,7 +134,7 @@ async fn should_make_globalpay_sofort_payment(c: WebDriver) -> Result<(), WebDri
             Event::Assert(Assert::IsPresent("Home")),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::RunIf(
-                Assert::IsPresent("Wählen"): wq,
+                Assert::IsPresent("Wählen"),
                 vec![Event::Trigger(Trigger::Click(By::Css("p.description")))],
             ),
             Event::Assert(Assert::IsPresent("Demo Bank")),
