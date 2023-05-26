@@ -593,14 +593,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
             .payment_intent
-            .meta_data
+            .metadata
             .map(|metadata_value| {
                 metadata_value
-                    .parse_value("meta_data")
+                    .parse_value("metadata")
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "meta_data",
+                        field_name: "metadata",
                     })
-                    .attach_printable("unable to parse meta_data")
+                    .attach_printable("unable to parse metadata")
             })
             .transpose()
             .unwrap_or_default();
@@ -764,14 +764,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
         let payment_data = additional_data.payment_data;
         let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
             .payment_intent
-            .meta_data
+            .metadata
             .map(|metadata_value| {
                 metadata_value
-                    .parse_value("meta_data")
+                    .parse_value("metadata")
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "meta_data",
+                        field_name: "metadata",
                     })
-                    .attach_printable("unable to parse meta_data")
+                    .attach_printable("unable to parse metadata")
             })
             .transpose()
             .unwrap_or_default();
