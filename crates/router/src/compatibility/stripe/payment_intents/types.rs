@@ -561,27 +561,27 @@ impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments
         let mandate_data = mandate_options.map(|mandate| payments::MandateData {
             mandate_type: match mandate.mandate_type {
                 Some(item) => match item {
-                    StripeMandateType::SingleUse => {
-                        payments::MandateType::SingleUse(payments::MandateAmountData {
+                    StripeMandateType::SingleUse => Some(payments::MandateType::SingleUse(
+                        payments::MandateAmountData {
                             amount: mandate.amount.unwrap_or_default(),
                             currency,
                             start_date: mandate.start_date,
                             end_date: mandate.end_date,
                             metadata: None,
-                        })
-                    }
-                    StripeMandateType::MultiUse => payments::MandateType::MultiUse(None),
+                        },
+                    )),
+                    StripeMandateType::MultiUse => Some(payments::MandateType::MultiUse(None)),
                 },
-                None => api_models::payments::MandateType::MultiUse(None),
+                None => Some(api_models::payments::MandateType::MultiUse(None)),
             },
-            customer_acceptance: payments::CustomerAcceptance {
+            customer_acceptance: Some(payments::CustomerAcceptance {
                 acceptance_type: payments::AcceptanceType::Online,
                 accepted_at: mandate.accepted_at,
                 online: Some(payments::OnlineMandate {
                     ip_address: mandate.ip_address.unwrap_or_default(),
                     user_agent: mandate.user_agent.unwrap_or_default(),
                 }),
-            },
+            }),
         });
         Ok(mandate_data)
     }
@@ -610,22 +610,34 @@ pub struct RedirectUrl {
     pub url: Option<String>,
 }
 
-#[derive(Eq, PartialEq, Serialize, Debug)]
-pub struct StripeNextAction {
-    #[serde(rename = "type")]
-    stype: payments::NextActionType,
-    redirect_to_url: RedirectUrl,
+#[derive(Eq, PartialEq, serde::Serialize, Debug)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum StripeNextAction {
+    RedirectToUrl {
+        redirect_to_url: RedirectUrl,
+    },
+    DisplayBankTransferInformation {
+        bank_transfer_steps_and_charges_details: payments::BankTransferNextStepsData,
+    },
 }
 
-fn into_stripe_next_action(
-    next_action: Option<payments::NextAction>,
+pub(crate) fn into_stripe_next_action(
+    next_action: Option<payments::NextActionData>,
     return_url: Option<String>,
 ) -> Option<StripeNextAction> {
-    next_action.map(|n| StripeNextAction {
-        stype: n.next_action_type,
-        redirect_to_url: RedirectUrl {
-            return_url,
-            url: n.redirect_to_url,
+    next_action.map(|next_action_data| match next_action_data {
+        payments::NextActionData::RedirectToUrl { redirect_to_url } => {
+            StripeNextAction::RedirectToUrl {
+                redirect_to_url: RedirectUrl {
+                    return_url,
+                    url: Some(redirect_to_url),
+                },
+            }
+        }
+        payments::NextActionData::DisplayBankTransferInformation {
+            bank_transfer_steps_and_charges_details,
+        } => StripeNextAction::DisplayBankTransferInformation {
+            bank_transfer_steps_and_charges_details,
         },
     })
 }

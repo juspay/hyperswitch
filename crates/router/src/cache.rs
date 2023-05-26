@@ -57,14 +57,10 @@ impl<'a> TryFrom<RedisValue> for CacheKind<'a> {
             message: "Invalid publish key provided in pubsub".into(),
         };
         let kind = kind.as_string().ok_or(validation_err.clone())?;
-        let mut split = kind.split(',');
-        match split.next().ok_or(validation_err.clone())? {
-            ACCOUNTS_CACHE_PREFIX => Ok(Self::Accounts(Cow::Owned(
-                split.next().ok_or(validation_err)?.to_string(),
-            ))),
-            CONFIG_CACHE_PREFIX => Ok(Self::Config(Cow::Owned(
-                split.next().ok_or(validation_err)?.to_string(),
-            ))),
+        let split = kind.split_once(',').ok_or(validation_err.clone())?;
+        match split.0 {
+            ACCOUNTS_CACHE_PREFIX => Ok(Self::Accounts(Cow::Owned(split.1.to_string()))),
+            CONFIG_CACHE_PREFIX => Ok(Self::Config(Cow::Owned(split.1.to_string()))),
             _ => Err(validation_err.into()),
         }
     }

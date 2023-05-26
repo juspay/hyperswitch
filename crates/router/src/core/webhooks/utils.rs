@@ -20,11 +20,28 @@ pub async fn lookup_webhook_event(
     event: &api::IncomingWebhookEvent,
 ) -> bool {
     let redis_key = format!("whconf_{merchant_id}_{connector_id}");
-    let webhook_config: api::MerchantWebhookConfig =
+    let merchant_webhook_config_result =
         get_and_deserialize_key(db, &redis_key, "MerchantWebhookConfig")
             .await
-            .map(|h| &h | &default_webhook_config())
-            .unwrap_or_else(|_| default_webhook_config());
+            .map(|h| &h | &default_webhook_config());
 
-    webhook_config.contains(event)
+    match merchant_webhook_config_result {
+        Ok(merchant_webhook_config) => merchant_webhook_config.contains(event),
+        Err(..) => {
+            //if failed to fetch from redis. fetch from db and populate redis
+            db.find_config_by_key_cached(&redis_key)
+                .await
+                .map(|config| {
+                    if let Ok(set) =
+                        serde_json::from_str::<api::MerchantWebhookConfig>(&config.config)
+                    {
+                        &set | &default_webhook_config()
+                    } else {
+                        default_webhook_config()
+                    }
+                })
+                .unwrap_or_else(|_| default_webhook_config())
+                .contains(event)
+        }
+    }
 }

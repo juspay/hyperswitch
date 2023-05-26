@@ -321,6 +321,8 @@ diesel::table! {
         payment_method_data -> Nullable<Jsonb>,
         business_sub_label -> Nullable<Varchar>,
         straight_through_algorithm -> Nullable<Jsonb>,
+        preprocessing_step_id -> Nullable<Varchar>,
+        mandate_details -> Nullable<Jsonb>,
     }
 }
 
@@ -354,7 +356,6 @@ diesel::table! {
         active_attempt_id -> Varchar,
         business_country -> CountryAlpha2,
         business_label -> Varchar,
-        meta_data -> Nullable<Jsonb>,
     }
 }
 

@@ -184,6 +184,8 @@ pub enum Flow {
     AttachDisputeEvidence,
     /// Retrieve Dispute Evidence flow
     RetrieveDisputeEvidence,
+    /// Request to compatibility layer
+    CompatibilityLayerRequest,   
     /// Invalidate cache flow
     CacheInvalidate,
 }
@@ -191,7 +193,7 @@ pub enum Flow {
 ///
 /// Trait for providing generic behaviour to flow metric
 ///
-pub trait FlowMetric: ToString + std::fmt::Debug {}
+pub trait FlowMetric: ToString + std::fmt::Debug + Clone {}
 impl FlowMetric for Flow {}
 
 /// Category of log event.
