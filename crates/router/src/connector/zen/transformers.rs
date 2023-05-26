@@ -204,15 +204,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                 ip,
             },
             custom_ipn_url: item.request.get_webhook_url()?,
-            items: order_details
-                .iter()
-                .map(|data| ZenItemObject {
-                    name: data.product_name.clone(),
-                    quantity: data.quantity,
-                    price: data.amount.to_string(),
-                    line_amount_total: order_amount.clone(),
-                })
-                .collect(),
+            items: vec![ZenItemObject {
+                name: order_details.product_name,
+                price: order_amount.clone(),
+                quantity: 1,
+                line_amount_total: order_amount,
+            }],
         })
     }
 }
