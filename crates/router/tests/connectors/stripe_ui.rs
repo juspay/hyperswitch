@@ -127,24 +127,23 @@ async fn should_make_stripe_klarna_payment(c: WebDriver) -> Result<(), WebDriver
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/19"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Id("klarna-apf-iframe"))),
-            Event::Trigger(Trigger::Sleep(5)),
-            Event::Trigger(Trigger::Click(By::Id("signInWithBankId"))),
-            Event::Assert(Assert::IsPresent("Klart att betala")),
-            Event::Trigger(Trigger::Sleep(5)),
-            Event::EitherOr(
-                Assert::IsPresent("Klart att betala"),
-                vec![Event::Trigger(Trigger::Click(By::Css(
-                    "button[data-testid='confirm-and-pay']",
-                )))],
+            Event::RunIf(
+                Assert::IsPresent("Let’s verify your phone"),
                 vec![
-                    Event::Trigger(Trigger::Click(By::Css(
-                        "button[data-testid='SmoothCheckoutPopUp:skip']",
-                    ))),
-                    Event::Trigger(Trigger::Click(By::Css(
-                        "button[data-testid='confirm-and-pay']",
-                    ))),
+                    Event::Trigger(Trigger::SendKeys(By::Id("phone"), "8056594427")),
+                    Event::Trigger(Trigger::Click(By::Id("onContinue"))),
+                    Event::Trigger(Trigger::SendKeys(By::Id("otp_field"), "123456")),
                 ],
             ),
+            Event::RunIf(
+                Assert::IsPresent("Pick a plan"),
+                vec![Event::Trigger(Trigger::Click(By::Css(
+                    "button[data-testid='pick-plan']",
+                )))],
+            ),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button[data-testid='confirm-and-pay']",
+            ))),
             Event::Trigger(Trigger::SwitchTab(Position::Prev)),
             Event::Assert(Assert::IsPresent("Google")),
             Event::Assert(Assert::Contains(
