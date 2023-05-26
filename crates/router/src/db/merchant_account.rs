@@ -136,7 +136,12 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::redact_cache(self, merchant_id, update_func, None).await
+            super::cache::publish_and_redact(
+                self,
+                cache::CacheKind::Accounts(merchant_id.into()),
+                update_func,
+            )
+            .await
         }
     }
 
@@ -170,7 +175,12 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::redact_cache(self, merchant_id, delete_func, None).await
+            super::cache::publish_and_redact(
+                self,
+                cache::CacheKind::Accounts(merchant_id.into()),
+                delete_func,
+            )
+            .await
         }
     }
 }
