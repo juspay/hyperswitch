@@ -185,7 +185,7 @@ pub enum Flow {
     /// Retrieve Dispute Evidence flow
     RetrieveDisputeEvidence,
     /// Request to compatibility layer
-    CompatibilityLayerRequest,   
+    CompatibilityLayerRequest,
     /// Invalidate cache flow
     CacheInvalidate,
 }
