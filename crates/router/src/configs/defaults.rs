@@ -5,7 +5,7 @@ impl Default for super::settings::Server {
             workers: num_cpus::get_physical(),
             host: "localhost".into(),
             request_body_limit: 16 * 1024, // POST request body is limited to 16KiB
-            base_url: "https://5ec0-202-83-16-37.ngrok-free.app".into(),
+            base_url: "http://localhost:8080".into(),
             shutdown_timeout: 30,
         }
     }

@@ -13,12 +13,7 @@ impl SeleniumTest for GlobalpaySeleniumTest {
 
 async fn should_make_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = GlobalpaySeleniumTest {};
-    let pub_key = conn
-        .get_configs()
-        .automation_configs
-        .unwrap()
-        .globalpay_gateway_merchant_id
-        .unwrap();
+    let pub_key = conn.get_configs().globalpay_gateway_merchant_id.unwrap();
     conn.make_gpay_payment(c,
         &format!("{CHEKOUT_BASE_URL}/gpay?amount=10.00&country=US&currency=USD&gatewayname=globalpayments&gatewaymerchantid={pub_key}"),
         vec![
@@ -134,7 +129,7 @@ async fn should_make_globalpay_sofort_payment(c: WebDriver) -> Result<(), WebDri
             Event::Assert(Assert::IsPresent("Home")),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::RunIf(
-                Assert::IsPresent("Wählen"),
+                Assert::IsPresent("Wählen Sie Ihre Bank"),
                 vec![Event::Trigger(Trigger::Click(By::Css("p.description")))],
             ),
             Event::Assert(Assert::IsPresent("Demo Bank")),
