@@ -3,6 +3,7 @@ use common_utils::{
     ext_traits::{Encode, ValueExt},
 };
 use error_stack::{IntoReport, ResultExt};
+use masking::{PeekInterface, Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -55,16 +56,16 @@ impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct CreditCardDetails {
-    card_number: masking::StrongSecret<String, cards::CardNumberStrategy>,
-    expiration_date: masking::Secret<String>,
+    card_number: StrongSecret<String, cards::CardNumberStrategy>,
+    expiration_date: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    card_code: Option<masking::Secret<String>>,
+    card_code: Option<Secret<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct BankAccountDetails {
-    account_number: masking::Secret<String>,
+    account_number: Secret<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -379,19 +380,20 @@ impl From<AuthorizedotnetPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
 pub struct ResponseMessage {
     code: String,
     pub text: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
 enum ResultCode {
+    #[default]
     Ok,
     Error,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResponseMessages {
     result_code: ResultCode,
@@ -782,7 +784,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for AuthorizedotnetCreateSyncReques
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum SyncStatus {
     RefundSettledSuccessfully,
@@ -797,7 +799,7 @@ pub enum SyncStatus {
     #[serde(rename = "FDSPendingReview")]
     FDSPendingReview,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncTransactionResponse {
     #[serde(rename = "transId")]
@@ -805,7 +807,7 @@ pub struct SyncTransactionResponse {
     transaction_status: SyncStatus,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct AuthorizedotnetSyncResponse {
     transaction: Option<SyncTransactionResponse>,
     messages: ResponseMessages,
@@ -991,13 +993,43 @@ impl From<AuthorizedotnetWebhookEvent> for api::IncomingWebhookEvent {
     }
 }
 
+impl From<AuthorizedotnetWebhookEvent> for SyncStatus {
+    // status mapping reference https://developer.authorize.net/api/reference/features/webhooks.html#Event_Types_and_Payloads
+    fn from(event_type: AuthorizedotnetWebhookEvent) -> Self {
+        match event_type {
+            AuthorizedotnetWebhookEvent::AuthorizationCreated => Self::AuthorizedPendingCapture,
+            AuthorizedotnetWebhookEvent::CaptureCreated
+            | AuthorizedotnetWebhookEvent::AuthCapCreated => Self::CapturedPendingSettlement,
+            AuthorizedotnetWebhookEvent::PriorAuthCapture => Self::SettledSuccessfully,
+            AuthorizedotnetWebhookEvent::VoidCreated => Self::Voided,
+            AuthorizedotnetWebhookEvent::RefundCreated => Self::RefundSettledSuccessfully,
+        }
+    }
+}
+
 pub fn get_trans_id(
-    details: AuthorizedotnetWebhookObjectId,
+    details: &AuthorizedotnetWebhookObjectId,
 ) -> Result<String, errors::ConnectorError> {
     details
         .payload
         .id
+        .clone()
         .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)
+}
+
+impl TryFrom<AuthorizedotnetWebhookObjectId> for AuthorizedotnetSyncResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: AuthorizedotnetWebhookObjectId) -> Result<Self, Self::Error> {
+        Ok(Self {
+            transaction: Some(SyncTransactionResponse {
+                transaction_id: get_trans_id(&item)?,
+                transaction_status: SyncStatus::from(item.event_type),
+            }),
+            messages: ResponseMessages {
+                ..Default::default()
+            },
+        })
+    }
 }
 
 fn get_wallet_data(
@@ -1065,7 +1097,7 @@ pub struct PaypalPaymentConfirm {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Paypal {
     #[serde(rename = "payerID")]
-    payer_id: String,
+    payer_id: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1081,13 +1113,14 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for PaypalConfirmReque
             .request
             .redirect_response
             .as_ref()
-            .and_then(|redirect_response| redirect_response.params.to_owned())
+            .and_then(|redirect_response| redirect_response.params.as_ref())
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let query: PaypalQueryParams =
-            serde_urlencoded::from_str::<PaypalQueryParams>(params.as_str())
+        let payer_id: Secret<String> = Secret::new(
+            serde_urlencoded::from_str::<PaypalQueryParams>(params.peek())
                 .into_report()
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let payer_id = query.payer_id;
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+                .payer_id,
+        );
         let transaction_type = match item.request.capture_method {
             Some(enums::CaptureMethod::Manual) => TransactionType::ContinueAuthorization,
             _ => TransactionType::ContinueCapture,

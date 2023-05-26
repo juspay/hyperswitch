@@ -655,6 +655,7 @@ impl Connector {
     Copy,
     Debug,
     Eq,
+    Hash,
     PartialEq,
     serde::Serialize,
     serde::Deserialize,
