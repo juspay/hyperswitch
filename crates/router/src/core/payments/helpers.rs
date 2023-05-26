@@ -918,7 +918,7 @@ pub(crate) fn validate_payment_method_fields_present(
     )?;
 
     utils::when(
-        !matches!(req.payment_method, Some(api_enums::PaymentMethod::Card))
+        !matches!(req.payment_method, Some(api_enums::PaymentMethod::Card) | None)
             && (req.payment_method_type.is_none()),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
