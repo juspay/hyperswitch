@@ -20,11 +20,11 @@ error-stack = "0.3.1"
 frunk = "0.4.1"
 frunk_core = "0.4.1"
 mime = "0.3.17"
-reqwest = { version = "0.11.16", optional = true }
-serde = { version = "1.0.160", features = ["derive"] }
+reqwest = { version = "0.11.18", optional = true }
+serde = { version = "1.0.163", features = ["derive"] }
 serde_json = "1.0.96"
 strum = { version = "0.24.1", features = ["derive"] }
-time = { version = "0.3.20", features = ["serde", "serde-well-known", "std"] }
+time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
 url = { version = "2.3.1", features = ["serde"] }
 utoipa = { version = "3.3.0", features = ["preserve_order"] }
 

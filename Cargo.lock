@@ -2893,9 +2893,9 @@ dependencies = [
 
 [[package]]
 name = "moka"
-version = "0.10.2"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0d3b8e76a2e4b17de765db9432e377a171c42fbe0512b8bc860ff1bfe2e273b"
+checksum = "36506f2f935238463605f3bb13b362f1949daafc3b347d05d60ae08836db2bd2"
 dependencies = [
  "async-io",
  "async-lock",
@@ -3007,9 +3007,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.17.1"
+version = "1.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7e5500299e16ebb147ae15a00a942af264cf3688f47923b8fc2cd5858f23ad3"
+checksum = "9670a07f94779e00908f3e686eab508878ebb390ba6e604d3a284c00e8d0487b"
 
 [[package]]
 name = "openssl"
@@ -3057,22 +3057,12 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry"
-version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69d6c3d7288a106c0a363e4b0e8d308058d56902adefb16f4936f417ffef086e"
-dependencies = [
- "opentelemetry_api 0.18.0",
- "opentelemetry_sdk 0.18.0",
-]
-
-[[package]]
-name = "opentelemetry"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f4b8347cc26099d3aeee044065ecc3ae11469796b4d65d065a23a584ed92a6f"
 dependencies = [
- "opentelemetry_api 0.19.0",
- "opentelemetry_sdk 0.19.0",
+ "opentelemetry_api",
+ "opentelemetry_sdk",
 ]
 
 [[package]]
@@ -3085,7 +3075,7 @@ dependencies = [
  "futures",
  "futures-util",
  "http",
- "opentelemetry 0.19.0",
+ "opentelemetry",
  "opentelemetry-proto",
  "prost",
  "thiserror",
@@ -3101,25 +3091,9 @@ checksum = "045f8eea8c0fa19f7d48e7bc3128a39c2e5c533d5c61298c548dfefc1064474c"
 dependencies = [
  "futures",
  "futures-util",
- "opentelemetry 0.19.0",
+ "opentelemetry",
  "prost",
  "tonic",
-]
-
-[[package]]
-name = "opentelemetry_api"
-version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c24f96e21e7acc813c7a8394ee94978929db2bcc46cf6b5014fc612bf7760c22"
-dependencies = [
- "fnv",
- "futures-channel",
- "futures-util",
- "indexmap",
- "js-sys",
- "once_cell",
- "pin-project-lite",
- "thiserror",
 ]
 
 [[package]]
@@ -3140,26 +3114,6 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry_sdk"
-version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ca41c4933371b61c2a2f214bf16931499af4ec90543604ec828f7a625c09113"
-dependencies = [
- "async-trait",
- "crossbeam-channel",
- "dashmap",
- "fnv",
- "futures-channel",
- "futures-executor",
- "futures-util",
- "once_cell",
- "opentelemetry_api 0.18.0",
- "percent-encoding",
- "rand 0.8.5",
- "thiserror",
-]
-
-[[package]]
-name = "opentelemetry_sdk"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b3a2a91fdbfdd4d212c0dcc2ab540de2c2bcbbd90be17de7a7daf8822d010c1"
@@ -3172,7 +3126,7 @@ dependencies = [
  "futures-executor",
  "futures-util",
  "once_cell",
- "opentelemetry_api 0.19.0",
+ "opentelemetry_api",
  "percent-encoding",
  "rand 0.8.5",
  "thiserror",
@@ -3883,7 +3837,7 @@ dependencies = [
  "config",
  "gethostname",
  "once_cell",
- "opentelemetry 0.19.0",
+ "opentelemetry",
  "opentelemetry-otlp",
  "rustc-hash",
  "serde",
@@ -3896,7 +3850,7 @@ dependencies = [
  "tracing-actix-web",
  "tracing-appender",
  "tracing-attributes",
- "tracing-opentelemetry 0.19.0",
+ "tracing-opentelemetry",
  "tracing-subscriber",
  "vergen",
 ]
@@ -4219,11 +4173,11 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "2.3.3"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07ff71d2c147a7b57362cead5e22f772cd52f6ab31cfcd9edcd7f6aeb2a0afbe"
+checksum = "9f02d8aa6e3c385bf084924f660ce2a3a6bd333ba55b35e8590b321f35d88513"
 dependencies = [
- "base64 0.13.1",
+ "base64 0.21.2",
  "chrono",
  "hex",
  "indexmap",
@@ -4235,9 +4189,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with_macros"
-version = "2.3.3"
+version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "881b6f881b17d13214e5d494c939ebab463d01264ce1811e9d4ac3a882e7695f"
+checksum = "edc7d5d3932fb12ce722ee5e64dd38c504efba37567f0c402f6ca728c3b8b070"
 dependencies = [
  "darling 0.20.1",
  "proc-macro2",
@@ -4866,10 +4820,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce52ffaf2d544e317d3bef63f49a6a22022866505fa4840a4339b1756834a2a9"
 dependencies = [
  "actix-web",
- "opentelemetry 0.18.0",
+ "opentelemetry",
  "pin-project",
  "tracing",
- "tracing-opentelemetry 0.18.0",
+ "tracing-opentelemetry",
  "uuid",
 ]
 
@@ -4928,26 +4882,12 @@ dependencies = [
 
 [[package]]
 name = "tracing-opentelemetry"
-version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21ebb87a95ea13271332df069020513ab70bdb5637ca42d6e492dc3bbbad48de"
-dependencies = [
- "once_cell",
- "opentelemetry 0.18.0",
- "tracing",
- "tracing-core",
- "tracing-log",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "tracing-opentelemetry"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00a39dcf9bfc1742fa4d6215253b33a6e474be78275884c216fc2a06267b3600"
 dependencies = [
  "once_cell",
- "opentelemetry 0.19.0",
+ "opentelemetry",
  "tracing",
  "tracing-core",
  "tracing-log",
