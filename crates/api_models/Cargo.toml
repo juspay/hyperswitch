@@ -3,13 +3,9 @@ name = "api_models"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = []
-errors = [
-    "dep:actix-web",
-    "dep:reqwest",
-]
+errors = ["dep:actix-web", "dep:reqwest"]
 multiple_mca = []
 dummy_connector = []
 detailed_errors = []
@@ -28,10 +24,9 @@ time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
 url = { version = "2.3.1", features = ["serde"] }
 utoipa = { version = "3.3.0", features = ["preserve_order"] }
 
-
 # First party crates
+cards = { version = "0.1.0", path = "../cards" }
+common_enums = { path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
-common_enums = {path = "../common_enums"}
-cards = { version = "0.1.0", path = "../cards" }

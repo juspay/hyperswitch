@@ -3,21 +3,19 @@ name = "cards"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [features]
 default = ["serde"]
 
 [dependencies]
-time = { version = "0.3.21" }
 error-stack = "0.3.1"
+luhn = "1.0.1"
 serde = { version = "1.0.163", features = ["derive"], optional = true }
 thiserror = "1.0.40"
-luhn = "1.0.1"
+time = "0.3.21"
 
-# First Party crates
-masking = { version = "0.1.0", path = "../masking" }
+# First party crates
 common_utils = { version = "0.1.0", path = "../common_utils" }
+masking = { version = "0.1.0", path = "../masking" }
 
 [dev-dependencies]
 serde_json = "1.0.96"

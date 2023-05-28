@@ -1,14 +1,12 @@
 [package]
-name    = "common_enums"
+name = "common_enums"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 diesel = { version = "2.1.0", features = ["postgres"] }
-serde  = { version = "1.0.163", features = [ "derive" ] }
-strum  = { version = "0.24.1", features = [ "derive" ] }
+serde = { version = "1.0.163", features = ["derive"] }
+strum = { version = "0.24.1", features = ["derive"] }
 utoipa = { version = "3.3.0", features = ["preserve_order"] }
 
 # First party crates

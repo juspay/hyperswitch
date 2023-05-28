@@ -3,8 +3,6 @@ name = "storage_models"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [features]
 default = ["kv_store"]
 kv_store = []
@@ -24,8 +22,8 @@ thiserror = "1.0.40"
 time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
 
 # First party crates
+common_enums = { path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
-common_enums = {path = "../common_enums"}
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
