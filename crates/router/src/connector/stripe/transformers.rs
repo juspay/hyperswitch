@@ -1,5 +1,4 @@
 use std::ops::Deref;
-
 use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
 use common_utils::{
@@ -704,16 +703,32 @@ fn validate_shipping_address_against_payment_method(
 
 fn validate_mandate_request_against_payment_method(
     mandate_request: &Option<StripeMandateRequest>,
-    payment_method: &StripePaymentMethodType,
+    payment_method: &payments::PaymentMethodData,
 ) -> Result<(), errors::ConnectorError> {
     match payment_method {
-        StripePaymentMethodType::Acss => mandate_request.ok_or(errors::ConnectorError::MissingRequiredFields {
-            field_names: "mandate_data",
-        }),
-        _ => ok(())
+        payments::PaymentMethodData::BankDebit(payments::BankDebitData::AcssBankDebit{..})  => {
+            mandate_request.as_ref().ok_or(errors::ConnectorError::MissingRequiredField {
+            field_name: "mandate_data",
+            })?;
+            Ok(())
+        },
+        _ => Ok(())
     }
+}
 
-    Ok(())
+fn get_payment_method_options(
+    payment_method: &payments::PaymentMethodData,
+) -> Option<StripePaymentMethodOptions> {
+    match payment_method {
+        payments::PaymentMethodData::BankDebit(payments::BankDebitData::AcssBankDebit{..}) => Some(StripePaymentMethodOptions::Acss {
+            mandate_options: StripeMandateOptions {
+                reference : None,
+                payment_schedule: Some(PaymentSchedule::Sporadic),
+                transaction_type: Some(TransactionType::Personal),
+            }
+        }),
+        _ => None
+    }
 }
 
 fn infer_stripe_pay_later_type(
@@ -1222,7 +1237,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             },
             None => StripeShippingAddress::default(),
         };
-        let mut payment_method_options = None;
+
+        let mut payment_method_options = get_payment_method_options(&item.request.payment_method_data);
 
         let (mut payment_data, payment_method, mandate, billing_address) = {
             match item
@@ -1301,7 +1317,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         })
                 });
 
-        validate_mandate_request_against_payment_method(&setup_mandate_details, &payment_method_type)?;
+        validate_mandate_request_against_payment_method(&setup_mandate_details, &item.request.payment_method_data)?;
 
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
@@ -1340,8 +1356,9 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
         let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
         let metadata_txn_uuid = Uuid::new_v4().to_string();
 
-        //Only cards supported for mandates
+        //Only cards and Candian PAD supported for mandates
         let pm_type = StripePaymentMethodType::Card;
+
         let payment_data = StripePaymentMethodData::try_from((
             item.request.payment_method_data.clone(),
             item.auth_type,
@@ -1599,7 +1616,7 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
             connector_mandate_id: payment_method_options.and_then(|options| match options {
                 StripePaymentMethodOptions::Card {
                     mandate_options, ..
-                } => mandate_options.map(|mandate_options| mandate_options.reference),
+                } => mandate_options.map(|mandate_options| mandate_options.reference).flatten(),
                 StripePaymentMethodOptions::Acss {..}
                 |StripePaymentMethodOptions::Klarna {}
                 | StripePaymentMethodOptions::Affirm {}
@@ -2104,9 +2121,9 @@ pub enum StripePaymentMethodOptions {
     #[serde(rename = "p24")]
     Przelewy24 {},
     CustomerBalance {},
-    #[serde(rename = "acss_debit")]
+   // #[serde(rename = "acss_debit")]
     Acss {
-        mandate_options: Option<StripeMandateOptions>
+        mandate_options: StripeMandateOptions
     }
 }
 
@@ -2127,20 +2144,22 @@ pub struct LatestPaymentAttempt {
 }
 // #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 // pub struct Card
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct StripeMandateOptions {
-    reference: Option<String>,// Extendable, But only important field to be captured
-    payment_schedule:  Option<PaymentSchedule>,
-    transaction_type: Option<TransactionType>
+    reference: Option<String>,
+    #[serde(rename = "acss_debit[mandate_options][payment_schedule]")]
+    payment_schedule: Option<PaymentSchedule>,
+    #[serde(rename = "acss_debit[mandate_options][transaction_type]")]
+    transaction_type: Option<TransactionType>,
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentSchedule {
     Sporadic
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize, Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum TransactionType {
     Personal
