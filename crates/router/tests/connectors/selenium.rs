@@ -212,6 +212,7 @@ pub trait SeleniumTest {
                         let script = &[
                             format!("localStorage.configs='{configs_url}'").as_str(),
                             format!("localStorage.hs_api_configs='{conf}'").as_str(),
+                            "localStorage.force_sync='true'",
                             format!(
                                 "localStorage.current_connector=\"{}\";",
                                 self.get_connector_name().clone()

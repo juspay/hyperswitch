@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct ConnectorAuthentication {
     pub aci: Option<BodyKey>,
     pub adyen: Option<BodyKey>,
+    pub adyen_uk: Option<BodyKey>,
     pub airwallex: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
@@ -25,7 +26,7 @@ pub struct ConnectorAuthentication {
     pub mollie: Option<HeaderKey>,
     pub multisafepay: Option<HeaderKey>,
     pub nexinets: Option<HeaderKey>,
-    pub noon: Option<HeaderKey>,
+    pub noon: Option<SignatureKey>,
     pub nmi: Option<HeaderKey>,
     pub nuvei: Option<SignatureKey>,
     pub opennode: Option<HeaderKey>,
@@ -35,11 +36,12 @@ pub struct ConnectorAuthentication {
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
+    pub stripe_au: Option<HeaderKey>,
+    pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
     pub zen: Option<HeaderKey>,
-    #[serde(flatten)]
     pub automation_configs: Option<AutomationConfigs>,
 }
 

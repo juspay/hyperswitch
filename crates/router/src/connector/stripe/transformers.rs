@@ -1399,11 +1399,11 @@ pub struct PaymentIntentResponse {
     pub id: String,
     pub object: String,
     pub amount: i64,
-    pub amount_received: i64,
-    pub amount_capturable: i64,
+    pub amount_received: Option<i64>,
+    pub amount_capturable: Option<i64>,
     pub currency: String,
     pub status: StripePaymentStatus,
-    pub client_secret: Secret<String>,
+    pub client_secret: Option<Secret<String>>,
     pub created: i32,
     pub customer: Option<String>,
     pub payment_method: Option<String>,
@@ -1519,7 +1519,7 @@ impl From<SetupIntentResponse> for PaymentIntentResponse {
             id: value.id,
             object: value.object,
             status: value.status,
-            client_secret: value.client_secret,
+            client_secret: Some(value.client_secret),
             customer: value.customer,
             description: None,
             statement_descriptor: value.statement_descriptor,
@@ -1603,6 +1603,9 @@ impl<F, T>
         // Or we identify the mandate txns before hand and always call SetupIntent in case of mandate payment call
         let network_txn_id = Option::foreign_from(item.response.latest_attempt);
 
+        let connector_metadata =
+            get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
+
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             // client_secret: Some(item.response.client_secret.clone().as_str()),
@@ -1613,10 +1616,10 @@ impl<F, T>
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data,
                 mandate_reference,
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id,
             }),
-            amount_captured: Some(item.response.amount_received),
+            amount_captured: item.response.amount_received,
             ..item.data
         })
     }
@@ -1704,7 +1707,7 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status.to_owned()),
             response,
-            amount_captured: Some(item.response.amount_received),
+            amount_captured: item.response.amount_received,
             ..item.data
         })
     }
