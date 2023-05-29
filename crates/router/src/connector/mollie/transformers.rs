@@ -1,4 +1,5 @@
 use api_models::payments;
+use common_utils::pii::Email;
 use error_stack::IntoReport;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -46,6 +47,8 @@ pub enum PaymentMethodData {
     Ideal(Box<IdealMethodData>),
     Paypal(Box<PaypalMethodData>),
     Sofort,
+    Przelewy24(Box<Przelewy24MethodData>),
+    Bancontact,
 }
 
 #[derive(Debug, Serialize)]
@@ -65,6 +68,12 @@ pub struct IdealMethodData {
 pub struct PaypalMethodData {
     billing_address: Option<Address>,
     shipping_address: Option<Address>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Przelewy24MethodData {
+    billing_email: Option<Email>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -148,6 +157,15 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
                 })))
             }
             api_models::payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
+            api_models::payments::BankRedirectData::Przelewy24 { 
+                billing_details,
+                .. 
+            } 
+            => { Ok(PaymentMethodData::Przelewy24(Box::new(
+                Przelewy24MethodData { 
+                    billing_email: billing_details.email.clone(),
+                })))}
+            api_models::payments::BankRedirectData::BancontactCard { .. } => Ok(Self::Bancontact),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
