@@ -4,6 +4,8 @@ use actix_web::cookie::SameSite;
 use async_trait::async_trait;
 use thirtyfour::{components::SelectElement, prelude::*, WebDriver};
 
+use crate::connector_auth;
+
 pub enum Event<'a> {
     RunIf(Assert<'a>, Vec<Event<'a>>),
     EitherOr(Assert<'a>, Vec<Event<'a>>, Vec<Event<'a>>),
@@ -38,6 +40,7 @@ pub enum Selector {
 pub enum Assert<'a> {
     Eq(Selector, &'a str),
     Contains(Selector, &'a str),
+    ContainsAny(Selector, Vec<&'a str>),
     IsPresent(&'a str),
     IsPresentNow(&'a str),
 }
@@ -46,6 +49,15 @@ pub static CHEKOUT_BASE_URL: &str = "https://hs-payments-test.netlify.app";
 pub static CHEKOUT_DOMAIN: &str = "hs-payments-test.netlify.app";
 #[async_trait]
 pub trait SeleniumTest {
+    fn get_configs(&self) -> connector_auth::ConnectorAuthentication {
+        let path = env::var("CONNECTOR_AUTH_FILE_PATH")
+            .expect("connector authentication file path not set");
+        toml::from_str(
+            &std::fs::read_to_string(path).expect("connector authentication config file not found"),
+        )
+        .expect("Failed to read connector authentication config file")
+    }
+    fn get_connector_name(&self) -> String;
     async fn complete_actions(
         &self,
         driver: &WebDriver,
@@ -60,6 +72,15 @@ pub trait SeleniumTest {
                             assert!(url.query().unwrap().contains(text))
                         }
                         _ => assert!(driver.title().await?.contains(text)),
+                    },
+                    Assert::ContainsAny(selector, search_keys) => match selector {
+                        Selector::QueryParamStr => {
+                            let url = driver.current_url().await?;
+                            assert!(search_keys
+                                .iter()
+                                .any(|key| url.query().unwrap().contains(key)))
+                        }
+                        _ => assert!(driver.title().await?.contains(search_keys.first().unwrap())),
                     },
                     Assert::Eq(_selector, text) => assert_eq!(driver.title().await?, text),
                     Assert::IsPresent(text) => {
@@ -78,6 +99,15 @@ pub trait SeleniumTest {
                             }
                         }
                         _ => assert!(driver.title().await?.contains(text)),
+                    },
+                    Assert::ContainsAny(selector, keys) => match selector {
+                        Selector::QueryParamStr => {
+                            let url = driver.current_url().await?;
+                            if keys.iter().any(|key| url.query().unwrap().contains(key)) {
+                                self.complete_actions(driver, events).await?;
+                            }
+                        }
+                        _ => assert!(driver.title().await?.contains(keys.first().unwrap())),
                     },
                     Assert::Eq(_selector, text) => {
                         if text == driver.title().await? {
@@ -110,6 +140,21 @@ pub trait SeleniumTest {
                             .await?;
                         }
                         _ => assert!(driver.title().await?.contains(text)),
+                    },
+                    Assert::ContainsAny(selector, keys) => match selector {
+                        Selector::QueryParamStr => {
+                            let url = driver.current_url().await?;
+                            self.complete_actions(
+                                driver,
+                                if keys.iter().any(|key| url.query().unwrap().contains(key)) {
+                                    success
+                                } else {
+                                    failure
+                                },
+                            )
+                            .await?;
+                        }
+                        _ => assert!(driver.title().await?.contains(keys.first().unwrap())),
                     },
                     Assert::Eq(_selector, text) => {
                         self.complete_actions(
@@ -148,15 +193,26 @@ pub trait SeleniumTest {
                 Event::Trigger(trigger) => match trigger {
                     Trigger::Goto(url) => {
                         driver.goto(url).await?;
-                        let hs_base_url =
-                            env::var("HS_BASE_URL").unwrap_or("http://localhost:8080".to_string()); //Issue: #924
-                        let hs_api_key =
-                            env::var("HS_API_KEY").expect("Hyperswitch user API key not present"); //Issue: #924
+                        let conf = serde_json::to_string(&self.get_configs()).unwrap();
+                        let hs_base_url = self.get_configs().hs_base_url.unwrap_or_else(|| {
+                            env::var("HS_BASE_URL")
+                                .unwrap_or_else(|_| "http://localhost:8080".to_string())
+                        });
+                        let configs_url = self.get_configs().configs_url.unwrap();
+                        let script = &[
+                            format!("localStorage.configs='{configs_url}'").as_str(),
+                            format!("localStorage.hs_api_configs='{conf}'").as_str(),
+                            format!(
+                                "localStorage.current_connector=\"{}\";",
+                                self.get_connector_name().clone()
+                            )
+                            .as_str(),
+                        ]
+                        .join(";");
+
+                        driver.execute(script, Vec::new()).await?;
                         driver
                             .add_cookie(new_cookie("hs_base_url", hs_base_url).clone())
-                            .await?;
-                        driver
-                            .add_cookie(new_cookie("hs_api_key", hs_api_key).clone())
                             .await?;
                     }
                     Trigger::Click(by) => {
@@ -240,9 +296,10 @@ pub trait SeleniumTest {
         url: &str,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
+        let config = self.get_configs();
         let (email, pass) = (
-            &get_env("GMAIL_EMAIL").clone(),
-            &get_env("GMAIL_PASS").clone(),
+            &config.gmail_email.unwrap_or_else(|| get_env("GMAIL_EMAIL")),
+            &config.gmail_pass.unwrap_or_else(|| get_env("GMAIL_PASS")),
         );
         let default_actions = vec![
             Event::Trigger(Trigger::Goto(url)),
@@ -294,8 +351,14 @@ pub trait SeleniumTest {
         )
         .await?;
         let (email, pass) = (
-            &get_env("PYPL_EMAIL").clone(),
-            &get_env("PYPL_PASS").clone(),
+            &self
+                .get_configs()
+                .pypl_email
+                .unwrap_or_else(|| get_env("PYPL_EMAIL")),
+            &self
+                .get_configs()
+                .pypl_pass
+                .unwrap_or_else(|| get_env("PYPL_PASS")),
         );
         let mut pypl_actions = vec![
             Event::EitherOr(
@@ -392,7 +455,7 @@ macro_rules! tester {
 }
 
 pub fn get_browser() -> String {
-    env::var("HS_TEST_BROWSER").unwrap_or("firefox".to_string()) //Issue: #924
+    env::var("HS_TEST_BROWSER").unwrap_or_else(|_| "firefox".to_string())
 }
 
 pub fn make_capabilities(s: &str) -> Capabilities {
@@ -421,7 +484,6 @@ pub fn make_capabilities(s: &str) -> Capabilities {
 }
 fn get_chrome_profile_path() -> Result<String, WebDriverError> {
     env::var("CHROME_PROFILE_PATH").map_or_else(
-        //Issue: #924
         |_| -> Result<String, WebDriverError> {
             let exe = env::current_exe()?;
             let dir = exe.parent().expect("Executable must be in some directory");
@@ -441,7 +503,6 @@ fn get_chrome_profile_path() -> Result<String, WebDriverError> {
 }
 fn get_firefox_profile_path() -> Result<String, WebDriverError> {
     env::var("FIREFOX_PROFILE_PATH").map_or_else(
-        //Issue: #924
         |_| -> Result<String, WebDriverError> {
             let exe = env::current_exe()?;
             let dir = exe.parent().expect("Executable must be in some directory");
@@ -489,5 +550,5 @@ pub fn handle_test_error(
 }
 
 pub fn get_env(name: &str) -> String {
-    env::var(name).unwrap_or_else(|_| panic!("{name} not present")) //Issue: #924
+    env::var(name).unwrap_or_else(|_| panic!("{name} not present"))
 }
