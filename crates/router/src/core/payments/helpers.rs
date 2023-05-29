@@ -6,8 +6,6 @@ use common_utils::{
 };
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "kms")]
-use external_services::kms;
 use josekit::jwe;
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
@@ -1437,7 +1435,6 @@ mod tests {
             active_attempt_id: "nopes".to_string(),
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
-            meta_data: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -1477,7 +1474,6 @@ mod tests {
             active_attempt_id: "nopes".to_string(),
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
-            meta_data: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -1517,7 +1513,6 @@ mod tests {
             active_attempt_id: "nopes".to_string(),
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
-            meta_data: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -1611,15 +1606,7 @@ pub async fn get_merchant_connector_account(
                 )?;
 
             #[cfg(feature = "kms")]
-            let kms_config = &state.conf.kms;
-
-            #[cfg(feature = "kms")]
-            let private_key = kms::get_kms_client(kms_config)
-                .await
-                .decrypt(state.conf.jwekey.tunnel_private_key.to_owned())
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error getting tunnel private key")?;
+            let private_key = state.kms_secrets.jwekey.peek().tunnel_private_key.clone();
 
             #[cfg(not(feature = "kms"))]
             let private_key = state.conf.jwekey.tunnel_private_key.to_owned();

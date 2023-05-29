@@ -224,7 +224,7 @@ pub struct PaymentsAuthorizeData {
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
     pub browser_info: Option<BrowserInformation>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetails>>,
+    pub order_details: Option<api_models::payments::OrderDetails>,
     pub order_category: Option<String>,
     pub session_token: Option<String>,
     pub enrolled_for_3ds: bool,
@@ -315,7 +315,7 @@ pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
     pub country: Option<api::enums::CountryAlpha2>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetails>>,
+    pub order_details: Option<api_models::payments::OrderDetails>,
 }
 
 #[derive(Debug, Clone)]
