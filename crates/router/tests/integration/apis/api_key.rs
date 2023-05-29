@@ -57,7 +57,7 @@ pub async fn execute_api_key_create_test(master_data : &mut MasterData, server: 
     Some(test_request) => {
       let api_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       ApiKey::verify_success_response(&api_resp,master_data).update_master_data(master_data,&api_resp);
-      //println!("APIKEY Create Respone : {:?}",api_resp);
+      //println!("APIKEY Create Response : {:?}",api_resp);
       println!("Api Key Create Test successful!");
       Some(api_resp)
     },
@@ -102,7 +102,7 @@ pub async fn execute_api_key_update_test(master_data : &mut MasterData, server: 
     Some(test_request) => {
       let api_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       ApiKeyUpdate::verify_success_response(&api_resp,master_data).update_master_data(master_data,&api_resp);
-      //println!("APIKEYUpdate Create Respone : {:?}",api_resp);
+      //println!("APIKEYUpdate Create Response : {:?}",api_resp);
       println!("Api Key Update Test successful!");
       Some(api_resp)
     },
@@ -148,7 +148,7 @@ pub async fn execute_api_key_delete_test(master_data : &mut MasterData, server: 
     Some(test_request) => {
       let api_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       ApiKeyDelete::verify_success_response(&api_resp,master_data).update_master_data(master_data,&api_resp);
-      //println!("APIKEY Delete Respone : {:?}",api_resp);
+      //println!("APIKEY Delete Response : {:?}",api_resp);
       println!("APIKEY Delete Test successful!");
       Some(api_resp)
     },
