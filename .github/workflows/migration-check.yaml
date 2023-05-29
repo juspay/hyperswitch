@@ -62,6 +62,10 @@ jobs:
         shell: bash
         run: cargo install diesel_cli --no-default-features --features postgres
 
+      - name: Git Diff
+        shell: bash
+        run: git diff
+
       - name: Verify `diesel migration run`
         shell: bash
         env:
