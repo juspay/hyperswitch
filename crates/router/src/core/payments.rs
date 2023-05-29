@@ -34,7 +34,7 @@ use crate::{
     },
     db::StorageInterface,
     logger,
-    routes::AppState,
+    routes::{metrics, AppState},
     scheduler::utils as pt_utils,
     services::{self, api::Authenticate},
     types::{
@@ -285,6 +285,20 @@ pub trait PaymentRedirectFlow: Sync {
         merchant_account: storage::MerchantAccount,
         req: PaymentsRedirectResponseData,
     ) -> RouterResponse<api::RedirectionResponse> {
+        metrics::REDIRECTION_TRIGGERED.add(
+            &metrics::CONTEXT,
+            1,
+            &[
+                metrics::request::add_attributes(
+                    "connector",
+                    req.connector.to_owned().unwrap_or("null".to_string()),
+                ),
+                metrics::request::add_attributes(
+                    "merchant_id",
+                    merchant_account.merchant_id.to_owned(),
+                ),
+            ],
+        );
         let connector = req.connector.clone().get_required_value("connector")?;
 
         let query_params = req.param.clone().get_required_value("param")?;
@@ -344,6 +358,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             payment_id: Some(req.resource_id.clone()),
             merchant_id: req.merchant_id.clone(),
             metadata: Some(Metadata {
+                routing_parameters: None,
                 order_details: None,
                 data: masking::Secret::new("{}".into()),
                 payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
@@ -380,7 +395,10 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             api_models::enums::IntentStatus::RequiresCustomerAction => {
                 let startpay_url = payments_response
                     .next_action
-                    .and_then(|next_action| next_action.redirect_to_url)
+                    .and_then(|next_action_data| match next_action_data {
+                        api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
+                        api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
+                    })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
                     .attach_printable(
