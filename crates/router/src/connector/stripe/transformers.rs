@@ -378,7 +378,11 @@ pub enum BankDebitData {
         #[serde(rename = "payment_method_data[acss_debit][institution_number]")]
         institution_number: Secret<String>,
         #[serde(rename = "payment_method_data[acss_debit][transit_number]")]    
-        transit_number: Secret<String>
+        transit_number: Secret<String>,
+        #[serde(rename = "payment_method_options[acss_debit][mandate_options][payment_schedule]")]
+        payment_schedule: PaymentSchedule,
+        #[serde(rename = "payment_method_options[acss_debit][mandate_options][transaction_type]")]
+        transaction_type: TransactionType,
     }
 }
 
@@ -716,21 +720,6 @@ fn validate_mandate_request_against_payment_method(
     }
 }
 
-fn get_payment_method_options(
-    payment_method: &payments::PaymentMethodData,
-) -> Option<StripePaymentMethodOptions> {
-    match payment_method {
-        payments::PaymentMethodData::BankDebit(payments::BankDebitData::AcssBankDebit{..}) => Some(StripePaymentMethodOptions::Acss {
-            mandate_options: StripeMandateOptions {
-                reference : None,
-                payment_schedule: Some(PaymentSchedule::Sporadic),
-                transaction_type: Some(TransactionType::Personal),
-            }
-        }),
-        _ => None
-    }
-}
-
 fn infer_stripe_pay_later_type(
     pm_type: &enums::PaymentMethodType,
     experience: &enums::PaymentExperience,
@@ -981,6 +970,8 @@ fn get_bank_debit_data(
                 account_number: account_number.to_owned(),
                 institution_number: institution_number.to_owned(),
                 transit_number: transit_number.to_owned(),
+                payment_schedule: PaymentSchedule::Sporadic,
+                transaction_type: TransactionType::Personal,
             };
 
             let billing_data = StripeBillingAddress::from(billing_details);
@@ -1238,7 +1229,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             None => StripeShippingAddress::default(),
         };
 
-        let mut payment_method_options = get_payment_method_options(&item.request.payment_method_data);
+        let mut payment_method_options = None;
 
         let (mut payment_data, payment_method, mandate, billing_address) = {
             match item
@@ -1617,7 +1608,7 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
                 StripePaymentMethodOptions::Card {
                     mandate_options, ..
                 } => mandate_options.map(|mandate_options| mandate_options.reference).flatten(),
-                StripePaymentMethodOptions::Acss {..}
+                StripePaymentMethodOptions::Acss {}
                 |StripePaymentMethodOptions::Klarna {}
                 | StripePaymentMethodOptions::Affirm {}
                 | StripePaymentMethodOptions::AfterpayClearpay {}
@@ -2121,10 +2112,8 @@ pub enum StripePaymentMethodOptions {
     #[serde(rename = "p24")]
     Przelewy24 {},
     CustomerBalance {},
-   // #[serde(rename = "acss_debit")]
-    Acss {
-        mandate_options: StripeMandateOptions
-    }
+    #[serde(rename = "acss_debit")]
+    Acss {}
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -2146,11 +2135,7 @@ pub struct LatestPaymentAttempt {
 // pub struct Card
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct StripeMandateOptions {
-    reference: Option<String>,
-    #[serde(rename = "acss_debit[mandate_options][payment_schedule]")]
-    payment_schedule: Option<PaymentSchedule>,
-    #[serde(rename = "acss_debit[mandate_options][transaction_type]")]
-    transaction_type: Option<TransactionType>,
+    reference: Option<String>
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]

@@ -561,7 +561,7 @@ pub enum BankDebitData {
         institution_number: Secret<String>,
         ///Transit number for bank debit
         #[schema(value_type = String, example = "11000")]
-        transit_number: Secret<String>
+        transit_number: Secret<String>,
     }
 }
 
