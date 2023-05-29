@@ -71,7 +71,7 @@ pub struct PaypalMethodData {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DirectDebitMethodData {
-    consumer_name:  Option<Secret<String>>,
+    consumer_name: Option<Secret<String>>,
     consumer_account: Secret<String>,
 }
 
@@ -168,22 +168,18 @@ impl TryFrom<&api_models::payments::BankDebitData> for PaymentMethodData {
     type Error = Error;
     fn try_from(value: &api_models::payments::BankDebitData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::BankDebitData::SepaBankDebit { 
+            api_models::payments::BankDebitData::SepaBankDebit {
                 bank_account_holder_name,
-                iban, 
-                .. 
-            } => {
-                Ok(PaymentMethodData::DirectDebit(Box::new(
-                    DirectDebitMethodData { 
-                        consumer_name: bank_account_holder_name.clone(), 
-                        consumer_account: iban.clone(),
-                    }
-                )))
-            }
-            _=> Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+                iban,
+                ..
+            } => Ok(Self::DirectDebit(Box::new(DirectDebitMethodData {
+                consumer_name: bank_account_holder_name.clone(),
+                consumer_account: iban.clone(),
+            }))),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
-} 
+}
 
 fn get_payment_method_for_wallet(
     item: &types::PaymentsAuthorizeRouterData,
