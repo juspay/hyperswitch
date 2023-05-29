@@ -1,3 +1,5 @@
+mod examples;
+
 #[derive(utoipa::OpenApi)]
 #[openapi(
     info(
