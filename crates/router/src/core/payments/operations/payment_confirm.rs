@@ -241,7 +241,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 },
                 confirm: request.confirm,
                 payment_method_data: request.payment_method_data.clone(),
-                force_sync: None,
+                force_sync: request.override_confirm_to_sync,
                 refunds: vec![],
                 disputes: vec![],
                 sessions_token: vec![],
@@ -251,7 +251,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 connector_customer_id: None,
                 ephemeral_key: None,
                 delayed_session_response: None,
-                override_confirm_to_sync: None,
+                override_confirm_to_sync: request.override_confirm_to_sync,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),

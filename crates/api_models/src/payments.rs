@@ -1603,8 +1603,6 @@ pub struct PaymentsSessionRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     /// Identifier for the delayed session response
     pub delayed_session_response: Option<bool>,
-    /// Identifier for the override from confirm to sync
-    pub override_confirm_to_sync: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

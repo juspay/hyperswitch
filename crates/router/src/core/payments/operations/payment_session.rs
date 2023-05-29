@@ -172,7 +172,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 connector_customer_id: None,
                 ephemeral_key: None,
                 delayed_session_response: request.delayed_session_response,
-                override_confirm_to_sync: request.override_confirm_to_sync,
+                override_confirm_to_sync: None,
             },
             Some(customer_details),
         ))
