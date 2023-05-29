@@ -89,12 +89,6 @@ jobs:
       - name: Set connector auth file path in env
         run: echo "CONNECTOR_AUTH_FILE_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
 
-      # - name: Run integration tests
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: test
-      #     args: test_api
-
       - name: Cargo integration tests for payment api
         run: cargo test --package router --test payments_apis -- run_payment_apis_test --exact --nocapture
       

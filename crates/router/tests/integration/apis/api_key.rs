@@ -114,11 +114,13 @@ pub struct ApiKeyDelete;
 
 impl RequestBuilder for ApiKeyDelete{
   fn make_request_body(data : &MasterData) -> Option<TestRequest>{
-    let mid = data.merchant_id.as_ref().unwrap();
-    let api_key_id = data.api_key_id.as_ref().unwrap();
-    Some(TestRequest::delete()
-        .uri(&format!("http://localhost:8080/api_keys/{}/{}", mid,api_key_id))
-        .insert_header(("api-key",data.admin_api_key.as_str())))
+    data.api_key_delete.as_ref().map(|_|{
+      let mid = data.merchant_id.as_ref().unwrap();
+      let api_key_id = data.api_key_id.as_ref().unwrap();
+      TestRequest::delete()
+          .uri(&format!("http://localhost:8080/api_keys/{}/{}", mid,api_key_id))
+          .insert_header(("api-key",data.admin_api_key.as_str()))
+    })
   }
 
   fn verify_success_response(resp : &Value, _data : &MasterData) -> Self{

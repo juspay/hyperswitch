@@ -60,10 +60,12 @@ pub struct MerchantAccountDelete;
 
 impl RequestBuilder for MerchantAccountDelete{
   fn make_request_body(data : &MasterData) -> Option<TestRequest>{
-    let merchant_id = data.merchant_id.as_ref().unwrap();
-    Some(TestRequest::delete()
-        .uri(&format!("http://localhost:8080/accounts/{}",merchant_id))
-        .insert_header(("api-key",data.admin_api_key.as_str())))
+    data.merchant_account_delete.as_ref().map(|_|{
+      let merchant_id = data.merchant_id.as_ref().unwrap();
+      TestRequest::delete()
+          .uri(&format!("http://localhost:8080/accounts/{}",merchant_id))
+          .insert_header(("api-key",data.admin_api_key.as_str()))
+      })
   }
 
   fn verify_success_response(resp : &Value, _data : &MasterData) -> Self{
