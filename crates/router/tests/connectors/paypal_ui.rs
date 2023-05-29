@@ -11,7 +11,6 @@ impl SeleniumTest for PaypalSeleniumTest {
     }
 }
 
-
 async fn should_make_paypal_paypal_wallet_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = PaypalSeleniumTest {};
     conn.make_paypal_payment(
@@ -28,7 +27,6 @@ async fn should_make_paypal_paypal_wallet_payment(c: WebDriver) -> Result<(), We
     .await?;
     Ok(())
 }
-
 
 #[test]
 #[serial]
