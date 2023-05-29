@@ -4,9 +4,11 @@ use super::{MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    types::storage::{self, DisputeDbExt},
+    types::{
+        storage::{self, DisputeDbExt},
+        transformers::ForeignInto,
+    },
 };
-use crate::types::transformers::ForeignInto;
 
 #[async_trait::async_trait]
 pub trait DisputeInterface {
@@ -204,7 +206,7 @@ impl DisputeInterface for MockDb {
 
         if let Some(dispute) = found_dispute {
             Ok(dispute)
-        } else{
+        } else {
             Err(errors::StorageError::ValueNotFound(format!("No dispute available for merchant_id = {merchant_id} and dispute_id = {dispute_id}")))?
         }
     }
@@ -355,12 +357,14 @@ impl DisputeInterface for MockDb {
 mod tests {
     mod mockdb_dispute_interface {
         use std::str::FromStr;
-        use serde_json::Value;
-        use time::macros::datetime;
-        use time::PrimitiveDateTime;
+
         use masking::Secret;
-        use storage_models::dispute::Dispute;
-        use storage_models::enums::{DisputeStage, DisputeStatus};
+        use serde_json::Value;
+        use storage_models::{
+            dispute::Dispute,
+            enums::{DisputeStage, DisputeStatus},
+        };
+        use time::{macros::datetime, PrimitiveDateTime};
 
         use crate::{
             db::{dispute::DisputeInterface, MockDb},
@@ -470,7 +474,13 @@ mod tests {
                 .await
                 .unwrap();
 
-            let found_dispute = mockdb.disputes.lock().await.iter().find(|d| d.dispute_id == created_dispute.dispute_id).cloned();
+            let found_dispute = mockdb
+                .disputes
+                .lock()
+                .await
+                .iter()
+                .find(|d| d.dispute_id == created_dispute.dispute_id)
+                .cloned();
 
             assert!(found_dispute.is_some());
 
@@ -484,9 +494,14 @@ mod tests {
 
             init_mock(&mockdb).await;
 
-            let found_dispute = mockdb.find_by_merchant_id_payment_id_connector_dispute_id(
-                "merchant_2", "payment_2", "connector_dispute_2"
-            ).await.unwrap();
+            let found_dispute = mockdb
+                .find_by_merchant_id_payment_id_connector_dispute_id(
+                    "merchant_2",
+                    "payment_2",
+                    "connector_dispute_2",
+                )
+                .await
+                .unwrap();
 
             assert!(found_dispute.is_some());
 
@@ -500,9 +515,10 @@ mod tests {
 
             init_mock(&mockdb).await;
 
-            let found_dispute = mockdb.find_dispute_by_merchant_id_dispute_id(
-                "merchant_3", "dispute_3"
-            ).await.unwrap();
+            let found_dispute = mockdb
+                .find_dispute_by_merchant_id_dispute_id("merchant_3", "dispute_3")
+                .await
+                .unwrap();
 
             disputes_eq(create_dispute(3), found_dispute);
         }
@@ -511,7 +527,6 @@ mod tests {
         //#[tokio::test]
         async fn test_find_disputes_by_merchant_id() {
             let mockdb = MockDb::new(&Default::default()).await;
-
         }
 
         #[allow(clippy::unwrap_used)]
@@ -521,9 +536,10 @@ mod tests {
 
             init_mock(&mockdb).await;
 
-            let found_disputes = mockdb.find_disputes_by_merchant_id_payment_id(
-                "merchant_5", "payment_5"
-            ).await.unwrap();
+            let found_disputes = mockdb
+                .find_disputes_by_merchant_id_payment_id("merchant_5", "payment_5")
+                .await
+                .unwrap();
 
             assert_eq!(1, found_disputes.len());
 
@@ -534,7 +550,6 @@ mod tests {
         //#[tokio::test]
         async fn test_update_dispute() {
             let mockdb = MockDb::new(&Default::default()).await;
-
         }
     }
 }
