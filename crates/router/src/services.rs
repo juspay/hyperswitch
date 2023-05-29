@@ -24,7 +24,7 @@ pub trait PubSubInterface {
     async fn subscribe(
         &self,
         channel: &str,
-    ) -> errors::CustomResult<usize, redis_errors::RedisError>;
+    ) -> errors::CustomResult<(), redis_errors::RedisError>;
 
     async fn publish<'a>(
         &self,
@@ -38,10 +38,7 @@ pub trait PubSubInterface {
 #[async_trait::async_trait]
 impl PubSubInterface for redis_interface::RedisConnectionPool {
     #[inline]
-    async fn subscribe(
-        &self,
-        channel: &str,
-    ) -> errors::CustomResult<usize, redis_errors::RedisError> {
+    async fn subscribe(&self, channel: &str) -> errors::CustomResult<(), redis_errors::RedisError> {
         self.subscriber
             .subscribe(channel)
             .await
