@@ -45,6 +45,7 @@ pub struct AirwallexPaymentsRequest {
 #[serde(untagged)]
 pub enum AirwallexPaymentMethod {
     Card(AirwallexCard),
+    Wallets(WalletData),
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -62,9 +63,38 @@ pub struct AirwallexCardDetails {
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(untagged)]
+pub enum WalletData {
+    GooglePay(GooglePayData),
+    ApplePay(ApplePayData),
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+pub struct GooglePayData {
+    googlepay: GooglePayDetails,
+    #[serde(rename = "type")]
+    payment_method_type: AirwallexPaymentType,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+pub struct ApplePayData {
+    applepay: GooglePayDetails,
+    #[serde(rename = "type")]
+    payment_method_type: AirwallexPaymentType,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+pub struct GooglePayDetails{
+    encrypted_payment_token: Secret<String>,
+    payment_data_type: String,
+
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum AirwallexPaymentType {
     Card,
+    Googlepay,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -99,11 +129,39 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
                     },
                     payment_method_type: AirwallexPaymentType::Card,
                 }))
+            },
+            api::PaymentMethodData::Wallet(ref wallet_data) => {
+                let wallet_details: AirwallexPaymentMethod = match wallet_data {
+                    api_models::payments::WalletData::GooglePay(gpay_details) => {
+                        AirwallexPaymentMethod::Wallets(WalletData::GooglePay(GooglePayData { 
+                            googlepay: GooglePayDetails{
+                                encrypted_payment_token: Secret::new(gpay_details.tokenization_data.token.clone()),
+                                payment_data_type: gpay_details.tokenization_data.token_type.clone(),
+                            },
+                            payment_method_type: AirwallexPaymentType::Googlepay,
+                        }))
+                    },
+                    api_models::payments::WalletData::ApplePay(applepay_details) => {
+                        AirwallexPaymentMethod::Wallets(WalletData::ApplePay(ApplePayData { 
+                            applepay: GooglePayDetails{
+                                encrypted_payment_token: Secret::new(applepay_details.transaction_identifier.clone()),
+                                payment_data_type: applepay_details.payment_method.pm_type.clone(),
+                            },
+                            payment_method_type: AirwallexPaymentType::Googlepay,
+                        }))
+                    }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Payment method".to_string(),
+                    ))?,
+                };
+                Ok(wallet_details)
             }
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Unknown payment method".to_string(),
             )),
         }?;
+
+        println!(">>>>>>>>>>>>>>>{:?}", payment_method);
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
             payment_method,
