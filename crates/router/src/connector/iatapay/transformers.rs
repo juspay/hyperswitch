@@ -236,7 +236,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for IatapayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.amount,
+            amount: item.request.refund_amount,
             merchant_id: IatapayAuthType::try_from(&item.connector_auth_type)?.merchant_id,
             merchant_refund_id: match item.request.connector_refund_id.clone() {
                 Some(val) => val,
