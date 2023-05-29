@@ -25,7 +25,7 @@ async fn run_dashboard_api_test(){
   if let Ok(test_data_list) = collect_test_data(test_input_dir){
     for (test_file_path,mut test_master_data) in test_data_list{
       println!("Test execution started for : {:?}\n",test_file_path);
-      let test_result = test_api(&mut test_master_data).await;
+      let test_result = execute_test_sequence(&mut test_master_data).await;
       match test_result{
         Ok(()) => println!("Test execution successful : {:?}\n",test_file_path),
         Err(error) => println!("Test execution failed for path: {:?} with error : {}\n",test_file_path,error),
@@ -37,7 +37,7 @@ async fn run_dashboard_api_test(){
   }
 }
 //TODO: Add brackets to create and delete resources
-async fn test_api(master_data : &mut MasterData) -> Result<(), Box<dyn std::error::Error>> {
+async fn execute_test_sequence(master_data : &mut MasterData) -> Result<(), Box<dyn std::error::Error>> {
   let server = mk_service_with_db().await;
   execute_merchant_account_create_test(master_data,&server).await;
   execute_api_key_create_test(master_data,&server).await;
