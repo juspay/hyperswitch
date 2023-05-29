@@ -1,10 +1,9 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use error_stack::report;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{errors, payment_methods::cards},
+    core::payment_methods::cards,
     services::{api, authentication as auth},
     types::api::payment_methods::{self, PaymentMethodId},
 };
@@ -125,13 +124,8 @@ pub async fn list_customer_payment_method_api(
     let flow = Flow::CustomerPaymentMethodsList;
     let (auth_type, customer_id) = match auth::is_ephemeral_auth(req.headers(), &*state.store).await
     {
-        Ok((auth_type, Some(customer_id))) => (auth_type, customer_id),
+        Ok((auth_type, customer_id)) => (auth_type, customer_id),
         Err(err) => return api::log_and_return_error_response(err),
-        Ok((_, None)) => {
-            return api::log_and_return_error_response(report!(
-                errors::ApiErrorResponse::InvalidEphemeralKey
-            ))
-        } //will never come to this
     };
 
     api::server_wrap(

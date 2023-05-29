@@ -411,7 +411,7 @@ pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
     db: &dyn StorageInterface,
 ) -> RouterResult<(
     Box<dyn AuthenticateAndFetch<storage::MerchantAccount, A>>,
-    Option<String>,
+    String,
 )> {
     let api_key = get_api_key(headers)?;
     if !api_key.starts_with(consts::EPHEMERAL_KEY_PREFIX) {
@@ -423,7 +423,7 @@ pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
         .change_context(errors::ApiErrorResponse::Unauthorized)?;
     Ok((
         Box::new(MerchantIdAuth(ephemeral_key.merchant_id)),
-        Some(ephemeral_key.customer_id),
+        ephemeral_key.customer_id,
     ))
 }
 
