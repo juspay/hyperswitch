@@ -31,7 +31,7 @@ fn get_master_data(test_file_path : std::path::PathBuf) -> MasterData{
 
 #[actix_web::test]
 async fn run_integration_test(){
-  let test_input_dir = "./tests/integration/data";
+  let test_input_dir = "./tests/senarios/payments_apis";
   if let Ok(test_files) = fs::read_dir(test_input_dir) {
       for test_file in test_files {
           if let Ok(test_file) = test_file {
