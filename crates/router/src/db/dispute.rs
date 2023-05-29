@@ -391,7 +391,7 @@ mod tests {
         }
 
         async fn init_mock(mockdb: &MockDb) {
-            for i in 0..5 {
+            for i in 0..6 {
                 mockdb
                     .insert_dispute(storage::DisputeNew {
                         dispute_id: format!("dispute_{i}").into(),
@@ -515,10 +515,19 @@ mod tests {
         }
 
         #[allow(clippy::unwrap_used)]
-        //#[tokio::test]
+        #[tokio::test]
         async fn test_find_disputes_by_merchant_id_payment_id() {
             let mockdb = MockDb::new(&Default::default()).await;
 
+            init_mock(&mockdb).await;
+
+            let found_disputes = mockdb.find_disputes_by_merchant_id_payment_id(
+                "merchant_5", "payment_5"
+            ).await.unwrap();
+
+            assert_eq!(1, found_disputes.len());
+
+            disputes_eq(create_dispute(5), found_disputes.get(0).unwrap().clone());
         }
 
         #[allow(clippy::unwrap_used)]
