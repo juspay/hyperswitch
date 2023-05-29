@@ -41,17 +41,19 @@ impl RequestBuilder for MerchantAccount{
   }
 }
 
-pub async fn execute_merchant_account_create_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+pub async fn execute_merchant_account_create_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>) -> Option<Value>{
   let opt_test_req = MerchantAccount::make_request_body(&master_data);
   match opt_test_req{
     Some(test_request) => {
       let merchant_account_create_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       MerchantAccount::verify_success_response(&merchant_account_create_resp,master_data).update_master_data(master_data,&merchant_account_create_resp);
       //println!("{:?}",merchant_account_create_resp);
-      println!("Merchant Account Create Test successful!")
+      println!("Merchant Account Create Test successful!");
+      Some(merchant_account_create_resp)
     },
     None => {
-      println!("Skipping Payment Create Test!")
+      println!("Skipping Payment Create Test!");
+      None
     },
   }
 }
@@ -82,17 +84,19 @@ impl RequestBuilder for MerchantAccountDelete{
 }
 
 
-pub async fn execute_merchant_account_delete_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+pub async fn execute_merchant_account_delete_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>) -> Option<Value>{
   let opt_test_req = MerchantAccountDelete::make_request_body(&master_data);
   match opt_test_req{
     Some(test_request) => {
       let merchant_account_delete_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       MerchantAccountDelete::verify_success_response(&merchant_account_delete_resp,master_data).update_master_data(master_data,&merchant_account_delete_resp);
       //println!("{:?}",merchant_account_delete_resp);
-      println!("Merchant Account Delete Test successful!")
+      println!("Merchant Account Delete Test successful!");
+      Some(merchant_account_delete_resp)
     },
     None => {
-      println!("Skipping Payment Delete Test!")
+      println!("Skipping Payment Delete Test!");
+      None
     },
   }
 }

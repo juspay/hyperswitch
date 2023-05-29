@@ -16,8 +16,6 @@ use crate::integration::types::*;
 use crate::integration::apis::merchant_account::*;
 use crate::integration::apis::connector::*;
 use crate::integration::apis::api_key::*;
-use std::fs;
-use serde_json;
 
 #[actix_web::test]
 async fn run_dashboard_apis_test(){

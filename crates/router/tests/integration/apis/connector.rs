@@ -36,17 +36,19 @@ impl RequestBuilder for ConnectorCreate{
 
 }
 
-pub async fn execute_connector_create_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+pub async fn execute_connector_create_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>) -> Option<Value>{
   let opt_test_request = ConnectorCreate::make_request_body(&master_data);
   match opt_test_request{
     Some(test_request) => {
       let connector_create_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       ConnectorCreate::verify_success_response(&connector_create_resp,master_data).update_master_data(master_data,&connector_create_resp);
       //println!("Connector Create Response {:?}",connector_create_resp);
-      println!("Connector Create Test successful!")
+      println!("Connector Create Test successful!");
+      Some(connector_create_resp)
     },
     None => {
-      println!("Skipping Connector Create Test!")
+      println!("Skipping Connector Create Test!");
+      None
     },
   }
 }

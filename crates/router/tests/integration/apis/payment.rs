@@ -42,17 +42,19 @@ impl RequestBuilder for PaymentCreate{
 }
 
 
-pub async fn execute_payment_create_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+pub async fn execute_payment_create_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>) -> Option<Value>{
   let opt_test_request = PaymentCreate::make_request_body(&master_data);
   match opt_test_request{
     Some(test_request) => {
       let payment_create_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       PaymentCreate::verify_success_response(&payment_create_resp,master_data).update_master_data(master_data,&payment_create_resp);
       //println!("{:?}",payment_create_resp);
-      println!("Payment Create Test successful!")
+      println!("Payment Create Test successful!");
+      Some(payment_create_resp)
     },
     None => {
-      println!("Skipping Payment Create Test!")
+      println!("Skipping Payment Create Test!");
+      None
     },
   }
 }
@@ -83,17 +85,19 @@ impl RequestBuilder for PaymentRetrieve{
     }
 }
 
-pub async fn execute_payment_retrieve_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+pub async fn execute_payment_retrieve_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>) -> Option<Value>{
   let opt_test_request = PaymentRetrieve::make_request_body(&master_data);
   match opt_test_request{
     Some(test_request) => {
       let payment_create_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       PaymentRetrieve::verify_success_response(&payment_create_resp,master_data).update_master_data(master_data,&payment_create_resp);
       //println!("{:?}",payment_create_resp);
-      println!("Payment Retrieve Test successful!")
+      println!("Payment Retrieve Test successful!");
+      Some(payment_create_resp)
     },
     None => {
-      println!("Skipping Payment Retrieve Test!")
+      println!("Skipping Payment Retrieve Test!");
+      None
     },
   }
 }
@@ -153,17 +157,19 @@ impl RequestBuilder for PaymentConfirm{
     }
 }
 
-pub async fn execute_payment_confirm_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+pub async fn execute_payment_confirm_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>) -> Option<Value>{
   let opt_test_request = PaymentConfirm::make_request_body(&master_data);
   match opt_test_request{
     Some(test_request) => {
       let payment_confirm_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       PaymentConfirm::verify_success_response(&payment_confirm_resp,master_data).update_master_data(master_data,&payment_confirm_resp);
       //println!("{:?}",payment_confirm_resp);
-      println!("Payment Confirm Test successful!")
+      println!("Payment Confirm Test successful!");
+      Some(payment_confirm_resp)
     },
     None => {
-      println!("Skipping Payment Confirm Test!")
+      println!("Skipping Payment Confirm Test!");
+      None
     },
   }
 }

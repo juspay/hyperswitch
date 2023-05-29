@@ -37,17 +37,19 @@ impl RequestBuilder for Customer{
 
 }
 
-pub async fn execute_customer_create_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+pub async fn execute_customer_create_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>) -> Option<Value>{
   let opt_test_request = Customer::make_request_body(&master_data);
   match opt_test_request{
     Some(test_request) => {
       let customer_create_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       Customer::verify_success_response(&customer_create_resp,master_data).update_master_data(master_data,&customer_create_resp);
       //println!("Customer Create Response : {:?}",customer_create_resp);
-      println!("Customer Create Test successful!")
+      println!("Customer Create Test successful!");
+      Some(customer_create_resp)
     },
     None => {
-      println!("Skipping Customer Create Test!")
+      println!("Skipping Customer Create Test!");
+      None
     },
   }
   

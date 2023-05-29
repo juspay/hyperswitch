@@ -18,8 +18,6 @@ use crate::integration::apis::connector::*;
 use crate::integration::apis::customer::*;
 use crate::integration::apis::payment::*;
 use crate::integration::apis::api_key::*;
-use std::fs;
-use serde_json;
 
 #[actix_web::test]
 async fn run_payment_apis_test(){

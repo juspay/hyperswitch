@@ -51,17 +51,19 @@ impl RequestBuilder for ApiKey{
 
 }
 
-pub async fn execute_api_key_create_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+pub async fn execute_api_key_create_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>) -> Option<Value>{
   let opt_test_request = ApiKey::make_request_body(&master_data);
   match opt_test_request{
     Some(test_request) => {
       let api_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       ApiKey::verify_success_response(&api_resp,master_data).update_master_data(master_data,&api_resp);
       //println!("APIKEY Create Respone : {:?}",api_resp);
-      println!("APIKEY Create Test successful!")
+      println!("Api Key Create Test successful!");
+      Some(api_resp)
     },
     None => {
-      println!("Skipping APIKEY Create Test!")
+      println!("Skipping Api Key Create Test!");
+      None
     },
   }
 }
@@ -94,17 +96,19 @@ impl RequestBuilder for ApiKeyUpdate{
 
 }
 
-pub async fn execute_api_key_update_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+pub async fn execute_api_key_update_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>) -> Option<Value>{
   let opt_test_request = ApiKeyUpdate::make_request_body(&master_data);
   match opt_test_request{
     Some(test_request) => {
       let api_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       ApiKeyUpdate::verify_success_response(&api_resp,master_data).update_master_data(master_data,&api_resp);
       //println!("APIKEYUpdate Create Respone : {:?}",api_resp);
-      println!("APIKEYUpdate Create Test successful!")
+      println!("Api Key Update Test successful!");
+      Some(api_resp)
     },
     None => {
-      println!("Skipping APIKEYUpdate Create Test!")
+      println!("Skipping Api Key Update Test!");
+      None
     },
   }
 }
@@ -138,17 +142,19 @@ impl RequestBuilder for ApiKeyDelete{
 
 }
 
-pub async fn execute_api_key_delete_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+pub async fn execute_api_key_delete_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>) -> Option<Value>{
   let opt_test_request = ApiKeyDelete::make_request_body(&master_data);
   match opt_test_request{
     Some(test_request) => {
       let api_resp = call_and_read_body_json(&server,test_request.to_request()).await;
       ApiKeyDelete::verify_success_response(&api_resp,master_data).update_master_data(master_data,&api_resp);
       //println!("APIKEY Delete Respone : {:?}",api_resp);
-      println!("APIKEY Delete Test successful!")
+      println!("APIKEY Delete Test successful!");
+      Some(api_resp)
     },
     None => {
-      println!("Skipping APIKEY Delete Test!")
+      println!("Skipping APIKEY Delete Test!");
+      None
     },
   }
 }
