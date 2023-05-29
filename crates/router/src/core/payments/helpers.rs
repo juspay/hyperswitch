@@ -1142,8 +1142,8 @@ pub fn hmac_sha256_sorted_query_params(
         .collect::<Vec<_>>()
         .join("&");
 
-    let signature = crypto::HmacSha256::sign_message(
-        &crypto::HmacSha256,
+    let signature = crypto::HmacSha512::sign_message(
+        &crypto::HmacSha512,
         key.as_bytes(),
         final_string.as_bytes(),
     )

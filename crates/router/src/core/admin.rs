@@ -104,7 +104,7 @@ pub async fn create_merchant_account(
 
     let payment_response_hash_key = req
         .payment_response_hash_key
-        .or(Some(generate_cryptographically_secure_random_string(32)));
+        .or(Some(generate_cryptographically_secure_random_string(64)));
 
     let merchant_account = storage::MerchantAccountNew {
         merchant_id: req.merchant_id,
