@@ -417,6 +417,31 @@ mod tests {
             }
         }
 
+        fn create_dispute(id: i32) -> Dispute {
+            Dispute {
+                id,
+                dispute_id: format!("dispute_{id}").into(),
+                amount: "amount".into(),
+                currency: "currency".into(),
+                dispute_stage: DisputeStage::Dispute,
+                dispute_status: DisputeStatus::DisputeOpened,
+                payment_id: format!("payment_{id}").into(),
+                attempt_id: format!("attempt_{id}").into(),
+                merchant_id: format!("merchant_{id}").into(),
+                connector_status: "connector_status".into(),
+                connector_dispute_id: format!("connector_dispute_{id}").into(),
+                connector_reason: Some("connector_reason".into()),
+                connector_reason_code: Some("connector_reason_code".into()),
+                challenge_required_by: Some(datetime!(2019-01-01 0:00)),
+                connector_created_at: Some(datetime!(2019-01-02 0:00)),
+                connector_updated_at: Some(datetime!(2019-01-03 0:00)),
+                created_at: datetime!(2019-01-04 0:00),
+                modified_at: datetime!(2019-01-05 0:00),
+                connector: "connector".into(),
+                evidence: Secret::from(Value::String("evidence".into())),
+            }
+        }
+
         #[allow(clippy::unwrap_used)]
         #[tokio::test]
         async fn test_insert_dispute() {
@@ -465,37 +490,21 @@ mod tests {
 
             assert!(found_dispute.is_some());
 
-            let wanted_dispute = Dispute {
-                id: 2,
-                dispute_id: "dispute_2".into(),
-                amount: "amount".into(),
-                currency: "currency".into(),
-                dispute_stage: DisputeStage::Dispute,
-                dispute_status: DisputeStatus::DisputeOpened,
-                payment_id: "payment_2".into(),
-                attempt_id: "attempt_2".into(),
-                merchant_id: "merchant_2".into(),
-                connector_status: "connector_status".into(),
-                connector_dispute_id: "connector_dispute_2".into(),
-                connector_reason: Some("connector_reason".into()),
-                connector_reason_code: Some("connector_reason_code".into()),
-                challenge_required_by: Some(datetime!(2019-01-01 0:00)),
-                connector_created_at: Some(datetime!(2019-01-02 0:00)),
-                connector_updated_at: Some(datetime!(2019-01-03 0:00)),
-                created_at: datetime!(2019-01-04 0:00),
-                modified_at: datetime!(2019-01-05 0:00),
-                connector: "connector".into(),
-                evidence: Secret::from(Value::String("evidence".into())),
-            };
-
-            disputes_eq(wanted_dispute, found_dispute.unwrap());
+            disputes_eq(create_dispute(2), found_dispute.unwrap());
         }
 
         #[allow(clippy::unwrap_used)]
-        //#[tokio::test]
+        #[tokio::test]
         async fn test_find_dispute_by_merchant_id_dispute_id() {
             let mockdb = MockDb::new(&Default::default()).await;
 
+            init_mock(&mockdb).await;
+
+            let found_dispute = mockdb.find_dispute_by_merchant_id_dispute_id(
+                "merchant_3", "dispute_3"
+            ).await.unwrap();
+
+            disputes_eq(create_dispute(3), found_dispute);
         }
 
         #[allow(clippy::unwrap_used)]
