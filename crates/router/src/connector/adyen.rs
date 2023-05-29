@@ -315,7 +315,10 @@ impl
             .encoded_data
             .clone()
             .get_required_value("encoded_data")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::ConnectorError::FlowNotSupported {
+                flow: String::from("PSync"),
+                connector: String::from("Adyen"),
+            })?;
 
         let adyen_redirection_type = serde_urlencoded::from_str::<
             transformers::AdyenRedirectRequestTypes,
