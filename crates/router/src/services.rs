@@ -36,6 +36,9 @@ pub trait PubSubInterface {
 impl PubSubInterface for redis_interface::RedisConnectionPool {
     #[inline]
     async fn subscribe(&self, channel: &str) -> errors::CustomResult<(), redis_errors::RedisError> {
+        // Spawns a task that will automatically re-subscribe to any channels or channel patterns used by the client.
+        self.subscriber.manage_subscriptions();
+
         self.subscriber
             .subscribe(channel)
             .await
