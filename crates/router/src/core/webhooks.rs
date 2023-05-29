@@ -494,7 +494,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookTy
                 )
             })
             .transpose()
-            .change_context(errors::WebhooksFlowError::MerchantConfigNotFound)
+            .change_context(errors::WebhooksFlowError::OutgoingWebhookSigningFailed)
             .attach_printable("Failed to sign the message")?
             .map(hex::encode);
 
