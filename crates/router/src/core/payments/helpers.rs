@@ -1038,7 +1038,11 @@ pub async fn make_ephemeral_key(
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
     let store = &state.store;
     let id = utils::generate_id(consts::ID_LENGTH, "eki");
-    let secret = format!("epk_{}", &Uuid::new_v4().simple().to_string());
+    let secret = format!(
+        "{}_{}",
+        consts::EPHEMERAL_KEY_PREFIX,
+        &Uuid::new_v4().simple().to_string()
+    );
     let ek = ephemeral_key::EphemeralKeyNew {
         id,
         customer_id,

@@ -113,7 +113,7 @@ pub async fn list_payment_method_api(
     ),
     tag = "Payment Methods",
     operation_id = "List all Payment Methods for a Customer",
-    security(("api_key" = []), ("ephemeral_key" = []))
+    security(("ephemeral_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
