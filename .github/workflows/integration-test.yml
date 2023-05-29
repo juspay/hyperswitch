@@ -1,9 +1,6 @@
 name: Integration test 
 
 on:
-  push:
-    branches:
-      - api-integration-tests
 
   pull_request:
 
