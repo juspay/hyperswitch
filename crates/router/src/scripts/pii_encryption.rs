@@ -351,3 +351,71 @@ pub async fn encrypt_address_fields(
     crate::logger::warn!("Done: Updating Address for {}", merchant_id);
     Ok(())
 }
+
+///
+/// # Panics
+///
+/// The functions runs at the start of the migration and tests, all the functional parts of
+/// encryption.
+///
+#[allow(clippy::unwrap_used)]
+pub async fn test_2_step_encryption(store: &Store) {
+    use masking::ExposeInterface;
+    let (encrypted_merchant_key, master_key) = {
+        let master_key = store.get_master_key();
+        let merchant_key: Vec<u8> = services::generate_aes256_key().unwrap().into();
+        let encrypted_merchant_key =
+            types::encrypt::<_, crate::pii::WithType>(merchant_key.into(), master_key)
+                .await
+                .unwrap()
+                .into_encrypted();
+        let encrypted_merchant_key =
+            storage_models::encryption::Encryption::new(encrypted_merchant_key);
+        (encrypted_merchant_key, master_key)
+    };
+
+    let dummy_data = "Hello, World!".to_string();
+    let encrypted_dummy_data = storage_models::encryption::Encryption::new(
+        types::encrypt::<_, crate::pii::WithType>(
+            masking::Secret::new(dummy_data.clone()),
+            &types::decrypt::<Vec<u8>, crate::pii::WithType>(
+                Some(encrypted_merchant_key.clone()),
+                master_key,
+                0,
+                0,
+            )
+            .await
+            .unwrap()
+            .unwrap()
+            .into_inner()
+            .expose(),
+        )
+        .await
+        .unwrap()
+        .into_encrypted(),
+    );
+
+    let dummy_data_returned = types::decrypt::<String, crate::pii::WithType>(
+        Some(encrypted_dummy_data),
+        &types::decrypt::<Vec<u8>, crate::pii::WithType>(
+            Some(encrypted_merchant_key),
+            master_key,
+            0,
+            0,
+        )
+        .await
+        .unwrap()
+        .unwrap()
+        .into_inner()
+        .expose(),
+        0,
+        0,
+    )
+    .await
+    .unwrap()
+    .unwrap()
+    .into_inner()
+    .expose();
+
+    assert!(dummy_data_returned == dummy_data)
+}
