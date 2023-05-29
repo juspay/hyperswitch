@@ -25,6 +25,7 @@ pub mod process_tracker;
 pub mod query;
 pub mod refund;
 pub mod reverse_lookup;
+#[allow(unused_qualifications)]
 pub mod schema;
 
 use diesel_impl::{DieselArray, OptionalDieselArray};

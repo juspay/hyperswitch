@@ -3,7 +3,6 @@
 use std::{convert::AsRef, fmt, ops, str::FromStr};
 
 use diesel::{
-    backend,
     backend::Backend,
     deserialize,
     deserialize::FromSql,
@@ -166,7 +165,7 @@ where
     DB: Backend,
     String: FromSql<sql_types::Text, DB>,
 {
-    fn from_sql(bytes: backend::RawValue<'_, DB>) -> deserialize::Result<Self> {
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
         let val = String::from_sql(bytes)?;
         Ok(Self::from_str(val.as_str())?)
     }
