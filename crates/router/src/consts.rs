@@ -15,7 +15,7 @@ pub const REQUEST_TIME_OUT: u64 = 30;
 ///Payment intent fulfillment default timeout (in seconds)
 pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;
 
-// Ephemeral key prefix
+// prefix of ephemeral_key
 pub const EPHEMERAL_KEY_PREFIX: &str = "epk";
 
 // String literals
