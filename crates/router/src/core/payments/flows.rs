@@ -260,7 +260,6 @@ default_imp_for_connector_redirect_response!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
-    connector::Noon,
     connector::Opennode,
     connector::Payeezy,
     connector::Payu,

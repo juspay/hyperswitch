@@ -142,7 +142,7 @@ where
         .await?;
 
     if let Some(connector_details) = connector {
-        if should_add_task_to_process_tracker(&payment_data)? {
+        if should_add_task_to_process_tracker(&payment_data) {
             operation
                 .to_domain()?
                 .add_task_to_process_tracker(state, &payment_data.payment_attempt)
@@ -343,6 +343,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             payment_id: Some(req.resource_id.clone()),
             merchant_id: req.merchant_id.clone(),
             metadata: Some(Metadata {
+                routing_parameters: None,
                 order_details: None,
                 data: masking::Secret::new("{}".into()),
                 payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
@@ -379,7 +380,10 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             api_models::enums::IntentStatus::RequiresCustomerAction => {
                 let startpay_url = payments_response
                     .next_action
-                    .and_then(|next_action| next_action.redirect_to_url)
+                    .and_then(|next_action_data| match next_action_data {
+                        api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
+                        api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
+                    })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
                     .attach_printable(
@@ -1332,22 +1336,14 @@ pub fn decide_connector(
     Ok(api::ConnectorCallType::Single(connector_data))
 }
 
-pub fn should_add_task_to_process_tracker<F: Clone>(
-    payment_data: &PaymentData<F>,
-) -> RouterResult<bool> {
-    let pm = payment_data
-        .payment_attempt
-        .payment_method
-        .get_required_value("payment_method")?;
-    let connector = payment_data
-        .payment_attempt
-        .connector
-        .clone()
-        .get_required_value("connector")?;
-    let add_task_check = if matches!(pm, storage_enums::PaymentMethod::BankTransfer) {
-        !connector.eq("stripe")
-    } else {
-        true
-    };
-    Ok(add_task_check)
+pub fn should_add_task_to_process_tracker<F: Clone>(payment_data: &PaymentData<F>) -> bool {
+    let connector = payment_data.payment_attempt.connector.as_deref();
+
+    !matches!(
+        (payment_data.payment_attempt.payment_method, connector),
+        (
+            Some(storage_enums::PaymentMethod::BankTransfer),
+            Some("stripe")
+        )
+    )
 }

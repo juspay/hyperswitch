@@ -1,7 +1,10 @@
 use std::str::FromStr;
 
 use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::types::{
+    self, api,
+    storage::{self, enums},
+};
 
 use crate::{
     connector_auth,
@@ -16,7 +19,7 @@ impl utils::Connector for NoonTest {
         use router::connector::Noon;
         types::api::ConnectorData {
             connector: Box::new(&Noon),
-            connector_name: types::Connector::DummyConnector1,
+            connector_name: types::Connector::Noon,
             get_token: types::api::GetToken::Connector,
         }
     }
@@ -41,7 +44,10 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
 }
 
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
-    None
+    Some(types::PaymentsAuthorizeData {
+        currency: storage::enums::Currency::AED,
+        ..utils::PaymentAuthorizeType::default().0
+    })
 }
 
 // Cards Positive Tests
