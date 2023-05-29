@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 impl Default for super::settings::Server {
     fn default() -> Self {
         Self {
@@ -134,5 +136,104 @@ impl Default for super::settings::DrainerSettings {
             shutdown_interval: 1000,
             loop_interval: 500,
         }
+    }
+}
+
+// Test Data
+impl Default for super::settings::RequiredFields {
+    fn default() -> Self {
+        Self(HashMap::from([
+            (
+                api_models::enums::PaymentMethod::PayLater,
+                HashMap::from([
+                    (
+                        api_models::enums::PaymentMethodType::AfterpayClearpay,
+                        HashMap::from([(
+                            "stripe".to_string(),
+                            vec![
+                                "shipping.address.first_name".to_string(),
+                                "shipping.address.line1".to_string(),
+                                "shipping.address.country".to_string(),
+                                "shipping.address.zip".to_string(),
+                            ],
+                        )]),
+                    ),
+                    (
+                        api_models::enums::PaymentMethodType::ApplePay,
+                        HashMap::from([(
+                            "bluesnap".to_string(),
+                            vec!["billing_address".to_string()],
+                        )]),
+                    ),
+                    (
+                        api_models::enums::PaymentMethodType::Ach,
+                        HashMap::from([
+                            ("stripe".to_string(), vec!["currency".to_string()]),
+                            ("adyen".to_string(), vec!["card_holder_name".to_string()]),
+                        ]),
+                    ),
+                    (
+                        api_models::enums::PaymentMethodType::Przelewy24,
+                        HashMap::from([("stripe".to_string(), vec!["bank_name".to_string()])]),
+                    ),
+                    (
+                        api_models::enums::PaymentMethodType::BancontactCard,
+                        HashMap::from([
+                            (
+                                "stripe".to_string(),
+                                vec!["bancontact_card.billing_name".to_string()],
+                            ),
+                            (
+                                "adyen".to_string(),
+                                vec![
+                                    "bancontact_card.card_number".to_string(),
+                                    "bancontact_card.card_exp_month".to_string(),
+                                    "bancontact_card.card_exp_year".to_string(),
+                                    "bancontact_card.card_holder_name".to_string(),
+                                ],
+                            ),
+                        ]),
+                    ),
+                    (
+                        api_models::enums::PaymentMethodType::Sepa,
+                        HashMap::from([(
+                            "adyen".to_string(),
+                            vec!["bank_account_holder_name".to_string()],
+                        )]),
+                    ),
+                    (
+                        api_models::enums::PaymentMethodType::Bacs,
+                        HashMap::from([(
+                            "adyen".to_string(),
+                            vec![
+                                "bancontact_card.billing_name".to_string(),
+                                "bank_account_holder_name".to_string(),
+                            ],
+                        )]),
+                    ),
+                    (
+                        api_models::enums::PaymentMethodType::Paypal,
+                        HashMap::from([(
+                            "mollie".to_string(),
+                            vec!["billing_address".to_string(), "shippy_address".to_string()],
+                        )]),
+                    ),
+                    (
+                        api_models::enums::PaymentMethodType::Giropay,
+                        HashMap::from([(
+                            "wordline".to_string(),
+                            vec!["billing_details.billing_name".to_string()],
+                        )]),
+                    ),
+                ]),
+            ),
+            (
+                api_models::enums::PaymentMethod::Card,
+                HashMap::from([(
+                    api_models::enums::PaymentMethodType::Debit,
+                    HashMap::from([("stripe".to_string(), vec!["card_exp_year".to_string()])]),
+                )]),
+            ),
+        ]))
     }
 }

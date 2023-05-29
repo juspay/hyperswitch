@@ -83,6 +83,7 @@ pub struct Settings {
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
     pub email: EmailSettings,
+    pub required_fields: RequiredFields,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -221,6 +222,14 @@ pub struct CurrencyCountryFlowFilter {
 pub struct NotAvailableFlows {
     pub capture_method: Option<enums::CaptureMethod>,
 }
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct RequiredFields(
+    pub  HashMap<
+        api_models::enums::PaymentMethod,
+        HashMap<api_models::enums::PaymentMethodType, HashMap<String, Vec<String>>>,
+    >,
+);
 
 fn string_set_deser<'a, D>(
     deserializer: D,

@@ -207,6 +207,9 @@ pub struct ResponsePaymentMethodTypes {
     pub bank_debits: Option<BankDebitTypes>,
     /// The Bank transfer payment method information, if applicable for a payment method type.
     pub bank_transfers: Option<BankTransferTypes>,
+
+    /// Required fields for the payment_method_type.
+    pub required_fields: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
