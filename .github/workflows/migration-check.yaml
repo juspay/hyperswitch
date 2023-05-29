@@ -30,7 +30,6 @@ jobs:
         image: postgres
         env:
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: hyperswitch-${{ github.run_id }}-${{ github.run_attempt }}
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -65,15 +64,11 @@ jobs:
       - name: Verify `diesel migration run`
         shell: bash
         env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/hyperswitch-${{ github.run_id }}-${{ github.run_attempt }}
-        run: diesel migration run
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+        run: diesel migration run --locked-schema
 
-      - name: Git Diff
-        shell: bash
-        run: git diff
-        
       - name: Verify `diesel migration redo`
         shell: bash
         env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/hyperswitch-${{ github.run_id }}-${{ github.run_attempt }}
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
         run: diesel migration redo -a --locked-schema
