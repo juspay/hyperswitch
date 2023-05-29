@@ -9,12 +9,14 @@ pub struct ApiKey;
 
 impl RequestBuilder for ApiKey{
   fn make_request_body(data : &MasterData) -> Option<TestRequest>{
-    let request_body = Value::clone(&data.api_key_create);
-    let mid = data.merchant_id.as_ref().unwrap();
-    Some(TestRequest::post()
-        .uri(&format!("http://localhost:8080/api_keys/{}", mid))
-        .insert_header(("api-key",data.admin_api_key.as_str()))
-        .set_json(&request_body))
+    data.api_key_create.as_ref().map(|api_key_create|{
+      let request_body = Value::clone(api_key_create);
+      let mid = data.merchant_id.as_ref().unwrap();
+      TestRequest::post()
+          .uri(&format!("http://localhost:8080/api_keys/{}", mid))
+          .insert_header(("api-key",data.admin_api_key.as_str()))
+          .set_json(&request_body)
+      })
   }
 
   fn verify_success_response(resp : &Value, data : &MasterData) -> Self{
@@ -63,6 +65,50 @@ pub async fn execute_api_key_create_test(master_data : &mut MasterData, server: 
     },
   }
 }
+
+pub struct ApiKeyUpdate;
+
+impl RequestBuilder for ApiKeyUpdate{
+  fn make_request_body(data : &MasterData) -> Option<TestRequest>{
+    data.api_key_update.as_ref().map(|api_key_update|{
+      let request_body = Value::clone(api_key_update);
+      let mid = data.merchant_id.as_ref().unwrap();
+      let api_key_id = data.api_key_id.as_ref().unwrap();
+      TestRequest::post()
+          .uri(&format!("http://localhost:8080/api_keys/{}/{}", mid,api_key_id))
+          .insert_header(("api-key",data.admin_api_key.as_str()))
+          .set_json(&request_body)
+    })
+  }
+
+  fn verify_success_response(_resp : &Value, _data : &MasterData) -> Self{
+      Self
+  }
+
+  fn verify_failure_response(_response : &Value, _data : &MasterData) -> Self{
+    unimplemented!();
+  }
+
+  fn update_master_data(&self,_data : &mut MasterData, _resp : &Value){
+  }
+
+}
+
+pub async fn execute_api_key_update_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+  let opt_test_request = ApiKeyUpdate::make_request_body(&master_data);
+  match opt_test_request{
+    Some(test_request) => {
+      let api_resp = call_and_read_body_json(&server,test_request.to_request()).await;
+      ApiKeyUpdate::verify_success_response(&api_resp,master_data).update_master_data(master_data,&api_resp);
+      //println!("APIKEYUpdate Create Respone : {:?}",api_resp);
+      println!("APIKEYUpdate Create Test successful!")
+    },
+    None => {
+      println!("Skipping APIKEYUpdate Create Test!")
+    },
+  }
+}
+
 
 pub struct ApiKeyDelete;
 

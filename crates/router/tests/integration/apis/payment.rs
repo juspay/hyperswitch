@@ -9,11 +9,13 @@ pub struct PaymentCreate;
 
 impl RequestBuilder for PaymentCreate{
   fn make_request_body(data : &MasterData) -> Option<TestRequest>{
-    let request_body = Value::clone(&data.payments_create);
-    Some(TestRequest::post()
+    data.payments_create.as_ref().map(|payment_create|{
+      let request_body = Value::clone(payment_create);
+      TestRequest::post()
         .uri(&String::from("http://localhost:8080/payments"))
         .insert_header(("api-key",data.api_key.as_ref().unwrap().as_str()))
-        .set_json(&request_body))
+        .set_json(&request_body)
+    })
   }
 
   fn verify_success_response(resp : &Value, _data : &MasterData) -> Self{

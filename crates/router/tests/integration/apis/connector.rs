@@ -9,13 +9,15 @@ pub struct ConnectorCreate;
 
 impl RequestBuilder for ConnectorCreate{
   fn make_request_body(data : &MasterData) -> Option<TestRequest>{
-    let request_body = Value::clone(&data.connector_create);
-    let mid = data.merchant_id.as_ref().unwrap();
-    let url = format!("http://localhost:8080/account/{}{}", mid, "/connectors");
-    Some(TestRequest::post()
-        .uri(&url)
-        .insert_header(("api-key",data.admin_api_key.as_str()))
-        .set_json(&request_body))
+    data.connector_create.as_ref().map(|connector_create|{
+      let request_body = Value::clone(connector_create);
+      let mid = data.merchant_id.as_ref().unwrap();
+      let url = format!("http://localhost:8080/account/{}{}", mid, "/connectors");
+      TestRequest::post()
+          .uri(&url)
+          .insert_header(("api-key",data.admin_api_key.as_str()))
+          .set_json(&request_body)
+    })
   }
 
   fn verify_success_response(resp : &Value, _data : &MasterData) -> Self{
