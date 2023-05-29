@@ -753,9 +753,7 @@ impl RefundInterface for MockDb {
 
         Ok(refunds
             .iter()
-            .take_while(|refund| {
-                refund.merchant_id == merchant_id && refund.payment_id == payment_id
-            })
+            .filter(|refund| refund.merchant_id == merchant_id && refund.payment_id == payment_id)
             .cloned()
             .collect::<Vec<_>>())
     }
@@ -764,7 +762,7 @@ impl RefundInterface for MockDb {
     async fn filter_refund_by_constraints(
         &self,
         merchant_id: &str,
-        refund_details: &api_models::refunds::RefundListRequest,
+        _refund_details: &api_models::refunds::RefundListRequest,
         _storage_scheme: enums::MerchantStorageScheme,
         limit: i64,
     ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError> {
@@ -772,11 +770,8 @@ impl RefundInterface for MockDb {
 
         Ok(refunds
             .iter()
-            .take_while(|refund| {
-                refund.merchant_id == merchant_id
-                    && refund_details.limit.is_some()
-                    && refund_details.limit == Some(limit)
-            })
+            .filter(|refund| refund.merchant_id == merchant_id)
+            .take(limit as usize)
             .cloned()
             .collect::<Vec<_>>())
     }
