@@ -1,4 +1,4 @@
-use std::num::NonZeroI64;
+use std::{collections::HashMap, num::NonZeroI64};
 
 use cards::CardNumber;
 use common_utils::{pii, pii::Email};
@@ -550,19 +550,19 @@ pub enum BankDebitData {
         #[schema(value_type = String, example = "A. Schneider")]
         bank_account_holder_name: Option<Secret<String>>,
     },
-    AcssBankDebit  {
+    AcssBankDebit {
         /// Billing details for bank debit
         billing_details: BankDebitBilling,
         /// Account number for bank debit
         #[schema(value_type = String, example = "000123456789")]
         account_number: Secret<String>,
-        ///Institution number for bank debit 
+        ///Institution number for bank debit
         #[schema(value_type = String, example = "000")]
         institution_number: Secret<String>,
         ///Transit number for bank debit
         #[schema(value_type = String, example = "11000")]
         transit_number: Secret<String>,
-    }
+    },
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
@@ -742,6 +742,11 @@ pub struct AchBillingDetails {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct MultibancoBillingDetails {
+    pub email: Email,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct SepaAndBacsBillingDetails {
     pub email: Email,
     pub name: Secret<String>,
@@ -780,6 +785,9 @@ pub enum BankTransferData {
     },
     BacsBankTransfer {
         billing_details: SepaAndBacsBillingDetails,
+    },
+    MultibancoBankTransfer {
+        billing_details: MultibancoBillingDetails,
     },
 }
 
@@ -1080,21 +1088,20 @@ pub enum NextActionType {
     TriggerApi,
     DisplayBankTransferInformation,
 }
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
-pub struct NextAction {
-    /// Specifying the action type to be performed next
-    #[serde(rename = "type")]
-    pub next_action_type: NextActionType,
-    //TODO: Make an enum having redirect_to_url and bank_transfer_steps_and_charges_details and use here
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum NextActionData {
     /// Contains the url for redirection flow
-    #[schema(example = "https://router.juspay.io/redirect/fakushdfjlksdfasklhdfj")]
-    pub redirect_to_url: Option<String>,
+    RedirectToUrl { redirect_to_url: String },
     /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
-    pub bank_transfer_steps_and_charges_details: Option<NextStepsRequirements>,
+    DisplayBankTransferInformation {
+        bank_transfer_steps_and_charges_details: BankTransferNextStepsData,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct NextStepsRequirements {
+pub struct BankTransferNextStepsData {
     #[serde(flatten)]
     pub bank_transfer_instructions: BankTransferInstructions,
     pub receiver: ReceiverDetails,
@@ -1106,6 +1113,7 @@ pub enum BankTransferInstructions {
     AchCreditTransfer(Box<AchTransfer>),
     SepaBankInstructions(Box<SepaBankTransferInstructions>),
     BacsBankInstructions(Box<BacsBankTransferInstructions>),
+    Multibanco(Box<MultibancoTransferInstructions>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1129,6 +1137,12 @@ pub struct AchTransfer {
     pub bank_name: String,
     pub routing_number: Secret<String>,
     pub swift_code: Secret<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MultibancoTransferInstructions {
+    pub reference: Secret<String>,
+    pub entity: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1281,7 +1295,7 @@ pub struct PaymentsResponse {
     pub statement_descriptor_suffix: Option<String>,
 
     /// Additional information required for redirection
-    pub next_action: Option<NextAction>,
+    pub next_action: Option<NextActionData>,
 
     /// If the payment was cancelled the reason provided here
     pub cancellation_reason: Option<String>,
@@ -1576,14 +1590,14 @@ pub struct OrderDetails {
     /// The quantity of the product to be purchased
     #[schema(example = 1)]
     pub quantity: u16,
-    /// the amount per quantity of product
-    pub amount: i64,
 }
 
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct Metadata {
     /// Information about the product and quantity for specific connectors. (e.g. Klarna)
-    pub order_details: Option<Vec<OrderDetails>>,
+    pub order_details: Option<OrderDetails>,
+    /// Information used for routing
+    pub routing_parameters: Option<HashMap<String, String>>,
     /// Any other metadata that is to be provided
     #[schema(value_type = Object, example = r#"{ "city": "NY", "unit": "245" }"#)]
     #[serde(flatten)]

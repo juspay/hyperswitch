@@ -63,6 +63,7 @@ pub mod headers {
     pub const X_CC_VERSION: &str = "X-CC-Version";
     pub const X_ACCEPT_VERSION: &str = "X-Accept-Version";
     pub const X_DATE: &str = "X-Date";
+    pub const X_WEBHOOK_SIGNATURE: &str = "X-Webhook-Signature";
 }
 
 pub mod pii {
