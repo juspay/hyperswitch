@@ -32,7 +32,8 @@ use crate::{
         payment_methods::vault,
     },
     db::StorageInterface,
-    routes::AppState,
+    logger,
+    routes::{metrics, AppState},
     scheduler::utils as pt_utils,
     services::{self, api::Authenticate},
     types::{
@@ -284,6 +285,20 @@ pub trait PaymentRedirectFlow: Sync {
         merchant_account: storage::MerchantAccount,
         req: PaymentsRedirectResponseData,
     ) -> RouterResponse<api::RedirectionResponse> {
+        metrics::REDIRECTION_TRIGGERED.add(
+            &metrics::CONTEXT,
+            1,
+            &[
+                metrics::request::add_attributes(
+                    "connector",
+                    req.connector.to_owned().unwrap_or("null".to_string()),
+                ),
+                metrics::request::add_attributes(
+                    "merchant_id",
+                    merchant_account.merchant_id.to_owned(),
+                ),
+            ],
+        );
         let connector = req.connector.clone().get_required_value("connector")?;
 
         let query_params = req.param.clone().get_required_value("param")?;
