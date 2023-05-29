@@ -94,6 +94,7 @@ nexinets.base_url = "https://apitest.payengine.de/v1"
 nmi.base_url = "https://secure.nmi.com/"
 noon.base_url = "https://api-test.noonpayments.com/"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
+opayo.base_url = "https://pi-test.sagepay.com/api/v1/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 paypal.base_url = "https://www.sandbox.paypal.com/"
@@ -135,6 +136,7 @@ cards = [
     "nmi",
     "noon",
     "nuvei",
+    "opayo",
     "opennode",
     "payeezy",
     "paypal",
