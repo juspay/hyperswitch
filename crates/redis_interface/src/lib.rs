@@ -157,6 +157,19 @@ impl RedisConnectionPool {
 
     pub async fn close_connections(&mut self) {
         self.pool.quit_pool().await;
+
+        self.publisher
+            .quit()
+            .await
+            .map_err(|err| logger::error!(redis_quit_err=?err))
+            .ok();
+
+        self.subscriber
+            .quit()
+            .await
+            .map_err(|err| logger::error!(redis_quit_err=?err))
+            .ok();
+
         for handle in self.join_handles.drain(..) {
             match handle.await {
                 Ok(Ok(_)) => (),
