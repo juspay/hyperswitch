@@ -21,10 +21,7 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait PubSubInterface {
-    async fn subscribe(
-        &self,
-        channel: &str,
-    ) -> errors::CustomResult<(), redis_errors::RedisError>;
+    async fn subscribe(&self, channel: &str) -> errors::CustomResult<(), redis_errors::RedisError>;
 
     async fn publish<'a>(
         &self,
