@@ -32,7 +32,6 @@ use crate::{
         payment_methods::vault,
     },
     db::StorageInterface,
-    logger,
     routes::{metrics, AppState},
     scheduler::utils as pt_utils,
     services::{self, api::Authenticate},
