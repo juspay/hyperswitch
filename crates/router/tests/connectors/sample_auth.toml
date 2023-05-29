@@ -116,6 +116,5 @@ api_key = "Application API KEY"
 api_secret = "Application Identifier"
 key1 = "Business Identifier"
 
-
 [opayo]
 api_key="API Key"
