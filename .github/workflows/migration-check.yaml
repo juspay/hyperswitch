@@ -66,7 +66,7 @@ jobs:
         shell: bash
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/hyperswitch-${{ github.run_id }}-${{ github.run_attempt }}
-        run: diesel migration run --locked-schema
+        run: diesel migration run
 
       - name: Git Diff
         shell: bash
