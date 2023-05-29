@@ -44,6 +44,7 @@ jwt_secret = "secret"
 host = ""
 mock_locker = true
 basilisk_host = ""
+tokenization_host = ""
 
 [jwekey]
 locker_key_identifier1 = ""
