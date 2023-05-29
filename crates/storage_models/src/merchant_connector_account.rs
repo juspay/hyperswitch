@@ -75,7 +75,10 @@ pub struct MerchantConnectorAccountUpdateInternal {
 }
 
 impl MerchantConnectorAccountUpdateInternal {
-    pub fn create_account(self, source: MerchantConnectorAccount) -> MerchantConnectorAccount {
+    pub fn create_merchant_connector_account(
+        self,
+        source: MerchantConnectorAccount,
+    ) -> MerchantConnectorAccount {
         MerchantConnectorAccount {
             merchant_id: self.merchant_id.unwrap_or(source.merchant_id),
             connector_type: self.connector_type.unwrap_or(source.connector_type),

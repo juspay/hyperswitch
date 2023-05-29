@@ -413,7 +413,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                 let updated = MerchantConnectorAccountUpdateInternal::from(
                     updated_merchant_connector_account,
                 )
-                .create_account(a.clone());
+                .create_merchant_connector_account(a.clone());
                 *a = updated.clone();
                 updated
             }) {
