@@ -220,6 +220,7 @@ impl MerchantAccountInterface for MockDb {
             modified_at: common_utils::date_time::now(),
             frm_routing_algorithm: merchant_account.frm_routing_algorithm,
             intent_fulfillment_time: merchant_account.intent_fulfillment_time,
+            is_recon_enabled: false,
         };
         accounts.push(account.clone());
         Ok(account)
