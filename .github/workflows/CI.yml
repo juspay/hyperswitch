@@ -404,24 +404,4 @@ jobs:
         shell: bash
         run: jq . ${{ github.workspace }}/openapi/generated.json
 
-      # - name: check
-      #   shell: bash
-      #   run: rustc ${{ github.workspace }}/validatejson.rs
-
-      # - name: Enable apt-repository
-      #   shell: bash
-      #   run: add-apt-repository universe
-
-      # - name: Install python3
-      #   shell: bash
-      #   run: apt install python3
-
-      # - name: Install jsonlint
-      #   shell: bash
-      #   run: apt install python3-demjson
-
-      # - name: Validate the JSON file
-      #   shell: bash
-      #   run: jsonlint -f ${{github.workspace}}/openapi/generated.json
-
       
