@@ -9,12 +9,14 @@ use router_env::{instrument, tracing};
 
 #[cfg(feature = "basilisk")]
 use crate::routes::metrics;
+#[cfg(feature = "payouts")]
+use crate::types::api::payouts;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult, RouterResult},
     logger, routes,
     types::{
-        api,
+        api::{self},
         storage::{self, enums},
     },
     utils::{self, StringExt},
@@ -354,13 +356,28 @@ impl Vaultable for api::CardPayout {
 #[cfg(feature = "payouts")]
 impl Vaultable for api::BankPayout {
     fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
-        let value1 = api::TokenizedBankValue1 {
-            bank_account_number: self.bank_account_number.to_owned(),
-            bank_routing_number: self.bank_routing_number.to_owned(),
-            bic: self.bic.to_owned(),
-            bank_sort_code: self.bank_sort_code.to_owned(),
-            blz: self.blz.to_owned(),
-            bank_transit_number: self.bank_transit_number.to_owned(),
+        let value1 = match self {
+            Self::Ach(b) => api::TokenizedBankValue1 {
+                bank_account_number: Some(b.bank_account_number.clone()),
+                bank_routing_number: Some(b.bank_routing_number.to_owned()),
+                bic: None,
+                bank_sort_code: None,
+                iban: None,
+            },
+            Self::Bacs(b) => api::TokenizedBankValue1 {
+                bank_account_number: None,
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: Some(b.bank_sort_code.to_owned()),
+                iban: None,
+            },
+            Self::Sepa(b) => api::TokenizedBankValue1 {
+                bank_account_number: None,
+                bank_routing_number: None,
+                bic: b.bic.to_owned(),
+                bank_sort_code: None,
+                iban: Some(b.iban.to_owned()),
+            },
         };
 
         utils::Encode::<api::TokenizedBankValue1>::encode_to_string_of_json(&value1)
@@ -369,12 +386,25 @@ impl Vaultable for api::BankPayout {
     }
 
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
-        let value2 = api::TokenizedBankValue2 {
-            customer_id,
-            iban: self.iban.to_owned(),
-            bank_name: self.bank_name.to_owned(),
-            bank_country_code: self.bank_country_code.to_owned(),
-            bank_city: self.bank_city.to_owned(),
+        let value2 = match self {
+            Self::Ach(b) => api::TokenizedBankValue2 {
+                customer_id,
+                bank_name: b.bank_name.to_owned(),
+                bank_country_code: b.bank_country_code.to_owned(),
+                bank_city: b.bank_city.to_owned(),
+            },
+            Self::Bacs(b) => api::TokenizedBankValue2 {
+                customer_id,
+                bank_name: b.bank_name.to_owned(),
+                bank_country_code: b.bank_country_code.to_owned(),
+                bank_city: b.bank_city.to_owned(),
+            },
+            Self::Sepa(b) => api::TokenizedBankValue2 {
+                customer_id,
+                bank_name: b.bank_name.to_owned(),
+                bank_country_code: b.bank_country_code.to_owned(),
+                bank_city: b.bank_city.to_owned(),
+            },
         };
 
         utils::Encode::<api::TokenizedBankValue2>::encode_to_string_of_json(&value2)
@@ -396,17 +426,37 @@ impl Vaultable for api::BankPayout {
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into wallet data value2")?;
 
-        let bank = Self {
-            bank_account_number: value1.bank_account_number,
-            bank_routing_number: value1.bank_routing_number,
-            iban: value2.iban,
-            bic: value1.bic,
-            bank_sort_code: value1.bank_sort_code,
-            blz: value1.blz,
-            bank_transit_number: value1.bank_transit_number,
-            bank_name: value2.bank_name,
-            bank_country_code: value2.bank_country_code,
-            bank_city: value2.bank_city,
+        let bank = match (
+            // ACH + BACS
+            value1.bank_account_number.to_owned(),
+            value1.bank_routing_number.to_owned(), // ACH
+            value1.bank_sort_code.to_owned(),      // BACS
+            // SEPA
+            value1.iban.to_owned(),
+            value1.bic,
+        ) {
+            (Some(ban), Some(brn), None, None, None) => Self::Ach(payouts::AchBankTransfer {
+                bank_account_number: ban,
+                bank_routing_number: brn,
+                bank_name: value2.bank_name,
+                bank_country_code: value2.bank_country_code,
+                bank_city: value2.bank_city,
+            }),
+            (Some(ban), None, Some(bsc), None, None) => Self::Bacs(payouts::BacsBankTransfer {
+                bank_account_number: ban,
+                bank_sort_code: bsc,
+                bank_name: value2.bank_name,
+                bank_country_code: value2.bank_country_code,
+                bank_city: value2.bank_city,
+            }),
+            (None, None, None, Some(iban), bic) => Self::Sepa(payouts::SepaBankTransfer {
+                iban,
+                bic,
+                bank_name: value2.bank_name,
+                bank_country_code: value2.bank_country_code,
+                bank_city: value2.bank_city,
+            }),
+            _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
         };
 
         let supp_data = SupplementaryVaultData {

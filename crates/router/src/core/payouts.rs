@@ -1037,12 +1037,14 @@ pub async fn payout_create_db_entries(
     };
     let customer =
         helpers::get_or_create_customer_details(state, &customer_details, merchant_account).await?;
-    let customer_id = customer.to_owned().map_or(
-        Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "customer_id",
-        }))?,
-        |c| c.customer_id,
-    );
+    let customer_id = customer
+        .to_owned()
+        .ok_or_else(|| {
+            report!(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "customer_id",
+            })
+        })?
+        .customer_id;
 
     // Get or create address
     let billing_address = payment_helpers::get_address_for_payment_request(
@@ -1053,12 +1055,14 @@ pub async fn payout_create_db_entries(
         &Some(customer_id.to_owned()),
     )
     .await?;
-    let address_id = billing_address.to_owned().map_or(
-        Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "billing.address"
-        }))?,
-        |b| b.address_id,
-    );
+    let address_id = billing_address
+        .to_owned()
+        .ok_or_else(|| {
+            report!(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "billing.address",
+            })
+        })?
+        .address_id;
 
     // Make payouts entry
     let currency = req

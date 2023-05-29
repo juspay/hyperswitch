@@ -163,37 +163,17 @@ pub struct Card {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Eq, PartialEq, Clone, Debug, Serialize, ToSchema)]
-/// TODO: Implement standard format display for Bank
-pub struct Bank {
-    /// Bank account number is an unique identifier assigned by a bank to a customer.
-    #[schema(value_type = String, example = "000123456")]
-    pub bank_account_number: Option<String>,
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum Bank {
+    Ach(AchBankTransfer),
+    Bacs(BacsBankTransfer),
+    Sepa(SepaBankTransfer),
+}
 
-    /// [9 digits] Routing number - used in USA for identifying a specific bank.
-    #[schema(value_type = String, example = "110000000")]
-    pub bank_routing_number: Option<String>,
-
-    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
-    #[schema(value_type = String, example = "DE89370400440532013000")]
-    pub iban: Option<String>,
-
-    /// [8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches
-    #[schema(value_type = String, example = "HSBCGB2LXXX")]
-    pub bic: Option<String>,
-
-    /// [6 digits] Sort Code - used in UK and Ireland for identifying a bank and it's branches.
-    #[schema(value_type = String, example = "98-76-54")]
-    pub bank_sort_code: Option<String>,
-
-    /// Bankleitzahl [blz] - used in Germany and Austria for identifying a bank and it's branches.
-    #[schema(value_type = String, example = "10070024")]
-    pub blz: Option<String>,
-
-    /// [5 digits] Transit Number - used in Canada for identifying a bank and it's branches.
-    #[schema(value_type = String, example = "12345-123")]
-    pub bank_transit_number: Option<String>,
-
+#[cfg(feature = "payouts")]
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct AchBankTransfer {
     /// Bank name
     #[schema(value_type = String, example = "Deutsche Bank")]
     pub bank_name: String,
@@ -205,110 +185,63 @@ pub struct Bank {
     /// Bank city
     #[schema(value_type = String, example = "California")]
     pub bank_city: String,
+
+    /// Bank account number is an unique identifier assigned by a bank to a customer.
+    #[schema(value_type = String, example = "000123456")]
+    pub bank_account_number: String,
+
+    /// [9 digits] Routing number - used in USA for identifying a specific bank.
+    #[schema(value_type = String, example = "110000000")]
+    pub bank_routing_number: String,
 }
 
 #[cfg(feature = "payouts")]
-impl Default for Bank {
-    fn default() -> Self {
-        Self {
-            bank_account_number: Some("000123456".to_string()),
-            bank_routing_number: Some("110000000".to_string()),
-            iban: None,
-            bic: None,
-            bank_sort_code: None,
-            blz: None,
-            bank_transit_number: None,
-            bank_name: "Deutsche Bank".to_string(),
-            bank_country_code: api_enums::CountryAlpha2::US,
-            bank_city: "California".to_string(),
-        }
-    }
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct BacsBankTransfer {
+    /// Bank name
+    #[schema(value_type = String, example = "Deutsche Bank")]
+    pub bank_name: String,
+
+    /// Bank country code
+    #[schema(value_type = String, example = "US")]
+    pub bank_country_code: api_enums::CountryAlpha2,
+
+    /// Bank city
+    #[schema(value_type = String, example = "California")]
+    pub bank_city: String,
+
+    /// Bank account number is an unique identifier assigned by a bank to a customer.
+    #[schema(value_type = String, example = "000123456")]
+    pub bank_account_number: String,
+
+    /// [6 digits] Sort Code - used in UK and Ireland for identifying a bank and it's branches.
+    #[schema(value_type = String, example = "98-76-54")]
+    pub bank_sort_code: String,
 }
 
 #[cfg(feature = "payouts")]
-impl<'de> Deserialize<'de> for Bank {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        use serde::de;
-        #[derive(Deserialize)]
-        struct BankParams {
-            bank_account_number: Option<String>,
-            bank_routing_number: Option<String>,
-            iban: Option<String>,
-            bic: Option<String>,
-            bank_sort_code: Option<String>,
-            blz: Option<String>,
-            bank_transit_number: Option<String>,
-            bank_name: String,
-            bank_country_code: api_enums::CountryAlpha2,
-            bank_city: String,
-        }
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+// The SEPA (Single Euro Payments Area) is a pan-European network that allows you to send and receive payments in euros between two cross-border bank accounts in the eurozone.
+pub struct SepaBankTransfer {
+    /// Bank name
+    #[schema(value_type = String, example = "Deutsche Bank")]
+    pub bank_name: String,
 
-        let p = BankParams::deserialize(deserializer)?;
-        match
-            (
-                p.bank_account_number.as_ref(),
-                p.bank_routing_number.as_ref(),
-                p.iban.as_ref(),
-                p.bic.as_ref(),
-                p.bank_sort_code.as_ref(),
-                p.blz.as_ref(),
-                p.bank_transit_number.as_ref(),
-            )
-        {
-            (None, None, None, None, None, None, None) =>
-                Err(
-                    de::Error::custom(
-                        "Invalid bank details, atleast one of bank_account_number + bank_routing_number / bic / bank_sort_code / blz / bank_transit_number OR iban must be provided."
-                    )
-                ),
-            (None, Some(_), _, _, _, _, _) =>
-                Err(
-                    de::Error::custom(
-                        "Invalid bank details, bank_account_number is required when passing bank_routing_number"
-                    )
-                ),
-            (None, _, _, _, Some(_), _, _) =>
-                Err(
-                    de::Error::custom(
-                        "Invalid bank details, bank_account_number is required when passing bank_sort_code"
-                    )
-                ),
-            (None, _, _, _, _, Some(_), _) =>
-                Err(
-                    de::Error::custom(
-                        "Invalid bank details, bank_account_number is required when passing blz"
-                    )
-                ),
-            (None, _, _, _, _, _, Some(_)) =>
-                Err(
-                    de::Error::custom(
-                        "Invalid bank details, bank_account_number is required when passing bank_transit_number"
-                    )
-                ),
-            (Some(_), None, _, None, None, None, None) =>
-                Err(
-                    de::Error::custom(
-                        "Invalid bank details, bank_account_number should be passed along with atleast one of bank_routing_number, bic, bank_sort_code, blz or bank_transit_number"
-                    )
-                ),
-            _ =>
-                Ok(Self {
-                    bank_account_number: p.bank_account_number,
-                    bank_routing_number: p.bank_routing_number,
-                    iban: p.iban,
-                    bic: p.bic,
-                    bank_sort_code: p.bank_sort_code,
-                    blz: p.blz,
-                    bank_transit_number: p.bank_transit_number,
-                    bank_name: p.bank_name,
-                    bank_country_code: p.bank_country_code,
-                    bank_city: p.bank_city,
-                }),
-        }
-    }
+    /// Bank country code
+    #[schema(value_type = String, example = "US")]
+    pub bank_country_code: api_enums::CountryAlpha2,
+
+    /// Bank city
+    #[schema(value_type = String, example = "California")]
+    pub bank_city: String,
+
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "DE89370400440532013000")]
+    pub iban: String,
+
+    /// [8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches
+    #[schema(value_type = String, example = "HSBCGB2LXXX")]
+    pub bic: Option<String>,
 }
 
 #[cfg(feature = "payouts")]

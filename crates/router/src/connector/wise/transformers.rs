@@ -14,6 +14,7 @@ type Error = error_stack::Report<errors::ConnectorError>;
 use crate::{
     connector::utils::RouterData,
     types::{
+        api::payouts,
         storage::enums::{self as storage_enums, EntityType},
         transformers::ForeignFrom,
     },
@@ -44,7 +45,7 @@ impl TryFrom<&types::ConnectorAuthType> for WiseAuthType {
 pub struct ErrorResponse {
     pub timestamp: Option<String>,
     pub errors: Option<Vec<SubError>>,
-    pub status: Option<i8>,
+    pub status: Option<i32>,
     pub error: Option<String>,
     pub error_description: Option<String>,
     pub message: Option<String>,
@@ -311,15 +312,25 @@ fn get_payout_bank_details(
         }),
     }?;
     match payout_method_data {
-        PayoutMethodData::Bank(b) => Ok(WiseBankDetails {
+        PayoutMethodData::Bank(payouts::BankPayout::Ach(b)) => Ok(WiseBankDetails {
             legal_type: LegalType::foreign_from(entity_type),
             address: wise_address_details,
-            account_number: b.bank_account_number.to_owned(),
-            sort_code: b.bank_sort_code.to_owned(),
-            routing_number: b.bank_routing_number.to_owned(),
-            iban: b.iban.to_owned(),
-            bic: b.bic.to_owned(),
-            transit_number: b.bank_transit_number,
+            account_number: Some(b.bank_account_number.to_owned()),
+            routing_number: Some(b.bank_routing_number),
+            ..WiseBankDetails::default()
+        }),
+        PayoutMethodData::Bank(payouts::BankPayout::Bacs(b)) => Ok(WiseBankDetails {
+            legal_type: LegalType::foreign_from(entity_type),
+            address: wise_address_details,
+            account_number: Some(b.bank_account_number.to_owned()),
+            sort_code: Some(b.bank_sort_code),
+            ..WiseBankDetails::default()
+        }),
+        PayoutMethodData::Bank(payouts::BankPayout::Sepa(b)) => Ok(WiseBankDetails {
+            legal_type: LegalType::foreign_from(entity_type),
+            address: wise_address_details,
+            iban: Some(b.iban.to_owned()),
+            bic: b.bic,
             ..WiseBankDetails::default()
         }),
         _ => Err(errors::ConnectorError::NotSupported {

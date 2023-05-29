@@ -8,6 +8,8 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
+#[cfg(feature = "payouts")]
+use crate::types::api::payouts;
 use crate::{
     connector::utils::{
         self, CardData, MandateReferenceData, PaymentsAuthorizeRequestData, RouterData,
@@ -788,15 +790,14 @@ impl TryFrom<&types::ConnectorAuthType> for AdyenAuthType {
                 merchant_account: key1.to_string(),
                 review_key: None,
             }),
-            types::ConnectorAuthType::MultiAuthKey {
+            types::ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
-                api_secret: _,
-                key2,
+                api_secret,
             } => Ok(Self {
                 api_key: api_key.to_string(),
                 merchant_account: key1.to_string(),
-                review_key: Some(key2.to_string()),
+                review_key: Some(api_secret.to_string()),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
@@ -2342,38 +2343,48 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutCreateRequest {
                 connector: "Adyen",
                 payment_experience: "".to_string(),
             })?,
-            PayoutMethodData::Bank(b) => Ok(Self {
-                amount: Amount {
-                    value: item.request.amount,
-                    currency: item.request.destination_currency.to_string(),
-                },
-                recurring: RecurringContract {
-                    contract: Contract::Payout,
-                },
-                merchant_account,
-                bank: PayoutBankDetails {
-                    bank_name: b.bank_name,
-                    bic: b.bic,
-                    country_code: b.bank_country_code,
-                    iban: b.iban,
-                    owner_name,
-                    bank_city: b.bank_city,
-                    tax_id: None,
-                },
-                reference: item.request.payout_id.to_owned(),
-                shopper_reference: item.merchant_id.to_owned(),
-                shopper_email: customer_email,
-                shopper_name: get_shopper_name(item.address.billing.as_ref()).map_or(
-                    Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "shopperName",
-                    }),
-                    Ok,
-                )?,
-                date_of_birth: None,
-                entity_type: Some(item.request.entity_type),
-                nationality: get_country_code(item.address.billing.as_ref()),
-                billing_address: get_address_info(item.address.billing.as_ref()),
-            }),
+            PayoutMethodData::Bank(bd) => {
+                let bank_details = match bd {
+                    payouts::BankPayout::Sepa(b) => PayoutBankDetails {
+                        bank_name: b.bank_name,
+                        country_code: b.bank_country_code,
+                        bank_city: b.bank_city,
+                        owner_name,
+                        bic: b.bic,
+                        iban: Some(b.iban),
+                        tax_id: None,
+                    },
+                    _ => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfers via ACH or Bacs are not supported".to_string(),
+                        connector: "Adyen",
+                        payment_experience: "".to_string(),
+                    })?,
+                };
+                Ok(Self {
+                    amount: Amount {
+                        value: item.request.amount,
+                        currency: item.request.destination_currency.to_string(),
+                    },
+                    recurring: RecurringContract {
+                        contract: Contract::Payout,
+                    },
+                    merchant_account,
+                    bank: bank_details,
+                    reference: item.request.payout_id.to_owned(),
+                    shopper_reference: item.merchant_id.to_owned(),
+                    shopper_email: customer_email,
+                    shopper_name: get_shopper_name(item.address.billing.as_ref()).map_or(
+                        Err(errors::ConnectorError::MissingRequiredField {
+                            field_name: "shopperName",
+                        }),
+                        Ok,
+                    )?,
+                    date_of_birth: None,
+                    entity_type: Some(item.request.entity_type),
+                    nationality: get_country_code(item.address.billing.as_ref()),
+                    billing_address: get_address_info(item.address.billing.as_ref()),
+                })
+            }
         }
     }
 }
