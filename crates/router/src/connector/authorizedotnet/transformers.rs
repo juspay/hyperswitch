@@ -72,10 +72,8 @@ struct BankAccountDetails {
 #[serde(rename_all = "camelCase")]
 enum PaymentDetails {
     CreditCard(CreditCardDetails),
-    BankAccount(BankAccountDetails),
     OpaqueData(WalletDetails),
     PayPal(PayPalDetails),
-    BankRedirect,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -160,9 +158,7 @@ fn get_pm_and_subsequent_auth_detail(
             }
             api::PaymentMethodData::Wallet(ref wallet_data) => Ok((
                 get_wallet_data(wallet_data, &item.request.complete_authorize_url)?,
-                Some(ProcessingOptions {
-                    is_subsequent_auth: true,
-                }),
+                None,
                 None,
             )),
             _ => Err(errors::ConnectorError::NotSupported {
@@ -354,7 +350,7 @@ pub enum AuthorizedotnetPaymentStatus {
     RequiresAction,
 }
 
-#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub enum AuthorizedotnetRefundStatus {
     #[serde(rename = "1")]
     Approved,
@@ -363,7 +359,6 @@ pub enum AuthorizedotnetRefundStatus {
     #[serde(rename = "3")]
     Error,
     #[serde(rename = "4")]
-    #[default]
     HeldForReview,
 }
 
