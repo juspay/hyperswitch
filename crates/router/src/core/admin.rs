@@ -12,6 +12,7 @@ use crate::{
         payments::helpers,
     },
     db::StorageInterface,
+    routes::metrics,
     services::api as service_api,
     types::{
         self, api,
@@ -378,10 +379,11 @@ pub async fn create_payment_connector(
         }
         None => None,
     };
+
     let merchant_connector_account = storage::MerchantConnectorAccountNew {
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type),
-        connector_name: Some(req.connector_name),
+        connector_name: Some(req.connector_name.to_owned()),
         merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
         connector_account_details: req.connector_account_details,
         payment_methods_enabled,
@@ -405,6 +407,15 @@ pub async fn create_payment_connector(
                 connector_label: connector_label.clone(),
             },
         )?;
+
+    metrics::MCA_CREATE.add(
+        &metrics::CONTEXT,
+        1,
+        &[
+            metrics::request::add_attributes("connector", req.connector_name.to_string()),
+            metrics::request::add_attributes("merchant", merchant_id.to_string()),
+        ],
+    );
 
     let mca_response = ForeignTryFrom::foreign_try_from(mca)?;
 
