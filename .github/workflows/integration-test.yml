@@ -95,5 +95,8 @@ jobs:
       #     command: test
       #     args: test_api
 
-      - name: Cargo integration tests
-        run: cargo test --package router --test payments_flow -- run_payment_apis_test --exact --nocapture
+      - name: Cargo integration tests for payment api
+        run: cargo test --package router --test payments_apis -- run_payment_apis_test --exact --nocapture
+      
+      - name: Cargo integration tests for dashboard api
+        run: cargo test --package router --test dashboard_apis -- run_dashboard_apis_test --exact --nocapture
