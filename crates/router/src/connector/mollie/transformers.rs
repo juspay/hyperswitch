@@ -157,14 +157,11 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
                 })))
             }
             api_models::payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
-            api_models::payments::BankRedirectData::Przelewy24 { 
-                billing_details,
-                .. 
-            } 
-            => { Ok(PaymentMethodData::Przelewy24(Box::new(
-                Przelewy24MethodData { 
-                    billing_email: billing_details.email.clone(),
-                })))}
+            api_models::payments::BankRedirectData::Przelewy24 {
+                billing_details, ..
+            } => Ok(Self::Przelewy24(Box::new(Przelewy24MethodData {
+                billing_email: billing_details.email.clone(),
+            }))),
             api_models::payments::BankRedirectData::BancontactCard { .. } => Ok(Self::Bancontact),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
