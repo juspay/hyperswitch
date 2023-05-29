@@ -21,7 +21,7 @@ use crate::integration::apis::api_key::*;
 
 #[actix_web::test]
 async fn run_payment_apis_test(){
-  let test_input_dir = "./tests/senarios/payments_apis";
+  let test_input_dir = "./tests/scenarios/payments_apis";
   if let Ok(test_data_list) = collect_test_data(test_input_dir){
     for (test_file_path,mut test_master_data) in test_data_list{
       println!("Test execution started for : {:?}\n",test_file_path);
