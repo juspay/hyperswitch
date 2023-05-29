@@ -6,6 +6,7 @@ use thirtyfour::{components::SelectElement, prelude::*, WebDriver};
 
 use crate::connector_auth;
 
+#[derive(Clone)]
 pub enum Event<'a> {
     RunIf(Assert<'a>, Vec<Event<'a>>),
     EitherOr(Assert<'a>, Vec<Event<'a>>, Vec<Event<'a>>),
@@ -13,6 +14,7 @@ pub enum Event<'a> {
     Trigger(Trigger<'a>),
 }
 
+#[derive(Clone)]
 #[allow(dead_code)]
 pub enum Trigger<'a> {
     Goto(&'a str),
@@ -28,15 +30,18 @@ pub enum Trigger<'a> {
     Sleep(u64),
 }
 
+#[derive(Clone)]
 pub enum Position {
     Prev,
     Next,
 }
+#[derive(Clone)]
 pub enum Selector {
     Title,
     QueryParamStr,
 }
 
+#[derive(Clone)]
 pub enum Assert<'a> {
     Eq(Selector, &'a str),
     Contains(Selector, &'a str),
@@ -299,7 +304,13 @@ pub trait SeleniumTest {
         c: WebDriver,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
-        self.complete_actions(&c, actions).await
+        let config = self.get_configs().automation_configs.unwrap();
+        if config.run_minimum_steps.unwrap() {
+            self.complete_actions(&c, actions[..3].to_vec()).await
+        }
+        else {
+            self.complete_actions(&c, actions).await
+        }
     }
     async fn make_gpay_payment(
         &self,
