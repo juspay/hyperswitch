@@ -66,19 +66,11 @@ pub struct AirwallexCardDetails {
 #[serde(untagged)]
 pub enum WalletData {
     GooglePay(GooglePayData),
-    ApplePay(ApplePayData),
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct GooglePayData {
     googlepay: GooglePayDetails,
-    #[serde(rename = "type")]
-    payment_method_type: AirwallexPaymentType,
-}
-
-#[derive(Debug, Serialize, Eq, PartialEq)]
-pub struct ApplePayData {
-    applepay: GooglePayDetails,
     #[serde(rename = "type")]
     payment_method_type: AirwallexPaymentType,
 }
@@ -141,15 +133,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
                             payment_method_type: AirwallexPaymentType::Googlepay,
                         }))
                     },
-                    api_models::payments::WalletData::ApplePay(applepay_details) => {
-                        AirwallexPaymentMethod::Wallets(WalletData::ApplePay(ApplePayData { 
-                            applepay: GooglePayDetails{
-                                encrypted_payment_token: Secret::new(applepay_details.transaction_identifier.clone()),
-                                payment_data_type: applepay_details.payment_method.pm_type.clone(),
-                            },
-                            payment_method_type: AirwallexPaymentType::Googlepay,
-                        }))
-                    }
                     _ => Err(errors::ConnectorError::NotImplemented(
                         "Payment method".to_string(),
                     ))?,
@@ -161,7 +144,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
             )),
         }?;
 
-        println!(">>>>>>>>>>>>>>>{:?}", payment_method);
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
             payment_method,
