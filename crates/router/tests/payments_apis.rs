@@ -21,36 +21,24 @@ use crate::integration::apis::api_key::*;
 use std::fs;
 use serde_json;
 
-// Add test env mode like integ , local
-fn get_master_data(test_file_path : std::path::PathBuf) -> MasterData{
-    let contents = fs::read_to_string(&test_file_path).expect("Failed to read file");
-    let master_data: MasterData = serde_json::from_str(&contents).expect("Failed to parse JSON");
-    //println!("Initial Master Data : \n {:?}",master_data);
-    return master_data;
-}
-
 #[actix_web::test]
 async fn run_payment_apis_test(){
   let test_input_dir = "./tests/senarios/payments_apis";
-  if let Ok(test_files) = fs::read_dir(test_input_dir) {
-      for test_file in test_files {
-          if let Ok(test_file) = test_file {
-              let test_file_path = test_file.path();
-              if test_file_path.is_file() {
-                println!("Test execution started for : {:?}\n",test_file.path());
-                let mut master_data = get_master_data(test_file_path);
-                let test_result = test_api(&mut master_data).await;
-                match test_result{
-                  Ok(()) => println!("Test execution successful : {:?}\n",test_file.path()),
-                  Err(error) => println!("Test execution failed for path: {:?} with error : {}\n",test_file.path(),error),
-                }
-              }
-          }
+  if let Ok(test_data_list) = collect_test_data(test_input_dir){
+    for (test_file_path,mut test_master_data) in test_data_list{
+      println!("Test execution started for : {:?}\n",test_file_path);
+      let test_result = test_api(&mut test_master_data).await;
+      match test_result{
+        Ok(()) => println!("Test execution successful : {:?}\n",test_file_path),
+        Err(error) => println!("Test execution failed for path: {:?} with error : {}\n",test_file_path,error),
       }
-  } else {
-      println!("Failed to read directory: {}", test_input_dir);
+}
+  }
+  else{
+    println!("Failed to read directory: {}", test_input_dir);
   }
 }
+
 //TODO: Add brackets to create and delete resources
 async fn test_api(master_data : &mut MasterData) -> Result<(), Box<dyn std::error::Error>> {
   let server = mk_service_with_db().await;
