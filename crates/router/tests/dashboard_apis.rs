@@ -20,7 +20,7 @@ use std::fs;
 use serde_json;
 
 #[actix_web::test]
-async fn run_dashboard_api_test(){
+async fn run_dashboard_apis_test(){
   let test_input_dir = "./tests/senarios/dashboard_apis";
   if let Ok(test_data_list) = collect_test_data(test_input_dir){
     for (test_file_path,mut test_master_data) in test_data_list{
