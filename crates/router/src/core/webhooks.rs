@@ -4,8 +4,9 @@ pub mod utils;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
+use utils::WebhookApiErrorSwitch;
 
-use super::metrics;
+use super::{errors::StorageErrorExt, metrics};
 use crate::{
     consts,
     core::{
@@ -31,7 +32,7 @@ pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     merchant_account: storage::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
-) -> CustomResult<(), errors::WebhooksFlowError> {
+) -> CustomResult<(), errors::ApiErrorResponse> {
     let consume_or_trigger_flow = if source_verified {
         payments::CallConnectorAction::HandleResponse(webhook_details.resource_object)
     } else {
@@ -55,10 +56,13 @@ pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
                 services::AuthFlow::Merchant,
                 consume_or_trigger_flow,
             )
-            .await
-            .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?
+            .await?
         }
-        _ => Err(errors::WebhooksFlowError::PaymentsCoreFailed).into_report()?,
+        _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .into_report()
+            .attach_printable(
+                "Did not get payment id as object reference id in webhook payments flow",
+            )?,
     };
 
     match payments_response {
@@ -67,13 +71,15 @@ pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
                 .payment_id
                 .clone()
                 .get_required_value("payment_id")
-                .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?;
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("payment id not received from payments core")?;
 
             let event_type: enums::EventType = payments_response
                 .status
                 .foreign_try_into()
                 .into_report()
-                .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?;
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("payment event type mapping failed")?;
 
             create_event_and_trigger_outgoing_webhook::<W>(
                 state,
@@ -88,7 +94,9 @@ pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             .await?;
         }
 
-        _ => Err(errors::WebhooksFlowError::PaymentsCoreFailed).into_report()?,
+        _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .into_report()
+            .attach_printable("received non-json response from payments core")?,
     }
 
     Ok(())
@@ -102,7 +110,7 @@ pub async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     connector_name: &str,
     source_verified: bool,
     event_type: api_models::webhooks::IncomingWebhookEvent,
-) -> CustomResult<(), errors::WebhooksFlowError> {
+) -> CustomResult<(), errors::ApiErrorResponse> {
     let db = &*state.store;
     //find refund by connector refund id
     let refund = match webhook_details.object_reference_id {
@@ -116,7 +124,7 @@ pub async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
                 merchant_account.storage_scheme,
             )
             .await
-            .change_context(errors::WebhooksFlowError::ResourceNotFound)
+            .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
             .attach_printable_lazy(|| "Failed fetching the refund")?,
         api_models::webhooks::ObjectReferenceId::RefundId(
             api_models::webhooks::RefundIdType::RefundId(id),
@@ -127,9 +135,11 @@ pub async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
                 merchant_account.storage_scheme,
             )
             .await
-            .change_context(errors::WebhooksFlowError::ResourceNotFound)
+            .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
             .attach_printable_lazy(|| "Failed fetching the refund")?,
-        _ => Err(errors::WebhooksFlowError::RefundsCoreFailed).into_report()?,
+        _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .into_report()
+            .attach_printable("received a non-refund id when processing refund webhooks")?,
     };
     let refund_id = refund.refund_id.to_owned();
     //if source verified then update refund status else trigger refund sync
@@ -140,7 +150,8 @@ pub async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             refund_status: event_type
                 .foreign_try_into()
                 .into_report()
-                .change_context(errors::WebhooksFlowError::RefundsCoreFailed)?,
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("failed refund status mapping from event type")?,
         };
         state
             .store
@@ -150,7 +161,7 @@ pub async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
                 merchant_account.storage_scheme,
             )
             .await
-            .change_context(errors::WebhooksFlowError::RefundsCoreFailed)
+            .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
             .attach_printable_lazy(|| {
                 format!(
                     "Failed while updating refund: refund_id: {}",
@@ -168,7 +179,6 @@ pub async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             },
         )
         .await
-        .change_context(errors::WebhooksFlowError::RefundsCoreFailed)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while updating refund: refund_id: {}",
@@ -180,7 +190,8 @@ pub async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
         .refund_status
         .foreign_try_into()
         .into_report()
-        .change_context(errors::WebhooksFlowError::RefundsCoreFailed)?;
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("refund status to event type mapping failed")?;
     let refund_response: api_models::refunds::RefundResponse = updated_refund.foreign_into();
     create_event_and_trigger_outgoing_webhook::<W>(
         state,
@@ -200,7 +211,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
     state: &AppState,
     object_reference_id: api_models::webhooks::ObjectReferenceId,
     merchant_account: &storage::MerchantAccount,
-) -> CustomResult<storage_models::payment_attempt::PaymentAttempt, errors::WebhooksFlowError> {
+) -> CustomResult<storage_models::payment_attempt::PaymentAttempt, errors::ApiErrorResponse> {
     let db = &*state.store;
     match object_reference_id {
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(ref id)) => db
@@ -210,7 +221,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
                 merchant_account.storage_scheme,
             )
             .await
-            .change_context(errors::WebhooksFlowError::ResourceNotFound),
+            .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::PaymentAttemptId(ref id)) => db
             .find_payment_attempt_by_attempt_id_merchant_id(
                 id,
@@ -218,7 +229,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
                 merchant_account.storage_scheme,
             )
             .await
-            .change_context(errors::WebhooksFlowError::ResourceNotFound),
+            .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::PreprocessingId(ref id)) => db
             .find_payment_attempt_by_preprocessing_id_merchant_id(
                 id,
@@ -226,8 +237,10 @@ pub async fn get_payment_attempt_from_object_reference_id(
                 merchant_account.storage_scheme,
             )
             .await
-            .change_context(errors::WebhooksFlowError::ResourceNotFound),
-        _ => Err(errors::WebhooksFlowError::ResourceNotFound).into_report(),
+            .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
+        _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .into_report()
+            .attach_printable("received a non-payment id for retrieving payment")?,
     }
 }
 
@@ -239,7 +252,7 @@ pub async fn get_or_update_dispute_object(
     payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
     event_type: api_models::webhooks::IncomingWebhookEvent,
     connector_name: &str,
-) -> CustomResult<storage_models::dispute::Dispute, errors::WebhooksFlowError> {
+) -> CustomResult<storage_models::dispute::Dispute, errors::ApiErrorResponse> {
     let db = &*state.store;
     match option_dispute {
         None => {
@@ -253,7 +266,8 @@ pub async fn get_or_update_dispute_object(
                 dispute_status: event_type
                     .foreign_try_into()
                     .into_report()
-                    .change_context(errors::WebhooksFlowError::DisputeCoreFailed)?,
+                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .attach_printable("event type to dispute status mapping failed")?,
                 payment_id: payment_attempt.payment_id.to_owned(),
                 connector: connector_name.to_owned(),
                 attempt_id: payment_attempt.attempt_id.to_owned(),
@@ -271,7 +285,7 @@ pub async fn get_or_update_dispute_object(
                 .store
                 .insert_dispute(new_dispute.clone())
                 .await
-                .change_context(errors::WebhooksFlowError::WebhookEventCreationFailed)
+                .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
         }
         Some(dispute) => {
             logger::info!("Dispute Already exists, Updating the dispute details");
@@ -279,13 +293,16 @@ pub async fn get_or_update_dispute_object(
             let dispute_status: storage_models::enums::DisputeStatus = event_type
                 .foreign_try_into()
                 .into_report()
-                .change_context(errors::WebhooksFlowError::DisputeCoreFailed)?;
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("event type to dispute state conversion failure")?;
             crate::core::utils::validate_dispute_stage_and_dispute_status(
                 dispute.dispute_stage.foreign_into(),
                 dispute.dispute_status.foreign_into(),
                 dispute_details.dispute_stage.clone(),
                 dispute_status.foreign_into(),
-            )?;
+            )
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("dispute stage and status validation failed")?;
             let update_dispute = storage_models::dispute::DisputeUpdate::Update {
                 dispute_stage: dispute_details.dispute_stage.foreign_into(),
                 dispute_status,
@@ -297,7 +314,7 @@ pub async fn get_or_update_dispute_object(
             };
             db.update_dispute(dispute, update_dispute)
                 .await
-                .change_context(errors::WebhooksFlowError::ResourceNotFound)
+                .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
         }
     }
 }
@@ -311,13 +328,11 @@ pub async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     connector: &(dyn api::Connector + Sync),
     request_details: &api::IncomingWebhookRequestDetails<'_>,
     event_type: api_models::webhooks::IncomingWebhookEvent,
-) -> CustomResult<(), errors::WebhooksFlowError> {
+) -> CustomResult<(), errors::ApiErrorResponse> {
     metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(&metrics::CONTEXT, 1, &[]);
     if source_verified {
         let db = &*state.store;
-        let dispute_details = connector
-            .get_dispute_details(request_details)
-            .change_context(errors::WebhooksFlowError::WebhookEventObjectCreationFailed)?;
+        let dispute_details = connector.get_dispute_details(request_details).switch()?;
         let payment_attempt = get_payment_attempt_from_object_reference_id(
             &state,
             webhook_details.object_reference_id,
@@ -331,7 +346,7 @@ pub async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
                 &dispute_details.connector_dispute_id,
             )
             .await
-            .change_context(errors::WebhooksFlowError::ResourceNotFound)?;
+            .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)?;
         let dispute_object = get_or_update_dispute_object(
             state.clone(),
             option_dispute,
@@ -347,7 +362,8 @@ pub async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             .dispute_status
             .foreign_try_into()
             .into_report()
-            .change_context(errors::WebhooksFlowError::DisputeCoreFailed)?;
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("failed to map dispute status to event type")?;
         create_event_and_trigger_outgoing_webhook::<W>(
             state,
             merchant_account,
@@ -363,7 +379,7 @@ pub async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
         Ok(())
     } else {
         metrics::INCOMING_DISPUTE_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(&metrics::CONTEXT, 1, &[]);
-        Err(errors::WebhooksFlowError::WebhookSourceVerificationFailed).into_report()
+        Err(errors::ApiErrorResponse::WebhookAuthenticationFailed).into_report()
     }
 }
 
@@ -372,7 +388,7 @@ async fn bank_transfer_webhook_flow<W: api::OutgoingWebhookType>(
     merchant_account: storage::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
-) -> CustomResult<(), errors::WebhooksFlowError> {
+) -> CustomResult<(), errors::ApiErrorResponse> {
     let response = if source_verified {
         let payment_attempt = get_payment_attempt_from_object_reference_id(
             &state,
@@ -397,10 +413,9 @@ async fn bank_transfer_webhook_flow<W: api::OutgoingWebhookType>(
             payments::CallConnectorAction::Trigger,
         )
         .await
-        .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)
     } else {
         Err(report!(
-            errors::WebhooksFlowError::WebhookSourceVerificationFailed
+            errors::ApiErrorResponse::WebhookAuthenticationFailed
         ))
     };
 
@@ -410,13 +425,15 @@ async fn bank_transfer_webhook_flow<W: api::OutgoingWebhookType>(
                 .payment_id
                 .clone()
                 .get_required_value("payment_id")
-                .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?;
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("did not receive payment id from payments core response")?;
 
             let event_type: enums::EventType = payments_response
                 .status
                 .foreign_try_into()
                 .into_report()
-                .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?;
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("error mapping payments response status to event type")?;
 
             create_event_and_trigger_outgoing_webhook::<W>(
                 state,
@@ -431,7 +448,9 @@ async fn bank_transfer_webhook_flow<W: api::OutgoingWebhookType>(
             .await?;
         }
 
-        _ => Err(errors::WebhooksFlowError::PaymentsCoreFailed).into_report()?,
+        _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .into_report()
+            .attach_printable("received non-json response from payments core")?,
     }
 
     Ok(())
@@ -448,7 +467,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookTy
     primary_object_id: String,
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
-) -> CustomResult<(), errors::WebhooksFlowError> {
+) -> CustomResult<(), errors::ApiErrorResponse> {
     let new_event = storage::EventNew {
         event_id: generate_id(consts::ID_LENGTH, "evt"),
         event_type,
@@ -463,12 +482,14 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookTy
         .store
         .insert_event(new_event)
         .await
-        .change_context(errors::WebhooksFlowError::WebhookEventCreationFailed)?;
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("event insertion failure")?;
 
     if state.conf.webhooks.outgoing_enabled {
         let arbiter = actix::Arbiter::try_current()
-            .ok_or(errors::WebhooksFlowError::ForkFlowFailed)
-            .into_report()?;
+            .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .into_report()
+            .attach_printable("arbiter retrieval failure")?;
 
         let outgoing_webhook = api::OutgoingWebhook {
             merchant_id: merchant_account.merchant_id.clone(),
@@ -593,7 +614,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
             &merchant_account.merchant_id,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .switch()
         .attach_printable("There was an error in incoming webhook body decoding")?;
 
     request_details.body = &decoded_body;
@@ -614,7 +635,8 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     logger::info!(process_webhook=?process_webhook_further);
     logger::info!(event_type=?event_type);
 
-    if process_webhook_further {
+    let flow_type: api::WebhookFlow = event_type.to_owned().into();
+    if process_webhook_further && !matches!(flow_type, api::WebhookFlow::ReturnResponse) {
         let source_verified = connector
             .verify_webhook_source(
                 &*state.store,
@@ -622,17 +644,17 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
                 &merchant_account.merchant_id,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .switch()
             .attach_printable("There was an issue in incoming webhook source verification")?;
 
         let object_ref_id = connector
             .get_webhook_object_reference_id(&request_details)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .switch()
             .attach_printable("Could not find object reference id in incoming webhook body")?;
 
         let event_object = connector
             .get_webhook_resource_object(&request_details)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .switch()
             .attach_printable("Could not find resource object in incoming webhook body")?;
 
         let webhook_details = api::IncomingWebhookDetails {
@@ -644,7 +666,6 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
                 )?,
         };
 
-        let flow_type: api::WebhookFlow = event_type.to_owned().into();
         match flow_type {
             api::WebhookFlow::Payment => payments_incoming_webhook_flow::<W>(
                 state.clone(),
@@ -653,7 +674,6 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
                 source_verified,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Incoming webhook flow for payments failed")?,
 
             api::WebhookFlow::Refund => refunds_incoming_webhook_flow::<W>(
@@ -665,7 +685,6 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
                 event_type,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Incoming webhook flow for refunds failed")?,
 
             api::WebhookFlow::Dispute => disputes_incoming_webhook_flow::<W>(
@@ -678,7 +697,6 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
                 event_type,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Incoming webhook flow for disputes failed")?,
 
             api::WebhookFlow::BankTransfer => bank_transfer_webhook_flow::<W>(
@@ -688,7 +706,6 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
                 source_verified,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Incoming bank-transfer webhook flow failed")?,
 
             api::WebhookFlow::ReturnResponse => {}
@@ -701,7 +718,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
 
     let response = connector
         .get_webhook_api_response(&request_details)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .switch()
         .attach_printable("Could not get incoming webhook api response from connector")?;
 
     Ok(response)
