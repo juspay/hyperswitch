@@ -432,7 +432,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
 
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
 
-        let mandate_type = helpers::validate_mandate(request, false)?;
+        let mandate_type = helpers::validate_mandate(request)?;
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
