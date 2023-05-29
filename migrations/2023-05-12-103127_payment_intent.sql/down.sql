@@ -1,1 +1,0 @@
-ALTER TABLE payment_intent DROP COLUMN meta_data;
