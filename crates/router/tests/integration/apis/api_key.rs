@@ -26,7 +26,7 @@ impl RequestBuilder for ApiKey{
       Self
   }
 
-  fn verify_failure_response(response : &Value, data : &MasterData) -> Self{
+  fn verify_failure_response(_response : &Value, _data : &MasterData) -> Self{
     unimplemented!();
   }
 
@@ -75,17 +75,17 @@ impl RequestBuilder for ApiKeyDelete{
         .insert_header(("api-key",data.admin_api_key.as_str())))
   }
 
-  fn verify_success_response(resp : &Value, data : &MasterData) -> Self{
+  fn verify_success_response(resp : &Value, _data : &MasterData) -> Self{
       let revoked = resp.get("revoked");
       assert_eq!(revoked,Some(&Value::Bool(true)));
       Self
   }
 
-  fn verify_failure_response(response : &Value, data : &MasterData) -> Self{
+  fn verify_failure_response(_response : &Value, _data : &MasterData) -> Self{
     unimplemented!();
   }
 
-  fn update_master_data(&self,data : &mut MasterData, resp : &Value){
+  fn update_master_data(&self,_data : &mut MasterData, _resp : &Value){
   }
 
 }

@@ -18,17 +18,17 @@ impl RequestBuilder for ConnectorCreate{
         .set_json(&request_body))
   }
 
-  fn verify_success_response(resp : &Value, data : &MasterData) -> Self{
+  fn verify_success_response(resp : &Value, _data : &MasterData) -> Self{
       let merchant_connector_id = resp.get("merchant_connector_id"); 
       assert_ne!(merchant_connector_id,None);
       Self
   }
 
-  fn verify_failure_response(response : &Value, data : &MasterData) -> Self{
+  fn verify_failure_response(_response : &Value, _data : &MasterData) -> Self{
     unimplemented!();
   }
 
-  fn update_master_data(&self,data : &mut MasterData, resp : &Value){
+  fn update_master_data(&self,_data : &mut MasterData, _resp : &Value){
     
   }
 

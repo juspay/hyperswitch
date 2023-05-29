@@ -27,11 +27,11 @@ impl RequestBuilder for Customer{
       Self
   }
 
-  fn verify_failure_response(response : &Value, data : &MasterData) -> Self{
+  fn verify_failure_response(_response : &Value, _data : &MasterData) -> Self{
     unimplemented!();
   }
 
-  fn update_master_data(&self,data : &mut MasterData, resp : &Value){
+  fn update_master_data(&self,_data : &mut MasterData, _resp : &Value){
     
   }
 

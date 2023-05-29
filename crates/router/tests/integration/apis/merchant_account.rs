@@ -1,6 +1,6 @@
 use crate::integration::types::*;
 use serde_json::value::{Value};
-use serde_json::value;
+
 use actix_http::{body::MessageBody, Request};
 use actix_web::{
   dev::{Service, ServiceResponse},
@@ -24,7 +24,7 @@ impl RequestBuilder for MerchantAccount{
       assert_eq!(req_mid,res);
       Self
     }
-  fn verify_failure_response(response : &Value, data : &MasterData) -> Self{
+  fn verify_failure_response(_response : &Value, _data : &MasterData) -> Self{
       unimplemented!();
     }
   
@@ -66,16 +66,16 @@ impl RequestBuilder for MerchantAccountDelete{
         .insert_header(("api-key",data.admin_api_key.as_str())))
   }
 
-  fn verify_success_response(resp : &Value, data : &MasterData) -> Self{
+  fn verify_success_response(resp : &Value, _data : &MasterData) -> Self{
       let deleted = resp.get("deleted");
       assert_eq!(deleted,Some(&Value::Bool(true)));
       Self
     }
-  fn verify_failure_response(response : &Value, data : &MasterData) -> Self{
+  fn verify_failure_response(_response : &Value, _data : &MasterData) -> Self{
       unimplemented!();
     }
   
-  fn update_master_data(&self,data : &mut MasterData, resp : &Value){
+  fn update_master_data(&self,_data : &mut MasterData, _resp : &Value){
   }
 }
 
