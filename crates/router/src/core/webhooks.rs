@@ -502,7 +502,8 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookTy
 
         let webhook_signature_payload =
             ext_traits::Encode::<serde_json::Value>::encode_to_string_of_json(&outgoing_webhook)
-                .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)?;
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("failed encoding outgoing webhook payload")?;
 
         let outgoing_webhooks_signature = merchant_account
             .payment_response_hash_key
@@ -515,7 +516,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookTy
                 )
             })
             .transpose()
-            .change_context(errors::WebhooksFlowError::OutgoingWebhookSigningFailed)
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("Failed to sign the message")?
             .map(hex::encode);
 
