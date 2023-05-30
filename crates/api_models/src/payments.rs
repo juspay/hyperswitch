@@ -1,7 +1,10 @@
 use std::{collections::HashMap, num::NonZeroI64};
 
 use cards::CardNumber;
-use common_utils::{pii, pii::Email};
+use common_utils::{
+    crypto,
+    pii::{self, Email},
+};
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
@@ -1124,7 +1127,7 @@ pub struct ReceiverDetails {
     amount_remaining: Option<i64>,
 }
 
-#[derive(Setter, Clone, Default, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
 pub struct PaymentsResponse {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -1240,15 +1243,15 @@ pub struct PaymentsResponse {
 
     /// description: The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
-    pub email: Option<Email>,
+    pub email: crypto::OptionalEncryptableEmail,
 
     /// description: The customer's name
     #[schema(value_type = Option<String>, max_length = 255, example = "John Test")]
-    pub name: Option<Secret<String>>,
+    pub name: crypto::OptionalEncryptableName,
 
     /// The customer's phone number
     #[schema(value_type = Option<String>, max_length = 255, example = "3141592653")]
-    pub phone: Option<Secret<String>>,
+    pub phone: crypto::OptionalEncryptablePhone,
 
     /// The URL to redirect after the completion of the operation
     #[schema(example = "https://hyperswitch.io")]
@@ -1377,16 +1380,16 @@ pub struct PaymentListResponse {
     pub data: Vec<PaymentsResponse>,
 }
 
-#[derive(Setter, Clone, Default, Debug, serde::Serialize)]
+#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize)]
 pub struct VerifyResponse {
     pub verify_id: Option<String>,
     pub merchant_id: Option<String>,
     // pub status: enums::VerifyStatus,
     pub client_secret: Option<Secret<String>>,
     pub customer_id: Option<String>,
-    pub email: Option<Email>,
-    pub name: Option<Secret<String>>,
-    pub phone: Option<Secret<String>>,
+    pub email: crypto::OptionalEncryptableEmail,
+    pub name: crypto::OptionalEncryptableName,
+    pub phone: crypto::OptionalEncryptablePhone,
     pub mandate_id: Option<String>,
     #[auth_based]
     pub payment_method: Option<api_enums::PaymentMethod>,
@@ -1437,24 +1440,6 @@ impl From<&VerifyRequest> for MandateValidationFields {
             mandate_data: req.mandate_data.clone(),
             off_session: req.off_session,
             setup_future_usage: req.setup_future_usage,
-        }
-    }
-}
-
-impl From<VerifyRequest> for VerifyResponse {
-    fn from(item: VerifyRequest) -> Self {
-        Self {
-            merchant_id: item.merchant_id,
-            customer_id: item.customer_id,
-            email: item.email,
-            name: item.name,
-            phone: item.phone,
-            payment_method: item.payment_method,
-            payment_method_data: item
-                .payment_method_data
-                .map(PaymentMethodDataResponse::from),
-            payment_token: item.payment_token,
-            ..Default::default()
         }
     }
 }
@@ -1575,13 +1560,19 @@ pub struct Metadata {
     #[serde(flatten)]
     pub data: pii::SecretSerdeValue,
 
-    /// Payload coming in request as a metadata field
-    #[schema(value_type = Option<Object>)]
-    pub payload: Option<pii::SecretSerdeValue>,
+    /// Redirection response coming in request as metadata field only for redirection scenarios
+    pub redirect_response: Option<RedirectResponse>,
 
     /// Allowed payment method types for a payment intent
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
+}
+
+#[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct RedirectResponse {
+    pub param: Option<Secret<String>>,
+    #[schema(value_type = Option<Object>)]
+    pub json_payload: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
