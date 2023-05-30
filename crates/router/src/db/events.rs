@@ -48,7 +48,7 @@ impl EventInterface for MockDb {
         &self,
         event: storage::EventNew,
     ) -> CustomResult<storage::Event, errors::StorageError> {
-        let mut locked_events = self.event.lock().await;
+        let mut locked_events = self.events.lock().await;
         let now = common_utils::date_time::now();
 
         let stored_event = storage::Event {
@@ -73,8 +73,7 @@ impl EventInterface for MockDb {
         event_id: String,
         event: storage::EventUpdate,
     ) -> CustomResult<storage::Event, errors::StorageError> {
-        let mut locked_events = self.event.lock().await;
-        // find a key with the given merchant_id and key_id and update, otherwise return an error
+        let mut locked_events = self.events.lock().await;
         let mut event_to_update = locked_events
             .iter_mut()
             .find(|e| e.event_id == event_id)
@@ -94,7 +93,6 @@ impl EventInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
-    use time::macros::datetime;
     use storage_models::enums;
 
     use crate::{
