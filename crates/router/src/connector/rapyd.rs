@@ -14,7 +14,8 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     db::StorageInterface,
-    headers, services,
+    headers,
+    services::{self, request},
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -66,7 +67,8 @@ impl ConnectorCommon for Rapyd {
     fn get_auth_header(
         &self,
         _auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
+    {
         Ok(vec![])
     }
 
@@ -123,10 +125,13 @@ impl
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
+    {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
         )])
     }
 
@@ -161,10 +166,19 @@ impl
         let signature =
             self.generate_signature(&auth, "post", "/v1/payments", &rapyd_req, &timestamp, &salt)?;
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
-            ("salt".to_string(), salt),
-            ("timestamp".to_string(), timestamp.to_string()),
-            ("signature".to_string(), signature),
+            (
+                "access_key".to_string(),
+                request::OptionalMaskedValue::new_masked(auth.access_key.into()),
+            ),
+            (
+                "salt".to_string(),
+                request::OptionalMaskedValue::new_masked(salt.into()),
+            ),
+            ("timestamp".to_string(), timestamp.to_string().into()),
+            (
+                "signature".to_string(),
+                request::OptionalMaskedValue::new_masked(signature.into()),
+            ),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -241,10 +255,13 @@ impl
         &self,
         _req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
+    {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsVoidType::get_content_type(self).to_string(),
+            types::PaymentsVoidType::get_content_type(self)
+                .to_string()
+                .into(),
         )])
     }
 
@@ -278,10 +295,19 @@ impl
             self.generate_signature(&auth, "delete", &url_path, "", &timestamp, &salt)?;
 
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
-            ("salt".to_string(), salt),
-            ("timestamp".to_string(), timestamp.to_string()),
-            ("signature".to_string(), signature),
+            (
+                "access_key".to_string(),
+                request::OptionalMaskedValue::new_masked(auth.access_key.into()),
+            ),
+            (
+                "salt".to_string(),
+                request::OptionalMaskedValue::new_masked(salt.into()),
+            ),
+            ("timestamp".to_string(), timestamp.to_string().into()),
+            (
+                "signature".to_string(),
+                request::OptionalMaskedValue::new_masked(signature.into()),
+            ),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Delete)
@@ -328,10 +354,13 @@ impl
         &self,
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
+    {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsSyncType::get_content_type(self).to_string(),
+            types::PaymentsSyncType::get_content_type(self)
+                .to_string()
+                .into(),
         )])
     }
 
@@ -372,10 +401,19 @@ impl
         let signature = self.generate_signature(&auth, "get", &url_path, "", &timestamp, &salt)?;
 
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
-            ("salt".to_string(), salt),
-            ("timestamp".to_string(), timestamp.to_string()),
-            ("signature".to_string(), signature),
+            (
+                "access_key".to_string(),
+                request::OptionalMaskedValue::new_masked(auth.access_key.into()),
+            ),
+            (
+                "salt".to_string(),
+                request::OptionalMaskedValue::new_masked(salt.into()),
+            ),
+            ("timestamp".to_string(), timestamp.to_string().into()),
+            (
+                "signature".to_string(),
+                request::OptionalMaskedValue::new_masked(signature.into()),
+            ),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Get)
@@ -425,10 +463,13 @@ impl
         &self,
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
+    {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsCaptureType::get_content_type(self).to_string(),
+            types::PaymentsCaptureType::get_content_type(self)
+                .to_string()
+                .into(),
         )])
     }
 
@@ -464,10 +505,19 @@ impl
         let signature =
             self.generate_signature(&auth, "post", &url_path, &rapyd_req, &timestamp, &salt)?;
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
-            ("salt".to_string(), salt),
-            ("timestamp".to_string(), timestamp.to_string()),
-            ("signature".to_string(), signature),
+            (
+                "access_key".to_string(),
+                request::OptionalMaskedValue::new_masked(auth.access_key.into()),
+            ),
+            (
+                "salt".to_string(),
+                request::OptionalMaskedValue::new_masked(salt.into()),
+            ),
+            ("timestamp".to_string(), timestamp.to_string().into()),
+            (
+                "signature".to_string(),
+                request::OptionalMaskedValue::new_masked(signature.into()),
+            ),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -543,10 +593,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         _req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
+    {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::RefundExecuteType::get_content_type(self).to_string(),
+            types::RefundExecuteType::get_content_type(self)
+                .to_string()
+                .into(),
         )])
     }
 
@@ -586,10 +639,19 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let signature =
             self.generate_signature(&auth, "post", "/v1/refunds", &rapyd_req, &timestamp, &salt)?;
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
-            ("salt".to_string(), salt),
-            ("timestamp".to_string(), timestamp.to_string()),
-            ("signature".to_string(), signature),
+            (
+                "access_key".to_string(),
+                request::OptionalMaskedValue::new_masked(auth.access_key.into()),
+            ),
+            (
+                "salt".to_string(),
+                request::OptionalMaskedValue::new_masked(salt.into()),
+            ),
+            ("timestamp".to_string(), timestamp.to_string().into()),
+            (
+                "signature".to_string(),
+                request::OptionalMaskedValue::new_masked(signature.into()),
+            ),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -634,7 +696,8 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         &self,
         _req: &types::RefundSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
+    {
         Ok(vec![])
     }
 

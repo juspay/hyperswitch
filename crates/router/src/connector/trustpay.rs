@@ -16,7 +16,7 @@ use crate::{
         payments,
     },
     headers,
-    services::{self, ConnectorIntegration},
+    services::{self, request, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -36,7 +36,8 @@ where
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
+    {
         match req.payment_method {
             storage_models::enums::PaymentMethod::BankRedirect => {
                 let token = req
@@ -46,18 +47,20 @@ where
                 Ok(vec![
                     (
                         headers::CONTENT_TYPE.to_string(),
-                        "application/json".to_owned(),
+                        "application/json".to_owned().into(),
                     ),
                     (
                         headers::AUTHORIZATION.to_string(),
-                        format!("Bearer {}", token.token),
+                        request::OptionalMaskedValue::new_masked(
+                            format!("Bearer {}", token.token).into(),
+                        ),
                     ),
                 ])
             }
             _ => {
                 let mut header = vec![(
                     headers::CONTENT_TYPE.to_string(),
-                    self.get_content_type().to_string(),
+                    self.get_content_type().to_string().into(),
                 )];
                 let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
                 header.append(&mut api_key);
@@ -83,10 +86,14 @@ impl ConnectorCommon for Trustpay {
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
+    {
         let auth = trustpay::TrustpayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::X_API_KEY.to_string(), auth.api_key)])
+        Ok(vec![(
+            headers::X_API_KEY.to_string(),
+            request::OptionalMaskedValue::new_masked(auth.api_key.into()),
+        )])
     }
 
     fn build_error_response(
@@ -161,7 +168,8 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         &self,
         req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
+    {
         let auth = trustpay::TrustpayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let auth_value = format!(
@@ -171,9 +179,14 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::RefreshTokenType::get_content_type(self).to_string(),
+                types::RefreshTokenType::get_content_type(self)
+                    .to_string()
+                    .into(),
             ),
-            (headers::AUTHORIZATION.to_string(), auth_value),
+            (
+                headers::AUTHORIZATION.to_string(),
+                request::OptionalMaskedValue::new_masked(auth_value.into()),
+            ),
         ])
     }
 
@@ -246,7 +259,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -340,7 +354,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -440,7 +455,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -530,7 +546,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
