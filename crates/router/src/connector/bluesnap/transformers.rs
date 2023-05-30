@@ -313,7 +313,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                             currency_code: item.data.request.currency.to_string(),
                             total: api_models::payments::AmountInfo {
                                 label: applepay_metadata.data.payment_request_data.label,
-                                total_type: "final".to_string(),
+                                total_type: Some("final".to_string()),
                                 amount: item.data.request.amount.to_string(),
                             },
                             merchant_capabilities: applepay_metadata
@@ -324,10 +324,12 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                                 .data
                                 .payment_request_data
                                 .supported_networks,
-                            merchant_identifier: applepay_metadata
-                                .data
-                                .session_token_data
-                                .merchant_identifier,
+                            merchant_identifier: Some(
+                                applepay_metadata
+                                    .data
+                                    .session_token_data
+                                    .merchant_identifier,
+                            ),
                         }),
                         connector: "bluesnap".to_string(),
                         delayed_response: false,

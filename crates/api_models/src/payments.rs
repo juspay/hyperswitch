@@ -1795,17 +1795,6 @@ pub struct NoThirdPartySdkSessionResponse {
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct ThirdPartySdkSessionResponse {
     pub secrets: SecretInfoToInitiateSdk,
-    pub country_code: String,
-    pub currency_code: String,
-    pub supported_networks: Vec<String>,
-    pub merchant_capabilities: Vec<String>,
-    pub total: ThirdPartyTotalInfo,
-}
-
-#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
-pub struct ThirdPartyTotalInfo {
-    pub label: String,
-    pub amount: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
@@ -1827,7 +1816,7 @@ pub struct ApplePayPaymentRequest {
     pub merchant_capabilities: Vec<String>,
     /// The list of supported networks
     pub supported_networks: Vec<String>,
-    pub merchant_identifier: String,
+    pub merchant_identifier: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
@@ -1836,7 +1825,7 @@ pub struct AmountInfo {
     pub label: String,
     /// A value that indicates whether the line item(Ex: total, tax, discount, or grand total) is final or pending.
     #[serde(rename = "type")]
-    pub total_type: String,
+    pub total_type: Option<String>,
     /// The total amount for the payment
     pub amount: String,
 }

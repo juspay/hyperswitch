@@ -159,7 +159,7 @@ async fn create_applepay_session_token(
 
     let amount_info = payment_types::AmountInfo {
         label: applepay_metadata.data.payment_request_data.label,
-        total_type: "final".to_string(),
+        total_type: Some("final".to_string()),
         amount: connector::utils::to_currency_base_unit(
             router_data.request.amount,
             router_data.request.currency,
@@ -187,10 +187,12 @@ async fn create_applepay_session_token(
             .data
             .payment_request_data
             .supported_networks,
-        merchant_identifier: applepay_metadata
-            .data
-            .session_token_data
-            .merchant_identifier,
+        merchant_identifier: Some(
+            applepay_metadata
+                .data
+                .session_token_data
+                .merchant_identifier,
+        ),
     };
 
     let delayed_response = delayed_response.contains(&connector_name);

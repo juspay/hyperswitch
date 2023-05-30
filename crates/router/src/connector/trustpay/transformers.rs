@@ -837,7 +837,7 @@ pub struct SdkSecretInfo {
 #[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustpayApplePayResponse {
-    pub country_code: String,
+    pub country_code: api_models::enums::CountryAlpha2,
     pub currency_code: String,
     pub supported_networks: Vec<String>,
     pub merchant_capabilities: Vec<String>,
@@ -867,26 +867,22 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<TrustpayCreateIntentRespon
                             api_models::payments::ApplePaySessionResponse::ThirdPartySdk(
                                 api_models::payments::ThirdPartySdkSessionResponse {
                                     secrets: response.secrets.into(),
-                                    country_code: response
-                                        .apple_init_result_data
-                                        .country_code
-                                        .clone(),
-                                    currency_code: response
-                                        .apple_init_result_data
-                                        .currency_code
-                                        .clone(),
-                                    supported_networks: response
-                                        .apple_init_result_data
-                                        .supported_networks
-                                        .clone(),
-                                    merchant_capabilities: response
-                                        .apple_init_result_data
-                                        .merchant_capabilities
-                                        .clone(),
-                                    total: response.apple_init_result_data.total.into(),
                                 },
                             ),
-                        payment_request_data: None,
+                        payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
+                            country_code: response.apple_init_result_data.country_code,
+                            currency_code: response.apple_init_result_data.currency_code.clone(),
+                            supported_networks: response
+                                .apple_init_result_data
+                                .supported_networks
+                                .clone(),
+                            merchant_capabilities: response
+                                .apple_init_result_data
+                                .merchant_capabilities
+                                .clone(),
+                            total: response.apple_init_result_data.total.into(),
+                            merchant_identifier: None,
+                        }),
                         connector: "trustpay".to_string(),
                         delayed_response: true,
                     },
@@ -906,11 +902,12 @@ impl From<SdkSecretInfo> for api_models::payments::SecretInfoToInitiateSdk {
     }
 }
 
-impl From<ApplePayTotalInfo> for api_models::payments::ThirdPartyTotalInfo {
+impl From<ApplePayTotalInfo> for api_models::payments::AmountInfo {
     fn from(value: ApplePayTotalInfo) -> Self {
         Self {
             label: value.label,
             amount: value.amount,
+            total_type: None,
         }
     }
 }
