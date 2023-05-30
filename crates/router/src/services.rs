@@ -42,6 +42,9 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
         &self,
         channel: &str,
     ) -> errors::CustomResult<usize, redis_errors::RedisError> {
+        // Spawns a task that will automatically re-subscribe to any channels or channel patterns used by the client.
+        self.subscriber.manage_subscriptions();
+
         self.subscriber
             .subscribe(channel)
             .await
