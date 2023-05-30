@@ -10,7 +10,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
     db::StorageInterface,
