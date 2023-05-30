@@ -660,8 +660,7 @@ impl super::RedisConnectionPool {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
-    #![allow(clippy::expect_used)]
+    #![allow(clippy::expect_used, clippy::unwrap_used)]
 
     use crate::{errors::RedisError, RedisConnectionPool, RedisEntryId, RedisSettings};
 
