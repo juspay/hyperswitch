@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{self, PaymentsAuthorizeRequestData},
-    core::errors,
+    core::{errors, payments::operations::Flow},
     types::{self, api, storage::enums, transformers::ForeignFrom, ConnectorAuthType},
 };
 
@@ -528,7 +528,7 @@ pub struct NmiRefundRequest {
     amount: f64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for NmiRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for NmiRefundRequest {
     type Error = Error;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;

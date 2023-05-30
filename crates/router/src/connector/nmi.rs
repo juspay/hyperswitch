@@ -9,7 +9,10 @@ use transformers as nmi;
 use self::transformers::NmiCaptureRequest;
 use crate::{
     configs::settings,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments::operations::Flow,
+    },
     services::{self, ConnectorIntegration},
     types::{
         self,
@@ -35,13 +38,13 @@ impl api::RefundExecute for Nmi {}
 impl api::RefundSync for Nmi {}
 impl api::PaymentToken for Nmi {}
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Nmi
+impl<F: Flow, Request, Response> ConnectorCommonExt<F, Request, Response> for Nmi
 where
-    Self: ConnectorIntegration<Flow, Request, Response>,
+    Self: ConnectorIntegration<F, Request, Response>,
 {
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Request, Response>,
+        _req: &types::RouterData<F, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         Ok(vec![(

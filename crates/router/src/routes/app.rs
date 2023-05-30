@@ -1,4 +1,6 @@
 use actix_web::{web, Scope};
+#[cfg(feature = "email")]
+use external_services::email::{AwsSes, EmailClient};
 use tokio::sync::oneshot;
 
 #[cfg(feature = "dummy_connector")]
@@ -10,8 +12,10 @@ use super::{admin::*, api_keys::*, disputes::*, files::*};
 use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
+#[cfg(feature = "kms")]
+use crate::configs::kms;
 use crate::{
-    configs::settings::Settings,
+    configs::settings,
     db::{MockDb, StorageImpl, StorageInterface},
     routes::cards_info::card_iin_info,
     services::Store,
@@ -21,17 +25,23 @@ use crate::{
 pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
-    pub conf: Settings,
+    pub conf: settings::Settings,
+    #[cfg(feature = "email")]
+    pub email_client: Box<dyn EmailClient>,
+    #[cfg(feature = "kms")]
+    pub kms_secrets: settings::ActiveKmsSecrets,
 }
 
 pub trait AppStateInfo {
-    fn conf(&self) -> Settings;
+    fn conf(&self) -> settings::Settings;
     fn flow_name(&self) -> String;
     fn store(&self) -> Box<dyn StorageInterface>;
+    #[cfg(feature = "email")]
+    fn email_client(&self) -> Box<dyn EmailClient>;
 }
 
 impl AppStateInfo for AppState {
-    fn conf(&self) -> Settings {
+    fn conf(&self) -> settings::Settings {
         self.conf.to_owned()
     }
     fn flow_name(&self) -> String {
@@ -40,11 +50,15 @@ impl AppStateInfo for AppState {
     fn store(&self) -> Box<dyn StorageInterface> {
         self.store.to_owned()
     }
+    #[cfg(feature = "email")]
+    fn email_client(&self) -> Box<dyn EmailClient> {
+        self.email_client.to_owned()
+    }
 }
 
 impl AppState {
     pub async fn with_storage(
-        conf: Settings,
+        conf: settings::Settings,
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
     ) -> Self {
@@ -56,14 +70,32 @@ impl AppState {
             StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
         };
 
+        #[cfg(feature = "kms")]
+        #[allow(clippy::expect_used)]
+        let kms_secrets = kms::KmsDecrypt::decrypt_inner(
+            settings::ActiveKmsSecrets {
+                jwekey: conf.jwekey.clone().into(),
+            },
+            &conf.kms,
+        )
+        .await
+        .expect("Failed while performing KMS decryption");
+
+        #[cfg(feature = "email")]
+        #[allow(clippy::expect_used)]
+        let email_client = Box::new(AwsSes::new(&conf.email).await);
         Self {
             flow_name: String::from("default"),
             store,
             conf,
+            #[cfg(feature = "email")]
+            email_client,
+            #[cfg(feature = "kms")]
+            kms_secrets,
         }
     }
 
-    pub async fn new(conf: Settings, shut_down_signal: oneshot::Sender<()>) -> Self {
+    pub async fn new(conf: settings::Settings, shut_down_signal: oneshot::Sender<()>) -> Self {
         Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal).await
     }
 }
@@ -350,6 +382,8 @@ impl Mandates {
 
         #[cfg(feature = "olap")]
         {
+            route =
+                route.service(web::resource("/list").route(web::get().to(retrieve_mandates_list)));
             route = route.service(web::resource("/{id}").route(web::get().to(get_mandate)));
         }
         #[cfg(feature = "oltp")]
@@ -429,6 +463,10 @@ impl Disputes {
                 web::resource("/evidence")
                     .route(web::post().to(submit_dispute_evidence))
                     .route(web::put().to(attach_dispute_evidence)),
+            )
+            .service(
+                web::resource("/evidence/{dispute_id}")
+                    .route(web::get().to(retrieve_dispute_evidence)),
             )
             .service(web::resource("/{dispute_id}").route(web::get().to(retrieve_dispute)))
     }

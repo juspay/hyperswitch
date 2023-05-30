@@ -11,7 +11,7 @@ use common_utils::{
 use error_stack::{IntoReport, ResultExt};
 use transformers as bluesnap;
 
-use super::utils::{self as connector_utils, RefundsRequestData};
+use super::utils::{self as connector_utils, PaymentsAuthorizeRequestData, RefundsRequestData};
 use crate::{
     configs::settings,
     consts,
@@ -494,7 +494,83 @@ impl api::PaymentSession for Bluesnap {}
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Bluesnap
 {
-    //TODO: implement sessions flow
+    fn get_headers(
+        &self,
+        req: &types::PaymentsSessionRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::PaymentsSessionRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "services/2/wallets"
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsSessionRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = bluesnap::BluesnapCreateWalletToken::try_from(req)?;
+        let bluesnap_req =
+            utils::Encode::<bluesnap::BluesnapCreateWalletToken>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(bluesnap_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsSessionRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsSessionType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsSessionType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsSessionRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
+        let response: bluesnap::BluesnapWalletTokenResponse = res
+            .response
+            .parse_struct("BluesnapWalletTokenResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
 }
 
 impl api::PaymentAuthorize for Bluesnap {}
@@ -519,7 +595,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        match req.is_three_ds() {
+        match req.is_three_ds() && !req.request.is_wallet() {
             true => Ok(format!(
                 "{}{}{}",
                 self.base_url(connectors),
@@ -572,7 +648,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        match (data.is_three_ds(), res.headers) {
+        match (data.is_three_ds() && !data.request.is_wallet(), res.headers) {
             (true, Some(headers)) => {
                 let location = connector_utils::get_http_header("Location", &headers)?;
                 let payment_fields_token = location

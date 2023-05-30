@@ -3,7 +3,7 @@ use time::PrimitiveDateTime;
 
 use crate::schema::api_keys;
 
-#[derive(Debug, Identifiable, Queryable)]
+#[derive(Debug, Clone, Identifiable, Queryable)]
 #[diesel(table_name = api_keys, primary_key(key_id))]
 pub struct ApiKey {
     pub key_id: String,
@@ -77,7 +77,7 @@ impl From<ApiKeyUpdate> for ApiKeyUpdateInternal {
     }
 }
 
-#[derive(Debug, AsExpression)]
+#[derive(Debug, Clone, AsExpression, PartialEq)]
 #[diesel(sql_type = diesel::sql_types::Text)]
 pub struct HashedApiKey(String);
 
@@ -117,7 +117,7 @@ mod diesel_impl {
         DB: Backend,
         String: FromSql<Text, DB>,
     {
-        fn from_sql(bytes: diesel::backend::RawValue<'_, DB>) -> diesel::deserialize::Result<Self> {
+        fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
             Ok(Self(String::from_sql(bytes)?))
         }
     }

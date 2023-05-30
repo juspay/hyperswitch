@@ -36,7 +36,7 @@ use crate::{
 
 pub type BoxedOperation<'a, F, T> = Box<dyn Operation<F, T> + Send + Sync + 'a>;
 
-pub trait Flow: Clone + Send + Default + Display {}
+pub trait Flow: Clone + Send + Default + Display + Sync {}
 
 pub trait Operation<F: Flow, T>: Send + Display {
     fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F, T> + Send + Sync)> {

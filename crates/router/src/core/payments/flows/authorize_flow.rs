@@ -99,6 +99,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         .await
     }
 
+    async fn preprocessing_steps<'a>(
+        self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Self> {
+        authorize_preprocessing_steps(state, &self, true, connector).await
+    }
+
     async fn create_connector_customer<'a>(
         &self,
         state: &AppState,
@@ -109,7 +117,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             state,
             connector,
             self,
-            types::ConnectorCustomerData::try_from(self.request.to_owned())?,
+            types::ConnectorCustomerData::try_from(self)?,
             connector_customer_map,
         )
         .await
@@ -138,6 +146,19 @@ impl types::PaymentsAuthorizeRouterData {
                     .execute_pretasks(self, state)
                     .await
                     .map_err(|error| error.to_payment_failed_response())?;
+
+                metrics::EXECUTE_PRETASK_COUNT.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[
+                        metrics::request::add_attributes(
+                            "connector",
+                            connector.connector_name.to_string(),
+                        ),
+                        metrics::request::add_attributes("flow", format!("{:?}", api::Authorize)),
+                    ],
+                );
+
                 logger::debug!(completed_pre_tasks=?true);
                 if self.should_proceed_with_authorize() {
                     self.decide_authentication_type();
@@ -216,14 +237,90 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     }
 }
 
-impl TryFrom<types::PaymentsAuthorizeData> for types::ConnectorCustomerData {
+pub async fn authorize_preprocessing_steps<F: Flow>(
+    state: &AppState,
+    router_data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+    confirm: bool,
+    connector: &api::ConnectorData,
+) -> RouterResult<types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>> {
+    if confirm {
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::PreProcessing,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+
+        let preprocessing_request_data =
+            types::PaymentsPreProcessingData::try_from(router_data.request.to_owned())?;
+
+        let preprocessing_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+            Err(types::ErrorResponse::default());
+
+        let preprocessing_router_data =
+            payments::helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
+                router_data.clone(),
+                preprocessing_request_data,
+                preprocessing_response_data,
+            );
+
+        let resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &preprocessing_router_data,
+            payments::CallConnectorAction::Trigger,
+        )
+        .await
+        .map_err(|error| error.to_payment_failed_response())?;
+
+        metrics::PREPROCESSING_STEPS_COUNT.add(
+            &metrics::CONTEXT,
+            1,
+            &[
+                metrics::request::add_attributes("connector", connector.connector_name.to_string()),
+                metrics::request::add_attributes(
+                    "payment_method",
+                    router_data.payment_method.to_string(),
+                ),
+                metrics::request::add_attributes(
+                    "payment_method_type",
+                    router_data
+                        .request
+                        .payment_method_type
+                        .as_ref()
+                        .map(|inner| inner.to_string())
+                        .unwrap_or("null".to_string()),
+                ),
+            ],
+        );
+
+        let authorize_router_data =
+            payments::helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+                resp.clone(),
+                router_data.request.to_owned(),
+                resp.response,
+            );
+
+        Ok(authorize_router_data)
+    } else {
+        Ok(router_data.clone())
+    }
+}
+
+impl<F: Flow>
+    TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
+    for types::ConnectorCustomerData
+{
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+    fn try_from(
+        data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            email: data.email,
+            email: data.request.email.clone(),
             description: None,
             phone: None,
             name: None,
+            preprocessing_id: data.preprocessing_id.clone(),
         })
     }
 }
@@ -234,6 +331,17 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentMethodTokenizationD
     fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.payment_method_data,
+        })
+    }
+}
+
+impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            email: data.email,
+            currency: Some(data.currency),
         })
     }
 }

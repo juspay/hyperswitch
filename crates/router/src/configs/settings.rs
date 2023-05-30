@@ -7,6 +7,8 @@ use std::{
 use api_models::enums;
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
+#[cfg(feature = "email")]
+use external_services::email::EmailSettings;
 #[cfg(feature = "kms")]
 use external_services::kms;
 use redis_interface::RedisSettings;
@@ -35,6 +37,16 @@ pub enum Subcommand {
     #[cfg(feature = "openapi")]
     /// Generate the OpenAPI specification file from code.
     GenerateOpenapiSpec,
+}
+
+#[cfg(feature = "kms")]
+/// Store the decrypted kms secret values for active use in the application
+/// Currently using `StrongSecret` won't have any effect as this struct have smart pointers to heap
+/// allocations.
+/// note: we can consider adding such behaviour in the future with custom implementation
+#[derive(Clone)]
+pub struct ActiveKmsSecrets {
+    pub jwekey: masking::Secret<Jwekey>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -69,6 +81,8 @@ pub struct Settings {
     pub connector_customer: ConnectorCustomer,
     #[cfg(feature = "dummy_connector")]
     pub dummy_connector: DummyConnector,
+    #[cfg(feature = "email")]
+    pub email: EmailSettings,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -201,6 +215,7 @@ pub struct CurrencyCountryFlowFilter {
     pub country: Option<HashSet<api_models::enums::CountryAlpha2>>,
     pub not_available_flows: Option<NotAvailableFlows>,
 }
+
 #[derive(Debug, Deserialize, Copy, Clone, Default)]
 #[serde(default)]
 pub struct NotAvailableFlows {
@@ -384,6 +399,7 @@ pub struct Connectors {
     pub multisafepay: ConnectorParams,
     pub nexinets: ConnectorParams,
     pub nmi: ConnectorParams,
+    pub noon: ConnectorParams,
     pub nuvei: ConnectorParams,
     pub opennode: ConnectorParams,
     pub payeezy: ConnectorParams,

@@ -281,7 +281,7 @@ pub struct FortePaymentsSyncResponse {
     pub response: ResponseStatus,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, FortePaymentsSyncResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -419,7 +419,7 @@ pub struct ForteCancelResponse {
     pub response: CancelResponseStatus,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, ForteCancelResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {

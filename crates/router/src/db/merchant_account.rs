@@ -136,7 +136,12 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::redact_cache(self, merchant_id, update_func, None).await
+            super::cache::publish_and_redact(
+                self,
+                cache::CacheKind::Accounts(merchant_id.into()),
+                update_func,
+            )
+            .await
         }
     }
 
@@ -170,7 +175,12 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::redact_cache(self, merchant_id, delete_func, None).await
+            super::cache::publish_and_redact(
+                self,
+                cache::CacheKind::Accounts(merchant_id.into()),
+                delete_func,
+            )
+            .await
         }
     }
 }
@@ -208,6 +218,7 @@ impl MerchantAccountInterface for MockDb {
             primary_business_details: merchant_account.primary_business_details,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
+            frm_routing_algorithm: merchant_account.frm_routing_algorithm,
             intent_fulfillment_time: merchant_account.intent_fulfillment_time,
         };
         accounts.push(account.clone());

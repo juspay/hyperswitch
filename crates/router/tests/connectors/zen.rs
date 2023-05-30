@@ -306,11 +306,10 @@ async fn should_fail_payment_for_incorrect_card_number() {
                     card_number: CardNumber::from_str("1234567891011").unwrap(),
                     ..utils::CCardType::default().0
                 }),
-                order_details: Some(vec![OrderDetails {
+                order_details: Some(OrderDetails {
                     product_name: "test".to_string(),
                     quantity: 1,
-                    amount: 1000,
-                }]),
+                }),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0
@@ -341,11 +340,10 @@ async fn should_fail_payment_for_incorrect_cvc() {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
-                order_details: Some(vec![OrderDetails {
+                order_details: Some(OrderDetails {
                     product_name: "test".to_string(),
                     quantity: 1,
-                    amount: 1000,
-                }]),
+                }),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0
@@ -376,11 +374,10 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
-                order_details: Some(vec![OrderDetails {
+                order_details: Some(OrderDetails {
                     product_name: "test".to_string(),
                     quantity: 1,
-                    amount: 1000,
-                }]),
+                }),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0
@@ -411,11 +408,10 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),
-                order_details: Some(vec![OrderDetails {
+                order_details: Some(OrderDetails {
                     product_name: "test".to_string(),
                     quantity: 1,
-                    amount: 1000,
-                }]),
+                }),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0

@@ -42,6 +42,9 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
         &self,
         channel: &str,
     ) -> errors::CustomResult<usize, redis_errors::RedisError> {
+        // Spawns a task that will automatically re-subscribe to any channels or channel patterns used by the client.
+        self.subscriber.manage_subscriptions();
+
         self.subscriber
             .subscribe(channel)
             .await
@@ -64,21 +67,38 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
 
     #[inline]
     async fn on_message(&self) -> errors::CustomResult<(), redis_errors::RedisError> {
+        logger::debug!("Started on message");
         let mut rx = self.subscriber.on_message();
         while let Ok(message) = rx.recv().await {
-            let key: CacheKind<'_> = RedisValue::new(message.value)
+            logger::debug!("Invalidating {message:?}");
+            let key: CacheKind<'_> = match RedisValue::new(message.value)
                 .try_into()
-                .change_context(redis_errors::RedisError::OnMessageError)?;
-            match key {
+                .change_context(redis_errors::RedisError::OnMessageError)
+            {
+                Ok(value) => value,
+                Err(err) => {
+                    logger::error!(value_conversion_err=?err);
+                    continue;
+                }
+            };
+
+            let key = match key {
                 CacheKind::Config(key) => {
-                    self.delete_key(key.as_ref()).await?;
                     CONFIG_CACHE.invalidate(key.as_ref()).await;
+                    key
                 }
                 CacheKind::Accounts(key) => {
-                    self.delete_key(key.as_ref()).await?;
                     ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
+                    key
                 }
-            }
+            };
+
+            self.delete_key(key.as_ref())
+                .await
+                .map_err(|err| logger::error!("Error while deleting redis key: {err:?}"))
+                .ok();
+
+            logger::debug!("Done invalidating {key}");
         }
         Ok(())
     }
@@ -116,7 +136,10 @@ impl Store {
 
         let subscriber_conn = redis_conn.clone();
 
-        redis_conn.subscribe(consts::PUB_SUB_CHANNEL).await.ok();
+        if let Err(e) = redis_conn.subscribe(consts::PUB_SUB_CHANNEL).await {
+            logger::error!(subscribe_err=?e);
+        }
+
         async_spawn!({
             if let Err(e) = subscriber_conn.on_message().await {
                 logger::error!(pubsub_err=?e);

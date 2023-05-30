@@ -61,7 +61,7 @@ api_secret = "secret"
 
 [bambora]
 api_key = "api_key"
-key1= "key1"
+key1 = "key1"
 
 [nmi]
 api_key = "NMI API Key"
@@ -86,10 +86,10 @@ api_secret = "api_secret"
 
 
 [coinbase]
-api_key="API Key"
+api_key = "API Key"
 
 [opennode]
-api_key="API Key"
+api_key = "API Key"
 
 [nexinets]
 api_key = "api_key"
@@ -101,7 +101,7 @@ key1 = "key1"
 api_secret = "secret"
 
 [bitpay]
-api_key="API Key"
+api_key = "API Key"
 
 [iatapay]
 key1 = "key1"
@@ -109,4 +109,9 @@ api_key = "api_key"
 api_secret = "secrect"
 
 [dummyconnector]
-api_key="API Key"
+api_key = "API Key"
+
+[noon]
+api_key = "Application API KEY"
+api_secret = "Application Identifier"
+key1 = "Business Identifier"

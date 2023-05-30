@@ -1,5 +1,6 @@
 use api_models::enums::FileUploadProvider;
 use masking::{Deserialize, Serialize};
+use router_derive::Flow;
 
 use super::ConnectorCommon;
 use crate::{
@@ -64,7 +65,7 @@ pub enum FilePurpose {
     DisputeEvidence,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct Upload;
 
 pub trait UploadFile:
@@ -72,7 +73,7 @@ pub trait UploadFile:
 {
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct Retrieve;
 
 pub trait RetrieveFile:

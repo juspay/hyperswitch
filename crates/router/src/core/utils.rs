@@ -1,7 +1,6 @@
 use api_models::enums::{DisputeStage, DisputeStatus};
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
-use frunk_core::labelled::chars::F;
 use router_env::{instrument, tracing};
 
 use super::payments::{helpers, operations::Flow, PaymentAddress};
@@ -10,7 +9,7 @@ use crate::{
     core::errors::{self, RouterResult},
     routes::AppState,
     types::{
-        self,
+        self, api,
         storage::{self, enums},
         ErrorResponse,
     },
@@ -102,6 +101,7 @@ pub async fn construct_refund_router_data<'a, F: Flow>(
         reference_id: None,
         payment_method_token: None,
         connector_customer: None,
+        preprocessing_id: None,
     };
 
     Ok(router_data)
@@ -260,7 +260,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         .payment_method
         .get_required_value("payment_method_type")?;
     let router_data = types::RouterData {
-        flow: F::default(),
+        flow: api::Accept::default(),
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
@@ -286,6 +286,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         payment_method_token: None,
         connector_customer: None,
         customer_id: None,
+        preprocessing_id: None,
     };
     Ok(router_data)
 }
@@ -321,7 +322,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         .payment_method
         .get_required_value("payment_method_type")?;
     let router_data = types::RouterData {
-        flow: F::default(),
+        flow: types::api::Evidence::default(),
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
@@ -344,6 +345,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         payment_method_token: None,
         connector_customer: None,
         customer_id: None,
+        preprocessing_id: None,
     };
     Ok(router_data)
 }
@@ -375,7 +377,7 @@ pub async fn construct_upload_file_router_data<'a>(
         .payment_method
         .get_required_value("payment_method_type")?;
     let router_data = types::RouterData {
-        flow: F::default(),
+        flow: types::api::Upload::default(),
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
@@ -403,6 +405,7 @@ pub async fn construct_upload_file_router_data<'a>(
         payment_method_token: None,
         connector_customer: None,
         customer_id: None,
+        preprocessing_id: None,
     };
     Ok(router_data)
 }
@@ -438,7 +441,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         .payment_method
         .get_required_value("payment_method_type")?;
     let router_data = types::RouterData {
-        flow: F::default(),
+        flow: types::api::Defend::default(),
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
@@ -464,6 +467,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         payment_method_token: None,
         customer_id: None,
         connector_customer: None,
+        preprocessing_id: None,
     };
     Ok(router_data)
 }
@@ -493,7 +497,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let router_data = types::RouterData {
-        flow: F::deafault(),
+        flow: types::api::Retrieve::default(),
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
         customer_id: None,
@@ -523,6 +527,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        preprocessing_id: None,
     };
     Ok(router_data)
 }

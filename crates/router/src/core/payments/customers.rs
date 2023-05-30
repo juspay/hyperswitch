@@ -4,15 +4,15 @@ use error_stack::{self, ResultExt};
 use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
-        payments,
+        payments::{self, operations::Flow},
     },
     logger,
-    routes::AppState,
+    routes::{metrics, AppState},
     services,
     types::{self, api, storage},
 };
 
-pub async fn create_connector_customer<F: Clone, T: Clone>(
+pub async fn create_connector_customer<F: Flow, T: Clone>(
     state: &AppState,
     connector: &api::ConnectorData,
     router_data: &types::RouterData<F, T, types::PaymentsResponseData>,
@@ -50,6 +50,15 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
     )
     .await
     .map_err(|error| error.to_payment_failed_response())?;
+
+    metrics::CONNECTOR_CUSTOMER_CREATE.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes(
+            "connector",
+            connector.connector_name.to_string(),
+        )],
+    );
 
     let connector_customer_id = match resp.response {
         Ok(response) => match response {

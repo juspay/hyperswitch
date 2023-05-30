@@ -444,6 +444,8 @@ pub enum WebhooksFlowError {
     WebhookEventCreationFailed,
     #[error("Webhook event updation failed")]
     WebhookEventUpdationFailed,
+    #[error("Outgoing webhook body signing failed")]
+    OutgoingWebhookSigningFailed,
     #[error("Unable to fork webhooks flow for outgoing webhooks")]
     ForkFlowFailed,
     #[error("Webhook api call to merchant failed")]
@@ -460,6 +462,10 @@ pub enum WebhooksFlowError {
     NotImplemented,
     #[error("Dispute webhook status validation failed")]
     DisputeWebhookValidationFailed,
+    #[error("Outgoing webhook body encoding failed")]
+    OutgoingWebhookEncodingFailed,
+    #[error("Missing required field: {field_name}")]
+    MissingRequiredField { field_name: &'static str },
 }
 
 #[cfg(feature = "detailed_errors")]

@@ -10,8 +10,12 @@ pub enum IncomingWebhookEvent {
     PaymentIntentFailure,
     PaymentIntentSuccess,
     PaymentIntentProcessing,
+    PaymentIntentPartiallyFunded,
     PaymentActionRequired,
     EventNotSupported,
+    SourceChargeable,
+    SourceTransactionCreated,
+    ChargeSucceeded,
     RefundFailure,
     RefundSuccess,
     DisputeOpened,
@@ -32,6 +36,7 @@ pub enum WebhookFlow {
     Dispute,
     Subscription,
     ReturnResponse,
+    BankTransfer,
 }
 
 impl From<IncomingWebhookEvent> for WebhookFlow {
@@ -41,7 +46,8 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::PaymentIntentSuccess => Self::Payment,
             IncomingWebhookEvent::PaymentIntentProcessing => Self::Payment,
             IncomingWebhookEvent::PaymentActionRequired => Self::Payment,
-            IncomingWebhookEvent::EventNotSupported => Self::Payment,
+            IncomingWebhookEvent::PaymentIntentPartiallyFunded => Self::Payment,
+            IncomingWebhookEvent::EventNotSupported => Self::ReturnResponse,
             IncomingWebhookEvent::RefundSuccess => Self::Refund,
             IncomingWebhookEvent::RefundFailure => Self::Refund,
             IncomingWebhookEvent::DisputeOpened => Self::Dispute,
@@ -52,6 +58,9 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::DisputeWon => Self::Dispute,
             IncomingWebhookEvent::DisputeLost => Self::Dispute,
             IncomingWebhookEvent::EndpointVerification => Self::ReturnResponse,
+            IncomingWebhookEvent::SourceChargeable
+            | IncomingWebhookEvent::SourceTransactionCreated => Self::BankTransfer,
+            IncomingWebhookEvent::ChargeSucceeded => Self::Payment,
         }
     }
 }
@@ -91,5 +100,8 @@ pub enum OutgoingWebhookContent {
     DisputeDetails(Box<disputes::DisputeResponse>),
 }
 
-pub trait OutgoingWebhookType: Serialize + From<OutgoingWebhook> + Sync + Send {}
+pub trait OutgoingWebhookType:
+    Serialize + From<OutgoingWebhook> + Sync + Send + std::fmt::Debug
+{
+}
 impl OutgoingWebhookType for OutgoingWebhook {}

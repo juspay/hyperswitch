@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{self, BrowserInformationData, CardData, PaymentsAuthorizeRequestData},
-    core::errors,
+    core::{errors, payments::operations::Flow},
     services::{self, Method},
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
 };
@@ -202,15 +202,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                 ip,
             },
             custom_ipn_url: item.request.get_webhook_url()?,
-            items: order_details
-                .iter()
-                .map(|data| ZenItemObject {
-                    name: data.product_name.clone(),
-                    quantity: data.quantity,
-                    price: data.amount.to_string(),
-                    line_amount_total: order_amount.clone(),
-                })
-                .collect(),
+            items: vec![ZenItemObject {
+                name: order_details.product_name,
+                price: order_amount.clone(),
+                quantity: 1,
+                line_amount_total: order_amount,
+            }],
         })
     }
 }
@@ -271,7 +268,7 @@ pub struct ZenMerchantActionData {
     redirect_url: url::Url,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, ZenPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -313,7 +310,7 @@ pub struct ZenRefundRequest {
     merchant_transaction_id: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for ZenRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for ZenRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

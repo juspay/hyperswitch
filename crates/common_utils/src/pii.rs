@@ -3,7 +3,6 @@
 use std::{convert::AsRef, fmt, ops, str::FromStr};
 
 use diesel::{
-    backend,
     backend::Backend,
     deserialize,
     deserialize::FromSql,
@@ -11,9 +10,13 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types, AsExpression,
 };
+use error_stack::{IntoReport, ResultExt};
 use masking::{Secret, Strategy, WithType};
 
-use crate::{errors::ValidationError, validation::validate_email};
+use crate::{
+    errors::{self, ValidationError},
+    validation::validate_email,
+};
 
 /// A string constant representing a redacted or masked value.
 pub const REDACTED: &str = "Redacted";
@@ -101,7 +104,16 @@ where
     serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Default, AsExpression,
 )]
 #[diesel(sql_type = diesel::sql_types::Text)]
+#[serde(try_from = "String")]
 pub struct Email(Secret<String, EmailStrategy>);
+
+impl TryFrom<String> for Email {
+    type Error = error_stack::Report<errors::ParsingError>;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::from_str(&value).change_context(errors::ParsingError::EmailParsingError)
+    }
+}
 
 impl From<Secret<String, EmailStrategy>> for Email {
     fn from(value: Secret<String, EmailStrategy>) -> Self {
@@ -140,7 +152,7 @@ where
     DB: Backend,
     String: FromSql<sql_types::Text, DB>,
 {
-    fn from_sql(bytes: backend::RawValue<'_, DB>) -> deserialize::Result<Self> {
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
         let val = String::from_sql(bytes)?;
         Ok(Self::from_str(val.as_str())?)
     }
@@ -157,8 +169,7 @@ where
 }
 
 impl FromStr for Email {
-    type Err = ValidationError;
-
+    type Err = error_stack::Report<ValidationError>;
     fn from_str(email: &str) -> Result<Self, Self::Err> {
         if email.eq(REDACTED) {
             return Ok(Self(Secret::new(email.to_string())));
@@ -170,7 +181,8 @@ impl FromStr for Email {
             }
             Err(_) => Err(ValidationError::InvalidValue {
                 message: "Invalid email address format".into(),
-            }),
+            })
+            .into_report(),
         }
     }
 }
@@ -247,15 +259,13 @@ mod pii_masking_strategy_tests {
 
     #[test]
     fn test_valid_newtype_email() {
-        let email_check: Result<Email, crate::errors::ValidationError> =
-            Email::from_str("example@abc.com");
+        let email_check = Email::from_str("example@abc.com");
         assert!(email_check.is_ok());
     }
 
     #[test]
     fn test_invalid_newtype_email() {
-        let email_check: Result<Email, crate::errors::ValidationError> =
-            Email::from_str("example@abc@com");
+        let email_check = Email::from_str("example@abc@com");
         assert!(email_check.is_err());
     }
 

@@ -18,7 +18,7 @@ use crate::{
 #[utoipa::path(
     post,
     path = "/payments",
-    request_body=PaymentsRequest,
+    request_body=PaymentsCreateRequest,
     responses(
         (status = 200, description = "Payment created", body = PaymentsResponse),
         (status = 400, description = "Missing Mandatory fields")

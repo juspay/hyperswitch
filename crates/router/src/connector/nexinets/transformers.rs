@@ -413,7 +413,7 @@ pub struct NexinetsPaymentResponse {
     pub transaction_type: NexinetsTransactionType,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, NexinetsPaymentResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {

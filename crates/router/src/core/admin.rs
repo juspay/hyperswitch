@@ -1,5 +1,5 @@
 use api_models::admin::PrimaryBusinessDetails;
-use common_utils::ext_traits::ValueExt;
+use common_utils::{crypto::generate_cryptographically_secure_random_string, ext_traits::ValueExt};
 use error_stack::{report, FutureExt, ResultExt};
 use masking::Secret;
 use storage_models::{enums, merchant_account};
@@ -12,6 +12,7 @@ use crate::{
         payments::helpers,
     },
     db::StorageInterface,
+    routes::metrics,
     services::api as service_api,
     types::{
         self, api,
@@ -100,6 +101,12 @@ pub async fn create_merchant_account(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
+    let enable_payment_response_hash = req.enable_payment_response_hash.or(Some(true));
+
+    let payment_response_hash_key = req
+        .payment_response_hash_key
+        .or(Some(generate_cryptographically_secure_random_string(32)));
+
     let merchant_account = storage::MerchantAccountNew {
         merchant_id: req.merchant_id,
         merchant_name: req.merchant_name,
@@ -114,13 +121,14 @@ pub async fn create_merchant_account(
             req.parent_merchant_id,
         )
         .await?,
-        enable_payment_response_hash: req.enable_payment_response_hash,
-        payment_response_hash_key: req.payment_response_hash_key,
+        enable_payment_response_hash,
+        payment_response_hash_key,
         redirect_to_merchant_with_http_post: req.redirect_to_merchant_with_http_post,
         publishable_key,
         locker_id: req.locker_id,
         metadata: req.metadata,
         primary_business_details,
+        frm_routing_algorithm: req.frm_routing_algorithm,
         intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
     };
 
@@ -228,6 +236,7 @@ pub async fn merchant_account_update(
         metadata: req.metadata,
         publishable_key: None,
         primary_business_details,
+        frm_routing_algorithm: req.frm_routing_algorithm,
         intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
     };
 
@@ -370,10 +379,11 @@ pub async fn create_payment_connector(
         }
         None => None,
     };
+
     let merchant_connector_account = storage::MerchantConnectorAccountNew {
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
-        connector_name: Some(req.connector_name),
+        connector_name: Some(req.connector_name.to_owned()),
         merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
         connector_account_details: req.connector_account_details,
         payment_methods_enabled,
@@ -397,6 +407,15 @@ pub async fn create_payment_connector(
                 connector_label: connector_label.clone(),
             },
         )?;
+
+    metrics::MCA_CREATE.add(
+        &metrics::CONTEXT,
+        1,
+        &[
+            metrics::request::add_attributes("connector", req.connector_name.to_string()),
+            metrics::request::add_attributes("merchant", merchant_id.to_string()),
+        ],
+    );
 
     let mca_response = ForeignTryFrom::foreign_try_from(mca)?;
 

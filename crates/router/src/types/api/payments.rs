@@ -1,7 +1,7 @@
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
     CustomerAcceptance, MandateData, MandateTxnType, MandateType, MandateValidationFields,
-    NextAction, NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
+    NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
     PaymentListResponse, PaymentMethodData, PaymentMethodDataResponse, PaymentOp,
     PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsCancelRequest,
     PaymentsCaptureRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRequest,
@@ -68,8 +68,10 @@ pub struct AuthorizeSessionToken;
 
 #[derive(Debug, Default, Clone, Flow)]
 pub struct CompleteAuthorize;
+
 #[derive(Debug, Default, Clone, Flow)]
 pub struct InitPayment;
+
 #[derive(Debug, Default, Clone, Flow)]
 pub struct Capture;
 
@@ -90,6 +92,9 @@ pub struct CreateConnectorCustomer;
 #[derive(Debug, Default, Clone, Flow)]
 pub struct Verify;
 
+#[derive(Debug, Default, Clone, Flow)]
+pub struct PreProcessing;
+
 pub(crate) trait PaymentIdTypeExt {
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError>;
 }
@@ -98,13 +103,13 @@ impl PaymentIdTypeExt for PaymentIdType {
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError> {
         match self {
             Self::PaymentIntentId(id) => Ok(id.clone()),
-            Self::ConnectorTransactionId(_) | Self::PaymentAttemptId(_) => {
-                Err(errors::ValidationError::IncorrectValueProvided {
-                    field_name: "payment_id",
-                })
-                .into_report()
-                .attach_printable("Expected payment intent ID but got connector transaction ID")
-            }
+            Self::ConnectorTransactionId(_)
+            | Self::PaymentAttemptId(_)
+            | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "payment_id",
+            })
+            .into_report()
+            .attach_printable("Expected payment intent ID but got connector transaction ID"),
         }
     }
 }
@@ -182,6 +187,15 @@ pub trait ConnectorCustomer:
 {
 }
 
+pub trait PaymentsPreProcessing:
+    api::ConnectorIntegration<
+    PreProcessing,
+    types::PaymentsPreProcessingData,
+    types::PaymentsResponseData,
+>
+{
+}
+
 pub trait Payment:
     api_types::ConnectorCommon
     + PaymentAuthorize
@@ -192,6 +206,7 @@ pub trait Payment:
     + PreVerify
     + PaymentSession
     + PaymentToken
+    + PaymentsPreProcessing
     + ConnectorCustomer
 {
 }

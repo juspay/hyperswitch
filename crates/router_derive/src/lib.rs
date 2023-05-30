@@ -503,3 +503,50 @@ fn token_stream_for_zdisplay(name: syn::Ident) -> proc_macro2::TokenStream {
         }
     }
 }
+
+/// Generates different schemas with the ability to mark few fields as mandatory for certain schema
+/// Usage
+/// ```
+/// #[derive(PolymorphicSchema)]
+/// #[generate_schemas(PaymentsCreateRequest, PaymentsConfirmRequest)]
+/// struct PaymentsRequest {
+///     #[mandatory_in(PaymentsCreateRequest)]
+///     amount: Option<u64>,
+///     #[mandatory_in(PaymentsCreateRequest)]
+///     currency: Option<String>,
+///     payment_method: String,
+/// }
+/// ```
+///
+/// This will create two structs `PaymentsCreateRequest` and `PaymentsConfirmRequest` as follows
+/// It will retain all the other attributes that are used in the original struct, and only consume
+/// the #[mandatory_in] attribute to generate schemas
+///
+/// ```
+/// #[derive(utoipa::ToSchema)]
+/// struct PaymentsCreateRequest {
+///     #[schema(required = true)]
+///     amount: Option<u64>,
+///
+///     #[schema(required = true)]
+///     currency: Option<String>,
+///
+///     payment_method: String,
+/// }
+///
+/// #[derive(utoipa::ToSchema)]
+/// struct PaymentsConfirmRequest {
+///     amount: Option<u64>,
+///     currency: Option<String>,
+///     payment_method: String,
+/// }
+/// ```
+
+#[proc_macro_derive(PolymorphicSchema, attributes(mandatory_in, generate_schemas))]
+pub fn polymorphic_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    macros::polymorphic_macro_derive_inner(input)
+        .unwrap_or_else(|error| error.into_compile_error())
+        .into()
+}

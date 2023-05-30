@@ -154,6 +154,8 @@ pub enum ApiErrorResponse {
     MandateValidationFailed { reason: String },
     #[error(error_type= ErrorType::ValidationError, code = "HE_03", message = "The payment has not succeeded yet. Please pass a successful payment to initiate refund")]
     PaymentNotSucceeded,
+    #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "The specified merchant connector account is disabled")]
+    MerchantConnectorAccountDisabled,
     #[error(error_type= ErrorType::ObjectNotFound, code = "HE_04", message = "Successful payment not found for the given payment id")]
     SuccessfulPaymentNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "The connector provided in the request is incorrect or not available")]
@@ -182,6 +184,14 @@ pub enum ApiErrorResponse {
     MissingFilePurpose,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "File content type not found / valid")]
     MissingFileContentType,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
+    WebhookAuthenticationFailed,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "WE_04", message = "Webhook resource not found")]
+    WebhookResourceNotFound,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
+    WebhookBadRequest,
+    #[error(error_type = ErrorType::RouterError, code = "WE_03", message = "There was some issue processing the webhook")]
+    WebhookProcessingFailure,
 }
 
 #[derive(Clone)]
@@ -220,12 +230,13 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::Unauthorized
             | Self::InvalidEphemeralKey
             | Self::InvalidJwtToken
-            | Self::GenericUnauthorized { .. } => StatusCode::UNAUTHORIZED, // 401
+            | Self::GenericUnauthorized { .. }
+            | Self::WebhookAuthenticationFailed => StatusCode::UNAUTHORIZED, // 401
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
             }
-            Self::InvalidRequestUrl => StatusCode::NOT_FOUND, // 404
-            Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
+            Self::InvalidRequestUrl | Self::WebhookResourceNotFound => StatusCode::NOT_FOUND, // 404
+            Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED,                        // 405
             Self::MissingRequiredField { .. }
             | Self::InvalidDataValue { .. }
             | Self::InvalidCardIin
@@ -233,9 +244,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::InvalidDataFormat { .. } | Self::InvalidRequestData { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
             } // 422
-            Self::RefundAmountExceedsPaymentAmount => StatusCode::BAD_REQUEST, // 400
-            Self::MaximumRefundCount => StatusCode::BAD_REQUEST, // 400
-            Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST, // 400
+            Self::RefundAmountExceedsPaymentAmount => StatusCode::BAD_REQUEST,                // 400
+            Self::MaximumRefundCount => StatusCode::BAD_REQUEST,                              // 400
+            Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST,                       // 400
 
             Self::PaymentAuthorizationFailed { .. }
             | Self::PaymentAuthenticationFailed { .. }
@@ -248,9 +259,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::PaymentUnexpectedState { .. }
             | Self::MandateValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
 
-            Self::MandateUpdateFailed | Self::InternalServerError => {
-                StatusCode::INTERNAL_SERVER_ERROR
-            } // 500
+            Self::MandateUpdateFailed
+            | Self::InternalServerError
+            | Self::WebhookProcessingFailure => StatusCode::INTERNAL_SERVER_ERROR, // 500
             Self::DuplicateRefundRequest | Self::DuplicatePayment { .. } => StatusCode::BAD_REQUEST, // 400
             Self::RefundNotFound
             | Self::CustomerNotFound
@@ -260,6 +271,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::PaymentMethodNotFound
             | Self::MerchantAccountNotFound
             | Self::MerchantConnectorAccountNotFound { .. }
+            | Self::MerchantConnectorAccountDisabled
             | Self::MandateNotFound
             | Self::ClientSecretNotGiven
             | Self::ClientSecretExpired
@@ -272,7 +284,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::NotSupported { .. }
             | Self::FlowNotSupported { .. }
             | Self::ApiKeyNotFound
-            | Self::DisputeStatusValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
+            | Self::DisputeStatusValidationFailed { .. }
+            | Self::WebhookBadRequest => StatusCode::BAD_REQUEST, // 400
             Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount { .. }
             | Self::DuplicatePaymentMethod
@@ -443,6 +456,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::MerchantConnectorAccountNotFound { id } => {
                 AER::NotFound(ApiError::new("HE", 2, format!("Merchant connector account with id '{id}' does not exist in our records"), None))
             }
+            Self::MerchantConnectorAccountDisabled => {
+                AER::BadRequest(ApiError::new("HE", 3, "The selected merchant connector account is disabled", None))
+            }
             Self::ResourceIdNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Resource ID does not exist in our records", None))
             }
@@ -503,6 +519,18 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::MissingDisputeId => {
                 AER::BadRequest(ApiError::new("HE", 2, "Dispute id not found in the request", None))
+            }
+            Self::WebhookAuthenticationFailed => {
+                AER::Unauthorized(ApiError::new("WE", 1, "Webhook authentication failed", None))
+            }
+            Self::WebhookResourceNotFound => {
+                AER::NotFound(ApiError::new("WE", 4, "Webhook resource was not found", None))
+            }
+            Self::WebhookBadRequest => {
+                AER::BadRequest(ApiError::new("WE", 2, "Bad request body received", None))
+            }
+            Self::WebhookProcessingFailure => {
+                AER::InternalServerError(ApiError::new("WE", 3, "There was an issue processing the webhook", None))
             }
         }
     }

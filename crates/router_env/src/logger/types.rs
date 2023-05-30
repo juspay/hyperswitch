@@ -96,6 +96,8 @@ pub enum Flow {
     MandatesRetrieve,
     /// Mandates revoke flow.
     MandatesRevoke,
+    /// Mandates list flow.
+    MandatesList,
     /// Payment methods create flow.
     PaymentMethodsCreate,
     /// Payment methods list flow.
@@ -180,12 +182,16 @@ pub enum Flow {
     CreateConfigKey,
     /// Attach Dispute Evidence flow
     AttachDisputeEvidence,
+    /// Retrieve Dispute Evidence flow
+    RetrieveDisputeEvidence,
+    /// Request to compatibility layer
+    CompatibilityLayerRequest,
 }
 
 ///
 /// Trait for providing generic behaviour to flow metric
 ///
-pub trait FlowMetric: ToString + std::fmt::Debug {}
+pub trait FlowMetric: ToString + std::fmt::Debug + Clone {}
 impl FlowMetric for Flow {}
 
 /// Category of log event.

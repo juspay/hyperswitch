@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, str::FromStr};
+use std::str::FromStr;
 
 use masking::Secret;
 use router::{
@@ -62,6 +62,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             router_return_url: None,
             webhook_url: None,
             complete_authorize_url: None,
+            customer_id: None,
         },
         response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
@@ -73,6 +74,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         reference_id: None,
         payment_method_token: None,
         connector_customer: None,
+        preprocessing_id: None,
     }
 }
 
@@ -116,6 +118,7 @@ fn construct_refund_router_data<F: operations::Flow>() -> types::RefundsRouterDa
         reference_id: None,
         payment_method_token: None,
         connector_customer: None,
+        preprocessing_id: None,
     }
 }
 

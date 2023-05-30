@@ -155,6 +155,7 @@ impl<F: Flow> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureReques
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                ephemeral_key: None,
             },
             None,
         ))

@@ -176,6 +176,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentMetho
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                ephemeral_key: None,
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),

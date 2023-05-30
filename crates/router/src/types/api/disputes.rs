@@ -1,8 +1,8 @@
 use masking::{Deserialize, Serialize};
+use router_derive::Flow;
 use time::PrimitiveDateTime;
 
 use crate::{services, types};
-
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct DisputeId {
     pub dispute_id: String,
@@ -58,7 +58,7 @@ pub enum EvidenceType {
     UncategorizedFile,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct Accept;
 
 pub trait AcceptDispute:
@@ -70,7 +70,7 @@ pub trait AcceptDispute:
 {
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct Evidence;
 
 pub trait SubmitEvidence:
@@ -82,7 +82,7 @@ pub trait SubmitEvidence:
 {
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct Defend;
 
 pub trait DefendDispute:

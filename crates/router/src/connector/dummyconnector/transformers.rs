@@ -4,7 +4,7 @@ use storage_models::enums::Currency;
 
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     types::{self, api, storage::enums},
 };
 
@@ -101,7 +101,8 @@ pub struct PaymentsResponse {
     payment_method_type: String,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentsResponse, T, types::PaymentsResponseData>>
+impl<F: Flow, T>
+    TryFrom<types::ResponseRouterData<F, PaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -129,7 +130,7 @@ pub struct DummyConnectorRefundRequest {
     pub amount: i64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for DummyConnectorRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for DummyConnectorRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

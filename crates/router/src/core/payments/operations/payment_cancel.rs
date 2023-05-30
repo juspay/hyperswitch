@@ -149,6 +149,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for Paym
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                ephemeral_key: None,
             },
             None,
         ))

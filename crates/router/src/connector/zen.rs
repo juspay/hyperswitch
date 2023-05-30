@@ -13,7 +13,7 @@ use crate::{
     configs::settings,
     core::{
         errors::{self, CustomResult},
-        payments,
+        payments::{self, operations::Flow},
     },
     db::StorageInterface,
     headers,
@@ -42,13 +42,13 @@ impl api::Refund for Zen {}
 impl api::RefundExecute for Zen {}
 impl api::RefundSync for Zen {}
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Zen
+impl<F: Flow, Request, Response> ConnectorCommonExt<F, Request, Response> for Zen
 where
-    Self: ConnectorIntegration<Flow, Request, Response>,
+    Self: ConnectorIntegration<F, Request, Response>,
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
+        req: &types::RouterData<F, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut headers = vec![

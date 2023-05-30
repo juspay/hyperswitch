@@ -12,7 +12,10 @@ use super::utils::{self, base64_decode};
 use crate::{
     configs::settings,
     consts,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments::operations::Flow,
+    },
     db, headers,
     services::{self, ConnectorIntegration},
     types::{
@@ -49,13 +52,13 @@ impl
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Iatapay
+impl<F: Flow, Request, Response> ConnectorCommonExt<F, Request, Response> for Iatapay
 where
-    Self: ConnectorIntegration<Flow, Request, Response>,
+    Self: ConnectorIntegration<F, Request, Response>,
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
+        req: &types::RouterData<F, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut headers = vec![(

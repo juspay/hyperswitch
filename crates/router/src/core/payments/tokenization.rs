@@ -6,10 +6,11 @@ use super::helpers;
 use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
-        mandate, payment_methods, payments,
+        mandate, payment_methods,
+        payments::{self, operations::Flow},
     },
     logger,
-    routes::AppState,
+    routes::{metrics, AppState},
     services,
     types::{
         self,
@@ -19,7 +20,7 @@ use crate::{
     utils::OptionExt,
 };
 
-pub async fn save_payment_method<F: Clone, FData>(
+pub async fn save_payment_method<F: Flow, FData>(
     state: &AppState,
     connector: &api::ConnectorData,
     resp: types::RouterData<F, FData, types::PaymentsResponseData>,
@@ -191,7 +192,7 @@ pub fn create_payment_method_metadata(
     }))
 }
 
-pub async fn add_payment_method_token<F: Clone, T: Clone>(
+pub async fn add_payment_method_token<F: Flow, T: Clone>(
     state: &AppState,
     connector: &api::ConnectorData,
     tokenization_action: &payments::TokenizationAction,
@@ -230,6 +231,21 @@ pub async fn add_payment_method_token<F: Clone, T: Clone>(
             )
             .await
             .map_err(|error| error.to_payment_failed_response())?;
+
+            metrics::CONNECTOR_PAYMENT_METHOD_TOKENIZATION.add(
+                &metrics::CONTEXT,
+                1,
+                &[
+                    metrics::request::add_attributes(
+                        "connector",
+                        connector.connector_name.to_string(),
+                    ),
+                    metrics::request::add_attributes(
+                        "payment_method",
+                        router_data.payment_method.to_string(),
+                    ),
+                ],
+            );
 
             let pm_token = match resp.response {
                 Ok(response) => match response {
