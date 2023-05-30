@@ -8,7 +8,7 @@ use crate::{
     },
     routes::{metrics, AppState},
     services,
-    types::{self, api, storage},
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -19,8 +19,8 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
         &self,
         state: &AppState,
         connector_id: &str,
-        merchant_account: &storage::MerchantAccount,
-        customer: &Option<storage::Customer>,
+        merchant_account: &domain::MerchantAccount,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<types::PaymentsCancelRouterData> {
         transformers::construct_payment_router_data::<api::Void, types::PaymentsCancelData>(
             state,
@@ -41,9 +41,9 @@ impl Feature<api::Void, types::PaymentsCancelData>
         self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<storage::Customer>,
+        customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &storage::MerchantAccount,
+        _merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self> {
         metrics::PAYMENT_CANCEL_COUNT.add(
             &metrics::CONTEXT,
@@ -67,7 +67,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
@@ -79,7 +79,7 @@ impl types::PaymentsCancelRouterData {
         &'b self,
         state: &AppState,
         connector: &api::ConnectorData,
-        _maybe_customer: &Option<storage::Customer>,
+        _maybe_customer: &Option<domain::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<Self> {

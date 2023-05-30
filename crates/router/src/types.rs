@@ -7,6 +7,7 @@
 // Separation of concerns instead of separation of forms.
 
 pub mod api;
+pub mod domain;
 pub mod storage;
 pub mod transformers;
 
