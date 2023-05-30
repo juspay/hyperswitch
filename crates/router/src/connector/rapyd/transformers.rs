@@ -1,4 +1,4 @@
-use error_stack::{ResultExt, IntoReport};
+use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -181,10 +181,14 @@ impl ForeignFrom<(RapydPaymentStatus, NextAction)> for enums::AttemptStatus {
         let (status, next_action) = item;
         match (status, next_action) {
             (RapydPaymentStatus::Closed, _) => Self::Charged,
-            (RapydPaymentStatus::Active, NextAction::ThreedsVerification) => {
-                Self::AuthenticationPending
-            }
-            (RapydPaymentStatus::Active, NextAction::PendingCapture) => Self::Authorized,
+            (
+                RapydPaymentStatus::Active,
+                NextAction::ThreedsVerification | NextAction::PendingConfirmation,
+            ) => Self::AuthenticationPending,
+            (
+                RapydPaymentStatus::Active,
+                NextAction::PendingCapture | NextAction::NotApplicable,
+            ) => Self::Authorized,
             (
                 RapydPaymentStatus::CanceledByClientOrBank
                 | RapydPaymentStatus::Expired
@@ -193,8 +197,6 @@ impl ForeignFrom<(RapydPaymentStatus, NextAction)> for enums::AttemptStatus {
             ) => Self::Voided,
             (RapydPaymentStatus::Error, _) => Self::Failure,
             (RapydPaymentStatus::New, _) => Self::Authorizing,
-            (RapydPaymentStatus::Active, NextAction::NotApplicable) => todo!(),
-            (RapydPaymentStatus::Active, NextAction::PendingConfirmation) => todo!(),
         }
     }
 }
@@ -244,20 +246,21 @@ pub struct ResponseData {
     pub failure_message: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
-pub struct DesputeResponseData {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DisputeResponseData {
     pub id: String,
     pub amount: i64,
     pub currency: String,
     pub token: String,
     pub dispute_reason_description: String,
     #[serde(with = "common_utils::custom_serde::timestamp")]
-    pub due_date: PrimitiveDateTime,                          
+    pub due_date: PrimitiveDateTime,
     pub status: RapydWebhookDisputeStatus,
     #[serde(with = "common_utils::custom_serde::timestamp")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::timestamp")]
     pub updated_at: PrimitiveDateTime,
+    pub original_transaction_id: String,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -410,16 +413,19 @@ impl<F, T>
                         }),
                     ),
                     _ => {
-                        let redirection_dat = if !data.redirect_url.as_ref().unwrap().is_empty() {
-                            data.redirect_url.as_ref().map(|url| {
-                                Url::parse(url).into_report().change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)
-                            }).transpose()?
-                        } else {
-                            None
-                        };
-                        
-                        let redirection_data = redirection_dat.map(|url| services::RedirectForm::from((url, services::Method::Get)));
-                        
+                        let redirction_url = data
+                            .redirect_url
+                            .as_ref()
+                            .filter(|redirect_str| !redirect_str.is_empty())
+                            .map(|url| {
+                                Url::parse(url).into_report().change_context(
+                                    errors::ConnectorError::FailedToObtainIntegrationUrl,
+                                )
+                            })
+                            .transpose()?;
+
+                        let redirection_data = redirction_url
+                            .map(|url| services::RedirectForm::from((url, services::Method::Get)));
                         (
                             attempt_status,
                             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -474,17 +480,17 @@ pub enum RapydWebhookObjectEventType {
     RefundCompleted,
     PaymentRefundRejected,
     PaymentRefundFailed,
-    PaymentDisputeCreated,              
-    PaymentDisputeUpdated,              
+    PaymentDisputeCreated,
+    PaymentDisputeUpdated,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, strum::Display)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, strum::Display)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RapydWebhookDisputeStatus {
-    Act,                                
-    Rvw,                                
-    Los,                                
-    Win,                                
+    Act,
+    Rvw,
+    Los,
+    Win,
 }
 
 impl TryFrom<RapydWebhookDisputeStatus> for api_models::webhooks::IncomingWebhookEvent {
@@ -502,9 +508,9 @@ impl TryFrom<RapydWebhookDisputeStatus> for api_models::webhooks::IncomingWebhoo
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum WebhookData {
-    PaymentData(ResponseData),
-    RefundData(RefundResponseData),
-    DisputeData(DesputeResponseData),
+    Payment(ResponseData),
+    Refund(RefundResponseData),
+    Dispute(DisputeResponseData),
 }
 
 impl From<ResponseData> for RapydPaymentsResponse {
