@@ -1,3 +1,5 @@
+use std::collections::{HashMap, HashSet};
+
 impl Default for super::settings::Server {
     fn default() -> Self {
         Self {
@@ -135,5 +137,88 @@ impl Default for super::settings::DrainerSettings {
             shutdown_interval: 1000,
             loop_interval: 500,
         }
+    }
+}
+
+use api_models::enums;
+
+use super::settings::{
+    SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
+    SupportedPaymentMethodsForMandate,
+};
+
+impl Default for SupportedPaymentMethodsForMandate {
+    fn default() -> Self {
+        Self(HashMap::from([
+            (
+                enums::PaymentMethod::PayLater,
+                SupportedPaymentMethodTypesForMandate(HashMap::from([(
+                    enums::PaymentMethodType::Klarna,
+                    SupportedConnectorsForMandate {
+                        connector_list: HashSet::from([enums::Connector::Adyen]),
+                    },
+                )])),
+            ),
+            (
+                enums::PaymentMethod::Wallet,
+                SupportedPaymentMethodTypesForMandate(HashMap::from([
+                    (
+                        enums::PaymentMethodType::GooglePay,
+                        SupportedConnectorsForMandate {
+                            connector_list: HashSet::from([
+                                enums::Connector::Stripe,
+                                enums::Connector::Adyen,
+                            ]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::ApplePay,
+                        SupportedConnectorsForMandate {
+                            connector_list: HashSet::from([
+                                enums::Connector::Stripe,
+                                enums::Connector::Adyen,
+                            ]),
+                        },
+                    ),
+                ])),
+            ),
+            (
+                enums::PaymentMethod::Card,
+                SupportedPaymentMethodTypesForMandate(HashMap::from([
+                    (
+                        enums::PaymentMethodType::Credit,
+                        SupportedConnectorsForMandate {
+                            connector_list: HashSet::from([
+                                enums::Connector::Stripe,
+                                enums::Connector::Adyen,
+                                enums::Connector::Authorizedotnet,
+                                enums::Connector::Globalpay,
+                                enums::Connector::Worldpay,
+                                enums::Connector::Multisafepay,
+                                enums::Connector::Nmi,
+                                enums::Connector::Nexinets,
+                                enums::Connector::Noon,
+                            ]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::Debit,
+                        SupportedConnectorsForMandate {
+                            connector_list: HashSet::from([
+                                enums::Connector::Stripe,
+                                enums::Connector::Adyen,
+                                enums::Connector::Authorizedotnet,
+                                enums::Connector::Globalpay,
+                                enums::Connector::Worldpay,
+                                enums::Connector::Multisafepay,
+                                enums::Connector::Nmi,
+                                enums::Connector::Nexinets,
+                                enums::Connector::Noon,
+                            ]),
+                        },
+                    ),
+                ])),
+            ),
+        ]))
     }
 }

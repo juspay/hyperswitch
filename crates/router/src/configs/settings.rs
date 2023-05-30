@@ -85,6 +85,7 @@ pub struct Settings {
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
     pub email: EmailSettings,
+    pub supported_payment_methods_for_mandate: SupportedPaymentMethodsForMandate,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -124,6 +125,22 @@ pub struct DummyConnector {
     pub refund_tolerance: u64,
     pub refund_retrieve_duration: u64,
     pub refund_retrieve_tolerance: u64,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SupportedPaymentMethodsForMandate(
+    pub HashMap<enums::PaymentMethod, SupportedPaymentMethodTypesForMandate>,
+);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SupportedPaymentMethodTypesForMandate(
+    pub HashMap<enums::PaymentMethodType, SupportedConnectorsForMandate>,
+);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SupportedConnectorsForMandate {
+    #[serde(deserialize_with = "connector_deser")]
+    pub connector_list: HashSet<api_models::enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
