@@ -12,7 +12,11 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage, transformers::ForeignTryFrom},
+    types::{
+        self, api,
+        domain::{self},
+        transformers::ForeignTryFrom,
+    },
 };
 
 pub async fn read_string(field: &mut Field) -> Option<String> {
@@ -65,7 +69,7 @@ pub async fn retrieve_file(
 
 pub async fn validate_file_upload(
     state: &AppState,
-    merchant_account: storage::merchant_account::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     create_file_request: api::CreateFileRequest,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     //File Validation based on the purpose of file upload
@@ -113,7 +117,7 @@ pub async fn validate_file_upload(
 pub async fn delete_file_using_file_id(
     state: &AppState,
     file_key: String,
-    merchant_account: &storage_models::merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let file_metadata_object = state
         .store
@@ -149,7 +153,7 @@ pub async fn delete_file_using_file_id(
 pub async fn retrieve_file_from_connector(
     state: &AppState,
     file_metadata: storage_models::file::FileMetadata,
-    merchant_account: &storage_models::merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<Vec<u8>, errors::ApiErrorResponse> {
     let connector = &types::Connector::foreign_try_from(
         file_metadata
@@ -204,7 +208,7 @@ pub async fn retrieve_file_from_connector(
 pub async fn retrieve_file_and_provider_file_id_from_file_id(
     state: &AppState,
     file_id: Option<String>,
-    merchant_account: &storage_models::merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     is_connector_file_data_required: api::FileDataRequired,
 ) -> CustomResult<(Option<Vec<u8>>, Option<String>), errors::ApiErrorResponse> {
     match file_id {
@@ -259,7 +263,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
 //Upload file to connector if it supports / store it in S3 and return file_upload_provider, provider_file_id accordingly
 pub async fn upload_and_get_provider_provider_file_id_connector_label(
     state: &AppState,
-    merchant_account: &storage::merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     create_file_request: &api::CreateFileRequest,
     file_key: String,
 ) -> CustomResult<
