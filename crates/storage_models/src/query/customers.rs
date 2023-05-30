@@ -3,7 +3,7 @@ use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
-    customers::{Customer, CustomerNew, CustomerUpdate, CustomerUpdateInternal},
+    customers::{Customer, CustomerNew, CustomerUpdateInternal},
     errors,
     schema::customers::dsl,
     PgPooledConn, StorageResult,
@@ -22,12 +22,12 @@ impl Customer {
         conn: &PgPooledConn,
         customer_id: String,
         merchant_id: String,
-        customer: CustomerUpdate,
+        customer: CustomerUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             (customer_id.clone(), merchant_id.clone()),
-            CustomerUpdateInternal::from(customer),
+            customer,
         )
         .await
         {
