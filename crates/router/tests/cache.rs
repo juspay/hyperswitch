@@ -72,5 +72,5 @@ async fn invalidate_non_existing_cache_success() {
     // Assert
     let response_body = response.body().await;
     println!("invalidate Cache: {response:?} : {response_body:?}");
-    assert_eq!(response.status(), awc::http::StatusCode::OK);
+    assert_eq!(response.status(), awc::http::StatusCode::NOT_FOUND);
 }

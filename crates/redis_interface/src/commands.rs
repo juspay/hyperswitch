@@ -149,7 +149,11 @@ impl super::RedisConnectionPool {
 
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn delete_key(&self, key: &str) -> CustomResult<DelReply, errors::RedisError> {
-        self.pool.del(key).await.into_report().change_context(errors::RedisError::DeleteFailed)
+        self.pool
+            .del(key)
+            .await
+            .into_report()
+            .change_context(errors::RedisError::DeleteFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]

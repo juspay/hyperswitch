@@ -1,4 +1,5 @@
 use common_utils::errors::CustomResult;
+use redis_interface::DelReply;
 
 use super::errors;
 use crate::{
@@ -15,7 +16,10 @@ pub async fn invalidate(
     ACCOUNTS_CACHE.remove(key).await;
 
     match store.get_redis_conn().delete_key(key).await {
-        Ok(_del_reply) => Ok(services::api::ApplicationResponse::StatusOk),
-        _ => Err(errors::ApiErrorResponse::InvalidRequestUrl.into()),
+        Ok(DelReply::KeyDeleted) => Ok(services::api::ApplicationResponse::StatusOk),
+        Ok(DelReply::KeyNotDeleted) => Err(errors::ApiErrorResponse::InvalidRequestUrl.into()),
+        Err(error) => Err(error
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to invalidate cache")),
     }
 }
