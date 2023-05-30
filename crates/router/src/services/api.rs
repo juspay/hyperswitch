@@ -599,14 +599,23 @@ where
 
     let start_instant = Instant::now();
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
-    let res = handle_application_response::<Q>(
-        request,
-        metrics::request::record_request_time_metric(
-            server_wrap_util(&flow, state, request, payload, func, api_auth),
-            &flow,
-        )
-        .await,
-    );
+    let res = match metrics::request::record_request_time_metric(
+        server_wrap_util(&flow, state, request, payload, func, api_auth),
+        &flow,
+    )
+    .await
+    {
+        Ok(ApplicationResponse::ResponseWithCustomHeader(response, headers)) => {
+            let mut final_response = handle_application_response::<Q>(request, *response);
+            let inner_headers = final_response.headers_mut();
+            headers
+                .iter()
+                .for_each(|(name, value)| inner_headers.append(name.to_owned(), value.to_owned()));
+            final_response
+        }
+        Ok(response) => handle_application_response(request, response),
+        Err(error) => log_and_return_error_response(error),
+    };
 
     let response_code = res.status().as_u16();
     let end_instant = Instant::now();
@@ -622,24 +631,13 @@ where
 
 fn handle_application_response<Q>(
     request: &HttpRequest,
-    wrap_response: Result<
-        ApplicationResponse<Q>,
-        Report<api_models::errors::types::ApiErrorResponse>,
-    >,
+    wrap_response: ApplicationResponse<Q>,
 ) -> HttpResponse
 where
     Q: Serialize + Debug,
 {
     match wrap_response {
-        Ok(ApplicationResponse::ResponseWithCustomHeader(response, headers)) => {
-            let mut final_response = handle_application_response::<Q>(request, Ok(*response));
-            let inner_headers = final_response.headers_mut();
-            headers
-                .iter()
-                .for_each(|(name, value)| inner_headers.append(name.to_owned(), value.to_owned()));
-            final_response
-        }
-        Ok(ApplicationResponse::Json(response)) => match serde_json::to_string(&response) {
+        ApplicationResponse::Json(response) => match serde_json::to_string(&response) {
             Ok(res) => http_response_json(res),
             Err(_) => http_response_err(
                 r#"{
@@ -649,12 +647,12 @@ where
                 }"#,
             ),
         },
-        Ok(ApplicationResponse::StatusOk) => http_response_ok(),
-        Ok(ApplicationResponse::TextPlain(text)) => http_response_plaintext(text),
-        Ok(ApplicationResponse::FileData((file_data, content_type))) => {
+        ApplicationResponse::StatusOk => http_response_ok(),
+        ApplicationResponse::TextPlain(text) => http_response_plaintext(text),
+        ApplicationResponse::FileData((file_data, content_type)) => {
             http_response_file_data(file_data, content_type)
         }
-        Ok(ApplicationResponse::JsonForRedirection(response)) => {
+        ApplicationResponse::JsonForRedirection(response) => {
             match serde_json::to_string(&response) {
                 Ok(res) => http_redirect_response(res, response),
                 Err(_) => http_response_err(
@@ -666,7 +664,7 @@ where
                 ),
             }
         }
-        Ok(ApplicationResponse::Form(redirection_data)) => build_redirection_form(
+        ApplicationResponse::Form(redirection_data) => build_redirection_form(
             &redirection_data.redirect_form,
             redirection_data.payment_method_data,
             redirection_data.amount,
@@ -674,7 +672,12 @@ where
         )
         .respond_to(request)
         .map_into_boxed_body(),
-        Err(error) => log_and_return_error_response(error),
+        ApplicationResponse::ResponseWithCustomHeader(_, _) => log_and_return_error_response(
+            errors::ApiErrorResponse::InvalidRequestData {
+                message: "Found header response inside a header response".to_string(),
+            }
+            .into(),
+        ),
     }
 }
 

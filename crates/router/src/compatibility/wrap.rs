@@ -40,29 +40,33 @@ where
         api_authentication,
     )
     .await;
-    handle_application_response::<Q, S, E>(request, resp)
-}
-
-pub fn handle_application_response<Q, S, E>(
-    request: &HttpRequest,
-    server_resp: Result<api::ApplicationResponse<Q>, error_stack::Report<E>>,
-) -> HttpResponse
-where
-    Q: Serialize + std::fmt::Debug,
-    E: Serialize + error_stack::Context + actix_web::ResponseError + Clone,
-    S: TryFrom<Q> + Serialize,
-    error_stack::Report<E>: services::EmbedError,
-{
-    match server_resp {
+    match resp {
         Ok(api::ApplicationResponse::ResponseWithCustomHeader(response, headers)) => {
-            let mut final_response = handle_application_response::<Q, S, E>(request, Ok(*response));
+            let mut final_response = handle_application_response::<Q, S>(request, *response);
             let inner_headers = final_response.headers_mut();
             headers
                 .iter()
                 .for_each(|(name, value)| inner_headers.append(name.to_owned(), value.to_owned()));
             final_response
         }
-        Ok(api::ApplicationResponse::Json(router_resp)) => {
+        Ok(response) => handle_application_response::<Q, S>(request, response),
+        Err(error) => {
+            logger::error!(api_response_error=?error);
+            api::log_and_return_error_response(error)
+        }
+    }
+}
+
+pub fn handle_application_response<Q, S>(
+    request: &HttpRequest,
+    server_resp: api::ApplicationResponse<Q>,
+) -> HttpResponse
+where
+    Q: Serialize + std::fmt::Debug,
+    S: TryFrom<Q> + Serialize,
+{
+    match server_resp {
+        api::ApplicationResponse::Json(router_resp) => {
             let pg_resp = S::try_from(router_resp);
             match pg_resp {
                 Ok(pg_resp) => match serde_json::to_string(&pg_resp) {
@@ -84,12 +88,12 @@ where
                 ),
             }
         }
-        Ok(api::ApplicationResponse::StatusOk) => api::http_response_ok(),
-        Ok(api::ApplicationResponse::TextPlain(text)) => api::http_response_plaintext(text),
-        Ok(api::ApplicationResponse::FileData((file_data, content_type))) => {
+        api::ApplicationResponse::StatusOk => api::http_response_ok(),
+        api::ApplicationResponse::TextPlain(text) => api::http_response_plaintext(text),
+        api::ApplicationResponse::FileData((file_data, content_type)) => {
             api::http_response_file_data(file_data, content_type)
         }
-        Ok(api::ApplicationResponse::JsonForRedirection(response)) => {
+        api::ApplicationResponse::JsonForRedirection(response) => {
             match serde_json::to_string(&response) {
                 Ok(res) => api::http_redirect_response(res, response),
                 Err(_) => api::http_response_err(
@@ -101,7 +105,7 @@ where
                 ),
             }
         }
-        Ok(api::ApplicationResponse::Form(redirection_data)) => api::build_redirection_form(
+        api::ApplicationResponse::Form(redirection_data) => api::build_redirection_form(
             &redirection_data.redirect_form,
             redirection_data.payment_method_data,
             redirection_data.amount,
@@ -109,10 +113,13 @@ where
         )
         .respond_to(request)
         .map_into_boxed_body(),
-
-        Err(error) => {
-            logger::error!(api_response_error=?error);
-            api::log_and_return_error_response(error)
+        api::ApplicationResponse::ResponseWithCustomHeader(_, _) => {
+            api::log_and_return_error_response(
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Found header response inside a header response".to_string(),
+                }
+                .into(),
+            )
         }
     }
 }

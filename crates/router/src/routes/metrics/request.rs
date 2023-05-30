@@ -54,8 +54,15 @@ pub fn status_code_metrics(status_code: i64, flow: String, merchant_id: String) 
 pub fn track_response_status_code<Q>(response: &ApplicationResponse<Q>) -> i64 {
     match response {
         ApplicationResponse::ResponseWithCustomHeader(response, _) => {
-            track_response_status_code(response)
+            track_application_response_status_code(response)
         }
+        _ => track_application_response_status_code(response),
+    }
+}
+
+pub fn track_application_response_status_code<Q>(response: &ApplicationResponse<Q>) -> i64 {
+    match response {
+        ApplicationResponse::ResponseWithCustomHeader(_, _) => 500,
         ApplicationResponse::Json(_)
         | ApplicationResponse::StatusOk
         | ApplicationResponse::TextPlain(_)
