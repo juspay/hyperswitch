@@ -683,8 +683,7 @@ impl RefundInterface for MockDb {
         refund: storage_types::RefundUpdate,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage_types::Refund, errors::StorageError> {
-        match self
-            .refunds
+        self.refunds
             .lock()
             .await
             .iter_mut()
@@ -693,15 +692,11 @@ impl RefundInterface for MockDb {
                 let refund_updated = RefundUpdateInternal::from(refund).create_refund(r.clone());
                 *r = refund_updated.clone();
                 refund_updated
-            }) {
-            Some(refund_updated) => Ok(refund_updated),
-            None => {
-                return Err(errors::StorageError::ValueNotFound(
-                    "cannot find refund to update".to_string(),
-                )
-                .into())
-            }
-        }
+            })
+            .ok_or_else(|| {
+                errors::StorageError::ValueNotFound("cannot find refund to update".to_string())
+                    .into()
+            })
     }
 
     async fn find_refund_by_merchant_id_refund_id(
@@ -771,7 +766,7 @@ impl RefundInterface for MockDb {
         Ok(refunds
             .iter()
             .filter(|refund| refund.merchant_id == merchant_id)
-            .take(limit as usize)
+            .take(usize::try_from(limit).unwrap())
             .cloned()
             .collect::<Vec<_>>())
     }
