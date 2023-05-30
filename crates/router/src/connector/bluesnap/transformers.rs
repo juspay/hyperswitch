@@ -234,7 +234,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                             }))
                         }
                         _ => Err(errors::ConnectorError::NotSupported {
-                            message: "Wallet".to_string(),
+                            message: "Apple Pay Wallet".to_string(),
                             connector: "Bluesnap",
                             payment_experience: "RedirectToUrl".to_string(),
                         }),

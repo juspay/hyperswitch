@@ -668,7 +668,7 @@ fn get_wallet_details(
                 NexinetsProduct::Applepay,
             )),
             _ => Err(errors::ConnectorError::NotSupported {
-                message: "Wallet".to_string(),
+                message: "Apple Pay Wallet".to_string(),
                 connector: "NexiNets",
                 payment_experience: "RedirectToUrl".to_string(),
             })

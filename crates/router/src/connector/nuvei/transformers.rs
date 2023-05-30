@@ -614,7 +614,7 @@ impl<F>
                         Ok(Self::from(apple_pay_wallet_data))
                     }
                     _ => Err(errors::ConnectorError::NotSupported {
-                        message: "Wallet".to_string(),
+                        message: "Apple Pay Wallet".to_string(),
                         connector: "Nuvei",
                         payment_experience: "RedirectToUrl".to_string(),
                     })

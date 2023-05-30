@@ -1053,7 +1053,7 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                         })
                     }
                     _ => Err(errors::ConnectorError::NotSupported {
-                        message: "Wallet".to_string(),
+                        message: "Apple Pay Wallet".to_string(),
                         connector: "Adyen",
                         payment_experience: "RedirectToUrl".to_string(),
                     })

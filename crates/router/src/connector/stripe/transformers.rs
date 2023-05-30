@@ -1034,7 +1034,7 @@ fn create_stripe_payment_method(
                     StripeBillingAddress::default(),
                 )),
                 _ => Err(errors::ConnectorError::NotSupported {
-                    message: "Wallet".to_string(),
+                    message: "Apple Pay Wallet".to_string(),
                     connector: "Stripe",
                     payment_experience: "RedirectToUrl".to_string(),
                 })
@@ -2483,7 +2483,7 @@ impl
                         Ok(Self::Wallet(wallet_info))
                     }
                     _ => Err(errors::ConnectorError::NotSupported {
-                        message: "Wallet".to_string(),
+                        message: "Apple Pay Wallet".to_string(),
                         connector: "Stripe",
                         payment_experience: "RedirectToUrl".to_string(),
                     })

@@ -860,6 +860,7 @@ pub struct GpayTokenizationData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(untagged)]
 pub enum ApplePayData {
     ApplePayRedirect(ApplePayRedirectData),
     ApplePayWalletData(ApplePayWalletData),

@@ -188,9 +188,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                             ))
                         }
                         _ => Err(errors::ConnectorError::NotSupported {
-                            message: "Wallet".to_string(),
+                            message: "Apple Pay Wallet".to_string(),
                             connector: "Stripe",
-                            payment_experience: "RedirectToUrl".to_string(),
+                            payment_experience: "InvokeSdkClient".to_string(),
                         }),
                     }
                 }
