@@ -7,9 +7,9 @@ use crate::{
         payments,
     },
     logger,
-    routes::AppState,
+    routes::{metrics, AppState},
     services,
-    types::{self, api, storage},
+    types::{self, api, domain, storage},
 };
 
 pub async fn create_connector_customer<F: Clone, T: Clone>(
@@ -51,6 +51,15 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
     .await
     .map_err(|error| error.to_payment_failed_response())?;
 
+    metrics::CONNECTOR_CUSTOMER_CREATE.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes(
+            "connector",
+            connector.connector_name.to_string(),
+        )],
+    );
+
     let connector_customer_id = match resp.response {
         Ok(response) => match response {
             types::PaymentsResponseData::ConnectorCustomerResponse {
@@ -81,7 +90,7 @@ type CreateCustomerCheck = (
 pub fn should_call_connector_create_customer(
     state: &AppState,
     connector: &api::ConnectorData,
-    customer: &Option<storage::Customer>,
+    customer: &Option<domain::Customer>,
 ) -> RouterResult<CreateCustomerCheck> {
     let connector_name = connector.connector_name.to_string();
     //Check if create customer is required for the connector
