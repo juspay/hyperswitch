@@ -332,7 +332,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for CompleteAutho
 
         helpers::validate_payment_method_fields_present(request)?;
 
-        let mandate_type = helpers::validate_mandate(request, false)?;
+        let mandate_type =
+            helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
 
         Ok((

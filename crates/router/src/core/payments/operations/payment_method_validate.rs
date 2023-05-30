@@ -44,7 +44,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-        let mandate_type = helpers::validate_mandate(request, false)?;
+        let mandate_type =
+            helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
         let validation_id = core_utils::get_or_generate_id("validation_id", &None, "val")?;
 
         Ok((
