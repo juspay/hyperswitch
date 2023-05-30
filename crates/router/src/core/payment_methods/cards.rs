@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 use api_models::{
     admin::{self, PaymentMethodsEnabled},
@@ -837,6 +840,7 @@ pub async fn list_payment_methods(
             address.as_ref(),
             mca.connector_name,
             pm_config_mapping,
+            &state.conf.supported_payment_methods_for_mandate,
         )
         .await?;
     }
@@ -1132,6 +1136,7 @@ pub async fn filter_payment_methods(
     address: Option<&domain::Address>,
     connector: String,
     config: &settings::ConnectorFilters,
+    supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.into_iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method);
@@ -1222,6 +1227,21 @@ pub async fn filter_payment_methods(
                         &payment_method_object.payment_method_type,
                     );
 
+                    let connector_variant = api_enums::Connector::from_str(connector.as_str())
+                        .into_report()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                    let filter7 = payment_attempt
+                        .and_then(|attempt| attempt.mandate_details.as_ref())
+                        .map(|_mandate_details| {
+                            filter_pm_based_on_supported_payments_for_mandate(
+                                supported_payment_methods_for_mandate,
+                                &payment_method,
+                                &payment_method_object.payment_method_type,
+                                connector_variant,
+                            )
+                        })
+                        .unwrap_or(true);
+
                     let connector = connector.clone();
 
                     let response_pm_type = ResponsePaymentMethodIntermediate::new(
@@ -1230,7 +1250,7 @@ pub async fn filter_payment_methods(
                         payment_method,
                     );
 
-                    if filter && filter2 && filter3 && filter4 && filter5 && filter6 {
+                    if filter && filter2 && filter3 && filter4 && filter5 && filter6 && filter7 {
                         resp.push(response_pm_type);
                     }
                 }
@@ -1238,6 +1258,20 @@ pub async fn filter_payment_methods(
         }
     }
     Ok(())
+}
+
+fn filter_pm_based_on_supported_payments_for_mandate(
+    supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
+    payment_method: &api_enums::PaymentMethod,
+    payment_method_type: &api_enums::PaymentMethodType,
+    connector: api_enums::Connector,
+) -> bool {
+    supported_payment_methods_for_mandate
+        .0
+        .get(payment_method)
+        .and_then(|payment_method_type_hm| payment_method_type_hm.0.get(payment_method_type))
+        .map(|supported_connectors| supported_connectors.connector_list.contains(&connector))
+        .unwrap_or(false)
 }
 
 fn filter_pm_based_on_config<'a>(
