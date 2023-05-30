@@ -18,18 +18,18 @@ use crate::{
     types::{
         self,
         api::{self, refunds},
+        domain,
         storage::{self, enums, ProcessTrackerExt},
         transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt},
 };
-
 // ********************************************** REFUND EXECUTE **********************************************
 
 #[instrument(skip_all)]
 pub async fn refund_create_core(
     state: &AppState,
-    merchant_account: storage::merchant_account::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: refunds::RefundRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
     let db = &*state.store;
@@ -114,7 +114,7 @@ pub async fn refund_create_core(
 pub async fn trigger_refund_to_gateway(
     state: &AppState,
     refund: &storage::Refund,
-    merchant_account: &storage::merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     creds_identifier: Option<String>,
@@ -245,12 +245,12 @@ pub async fn trigger_refund_to_gateway(
 
 pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
     state: &'a AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     request: Req,
     f: F,
 ) -> RouterResponse<refunds::RefundResponse>
 where
-    F: Fn(&'a AppState, storage::MerchantAccount, Req) -> Fut,
+    F: Fn(&'a AppState, domain::MerchantAccount, Req) -> Fut,
     Fut: futures::Future<Output = RouterResult<T>>,
     T: ForeignInto<refunds::RefundResponse>,
 {
@@ -262,7 +262,7 @@ where
 #[instrument(skip_all)]
 pub async fn refund_retrieve_core(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     request: refunds::RefundsRetrieveRequest,
 ) -> RouterResult<storage::Refund> {
     let refund_id = request.refund_id;
@@ -354,7 +354,7 @@ fn should_call_refund(refund: &storage_models::refund::Refund, force_sync: bool)
 #[instrument(skip_all)]
 pub async fn sync_refund_with_gateway(
     state: &AppState,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     refund: &storage::Refund,
@@ -452,7 +452,7 @@ pub async fn sync_refund_with_gateway(
 
 pub async fn refund_update_core(
     db: &dyn db::StorageInterface,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     refund_id: &str,
     req: refunds::RefundUpdateRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
@@ -486,7 +486,7 @@ pub async fn refund_update_core(
 #[instrument(skip_all)]
 pub async fn validate_and_create_refund(
     state: &AppState,
-    merchant_account: &storage::merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     refund_amount: i64,
@@ -628,7 +628,7 @@ pub async fn validate_and_create_refund(
 #[cfg(feature = "olap")]
 pub async fn refund_list(
     db: &dyn db::StorageInterface,
-    merchant_account: storage::merchant_account::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
     let limit = validator::validate_refund_list(req.limit)?;
@@ -681,7 +681,7 @@ pub async fn schedule_refund_execution(
     state: &AppState,
     refund: storage::Refund,
     refund_type: api_models::refunds::RefundType,
-    merchant_account: &storage::merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     creds_identifier: Option<String>,

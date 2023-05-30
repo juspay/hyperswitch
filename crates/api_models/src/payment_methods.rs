@@ -205,6 +205,8 @@ pub struct ResponsePaymentMethodTypes {
 
     /// The Bank debit payment method information, if applicable for a payment method type.
     pub bank_debits: Option<BankDebitTypes>,
+    /// The Bank transfer payment method information, if applicable for a payment method type.
+    pub bank_transfers: Option<BankTransferTypes>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -215,6 +217,13 @@ pub struct ResponsePaymentMethodsEnabled {
 
     /// The list of payment method types enabled for a connector account
     pub payment_method_types: Vec<ResponsePaymentMethodTypes>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct BankTransferTypes {
+    /// The list of eligible connectors for a given payment experience
+    #[schema(example = json!(["stripe", "adyen"]))]
+    pub eligible_connectors: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -430,8 +439,8 @@ pub struct PaymentMethodListResponse {
     ))]
     pub payment_methods: Vec<ResponsePaymentMethodsEnabled>,
     /// Value indicating if the current payment is a mandate payment
-    #[schema(example = "new_mandate_txn")]
-    pub mandate_payment: Option<payments::MandateTxnType>,
+    #[schema(value_type = MandateType)]
+    pub mandate_payment: Option<payments::MandateType>,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
@@ -606,5 +615,15 @@ pub struct TokenizedWalletValue1 {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedWalletValue2 {
+    pub customer_id: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankTransferValue1 {
+    pub data: payments::BankTransferData,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankTransferValue2 {
     pub customer_id: Option<String>,
 }

@@ -71,6 +71,10 @@ pub enum StorageError {
     CustomerRedacted,
     #[error("Deserialization failure")]
     DeserializationFailed,
+    #[error("Error while encrypting data")]
+    EncryptionError,
+    #[error("Error while decrypting data from database")]
+    DecryptionError,
     #[error("RedisError: {0:?}")]
     RedisError(error_stack::Report<RedisError>),
 }
@@ -444,6 +448,8 @@ pub enum WebhooksFlowError {
     WebhookEventCreationFailed,
     #[error("Webhook event updation failed")]
     WebhookEventUpdationFailed,
+    #[error("Outgoing webhook body signing failed")]
+    OutgoingWebhookSigningFailed,
     #[error("Unable to fork webhooks flow for outgoing webhooks")]
     ForkFlowFailed,
     #[error("Webhook api call to merchant failed")]
@@ -462,6 +468,8 @@ pub enum WebhooksFlowError {
     DisputeWebhookValidationFailed,
     #[error("Outgoing webhook body encoding failed")]
     OutgoingWebhookEncodingFailed,
+    #[error("Missing required field: {field_name}")]
+    MissingRequiredField { field_name: &'static str },
 }
 
 #[cfg(feature = "detailed_errors")]

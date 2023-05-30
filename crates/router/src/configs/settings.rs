@@ -37,6 +37,18 @@ pub enum Subcommand {
     #[cfg(feature = "openapi")]
     /// Generate the OpenAPI specification file from code.
     GenerateOpenapiSpec,
+    #[cfg(feature = "pii-encryption-script")]
+    EncryptDatabase,
+}
+
+#[cfg(feature = "kms")]
+/// Store the decrypted kms secret values for active use in the application
+/// Currently using `StrongSecret` won't have any effect as this struct have smart pointers to heap
+/// allocations.
+/// note: we can consider adding such behaviour in the future with custom implementation
+#[derive(Clone)]
+pub struct ActiveKmsSecrets {
+    pub jwekey: masking::Secret<Jwekey>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -205,6 +217,7 @@ pub struct CurrencyCountryFlowFilter {
     pub country: Option<HashSet<api_models::enums::CountryAlpha2>>,
     pub not_available_flows: Option<NotAvailableFlows>,
 }
+
 #[derive(Debug, Deserialize, Copy, Clone, Default)]
 #[serde(default)]
 pub struct NotAvailableFlows {
@@ -270,11 +283,13 @@ pub struct Secrets {
     pub jwt_secret: String,
     #[cfg(not(feature = "kms"))]
     pub admin_api_key: String,
-
+    pub master_enc_key: String,
     #[cfg(feature = "kms")]
     pub kms_encrypted_jwt_secret: String,
     #[cfg(feature = "kms")]
     pub kms_encrypted_admin_api_key: String,
+
+    pub migration_encryption_timestamp: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]

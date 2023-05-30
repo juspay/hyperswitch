@@ -29,7 +29,7 @@ Use the following base URLs when making requests to the APIs:
 | Environment   |  Base URL                          |
 |---------------|------------------------------------|
 | Sandbox       | <https://sandbox.hyperswitch.io>   |
-| Production    | Coming Soon!                       |
+| Production    | <https://api.hyperswitch.io>       |
 
 ## Authentication
 
@@ -38,10 +38,10 @@ account, you are given a secret key (also referred as api-key) and a publishable
 You may authenticate all API requests with Hyperswitch server by providing the appropriate key in
 the request Authorization header.
 
-| Key           |  Description                                                                                  |
-|---------------|-----------------------------------------------------------------------------------------------|
-| Sandbox       | Private key. Used to authenticate all API requests from your merchant server                  |
-| Production    | Unique identifier for your account. Used to authenticate API requests from your app's client  |
+| Key             |  Description                                                                                  |
+|-----------------|-----------------------------------------------------------------------------------------------|
+| api-key         | Private key. Used to authenticate all API requests from your merchant server                  |
+| publishable key | Unique identifier for your account. Used to authenticate API requests from your app's client  |
 
 Never share your secret api keys. Keep them guarded and secure.
 "#,
@@ -65,15 +65,16 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::routes::refunds::refunds_retrieve,
         crate::routes::refunds::refunds_update,
         crate::routes::refunds::refunds_list,
-        crate::routes::admin::merchant_account_create,
-        crate::routes::admin::retrieve_merchant_account,
-        crate::routes::admin::update_merchant_account,
-        crate::routes::admin::delete_merchant_account,
-        crate::routes::admin::payment_connector_create,
-        crate::routes::admin::payment_connector_retrieve,
-        crate::routes::admin::payment_connector_list,
-        crate::routes::admin::payment_connector_update,
-        crate::routes::admin::payment_connector_delete,
+        // Commenting this out as these are admin apis and not to be used by the merchant
+        // crate::routes::admin::merchant_account_create,
+        // crate::routes::admin::retrieve_merchant_account,
+        // crate::routes::admin::update_merchant_account,
+        // crate::routes::admin::delete_merchant_account,
+        // crate::routes::admin::payment_connector_create,
+        // crate::routes::admin::payment_connector_retrieve,
+        // crate::routes::admin::payment_connector_list,
+        // crate::routes::admin::payment_connector_update,
+        // crate::routes::admin::payment_connector_delete,
         crate::routes::mandates::get_mandate,
         crate::routes::mandates::revoke_mandate,
         crate::routes::payments::payments_create,
@@ -114,6 +115,7 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::types::api::admin::MerchantAccountUpdate,
         crate::types::api::admin::MerchantAccountDeleteResponse,
         crate::types::api::admin::MerchantConnectorDeleteResponse,
+        crate::types::api::admin::MerchantConnectorResponse,
         crate::types::api::customers::CustomerRequest,
         crate::types::api::customers::CustomerDeleteResponse,
         crate::types::api::payment_methods::PaymentMethodCreate,
@@ -148,10 +150,25 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::DisputeStage,
         api_models::enums::DisputeStatus,
         api_models::enums::CountryAlpha2,
+        api_models::enums::FrmAction,
+        api_models::enums::FrmPreferredFlowTypes,
         api_models::admin::MerchantConnectorCreate,
+        api_models::admin::MerchantConnectorUpdate,
+        api_models::admin::PrimaryBusinessDetails,
+        api_models::admin::FrmConfigs,
         api_models::admin::PaymentMethodsEnabled,
+        api_models::admin::MerchantConnectorDetailsWrap,
+        api_models::admin::MerchantConnectorDetails,
         api_models::disputes::DisputeResponse,
+        api_models::disputes::DisputeResponsePaymentsRetrieve,
         api_models::payments::AddressDetails,
+        api_models::payments::BankDebitData,
+        api_models::payments::AliPayRedirection,
+        api_models::payments::MbWayRedirection,
+        api_models::payments::MobilePayRedirection,
+        api_models::payments::WeChatPayRedirection,
+        api_models::payments::BankDebitBilling,
+        api_models::payments::CryptoData,
         api_models::payments::Address,
         api_models::payments::BankRedirectData,
         api_models::payments::BankRedirectBilling,
@@ -160,7 +177,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::NextActionType,
         api_models::payments::Metadata,
         api_models::payments::WalletData,
-        api_models::payments::NextAction,
+        api_models::payments::NextActionData,
         api_models::payments::PayLaterData,
         api_models::payments::MandateData,
         api_models::payments::PhoneDetails,
@@ -172,6 +189,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::Card,
         api_models::payments::CustomerAcceptance,
         api_models::payments::PaymentsRequest,
+        api_models::payments::PaymentsCreateRequest,
         api_models::payments::PaymentsResponse,
         api_models::payments::PaymentsStartRequest,
         api_models::payments::PaymentRetrieveBody,

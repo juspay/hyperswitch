@@ -16,7 +16,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage},
+    types::{self, api, domain, storage},
 };
 
 #[async_trait]
@@ -25,8 +25,8 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         &self,
         state: &AppState,
         connector_id: &str,
-        merchant_account: &storage::MerchantAccount,
-        customer: &Option<storage::Customer>,
+        merchant_account: &domain::MerchantAccount,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 }
 
@@ -36,9 +36,9 @@ pub trait Feature<F, T> {
         self,
         state: &AppState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<storage::Customer>,
+        maybe_customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -49,7 +49,7 @@ pub trait Feature<F, T> {
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult>
     where
         F: Clone,
@@ -68,6 +68,19 @@ pub trait Feature<F, T> {
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
         Ok(None)
+    }
+
+    async fn preprocessing_steps<'a>(
+        self,
+        _state: &AppState,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Self>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(self)
     }
 
     async fn create_connector_customer<'a>(
@@ -248,7 +261,6 @@ default_imp_for_connector_redirect_response!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
-    connector::Noon,
     connector::Opennode,
     connector::Payeezy,
     connector::Payu,
@@ -574,6 +586,69 @@ default_imp_for_defend_dispute!(
     connector::Shift4,
     connector::Trustpay,
     connector::Opennode,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+macro_rules! default_imp_for_pre_processing_steps{
+    ($($path:ident::$connector:ident),*)=> {
+        $(
+            impl api::PaymentsPreProcessing for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::PreProcessing,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentsPreProcessing for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::PreProcessing,
+        types::PaymentsPreProcessingData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_pre_processing_steps!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Dlocal,
+    connector::Iatapay,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Paypal,
+    connector::Payu,
+    connector::Rapyd,
+    connector::Shift4,
+    connector::Trustpay,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen

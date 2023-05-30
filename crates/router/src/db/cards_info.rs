@@ -34,8 +34,14 @@ impl CardsInfoInterface for Store {
 impl CardsInfoInterface for MockDb {
     async fn get_card_info(
         &self,
-        _card_iin: &str,
+        card_iin: &str,
     ) -> CustomResult<Option<CardInfo>, errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
+        Ok(self
+            .cards_info
+            .lock()
+            .await
+            .iter()
+            .find(|ci| ci.card_iin == card_iin)
+            .cloned())
     }
 }

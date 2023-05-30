@@ -468,6 +468,7 @@ pub enum PaymentMethod {
     PayLater,
     Wallet,
     BankRedirect,
+    BankTransfer,
     Crypto,
     BankDebit,
 }
@@ -568,7 +569,6 @@ pub enum MandateStatus {
     Clone,
     Copy,
     Debug,
-    Default,
     Eq,
     PartialEq,
     ToSchema,
@@ -585,7 +585,6 @@ pub enum Connector {
     Aci,
     Adyen,
     Airwallex,
-    Applepay,
     Authorizedotnet,
     Bitpay,
     Bluesnap,
@@ -593,8 +592,6 @@ pub enum Connector {
     Checkout,
     Coinbase,
     Cybersource,
-    #[default]
-    Dummy,
     Iatapay,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "dummyconnector1")]
@@ -619,7 +616,7 @@ pub enum Connector {
     Multisafepay,
     Nexinets,
     Nmi,
-    // Noon, added as template code for future usage
+    Noon,
     Nuvei,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paypal,
@@ -631,7 +628,6 @@ pub enum Connector {
     Worldline,
     Worldpay,
     Zen,
-    Signifyd,
 }
 
 impl Connector {
@@ -659,6 +655,7 @@ impl Connector {
     Copy,
     Debug,
     Eq,
+    Hash,
     PartialEq,
     serde::Serialize,
     serde::Deserialize,
@@ -702,7 +699,7 @@ pub enum RoutableConnectors {
     Multisafepay,
     Nexinets,
     Nmi,
-    // Noon, added as template code for future usage
+    Noon,
     Nuvei,
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage

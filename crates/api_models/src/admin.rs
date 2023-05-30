@@ -1,4 +1,7 @@
-use common_utils::pii;
+use common_utils::{
+    crypto::{Encryptable, OptionalEncryptableName},
+    pii,
+};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url;
@@ -15,8 +18,8 @@ pub struct MerchantAccountCreate {
     pub merchant_id: String,
 
     /// Name of the Merchant Account
-    #[schema(example = "NewAge Retailer")]
-    pub merchant_name: Option<String>,
+    #[schema(value_type= Option<String>,example = "NewAge Retailer")]
+    pub merchant_name: Option<Secret<String>>,
 
     /// Merchant related details
     pub merchant_details: Option<MerchantDetails>,
@@ -157,8 +160,8 @@ pub struct MerchantAccountResponse {
     pub merchant_id: String,
 
     /// Name of the Merchant Account
-    #[schema(example = "NewAge Retailer")]
-    pub merchant_name: Option<String>,
+    #[schema(value_type = Option<String>,example = "NewAge Retailer")]
+    pub merchant_name: OptionalEncryptableName,
 
     /// The URL to redirect after the completion of the operation
     #[schema(max_length = 255, example = "https://www.example.com/success")]
@@ -178,7 +181,7 @@ pub struct MerchantAccountResponse {
 
     /// Merchant related details
     #[schema(value_type = Option<MerchantDetails>)]
-    pub merchant_details: Option<serde_json::Value>,
+    pub merchant_details: Option<Encryptable<pii::SecretSerdeValue>>,
 
     /// Webhook related details
     #[schema(value_type = Option<WebhookDetails>)]
@@ -321,7 +324,9 @@ impl From<StraightThroughAlgorithm> for StraightThroughAlgorithmSerde {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrimaryBusinessDetails {
+    #[schema(value_type = CountryAlpha2)]
     pub country: api_enums::CountryAlpha2,
+    #[schema(example = "food")]
     pub business: String,
 }
 
@@ -452,10 +457,12 @@ pub struct MerchantConnectorCreate {
     pub frm_configs: Option<FrmConfigs>,
 
     /// Business Country of the connector
-    #[schema(value_type = CountryAlpha2, example = "US")]
     #[cfg(feature = "multiple_mca")]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     pub business_country: api_enums::CountryAlpha2,
+
     #[cfg(not(feature = "multiple_mca"))]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     ///Business Type of the merchant
@@ -633,7 +640,11 @@ pub struct FrmConfigs {
     pub frm_enabled_pms: Option<Vec<String>>,
     pub frm_enabled_pm_types: Option<Vec<String>>,
     pub frm_enabled_gateways: Option<Vec<String>>,
-    pub frm_action: api_enums::FrmAction, //What should be the action if FRM declines the txn (autorefund/cancel txn/manual review)
+    /// What should be the action if FRM declines the txn (autorefund/cancel txn/manual review)
+    #[schema(value_type = FrmAction)]
+    pub frm_action: api_enums::FrmAction,
+    /// Whether to make a call to the FRM before or after the payment
+    #[schema(value_type = FrmPreferredFlowTypes)]
     pub frm_preferred_flow_type: api_enums::FrmPreferredFlowTypes,
 }
 /// Details of all the payment methods enabled for the connector for the given merchant account
@@ -657,7 +668,9 @@ pub struct PaymentMethodsEnabled {
     rename_all = "snake_case"
 )]
 pub enum AcceptedCurrencies {
+    #[schema(value_type = Vec<Currency>)]
     EnableOnly(Vec<api_enums::Currency>),
+    #[schema(value_type = Vec<Currency>)]
     DisableOnly(Vec<api_enums::Currency>),
     AllAccepted,
 }
@@ -670,7 +683,9 @@ pub enum AcceptedCurrencies {
     rename_all = "snake_case"
 )]
 pub enum AcceptedCountries {
+    #[schema(value_type = Vec<CountryAlpha2>)]
     EnableOnly(Vec<api_enums::CountryAlpha2>),
+    #[schema(value_type = Vec<CountryAlpha2>)]
     DisableOnly(Vec<api_enums::CountryAlpha2>),
     AllAccepted,
 }
