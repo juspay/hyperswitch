@@ -76,10 +76,9 @@ pub struct GooglePayData {
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
-pub struct GooglePayDetails{
+pub struct GooglePayDetails {
     encrypted_payment_token: Secret<String>,
     payment_data_type: String,
-
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -121,18 +120,20 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
                     },
                     payment_method_type: AirwallexPaymentType::Card,
                 }))
-            },
+            }
             api::PaymentMethodData::Wallet(ref wallet_data) => {
                 let wallet_details: AirwallexPaymentMethod = match wallet_data {
                     api_models::payments::WalletData::GooglePay(gpay_details) => {
-                        AirwallexPaymentMethod::Wallets(WalletData::GooglePay(GooglePayData { 
-                            googlepay: GooglePayDetails{
-                                encrypted_payment_token: Secret::new(gpay_details.tokenization_data.token.clone()),
-                                payment_data_type: gpay_details.tokenization_data.token_type.clone(),
+                        AirwallexPaymentMethod::Wallets(WalletData::GooglePay(GooglePayData {
+                            googlepay: GooglePayDetails {
+                                encrypted_payment_token: Secret::new(
+                                    gpay_details.tokenization_data.token.clone(),
+                                ),
+                                payment_data_type: "encrypted_payment_token".to_string(), // airwallex gpay only accecpt encrypted_payment_token form of payment
                             },
                             payment_method_type: AirwallexPaymentType::Googlepay,
                         }))
-                    },
+                    }
                     _ => Err(errors::ConnectorError::NotImplemented(
                         "Payment method".to_string(),
                     ))?,

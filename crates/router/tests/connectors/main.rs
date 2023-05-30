@@ -9,6 +9,7 @@ mod aci;
 mod adyen;
 mod adyen_uk_ui;
 mod airwallex;
+mod airwallex_ui;
 mod authorizedotnet;
 mod bambora;
 mod bitpay;
