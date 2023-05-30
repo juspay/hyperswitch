@@ -22,7 +22,7 @@ CREATE type "PayoutStatus" AS ENUM (
 
 CREATE type "PayoutType" AS ENUM ('card', 'bank');
 
-CREATE TABLE PAYOUT_CREATE (
+CREATE TABLE PAYOUT_ATTEMPT (
     id SERIAL PRIMARY KEY,
     payout_id VARCHAR (64) NOT NULL,
     customer_id VARCHAR (64) NOT NULL,

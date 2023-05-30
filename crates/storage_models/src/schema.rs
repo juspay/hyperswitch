@@ -522,7 +522,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payout_create (id) {
+    payout_attempt (id) {
         id -> Int4,
         #[max_length = 64]
         payout_id -> Varchar,
@@ -688,7 +688,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     payment_attempt,
     payment_intent,
     payment_methods,
-    payout_create,
+    payout_attempt,
     payouts,
     process_tracker,
     refund,
