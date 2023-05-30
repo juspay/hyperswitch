@@ -776,7 +776,7 @@ pub enum BankTransferData {
         billing_details: SepaAndBacsBillingDetails,
 
         /// The two-letter ISO country code for SEPA and BACS
-        #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+        #[schema(value_type = CountryAlpha2, example = "US")]
         country: api_enums::CountryAlpha2,
     },
     BacsBankTransfer {
