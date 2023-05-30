@@ -426,6 +426,7 @@ impl<F, T>
 
                         let redirection_data = redirction_url
                             .map(|url| services::RedirectForm::from((url, services::Method::Get)));
+
                         (
                             attempt_status,
                             Ok(types::PaymentsResponseData::TransactionResponse {
