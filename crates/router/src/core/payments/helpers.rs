@@ -79,7 +79,6 @@ pub async fn get_address_for_payment_request(
                 None => {
                     // generate a new address here
                     let customer_id = customer_id.as_deref().get_required_value("customer_id")?;
-                    // .change_context(errors::ApiErrorResponse::CustomerNotFound)?;
 
                     let address_details = address.address.clone().unwrap_or_default();
                     Some(
