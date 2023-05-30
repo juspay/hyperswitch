@@ -1,5 +1,6 @@
 use common_utils::{ext_traits::Encode, pii};
 use error_stack::{report, ResultExt};
+use futures::future;
 use router_env::{instrument, logger, tracing};
 use storage_models::enums as storage_enums;
 
@@ -15,7 +16,7 @@ use crate::{
             customers,
             mandates::{self, MandateResponseExt},
         },
-        storage,
+        domain, storage,
         transformers::{ForeignInto, ForeignTryFrom},
     },
     utils::OptionExt,
@@ -24,7 +25,7 @@ use crate::{
 #[instrument(skip(state))]
 pub async fn get_mandate(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: mandates::MandateId,
 ) -> RouterResponse<mandates::MandateResponse> {
     let mandate = state
@@ -40,7 +41,7 @@ pub async fn get_mandate(
 #[instrument(skip(db))]
 pub async fn revoke_mandate(
     db: &dyn StorageInterface,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: mandates::MandateId,
 ) -> RouterResponse<mandates::MandateRevokedResponse> {
     let mandate = db
@@ -96,7 +97,7 @@ pub async fn update_connector_mandate_id(
 #[instrument(skip(state))]
 pub async fn get_customer_mandates(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: customers::CustomerId,
 ) -> RouterResponse<Vec<mandates::MandateResponse>> {
     let mandates = state
@@ -128,7 +129,7 @@ pub async fn get_customer_mandates(
 pub async fn mandate_procedure<F, FData>(
     state: &AppState,
     mut resp: types::RouterData<F, FData, types::PaymentsResponseData>,
-    maybe_customer: &Option<storage::Customer>,
+    maybe_customer: &Option<domain::Customer>,
     pm_id: Option<String>,
 ) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
@@ -209,7 +210,7 @@ where
                         pm_id.get_required_value("payment_method_id")?,
                         mandate_ids,
                         network_txn_id,
-                    ) {
+                    )? {
                         let connector = new_mandate_data.connector.clone();
                         logger::debug!("{:?}", new_mandate_data);
                         resp.request
@@ -243,9 +244,7 @@ where
                             .store
                             .insert_mandate(new_mandate_data)
                             .await
-                            .to_duplicate_response(
-                                errors::ApiErrorResponse::DuplicateRefundRequest,
-                            )?;
+                            .to_duplicate_response(errors::ApiErrorResponse::DuplicateMandate)?;
                         metrics::MANDATE_COUNT.add(
                             &metrics::CONTEXT,
                             1,
@@ -257,6 +256,25 @@ where
         },
     }
     Ok(resp)
+}
+
+#[instrument(skip(state))]
+pub async fn retrieve_mandates_list(
+    state: &AppState,
+    merchant_account: domain::MerchantAccount,
+    constraints: api_models::mandates::MandateListConstraints,
+) -> RouterResponse<Vec<api_models::mandates::MandateResponse>> {
+    let mandates = state
+        .store
+        .find_mandates_by_merchant_id(&merchant_account.merchant_id, constraints)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to retrieve mandates")?;
+    let mandates_list = future::try_join_all(mandates.into_iter().map(|mandate| {
+        mandates::MandateResponse::from_db_mandate(state, mandate, &merchant_account)
+    }))
+    .await?;
+    Ok(services::ApplicationResponse::Json(mandates_list))
 }
 
 impl ForeignTryFrom<Result<types::PaymentsResponseData, types::ErrorResponse>>

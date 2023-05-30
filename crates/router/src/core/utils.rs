@@ -11,7 +11,7 @@ use crate::{
     core::errors::{self, RouterResult},
     routes::AppState,
     types::{
-        self,
+        self, domain,
         storage::{self, enums},
         ErrorResponse,
     },
@@ -23,7 +23,7 @@ use crate::{
 pub async fn construct_refund_router_data<'a, F>(
     state: &'a AppState,
     connector_id: &str,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     money: (i64, enums::Currency),
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
@@ -103,6 +103,7 @@ pub async fn construct_refund_router_data<'a, F>(
         reference_id: None,
         payment_method_token: None,
         connector_customer: None,
+        preprocessing_id: None,
     };
 
     Ok(router_data)
@@ -236,7 +237,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
     state: &'a AppState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::AcceptDisputeRouterData> {
     let connector_id = &dispute.connector;
@@ -287,6 +288,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         payment_method_token: None,
         connector_customer: None,
         customer_id: None,
+        preprocessing_id: None,
     };
     Ok(router_data)
 }
@@ -296,7 +298,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
     state: &'a AppState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     dispute: &storage::Dispute,
     submit_evidence_request_data: types::SubmitEvidenceRequestData,
 ) -> RouterResult<types::SubmitEvidenceRouterData> {
@@ -345,6 +347,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         payment_method_token: None,
         connector_customer: None,
         customer_id: None,
+        preprocessing_id: None,
     };
     Ok(router_data)
 }
@@ -355,7 +358,7 @@ pub async fn construct_upload_file_router_data<'a>(
     state: &'a AppState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     create_file_request: &types::api::CreateFileRequest,
     connector_id: &str,
     file_key: String,
@@ -404,6 +407,7 @@ pub async fn construct_upload_file_router_data<'a>(
         payment_method_token: None,
         connector_customer: None,
         customer_id: None,
+        preprocessing_id: None,
     };
     Ok(router_data)
 }
@@ -413,7 +417,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
     state: &'a AppState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::DefendDisputeRouterData> {
     let _db = &*state.store;
@@ -465,6 +469,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         payment_method_token: None,
         customer_id: None,
         connector_customer: None,
+        preprocessing_id: None,
     };
     Ok(router_data)
 }
@@ -472,7 +477,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
 #[instrument(skip_all)]
 pub async fn construct_retrieve_file_router_data<'a>(
     state: &'a AppState,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     file_metadata: &storage_models::file::FileMetadata,
     connector_id: &str,
 ) -> RouterResult<types::RetrieveFileRouterData> {
@@ -524,6 +529,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        preprocessing_id: None,
     };
     Ok(router_data)
 }

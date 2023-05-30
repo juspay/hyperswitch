@@ -1,5 +1,5 @@
 use api_models::payments;
-use common_utils::{date_time, ext_traits::StringExt, pii as secret};
+use common_utils::{crypto::Encryptable, date_time, ext_traits::StringExt, pii as secret};
 use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 
@@ -37,7 +37,7 @@ impl From<StripeBillingDetails> for payments::Address {
     }
 }
 
-#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct StripeCard {
     pub number: cards::CardNumber,
     pub exp_month: pii::Secret<String>,
@@ -243,7 +243,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
     }
 }
 
-#[derive(Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Default, Eq, PartialEq, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentStatus {
     Succeeded,
@@ -310,7 +310,7 @@ pub struct StripeCaptureRequest {
     pub amount_to_capture: Option<i64>,
 }
 
-#[derive(Default, Eq, PartialEq, Serialize)]
+#[derive(Default, Eq, PartialEq, Serialize, Debug)]
 pub struct StripePaymentIntentResponse {
     pub id: Option<String>,
     pub object: &'static str,
@@ -350,7 +350,7 @@ pub struct StripePaymentIntentResponse {
     pub last_payment_error: Option<LastPaymentError>,
 }
 
-#[derive(Default, Eq, PartialEq, Serialize)]
+#[derive(Default, Eq, PartialEq, Serialize, Debug)]
 pub struct LastPaymentError {
     charge: Option<String>,
     code: Option<String>,
@@ -391,9 +391,9 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             payment_token: resp.payment_token,
             shipping: resp.shipping,
             billing: resp.billing,
-            email: resp.email,
-            name: resp.name,
-            phone: resp.phone,
+            email: resp.email.map(|inner| inner.into()),
+            name: resp.name.map(Encryptable::into_inner),
+            phone: resp.phone.map(Encryptable::into_inner),
             authentication_type: resp.authentication_type,
             statement_descriptor_name: resp.statement_descriptor_name,
             statement_descriptor_suffix: resp.statement_descriptor_suffix,
@@ -424,7 +424,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
     }
 }
 
-#[derive(Default, Eq, PartialEq, Serialize)]
+#[derive(Default, Eq, PartialEq, Serialize, Debug)]
 pub struct StripePaymentMethod {
     #[serde(rename = "id")]
     payment_method_id: String,
@@ -436,7 +436,7 @@ pub struct StripePaymentMethod {
     livemode: bool,
 }
 
-#[derive(Default, Eq, PartialEq, Serialize)]
+#[derive(Default, Eq, PartialEq, Serialize, Debug)]
 pub struct Charges {
     object: &'static str,
     data: Vec<String>,
@@ -583,27 +583,27 @@ impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments
         let mandate_data = mandate_options.map(|mandate| payments::MandateData {
             mandate_type: match mandate.mandate_type {
                 Some(item) => match item {
-                    StripeMandateType::SingleUse => {
-                        payments::MandateType::SingleUse(payments::MandateAmountData {
+                    StripeMandateType::SingleUse => Some(payments::MandateType::SingleUse(
+                        payments::MandateAmountData {
                             amount: mandate.amount.unwrap_or_default(),
                             currency,
                             start_date: mandate.start_date,
                             end_date: mandate.end_date,
                             metadata: None,
-                        })
-                    }
-                    StripeMandateType::MultiUse => payments::MandateType::MultiUse(None),
+                        },
+                    )),
+                    StripeMandateType::MultiUse => Some(payments::MandateType::MultiUse(None)),
                 },
-                None => api_models::payments::MandateType::MultiUse(None),
+                None => Some(api_models::payments::MandateType::MultiUse(None)),
             },
-            customer_acceptance: payments::CustomerAcceptance {
+            customer_acceptance: Some(payments::CustomerAcceptance {
                 acceptance_type: payments::AcceptanceType::Online,
                 accepted_at: mandate.accepted_at,
                 online: Some(payments::OnlineMandate {
                     ip_address: mandate.ip_address.unwrap_or_default(),
                     user_agent: mandate.user_agent.unwrap_or_default(),
                 }),
-            },
+            }),
         });
         Ok(mandate_data)
     }
@@ -626,28 +626,40 @@ impl ForeignFrom<Option<Request3DS>> for api_models::enums::AuthenticationType {
     }
 }
 
-#[derive(Default, Eq, PartialEq, Serialize)]
+#[derive(Default, Eq, PartialEq, Serialize, Debug)]
 pub struct RedirectUrl {
     pub return_url: Option<String>,
     pub url: Option<String>,
 }
 
-#[derive(Eq, PartialEq, Serialize)]
-pub struct StripeNextAction {
-    #[serde(rename = "type")]
-    stype: payments::NextActionType,
-    redirect_to_url: RedirectUrl,
+#[derive(Eq, PartialEq, serde::Serialize, Debug)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum StripeNextAction {
+    RedirectToUrl {
+        redirect_to_url: RedirectUrl,
+    },
+    DisplayBankTransferInformation {
+        bank_transfer_steps_and_charges_details: payments::BankTransferNextStepsData,
+    },
 }
 
-fn into_stripe_next_action(
-    next_action: Option<payments::NextAction>,
+pub(crate) fn into_stripe_next_action(
+    next_action: Option<payments::NextActionData>,
     return_url: Option<String>,
 ) -> Option<StripeNextAction> {
-    next_action.map(|n| StripeNextAction {
-        stype: n.next_action_type,
-        redirect_to_url: RedirectUrl {
-            return_url,
-            url: n.redirect_to_url,
+    next_action.map(|next_action_data| match next_action_data {
+        payments::NextActionData::RedirectToUrl { redirect_to_url } => {
+            StripeNextAction::RedirectToUrl {
+                redirect_to_url: RedirectUrl {
+                    return_url,
+                    url: Some(redirect_to_url),
+                },
+            }
+        }
+        payments::NextActionData::DisplayBankTransferInformation {
+            bank_transfer_steps_and_charges_details,
+        } => StripeNextAction::DisplayBankTransferInformation {
+            bank_transfer_steps_and_charges_details,
         },
     })
 }

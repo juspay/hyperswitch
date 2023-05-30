@@ -120,6 +120,10 @@ pub enum PaymentIntentUpdate {
     PaymentAttemptUpdate {
         active_attempt_id: String,
     },
+    StatusAndAttemptUpdate {
+        status: storage_enums::IntentStatus,
+        active_attempt_id: String,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -264,6 +268,14 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 active_attempt_id: Some(active_attempt_id),
                 ..Default::default()
             },
+            PaymentIntentUpdate::StatusAndAttemptUpdate {
+                status,
+                active_attempt_id,
+            } => Self {
+                status: Some(status),
+                active_attempt_id: Some(active_attempt_id),
+                ..Default::default()
+            },
         }
     }
 }
@@ -272,14 +284,15 @@ fn make_client_secret_null_based_on_status(
     status: storage_enums::IntentStatus,
 ) -> Option<Option<String>> {
     match status {
-        storage_enums::IntentStatus::Succeeded
-        | storage_enums::IntentStatus::Failed
-        | storage_enums::IntentStatus::Cancelled => Some(None),
+        storage_enums::IntentStatus::Succeeded | storage_enums::IntentStatus::Cancelled => {
+            Some(None)
+        }
         storage_enums::IntentStatus::Processing
         | storage_enums::IntentStatus::RequiresCustomerAction
         | storage_enums::IntentStatus::RequiresMerchantAction
         | storage_enums::IntentStatus::RequiresPaymentMethod
         | storage_enums::IntentStatus::RequiresConfirmation
-        | storage_enums::IntentStatus::RequiresCapture => None,
+        | storage_enums::IntentStatus::RequiresCapture
+        | storage_enums::IntentStatus::Failed => None,
     }
 }

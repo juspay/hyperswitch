@@ -426,6 +426,7 @@ pub enum PaymentMethodType {
     Giropay,
     GooglePay,
     Ideal,
+    Interac,
     Klarna,
     MbWay,
     MobilePay,
@@ -467,6 +468,7 @@ pub enum PaymentMethod {
     PayLater,
     Wallet,
     BankRedirect,
+    BankTransfer,
     Crypto,
     BankDebit,
 }
@@ -567,7 +569,6 @@ pub enum MandateStatus {
     Clone,
     Copy,
     Debug,
-    Default,
     Eq,
     PartialEq,
     ToSchema,
@@ -584,7 +585,6 @@ pub enum Connector {
     Aci,
     Adyen,
     Airwallex,
-    Applepay,
     Authorizedotnet,
     Bitpay,
     Bluesnap,
@@ -592,13 +592,19 @@ pub enum Connector {
     Checkout,
     Coinbase,
     Cybersource,
-    #[default]
-    Dummy,
     Iatapay,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector")]
-    #[strum(serialize = "dummyconnector")]
-    DummyConnector,
+    #[serde(rename = "dummyconnector1")]
+    #[strum(serialize = "dummyconnector1")]
+    DummyConnector1,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector2")]
+    #[strum(serialize = "dummyconnector2")]
+    DummyConnector2,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector3")]
+    #[strum(serialize = "dummyconnector3")]
+    DummyConnector3,
     Opennode,
     Bambora,
     Dlocal,
@@ -610,6 +616,7 @@ pub enum Connector {
     Multisafepay,
     Nexinets,
     Nmi,
+    Noon,
     Nuvei,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paypal,
@@ -648,6 +655,7 @@ impl Connector {
     Copy,
     Debug,
     Eq,
+    Hash,
     PartialEq,
     serde::Serialize,
     serde::Deserialize,
@@ -659,9 +667,17 @@ impl Connector {
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector")]
-    #[strum(serialize = "dummyconnector")]
-    DummyConnector,
+    #[serde(rename = "dummyconnector1")]
+    #[strum(serialize = "dummyconnector1")]
+    DummyConnector1,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector2")]
+    #[strum(serialize = "dummyconnector2")]
+    DummyConnector2,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector3")]
+    #[strum(serialize = "dummyconnector3")]
+    DummyConnector3,
     Aci,
     Adyen,
     Airwallex,
@@ -683,6 +699,7 @@ pub enum RoutableConnectors {
     Multisafepay,
     Nexinets,
     Nmi,
+    Noon,
     Nuvei,
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
@@ -821,6 +838,24 @@ pub enum BankNames {
     VeloBank,
     #[serde(rename = "e-transfer Pocztowy24")]
     ETransferPocztowy24,
+    PlusBank,
+    EtransferPocztowy24,
+    BankiSpbdzielcze,
+    BankNowyBfgSa,
+    GetinBank,
+    Blik,
+    NoblePay,
+    IdeaBank,
+    EnveloBank,
+    NestPrzelew,
+    MbankMtransfer,
+    Inteligo,
+    PbacZIpko,
+    BnpParibas,
+    BankPekaoSa,
+    VolkswagenBank,
+    AliorBank,
+    Boz,
 }
 
 #[derive(

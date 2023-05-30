@@ -5,6 +5,7 @@ use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::{self, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
+use storage_models::ephemeral_key;
 use uuid::Uuid;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -17,9 +18,11 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         self,
         api::{self, PaymentIdTypeExt},
+        domain,
         storage::{
             self,
             enums::{self, IntentStatus},
@@ -41,14 +44,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsRequest,
         mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
         let db = &*state.store;
-
+        let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_account).await;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
 
@@ -211,6 +214,15 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .transpose()?;
 
+        // The operation merges mandate data from both request and payment_attempt
+        let setup_mandate = setup_mandate.map(|mandate_data| api_models::payments::MandateData {
+            customer_acceptance: mandate_data.customer_acceptance,
+            mandate_type: mandate_data.mandate_type.or(payment_attempt
+                .mandate_details
+                .clone()
+                .map(ForeignInto::foreign_into)),
+        });
+
         Ok((
             operation,
             PaymentData {
@@ -224,8 +236,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 setup_mandate,
                 token,
                 address: PaymentAddress {
-                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
+                    shipping: shipping_address.as_ref().map(|a| a.into()),
+                    billing: billing_address.as_ref().map(|a| a.into()),
                 },
                 confirm: request.confirm,
                 payment_method_data: request.payment_method_data.clone(),
@@ -238,6 +250,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                ephemeral_key,
+                redirect_response: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -262,7 +276,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRequest>,
-            Option<storage::Customer>,
+            Option<domain::Customer>,
         ),
         errors::StorageError,
     > {
@@ -300,7 +314,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &storage::MerchantAccount,
+        _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::payment_intent::PaymentIntent,
@@ -317,7 +331,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
@@ -389,7 +403,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
-        merchant_account: &'a storage::MerchantAccount,
+        merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
@@ -495,6 +509,10 @@ impl PaymentCreate {
             payment_experience: request.payment_experience.map(ForeignInto::foreign_into),
             payment_method_type: request.payment_method_type.map(ForeignInto::foreign_into),
             payment_method_data: additional_pm_data,
+            mandate_details: request
+                .mandate_data
+                .as_ref()
+                .and_then(|inner| inner.mandate_type.clone().map(ForeignInto::foreign_into)),
             ..storage::PaymentAttemptNew::default()
         })
     }
@@ -502,7 +520,7 @@ impl PaymentCreate {
     #[instrument(skip_all)]
     fn make_payment_intent(
         payment_id: &str,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &types::domain::MerchantAccount,
         money: (api::Amount, enums::Currency),
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
@@ -575,6 +593,31 @@ impl PaymentCreate {
             connector_transaction_id: None,
             authentication_data: None,
             encoded_data: None,
+        }
+    }
+
+    #[instrument(skip_all)]
+    pub async fn get_ephemeral_key(
+        request: &api::PaymentsRequest,
+        state: &AppState,
+        merchant_account: &domain::MerchantAccount,
+    ) -> Option<ephemeral_key::EphemeralKey> {
+        match request.customer_id.clone() {
+            Some(customer_id) => helpers::make_ephemeral_key(
+                state,
+                customer_id,
+                merchant_account.merchant_id.clone(),
+            )
+            .await
+            .ok()
+            .and_then(|ek| {
+                if let services::ApplicationResponse::Json(ek) = ek {
+                    Some(ek)
+                } else {
+                    None
+                }
+            }),
+            None => None,
         }
     }
 }

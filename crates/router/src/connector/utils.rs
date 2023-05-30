@@ -159,6 +159,16 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     }
 }
 
+pub trait PaymentsPreProcessingData {
+    fn get_email(&self) -> Result<Email, Error>;
+}
+
+impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+}
+
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
@@ -170,6 +180,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_mandate_payment(&self) -> bool;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_router_return_url(&self) -> Result<String, Error>;
+    fn is_wallet(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<storage_models::enums::PaymentMethodType, Error>;
 }
 
@@ -234,6 +245,10 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("webhook_url"))
     }
+    fn is_wallet(&self) -> bool {
+        matches!(self.payment_method_data, api::PaymentMethodData::Wallet(_))
+    }
+
     fn get_payment_method_type(&self) -> Result<storage_models::enums::PaymentMethodType, Error> {
         self.payment_method_type
             .to_owned()

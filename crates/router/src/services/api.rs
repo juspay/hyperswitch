@@ -9,7 +9,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::{body, HttpRequest, HttpResponse, Responder};
+use actix_web::{body, HttpRequest, HttpResponse, Responder, ResponseError};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
@@ -287,7 +287,7 @@ pub async fn call_connector_api(
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
     let current_time = Instant::now();
 
-    let response = send_request(state, request).await;
+    let response = send_request(state, request, None).await;
 
     let elapsed_time = current_time.elapsed();
     logger::info!(request_time=?elapsed_time);
@@ -296,12 +296,17 @@ pub async fn call_connector_api(
 }
 
 #[instrument(skip_all)]
-async fn send_request(
+pub async fn send_request(
     state: &AppState,
     request: Request,
+    option_timeout_secs: Option<u64>,
 ) -> CustomResult<reqwest::Response, errors::ApiClientError> {
     logger::debug!(method=?request.method, headers=?request.headers, payload=?request.payload, ?request);
     let url = &request.url;
+    #[cfg(feature = "dummy_connector")]
+    let should_bypass_proxy = url.starts_with(&state.conf.connectors.dummyconnector.base_url)
+        || client::proxy_bypass_urls(&state.conf.locker).contains(url);
+    #[cfg(not(feature = "dummy_connector"))]
     let should_bypass_proxy = client::proxy_bypass_urls(&state.conf.locker).contains(url);
     let client = client::create_client(
         &state.conf.proxy,
@@ -356,7 +361,9 @@ async fn send_request(
         Method::Delete => client.delete(url),
     }
     .add_headers(headers)
-    .timeout(Duration::from_secs(crate::consts::REQUEST_TIME_OUT))
+    .timeout(Duration::from_secs(
+        option_timeout_secs.unwrap_or(crate::consts::REQUEST_TIME_OUT),
+    ))
     .send()
     .await
     .map_err(|error| match error {
@@ -521,6 +528,7 @@ pub enum AuthFlow {
 
 #[instrument(skip(request, payload, state, func, api_auth))]
 pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
+    flow: &'a impl router_env::types::FlowMetric,
     state: &'b A,
     request: &'a HttpRequest,
     payload: T,
@@ -529,22 +537,40 @@ pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
     F: Fn(&'b A, U, T) -> Fut,
+    'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
     A: AppStateInfo,
+    U: auth::AuthInfo,
     CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
     CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
+    OErr: ResponseError + Sync + Send + 'static,
 {
     let auth_out = api_auth
         .authenticate_and_fetch(request.headers(), state)
         .await
         .switch()?;
-    func(state, auth_out, payload).await.switch()
+    let metric_merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
+
+    let output = func(state, auth_out, payload).await.switch();
+
+    let status_code = match output.as_ref() {
+        Ok(res) => metrics::request::track_response_status_code(res),
+        Err(err) => err.current_context().status_code().as_u16().into(),
+    };
+
+    metrics::request::status_code_metrics(
+        status_code,
+        flow.to_string(),
+        metric_merchant_id.to_string(),
+    );
+
+    output
 }
 
 #[instrument(
-    skip(request, payload, state, func, api_auth),
+    skip(request, state, func, api_auth, payload),
     fields(request_method, request_url_path)
 )]
 pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut, E>(
@@ -560,6 +586,7 @@ where
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
+    U: auth::AuthInfo,
     A: AppStateInfo,
     CustomResult<ApplicationResponse<Q>, E>:
         ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
@@ -570,10 +597,11 @@ where
     tracing::Span::current().record("request_url_path", url_path);
 
     let start_instant = Instant::now();
-    logger::info!(tag = ?Tag::BeginRequest);
+    logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
+
     let res = match metrics::request::record_request_time_metric(
-        server_wrap_util(state, request, payload, func, api_auth),
-        flow,
+        server_wrap_util(&flow, state, request, payload, func, api_auth),
+        &flow,
     )
     .await
     {
@@ -629,10 +657,46 @@ where
 
 pub fn log_and_return_error_response<T>(error: Report<T>) -> HttpResponse
 where
-    T: actix_web::ResponseError + error_stack::Context + Clone,
+    T: error_stack::Context + Clone + ResponseError,
+    Report<T>: EmbedError,
 {
     logger::error!(?error);
-    HttpResponse::from_error(error.current_context().clone())
+    HttpResponse::from_error(error.embed().current_context().clone())
+}
+
+pub trait EmbedError: Sized {
+    fn embed(self) -> Self {
+        self
+    }
+}
+
+impl EmbedError for Report<api_models::errors::types::ApiErrorResponse> {
+    fn embed(self) -> Self {
+        #[cfg(feature = "detailed_errors")]
+        {
+            let mut report = self;
+            let error_trace = serde_json::to_value(&report).ok().and_then(|inner| {
+                serde_json::from_value::<Vec<errors::NestedErrorStack<'_>>>(inner)
+                    .ok()
+                    .map(Into::<errors::VecLinearErrorStack<'_>>::into)
+                    .map(serde_json::to_value)
+                    .transpose()
+                    .ok()
+                    .flatten()
+            });
+
+            match report.downcast_mut::<api_models::errors::types::ApiErrorResponse>() {
+                None => {}
+                Some(inner) => {
+                    inner.get_internal_error_mut().stacktrace = error_trace;
+                }
+            }
+            report
+        }
+
+        #[cfg(not(feature = "detailed_errors"))]
+        self
+    }
 }
 
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {

@@ -7,6 +7,7 @@
 // Separation of concerns instead of separation of forms.
 
 pub mod api;
+pub mod domain;
 pub mod storage;
 pub mod transformers;
 
@@ -15,6 +16,7 @@ use std::marker::PhantomData;
 pub use api_models::enums::Connector;
 use common_utils::{pii, pii::Email};
 use error_stack::{IntoReport, ResultExt};
+use masking::Secret;
 
 use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::PaymentAddress;
@@ -22,6 +24,8 @@ use crate::{core::errors, services};
 
 pub type PaymentsAuthorizeRouterData =
     RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
+pub type PaymentsPreProcessingRouterData =
+    RouterData<api::PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type PaymentsAuthorizeSessionTokenRouterData =
     RouterData<api::AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>;
 pub type PaymentsCompleteAuthorizeRouterData =
@@ -77,6 +81,11 @@ pub type PaymentsAuthorizeType =
     dyn services::ConnectorIntegration<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsVerifyType =
     dyn services::ConnectorIntegration<api::Verify, VerifyRequestData, PaymentsResponseData>;
+pub type PaymentsPreProcessingType = dyn services::ConnectorIntegration<
+    api::PreProcessing,
+    PaymentsPreProcessingData,
+    PaymentsResponseData,
+>;
 pub type PaymentsCompleteAuthorizeType = dyn services::ConnectorIntegration<
     api::CompleteAuthorize,
     CompleteAuthorizeData,
@@ -185,6 +194,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
     pub payment_method_token: Option<String>,
+    pub preprocessing_id: Option<String>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
@@ -221,6 +231,7 @@ pub struct PaymentsAuthorizeData {
     pub related_transaction_id: Option<String>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub customer_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -244,13 +255,20 @@ pub struct AuthorizeSessionTokenData {
 pub struct ConnectorCustomerData {
     pub description: Option<String>,
     pub email: Option<Email>,
-    pub phone: Option<masking::Secret<String>>,
+    pub phone: Option<Secret<String>>,
     pub name: Option<String>,
+    pub preprocessing_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PaymentMethodTokenizationData {
     pub payment_method_data: payments::PaymentMethodData,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsPreProcessingData {
+    pub email: Option<Email>,
+    pub currency: Option<storage_enums::Currency>,
 }
 
 #[derive(Debug, Clone)]
@@ -267,10 +285,16 @@ pub struct CompleteAuthorizeData {
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
-    pub payload: Option<serde_json::Value>,
+    pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CompleteAuthorizeRedirectResponse {
+    pub params: Option<Secret<String>>,
+    pub payload: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -370,6 +394,10 @@ pub enum PaymentsResponseData {
     ThreeDSEnrollmentResponse {
         enrolled_v2: bool,
         related_transaction_id: Option<String>,
+    },
+    PreProcessingResponse {
+        pre_processing_id: String,
+        connector_metadata: Option<serde_json::Value>,
     },
 }
 
@@ -669,6 +697,18 @@ impl From<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
     }
 }
 
+impl From<&&mut PaymentsAuthorizeRouterData> for ConnectorCustomerData {
+    fn from(data: &&mut PaymentsAuthorizeRouterData) -> Self {
+        Self {
+            email: data.request.email.to_owned(),
+            preprocessing_id: data.preprocessing_id.to_owned(),
+            description: None,
+            phone: None,
+            name: None,
+        }
+    }
+}
+
 impl From<&VerifyRouterData> for PaymentsAuthorizeData {
     fn from(data: &VerifyRouterData) -> Self {
         Self {
@@ -694,6 +734,7 @@ impl From<&VerifyRouterData> for PaymentsAuthorizeData {
             related_transaction_id: None,
             payment_experience: None,
             payment_method_type: None,
+            customer_id: None,
         }
     }
 }
@@ -727,6 +768,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             reference_id: data.reference_id.clone(),
             customer_id: data.customer_id.clone(),
             payment_method_token: None,
+            preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
         }
     }

@@ -13,6 +13,7 @@ pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;
+pub mod merchant_key_store;
 pub mod payment_attempt;
 pub mod payment_intent;
 pub mod payment_method;
@@ -64,15 +65,47 @@ pub trait StorageInterface:
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + cards_info::CardsInfoInterface
+    + merchant_key_store::MerchantKeyStoreInterface
+    + MasterKeyInterface
     + services::RedisConnInterface
     + 'static
 {
 }
+
+pub trait MasterKeyInterface {
+    fn get_master_key(&self) -> &[u8];
+    fn get_migration_timestamp(&self) -> i64;
+}
+
+impl MasterKeyInterface for Store {
+    fn get_master_key(&self) -> &[u8] {
+        &self.master_key
+    }
+    fn get_migration_timestamp(&self) -> i64 {
+        self.migration_timestamp
+    }
+}
+
+/// Default dummy key for MockDb
+impl MasterKeyInterface for MockDb {
+    fn get_master_key(&self) -> &[u8] {
+        &[
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+            25, 26, 27, 28, 29, 30, 31, 32,
+        ]
+    }
+
+    fn get_migration_timestamp(&self) -> i64 {
+        0
+    }
+}
+
 #[async_trait::async_trait]
 impl StorageInterface for Store {}
 
 #[derive(Clone)]
 pub struct MockDb {
+    addresses: Arc<Mutex<Vec<storage::Address>>>,
     merchant_accounts: Arc<Mutex<Vec<storage::MerchantAccount>>>,
     merchant_connector_accounts: Arc<Mutex<Vec<storage::MerchantConnectorAccount>>>,
     payment_attempts: Arc<Mutex<Vec<storage::PaymentAttempt>>>,
@@ -82,11 +115,14 @@ pub struct MockDb {
     processes: Arc<Mutex<Vec<storage::ProcessTracker>>>,
     connector_response: Arc<Mutex<Vec<storage::ConnectorResponse>>>,
     redis: Arc<redis_interface::RedisConnectionPool>,
+    api_keys: Arc<Mutex<Vec<storage::ApiKey>>>,
+    cards_info: Arc<Mutex<Vec<storage::CardInfo>>>,
 }
 
 impl MockDb {
     pub async fn new(redis: &crate::configs::settings::Settings) -> Self {
         Self {
+            addresses: Default::default(),
             merchant_accounts: Default::default(),
             merchant_connector_accounts: Default::default(),
             payment_attempts: Default::default(),
@@ -96,6 +132,8 @@ impl MockDb {
             processes: Default::default(),
             connector_response: Default::default(),
             redis: Arc::new(crate::connection::redis_connection(redis).await),
+            api_keys: Default::default(),
+            cards_info: Default::default(),
         }
     }
 }

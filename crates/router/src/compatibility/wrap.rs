@@ -8,7 +8,7 @@ use serde::Serialize;
 use crate::{
     core::errors::{self, RouterResult},
     routes::app::AppStateInfo,
-    services::{api, authentication as auth, logger},
+    services::{self, api, authentication as auth, logger},
 };
 
 #[instrument(skip(request, payload, state, func, api_authentication))]
@@ -25,12 +25,21 @@ where
     Q: Serialize + std::fmt::Debug + 'a,
     S: TryFrom<Q> + Serialize,
     E: Serialize + error_stack::Context + actix_web::ResponseError + Clone,
+    U: auth::AuthInfo,
+    error_stack::Report<E>: services::EmbedError,
     errors::ApiErrorResponse: ErrorSwitch<E>,
     T: std::fmt::Debug,
     A: AppStateInfo,
 {
-    let resp: common_utils::errors::CustomResult<_, E> =
-        api::server_wrap_util(state, request, payload, func, api_authentication).await;
+    let resp: common_utils::errors::CustomResult<_, E> = api::server_wrap_util(
+        &router_env::Flow::CompatibilityLayerRequest,
+        state,
+        request,
+        payload,
+        func,
+        api_authentication,
+    )
+    .await;
     match resp {
         Ok(api::ApplicationResponse::Json(router_resp)) => {
             let pg_resp = S::try_from(router_resp);
