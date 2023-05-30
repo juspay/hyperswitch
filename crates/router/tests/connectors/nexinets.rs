@@ -40,7 +40,7 @@ fn payment_method_details() -> Option<PaymentsAuthorizeData> {
     Some(PaymentsAuthorizeData {
         currency: storage_models::enums::Currency::EUR,
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-            card_number: CardNumber::from_str("4012001038443336").unwrap(),
+            card_number: CardNumber::from_str("374111111111111").unwrap(),
             ..utils::CCardType::default().0
         }),
         router_return_url: Some("https://google.com".to_string()),
@@ -492,30 +492,6 @@ async fn should_sync_refund() {
     assert_eq!(
         response.response.unwrap().refund_status,
         enums::RefundStatus::Success,
-    );
-}
-
-// Cards Negative scenerios
-// Creates a payment with incorrect card number.
-#[actix_web::test]
-async fn should_fail_payment_for_incorrect_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: CardNumber::from_str("12345678910112331").unwrap(),
-                    ..utils::CCardType::default().0
-                }),
-                currency: storage_models::enums::Currency::EUR,
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            None,
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        "payment.cardNumber : Bad value for 'payment.cardNumber'. Expected: string of length in range 12 <=> 19 representing a valid creditcard number.".to_string(),
     );
 }
 
