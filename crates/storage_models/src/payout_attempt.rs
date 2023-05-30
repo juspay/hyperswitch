@@ -1,10 +1,10 @@
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 
-use crate::{enums as storage_enums, schema::payout_create};
+use crate::{enums as storage_enums, schema::payout_attempt};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Identifiable, Queryable)]
-#[diesel(table_name = payout_create)]
-pub struct PayoutCreate {
+#[diesel(table_name = payout_attempt)]
+pub struct PayoutAttempt {
     pub id: i32,
     pub payout_id: String,
     pub customer_id: String,
@@ -32,8 +32,8 @@ pub struct PayoutCreate {
     router_derive::DebugAsDisplay,
     router_derive::Setter,
 )]
-#[diesel(table_name = payout_create)]
-pub struct PayoutCreateNew {
+#[diesel(table_name = payout_attempt)]
+pub struct PayoutAttemptNew {
     pub payout_id: String,
     pub customer_id: String,
     pub merchant_id: String,
@@ -51,7 +51,7 @@ pub struct PayoutCreateNew {
 }
 
 #[derive(Debug)]
-pub enum PayoutCreateUpdate {
+pub enum PayoutAttemptUpdate {
     StatusUpdate {
         connector_payout_id: String,
         status: storage_enums::PayoutStatus,
@@ -70,8 +70,8 @@ pub enum PayoutCreateUpdate {
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
-#[diesel(table_name = payout_create)]
-pub struct PayoutCreateUpdateInternal {
+#[diesel(table_name = payout_attempt)]
+pub struct PayoutAttemptUpdateInternal {
     pub payout_token: Option<String>,
     pub connector_payout_id: Option<String>,
     pub status: Option<storage_enums::PayoutStatus>,
@@ -82,10 +82,10 @@ pub struct PayoutCreateUpdateInternal {
     pub business_label: Option<String>,
 }
 
-impl From<PayoutCreateUpdate> for PayoutCreateUpdateInternal {
-    fn from(payout_update: PayoutCreateUpdate) -> Self {
+impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
+    fn from(payout_update: PayoutAttemptUpdate) -> Self {
         match payout_update {
-            PayoutCreateUpdate::PayoutTokenUpdate {
+            PayoutAttemptUpdate::PayoutTokenUpdate {
                 payout_token,
                 status,
             } => Self {
@@ -93,7 +93,7 @@ impl From<PayoutCreateUpdate> for PayoutCreateUpdateInternal {
                 status: Some(status),
                 ..Default::default()
             },
-            PayoutCreateUpdate::StatusUpdate {
+            PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id,
                 status,
                 error_message,
@@ -107,7 +107,7 @@ impl From<PayoutCreateUpdate> for PayoutCreateUpdateInternal {
                 is_eligible,
                 ..Default::default()
             },
-            PayoutCreateUpdate::BusinessUpdate {
+            PayoutAttemptUpdate::BusinessUpdate {
                 business_country,
                 business_label,
             } => Self {

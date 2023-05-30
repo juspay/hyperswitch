@@ -29,13 +29,13 @@ pub async fn get_mca_for_payout<'a>(
     key_store: &domain::MerchantKeyStore,
     payout_data: &PayoutData,
 ) -> RouterResult<helpers::MerchantConnectorAccountType> {
-    let payout_create = &payout_data.payout_create;
+    let payout_attempt = &payout_data.payout_attempt;
     match payout_data.merchant_connector_account.to_owned() {
         Some(mca) => Ok(mca),
         None => {
             let (business_country, business_label) = helpers::get_business_details(
-                payout_create.business_country,
-                payout_create.business_label.as_ref(),
+                payout_attempt.business_country,
+                payout_attempt.business_label.as_ref(),
                 merchant_account,
             )?;
 
@@ -109,7 +109,7 @@ pub async fn construct_payout_router_data<'a, F>(
     };
 
     let payouts = &payout_data.payouts;
-    let payout_create = &payout_data.payout_create;
+    let payout_attempt = &payout_data.payout_attempt;
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -132,7 +132,7 @@ pub async fn construct_payout_router_data<'a, F>(
         request: types::PayoutsData {
             payout_id: payouts.payout_id.to_owned(),
             amount: payouts.amount,
-            connector_payout_id: Some(payout_create.connector_payout_id.to_owned()),
+            connector_payout_id: Some(payout_attempt.connector_payout_id.to_owned()),
             destination_currency: payouts.destination_currency,
             source_currency: payouts.source_currency,
             entity_type: payouts.entity_type,

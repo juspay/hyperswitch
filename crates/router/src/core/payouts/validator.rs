@@ -33,7 +33,7 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
             } else {
                 Err(err
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while finding payout_create, database error"))
+                    .attach_printable("Failed while finding payout_attempt, database error"))
             }
         }
         Ok(payout) => {

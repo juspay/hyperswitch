@@ -25,12 +25,12 @@ use crate::{
 pub async fn make_payout_method_data<'a>(
     state: &'a AppState,
     request: &api::PayoutCreateRequest,
-    payout_create: &storage::PayoutCreate,
+    payout_attempt: &storage::PayoutAttempt,
 ) -> RouterResult<Option<api::PayoutMethodData>> {
     let db = &*state.store;
     match (
         request.payout_method_data.to_owned(),
-        payout_create.payout_token.to_owned(),
+        payout_attempt.payout_token.to_owned(),
     ) {
         (None, Some(payout_token)) => {
             let (pm, supplementary_data) = vault::Vault::get_payout_method_data_from_locker(
@@ -44,7 +44,7 @@ pub async fn make_payout_method_data<'a>(
             utils::when(
                 supplementary_data
                     .customer_id
-                    .ne(&Some(payout_create.customer_id.to_owned())),
+                    .ne(&Some(payout_attempt.customer_id.to_owned())),
                 || {
                     Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payout method and customer passed in payout are not same".into() })
                 },
@@ -56,21 +56,21 @@ pub async fn make_payout_method_data<'a>(
                 state,
                 None,
                 &payout_method,
-                Some(payout_create.customer_id.to_owned()),
+                Some(payout_attempt.customer_id.to_owned()),
             )
             .await?;
-            let payout_update = storage::PayoutCreateUpdate::PayoutTokenUpdate {
+            let payout_update = storage::PayoutAttemptUpdate::PayoutTokenUpdate {
                 payout_token,
                 status: storage_enums::PayoutStatus::RequiresFulfillment,
             };
-            db.update_payout_create_by_merchant_id_payout_id(
-                &payout_create.merchant_id,
-                &payout_create.payout_id,
+            db.update_payout_attempt_by_merchant_id_payout_id(
+                &payout_attempt.merchant_id,
+                &payout_attempt.payout_id,
                 payout_update,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error updating token in payout create")?;
+            .attach_printable("Error updating token in payout attempt")?;
             Ok(Some(payout_method))
         }
         _ => Ok(None),
@@ -79,7 +79,7 @@ pub async fn make_payout_method_data<'a>(
 
 pub async fn save_payout_data_to_locker(
     state: &AppState,
-    payout_create: &storage::payout_create::PayoutCreate,
+    payout_attempt: &storage::payout_attempt::PayoutAttempt,
     payout_method_data: &api::PayoutMethodData,
     merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<()> {
@@ -95,7 +95,7 @@ pub async fn save_payout_data_to_locker(
             let stored_card_resp = cards::call_to_card_hs(
                 state,
                 &card_details,
-                &payout_create.customer_id,
+                &payout_attempt.customer_id,
                 merchant_account,
             )
             .await
@@ -109,7 +109,7 @@ pub async fn save_payout_data_to_locker(
                     };
                     db.update_payout_by_merchant_id_payout_id(
                         &merchant_account.merchant_id,
-                        &payout_create.payout_id,
+                        &payout_attempt.payout_id,
                         update_payout,
                     )
                     .await
@@ -131,7 +131,7 @@ pub async fn save_payout_data_to_locker(
             };
             db.update_payout_by_merchant_id_payout_id(
                 &merchant_account.merchant_id,
-                &payout_create.payout_id,
+                &payout_attempt.payout_id,
                 update_payout,
             )
             .await
