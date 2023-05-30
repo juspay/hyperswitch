@@ -307,8 +307,7 @@ pub trait SeleniumTest {
         let config = self.get_configs().automation_configs.unwrap();
         if config.run_minimum_steps.unwrap() {
             self.complete_actions(&c, actions[..3].to_vec()).await
-        }
-        else {
+        } else {
             self.complete_actions(&c, actions).await
         }
     }
