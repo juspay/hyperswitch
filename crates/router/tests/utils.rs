@@ -65,7 +65,6 @@ pub async fn mk_service_with_db(
     actix_web::test::init_service(router::mk_app(app_state, request_body_limit)).await
 }
 
-
 pub struct Guest;
 
 pub struct Admin {
