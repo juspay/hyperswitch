@@ -492,7 +492,9 @@ impl WalletData for api::WalletData {
     fn get_wallet_token(&self) -> Result<String, Error> {
         match self {
             Self::GooglePay(data) => Ok(data.tokenization_data.token.clone()),
-            Self::ApplePay(data) => Ok(data.get_applepay_decoded_payment_data()?),
+            Self::ApplePay(payments::ApplePayData::ApplePayWalletData(apple_pay_wallet_data)) => {
+                apple_pay_wallet_data.get_applepay_decoded_payment_data()
+            }
             Self::PaypalSdk(data) => Ok(data.token.clone()),
             _ => Err(errors::ConnectorError::InvalidWallet.into()),
         }

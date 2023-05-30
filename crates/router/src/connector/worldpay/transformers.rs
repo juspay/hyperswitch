@@ -43,13 +43,21 @@ fn fetch_payment_instrument(
                     ..WalletPayment::default()
                 }))
             }
-            api_models::payments::WalletData::ApplePay(data) => {
-                Ok(PaymentInstrument::Applepay(WalletPayment {
-                    payment_type: PaymentType::Applepay,
-                    wallet_token: data.payment_data,
-                    ..WalletPayment::default()
-                }))
-            }
+            api_models::payments::WalletData::ApplePay(data) => match data {
+                api_models::payments::ApplePayData::ApplePayWalletData(apple_pay_wallet_data) => {
+                    Ok(PaymentInstrument::Applepay(WalletPayment {
+                        payment_type: PaymentType::Applepay,
+                        wallet_token: apple_pay_wallet_data.payment_data,
+                        ..WalletPayment::default()
+                    }))
+                }
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: "Wallet".to_string(),
+                    connector: "WorldPay",
+                    payment_experience: "RedirectToUrl".to_string(),
+                })
+                .into_report(),
+            },
             _ => Err(errors::ConnectorError::NotImplemented("Wallet Type".to_string()).into()),
         },
         _ => {

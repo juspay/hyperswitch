@@ -1,5 +1,6 @@
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
+use error_stack::IntoReport;
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -1044,12 +1045,22 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 Ok(AdyenPaymentMethod::Gpay(Box::new(gpay_data)))
             }
             api_models::payments::WalletData::ApplePay(data) => {
-                let apple_pay_data = AdyenApplePay {
-                    payment_type: PaymentType::Applepay,
-                    apple_pay_token: data.payment_data.to_string(),
+                let apple_pay_data = match data {
+                    payments::ApplePayData::ApplePayWalletData(applepay_wallet_data) => {
+                        Ok(AdyenApplePay {
+                            payment_type: PaymentType::Applepay,
+                            apple_pay_token: applepay_wallet_data.payment_data.to_string(),
+                        })
+                    }
+                    _ => Err(errors::ConnectorError::NotSupported {
+                        message: "Wallet".to_string(),
+                        connector: "Adyen",
+                        payment_experience: "RedirectToUrl".to_string(),
+                    })
+                    .into_report(),
                 };
 
-                Ok(AdyenPaymentMethod::ApplePay(Box::new(apple_pay_data)))
+                Ok(AdyenPaymentMethod::ApplePay(Box::new(apple_pay_data?)))
             }
             api_models::payments::WalletData::PaypalRedirect(_) => {
                 let wallet = AdyenPaypal {

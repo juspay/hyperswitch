@@ -165,68 +165,80 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                     }))
                 }
                 api_models::payments::WalletData::ApplePay(payment_method_data) => {
-                    let apple_pay_payment_data = consts::BASE64_ENGINE
-                        .decode(payment_method_data.payment_data)
-                        .into_report()
-                        .change_context(errors::ConnectorError::ParsingFailed)?;
+                    match payment_method_data {
+                        api_models::payments::ApplePayData::ApplePayWalletData(
+                            apple_pay_wallet_data,
+                        ) => {
+                            let apple_pay_payment_data = consts::BASE64_ENGINE
+                                .decode(apple_pay_wallet_data.payment_data)
+                                .into_report()
+                                .change_context(errors::ConnectorError::ParsingFailed)?;
+                            let apple_pay_payment_data: ApplePayEncodedPaymentData =
+                                apple_pay_payment_data[..]
+                                    .parse_struct("ApplePayEncodedPaymentData")
+                                    .change_context(errors::ConnectorError::ParsingFailed)?;
+                            let billing = item
+                                .address
+                                .billing
+                                .to_owned()
+                                .get_required_value("billing")
+                                .change_context(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "billing",
+                                })?;
 
-                    let apple_pay_payment_data: ApplePayEncodedPaymentData = apple_pay_payment_data
-                        [..]
-                        .parse_struct("ApplePayEncodedPaymentData")
-                        .change_context(errors::ConnectorError::ParsingFailed)?;
+                            let billing_address = billing
+                                .address
+                                .get_required_value("billing_address")
+                                .change_context(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "billing",
+                                })?;
 
-                    let billing = item
-                        .address
-                        .billing
-                        .to_owned()
-                        .get_required_value("billing")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing",
-                        })?;
+                            let mut address = Vec::new();
+                            if let Some(add) = billing_address.line1.to_owned() {
+                                address.push(add)
+                            }
+                            if let Some(add) = billing_address.line2.to_owned() {
+                                address.push(add)
+                            }
+                            if let Some(add) = billing_address.line3.to_owned() {
+                                address.push(add)
+                            }
 
-                    let billing_address = billing
-                        .address
-                        .get_required_value("billing_address")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing",
-                        })?;
+                            let apple_pay_object =
+                                Encode::<EncodedPaymentToken>::encode_to_string_of_json(
+                                    &EncodedPaymentToken {
+                                        token: ApplepayPaymentData {
+                                            payment_data: apple_pay_payment_data,
+                                            payment_method: apple_pay_wallet_data
+                                                .payment_method
+                                                .to_owned()
+                                                .into(),
+                                            transaction_identifier: apple_pay_wallet_data
+                                                .transaction_identifier,
+                                        },
+                                        billing_contact: BillingDetails {
+                                            country_code: billing_address.country,
+                                            address_lines: Some(address),
+                                            family_name: billing_address.last_name.to_owned(),
+                                            given_name: billing_address.first_name.to_owned(),
+                                            postal_code: billing_address.zip,
+                                        },
+                                    },
+                                )
+                                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-                    let mut address = Vec::new();
-                    if let Some(add) = billing_address.line1.to_owned() {
-                        address.push(add)
+                            Ok(PaymentMethodDetails::Wallet(BluesnapWallet {
+                                wallet_type: BluesnapWalletTypes::ApplePay,
+                                encoded_payment_token: consts::BASE64_ENGINE
+                                    .encode(apple_pay_object),
+                            }))
+                        }
+                        _ => Err(errors::ConnectorError::NotSupported {
+                            message: "Wallet".to_string(),
+                            connector: "Bluesnap",
+                            payment_experience: "RedirectToUrl".to_string(),
+                        }),
                     }
-                    if let Some(add) = billing_address.line2.to_owned() {
-                        address.push(add)
-                    }
-                    if let Some(add) = billing_address.line3.to_owned() {
-                        address.push(add)
-                    }
-
-                    let apple_pay_object = Encode::<EncodedPaymentToken>::encode_to_string_of_json(
-                        &EncodedPaymentToken {
-                            token: ApplepayPaymentData {
-                                payment_data: apple_pay_payment_data,
-                                payment_method: payment_method_data
-                                    .payment_method
-                                    .to_owned()
-                                    .into(),
-                                transaction_identifier: payment_method_data.transaction_identifier,
-                            },
-                            billing_contact: BillingDetails {
-                                country_code: billing_address.country,
-                                address_lines: Some(address),
-                                family_name: billing_address.last_name.to_owned(),
-                                given_name: billing_address.first_name.to_owned(),
-                                postal_code: billing_address.zip,
-                            },
-                        },
-                    )
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
-                    Ok(PaymentMethodDetails::Wallet(BluesnapWallet {
-                        wallet_type: BluesnapWalletTypes::ApplePay,
-                        encoded_payment_token: consts::BASE64_ENGINE.encode(apple_pay_object),
-                    }))
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     "Wallets".to_string(),

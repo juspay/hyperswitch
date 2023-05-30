@@ -788,7 +788,7 @@ pub enum WalletData {
     /// The wallet data for Ali Pay redirect
     AliPay(AliPayRedirection),
     /// The wallet data for Apple pay
-    ApplePay(ApplePayWalletData),
+    ApplePay(ApplePayData),
     /// The wallet data for Google pay
     GooglePay(GooglePayWalletData),
     MbWay(Box<MbWayRedirection>),
@@ -860,6 +860,12 @@ pub struct GpayTokenizationData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub enum ApplePayData {
+    ApplePayRedirect(ApplePayRedirectData),
+    ApplePayWalletData(ApplePayWalletData),
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ApplePayWalletData {
     /// The payment data of Apple pay
     pub payment_data: String,
@@ -868,6 +874,9 @@ pub struct ApplePayWalletData {
     /// The unique identifier for the transaction
     pub transaction_identifier: String,
 }
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ApplePayRedirectData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ApplepayPaymentMethod {

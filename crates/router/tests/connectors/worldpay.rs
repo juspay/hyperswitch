@@ -92,19 +92,24 @@ async fn should_authorize_gpay_payment() {
 async fn should_authorize_applepay_payment() {
     let conn = Worldpay {};
     let _mock = conn.start_server(get_mock_config()).await;
+    let apple_pay_wallet_data = api_models::payments::ApplePayWalletData {
+        payment_data: "someData".to_string(),
+        transaction_identifier: "someId".to_string(),
+        payment_method: api_models::payments::ApplepayPaymentMethod {
+            display_name: "someName".to_string(),
+            network: "visa".to_string(),
+            pm_type: "card".to_string(),
+        },
+    };
     let response = conn
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Wallet(
-                    api::WalletData::ApplePay(api_models::payments::ApplePayWalletData {
-                        payment_data: "someData".to_string(),
-                        transaction_identifier: "someId".to_string(),
-                        payment_method: api_models::payments::ApplepayPaymentMethod {
-                            display_name: "someName".to_string(),
-                            network: "visa".to_string(),
-                            pm_type: "card".to_string(),
-                        },
-                    }),
+                    api::WalletData::ApplePay(
+                        api_models::payments::ApplePayData::ApplePayWalletData(
+                            apple_pay_wallet_data,
+                        ),
+                    ),
                 ),
                 ..utils::PaymentAuthorizeType::default().0
             }),

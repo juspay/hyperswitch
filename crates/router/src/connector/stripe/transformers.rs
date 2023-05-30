@@ -1007,23 +1007,39 @@ fn create_stripe_payment_method(
             ))
         }
         payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-            payments::WalletData::ApplePay(applepay_data) => Ok((
-                StripePaymentMethodData::Wallet(StripeWallet::ApplepayToken(StripeApplePay {
-                    pk_token: String::from_utf8(
-                        consts::BASE64_ENGINE
-                            .decode(&applepay_data.payment_data)
-                            .into_report()
-                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                    )
-                    .into_report()
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                    pk_token_instrument_name: applepay_data.payment_method.pm_type.to_owned(),
-                    pk_token_payment_network: applepay_data.payment_method.network.to_owned(),
-                    pk_token_transaction_id: applepay_data.transaction_identifier.to_owned(),
-                })),
-                StripePaymentMethodType::ApplePay,
-                StripeBillingAddress::default(),
-            )),
+            payments::WalletData::ApplePay(applepay_data) => match applepay_data {
+                payments::ApplePayData::ApplePayWalletData(apple_pay_wallet_data) => Ok((
+                    StripePaymentMethodData::Wallet(StripeWallet::ApplepayToken(StripeApplePay {
+                        pk_token: String::from_utf8(
+                            consts::BASE64_ENGINE
+                                .decode(&apple_pay_wallet_data.payment_data)
+                                .into_report()
+                                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                        )
+                        .into_report()
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                        pk_token_instrument_name: apple_pay_wallet_data
+                            .payment_method
+                            .pm_type
+                            .to_owned(),
+                        pk_token_payment_network: apple_pay_wallet_data
+                            .payment_method
+                            .network
+                            .to_owned(),
+                        pk_token_transaction_id: apple_pay_wallet_data
+                            .transaction_identifier
+                            .to_owned(),
+                    })),
+                    StripePaymentMethodType::ApplePay,
+                    StripeBillingAddress::default(),
+                )),
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: "Wallet".to_string(),
+                    connector: "Stripe",
+                    payment_experience: "RedirectToUrl".to_string(),
+                })
+                .into_report(),
+            },
 
             payments::WalletData::WeChatPayRedirect(_) => Ok((
                 StripePaymentMethodData::Wallet(StripeWallet::WechatpayPayment(WechatpayPayment {
@@ -2447,22 +2463,32 @@ impl
                 }))
             }
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                payments::WalletData::ApplePay(data) => {
-                    let wallet_info = StripeWallet::ApplepayToken(StripeApplePay {
-                        pk_token: String::from_utf8(
-                            consts::BASE64_ENGINE
-                                .decode(data.payment_data)
-                                .into_report()
-                                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                        )
-                        .into_report()
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                        pk_token_instrument_name: data.payment_method.pm_type,
-                        pk_token_payment_network: data.payment_method.network,
-                        pk_token_transaction_id: data.transaction_identifier,
-                    });
-                    Ok(Self::Wallet(wallet_info))
-                }
+                payments::WalletData::ApplePay(data) => match data {
+                    payments::ApplePayData::ApplePayWalletData(apple_pay_wallet_data) => {
+                        let wallet_info = StripeWallet::ApplepayToken(StripeApplePay {
+                            pk_token: String::from_utf8(
+                                consts::BASE64_ENGINE
+                                    .decode(apple_pay_wallet_data.payment_data)
+                                    .into_report()
+                                    .change_context(
+                                        errors::ConnectorError::RequestEncodingFailed,
+                                    )?,
+                            )
+                            .into_report()
+                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                            pk_token_instrument_name: apple_pay_wallet_data.payment_method.pm_type,
+                            pk_token_payment_network: apple_pay_wallet_data.payment_method.network,
+                            pk_token_transaction_id: apple_pay_wallet_data.transaction_identifier,
+                        });
+                        Ok(Self::Wallet(wallet_info))
+                    }
+                    _ => Err(errors::ConnectorError::NotSupported {
+                        message: "Wallet".to_string(),
+                        connector: "Stripe",
+                        payment_experience: "RedirectToUrl".to_string(),
+                    })
+                    .into_report(),
+                },
 
                 payments::WalletData::WeChatPayRedirect(_) => {
                     let wallet_info = StripeWallet::WechatpayPayment(WechatpayPayment {

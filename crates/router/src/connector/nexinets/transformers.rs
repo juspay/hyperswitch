@@ -657,15 +657,23 @@ fn get_wallet_details(
 > {
     match wallet {
         api_models::payments::WalletData::PaypalRedirect(_) => Ok((None, NexinetsProduct::Paypal)),
-        api_models::payments::WalletData::ApplePay(applepay_data) => Ok((
-            Some(NexinetsPaymentDetails::Wallet(Box::new(
-                NexinetsWalletDetails::ApplePayToken(Box::new(get_applepay_details(
-                    wallet,
-                    applepay_data,
-                )?)),
-            ))),
-            NexinetsProduct::Applepay,
-        )),
+        api_models::payments::WalletData::ApplePay(applepay_data) => match applepay_data {
+            api_models::payments::ApplePayData::ApplePayWalletData(apple_pay_wallet_data) => Ok((
+                Some(NexinetsPaymentDetails::Wallet(Box::new(
+                    NexinetsWalletDetails::ApplePayToken(Box::new(get_applepay_details(
+                        wallet,
+                        apple_pay_wallet_data,
+                    )?)),
+                ))),
+                NexinetsProduct::Applepay,
+            )),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "Wallet".to_string(),
+                connector: "NexiNets",
+                payment_experience: "RedirectToUrl".to_string(),
+            })
+            .into_report(),
+        },
         _ => Err(errors::ConnectorError::NotImplemented(
             "Payment methods".to_string(),
         ))?,

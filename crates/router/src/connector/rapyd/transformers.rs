@@ -105,9 +105,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
                         payment_type: "google_pay".to_string(),
                         token: Some(data.tokenization_data.token.to_owned()),
                     }),
-                    api_models::payments::WalletData::ApplePay(data) => Some(RapydWallet {
+                    api_models::payments::WalletData::ApplePay(
+                        api_models::payments::ApplePayData::ApplePayWalletData(
+                            apple_pay_wallet_data,
+                        ),
+                    ) => Some(RapydWallet {
                         payment_type: "apple_pay".to_string(),
-                        token: Some(data.payment_data.to_string()),
+                        token: Some(apple_pay_wallet_data.payment_data.to_string()),
                     }),
                     _ => None,
                 };

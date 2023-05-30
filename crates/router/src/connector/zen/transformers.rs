@@ -171,18 +171,29 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                     },
                     ZenPaymentChannels::PclGooglepay,
                 )),
-                api_models::payments::WalletData::ApplePay(data) => Ok((
-                    ZenPaymentData {
-                        browser_details,
-                        //Connector Specific for wallet
-                        payment_type: ZenPaymentTypes::ExternalPaymentToken,
-                        token: Some(data.payment_data.clone()),
-                        card: None,
-                        descriptor: item.get_description()?.chars().take(24).collect(),
-                        return_verify_url: item.request.router_return_url.clone(),
-                    },
-                    ZenPaymentChannels::PclApplepay,
-                )),
+                api_models::payments::WalletData::ApplePay(data) => {
+                    match data {
+                        api_models::payments::ApplePayData::ApplePayRedirect(_) => {
+                            Ok((
+                                ZenPaymentData {
+                                    browser_details,
+                                    //Connector Specific for wallet
+                                    payment_type: ZenPaymentTypes::Onetime,
+                                    token: None,
+                                    card: None,
+                                    descriptor: item.get_description()?.chars().take(24).collect(),
+                                    return_verify_url: item.request.router_return_url.clone(),
+                                },
+                                ZenPaymentChannels::PclApplepay,
+                            ))
+                        }
+                        _ => Err(errors::ConnectorError::NotSupported {
+                            message: "Wallet".to_string(),
+                            connector: "Stripe",
+                            payment_experience: "RedirectToUrl".to_string(),
+                        }),
+                    }
+                }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     "payment method".to_string(),
                 )),

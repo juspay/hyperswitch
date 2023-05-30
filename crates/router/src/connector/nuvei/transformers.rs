@@ -609,7 +609,17 @@ impl<F>
             api::PaymentMethodData::Card(card) => get_card_info(item, &card),
             api::PaymentMethodData::Wallet(wallet) => match wallet {
                 payments::WalletData::GooglePay(gpay_data) => Self::try_from(gpay_data),
-                payments::WalletData::ApplePay(apple_pay_data) => Ok(Self::from(apple_pay_data)),
+                payments::WalletData::ApplePay(apple_pay_data) => match apple_pay_data {
+                    payments::ApplePayData::ApplePayWalletData(apple_pay_wallet_data) => {
+                        Ok(Self::from(apple_pay_wallet_data))
+                    }
+                    _ => Err(errors::ConnectorError::NotSupported {
+                        message: "Wallet".to_string(),
+                        connector: "Nuvei",
+                        payment_experience: "RedirectToUrl".to_string(),
+                    })
+                    .into_report(),
+                },
                 payments::WalletData::PaypalRedirect(_) => Self::foreign_try_from((
                     AlternativePaymentMethodType::Expresscheckout,
                     None,

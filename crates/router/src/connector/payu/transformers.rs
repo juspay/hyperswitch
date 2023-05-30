@@ -88,15 +88,24 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                         }
                     }),
                 }),
-                api_models::payments::WalletData::ApplePay(data) => Ok(PayuPaymentMethod {
-                    pay_method: PayuPaymentMethodData::Wallet({
-                        PayuWallet {
-                            value: PayuWalletCode::Jp,
-                            wallet_type: WALLET_IDENTIFIER.to_string(),
-                            authorization_code: data.payment_data,
-                        }
+                api_models::payments::WalletData::ApplePay(data) => match data {
+                    api_models::payments::ApplePayData::ApplePayWalletData(
+                        apple_pay_wallet_data,
+                    ) => Ok(PayuPaymentMethod {
+                        pay_method: PayuPaymentMethodData::Wallet({
+                            PayuWallet {
+                                value: PayuWalletCode::Jp,
+                                wallet_type: WALLET_IDENTIFIER.to_string(),
+                                authorization_code: apple_pay_wallet_data.payment_data,
+                            }
+                        }),
                     }),
-                }),
+                    _ => Err(errors::ConnectorError::NotSupported {
+                        message: "Wallet".to_string(),
+                        connector: "PayU",
+                        payment_experience: "RedirectToUrl".to_string(),
+                    }),
+                },
                 _ => Err(errors::ConnectorError::NotImplemented(
                     "Unknown Wallet in Payment Method".to_string(),
                 )),

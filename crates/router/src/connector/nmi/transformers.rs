@@ -110,7 +110,17 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
                     Ok(Self::from(googlepay_data))
                 }
                 api_models::payments::WalletData::ApplePay(ref applepay_data) => {
-                    Ok(Self::from(applepay_data))
+                    match applepay_data {
+                        api_models::payments::ApplePayData::ApplePayWalletData(
+                            apple_pay_wallet_data,
+                        ) => Ok(Self::from(apple_pay_wallet_data)),
+                        _ => Err(errors::ConnectorError::NotSupported {
+                            message: "Wallet".to_string(),
+                            connector: "NMI",
+                            payment_experience: "RedirectToUrl".to_string(),
+                        })
+                        .into_report(),
+                    }
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     "Payment Method".to_string(),

@@ -165,9 +165,19 @@ fn get_payment_method_for_wallet(
             })))
         }
         api_models::payments::WalletData::ApplePay(applepay_wallet_data) => {
-            Ok(PaymentMethodData::Applepay(Box::new(ApplePayMethodData {
-                apple_pay_payment_token: applepay_wallet_data.payment_data.to_owned(),
-            })))
+            match applepay_wallet_data {
+                payments::ApplePayData::ApplePayWalletData(wallet_data) => {
+                    Ok(PaymentMethodData::Applepay(Box::new(ApplePayMethodData {
+                        apple_pay_payment_token: wallet_data.payment_data.to_owned(),
+                    })))
+                }
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: "Wallet".to_string(),
+                    connector: "Mollie",
+                    payment_experience: "RedirectToUrl".to_string(),
+                })
+                .into_report(),
+            }
         }
         _ => Err(errors::ConnectorError::NotImplemented(
             "Payment Method".to_string(),
