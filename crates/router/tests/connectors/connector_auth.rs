@@ -25,7 +25,7 @@ pub struct ConnectorAuthentication {
     pub iatapay: Option<SignatureKey>,
     pub mollie: Option<HeaderKey>,
     pub multisafepay: Option<HeaderKey>,
-    pub nexinets: Option<HeaderKey>,
+    pub nexinets: Option<BodyKey>,
     pub noon: Option<SignatureKey>,
     pub nmi: Option<HeaderKey>,
     pub nuvei: Option<SignatureKey>,
@@ -139,4 +139,5 @@ pub struct AutomationConfigs {
     pub testcases_path: Option<String>,
     pub bluesnap_gateway_merchant_id: Option<String>,
     pub globalpay_gateway_merchant_id: Option<String>,
+    pub run_minimum_steps: Option<bool>,
 }
