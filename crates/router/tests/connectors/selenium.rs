@@ -6,6 +6,7 @@ use thirtyfour::{components::SelectElement, prelude::*, WebDriver};
 
 use crate::connector_auth;
 
+#[derive(Clone)]
 pub enum Event<'a> {
     RunIf(Assert<'a>, Vec<Event<'a>>),
     EitherOr(Assert<'a>, Vec<Event<'a>>, Vec<Event<'a>>),
@@ -13,6 +14,7 @@ pub enum Event<'a> {
     Trigger(Trigger<'a>),
 }
 
+#[derive(Clone)]
 #[allow(dead_code)]
 pub enum Trigger<'a> {
     Goto(&'a str),
@@ -28,15 +30,18 @@ pub enum Trigger<'a> {
     Sleep(u64),
 }
 
+#[derive(Clone)]
 pub enum Position {
     Prev,
     Next,
 }
+#[derive(Clone)]
 pub enum Selector {
     Title,
     QueryParamStr,
 }
 
+#[derive(Clone)]
 pub enum Assert<'a> {
     Eq(Selector, &'a str),
     Contains(Selector, &'a str),
@@ -194,14 +199,25 @@ pub trait SeleniumTest {
                     Trigger::Goto(url) => {
                         driver.goto(url).await?;
                         let conf = serde_json::to_string(&self.get_configs()).unwrap();
-                        let hs_base_url = self.get_configs().hs_base_url.unwrap_or_else(|| {
-                            env::var("HS_BASE_URL")
-                                .unwrap_or_else(|_| "http://localhost:8080".to_string())
-                        });
-                        let configs_url = self.get_configs().configs_url.unwrap();
+                        let hs_base_url = self
+                            .get_configs()
+                            .automation_configs
+                            .unwrap()
+                            .hs_base_url
+                            .unwrap_or_else(|| {
+                                env::var("HS_BASE_URL")
+                                    .unwrap_or_else(|_| "http://localhost:8080".to_string())
+                            });
+                        let configs_url = self
+                            .get_configs()
+                            .automation_configs
+                            .unwrap()
+                            .configs_url
+                            .unwrap();
                         let script = &[
                             format!("localStorage.configs='{configs_url}'").as_str(),
                             format!("localStorage.hs_api_configs='{conf}'").as_str(),
+                            "localStorage.force_sync='true'",
                             format!(
                                 "localStorage.current_connector=\"{}\";",
                                 self.get_connector_name().clone()
@@ -288,7 +304,13 @@ pub trait SeleniumTest {
         c: WebDriver,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
-        self.complete_actions(&c, actions).await
+        let config = self.get_configs().automation_configs.unwrap();
+        if config.run_minimum_steps.unwrap() {
+            self.complete_actions(&c, actions[..3].to_vec()).await
+        }
+        else {
+            self.complete_actions(&c, actions).await
+        }
     }
     async fn make_gpay_payment(
         &self,
@@ -296,7 +318,7 @@ pub trait SeleniumTest {
         url: &str,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
-        let config = self.get_configs();
+        let config = self.get_configs().automation_configs.unwrap();
         let (email, pass) = (
             &config.gmail_email.unwrap_or_else(|| get_env("GMAIL_EMAIL")),
             &config.gmail_pass.unwrap_or_else(|| get_env("GMAIL_PASS")),
@@ -353,10 +375,14 @@ pub trait SeleniumTest {
         let (email, pass) = (
             &self
                 .get_configs()
+                .automation_configs
+                .unwrap()
                 .pypl_email
                 .unwrap_or_else(|| get_env("PYPL_EMAIL")),
             &self
                 .get_configs()
+                .automation_configs
+                .unwrap()
                 .pypl_pass
                 .unwrap_or_else(|| get_env("PYPL_PASS")),
         );
