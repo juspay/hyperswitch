@@ -3,7 +3,7 @@ use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 use error_stack::{IntoReport, ResultExt};
 pub use storage_models::dispute::{Dispute, DisputeNew, DisputeUpdate};
-use storage_models::{errors, schema::dispute::dsl};
+use storage_models::{errors, metrics::database_metric, schema::dispute::dsl};
 
 use crate::{connection::PgPooledConn, logger, types::transformers::ForeignInto};
 
@@ -65,11 +65,16 @@ impl DisputeDbExt for Dispute {
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
-        filter
-            .get_results_async(conn)
-            .await
-            .into_report()
-            .change_context(errors::DatabaseError::NotFound)
-            .attach_printable_lazy(|| "Error filtering records by predicate")
+        let table_name = std::any::type_name::<Self>();
+
+        database_metric::time_database_call(
+            database_metric::DatabaseCallType::Read,
+            || filter.get_results_async(conn),
+            table_name,
+        )
+        .await
+        .into_report()
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering records by predicate")
     }
 }

@@ -22,7 +22,7 @@ use diesel::{
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, logger, tracing};
 
-use crate::{errors, PgPooledConn, StorageResult};
+use crate::{errors, metrics::database_metric, PgPooledConn, StorageResult};
 
 #[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_insert<T, V, R>(conn: &PgPooledConn, values: V) -> StorageResult<R>
@@ -40,7 +40,16 @@ where
     let query = diesel::insert_into(<T as HasTable>::table()).values(values);
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    match query.get_result_async(conn).await.into_report() {
+    let table_name = std::any::type_name::<T>();
+
+    match database_metric::time_database_call(
+        database_metric::DatabaseCallType::Create,
+        || query.get_result_async(conn),
+        table_name,
+    )
+    .await
+    .into_report()
+    {
         Ok(value) => Ok(value),
         Err(err) => match err.current_context() {
             ConnectionError::Query(DieselError::DatabaseError(
@@ -74,12 +83,17 @@ where
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    query
-        .execute_async(conn)
-        .await
-        .into_report()
-        .change_context(errors::DatabaseError::Others)
-        .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
+    let table_name = std::any::type_name::<T>();
+
+    database_metric::time_database_call(
+        database_metric::DatabaseCallType::Update,
+        || query.execute_async(conn),
+        table_name,
+    )
+    .await
+    .into_report()
+    .change_context(errors::DatabaseError::Others)
+    .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
 }
 
 #[instrument(level = "DEBUG", skip_all)]
@@ -109,7 +123,15 @@ where
 
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
 
-    match query.to_owned().get_results_async(conn).await {
+    let table_name = std::any::type_name::<T>();
+
+    match database_metric::time_database_call(
+        database_metric::DatabaseCallType::Update,
+        || query.to_owned().get_results_async(conn),
+        table_name,
+    )
+    .await
+    {
         Ok(result) => {
             logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
             Ok(result)
@@ -195,7 +217,15 @@ where
 
     let query = diesel::update(<T as HasTable>::table().find(id.to_owned())).set(values);
 
-    match query.to_owned().get_result_async(conn).await {
+    let table_name = std::any::type_name::<T>();
+
+    match database_metric::time_database_call(
+        database_metric::DatabaseCallType::Update,
+        || query.to_owned().get_result_async(conn),
+        table_name,
+    )
+    .await
+    {
         Ok(result) => {
             logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
             Ok(result)
@@ -226,22 +256,25 @@ where
     let query = diesel::delete(<T as HasTable>::table().filter(predicate));
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    query
-        .execute_async(conn)
-        .await
-        .into_report()
-        .change_context(errors::DatabaseError::Others)
-        .attach_printable_lazy(|| "Error while deleting")
-        .and_then(|result| match result {
-            n if n > 0 => {
-                logger::debug!("{n} records deleted");
-                Ok(true)
-            }
-            0 => {
-                Err(report!(errors::DatabaseError::NotFound).attach_printable("No records deleted"))
-            }
-            _ => Ok(true), // n is usize, rustc requires this for exhaustive check
-        })
+    let table_name = std::any::type_name::<T>();
+
+    database_metric::time_database_call(
+        database_metric::DatabaseCallType::Delete,
+        || query.execute_async(conn),
+        table_name,
+    )
+    .await
+    .into_report()
+    .change_context(errors::DatabaseError::Others)
+    .attach_printable_lazy(|| "Error while deleting")
+    .and_then(|result| match result {
+        n if n > 0 => {
+            logger::debug!("{n} records deleted");
+            Ok(true)
+        }
+        0 => Err(report!(errors::DatabaseError::NotFound).attach_printable("No records deleted")),
+        _ => Ok(true), // n is usize, rustc requires this for exhaustive check
+    })
 }
 
 #[instrument(level = "DEBUG", skip_all)]
@@ -261,18 +294,23 @@ where
     let query = diesel::delete(<T as HasTable>::table().filter(predicate));
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    query
-        .get_results_async(conn)
-        .await
-        .into_report()
-        .change_context(errors::DatabaseError::Others)
-        .attach_printable_lazy(|| "Error while deleting")
-        .and_then(|result| {
-            result.first().cloned().ok_or_else(|| {
-                report!(errors::DatabaseError::NotFound)
-                    .attach_printable("Object to be deleted does not exist")
-            })
+    let table_name = std::any::type_name::<T>();
+
+    database_metric::time_database_call(
+        database_metric::DatabaseCallType::Delete,
+        || query.get_results_async(conn),
+        table_name,
+    )
+    .await
+    .into_report()
+    .change_context(errors::DatabaseError::Others)
+    .attach_printable_lazy(|| "Error while deleting")
+    .and_then(|result| {
+        result.first().cloned().ok_or_else(|| {
+            report!(errors::DatabaseError::NotFound)
+                .attach_printable("Object to be deleted does not exist")
         })
+    })
 }
 
 #[instrument(level = "DEBUG", skip_all)]
@@ -287,7 +325,16 @@ where
     let query = <T as HasTable>::table().find(id.to_owned());
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    match query.first_async(conn).await.into_report() {
+    let table_name = std::any::type_name::<T>();
+
+    match database_metric::time_database_call(
+        database_metric::DatabaseCallType::Read,
+        || query.first_async(conn),
+        table_name,
+    )
+    .await
+    .into_report()
+    {
         Ok(value) => Ok(value),
         Err(err) => match err.current_context() {
             ConnectionError::Query(DieselError::NotFound) => {
@@ -337,17 +384,22 @@ where
     let query = <T as HasTable>::table().filter(predicate);
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    query
-        .get_result_async(conn)
-        .await
-        .into_report()
-        .map_err(|err| match err.current_context() {
-            ConnectionError::Query(DieselError::NotFound) => {
-                err.change_context(errors::DatabaseError::NotFound)
-            }
-            _ => err.change_context(errors::DatabaseError::Others),
-        })
-        .attach_printable_lazy(|| "Error finding record by predicate")
+    let table_name = std::any::type_name::<T>();
+
+    database_metric::time_database_call(
+        database_metric::DatabaseCallType::Read,
+        || query.get_result_async(conn),
+        table_name,
+    )
+    .await
+    .into_report()
+    .map_err(|err| match err.current_context() {
+        ConnectionError::Query(DieselError::NotFound) => {
+            err.change_context(errors::DatabaseError::NotFound)
+        }
+        _ => err.change_context(errors::DatabaseError::Others),
+    })
+    .attach_printable_lazy(|| "Error finding record by predicate")
 }
 
 #[instrument(level = "DEBUG", skip_all)]
@@ -410,12 +462,17 @@ where
 
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    query
-        .get_results_async(conn)
-        .await
-        .into_report()
-        .change_context(errors::DatabaseError::NotFound)
-        .attach_printable_lazy(|| "Error filtering records by predicate")
+    let table_name = std::any::type_name::<T>();
+
+    database_metric::time_database_call(
+        database_metric::DatabaseCallType::Read,
+        || query.get_results_async(conn),
+        table_name,
+    )
+    .await
+    .into_report()
+    .change_context(errors::DatabaseError::NotFound)
+    .attach_printable_lazy(|| "Error filtering records by predicate")
 }
 
 fn to_optional<T>(arg: StorageResult<T>) -> StorageResult<Option<T>> {

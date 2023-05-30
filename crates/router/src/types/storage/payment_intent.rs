@@ -4,6 +4,7 @@ use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 pub use storage_models::{
     errors,
+    metrics::database_metric,
     payment_intent::{
         PaymentIntent, PaymentIntentNew, PaymentIntentUpdate, PaymentIntentUpdateInternal,
     },
@@ -78,11 +79,16 @@ impl PaymentIntentDbExt for PaymentIntent {
 
         crate::logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
-        filter
-            .get_results_async(conn)
-            .await
-            .into_report()
-            .change_context(errors::DatabaseError::NotFound)
-            .attach_printable_lazy(|| "Error filtering records by predicate")
+        let table_name = std::any::type_name::<Self>();
+
+        database_metric::time_database_call(
+            database_metric::DatabaseCallType::Read,
+            || filter.get_results_async(conn),
+            table_name,
+        )
+        .await
+        .into_report()
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering records by predicate")
     }
 }

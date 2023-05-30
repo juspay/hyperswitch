@@ -5,7 +5,7 @@ use error_stack::{IntoReport, ResultExt};
 pub use storage_models::refund::{
     Refund, RefundCoreWorkflow, RefundNew, RefundUpdate, RefundUpdateInternal,
 };
-use storage_models::{errors, schema::refund::dsl};
+use storage_models::{errors, metrics::database_metric, schema::refund::dsl};
 
 use crate::{connection::PgPooledConn, logger};
 
@@ -62,11 +62,16 @@ impl RefundDbExt for Refund {
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
-        filter
-            .get_results_async(conn)
-            .await
-            .into_report()
-            .change_context(errors::DatabaseError::NotFound)
-            .attach_printable_lazy(|| "Error filtering records by predicate")
+        let table_name = std::any::type_name::<Self>();
+
+        database_metric::time_database_call(
+            database_metric::DatabaseCallType::Read,
+            || filter.get_results_async(conn),
+            table_name,
+        )
+        .await
+        .into_report()
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering records by predicate")
     }
 }

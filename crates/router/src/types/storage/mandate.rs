@@ -5,7 +5,7 @@ use error_stack::{IntoReport, ResultExt};
 pub use storage_models::mandate::{
     Mandate, MandateNew, MandateUpdate, MandateUpdateInternal, SingleUseMandate,
 };
-use storage_models::{errors, schema::mandate::dsl};
+use storage_models::{errors, metrics::database_metric, schema::mandate::dsl};
 
 use crate::{connection::PgPooledConn, logger, types::transformers::ForeignInto};
 
@@ -59,13 +59,18 @@ impl MandateDbExt for Mandate {
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
-        filter
-            .get_results_async(conn)
-            .await
-            .into_report()
-            // The query built here returns an empty Vec when no records are found, and if any error does occur,
-            // it would be an internal database error, due to which we are raising a DatabaseError::Unknown error
-            .change_context(errors::DatabaseError::Others)
-            .attach_printable("Error filtering mandates by specified constraints")
+        let table_name = std::any::type_name::<Self>();
+
+        database_metric::time_database_call(
+            database_metric::DatabaseCallType::Read,
+            || filter.get_results_async(conn),
+            table_name,
+        )
+        .await
+        .into_report()
+        // The query built here returns an empty Vec when no records are found, and if any error does occur,
+        // it would be an internal database error, due to which we are raising a DatabaseError::Unknown error
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Error filtering mandates by specified constraints")
     }
 }

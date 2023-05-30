@@ -6,9 +6,10 @@ global_meter!(GLOBAL_METER, "ROUTER_API");
 histogram_metric!(DB_REQUEST_TIME, GLOBAL_METER);
 counter_metric!(DB_REQUEST_COUNT, GLOBAL_METER);
 
-mod database_metric {
-    use router_env::opentelemetry::KeyValue;
+pub mod database_metric {
     use std::{future::Future, time::Instant};
+
+    use router_env::opentelemetry::KeyValue;
 
     use super::*;
     #[derive(Debug)]
@@ -21,12 +22,11 @@ mod database_metric {
 
     impl DatabaseCallType {
         fn as_str(&self) -> &'static str {
-
             match self {
-                DatabaseCallType::Create => "create",
-                DatabaseCallType::Read => "read",
-                DatabaseCallType::Update => "update",
-                DatabaseCallType::Delete => "delete",
+                Self::Create => "create",
+                Self::Read => "read",
+                Self::Update => "update",
+                Self::Delete => "delete",
             }
         }
     }
@@ -38,9 +38,18 @@ mod database_metric {
     ) -> R {
         let start = Instant::now();
         let output = future().await;
+        let end_time = start.elapsed().as_secs_f64();
         DB_REQUEST_COUNT.add(
             &CONTEXT,
             1,
+            &[
+                KeyValue::new("call_type", call_type.as_str()),
+                KeyValue::new("table", table.to_string()),
+            ],
+        );
+        DB_REQUEST_TIME.record(
+            &CONTEXT,
+            end_time,
             &[
                 KeyValue::new("call_type", call_type.as_str()),
                 KeyValue::new("table", table.to_string()),
