@@ -82,7 +82,7 @@ impl RequestBuilder for PaymentRetrieve {
     }
 
     fn verify_success_response(_response: &Value, _data: &MasterData) -> Self {
-        assert_eq!(true, true);
+        //assert_eq!(true, true);
         Self
     }
 
@@ -135,7 +135,7 @@ impl RequestBuilder for PaymentCapture {
     }
 
     fn verify_success_response(_resp: &Value, _data: &MasterData) -> Self {
-        assert_eq!(true, true);
+        //assert_eq!(true, true);
         Self
     }
 
@@ -165,7 +165,7 @@ impl RequestBuilder for PaymentConfirm {
     }
 
     fn verify_success_response(_resp: &Value, _data: &MasterData) -> Self {
-        assert_eq!(true, true);
+        //assert_eq!(true, true);
         Self
     }
 
