@@ -111,10 +111,10 @@ impl
     ) -> Result<Self, Self::Error> {
         let (item, bank_redirect_data) = value;
         let payment_data = match bank_redirect_data {
-            api_models::payments::BankRedirectData::Eps { country, .. } => {
+            api_models::payments::BankRedirectData::Eps { .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Eps,
-                    bank_account_country: Some(country.to_owned()),
+                    bank_account_country: Some(api_models::enums::CountryAlpha2::AT),
                     bank_account_bank_name: None,
                     bank_account_bic: None,
                     bank_account_iban: None,
@@ -127,11 +127,10 @@ impl
             api_models::payments::BankRedirectData::Giropay {
                 bank_account_bic,
                 bank_account_iban,
-                country,
                 ..
             } => Self::BankRedirect(Box::new(BankRedirectionPMData {
                 payment_brand: PaymentBrand::Giropay,
-                bank_account_country: Some(country.to_owned()),
+                bank_account_country: Some(api_models::enums::CountryAlpha2::DE),
                 bank_account_bank_name: None,
                 bank_account_bic: bank_account_bic.clone(),
                 bank_account_iban: bank_account_iban.clone(),
@@ -140,10 +139,10 @@ impl
                 merchant_transaction_id: None,
                 customer_email: None,
             })),
-            api_models::payments::BankRedirectData::Ideal { bank_name, country, .. } => {
+            api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Ideal,
-                    bank_account_country: Some(country.to_owned()),
+                    bank_account_country: Some(api_models::enums::CountryAlpha2::NL),
                     bank_account_bank_name: Some(bank_name.to_string()),
                     bank_account_bic: None,
                     bank_account_iban: None,
@@ -298,8 +297,6 @@ pub enum InstructionMode {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum InstructionType {
-    Recurring,
-    Installment,
     Unscheduled,
 }
 
@@ -371,8 +368,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                 )?;
                 Self::try_from((item, mandate_id))
             }
-            api::PaymentMethodData::Crypto(_) 
-            | api::PaymentMethodData::BankDebit(_) 
+            api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::BankTransfer(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.payment_method),
@@ -471,11 +468,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &api::Card)> for AciPaymentsR
         let (item, card_data) = value;
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::try_from(card_data.clone())?;
-        let instruction = match get_instruction_details(item){
-            Ok(instruction) => Some(instruction), // Inititial Mandate Payment
-            Err(errors::ConnectorError::MissingConnectorMandateID) => None, // Card Payment
-            Err(err) => Err(err)?
-        };
+        let instruction = get_instruction_details(item);
 
         Ok(Self {
             txn_details,
@@ -500,10 +493,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let (item, _mandate_data) = value;
-        let instruction = match get_instruction_details(item){
-            Ok(instruction) => Some(instruction), // Recurring Mandate Payment
-            Err(err) => Err(err)?
-        };
+        let instruction = get_instruction_details(item);
         let txn_details = get_transaction_details(item)?;
 
         Ok(Self {
@@ -527,41 +517,23 @@ fn get_transaction_details(
     })
 }
 
-fn get_instruction_details(item: &types::PaymentsAuthorizeRouterData) -> Result<Instruction, errors::ConnectorError> {
-    if let Some(mandate_data) = item.request.setup_mandate_details.clone() {
-        if let Some(mandate_type) = mandate_data.mandate_type {
-            match mandate_type {
-                api_models::payments::MandateType::SingleUse(_) => {
-                    Err(errors::ConnectorError::NotImplemented("Single Use Mandate is Not Implemented".to_string()))
-                },
-                api_models::payments::MandateType::MultiUse(_) => {
-                    Ok(Instruction {
-                        mode: InstructionMode::Initial,
-                        transaction_type: InstructionType::Unscheduled,
-                        source: InstructionSource::Cit,
-                        create_registration: Some(true),
-                    })
-                },
-                
-            }
-        }
-        else{
-            Err(errors::ConnectorError::MissingConnectorMandateDetails)
-        }
+fn get_instruction_details(item: &types::PaymentsAuthorizeRouterData) -> Option<Instruction> {
+    if item.request.setup_mandate_details.is_some() {
+        return Some(Instruction {
+            mode: InstructionMode::Initial,
+            transaction_type: InstructionType::Unscheduled,
+            source: InstructionSource::Cit,
+            create_registration: Some(true),
+        });
+    } else if item.request.mandate_id.is_some() {
+        return Some(Instruction {
+            mode: InstructionMode::Repeated,
+            transaction_type: InstructionType::Unscheduled,
+            source: InstructionSource::Mit,
+            create_registration: None,
+        });
     }
-    else{
-        match item.request.mandate_id.as_ref() {
-            Some(_) => {
-                Ok(Instruction {
-                    mode: InstructionMode::Repeated,
-                    transaction_type: InstructionType::Unscheduled,
-                    source: InstructionSource::Mit,
-                    create_registration: None,
-                })
-            },
-            None => Err(errors::ConnectorError::MissingConnectorMandateID)
-        }
-    }
+    None
 }
 
 impl TryFrom<&types::PaymentsCancelRouterData> for AciCancelRequest {
@@ -681,10 +653,13 @@ impl<F, T>
             }
         });
 
-        let mandate_reference = Some(types::MandateReference {
-            connector_mandate_id: item.response.registration_id,
-            payment_method_id: None,
-        });
+        let mandate_reference = item
+            .response
+            .registration_id
+            .map(|id| types::MandateReference {
+                connector_mandate_id: Some(id),
+                payment_method_id: None,
+            });
 
         Ok(Self {
             status: {

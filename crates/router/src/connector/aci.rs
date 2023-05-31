@@ -239,16 +239,14 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.request.mandate_id.as_ref() {
             Some(mandate_ids) => {
-                let connector_mandate_id = match mandate_ids.mandate_reference_id.clone() {
+                let connector_mandate_id = match mandate_ids.mandate_reference_id.to_owned() {
                     Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                         connector_mandate_ids,
                     )) => connector_mandate_ids.connector_mandate_id,
                     _ => None,
                 };
-                let man_id =
-                    connector_mandate_id.ok_or(
-                        errors::ConnectorError::MissingConnectorMandateID
-                    )?;
+                let man_id = connector_mandate_id
+                    .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
                 Ok(format!(
                     "{}v1/registrations/{}/payments",
                     self.base_url(connectors),
