@@ -501,7 +501,7 @@ pub struct ApiKeys {
 
     // Specifies the number of days before API key expiry when email reminders should be sent
     #[cfg(feature = "email")]
-    pub expiry_reminder_days: Vec<u16>,
+    pub expiry_reminder_days: Vec<u8>,
 }
 
 #[cfg(feature = "s3")]

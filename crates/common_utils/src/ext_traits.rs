@@ -8,7 +8,10 @@ use masking::{ExposeInterface, Secret, Strategy};
 use quick_xml::de;
 use serde::{Deserialize, Serialize};
 
-use crate::{errors::{self, CustomResult}, crypto};
+use crate::{
+    crypto,
+    errors::{self, CustomResult},
+};
 
 ///
 /// Encode interface
@@ -254,8 +257,7 @@ where
     }
 }
 
-impl<E: ValueExt + Clone> ValueExt for crypto::Encryptable<E>
-{
+impl<E: ValueExt + Clone> ValueExt for crypto::Encryptable<E> {
     fn parse_value<T>(self, type_name: &'static str) -> CustomResult<T, errors::ParsingError>
     where
         T: serde::de::DeserializeOwned,

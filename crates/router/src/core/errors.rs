@@ -385,6 +385,8 @@ pub enum ProcessTrackerError {
     EParsingError(error_stack::Report<ParsingError>),
     #[error("Validation Error Received: {0}")]
     EValidationError(error_stack::Report<ValidationError>),
+    #[error("Type Conversion error")]
+    TypeConversionError,
 }
 
 macro_rules! error_to_process_tracker_error {

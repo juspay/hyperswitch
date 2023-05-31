@@ -143,5 +143,5 @@ pub struct ApiKeyExpiryWorkflow {
     pub merchant_id: String,
     pub api_key_expiry: Option<PrimitiveDateTime>,
     // Days on which email reminder about api_key expiry has to be sent, prior to it's expiry.
-    pub expiry_reminder_days: Vec<u16>,
+    pub expiry_reminder_days: Vec<u8>,
 }
