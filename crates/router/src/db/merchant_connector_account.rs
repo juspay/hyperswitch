@@ -306,6 +306,7 @@ impl MerchantConnectorAccountInterface for Store {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for MockDb {
     // safety: only used for testing
@@ -423,15 +424,12 @@ impl MerchantConnectorAccountInterface for MockDb {
             .iter_mut()
             .find(|account| account.id == merchant_connector_account.id.unwrap_or_default())
             .map(|a| {
-                let updated = MerchantConnectorAccountUpdateInternal::from(
-                    updated_merchant_connector_account,
-                )
-                .create_merchant_connector_account(a.clone());
+                let updated =
+                    updated_merchant_connector_account.create_merchant_connector_account(a.clone());
                 *a = updated.clone();
                 updated
             })
-            .unwrap()
-            .clone();
+            .unwrap();
         account
             .convert(
                 self,
