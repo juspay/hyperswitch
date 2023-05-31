@@ -13,13 +13,13 @@ async fn main() -> ApplicationResult<()> {
     {
         use router::configs::settings::Subcommand;
         if let Some(Subcommand::GenerateOpenapiSpec) = cmd_line.subcommand {
-            let file_path = "openapi/generated.json";
+            let file_path = "openapi/openapi_spec.json";
             #[allow(clippy::expect_used)]
             std::fs::write(
                 file_path,
                 <router::openapi::ApiDoc as utoipa::OpenApi>::openapi()
                     .to_pretty_json()
-                    .expect("Failed to generate serialize OpenAPI specification as JSON"),
+                    .expect("Failed to serialize OpenAPI specification as JSON"),
             )
             .expect("Failed to write OpenAPI specification to file");
             println!("Successfully saved OpenAPI specification file at '{file_path}'");

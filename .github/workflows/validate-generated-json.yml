@@ -1,24 +1,19 @@
-name: Validate Generated JSON File
+name: Validate Generated OpenAPI Spec File
 
 on:
-  pull_request_target:
-    types:
-      - opened
-      - edited
-      - reopened
-      - ready_for_review
-      - synchronize
+  pull_request:
 
   merge_group:
     types:
       - checks_requested
 
-permissions:
-  repository-projects: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  validate-JSON:
-    name: Validate generated.json file
+  validate_json:
+    name: Validate generated openapi spec file
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -30,4 +25,4 @@ jobs:
 
       - name: Validate the json file
         shell: bash
-        run: swagger-cli validate ${{ github.workspace }}/openapi/generated.json
+        run: swagger-cli validate ./openapi/generated.json
