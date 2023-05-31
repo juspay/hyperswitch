@@ -65,6 +65,9 @@ pub fn setup(
             &crates_to_filter,
         );
 
+        println!("File filter {file_filter:?}");
+
+
         Some(FormattingLayer::new(service_name, file_writer).with_filter(file_filter))
     } else {
         None
@@ -86,6 +89,9 @@ pub fn setup(
             config.console.level,
             &crates_to_filter,
         );
+
+
+        println!("console filter {console_filter:?}");
 
         match config.console.log_format {
             config::LogFormat::Default => {
@@ -229,7 +235,7 @@ fn get_envfilter(
                 .drain()
                 .zip(std::iter::repeat(filter_log_level.into_level()))
                 .fold(
-                    EnvFilter::default().add_directive(default_log_level.into_level().into()),
+                    EnvFilter::from_default_env().add_directive(default_log_level.into_level().into()),
                     |env_filter, (target, level)| {
                         // Safety: This is a hardcoded basic filtering directive. If even the basic
                         // filter is wrong, it's better to panic.
