@@ -20,7 +20,7 @@ where
 }
 
 #[inline]
-pub async fn record_card_operation_time<F, R>(
+pub async fn record_operation_time<F, R>(
     future: F,
     metric: &once_cell::sync::Lazy<router_env::opentelemetry::metrics::Histogram<f64>>,
 ) -> R
