@@ -6,9 +6,9 @@ use crate::{
         payments,
     },
     logger,
-    routes::AppState,
+    routes::{metrics, AppState},
     services,
-    types::{self, api, storage},
+    types::{self, api, domain, storage},
 };
 
 #[instrument(skip_all)]
@@ -50,6 +50,15 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
     .await
     .map_err(|error| error.to_payment_failed_response())?;
 
+    metrics::CONNECTOR_CUSTOMER_CREATE.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes(
+            "connector",
+            connector.connector_name.to_string(),
+        )],
+    );
+
     let connector_customer_id = match resp.response {
         Ok(response) => match response {
             types::PaymentsResponseData::ConnectorCustomerResponse {
@@ -67,7 +76,7 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
 }
 
 pub fn get_connector_customer_details_if_present<'a>(
-    customer: &'a storage::Customer,
+    customer: &'a domain::Customer,
     connector_name: &str,
 ) -> Option<&'a str> {
     customer
@@ -80,7 +89,7 @@ pub fn get_connector_customer_details_if_present<'a>(
 pub fn should_call_connector_create_customer<'a>(
     state: &AppState,
     connector: &api::ConnectorData,
-    customer: &'a Option<storage::Customer>,
+    customer: &'a Option<domain::Customer>,
     connector_label: &str,
 ) -> (bool, Option<&'a str>) {
     // Check if create customer is required for the connector
@@ -104,7 +113,7 @@ pub fn should_call_connector_create_customer<'a>(
 #[instrument]
 pub async fn update_connector_customer_in_customers(
     connector_label: &str,
-    customer: Option<&storage::Customer>,
+    customer: Option<&domain::Customer>,
     connector_customer_id: &Option<String>,
 ) -> Option<storage::CustomerUpdate> {
     let connector_customer_map = customer

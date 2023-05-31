@@ -199,6 +199,8 @@ pub enum StripeErrorCode {
     FileNotFound,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File not available")]
     FileNotAvailable,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "There was an issue with processing webhooks")]
+    WebhookProcessingError,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -498,6 +500,10 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::MerchantConnectorAccountDisabled
             }
             errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
+            errors::ApiErrorResponse::WebhookBadRequest
+            | errors::ApiErrorResponse::WebhookResourceNotFound
+            | errors::ApiErrorResponse::WebhookProcessingFailure
+            | errors::ApiErrorResponse::WebhookAuthenticationFailed => Self::WebhookProcessingError,
         }
     }
 }
@@ -557,7 +563,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             Self::RefundFailed
             | Self::InternalServerError
             | Self::MandateActive
-            | Self::CustomerRedacted => StatusCode::INTERNAL_SERVER_ERROR,
+            | Self::CustomerRedacted
+            | Self::WebhookProcessingError => StatusCode::INTERNAL_SERVER_ERROR,
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)

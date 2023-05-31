@@ -388,14 +388,41 @@ impl<F, T>
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
     pub error_information: Option<ErrorInformation>,
     pub status: Option<String>,
     pub message: Option<String>,
-    pub reason: Option<String>,
-    pub details: Option<serde_json::Value>,
+    pub reason: Option<Reason>,
+    pub details: Option<Vec<Details>>,
+}
+
+#[derive(Debug, Deserialize, strum::Display)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Reason {
+    MissingField,
+    InvalidData,
+    DuplicateRequest,
+    InvalidCard,
+    AuthAlreadyReversed,
+    CardTypeNotAccepted,
+    InvalidMerchantConfiguration,
+    ProcessorUnavailable,
+    InvalidAmount,
+    InvalidCardType,
+    InvalidPaymentId,
+    NotSupported,
+    SystemError,
+    ServerTimeout,
+    ServiceTimeout,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Details {
+    pub field: String,
+    pub reason: String,
 }
 
 #[derive(Debug, Default, Deserialize)]
