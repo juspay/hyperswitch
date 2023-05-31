@@ -1,4 +1,4 @@
-name: Validate Generated OpenAPI Spec file
+name: Validate Generated JSON File
 
 on:
   pull_request_target:
@@ -14,18 +14,7 @@ on:
       - checks_requested
 
 permissions:
-  # Reference: https://github.com/cli/cli/issues/6274
   repository-projects: read
-  pull-requests: write
-
-env:
-  # Allow more retries for network requests in cargo (downloading crates) and
-  # rustup (installing toolchains). This should help to reduce flaky CI failures
-  # from transient network timeouts or other issues.
-  CARGO_NET_RETRY: 10
-  RUSTUP_MAX_RETRIES: 10
-  # Use cargo's sparse index protocol
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 jobs:
   validate-JSON:
