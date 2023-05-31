@@ -1640,14 +1640,8 @@ impl api::IncomingWebhook for Stripe {
 
         Ok(match details.event_data.event_object.object {
             stripe::WebhookEventObjectType::PaymentIntent
-            | stripe::WebhookEventObjectType::Charge => {
-                api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::ConnectorTransactionId(
-                        details.event_data.event_object.id,
-                    ),
-                )
-            }
-            stripe::WebhookEventObjectType::Dispute => {
+            | stripe::WebhookEventObjectType::Charge
+            | stripe::WebhookEventObjectType::Dispute => {
                 api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
                         details
@@ -1687,7 +1681,9 @@ impl api::IncomingWebhook for Stripe {
             stripe::WebhookEventType::SourceChargeable => {
                 api::IncomingWebhookEvent::SourceChargeable
             }
-            stripe::WebhookEventType::ChargeSucceeded => api::IncomingWebhookEvent::ChargeSucceeded,
+            stripe::WebhookEventType::ChargeSucceeded => {
+                api::IncomingWebhookEvent::PaymentIntentSuccess
+            }
             stripe::WebhookEventType::DisputeCreated => api::IncomingWebhookEvent::DisputeOpened,
             stripe::WebhookEventType::DisputeClosed => api::IncomingWebhookEvent::DisputeCancelled,
             stripe::WebhookEventType::DisputeUpdated => api::IncomingWebhookEvent::try_from(
