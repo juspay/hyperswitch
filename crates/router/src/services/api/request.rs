@@ -7,19 +7,19 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::errors::{self, CustomResult};
 
-pub(crate) type Headers = collections::HashSet<(String, OptionalMaskedValue<String>)>;
+pub(crate) type Headers = collections::HashSet<(String, Maskable<String>)>;
 
 ///
 /// An Enum that allows us to optionally mask data, based on which enum variant that data is stored
 /// in.
 ///
 #[derive(Clone, Eq, PartialEq)]
-pub enum OptionalMaskedValue<T: Eq + PartialEq + Clone> {
+pub enum Maskable<T: Eq + PartialEq + Clone> {
     Masked(Secret<T>),
     Normal(T),
 }
 
-impl<T: std::fmt::Debug + Clone + Eq + PartialEq> std::fmt::Debug for OptionalMaskedValue<T> {
+impl<T: std::fmt::Debug + Clone + Eq + PartialEq> std::fmt::Debug for Maskable<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Masked(secret_value) => std::fmt::Debug::fmt(secret_value, f),
@@ -28,7 +28,7 @@ impl<T: std::fmt::Debug + Clone + Eq + PartialEq> std::fmt::Debug for OptionalMa
     }
 }
 
-impl<T: Eq + PartialEq + Clone + std::hash::Hash> std::hash::Hash for OptionalMaskedValue<T> {
+impl<T: Eq + PartialEq + Clone + std::hash::Hash> std::hash::Hash for Maskable<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
             Self::Masked(value) => masking::PeekInterface::peek(value).hash(state),
@@ -37,7 +37,7 @@ impl<T: Eq + PartialEq + Clone + std::hash::Hash> std::hash::Hash for OptionalMa
     }
 }
 
-impl<T: Eq + PartialEq + Clone> OptionalMaskedValue<T> {
+impl<T: Eq + PartialEq + Clone> Maskable<T> {
     pub fn into_inner(self) -> T {
         match self {
             Self::Masked(inner_secret) => inner_secret.expose(),
@@ -53,15 +53,25 @@ impl<T: Eq + PartialEq + Clone> OptionalMaskedValue<T> {
     }
 }
 
-impl<T: Eq + PartialEq + Clone> From<T> for OptionalMaskedValue<T> {
-    fn from(value: T) -> Self {
-        Self::Normal(value)
+trait Mask<T> {
+    fn into_masked(value: T) -> Self;
+}
+
+impl<T: std::fmt::Debug + Clone + Eq + PartialEq> Mask<T> for Maskable<T> {
+    fn into_masked(value: T) -> Self {
+        Self::new_masked(value.into())
     }
 }
 
-impl From<&str> for OptionalMaskedValue<String> {
+impl<T: Eq + PartialEq + Clone> From<T> for Maskable<T> {
+    fn from(value: T) -> Self {
+        Self::new_normal(value)
+    }
+}
+
+impl From<&str> for Maskable<String> {
     fn from(value: &str) -> Self {
-        Self::Normal(value.to_string())
+        Self::new_normal(value.to_string())
     }
 }
 
@@ -84,7 +94,7 @@ pub enum ContentType {
     FormData,
 }
 
-fn default_request_headers() -> [(String, OptionalMaskedValue<String>); 1] {
+fn default_request_headers() -> [(String, Maskable<String>); 1] {
     use http::header;
 
     [(header::VIA.to_string(), "HyperSwitch".to_string().into())]
@@ -124,7 +134,7 @@ impl Request {
         self.headers.extend(default_request_headers());
     }
 
-    pub fn add_header(&mut self, header: &str, value: OptionalMaskedValue<String>) {
+    pub fn add_header(&mut self, header: &str, value: Maskable<String>) {
         self.headers.insert((String::from(header), value));
     }
 
@@ -190,7 +200,7 @@ impl RequestBuilder {
         self
     }
 
-    pub fn headers(mut self, headers: Vec<(String, OptionalMaskedValue<String>)>) -> Self {
+    pub fn headers(mut self, headers: Vec<(String, Maskable<String>)>) -> Self {
         let mut h = headers.into_iter().map(|(h, v)| (h, v));
         self.headers.extend(&mut h);
         self

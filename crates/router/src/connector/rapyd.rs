@@ -67,8 +67,7 @@ impl ConnectorCommon for Rapyd {
     fn get_auth_header(
         &self,
         _auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
 
@@ -125,8 +124,7 @@ impl
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsAuthorizeType::get_content_type(self)
@@ -168,16 +166,16 @@ impl
         let headers = vec![
             (
                 "access_key".to_string(),
-                request::OptionalMaskedValue::new_masked(auth.access_key.into()),
+                request::Maskable::new_masked(auth.access_key.into()),
             ),
             (
                 "salt".to_string(),
-                request::OptionalMaskedValue::new_masked(salt.into()),
+                request::Maskable::new_masked(salt.into()),
             ),
             ("timestamp".to_string(), timestamp.to_string().into()),
             (
                 "signature".to_string(),
-                request::OptionalMaskedValue::new_masked(signature.into()),
+                request::Maskable::new_masked(signature.into()),
             ),
         ];
         let request = services::RequestBuilder::new()
@@ -255,8 +253,7 @@ impl
         &self,
         _req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsVoidType::get_content_type(self)
@@ -297,16 +294,16 @@ impl
         let headers = vec![
             (
                 "access_key".to_string(),
-                request::OptionalMaskedValue::new_masked(auth.access_key.into()),
+                request::Maskable::new_masked(auth.access_key.into()),
             ),
             (
                 "salt".to_string(),
-                request::OptionalMaskedValue::new_masked(salt.into()),
+                request::Maskable::new_masked(salt.into()),
             ),
             ("timestamp".to_string(), timestamp.to_string().into()),
             (
                 "signature".to_string(),
-                request::OptionalMaskedValue::new_masked(signature.into()),
+                request::Maskable::new_masked(signature.into()),
             ),
         ];
         let request = services::RequestBuilder::new()
@@ -354,8 +351,7 @@ impl
         &self,
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsSyncType::get_content_type(self)
@@ -403,16 +399,16 @@ impl
         let headers = vec![
             (
                 "access_key".to_string(),
-                request::OptionalMaskedValue::new_masked(auth.access_key.into()),
+                request::Maskable::new_masked(auth.access_key.into()),
             ),
             (
                 "salt".to_string(),
-                request::OptionalMaskedValue::new_masked(salt.into()),
+                request::Maskable::new_masked(salt.into()),
             ),
             ("timestamp".to_string(), timestamp.to_string().into()),
             (
                 "signature".to_string(),
-                request::OptionalMaskedValue::new_masked(signature.into()),
+                request::Maskable::new_masked(signature.into()),
             ),
         ];
         let request = services::RequestBuilder::new()
@@ -463,8 +459,7 @@ impl
         &self,
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsCaptureType::get_content_type(self)
@@ -507,16 +502,16 @@ impl
         let headers = vec![
             (
                 "access_key".to_string(),
-                request::OptionalMaskedValue::new_masked(auth.access_key.into()),
+                request::Maskable::new_masked(auth.access_key.into()),
             ),
             (
                 "salt".to_string(),
-                request::OptionalMaskedValue::new_masked(salt.into()),
+                request::Maskable::new_masked(salt.into()),
             ),
             ("timestamp".to_string(), timestamp.to_string().into()),
             (
                 "signature".to_string(),
-                request::OptionalMaskedValue::new_masked(signature.into()),
+                request::Maskable::new_masked(signature.into()),
             ),
         ];
         let request = services::RequestBuilder::new()
@@ -593,8 +588,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         _req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             types::RefundExecuteType::get_content_type(self)
@@ -641,16 +635,16 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let headers = vec![
             (
                 "access_key".to_string(),
-                request::OptionalMaskedValue::new_masked(auth.access_key.into()),
+                request::Maskable::new_masked(auth.access_key.into()),
             ),
             (
                 "salt".to_string(),
-                request::OptionalMaskedValue::new_masked(salt.into()),
+                request::Maskable::new_masked(salt.into()),
             ),
             ("timestamp".to_string(), timestamp.to_string().into()),
             (
                 "signature".to_string(),
-                request::OptionalMaskedValue::new_masked(signature.into()),
+                request::Maskable::new_masked(signature.into()),
             ),
         ];
         let request = services::RequestBuilder::new()
@@ -696,8 +690,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         &self,
         _req: &types::RefundSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
 

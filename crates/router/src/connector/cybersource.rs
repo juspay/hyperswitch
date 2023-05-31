@@ -129,10 +129,8 @@ where
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<
-        Vec<(String, services::request::OptionalMaskedValue<String>)>,
-        errors::ConnectorError,
-    > {
+    ) -> CustomResult<Vec<(String, services::request::Maskable<String>)>, errors::ConnectorError>
+    {
         let date = OffsetDateTime::now_utc();
         let cybersource_req = self.get_request_body(req)?;
         let auth = cybersource::CybersourceAuthType::try_from(&req.connector_auth_type)?;
@@ -172,19 +170,19 @@ where
             ),
             (
                 "v-c-merchant-id".to_string(),
-                services::request::OptionalMaskedValue::new_masked(merchant_account.into()),
+                services::request::Maskable::new_masked(merchant_account.into()),
             ),
             ("Date".to_string(), date.to_string().into()),
             ("Host".to_string(), host.to_string().into()),
             (
                 "Signature".to_string(),
-                request::OptionalMaskedValue::new_masked(signature.into()),
+                request::Maskable::new_masked(signature.into()),
             ),
         ];
         if matches!(http_method, services::Method::Post | services::Method::Put) {
             headers.push((
                 "Digest".to_string(),
-                request::OptionalMaskedValue::new_masked(format!("SHA-256={sha256}").into()),
+                request::Maskable::new_masked(format!("SHA-256={sha256}").into()),
             ));
         }
         Ok(headers)
@@ -235,8 +233,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -323,10 +320,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<
-        Vec<(String, services::request::OptionalMaskedValue<String>)>,
-        errors::ConnectorError,
-    > {
+    ) -> CustomResult<Vec<(String, services::request::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -411,8 +406,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -501,8 +495,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -586,8 +579,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundExecuteRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -669,8 +661,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
     fn get_content_type(&self) -> &'static str {

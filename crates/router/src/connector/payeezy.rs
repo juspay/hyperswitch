@@ -33,8 +33,7 @@ where
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = payeezy::PayeezyAuthType::try_from(&req.connector_auth_type)?;
         let option_request_payload = self.get_request_body(req)?;
         let request_payload = option_request_payload.map_or("{}".to_string(), |s| s);
@@ -60,19 +59,19 @@ where
             ),
             (
                 headers::APIKEY.to_string(),
-                request::OptionalMaskedValue::new_masked(auth.api_key.into()),
+                request::Maskable::new_masked(auth.api_key.into()),
             ),
             (
                 headers::TOKEN.to_string(),
-                request::OptionalMaskedValue::new_masked(auth.merchant_token.into()),
+                request::Maskable::new_masked(auth.merchant_token.into()),
             ),
             (
                 headers::AUTHORIZATION.to_string(),
-                request::OptionalMaskedValue::new_masked(signature_value.into()),
+                request::Maskable::new_masked(signature_value.into()),
             ),
             (
                 headers::NONCE.to_string(),
-                request::OptionalMaskedValue::new_masked(nonce.into()),
+                request::Maskable::new_masked(nonce.into()),
             ),
             (headers::TIMESTAMP.to_string(), timestamp.into()),
         ])
@@ -146,8 +145,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -253,8 +251,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -347,8 +344,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -432,8 +428,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 

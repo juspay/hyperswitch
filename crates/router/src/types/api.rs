@@ -54,8 +54,7 @@ pub trait ConnectorCommon {
     fn get_auth_header(
         &self,
         _auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(Vec::new())
     }
 
@@ -94,8 +93,7 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
         &self,
         _req: &types::RouterData<Flow, Req, Resp>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, request::OptionalMaskedValue<String>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(Vec::new())
     }
 }
