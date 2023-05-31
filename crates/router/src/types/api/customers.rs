@@ -2,15 +2,19 @@ use api_models::customers;
 pub use api_models::customers::{CustomerDeleteResponse, CustomerId, CustomerRequest};
 use serde::Serialize;
 
-use crate::{newtype, types::storage};
+use crate::{core::errors::RouterResult, newtype, types::domain};
 
 newtype!(
     pub CustomerResponse = customers::CustomerResponse,
     derives = (Debug, Clone, Serialize)
 );
 
-impl From<storage::Customer> for CustomerResponse {
-    fn from(cust: storage::Customer) -> Self {
+pub(crate) trait CustomerRequestExt: Sized {
+    fn validate(self) -> RouterResult<Self>;
+}
+
+impl From<domain::Customer> for CustomerResponse {
+    fn from(cust: domain::Customer) -> Self {
         customers::CustomerResponse {
             customer_id: cust.customer_id,
             name: cust.name,

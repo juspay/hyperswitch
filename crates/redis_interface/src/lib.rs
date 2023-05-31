@@ -35,7 +35,7 @@ pub struct RedisConnectionPool {
     pub pool: fred::pool::RedisPool,
     config: RedisConfig,
     join_handles: Vec<fred::types::ConnectHandle>,
-    pub subscriber: RedisClient,
+    pub subscriber: SubscriberClient,
     pub publisher: RedisClient,
     pub is_redis_available: Arc<atomic::AtomicBool>,
 }
@@ -64,6 +64,33 @@ impl RedisClient {
             .into_report()
             .change_context(errors::RedisError::RedisConnectionError)?;
         Ok(Self { inner: client })
+    }
+}
+
+pub struct SubscriberClient {
+    inner: fred::clients::SubscriberClient,
+}
+
+impl SubscriberClient {
+    pub async fn new(
+        config: fred::types::RedisConfig,
+        reconnect_policy: fred::types::ReconnectPolicy,
+    ) -> CustomResult<Self, errors::RedisError> {
+        let client = fred::clients::SubscriberClient::new(config, None, Some(reconnect_policy));
+        client.connect();
+        client
+            .wait_for_connect()
+            .await
+            .into_report()
+            .change_context(errors::RedisError::RedisConnectionError)?;
+        Ok(Self { inner: client })
+    }
+}
+
+impl std::ops::Deref for SubscriberClient {
+    type Target = fred::clients::SubscriberClient;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }
 
@@ -102,7 +129,7 @@ impl RedisConnectionPool {
             conf.reconnect_delay,
         );
 
-        let subscriber = RedisClient::new(config.clone(), reconnect_policy.clone()).await?;
+        let subscriber = SubscriberClient::new(config.clone(), reconnect_policy.clone()).await?;
 
         let publisher = RedisClient::new(config.clone(), reconnect_policy.clone()).await?;
 
@@ -130,6 +157,19 @@ impl RedisConnectionPool {
 
     pub async fn close_connections(&mut self) {
         self.pool.quit_pool().await;
+
+        self.publisher
+            .quit()
+            .await
+            .map_err(|err| logger::error!(redis_quit_err=?err))
+            .ok();
+
+        self.subscriber
+            .quit()
+            .await
+            .map_err(|err| logger::error!(redis_quit_err=?err))
+            .ok();
+
         for handle in self.join_handles.drain(..) {
             match handle.await {
                 Ok(Ok(_)) => (),

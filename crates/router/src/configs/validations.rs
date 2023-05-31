@@ -18,7 +18,7 @@ impl super::settings::Secrets {
                 Err(ApplicationError::InvalidConfigurationValueError(
                     "admin API key must not be empty".into(),
                 ))
-            })
+            })?;
         }
 
         #[cfg(feature = "kms")]
@@ -36,8 +36,13 @@ impl super::settings::Secrets {
                         "KMS encrypted admin API key must not be empty".into(),
                     ))
                 },
-            )
+            )?;
         }
+        when(self.master_enc_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Master encryption key must not be empty".into(),
+            ))
+        })
     }
 }
 
