@@ -464,7 +464,6 @@ pub enum PaymentMethod {
     BankDebit,
 }
 
-// #[cfg(feature = "payouts")]
 #[derive(
     Clone,
     Copy,
@@ -493,7 +492,6 @@ pub enum PayoutStatus {
     RequiresFulfillment,
 }
 
-// #[cfg(feature = "payouts")]
 #[derive(
     Clone,
     Copy,
@@ -516,7 +514,6 @@ pub enum PayoutType {
     Bank,
 }
 
-// #[cfg(feature = "payouts")]
 #[derive(
     Clone,
     Copy,

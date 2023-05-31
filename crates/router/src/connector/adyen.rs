@@ -634,7 +634,6 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
@@ -645,15 +644,20 @@ impl
 }
 
 impl api::Payouts for Adyen {}
+#[cfg(feature = "payouts")]
 impl api::PayoutCreate for Adyen {}
+#[cfg(feature = "payouts")]
 impl api::PayoutEligibility for Adyen {}
+#[cfg(feature = "payouts")]
 impl api::PayoutFulfill for Adyen {}
 
+#[cfg(feature = "payouts")]
 impl services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::PayoutsResponseData>
     for Adyen
 {
 }
 
+#[cfg(feature = "payouts")]
 impl
     services::ConnectorIntegration<
         api::PEligibility,
@@ -673,10 +677,12 @@ impl
         &self,
         req: &types::PayoutsRouterData<api::PEligibility>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PayoutEligibilityType::get_content_type(self).to_string(),
+            types::PayoutEligibilityType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -726,13 +732,11 @@ impl
             .response
             .parse_struct("AdyenPayoutResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -743,7 +747,6 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
@@ -753,6 +756,7 @@ impl
     }
 }
 
+#[cfg(feature = "payouts")]
 impl services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::PayoutsResponseData>
     for Adyen
 {
@@ -771,10 +775,12 @@ impl services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::Pa
         &self,
         req: &types::PayoutsRouterData<api::PFulfill>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PayoutFulfillType::get_content_type(self).to_string(),
+            types::PayoutFulfillType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -822,13 +828,11 @@ impl services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::Pa
             .response
             .parse_struct("AdyenPayoutResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -839,7 +843,6 @@ impl services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::Pa
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
@@ -924,7 +927,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             .response
             .parse_struct("AdyenRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -941,7 +943,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,

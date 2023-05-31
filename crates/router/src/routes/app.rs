@@ -6,10 +6,12 @@ use tokio::sync::oneshot;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
 use super::health::*;
+#[cfg(feature = "payouts")]
+use super::payouts::*;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
+use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 #[cfg(feature = "kms")]
@@ -259,33 +261,22 @@ impl Refunds {
     }
 }
 
+#[cfg(feature = "payouts")]
 pub struct Payouts;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(feature = "payouts")]
 impl Payouts {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/payouts").app_data(web::Data::new(state));
-
-        #[cfg(feature = "olap")]
-        {
-            route =
-                route.service(web::resource("/accounts").route(web::get().to(payouts_accounts)));
-        }
-        #[cfg(feature = "oltp")]
-        {
-            route = route
-                .service(web::resource("/create").route(web::post().to(payouts_create)))
-                .service(web::resource("/{payout_id}/cancel").route(web::post().to(payouts_cancel)))
-                .service(
-                    web::resource("/{payout_id}/fulfill").route(web::post().to(payouts_fulfill)),
-                )
-                .service(
-                    web::resource("/{payout_id}")
-                        .route(web::get().to(payouts_retrieve))
-                        .route(web::put().to(payouts_update)),
-                )
-        }
+        let route = web::scope("/payouts").app_data(web::Data::new(state));
         route
+            .service(web::resource("/create").route(web::post().to(payouts_create)))
+            .service(web::resource("/{payout_id}/cancel").route(web::post().to(payouts_cancel)))
+            .service(web::resource("/{payout_id}/fulfill").route(web::post().to(payouts_fulfill)))
+            .service(
+                web::resource("/{payout_id}")
+                    .route(web::get().to(payouts_retrieve))
+                    .route(web::put().to(payouts_update)),
+            )
     }
 }
 

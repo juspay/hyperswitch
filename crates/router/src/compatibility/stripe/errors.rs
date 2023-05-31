@@ -50,7 +50,7 @@ pub enum StripeErrorCode {
     RefundFailed, // stripe error code
 
     #[error(error_type = StripeErrorType::ApiError, code = "payout_failed", message = "payout has failed")]
-    PayoutFailed, // stripe error code
+    PayoutFailed,
 
     #[error(error_type = StripeErrorType::ApiError, code = "internal_server_error", message = "Server is down")]
     InternalServerError,
@@ -103,7 +103,7 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payout")]
     PayoutNotFound,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate payout request")]
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "Duplicate payout request")]
     DuplicatePayout { payout_id: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "parameter_missing", message = "Return url is not available")]

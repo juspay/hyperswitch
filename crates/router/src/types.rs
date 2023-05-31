@@ -126,12 +126,15 @@ pub type RefundExecuteType =
 pub type RefundSyncType =
     dyn services::ConnectorIntegration<api::RSync, RefundsData, RefundsResponseData>;
 
+#[cfg(feature = "payouts")]
 pub type PayoutCreateType =
     dyn services::ConnectorIntegration<api::PCreate, PayoutsData, PayoutsResponseData>;
 
+#[cfg(feature = "payouts")]
 pub type PayoutEligibilityType =
     dyn services::ConnectorIntegration<api::PEligibility, PayoutsData, PayoutsResponseData>;
 
+#[cfg(feature = "payouts")]
 pub type PayoutFulfillType =
     dyn services::ConnectorIntegration<api::PFulfill, PayoutsData, PayoutsResponseData>;
 
@@ -181,8 +184,10 @@ pub type RetrieveFileRouterData =
 pub type DefendDisputeRouterData =
     RouterData<api::Defend, DefendDisputeRequestData, DefendDisputeResponse>;
 
+#[cfg(feature = "payouts")]
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 
+#[cfg(feature = "payouts")]
 pub type PayoutsResponseRouterData<F, R> =
     ResponseRouterData<F, R, PayoutsData, PayoutsResponseData>;
 
@@ -218,8 +223,13 @@ pub struct RouterData<Flow, Request, Response> {
 
     /// Contains any error response that the connector returns.
     pub payment_method_id: Option<String>,
+
+    #[cfg(feature = "payouts")]
+    /// Contains payout method data
+    pub payout_method_data: Option<api::PayoutMethodData>,
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
 pub struct PayoutsData {
     pub payout_id: String,
@@ -227,11 +237,11 @@ pub struct PayoutsData {
     pub connector_payout_id: Option<String>,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
-    pub payout_method_data: payout_types::PayoutMethodData,
     pub payout_type: storage_enums::PayoutType,
     pub entity_type: storage_enums::EntityType,
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Clone, Debug, Default)]
 pub struct PayoutsResponseData {
     pub status: storage_enums::PayoutStatus,
@@ -805,6 +815,8 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_method_token: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
+            #[cfg(feature = "payouts")]
+            payout_method_data: data.payout_method_data.clone(),
         }
     }
 }

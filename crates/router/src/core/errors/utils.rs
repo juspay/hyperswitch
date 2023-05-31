@@ -50,6 +50,7 @@ pub trait ConnectorErrorExt {
     fn to_payment_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
     #[track_caller]
     fn to_verify_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
+    #[cfg(feature = "payouts")]
     #[track_caller]
     fn to_payout_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
 }
@@ -152,6 +153,7 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
         self.change_context(data)
     }
 
+    #[cfg(feature = "payouts")]
     fn to_payout_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse> {
         let data = match self.current_context() {
             errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {

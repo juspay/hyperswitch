@@ -657,28 +657,12 @@ macro_rules! default_imp_for_payouts {
     ($($path:ident::$connector:ident),*) => {
         $(
             impl api::Payouts for $path::$connector {}
-            impl api::PayoutCreate for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::PCreate,
-            types::PayoutsData,
-            types::PayoutsResponseData,
-        > for $path::$connector
-        {}
     )*
     };
 }
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PayoutCreate for connector::DummyConnector<T> {}
-#[cfg(feature = "dummy_connector")]
-impl<const T: u8>
-    services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::PayoutsResponseData>
-    for connector::DummyConnector<T>
-{
-}
 
 default_imp_for_payouts!(
     connector::Aci,
@@ -716,6 +700,71 @@ default_imp_for_payouts!(
     connector::Zen
 );
 
+#[cfg(feature = "payouts")]
+macro_rules! default_imp_for_payouts_create {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::PayoutCreate for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::PCreate,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PayoutCreate for connector::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::PayoutsResponseData>
+    for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+default_imp_for_payouts_create!(
+    connector::Aci,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Cybersource,
+    connector::Coinbase,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Payeezy,
+    connector::Paypal,
+    connector::Payu,
+    connector::Rapyd,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Opennode,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+#[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_eligibility {
     ($($path:ident::$connector:ident),*) => {
         $(
@@ -731,8 +780,10 @@ macro_rules! default_imp_for_payouts_eligibility {
     };
 }
 
+#[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PayoutEligibility for connector::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
@@ -743,6 +794,7 @@ impl<const T: u8>
 {
 }
 
+#[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
     connector::Aci,
     connector::Airwallex,
@@ -779,6 +831,7 @@ default_imp_for_payouts_eligibility!(
     connector::Zen
 );
 
+#[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_fulfill {
     ($($path:ident::$connector:ident),*) => {
         $(
@@ -794,8 +847,10 @@ macro_rules! default_imp_for_payouts_fulfill {
     };
 }
 
+#[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PayoutFulfill for connector::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::PayoutsResponseData>
@@ -803,6 +858,7 @@ impl<const T: u8>
 {
 }
 
+#[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
     connector::Aci,
     connector::Airwallex,

@@ -262,3 +262,6 @@ refund_duration = 1000           # Fake delay duration for dummy connector refun
 refund_tolerance = 100           # Fake delay tolerance for dummy connector refund
 refund_retrieve_duration = 500   # Fake delay duration for dummy connector refund sync
 refund_retrieve_tolerance = 100  # Fake delay tolerance for dummy connector refund sync
+
+[payouts]
+payout_eligibility = true   # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility

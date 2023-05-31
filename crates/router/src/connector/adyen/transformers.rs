@@ -1,4 +1,6 @@
-use api_models::{enums, payments, payouts::PayoutMethodData, webhooks};
+#[cfg(feature = "payouts")]
+use api_models::payouts::PayoutMethodData;
+use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -62,6 +64,7 @@ pub struct AdditionalData {
     #[serde(rename = "recurring.shopperReference")]
     recurring_shopper_reference: Option<String>,
     network_tx_reference: Option<String>,
+    #[cfg(feature = "payouts")]
     payout_eligible: Option<PayoutEligibility>,
     funds_availability: Option<String>,
 }
@@ -994,6 +997,7 @@ fn get_country_code(
     address.and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
 }
 
+#[cfg(feature = "payouts")]
 fn get_payout_card_details(payout_method_data: &PayoutMethodData) -> Option<PayoutCardDetails> {
     match payout_method_data {
         PayoutMethodData::Card(card) => Some(PayoutCardDetails {
@@ -2111,6 +2115,7 @@ impl From<AdyenNotificationRequestItemWH> for AdyenResponse {
 }
 
 // Payouts
+#[cfg(feature = "payouts")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPayoutResponse {
@@ -2124,6 +2129,7 @@ pub struct AdyenPayoutResponse {
     auth_code: Option<String>,
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPayoutEligibilityRequest {
@@ -2134,6 +2140,7 @@ pub struct AdyenPayoutEligibilityRequest {
     pub shopper_reference: String,
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PayoutCardDetails {
@@ -2145,21 +2152,27 @@ pub struct PayoutCardDetails {
     pub holder_name: String,
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Clone, Default, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub enum PayoutEligibility {
-    Y,
+    #[serde(rename = "Y")]
+    Yes,
+    #[serde(rename = "N")]
     #[default]
-    N,
-    D,
-    U,
+    No,
+    #[serde(rename = "D")]
+    Domestic,
+    #[serde(rename = "U")]
+    Unknown,
 }
 
 // Payouts eligibility request transform
+#[cfg(feature = "payouts")]
 impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutEligibilityRequest {
     type Error = Error;
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
-        let payout_method_data = get_payout_card_details(&item.request.payout_method_data).map_or(
+        let payout_method_data = get_payout_card_details(&item.get_payout_method_data()?).map_or(
             Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "payout_method_data",
             }),
@@ -2178,6 +2191,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutEligibilityRequest 
     }
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AdyenPayoutFulfillRequest {
@@ -2185,6 +2199,7 @@ pub enum AdyenPayoutFulfillRequest {
     Card(Box<PayoutCardRequest>),
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayoutBankRequest {
@@ -2192,6 +2207,7 @@ pub struct PayoutBankRequest {
     pub original_reference: String,
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayoutCardRequest {
@@ -2206,6 +2222,7 @@ pub struct PayoutCardRequest {
 }
 
 // Payouts fulfill request transform
+#[cfg(feature = "payouts")]
 impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutFulfillRequest {
     type Error = Error;
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
@@ -2227,13 +2244,13 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutFulfillRequest {
                     value: item.request.amount,
                     currency: item.request.destination_currency.to_string(),
                 },
-                card: get_payout_card_details(&item.request.payout_method_data).map_or(
+                card: get_payout_card_details(&item.get_payout_method_data()?).map_or(
                     Err(errors::ConnectorError::MissingRequiredField {
                         field_name: "payout_method_data",
                     }),
                     Ok,
                 )?,
-                billing_address: get_address_info(item.address.billing.as_ref()),
+                billing_address: get_address_info(item.get_billing().ok()),
                 merchant_account,
                 reference: item.request.payout_id.clone(),
                 shopper_name: get_shopper_name(item.address.billing.as_ref()).map_or(
@@ -2250,6 +2267,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutFulfillRequest {
 }
 
 // Payouts response transform
+#[cfg(feature = "payouts")]
 impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
     for types::PayoutsRouterData<F>
 {
@@ -2261,7 +2279,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
         let payout_eligible = response
             .additional_data
             .and_then(|pa| pa.payout_eligible)
-            .map(|pe| pe == PayoutEligibility::Y || pe == PayoutEligibility::D);
+            .map(|pe| pe == PayoutEligibility::Yes || pe == PayoutEligibility::Domestic);
 
         let status = payout_eligible.map_or(
             match response.result_code {

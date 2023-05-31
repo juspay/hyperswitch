@@ -977,7 +977,7 @@ pub struct UnresolvedResponseReason {
 }
 
 // Payout
-// #[cfg(feature = "payouts")]
+#[cfg(feature = "payouts")]
 #[derive(
     Clone,
     Copy,
@@ -1006,7 +1006,7 @@ pub enum PayoutStatus {
     RequiresFulfillment,
 }
 
-// #[cfg(feature = "payouts")]
+#[cfg(feature = "payouts")]
 #[derive(
     Clone,
     Copy,
@@ -1029,7 +1029,7 @@ pub enum PayoutType {
     Bank,
 }
 
-// #[cfg(feature = "payouts")]
+#[cfg(feature = "payouts")]
 #[derive(
     Clone,
     Copy,

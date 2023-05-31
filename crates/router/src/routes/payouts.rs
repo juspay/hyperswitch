@@ -5,13 +5,12 @@ use actix_web::{
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
-use crate::{
-    core::payouts::*,
-    services::{api, authentication as auth},
-    types::api::payouts as payout_types,
-};
+use crate::services::{api, authentication as auth};
+#[cfg(feature = "payouts")]
+use crate::{core::payouts::*, types::api::payouts as payout_types};
 
 /// Payouts - Create
+#[cfg(feature = "payouts")]
 #[utoipa::path(
     post,
     path = "/payouts/create",
@@ -43,9 +42,10 @@ pub async fn payouts_create(
 }
 
 /// Payouts - Retrieve
+#[cfg(feature = "payouts")]
 #[utoipa::path(
     get,
-    path = "/payouts/retrieve/{payout_id}",
+    path = "/payouts/{payout_id}",
     params(
         ("payout_id" = String, Path, description = "The identifier for payout]")
     ),
@@ -80,8 +80,24 @@ pub async fn payouts_retrieve(
     .await
 }
 
+/// Payouts - Update
+#[cfg(feature = "payouts")]
+#[utoipa::path(
+    post,
+    path = "/payouts/{payout_id}",
+    params(
+        ("payout_id" = String, Path, description = "The identifier for payout]")
+    ),
+    request_body=PayoutCreateRequest,
+    responses(
+        (status = 200, description = "Payout updated", body = PayoutCreateResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    ),
+    tag = "Payouts",
+    operation_id = "Update a Payout",
+    security(("api_key" = []))
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsUpdate))]
-// #[post("/update")]
 pub async fn payouts_update(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -104,6 +120,7 @@ pub async fn payouts_update(
 }
 
 /// Payouts - Cancel
+#[cfg(feature = "payouts")]
 #[utoipa::path(
     post,
     path = "/payouts/{payout_id}/cancel",
@@ -142,6 +159,7 @@ pub async fn payouts_cancel(
 }
 
 /// Payouts - Fulfill
+#[cfg(feature = "payouts")]
 #[utoipa::path(
     post,
     path = "/payouts/{payout_id}/fulfill",
