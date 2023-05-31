@@ -1325,7 +1325,7 @@ pub struct PaymentsResponse {
     pub connector_label: Option<String>,
 
     /// The business country of merchant for this payment
-    #[schema(value_type = CountryAlpha2)]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     pub business_country: api_enums::CountryAlpha2,
 
     /// The business label of merchant for this payment
