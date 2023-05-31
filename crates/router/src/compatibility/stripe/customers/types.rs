@@ -1,7 +1,11 @@
 use std::{convert::From, default::Default};
 
 use api_models::payment_methods as api_types;
-use common_utils::{date_time, pii, pii::Email};
+use common_utils::{
+    crypto::Encryptable,
+    date_time,
+    pii::{self, Email},
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{logger, types::api};
@@ -10,7 +14,7 @@ use crate::{logger, types::api};
 pub struct CreateCustomerRequest {
     pub email: Option<Email>,
     pub invoice_prefix: Option<String>,
-    pub name: Option<String>,
+    pub name: Option<masking::Secret<String>>,
     pub phone: Option<masking::Secret<String>>,
     pub address: Option<masking::Secret<serde_json::Value>>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -22,7 +26,7 @@ pub struct CustomerUpdateRequest {
     pub description: Option<String>,
     pub email: Option<Email>,
     pub phone: Option<masking::Secret<String, masking::WithType>>,
-    pub name: Option<String>,
+    pub name: Option<masking::Secret<String>>,
     pub address: Option<masking::Secret<serde_json::Value>>,
     pub metadata: Option<pii::SecretSerdeValue>,
 }
@@ -35,7 +39,7 @@ pub struct CreateCustomerResponse {
     pub description: Option<String>,
     pub email: Option<Email>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub name: Option<String>,
+    pub name: Option<masking::Secret<String>>,
     pub phone: Option<masking::Secret<String, masking::WithType>>,
 }
 
@@ -95,10 +99,10 @@ impl From<api::CustomerResponse> for CreateCustomerResponse {
                 },
             ),
             description: cust.description,
-            email: cust.email,
+            email: cust.email.map(|inner| inner.into()),
             metadata: cust.metadata,
-            name: cust.name,
-            phone: cust.phone,
+            name: cust.name.map(Encryptable::into_inner),
+            phone: cust.phone.map(Encryptable::into_inner),
         }
     }
 }

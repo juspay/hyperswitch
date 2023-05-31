@@ -10,7 +10,7 @@ use crate::{
     },
     routes::{metrics, AppState},
     services,
-    types::{self, api as api_types, storage, transformers::ForeignInto},
+    types::{self, api as api_types, domain, transformers::ForeignInto},
 };
 
 pub fn update_router_data_with_access_token_result<F, Req, Res>(
@@ -50,7 +50,7 @@ pub async fn add_access_token<
 >(
     state: &AppState,
     connector: &api_types::ConnectorData,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     router_data: &types::RouterData<F, Req, Res>,
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
@@ -133,7 +133,7 @@ pub async fn add_access_token<
 pub async fn refresh_connector_auth(
     state: &AppState,
     connector: &api_types::ConnectorData,
-    _merchant_account: &storage::MerchantAccount,
+    _merchant_account: &domain::MerchantAccount,
     router_data: &types::RouterData<
         api_types::AccessTokenAuth,
         types::AccessTokenRequestData,

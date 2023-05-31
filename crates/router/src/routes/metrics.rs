@@ -78,5 +78,9 @@ histogram_metric!(CARD_ADD_TIME, GLOBAL_METER);
 histogram_metric!(CARD_GET_TIME, GLOBAL_METER);
 histogram_metric!(CARD_DELETE_TIME, GLOBAL_METER);
 
+// Encryption and Decryption metrics
+histogram_metric!(ENCRYPTION_TIME, GLOBAL_METER);
+histogram_metric!(DECRYPTION_TIME, GLOBAL_METER);
+
 pub mod request;
 pub mod utils;
