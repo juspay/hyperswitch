@@ -20,6 +20,7 @@ use crate::{
     types::{
         self,
         api::{self, PaymentIdTypeExt},
+        domain,
         storage::{
             self,
             enums::{self, IntentStatus},
@@ -41,7 +42,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCre
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsRequest,
         mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -233,8 +234,8 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCre
                 setup_mandate,
                 token,
                 address: PaymentAddress {
-                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
+                    shipping: shipping_address.as_ref().map(|a| a.into()),
+                    billing: billing_address.as_ref().map(|a| a.into()),
                 },
                 confirm: request.confirm,
                 payment_method_data: request.payment_method_data.clone(),
@@ -248,6 +249,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCre
                 pm_token: None,
                 connector_customer_id: None,
                 ephemeral_key,
+                redirect_response: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -272,7 +274,7 @@ impl<F: Flow> Domain<F, api::PaymentsRequest> for PaymentCreate {
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRequest>,
-            Option<storage::Customer>,
+            Option<domain::Customer>,
         ),
         errors::StorageError,
     > {
@@ -310,7 +312,7 @@ impl<F: Flow> Domain<F, api::PaymentsRequest> for PaymentCreate {
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &storage::MerchantAccount,
+        _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::payment_intent::PaymentIntent,
@@ -327,7 +329,7 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Payment
         db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
@@ -399,7 +401,7 @@ impl<F: Flow> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate {
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
-        merchant_account: &'a storage::MerchantAccount,
+        merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
@@ -430,7 +432,8 @@ impl<F: Flow> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate {
 
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
 
-        let mandate_type = helpers::validate_mandate(request)?;
+        let mandate_type =
+            helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
@@ -516,7 +519,7 @@ impl PaymentCreate {
     #[instrument(skip_all)]
     fn make_payment_intent(
         payment_id: &str,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &types::domain::MerchantAccount,
         money: (api::Amount, enums::Currency),
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
@@ -596,7 +599,7 @@ impl PaymentCreate {
     pub async fn get_ephemeral_key(
         request: &api::PaymentsRequest,
         state: &AppState,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> Option<ephemeral_key::EphemeralKey> {
         match request.customer_id.clone() {
             Some(customer_id) => helpers::make_ephemeral_key(

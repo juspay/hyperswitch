@@ -14,8 +14,8 @@ use crate::{
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
-        storage::{self, enums, Customer},
-        transformers::ForeignInto,
+        domain,
+        storage::{self, enums},
     },
     utils::OptionExt,
 };
@@ -33,7 +33,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for Paym
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsCancelRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         PaymentData<F>,
@@ -135,8 +135,8 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for Paym
                 setup_mandate: None,
                 token: None,
                 address: PaymentAddress {
-                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
+                    shipping: shipping_address.as_ref().map(|a| a.into()),
+                    billing: billing_address.as_ref().map(|a| a.into()),
                 },
                 confirm: None,
                 payment_method_data: None,
@@ -150,6 +150,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for Paym
                 pm_token: None,
                 connector_customer_id: None,
                 ephemeral_key: None,
+                redirect_response: None,
             },
             None,
         ))
@@ -164,7 +165,7 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for P
         db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        _customer: Option<Customer>,
+        _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(
@@ -215,7 +216,7 @@ impl<F: Flow> ValidateRequest<F, api::PaymentsCancelRequest> for PaymentCancel {
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCancelRequest,
-        merchant_account: &'a storage::MerchantAccount,
+        merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCancelRequest>,
         operations::ValidateResult<'a>,

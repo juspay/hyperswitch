@@ -80,10 +80,11 @@ impl TryFrom<&types::CompleteAuthorizeData> for BamboraThreedsContinueRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &types::CompleteAuthorizeData) -> Result<Self, Self::Error> {
         let card_response: CardResponse = value
-            .payload
-            .clone()
+            .redirect_response
+            .as_ref()
+            .and_then(|f| f.payload.to_owned())
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "payload",
+                field_name: "redirect_response.payload",
             })?
             .parse_value("CardResponse")
             .change_context(errors::ConnectorError::ParsingFailed)?;

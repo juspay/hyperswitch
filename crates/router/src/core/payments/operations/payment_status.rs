@@ -13,9 +13,8 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api,
+        api, domain,
         storage::{self, enums},
-        transformers::ForeignInto,
     },
     utils::OptionExt,
 };
@@ -59,7 +58,7 @@ impl<F: Flow> Domain<F, api::PaymentsRequest> for PaymentStatus {
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRequest>,
-            Option<storage::Customer>,
+            Option<domain::Customer>,
         ),
         errors::StorageError,
     > {
@@ -97,7 +96,7 @@ impl<F: Flow> Domain<F, api::PaymentsRequest> for PaymentStatus {
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &storage::MerchantAccount,
+        _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::payment_intent::PaymentIntent,
@@ -113,7 +112,7 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Payment
         _db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
@@ -131,7 +130,7 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest> for
         _db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(
@@ -154,7 +153,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest> for Pa
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsRetrieveRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         PaymentData<F>,
@@ -266,8 +265,8 @@ async fn get_tracker_for_sync<
             setup_mandate: None,
             token: None,
             address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                billing: billing_address.as_ref().map(|a| a.foreign_into()),
+                shipping: shipping_address.as_ref().map(|a| a.into()),
+                billing: billing_address.as_ref().map(|a| a.into()),
             },
             confirm: Some(request.force_sync),
             payment_method_data: None,
@@ -287,6 +286,7 @@ async fn get_tracker_for_sync<
             pm_token: None,
             connector_customer_id: None,
             ephemeral_key: None,
+            redirect_response: None,
         },
         None,
     ))
@@ -296,7 +296,7 @@ impl<F: Flow> ValidateRequest<F, api::PaymentsRetrieveRequest> for PaymentStatus
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRetrieveRequest,
-        merchant_account: &'a storage::MerchantAccount,
+        merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRetrieveRequest>,
         operations::ValidateResult<'a>,

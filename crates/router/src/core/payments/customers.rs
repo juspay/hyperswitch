@@ -9,7 +9,7 @@ use crate::{
     logger,
     routes::{metrics, AppState},
     services,
-    types::{self, api, storage},
+    types::{self, api, domain, storage},
 };
 
 pub async fn create_connector_customer<F: Flow, T: Clone>(
@@ -90,7 +90,7 @@ type CreateCustomerCheck = (
 pub fn should_call_connector_create_customer(
     state: &AppState,
     connector: &api::ConnectorData,
-    customer: &Option<storage::Customer>,
+    customer: &Option<domain::Customer>,
 ) -> RouterResult<CreateCustomerCheck> {
     let connector_name = connector.connector_name.to_string();
     //Check if create customer is required for the connector

@@ -13,8 +13,8 @@ use crate::{
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
+        domain,
         storage::{self, enums as storage_enums},
-        transformers::ForeignInto,
     },
     utils::OptionExt,
 };
@@ -32,7 +32,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> for Payme
         payment_id: &api::PaymentIdType,
         _request: &api::PaymentsStartRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
         PaymentData<F>,
@@ -126,8 +126,8 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> for Payme
                 setup_mandate: None,
                 token: payment_attempt.payment_token.clone(),
                 address: PaymentAddress {
-                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
+                    shipping: shipping_address.as_ref().map(|a| a.into()),
+                    billing: billing_address.as_ref().map(|a| a.into()),
                 },
                 confirm: Some(payment_attempt.confirm),
                 payment_attempt,
@@ -141,6 +141,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> for Payme
                 pm_token: None,
                 connector_customer_id: None,
                 ephemeral_key: None,
+                redirect_response: None,
             },
             Some(customer_details),
         ))
@@ -155,7 +156,7 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for Pa
         _db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(
@@ -174,7 +175,7 @@ impl<F: Flow> ValidateRequest<F, api::PaymentsStartRequest> for PaymentStart {
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsStartRequest,
-        merchant_account: &'a storage::MerchantAccount,
+        merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsStartRequest>,
         operations::ValidateResult<'a>,
@@ -185,7 +186,7 @@ impl<F: Flow> ValidateRequest<F, api::PaymentsStartRequest> for PaymentStart {
                 field_name: "merchant_id".to_string(),
                 expected_format: "merchant_id from merchant account".to_string(),
             })?;
-        // let mandate_type = validate_mandate(request)?;
+
         let payment_id = request.payment_id.clone();
 
         Ok((
@@ -216,7 +217,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsStartRequest>,
-            Option<storage::Customer>,
+            Option<domain::Customer>,
         ),
         errors::StorageError,
     > {
@@ -245,7 +246,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &storage::MerchantAccount,
+        _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsStartRequest,
         _payment_intent: &storage::payment_intent::PaymentIntent,
