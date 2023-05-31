@@ -11,7 +11,7 @@ use crate::{
     logger,
     routes::{metrics, AppState},
     services,
-    types::{self, api, domain, storage},
+    types::{self, api, domain},
 };
 
 #[async_trait]
