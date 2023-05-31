@@ -107,6 +107,24 @@ async fn should_make_gpay_mandate_payment(c: WebDriver) -> Result<(), WebDriverE
     Ok(())
 }
 
+async fn should_make_stripe_canadian_pad_payment(c: WebDriver) -> Result<(), WebDriverError> {
+    let conn = StripeSeleniumTest {};
+    conn.make_redirection_payment(
+        c,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/95"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::SendKeys(By::Id("deposit-amount1"), "32")),
+            Event::Trigger(Trigger::SendKeys(By::Id("deposit-amount2"), "45")),
+            Event::Trigger(Trigger::Click(By::Css(
+                "div[class='SubmitButton-IconContainer']",
+            ))),
+            Event::Assert(Assert::IsPresent("You completed a payment of")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
 //https://stripe.com/docs/testing#regulatory-cards
 
 #[test]
@@ -143,4 +161,10 @@ fn should_make_gpay_payment_test() {
 #[serial]
 fn should_make_gpay_mandate_payment_test() {
     tester!(should_make_gpay_mandate_payment);
+}
+
+#[test]
+#[serial]
+fn sshould_make_stripe_canadian_pad_payment_test() {
+    tester!(should_make_stripe_canadian_pad_payment);
 }
