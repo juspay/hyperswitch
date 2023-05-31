@@ -53,13 +53,13 @@ impl<T: Eq + PartialEq + Clone> Maskable<T> {
     }
 }
 
-trait Mask<T> {
-    fn into_masked(value: T) -> Self;
+pub trait Mask: Eq + Clone + PartialEq {
+    fn into_masked(self) -> Maskable<Self>;
 }
 
-impl<T: std::fmt::Debug + Clone + Eq + PartialEq> Mask<T> for Maskable<T> {
-    fn into_masked(value: T) -> Self {
-        Self::new_masked(value.into())
+impl<T: std::fmt::Debug + Clone + Eq + PartialEq> Mask for T {
+    fn into_masked(self) -> Maskable<Self> {
+        Maskable::new_masked(self.into())
     }
 }
 

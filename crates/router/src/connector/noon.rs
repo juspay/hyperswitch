@@ -15,7 +15,11 @@ use crate::{
         payments,
     },
     headers,
-    services::{self, request, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -96,7 +100,7 @@ impl ConnectorCommon for Noon {
         ));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            request::Maskable::new_masked(format!("Key_Test {encoded_api_key}").into()),
+            format!("Key_Test {encoded_api_key}").into_masked(),
         )])
     }
 

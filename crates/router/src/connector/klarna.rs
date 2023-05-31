@@ -10,7 +10,10 @@ use crate::{
     connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request},
+    services::{
+        self,
+        request::{self, Mask},
+    },
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -44,7 +47,7 @@ impl ConnectorCommon for Klarna {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            request::Maskable::new_masked(auth.basic_token.into()),
+            auth.basic_token.into_masked(),
         )])
     }
 }

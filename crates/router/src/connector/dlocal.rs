@@ -14,7 +14,11 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers, logger,
-    services::{self, request, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -71,15 +75,12 @@ where
         let headers = vec![
             (
                 headers::AUTHORIZATION.to_string(),
-                request::Maskable::new_masked(auth_string.into()),
+                auth_string.into_masked(),
             ),
-            (
-                headers::X_LOGIN.to_string(),
-                request::Maskable::new_masked(auth.x_login.into()),
-            ),
+            (headers::X_LOGIN.to_string(), auth.x_login.into_masked()),
             (
                 headers::X_TRANS_KEY.to_string(),
-                request::Maskable::new_masked(auth.x_trans_key.into()),
+                auth.x_trans_key.into_masked(),
             ),
             (headers::X_VERSION.to_string(), "2.1".to_string().into()),
             (headers::X_DATE.to_string(), date.into()),

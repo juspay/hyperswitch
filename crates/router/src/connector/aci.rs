@@ -9,7 +9,10 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request},
+    services::{
+        self,
+        request::{self, Mask},
+    },
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -42,7 +45,7 @@ impl ConnectorCommon for Aci {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            request::Maskable::new_masked(auth.api_key.into()),
+            auth.api_key.into_masked(),
         )])
     }
 }

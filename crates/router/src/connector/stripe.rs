@@ -17,7 +17,10 @@ use crate::{
     },
     db::StorageInterface,
     headers,
-    services::{self, request},
+    services::{
+        self,
+        request::{self, Mask},
+    },
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -51,7 +54,7 @@ impl ConnectorCommon for Stripe {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            request::Maskable::new_masked(format!("Bearer {}", auth.api_key).into()),
+            format!("Bearer {}", auth.api_key).into_masked(),
         )])
     }
 }

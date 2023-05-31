@@ -15,7 +15,11 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -170,19 +174,16 @@ where
             ),
             (
                 "v-c-merchant-id".to_string(),
-                services::request::Maskable::new_masked(merchant_account.into()),
+                merchant_account.into_masked(),
             ),
             ("Date".to_string(), date.to_string().into()),
             ("Host".to_string(), host.to_string().into()),
-            (
-                "Signature".to_string(),
-                request::Maskable::new_masked(signature.into()),
-            ),
+            ("Signature".to_string(), signature.into_masked()),
         ];
         if matches!(http_method, services::Method::Post | services::Method::Put) {
             headers.push((
                 "Digest".to_string(),
-                request::Maskable::new_masked(format!("SHA-256={sha256}").into()),
+                format!("SHA-256={sha256}").into_masked(),
             ));
         }
         Ok(headers)

@@ -22,7 +22,11 @@ use crate::{
     },
     db::StorageInterface,
     headers, logger,
-    services::{self, request, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -77,7 +81,7 @@ impl ConnectorCommon for Bluesnap {
             consts::BASE64_ENGINE.encode(format!("{}:{}", auth.key1, auth.api_key));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            request::Maskable::new_masked(format!("Basic {encoded_api_key}").into()),
+            format!("Basic {encoded_api_key}").into_masked(),
         )])
     }
 

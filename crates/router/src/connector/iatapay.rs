@@ -14,7 +14,11 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     db, headers,
-    services::{self, request, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -69,7 +73,7 @@ where
 
         let auth_header = (
             headers::AUTHORIZATION.to_string(),
-            request::Maskable::new_masked(format!("Bearer {}", access_token.token).into()),
+            format!("Bearer {}", access_token.token).into_masked(),
         );
         headers.push(auth_header);
         Ok(headers)
@@ -97,7 +101,7 @@ impl ConnectorCommon for Iatapay {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            request::Maskable::new_masked(auth.client_id.into()),
+            auth.client_id.into_masked(),
         )])
     }
 
@@ -159,10 +163,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
                     .to_string()
                     .into(),
             ),
-            (
-                headers::AUTHORIZATION.to_string(),
-                request::Maskable::new_masked(auth_val.into()),
-            ),
+            (headers::AUTHORIZATION.to_string(), auth_val.into_masked()),
         ])
     }
 

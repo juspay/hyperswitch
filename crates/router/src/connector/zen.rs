@@ -17,7 +17,11 @@ use crate::{
     },
     db::StorageInterface,
     headers,
-    services::{self, request, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -86,7 +90,7 @@ impl ConnectorCommon for Zen {
         let auth = zen::ZenAuthType::try_from(auth_type)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            request::Maskable::new_masked(format!("Bearer {}", auth.api_key).into()),
+            format!("Bearer {}", auth.api_key).into_masked(),
         )])
     }
 

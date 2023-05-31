@@ -12,7 +12,11 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -91,11 +95,11 @@ impl ConnectorCommon for Forte {
         Ok(vec![
             (
                 headers::AUTHORIZATION.to_string(),
-                request::Maskable::new_masked(basic_token.into()),
+                basic_token.into_masked(),
             ),
             (
                 AUTH_ORG_ID_HEADER.to_string(),
-                request::Maskable::new_masked(auth.organization_id.into()),
+                auth.organization_id.into_masked(),
             ),
         ])
     }

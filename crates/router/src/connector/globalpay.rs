@@ -23,7 +23,11 @@ use crate::{
         payments,
     },
     db, headers,
-    services::{self, request, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt, PaymentsCompleteAuthorize},
@@ -57,7 +61,7 @@ where
             ("X-GP-Version".to_string(), "2021-03-22".to_string().into()),
             (
                 headers::AUTHORIZATION.to_string(),
-                request::Maskable::new_masked(format!("Bearer {}", access_token.token).into()),
+                format!("Bearer {}", access_token.token).into_masked(),
             ),
         ])
     }

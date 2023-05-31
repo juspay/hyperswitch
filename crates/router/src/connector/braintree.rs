@@ -10,7 +10,10 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request},
+    services::{
+        self,
+        request::{self, Mask},
+    },
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -39,7 +42,7 @@ impl ConnectorCommon for Braintree {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            request::Maskable::new_masked(auth.auth_header.into()),
+            auth.auth_header.into_masked(),
         )])
     }
 }

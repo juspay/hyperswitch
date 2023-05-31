@@ -10,7 +10,11 @@ use crate::{
     connector::utils::{to_connector_meta, PaymentsSyncRequestData},
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -85,7 +89,7 @@ impl ConnectorCommon for Nexinets {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            request::Maskable::new_masked(auth.api_key.into()),
+            auth.api_key.into_masked(),
         )])
     }
 

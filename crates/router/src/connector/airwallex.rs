@@ -15,7 +15,11 @@ use crate::{
     },
     db::StorageInterface,
     headers, logger, routes,
-    services::{self, request, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -47,7 +51,7 @@ where
 
         let auth_header = (
             headers::AUTHORIZATION.to_string(),
-            request::Maskable::new_masked(format!("Bearer {}", access_token.token).into()),
+            format!("Bearer {}", access_token.token).into_masked(),
         );
 
         headers.push(auth_header);

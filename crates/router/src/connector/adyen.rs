@@ -15,7 +15,10 @@ use crate::{
     core::errors::{self, CustomResult},
     db::StorageInterface,
     headers, logger,
-    services::{self, request},
+    services::{
+        self,
+        request::{self, Mask},
+    },
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -40,7 +43,7 @@ impl ConnectorCommon for Adyen {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::X_API_KEY.to_string(),
-            request::Maskable::new_masked(auth.api_key.into()),
+            auth.api_key.into_masked(),
         )])
     }
 

@@ -12,7 +12,11 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     db, headers,
-    services::{self, request, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -84,7 +88,7 @@ impl ConnectorCommon for Coinbase {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::X_CC_API_KEY.to_string(),
-            request::Maskable::new_masked(auth.api_key.into()),
+            auth.api_key.into_masked(),
         )])
     }
 

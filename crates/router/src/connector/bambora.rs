@@ -14,7 +14,11 @@ use crate::{
         payments,
     },
     headers, logger,
-    services::{self, request, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -69,7 +73,7 @@ impl ConnectorCommon for Bambora {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            request::Maskable::new_masked(auth.api_key.into()),
+            auth.api_key.into_masked(),
         )])
     }
 

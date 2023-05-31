@@ -18,7 +18,11 @@ use crate::{
     core::errors::{self, CustomResult},
     db::StorageInterface,
     headers, logger,
-    services::{self, request, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -93,7 +97,7 @@ where
             (headers::DATE.to_string(), date.into()),
             (
                 headers::AUTHORIZATION.to_string(),
-                request::Maskable::new_masked(signed_data.into()),
+                signed_data.into_masked(),
             ),
             (
                 headers::CONTENT_TYPE.to_string(),

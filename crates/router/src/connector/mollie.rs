@@ -13,7 +13,11 @@ use crate::{
         payments,
     },
     headers,
-    services::{self, request, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -70,7 +74,7 @@ impl ConnectorCommon for Mollie {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            request::Maskable::new_masked(format!("Bearer {}", auth.api_key).into()),
+            format!("Bearer {}", auth.api_key).into_masked(),
         )])
     }
 

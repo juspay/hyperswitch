@@ -15,7 +15,11 @@ use crate::{
         payments,
     },
     headers,
-    services::{self, request, ConnectorIntegration, PaymentAction},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration, PaymentAction,
+    },
     types::{
         self,
         api::{self, CompleteAuthorize, ConnectorCommon, ConnectorCommonExt},
@@ -123,7 +127,7 @@ where
             ),
             (
                 headers::AUTHORIZATION.to_string(),
-                request::Maskable::new_masked(format!("Bearer {}", access_token.token).into()),
+                format!("Bearer {}", access_token.token).into_masked(),
             ),
             (
                 "Prefer".to_string(),
@@ -131,7 +135,7 @@ where
             ),
             (
                 "PayPal-Request-Id".to_string(),
-                request::Maskable::new_masked(key.to_string().into()),
+                key.to_string().into_masked(),
             ),
         ])
     }
@@ -159,7 +163,7 @@ impl ConnectorCommon for Paypal {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            request::Maskable::new_masked(auth.api_key.into()),
+            auth.api_key.into_masked(),
         )])
     }
 
@@ -234,10 +238,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
                     .to_string()
                     .into(),
             ),
-            (
-                headers::AUTHORIZATION.to_string(),
-                request::Maskable::new_masked(auth_val.into()),
-            ),
+            (headers::AUTHORIZATION.to_string(), auth_val.into_masked()),
         ])
     }
     fn get_request_body(

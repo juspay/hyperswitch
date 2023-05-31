@@ -13,7 +13,11 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -57,22 +61,16 @@ where
                 headers::CONTENT_TYPE.to_string(),
                 Self.get_content_type().to_string().into(),
             ),
-            (
-                headers::APIKEY.to_string(),
-                request::Maskable::new_masked(auth.api_key.into()),
-            ),
+            (headers::APIKEY.to_string(), auth.api_key.into_masked()),
             (
                 headers::TOKEN.to_string(),
-                request::Maskable::new_masked(auth.merchant_token.into()),
+                auth.merchant_token.into_masked(),
             ),
             (
                 headers::AUTHORIZATION.to_string(),
-                request::Maskable::new_masked(signature_value.into()),
+                signature_value.into_masked(),
             ),
-            (
-                headers::NONCE.to_string(),
-                request::Maskable::new_masked(nonce.into()),
-            ),
+            (headers::NONCE.to_string(), nonce.into_masked()),
             (headers::TIMESTAMP.to_string(), timestamp.into()),
         ])
     }

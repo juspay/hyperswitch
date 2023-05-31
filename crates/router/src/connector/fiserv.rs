@@ -14,7 +14,11 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     headers, logger,
-    services::{self, api::ConnectorIntegration, request},
+    services::{
+        self,
+        api::ConnectorIntegration,
+        request::{self, Mask},
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -78,14 +82,11 @@ where
             ),
             (
                 "Client-Request-Id".to_string(),
-                request::Maskable::new_masked(client_request_id.into()),
+                client_request_id.into_masked(),
             ),
             ("Auth-Token-Type".to_string(), "HMAC".to_string().into()),
             (headers::TIMESTAMP.to_string(), timestamp.to_string().into()),
-            (
-                headers::AUTHORIZATION.to_string(),
-                request::Maskable::new_masked(hmac.into()),
-            ),
+            (headers::AUTHORIZATION.to_string(), hmac.into_masked()),
         ];
         headers.append(&mut auth_header);
         Ok(headers)
@@ -113,7 +114,7 @@ impl ConnectorCommon for Fiserv {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::API_KEY.to_string(),
-            request::Maskable::new_masked(auth.api_key.into()),
+            auth.api_key.into_masked(),
         )])
     }
     fn build_error_response(

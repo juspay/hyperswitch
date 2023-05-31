@@ -16,7 +16,11 @@ use crate::{
         payments,
     },
     headers,
-    services::{self, request, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -50,7 +54,7 @@ where
                     ),
                     (
                         headers::AUTHORIZATION.to_string(),
-                        request::Maskable::new_masked(format!("Bearer {}", token.token).into()),
+                        format!("Bearer {}", token.token).into_masked(),
                     ),
                 ])
             }
@@ -88,7 +92,7 @@ impl ConnectorCommon for Trustpay {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::X_API_KEY.to_string(),
-            request::Maskable::new_masked(auth.api_key.into()),
+            auth.api_key.into_masked(),
         )])
     }
 
@@ -178,10 +182,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
                     .to_string()
                     .into(),
             ),
-            (
-                headers::AUTHORIZATION.to_string(),
-                request::Maskable::new_masked(auth_value.into()),
-            ),
+            (headers::AUTHORIZATION.to_string(), auth_value.into_masked()),
         ])
     }
 

@@ -15,7 +15,10 @@ use crate::{
     core::errors::{self, CustomResult},
     db::StorageInterface,
     headers,
-    services::{self, request},
+    services::{
+        self,
+        request::{self, Mask},
+    },
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -164,19 +167,10 @@ impl
         let signature =
             self.generate_signature(&auth, "post", "/v1/payments", &rapyd_req, &timestamp, &salt)?;
         let headers = vec![
-            (
-                "access_key".to_string(),
-                request::Maskable::new_masked(auth.access_key.into()),
-            ),
-            (
-                "salt".to_string(),
-                request::Maskable::new_masked(salt.into()),
-            ),
+            ("access_key".to_string(), auth.access_key.into_masked()),
+            ("salt".to_string(), salt.into_masked()),
             ("timestamp".to_string(), timestamp.to_string().into()),
-            (
-                "signature".to_string(),
-                request::Maskable::new_masked(signature.into()),
-            ),
+            ("signature".to_string(), signature.into_masked()),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -292,19 +286,10 @@ impl
             self.generate_signature(&auth, "delete", &url_path, "", &timestamp, &salt)?;
 
         let headers = vec![
-            (
-                "access_key".to_string(),
-                request::Maskable::new_masked(auth.access_key.into()),
-            ),
-            (
-                "salt".to_string(),
-                request::Maskable::new_masked(salt.into()),
-            ),
+            ("access_key".to_string(), auth.access_key.into_masked()),
+            ("salt".to_string(), salt.into_masked()),
             ("timestamp".to_string(), timestamp.to_string().into()),
-            (
-                "signature".to_string(),
-                request::Maskable::new_masked(signature.into()),
-            ),
+            ("signature".to_string(), signature.into_masked()),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Delete)
@@ -397,19 +382,10 @@ impl
         let signature = self.generate_signature(&auth, "get", &url_path, "", &timestamp, &salt)?;
 
         let headers = vec![
-            (
-                "access_key".to_string(),
-                request::Maskable::new_masked(auth.access_key.into()),
-            ),
-            (
-                "salt".to_string(),
-                request::Maskable::new_masked(salt.into()),
-            ),
+            ("access_key".to_string(), auth.access_key.into_masked()),
+            ("salt".to_string(), salt.into_masked()),
             ("timestamp".to_string(), timestamp.to_string().into()),
-            (
-                "signature".to_string(),
-                request::Maskable::new_masked(signature.into()),
-            ),
+            ("signature".to_string(), signature.into_masked()),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Get)
@@ -500,19 +476,10 @@ impl
         let signature =
             self.generate_signature(&auth, "post", &url_path, &rapyd_req, &timestamp, &salt)?;
         let headers = vec![
-            (
-                "access_key".to_string(),
-                request::Maskable::new_masked(auth.access_key.into()),
-            ),
-            (
-                "salt".to_string(),
-                request::Maskable::new_masked(salt.into()),
-            ),
+            ("access_key".to_string(), auth.access_key.into_masked()),
+            ("salt".to_string(), salt.into_masked()),
             ("timestamp".to_string(), timestamp.to_string().into()),
-            (
-                "signature".to_string(),
-                request::Maskable::new_masked(signature.into()),
-            ),
+            ("signature".to_string(), signature.into_masked()),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -633,19 +600,10 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let signature =
             self.generate_signature(&auth, "post", "/v1/refunds", &rapyd_req, &timestamp, &salt)?;
         let headers = vec![
-            (
-                "access_key".to_string(),
-                request::Maskable::new_masked(auth.access_key.into()),
-            ),
-            (
-                "salt".to_string(),
-                request::Maskable::new_masked(salt.into()),
-            ),
+            ("access_key".to_string(), auth.access_key.into_masked()),
+            ("salt".to_string(), salt.into_masked()),
             ("timestamp".to_string(), timestamp.to_string().into()),
-            (
-                "signature".to_string(),
-                request::Maskable::new_masked(signature.into()),
-            ),
+            ("signature".to_string(), signature.into_masked()),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
