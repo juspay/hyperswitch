@@ -81,7 +81,7 @@ impl EventInterface for MockDb {
 
         match event {
             storage::EventUpdate::UpdateWebhookNotified {
-                is_webhook_notified
+                is_webhook_notified,
             } => {
                 if let Some(is_webhook_notified) = is_webhook_notified {
                     event_to_update.is_webhook_notified = is_webhook_notified;
@@ -105,31 +105,34 @@ mod tests {
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_mockdb_event_interface() {
-        let mockdb =  MockDb::new(&Default::default()).await;
+        let mockdb = MockDb::new(&Default::default()).await;
 
         let event1 = mockdb
             .insert_event(storage::EventNew {
-            event_id: "test_event_id".into(),
-            event_type: enums::EventType::PaymentSucceeded,
-            event_class: enums::EventClass::Payments,
-            is_webhook_notified: false,
-            intent_reference_id: Some("test".into()),
-            primary_object_id: "primary_object_tet".into(),
-            primary_object_type: enums::EventObjectType::PaymentDetails,
-        })
+                event_id: "test_event_id".into(),
+                event_type: enums::EventType::PaymentSucceeded,
+                event_class: enums::EventClass::Payments,
+                is_webhook_notified: false,
+                intent_reference_id: Some("test".into()),
+                primary_object_id: "primary_object_tet".into(),
+                primary_object_type: enums::EventObjectType::PaymentDetails,
+            })
             .await
             .unwrap();
 
         assert_eq!(event1.id, 0);
 
         let updated_event = mockdb
-            .update_event("test_event_id".into(), storage::EventUpdate::UpdateWebhookNotified {
-                is_webhook_notified: Some(true),
-            })
+            .update_event(
+                "test_event_id".into(),
+                storage::EventUpdate::UpdateWebhookNotified {
+                    is_webhook_notified: Some(true),
+                },
+            )
             .await
             .unwrap();
 
-        assert_eq!(updated_event.is_webhook_notified, true);
+        assert!(updated_event.is_webhook_notified);
         assert_eq!(updated_event.primary_object_id, "primary_object_tet");
         assert_eq!(updated_event.id, 0);
     }
