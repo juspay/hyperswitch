@@ -25,4 +25,4 @@ jobs:
 
       - name: Validate the json file
         shell: bash
-        run: swagger-cli validate ./openapi/generated.json
+        run: swagger-cli validate ./openapi/openapi_spec.json
