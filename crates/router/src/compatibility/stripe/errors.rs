@@ -20,10 +20,7 @@ pub enum StripeErrorCode {
     InvalidRequestUrl,
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "parameter_missing", message = "Missing required param: {field_name}.")]
-    ParameterMissing {
-        field_name: &'static str,
-        param: &'static str,
-    },
+    ParameterMissing { field_name: String, param: String },
 
     #[error(
         error_type = StripeErrorType::InvalidRequestError, code = "parameter_unknown",
@@ -373,8 +370,15 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::InvalidCardIinLength => Self::InvalidRequestUrl,
             errors::ApiErrorResponse::MissingRequiredField { field_name } => {
                 Self::ParameterMissing {
-                    field_name,
-                    param: field_name,
+                    field_name: field_name.to_string(),
+                    param: field_name.to_string(),
+                }
+            }
+            errors::ApiErrorResponse::MissingRequiredFields { field_names } => {
+                // Instead of creating a new error variant in StripeErrorCode for MissingRequiredFields, converted vec<&str> to String
+                Self::ParameterMissing {
+                    field_name: field_names.clone().join(", "),
+                    param: field_names.clone().join(", "),
                 }
             }
             // parameter unknown, invalid request error // actually if we type wrong values in address we get this error. Stripe throws parameter unknown. I don't know if stripe is validating email and stuff
@@ -458,8 +462,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::PreconditionFailed { message }
             }
             errors::ApiErrorResponse::InvalidDataValue { field_name } => Self::ParameterMissing {
-                field_name,
-                param: field_name,
+                field_name: field_name.to_string(),
+                param: field_name.to_string(),
             },
             errors::ApiErrorResponse::MaximumRefundCount => Self::MaximumRefundCount,
             errors::ApiErrorResponse::PaymentNotSucceeded => Self::PaymentFailed,
