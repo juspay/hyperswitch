@@ -1,5 +1,5 @@
 use api_models::payments;
-use common_utils::{date_time, ext_traits::StringExt, pii as secret};
+use common_utils::{crypto::Encryptable, date_time, ext_traits::StringExt, pii as secret};
 use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 
@@ -369,9 +369,9 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             payment_token: resp.payment_token,
             shipping: resp.shipping,
             billing: resp.billing,
-            email: resp.email,
-            name: resp.name,
-            phone: resp.phone,
+            email: resp.email.map(|inner| inner.into()),
+            name: resp.name.map(Encryptable::into_inner),
+            phone: resp.phone.map(Encryptable::into_inner),
             authentication_type: resp.authentication_type,
             statement_descriptor_name: resp.statement_descriptor_name,
             statement_descriptor_suffix: resp.statement_descriptor_suffix,
@@ -610,22 +610,34 @@ pub struct RedirectUrl {
     pub url: Option<String>,
 }
 
-#[derive(Eq, PartialEq, Serialize, Debug)]
-pub struct StripeNextAction {
-    #[serde(rename = "type")]
-    stype: payments::NextActionType,
-    redirect_to_url: RedirectUrl,
+#[derive(Eq, PartialEq, serde::Serialize, Debug)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum StripeNextAction {
+    RedirectToUrl {
+        redirect_to_url: RedirectUrl,
+    },
+    DisplayBankTransferInformation {
+        bank_transfer_steps_and_charges_details: payments::BankTransferNextStepsData,
+    },
 }
 
-fn into_stripe_next_action(
-    next_action: Option<payments::NextAction>,
+pub(crate) fn into_stripe_next_action(
+    next_action: Option<payments::NextActionData>,
     return_url: Option<String>,
 ) -> Option<StripeNextAction> {
-    next_action.map(|n| StripeNextAction {
-        stype: n.next_action_type,
-        redirect_to_url: RedirectUrl {
-            return_url,
-            url: n.redirect_to_url,
+    next_action.map(|next_action_data| match next_action_data {
+        payments::NextActionData::RedirectToUrl { redirect_to_url } => {
+            StripeNextAction::RedirectToUrl {
+                redirect_to_url: RedirectUrl {
+                    return_url,
+                    url: Some(redirect_to_url),
+                },
+            }
+        }
+        payments::NextActionData::DisplayBankTransferInformation {
+            bank_transfer_steps_and_charges_details,
+        } => StripeNextAction::DisplayBankTransferInformation {
+            bank_transfer_steps_and_charges_details,
         },
     })
 }
