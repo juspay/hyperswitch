@@ -184,7 +184,6 @@ impl
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
@@ -245,7 +244,6 @@ impl
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -322,7 +320,6 @@ impl
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -391,7 +388,6 @@ impl
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
@@ -440,7 +436,6 @@ impl
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(&self, res: Response) -> CustomResult<ErrorResponse,errors::ConnectorError> {
