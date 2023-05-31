@@ -731,12 +731,11 @@ impl api::IncomingWebhook for Shift4 {
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         if shift4::is_transaction_event(&details.event_type) {
-            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.id),
-            ));
-        }
-        if shift4::is_refund_event(&details.event_type) {
-            return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+            ))
+        } else if shift4::is_refund_event(&details.event_type) {
+            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::ConnectorRefundId(
                     details
                         .data
@@ -746,9 +745,10 @@ impl api::IncomingWebhook for Shift4 {
                         })
                         .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                 ),
-            ));
+            ))
+        } else {
+            Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()
         }
-        Err(errors::ConnectorError::WebhookReferenceIdNotFound).into_report()
     }
 
     fn get_webhook_event_type(
