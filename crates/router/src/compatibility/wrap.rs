@@ -114,12 +114,8 @@ where
         .respond_to(request)
         .map_into_boxed_body(),
         api::ApplicationResponse::ResponseWithCustomHeader(_, _) => {
-            api::log_and_return_error_response(
-                errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Found header response inside a header response".to_string(),
-                }
-                .into(),
-            )
+            logger::error!("Found header response inside a header response");
+            HttpResponse::from_error(errors::ApiErrorResponse::InternalServerError)
         }
     }
 }

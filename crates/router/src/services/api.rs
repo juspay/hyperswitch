@@ -672,12 +672,10 @@ where
         )
         .respond_to(request)
         .map_into_boxed_body(),
-        ApplicationResponse::ResponseWithCustomHeader(_, _) => log_and_return_error_response(
-            errors::ApiErrorResponse::InvalidRequestData {
-                message: "Found header response inside a header response".to_string(),
-            }
-            .into(),
-        ),
+        ApplicationResponse::ResponseWithCustomHeader(_, _) => {
+            logger::error!("Found header response inside a header response");
+            HttpResponse::from_error(errors::ApiErrorResponse::InternalServerError)
+        }
     }
 }
 
