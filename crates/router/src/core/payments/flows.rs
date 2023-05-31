@@ -16,7 +16,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, domain, storage},
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -87,14 +87,13 @@ pub trait Feature<F, T> {
         &self,
         _state: &AppState,
         _connector: &api::ConnectorData,
-        _connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
-    ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)>
+    ) -> RouterResult<Option<String>>
     where
         F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
-        Ok((None, None))
+        Ok(None)
     }
 }
 
