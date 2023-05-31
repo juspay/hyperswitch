@@ -766,7 +766,7 @@ impl RefundInterface for MockDb {
         Ok(refunds
             .iter()
             .filter(|refund| refund.merchant_id == merchant_id)
-            .take(usize::try_from(limit).unwrap())
+            .take(usize::try_from(limit).unwrap_or(usize::MAX))
             .cloned()
             .collect::<Vec<_>>())
     }
