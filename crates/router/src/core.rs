@@ -11,6 +11,7 @@ pub mod mandate;
 pub mod metrics;
 pub mod payment_methods;
 pub mod payments;
+#[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod refunds;
 pub mod utils;

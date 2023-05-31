@@ -645,7 +645,6 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
@@ -656,15 +655,20 @@ impl
 }
 
 impl api::Payouts for Adyen {}
+#[cfg(feature = "payouts")]
 impl api::PayoutCreate for Adyen {}
+#[cfg(feature = "payouts")]
 impl api::PayoutEligibility for Adyen {}
+#[cfg(feature = "payouts")]
 impl api::PayoutFulfill for Adyen {}
 
+#[cfg(feature = "payouts")]
 impl services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::PayoutsResponseData>
     for Adyen
 {
 }
 
+#[cfg(feature = "payouts")]
 impl
     services::ConnectorIntegration<
         api::PEligibility,
@@ -739,13 +743,11 @@ impl
             .response
             .parse_struct("AdyenPayoutResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -756,7 +758,6 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
@@ -766,6 +767,7 @@ impl
     }
 }
 
+#[cfg(feature = "payouts")]
 impl services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::PayoutsResponseData>
     for Adyen
 {
@@ -837,13 +839,11 @@ impl services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::Pa
             .response
             .parse_struct("AdyenPayoutResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -854,7 +854,6 @@ impl services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::Pa
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
@@ -942,7 +941,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             .response
             .parse_struct("AdyenRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -959,7 +957,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,

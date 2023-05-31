@@ -2151,6 +2151,8 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         connector_customer: router_data.connector_customer,
         preprocessing_id: router_data.preprocessing_id,
         connector_request_reference_id: router_data.connector_request_reference_id,
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
     }
 }
 

@@ -299,3 +299,6 @@ afterpay_clearpay = {fields = {stripe = [  # payment_method_type = afterpay_clea
             { required_field = "shipping.address.last_name", display_name = "last_name", field_type = "text" },
             { required_field = "shipping.address.country", display_name = "country", field_type = { drop_down = { options = [ "US", "IN" ] } } },
         ] } }
+
+[payouts]
+payout_eligibility = true   # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility
