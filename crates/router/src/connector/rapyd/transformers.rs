@@ -253,13 +253,13 @@ pub struct DisputeResponseData {
     pub currency: api_models::enums::Currency,
     pub token: String,
     pub dispute_reason_description: String,
-    #[serde(with = "common_utils::custom_serde::timestamp")]
-    pub due_date: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub due_date: Option<PrimitiveDateTime>,
     pub status: RapydWebhookDisputeStatus,
-    #[serde(with = "common_utils::custom_serde::timestamp")]
-    pub created_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::timestamp")]
-    pub updated_at: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub created_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub updated_at: Option<PrimitiveDateTime>,
     pub original_transaction_id: String,
 }
 
@@ -497,15 +497,14 @@ pub enum RapydWebhookDisputeStatus {
     Win,
 }
 
-impl TryFrom<RapydWebhookDisputeStatus> for api_models::webhooks::IncomingWebhookEvent {
-    type Error = errors::ConnectorError;
-    fn try_from(value: RapydWebhookDisputeStatus) -> Result<Self, Self::Error> {
-        Ok(match value {
+impl From<RapydWebhookDisputeStatus> for api_models::webhooks::IncomingWebhookEvent {
+    fn from(value: RapydWebhookDisputeStatus) -> Self {
+        match value {
             RapydWebhookDisputeStatus::Active => Self::DisputeOpened,
             RapydWebhookDisputeStatus::Review => Self::DisputeChallenged,
             RapydWebhookDisputeStatus::Lose => Self::DisputeLost,
             RapydWebhookDisputeStatus::Win => Self::DisputeWon,
-        })
+        }
     }
 }
 

@@ -827,9 +827,7 @@ impl api::IncomingWebhook for Rapyd {
                 api::IncomingWebhookEvent::DisputeOpened
             }
             rapyd::RapydWebhookObjectEventType::PaymentDisputeUpdated => match webhook.data {
-                rapyd::WebhookData::Dispute(data) => {
-                    api::IncomingWebhookEvent::try_from(data.status)?
-                }
+                rapyd::WebhookData::Dispute(data) => api::IncomingWebhookEvent::from(data.status),
                 _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
             },
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
@@ -875,7 +873,7 @@ impl api::IncomingWebhook for Rapyd {
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let webhook_dispute_data = match webhook.data {
             transformers::WebhookData::Dispute(dispute_data) => Ok(dispute_data),
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound),
+            _ => Err(errors::ConnectorError::WebhookBodyDecodingFailed),
         }?;
         Ok(api::disputes::DisputePayload {
             amount: webhook_dispute_data.amount.to_string(),
@@ -884,10 +882,10 @@ impl api::IncomingWebhook for Rapyd {
             connector_dispute_id: webhook_dispute_data.token,
             connector_reason: Some(webhook_dispute_data.dispute_reason_description),
             connector_reason_code: None,
-            challenge_required_by: Some(webhook_dispute_data.due_date),
+            challenge_required_by: webhook_dispute_data.due_date,
             connector_status: webhook_dispute_data.status.to_string(),
-            created_at: Some(webhook_dispute_data.created_at),
-            updated_at: Some(webhook_dispute_data.updated_at),
+            created_at: webhook_dispute_data.created_at,
+            updated_at: webhook_dispute_data.updated_at,
         })
     }
 }
