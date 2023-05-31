@@ -27,8 +27,8 @@ impl PaymentsRequestExt for PaymentsRequest {
     fn is_mandate(&self) -> Option<MandateTransactionType> {
         match (&self.mandate_data, &self.mandate_id) {
             (None, None) => None,
-            (_, Some(_)) => Some(MandateTransactionType::RecurringMandateTxn),
-            (Some(_), _) => Some(MandateTransactionType::NewMandateTxn),
+            (_, Some(_)) => Some(MandateTransactionType::RecurringMandateTransaction),
+            (Some(_), _) => Some(MandateTransactionType::NewMandateTransaction),
         }
     }
 }
@@ -120,8 +120,8 @@ impl MandateValidationFieldsExt for MandateValidationFields {
     fn is_mandate(&self) -> Option<MandateTransactionType> {
         match (&self.mandate_data, &self.mandate_id) {
             (None, None) => None,
-            (_, Some(_)) => Some(MandateTransactionType::RecurringMandateTxn),
-            (Some(_), _) => Some(MandateTransactionType::NewMandateTxn),
+            (_, Some(_)) => Some(MandateTransactionType::RecurringMandateTransaction),
+            (Some(_), _) => Some(MandateTransactionType::NewMandateTransaction),
         }
     }
 }

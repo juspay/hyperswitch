@@ -250,7 +250,7 @@ pub async fn get_token_pm_type_mandate_details(
     Option<api::MandateData>,
 )> {
     match mandate_type {
-        Some(api::MandateTransactionType::NewMandateTxn) => {
+        Some(api::MandateTransactionType::NewMandateTransaction) => {
             let setup_mandate = request
                 .mandate_data
                 .clone()
@@ -261,7 +261,7 @@ pub async fn get_token_pm_type_mandate_details(
                 Some(setup_mandate),
             ))
         }
-        Some(api::MandateTransactionType::RecurringMandateTxn) => {
+        Some(api::MandateTransactionType::RecurringMandateTransaction) => {
             let (token_, payment_method_type_) =
                 get_token_for_recurring_mandate(state, request, merchant_account).await?;
             Ok((token_, payment_method_type_, None))
@@ -398,13 +398,15 @@ pub fn validate_mandate(
 ) -> RouterResult<Option<api::MandateTransactionType>> {
     let req: api::MandateValidationFields = req.into();
     match req.is_mandate() {
-        Some(api::MandateTransactionType::NewMandateTxn) => {
+        Some(api::MandateTransactionType::NewMandateTransaction) => {
             validate_new_mandate_request(req)?;
-            Ok(Some(api::MandateTransactionType::NewMandateTxn))
+            Ok(Some(api::MandateTransactionType::NewMandateTransaction))
         }
-        Some(api::MandateTransactionType::RecurringMandateTxn) => {
+        Some(api::MandateTransactionType::RecurringMandateTransaction) => {
             validate_recurring_mandate(req)?;
-            Ok(Some(api::MandateTransactionType::RecurringMandateTxn))
+            Ok(Some(
+                api::MandateTransactionType::RecurringMandateTransaction,
+            ))
         }
         None => Ok(None),
     }
@@ -1420,7 +1422,7 @@ pub(crate) fn validate_pm_or_token_given(
             Some(api_enums::PaymentMethodType::Paypal)
         ) && !matches!(
             mandate_type,
-            Some(api::MandateTransactionType::RecurringMandateTxn)
+            Some(api::MandateTransactionType::RecurringMandateTransaction)
         ) && token.is_none()
             && (payment_method_data.is_none() || payment_method.is_none()),
         || {

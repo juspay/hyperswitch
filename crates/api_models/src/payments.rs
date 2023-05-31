@@ -319,8 +319,8 @@ impl From<PaymentsRequest> for VerifyRequest {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MandateTransactionType {
-    NewMandateTxn,
-    RecurringMandateTxn,
+    NewMandateTransaction,
+    RecurringMandateTransaction,
 }
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
