@@ -69,7 +69,7 @@ pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
 pub struct ValidateResult<'a> {
     pub merchant_id: &'a str,
     pub payment_id: api::PaymentIdType,
-    pub mandate_type: Option<api::MandateTxnType>,
+    pub mandate_type: Option<api::MandateTransactionType>,
     pub storage_scheme: enums::MerchantStorageScheme,
 }
 
@@ -90,7 +90,7 @@ pub trait GetTracker<F, D, R>: Send {
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &R,
-        mandate_type: Option<api::MandateTxnType>,
+        mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>;
 }

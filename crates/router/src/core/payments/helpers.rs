@@ -242,7 +242,7 @@ pub async fn get_address_by_id(
 pub async fn get_token_pm_type_mandate_details(
     state: &AppState,
     request: &api::PaymentsRequest,
-    mandate_type: Option<api::MandateTxnType>,
+    mandate_type: Option<api::MandateTransactionType>,
     merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<(
     Option<String>,
@@ -250,7 +250,7 @@ pub async fn get_token_pm_type_mandate_details(
     Option<api::MandateData>,
 )> {
     match mandate_type {
-        Some(api::MandateTxnType::NewMandateTxn) => {
+        Some(api::MandateTransactionType::NewMandateTxn) => {
             let setup_mandate = request
                 .mandate_data
                 .clone()
@@ -261,7 +261,7 @@ pub async fn get_token_pm_type_mandate_details(
                 Some(setup_mandate),
             ))
         }
-        Some(api::MandateTxnType::RecurringMandateTxn) => {
+        Some(api::MandateTransactionType::RecurringMandateTxn) => {
             let (token_, payment_method_type_) =
                 get_token_for_recurring_mandate(state, request, merchant_account).await?;
             Ok((token_, payment_method_type_, None))
@@ -395,16 +395,16 @@ pub fn validate_request_amount_and_amount_to_capture(
 
 pub fn validate_mandate(
     req: impl Into<api::MandateValidationFields>,
-) -> RouterResult<Option<api::MandateTxnType>> {
+) -> RouterResult<Option<api::MandateTransactionType>> {
     let req: api::MandateValidationFields = req.into();
     match req.is_mandate() {
-        Some(api::MandateTxnType::NewMandateTxn) => {
+        Some(api::MandateTransactionType::NewMandateTxn) => {
             validate_new_mandate_request(req)?;
-            Ok(Some(api::MandateTxnType::NewMandateTxn))
+            Ok(Some(api::MandateTransactionType::NewMandateTxn))
         }
-        Some(api::MandateTxnType::RecurringMandateTxn) => {
+        Some(api::MandateTransactionType::RecurringMandateTxn) => {
             validate_recurring_mandate(req)?;
-            Ok(Some(api::MandateTxnType::RecurringMandateTxn))
+            Ok(Some(api::MandateTransactionType::RecurringMandateTxn))
         }
         None => Ok(None),
     }
@@ -1411,15 +1411,17 @@ pub(crate) fn validate_pm_or_token_given(
     payment_method: &Option<api_enums::PaymentMethod>,
     payment_method_data: &Option<api::PaymentMethodData>,
     payment_method_type: &Option<api_enums::PaymentMethodType>,
-    mandate_type: &Option<api::MandateTxnType>,
+    mandate_type: &Option<api::MandateTransactionType>,
     token: &Option<String>,
 ) -> Result<(), errors::ApiErrorResponse> {
     utils::when(
         !matches!(
             payment_method_type,
             Some(api_enums::PaymentMethodType::Paypal)
-        ) && !matches!(mandate_type, Some(api::MandateTxnType::RecurringMandateTxn))
-            && token.is_none()
+        ) && !matches!(
+            mandate_type,
+            Some(api::MandateTransactionType::RecurringMandateTxn)
+        ) && token.is_none()
             && (payment_method_data.is_none() || payment_method.is_none()),
         || {
             Err(errors::ApiErrorResponse::InvalidRequestData {

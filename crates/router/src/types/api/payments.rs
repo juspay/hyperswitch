@@ -1,6 +1,6 @@
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
-    CustomerAcceptance, MandateData, MandateTxnType, MandateType, MandateValidationFields,
+    CustomerAcceptance, MandateData, MandateTransactionType, MandateType, MandateValidationFields,
     NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
     PaymentListResponse, PaymentMethodData, PaymentMethodDataResponse, PaymentOp,
     PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsCancelRequest,
@@ -20,15 +20,15 @@ use crate::{
 };
 
 pub(crate) trait PaymentsRequestExt {
-    fn is_mandate(&self) -> Option<MandateTxnType>;
+    fn is_mandate(&self) -> Option<MandateTransactionType>;
 }
 
 impl PaymentsRequestExt for PaymentsRequest {
-    fn is_mandate(&self) -> Option<MandateTxnType> {
+    fn is_mandate(&self) -> Option<MandateTransactionType> {
         match (&self.mandate_data, &self.mandate_id) {
             (None, None) => None,
-            (_, Some(_)) => Some(MandateTxnType::RecurringMandateTxn),
-            (Some(_), _) => Some(MandateTxnType::NewMandateTxn),
+            (_, Some(_)) => Some(MandateTransactionType::RecurringMandateTxn),
+            (Some(_), _) => Some(MandateTransactionType::NewMandateTxn),
         }
     }
 }
@@ -113,15 +113,15 @@ impl PaymentIdTypeExt for PaymentIdType {
 }
 
 pub(crate) trait MandateValidationFieldsExt {
-    fn is_mandate(&self) -> Option<MandateTxnType>;
+    fn is_mandate(&self) -> Option<MandateTransactionType>;
 }
 
 impl MandateValidationFieldsExt for MandateValidationFields {
-    fn is_mandate(&self) -> Option<MandateTxnType> {
+    fn is_mandate(&self) -> Option<MandateTransactionType> {
         match (&self.mandate_data, &self.mandate_id) {
             (None, None) => None,
-            (_, Some(_)) => Some(MandateTxnType::RecurringMandateTxn),
-            (Some(_), _) => Some(MandateTxnType::NewMandateTxn),
+            (_, Some(_)) => Some(MandateTransactionType::RecurringMandateTxn),
+            (Some(_), _) => Some(MandateTransactionType::NewMandateTxn),
         }
     }
 }
