@@ -1242,14 +1242,14 @@ pub fn make_url_with_signature(
             .payment_response_hash_key
             .as_ref()
             .get_required_value("payment_response_hash_key")?;
-        let signature = hmac_sha256_sorted_query_params(
+        let signature = hmac_sha512_sorted_query_params(
             &mut url.query_pairs().collect::<Vec<_>>(),
             key.as_str(),
         )?;
 
         url.query_pairs_mut()
             .append_pair("signature", &signature)
-            .append_pair("signature_algorithm", "HMAC-SHA256");
+            .append_pair("signature_algorithm", "HMAC-SHA512");
         url.to_owned()
     } else {
         url.to_owned()
@@ -1275,7 +1275,7 @@ pub fn make_url_with_signature(
     })
 }
 
-pub fn hmac_sha256_sorted_query_params(
+pub fn hmac_sha512_sorted_query_params(
     params: &mut [(Cow<'_, str>, Cow<'_, str>)],
     key: &str,
 ) -> RouterResult<String> {
@@ -1286,8 +1286,8 @@ pub fn hmac_sha256_sorted_query_params(
         .collect::<Vec<_>>()
         .join("&");
 
-    let signature = crypto::HmacSha256::sign_message(
-        &crypto::HmacSha256,
+    let signature = crypto::HmacSha512::sign_message(
+        &crypto::HmacSha512,
         key.as_bytes(),
         final_string.as_bytes(),
     )
