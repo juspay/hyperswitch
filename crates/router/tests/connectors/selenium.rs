@@ -318,10 +318,7 @@ pub trait SeleniumTest {
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
         let config = self.get_configs().automation_configs.unwrap();
-        let (email, pass) = (
-            &config.gmail_email.unwrap_or_else(|| get_env("GMAIL_EMAIL")),
-            &config.gmail_pass.unwrap_or_else(|| get_env("GMAIL_PASS")),
-        );
+        let (email, pass) = (&config.gmail_email.unwrap(), &config.gmail_pass.unwrap());
         let default_actions = vec![
             Event::Trigger(Trigger::Goto(url)),
             Event::Trigger(Trigger::Click(By::Css(".gpay-button"))),
@@ -377,13 +374,13 @@ pub trait SeleniumTest {
                 .automation_configs
                 .unwrap()
                 .pypl_email
-                .unwrap_or_else(|| get_env("PYPL_EMAIL")),
+                .unwrap(),
             &self
                 .get_configs()
                 .automation_configs
                 .unwrap()
                 .pypl_pass
-                .unwrap_or_else(|| get_env("PYPL_PASS")),
+                .unwrap(),
         );
         let mut pypl_actions = vec![
             Event::EitherOr(
@@ -572,8 +569,4 @@ pub fn handle_test_error(
             false
         }
     }
-}
-
-pub fn get_env(name: &str) -> String {
-    env::var(name).unwrap_or_else(|_| panic!("{name} not present"))
 }
