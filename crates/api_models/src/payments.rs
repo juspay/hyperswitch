@@ -553,6 +553,19 @@ pub enum BankDebitData {
         #[schema(value_type = String, example = "A. Schneider")]
         bank_account_holder_name: Option<Secret<String>>,
     },
+    AcssBankDebit {
+        /// Billing details for bank debit
+        billing_details: BankDebitBilling,
+        /// Account number for bank debit
+        #[schema(value_type = String, example = "000123456789")]
+        account_number: Secret<String>,
+        ///Institution number for bank debit
+        #[schema(value_type = String, example = "000")]
+        institution_number: Secret<String>,
+        ///Transit number for bank debit
+        #[schema(value_type = String, example = "11000")]
+        transit_number: Secret<String>,
+    },
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]

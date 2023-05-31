@@ -372,6 +372,19 @@ pub enum BankDebitData {
         #[serde(rename = "payment_method_data[bacs_debit][sort_code]")]
         sort_code: Secret<String>,
     },
+    #[serde(rename = "acss_debit")]
+    Acss {
+        #[serde(rename = "payment_method_data[acss_debit][account_number]")]
+        account_number: Secret<String>,
+        #[serde(rename = "payment_method_data[acss_debit][institution_number]")]
+        institution_number: Secret<String>,
+        #[serde(rename = "payment_method_data[acss_debit][transit_number]")]
+        transit_number: Secret<String>,
+        #[serde(rename = "payment_method_options[acss_debit][mandate_options][payment_schedule]")]
+        payment_schedule: PaymentSchedule,
+        #[serde(rename = "payment_method_options[acss_debit][mandate_options][transaction_type]")]
+        transaction_type: TransactionType,
+    },
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -489,6 +502,8 @@ pub enum StripePaymentMethodType {
     #[serde(rename = "p24")]
     Przelewy24,
     CustomerBalance,
+    #[serde(rename = "acss_debit")]
+    Acss,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -689,6 +704,25 @@ fn validate_shipping_address_against_payment_method(
     }
 
     Ok(())
+}
+
+fn validate_mandate_request_against_payment_method(
+    mandate_request: &Option<StripeMandateRequest>,
+    payment_method: &payments::PaymentMethodData,
+) -> Result<(), errors::ConnectorError> {
+    match payment_method {
+        payments::PaymentMethodData::BankDebit(payments::BankDebitData::AcssBankDebit {
+            ..
+        }) => {
+            mandate_request
+                .as_ref()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "mandate_data",
+                })?;
+            Ok(())
+        }
+        _ => Ok(()),
+    }
 }
 
 fn infer_stripe_pay_later_type(
@@ -930,6 +964,23 @@ fn get_bank_debit_data(
 
             let billing_data = StripeBillingAddress::from(billing_details);
             (StripePaymentMethodType::Bacs, bacs_data, billing_data)
+        }
+        payments::BankDebitData::AcssBankDebit {
+            billing_details,
+            account_number,
+            institution_number,
+            transit_number,
+        } => {
+            let acss_data = BankDebitData::Acss {
+                account_number: account_number.to_owned(),
+                institution_number: institution_number.to_owned(),
+                transit_number: transit_number.to_owned(),
+                payment_schedule: PaymentSchedule::Sporadic,
+                transaction_type: TransactionType::Personal,
+            };
+
+            let billing_data = StripeBillingAddress::from(billing_details);
+            (StripePaymentMethodType::Acss, acss_data, billing_data)
         }
     }
 }
@@ -1261,6 +1312,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         })
                 });
 
+        validate_mandate_request_against_payment_method(
+            &setup_mandate_details,
+            &item.request.payment_method_data,
+        )?;
+
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -1559,6 +1615,7 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
                     mandate_options, ..
                 } => mandate_options.map(|mandate_options| mandate_options.reference),
                 StripePaymentMethodOptions::Klarna {}
+                | StripePaymentMethodOptions::Acss {}
                 | StripePaymentMethodOptions::Affirm {}
                 | StripePaymentMethodOptions::AfterpayClearpay {}
                 | StripePaymentMethodOptions::Eps {}
@@ -2064,6 +2121,8 @@ pub enum StripePaymentMethodOptions {
     #[serde(rename = "p24")]
     Przelewy24 {},
     CustomerBalance {},
+    #[serde(rename = "acss_debit")]
+    Acss {},
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -2086,6 +2145,18 @@ pub struct LatestPaymentAttempt {
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Default, Eq, PartialEq)]
 pub struct StripeMandateOptions {
     reference: String, // Extendable, But only important field to be captured
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentSchedule {
+    Sporadic,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum TransactionType {
+    Personal,
 }
 /// Represents the capture request body for stripe connector.
 #[derive(Debug, Serialize, Clone, Copy)]
