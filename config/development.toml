@@ -307,3 +307,6 @@ refund_retrieve_tolerance = 100
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay"
+
+[payouts]
+payout_eligibility = true

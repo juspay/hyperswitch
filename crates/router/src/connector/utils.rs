@@ -68,6 +68,8 @@ pub trait RouterData {
     fn get_customer_id(&self) -> Result<String, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
+    #[cfg(feature = "payouts")]
+    fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -165,6 +167,12 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.preprocessing_id
             .to_owned()
             .ok_or_else(missing_field_err("preprocessing_id"))
+    }
+    #[cfg(feature = "payouts")]
+    fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error> {
+        self.payout_method_data
+            .to_owned()
+            .ok_or_else(missing_field_err("payout_method_data"))
     }
 }
 

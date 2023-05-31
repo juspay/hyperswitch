@@ -1,26 +1,30 @@
 use std::marker::PhantomData;
 
 use api_models::enums::{DisputeStage, DisputeStatus};
-use common_utils::{crypto::Encryptable, errors::CustomResult};
+#[cfg(feature = "payouts")]
+use common_utils::crypto::Encryptable;
+use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
-use super::{
-    payments::{helpers, PaymentAddress},
-    payouts::PayoutData,
-};
+use super::payments::{helpers, PaymentAddress};
+#[cfg(feature = "payouts")]
+use super::payouts::PayoutData;
+#[cfg(feature = "payouts")]
+use crate::types::api;
 use crate::{
     consts,
     core::errors::{self, RouterResult},
     routes::AppState,
     types::{
-        self, api, domain,
+        self, domain,
         storage::{self, enums},
         ErrorResponse,
     },
     utils::{generate_id, OptionExt, ValueExt},
 };
 
+#[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 pub async fn get_mca_for_payout<'a>(
     state: &'a AppState,
@@ -55,6 +59,7 @@ pub async fn get_mca_for_payout<'a>(
     }
 }
 
+#[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_payout_router_data<'a, F>(
@@ -117,16 +122,16 @@ pub async fn construct_payout_router_data<'a, F>(
         customer_id: None,
         connector_customer: None,
         connector: connector_id.to_string(),
-        payment_id: "".to_string(),                      //FIXME
-        attempt_id: "".to_string(),                      //FIXME
-        status: enums::AttemptStatus::Failure,           //FIXME
-        payment_method: enums::PaymentMethod::default(), //FIXME
+        payment_id: "".to_string(),
+        attempt_id: "".to_string(),
+        status: enums::AttemptStatus::Failure,
+        payment_method: enums::PaymentMethod::default(),
         connector_auth_type,
         description: None,
         return_url: payouts.return_url.to_owned(),
         payment_method_id: None,
         address,
-        auth_type: enums::AuthenticationType::default(), //FIXME
+        auth_type: enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: None,
         request: types::PayoutsData {
@@ -137,7 +142,6 @@ pub async fn construct_payout_router_data<'a, F>(
             source_currency: payouts.source_currency,
             entity_type: payouts.entity_type,
             payout_type: payouts.payout_type,
-            payout_method_data: payout_method_data.to_owned(),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -145,6 +149,7 @@ pub async fn construct_payout_router_data<'a, F>(
         reference_id: None,
         payment_method_token: None,
         preprocessing_id: None,
+        payout_method_data: Some(payout_method_data.to_owned()),
     };
 
     Ok(router_data)
@@ -239,6 +244,8 @@ pub async fn construct_refund_router_data<'a, F>(
         payment_method_token: None,
         connector_customer: None,
         preprocessing_id: None,
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
     };
 
     Ok(router_data)
@@ -426,6 +433,8 @@ pub async fn construct_accept_dispute_router_data<'a>(
         connector_customer: None,
         customer_id: None,
         preprocessing_id: None,
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
     };
     Ok(router_data)
 }
@@ -487,6 +496,8 @@ pub async fn construct_submit_evidence_router_data<'a>(
         connector_customer: None,
         customer_id: None,
         preprocessing_id: None,
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
     };
     Ok(router_data)
 }
@@ -549,6 +560,8 @@ pub async fn construct_upload_file_router_data<'a>(
         connector_customer: None,
         customer_id: None,
         preprocessing_id: None,
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
     };
     Ok(router_data)
 }
@@ -613,6 +626,8 @@ pub async fn construct_defend_dispute_router_data<'a>(
         customer_id: None,
         connector_customer: None,
         preprocessing_id: None,
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
     };
     Ok(router_data)
 }
@@ -675,6 +690,8 @@ pub async fn construct_retrieve_file_router_data<'a>(
         reference_id: None,
         payment_method_token: None,
         preprocessing_id: None,
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
     };
     Ok(router_data)
 }

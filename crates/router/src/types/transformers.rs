@@ -341,36 +341,42 @@ impl ForeignFrom<storage_enums::Currency> for api_enums::Currency {
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<storage_enums::EntityType> for api_enums::EntityType {
     fn foreign_from(entity_type: storage_enums::EntityType) -> Self {
         frunk::labelled_convert_from(entity_type)
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_enums::EntityType> for storage_enums::EntityType {
     fn foreign_from(entity_type: api_enums::EntityType) -> Self {
         frunk::labelled_convert_from(entity_type)
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<storage_enums::PayoutStatus> for api_enums::PayoutStatus {
     fn foreign_from(payout_status: storage_enums::PayoutStatus) -> Self {
         frunk::labelled_convert_from(payout_status)
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_enums::PayoutStatus> for storage_enums::PayoutStatus {
     fn foreign_from(payout_status: api_enums::PayoutStatus) -> Self {
         frunk::labelled_convert_from(payout_status)
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<storage_enums::PayoutType> for api_enums::PayoutType {
     fn foreign_from(payout_type: storage_enums::PayoutType) -> Self {
         frunk::labelled_convert_from(payout_type)
     }
 }
 
+#[cfg(feature = "payouts")]
 impl ForeignFrom<api_enums::PayoutType> for storage_enums::PayoutType {
     fn foreign_from(payout_type: api_enums::PayoutType) -> Self {
         frunk::labelled_convert_from(payout_type)

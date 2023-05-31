@@ -290,6 +290,7 @@ impl Vaultable for api::PaymentMethodData {
     }
 }
 
+#[cfg(feature = "payouts")]
 impl Vaultable for api::CardPayout {
     fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = api::TokenizedCardValue1 {
@@ -354,6 +355,7 @@ impl Vaultable for api::CardPayout {
     }
 }
 
+#[cfg(feature = "payouts")]
 impl Vaultable for api::BankPayout {
     fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = api::TokenizedBankValue1 {
@@ -416,6 +418,7 @@ impl Vaultable for api::BankPayout {
     }
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum VaultPayoutMethod {
@@ -423,6 +426,7 @@ pub enum VaultPayoutMethod {
     Bank(String),
 }
 
+#[cfg(feature = "payouts")]
 impl Vaultable for api::PayoutMethodData {
     fn get_value1(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = match self {
@@ -512,6 +516,7 @@ impl Vault {
         Ok((Some(payment_method), supp_data))
     }
 
+    #[cfg(feature = "payouts")]
     #[instrument(skip_all)]
     pub async fn get_payout_method_data_from_locker(
         state: &routes::AppState,
@@ -538,6 +543,7 @@ impl Vault {
         Ok((Some(payout_method), supp_data))
     }
 
+    #[cfg(feature = "payouts")]
     #[instrument(skip_all)]
     pub async fn store_payout_method_data_in_locker(
         state: &routes::AppState,
@@ -706,6 +712,7 @@ impl Vault {
         Ok(lookup_key)
     }
 
+    #[cfg(feature = "payouts")]
     #[instrument(skip_all)]
     pub async fn get_payout_method_data_from_locker(
         state: &routes::AppState,
@@ -720,6 +727,7 @@ impl Vault {
         Ok((Some(payout_method), supp_data))
     }
 
+    #[cfg(feature = "payouts")]
     #[instrument(skip_all)]
     pub async fn store_payout_method_data_in_locker(
         state: &routes::AppState,

@@ -8,7 +8,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = []
+default = ["payouts"]
 errors = ["dep:actix-web", "dep:reqwest"]
 multiple_mca = []
 dummy_connector = []

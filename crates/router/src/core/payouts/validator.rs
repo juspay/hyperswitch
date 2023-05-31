@@ -13,6 +13,7 @@ use crate::{
     utils::{self},
 };
 
+#[cfg(feature = "payouts")]
 #[instrument(skip(db))]
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     db: &dyn StorageInterface,
@@ -49,6 +50,7 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
 /// Validates the request on below checks
 /// - merchant_id passed is same as the one in merchant_account table
 /// - payout_id is unique against merchant_id
+#[cfg(feature = "payouts")]
 pub async fn validate_create_request(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,

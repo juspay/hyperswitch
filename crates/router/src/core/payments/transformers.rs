@@ -123,6 +123,8 @@ where
         payment_method_token: payment_data.pm_token,
         connector_customer: payment_data.connector_customer_id,
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
     };
 
     Ok(router_data)

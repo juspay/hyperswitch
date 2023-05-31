@@ -85,6 +85,8 @@ pub struct Settings {
     pub email: EmailSettings,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
+    #[cfg(feature = "payouts")]
+    pub payouts: Payouts,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -389,7 +391,10 @@ pub struct SupportedConnectors {
 #[serde(default)]
 pub struct Connectors {
     pub aci: ConnectorParams,
+    #[cfg(feature = "payouts")]
     pub adyen: ConnectorParamsWithSecondaryBaseUrl,
+    #[cfg(not(feature = "payouts"))]
+    pub adyen: ConnectorParams,
     pub airwallex: ConnectorParams,
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
@@ -457,6 +462,7 @@ pub struct ConnectorParamsWithFileUploadUrl {
     pub base_url_file_upload: String,
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct ConnectorParamsWithSecondaryBaseUrl {
@@ -658,4 +664,10 @@ mod payment_method_deserialization_test {
         let test_pm = pm_deser(deserializer);
         assert!(test_pm.is_ok())
     }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Payouts {
+    pub payout_eligibility: bool,
 }

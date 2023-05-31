@@ -175,6 +175,7 @@ impl super::settings::ConnectorParamsWithFileUploadUrl {
     }
 }
 
+#[cfg(feature = "payouts")]
 impl super::settings::ConnectorParamsWithSecondaryBaseUrl {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         common_utils::fp_utils::when(self.base_url.is_default_or_empty(), || {
