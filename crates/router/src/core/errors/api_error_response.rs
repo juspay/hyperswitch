@@ -87,6 +87,8 @@ pub enum ApiErrorResponse {
     NotSupported { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_20", message = "{flow} flow not supported by the {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_21", message = "Access forbidden. Not authorized to access this resource")]
+    AccessForbidden,
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
         code: String,
@@ -226,6 +228,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
             }
+            Self::AccessForbidden => StatusCode::FORBIDDEN, // 403
             Self::InvalidRequestUrl => StatusCode::NOT_FOUND, // 404
             Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
             Self::MissingRequiredField { .. }
@@ -390,6 +393,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 19,
                 "The provided client_secret has expired", None
             )),
+            Self::AccessForbidden => AER::ForbiddenCommonResource(ApiError::new("IR", 21, format!("Access forbidden. Not authorized to access this resource"), None)),
             Self::ExternalConnectorError {
                 code,
                 message,
