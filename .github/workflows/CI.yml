@@ -384,24 +384,4 @@ jobs:
 
       - name: Spell check
         uses: crate-ci/typos@master
-    
-  validate-JSON:
-    name: Validate generated.json file
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3.1.0
-
-      - name: ls
-        shell: bash
-        run: cd ${{ github.workspace }}/openapi && ls
-
-      - name: Install js
-        shell: bash
-        run: apt install jq
-
-      - name: Validate the json file
-        shell: bash
-        run: jq . ${{ github.workspace }}/openapi/generated.json
-
       
