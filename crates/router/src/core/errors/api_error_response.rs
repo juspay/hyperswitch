@@ -239,9 +239,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
             }
-            Self::AccessForbidden => StatusCode::FORBIDDEN, // 403
+            Self::AccessForbidden => StatusCode::FORBIDDEN,                                   // 403
             Self::InvalidRequestUrl | Self::WebhookResourceNotFound => StatusCode::NOT_FOUND, // 404
-            Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
+            Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED,                        // 405
             Self::MissingRequiredField { .. }
             | Self::MissingRequiredFields { .. }
             | Self::InvalidDataValue { .. }
@@ -250,9 +250,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::InvalidDataFormat { .. } | Self::InvalidRequestData { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
             } // 422
-            Self::RefundAmountExceedsPaymentAmount => StatusCode::BAD_REQUEST, // 400
-            Self::MaximumRefundCount => StatusCode::BAD_REQUEST, // 400
-            Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST, // 400
+            Self::RefundAmountExceedsPaymentAmount => StatusCode::BAD_REQUEST,                // 400
+            Self::MaximumRefundCount => StatusCode::BAD_REQUEST,                              // 400
+            Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST,                       // 400
 
             Self::PaymentAuthorizationFailed { .. }
             | Self::PaymentAuthenticationFailed { .. }
@@ -409,7 +409,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::MissingRequiredFields { field_names } => AER::BadRequest(
                 ApiError::new("IR", 21, "Missing required params".to_string(), Some(Extra {data: Some(serde_json::json!(field_names)), ..Default::default() })),
             ),
-            Self::AccessForbidden => AER::ForbiddenCommonResource(ApiError::new("IR", 22, format!("Access forbidden. Not authorized to access this resource"), None)),
+            Self::AccessForbidden => AER::ForbiddenCommonResource(ApiError::new("IR", 22, "Access forbidden. Not authorized to access this resource", None)),
             Self::ExternalConnectorError {
                 code,
                 message,
