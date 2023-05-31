@@ -112,6 +112,7 @@ api_secret = "secrect"
 api_key = "API Key"
 
 [noon]
+<<<<<<< HEAD
 api_key = "API Key"
 
 hs_base_url="http://localhost:8080"
@@ -122,3 +123,8 @@ pypl_email=""
 pypl_pass=""
 gmail_email=""
 gmail_pass=""
+=======
+api_key = "Application API KEY"
+api_secret = "Application Identifier"
+key1 = "Business Identifier"
+>>>>>>> 1261791d9f70794b3d6426ff35f4eb0fc1076be0

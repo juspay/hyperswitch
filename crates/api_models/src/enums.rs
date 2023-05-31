@@ -617,7 +617,7 @@ pub enum Connector {
     Multisafepay,
     Nexinets,
     Nmi,
-    // Noon, added as template code for future usage
+    Noon,
     Nuvei,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paypal,
@@ -656,6 +656,7 @@ impl Connector {
     Copy,
     Debug,
     Eq,
+    Hash,
     PartialEq,
     serde::Serialize,
     serde::Deserialize,
@@ -699,7 +700,7 @@ pub enum RoutableConnectors {
     Multisafepay,
     Nexinets,
     Nmi,
-    // Noon, added as template code for future usage
+    Noon,
     Nuvei,
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage

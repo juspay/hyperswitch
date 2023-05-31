@@ -16,7 +16,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage},
+    types::{self, api, domain, storage},
 };
 
 #[async_trait]
@@ -25,8 +25,8 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         &self,
         state: &AppState,
         connector_id: &str,
-        merchant_account: &storage::MerchantAccount,
-        customer: &Option<storage::Customer>,
+        merchant_account: &domain::MerchantAccount,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 }
 
@@ -36,9 +36,9 @@ pub trait Feature<F, T> {
         self,
         state: &AppState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<storage::Customer>,
+        maybe_customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -49,7 +49,7 @@ pub trait Feature<F, T> {
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult>
     where
         F: Clone,
@@ -261,7 +261,6 @@ default_imp_for_connector_redirect_response!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
-    connector::Noon,
     connector::Opennode,
     connector::Payeezy,
     connector::Payu,
