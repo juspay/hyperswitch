@@ -862,8 +862,10 @@ pub struct GpayTokenizationData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum ApplePayData {
-    ApplePayRedirect(ApplePayRedirectData),
+    /// Enum order shouldn't be changed
+    /// ApplePayRedirectData is empty struct, it will be initialized by default in any cases during serialization and deserialization
     ApplePayWalletData(ApplePayWalletData),
+    ApplePayRedirect(ApplePayRedirectData),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
