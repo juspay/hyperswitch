@@ -810,10 +810,8 @@ impl api::IncomingWebhook for Rapyd {
             .parse_struct("RapydIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         Ok(match webhook.webhook_type {
-            rapyd::RapydWebhookObjectEventType::PaymentCompleted => {
-                api::IncomingWebhookEvent::PaymentIntentFailure
-            }
-            rapyd::RapydWebhookObjectEventType::PaymentCaptured => {
+            rapyd::RapydWebhookObjectEventType::PaymentCompleted
+            | rapyd::RapydWebhookObjectEventType::PaymentCaptured => {
                 api::IncomingWebhookEvent::PaymentIntentSuccess
             }
             rapyd::RapydWebhookObjectEventType::PaymentFailed => {
@@ -881,7 +879,7 @@ impl api::IncomingWebhook for Rapyd {
         }?;
         Ok(api::disputes::DisputePayload {
             amount: webhook_dispute_data.amount.to_string(),
-            currency: webhook_dispute_data.currency,
+            currency: webhook_dispute_data.currency.to_string(),
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id: webhook_dispute_data.token,
             connector_reason: Some(webhook_dispute_data.dispute_reason_description),
