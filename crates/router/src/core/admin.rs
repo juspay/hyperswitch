@@ -129,7 +129,7 @@ pub async fn create_merchant_account(
 
     let payment_response_hash_key = req
         .payment_response_hash_key
-        .or(Some(generate_cryptographically_secure_random_string(32)));
+        .or(Some(generate_cryptographically_secure_random_string(64)));
 
     db.insert_merchant_key_store(key_store)
         .await
