@@ -11,7 +11,6 @@ use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 use api_models::payments::Metadata;
 use common_utils::pii::Email;
 use error_stack::{IntoReport, ResultExt};
-use futures::future::join_all;
 use masking::Secret;
 use router_env::{instrument, tracing};
 use storage_models::ephemeral_key;
@@ -33,7 +32,6 @@ use crate::{
         payment_methods::vault,
     },
     db::StorageInterface,
-    logger,
     routes::{metrics, AppState},
     scheduler::utils as pt_utils,
     services::{self, api::Authenticate},
@@ -185,6 +183,7 @@ where
                     &operation,
                     payment_data,
                     &customer,
+                    &validate_result.payment_id,
                 )
                 .await?
             }
@@ -571,6 +570,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req>(
     _operation: &Op,
     mut payment_data: PaymentData<F>,
     customer: &Option<domain::Customer>,
+    payment_id: &api::PaymentIdType,
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
@@ -596,36 +596,52 @@ where
             .construct_router_data(state, connector_id, merchant_account, customer)
             .await?;
 
-        let res = router_data.decide_flows(
-            state,
-            &session_connector_data.connector,
-            customer,
-            CallConnectorAction::Trigger,
-            merchant_account,
-        );
+        let res = router_data
+            .decide_flows(
+                state,
+                &session_connector_data.connector,
+                customer,
+                CallConnectorAction::Trigger,
+                merchant_account,
+            )
+            .await;
 
-        join_handlers.push(res);
+        let router_res = match res {
+            Ok(router_result) => Ok(router_result),
+            Err(error) => Err(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable(format!(
+                    "Connector session token error {:?} and the connector is {}",
+                    error, connector_id
+                )),
+        }?;
+
+        join_handlers.push(router_res.response.clone());
+
+        if connector_id == "trustpay"
+            && payment_data
+                .delayed_session_token
+                .and_then(|delay| delay.then_some(true))
+                .is_some()
+        {
+            let operation = Box::new(PaymentResponse);
+            let db = &*state.store;
+            payment_data = operation
+                .to_post_update_tracker()?
+                .update_tracker(
+                    db,
+                    payment_id,
+                    payment_data,
+                    router_res,
+                    merchant_account.storage_scheme,
+                )
+                .await?;
+        };
     }
 
-    let result = join_all(join_handlers).await;
-
-    for (connector_res, session_connector) in result.into_iter().zip(connectors) {
-        let connector_name = session_connector.connector.connector_name.to_string();
-        match connector_res {
-            Ok(connector_response) => {
-                if let Ok(types::PaymentsResponseData::SessionResponse { session_token }) =
-                    connector_response.response
-                {
-                    payment_data.sessions_token.push(session_token);
-                }
-            }
-            Err(connector_error) => {
-                logger::error!(
-                    "sessions_connector_error {} {:?}",
-                    connector_name,
-                    connector_error
-                );
-            }
+    for connector_res in join_handlers.into_iter().flatten() {
+        if let types::PaymentsResponseData::SessionResponse { session_token, .. } = connector_res {
+            payment_data.sessions_token.push(session_token);
         }
     }
 
@@ -953,6 +969,7 @@ where
     pub connector_customer_id: Option<String>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
+    pub delayed_session_token: Option<bool>,
 }
 
 #[derive(Debug, Default)]

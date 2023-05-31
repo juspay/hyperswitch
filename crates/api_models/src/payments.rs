@@ -1588,7 +1588,7 @@ pub struct PaymentsSessionRequest {
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     /// Identifier for the delayed session response
-    pub delayed_session_response: Option<bool>,
+    pub delayed_session_token: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1753,15 +1753,36 @@ pub struct ApplepaySessionTokenResponse {
     pub session_token_data: ApplePaySessionResponse,
     /// Payment request object for Apple Pay
     pub payment_request_data: Option<ApplePayPaymentRequest>,
+    /// The session token is w.r.t this connector
     pub connector: String,
-    pub delayed_response: bool,
+    /// Identifier for the delayed session response
+    pub delayed_session_token: bool,
+    /// The next action for the sdk (ex: calling confirm or sync call)
+    pub sdk_next_action: SdkNextAction,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct SdkNextAction {
+    /// The type of next action
+    pub next_action: NextActionCall,
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum NextActionCall {
+    /// The next action call is confirm
+    Confirm,
+    /// The next action call is sync
+    Sync,
+    /// The next action call is session
+    SessionToken,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum ApplePaySessionResponse {
     ThirdPartySdk(ThirdPartySdkSessionResponse),
-    NoThirdPartySdk(NoThirdPartySdkSessionResponse),
+    NoThirdPartySdk(Option<NoThirdPartySdkSessionResponse>),
     NoSessionResponse,
 }
 

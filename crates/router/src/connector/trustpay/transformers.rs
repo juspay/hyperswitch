@@ -825,6 +825,7 @@ impl TryFrom<&types::PaymentsSessionRouterData> for TrustpayCreateIntentRequest 
 pub struct TrustpayCreateIntentResponse {
     pub secrets: SdkSecretInfo,
     pub apple_init_result_data: TrustpayApplePayResponse,
+    pub instance_id: String,
 }
 
 #[derive(Default, Debug, Deserialize)]
@@ -884,9 +885,15 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<TrustpayCreateIntentRespon
                             merchant_identifier: None,
                         }),
                         connector: "trustpay".to_string(),
-                        delayed_response: true,
+                        delayed_session_token: true,
+                        sdk_next_action: {
+                            api_models::payments::SdkNextAction {
+                                next_action: api_models::payments::NextActionCall::Sync,
+                            }
+                        },
                     },
                 )),
+                resource_id: types::ResponseId::ConnectorTransactionId(response.instance_id),
             }),
             ..item.data
         })

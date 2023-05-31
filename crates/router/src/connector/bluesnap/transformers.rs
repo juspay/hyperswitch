@@ -1,4 +1,4 @@
-use api_models::enums as api_enums;
+use api_models::{enums as api_enums, payments};
 use base64::Engine;
 use common_utils::{
     ext_traits::{ByteSliceExt, StringExt, ValueExt},
@@ -305,9 +305,9 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                 session_token: types::api::SessionToken::ApplePay(Box::new(
                     api_models::payments::ApplepaySessionTokenResponse {
                         session_token_data:
-                            api_models::payments::ApplePaySessionResponse::NoThirdPartySdk(
+                            api_models::payments::ApplePaySessionResponse::NoThirdPartySdk(Some(
                                 session_response,
-                            ),
+                            )),
                         payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
                             country_code: item.data.get_billing_country()?,
                             currency_code: item.data.request.currency.to_string(),
@@ -332,9 +332,15 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                             ),
                         }),
                         connector: "bluesnap".to_string(),
-                        delayed_response: false,
+                        delayed_session_token: false,
+                        sdk_next_action: {
+                            payments::SdkNextAction {
+                                next_action: payments::NextActionCall::Confirm,
+                            }
+                        },
                     },
                 )),
+                resource_id: types::ResponseId::NoResponseId,
             }),
             ..item.data
         })

@@ -172,6 +172,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 connector_customer_id: None,
                 ephemeral_key: None,
                 redirect_response: None,
+                delayed_session_token: request.delayed_session_token,
             },
             Some(customer_details),
         ))
@@ -432,7 +433,7 @@ pub fn is_apple_pay_get_token_connector(
     match connector {
         "bluesnap" => true,
         "trustpay" => request
-            .delayed_session_response
+            .delayed_session_token
             .and_then(|delay| delay.then_some(true))
             .is_some(),
         _ => false,
