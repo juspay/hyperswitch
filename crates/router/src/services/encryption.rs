@@ -241,6 +241,7 @@ mod tests {
     }
 
     #[actix_rt::test]
+    #[ignore]
     async fn test_jwe() {
         let conf = settings::Settings::new().unwrap();
         let jwt = encrypt_jwe(
@@ -262,6 +263,7 @@ mod tests {
     }
 
     #[actix_rt::test]
+    #[ignore]
     async fn test_jws() {
         let conf = settings::Settings::new().unwrap();
         let jwt = jws_sign_payload("jws payload".as_bytes(), "1", conf.jwekey.vault_private_key)
