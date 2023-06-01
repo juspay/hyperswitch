@@ -66,7 +66,8 @@ impl<T> WebhookApiErrorSwitch<T> for errors::CustomResult<T, errors::ConnectorEr
                 | errors::ConnectorError::WebhookReferenceIdNotFound
                 | errors::ConnectorError::WebhookEventTypeNotFound
                 | errors::ConnectorError::WebhookResourceObjectNotFound
-                | errors::ConnectorError::WebhookBodyDecodingFailed => {
+                | errors::ConnectorError::WebhookBodyDecodingFailed
+                | errors::ConnectorError::WebhooksNotImplemented => {
                     Err(e).change_context(errors::ApiErrorResponse::WebhookBadRequest)
                 }
 
