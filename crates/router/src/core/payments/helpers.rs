@@ -151,10 +151,7 @@ pub async fn get_address_for_payment_request(
                 }
                 None => {
                     // generate a new address here
-                    let customer_id = customer_id
-                        .as_deref()
-                        .get_required_value("customer_id")
-                        .change_context(errors::ApiErrorResponse::CustomerNotFound)?;
+                    let customer_id = customer_id.as_deref().get_required_value("customer_id")?;
 
                     let address_details = address.address.clone().unwrap_or_default();
                     Some(
@@ -395,11 +392,12 @@ pub fn validate_request_amount_and_amount_to_capture(
 
 pub fn validate_mandate(
     req: impl Into<api::MandateValidationFields>,
+    is_confirm_operation: bool,
 ) -> RouterResult<Option<api::MandateTxnType>> {
     let req: api::MandateValidationFields = req.into();
     match req.is_mandate() {
         Some(api::MandateTxnType::NewMandateTxn) => {
-            validate_new_mandate_request(req)?;
+            validate_new_mandate_request(req, is_confirm_operation)?;
             Ok(Some(api::MandateTxnType::NewMandateTxn))
         }
         Some(api::MandateTxnType::RecurringMandateTxn) => {
@@ -410,8 +408,18 @@ pub fn validate_mandate(
     }
 }
 
-fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResult<()> {
-    let _ = req.customer_id.as_ref().get_required_value("customer_id")?;
+fn validate_new_mandate_request(
+    req: api::MandateValidationFields,
+    is_confirm_operation: bool,
+) -> RouterResult<()> {
+    // We need not check for customer_id in the confirm request if it is already passed
+    //in create request
+
+    fp_utils::when(!is_confirm_operation && req.customer_id.is_none(), || {
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "`customer_id` is mandatory for mandates".into()
+        }))
+    })?;
 
     let mandate_data = req
         .mandate_data
@@ -776,10 +784,15 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     let req = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
-    let optional_customer = match req.customer_id.as_ref() {
+
+    let customer_id = req
+        .customer_id
+        .or(payment_data.payment_intent.customer_id.clone());
+
+    let optional_customer = match customer_id {
         Some(customer_id) => {
             let customer_data = db
-                .find_customer_optional_by_customer_id_merchant_id(customer_id, merchant_id)
+                .find_customer_optional_by_customer_id_merchant_id(&customer_id, merchant_id)
                 .await?;
             Some(match customer_data {
                 Some(c) => Ok(c),
@@ -1242,14 +1255,14 @@ pub fn make_url_with_signature(
             .payment_response_hash_key
             .as_ref()
             .get_required_value("payment_response_hash_key")?;
-        let signature = hmac_sha256_sorted_query_params(
+        let signature = hmac_sha512_sorted_query_params(
             &mut url.query_pairs().collect::<Vec<_>>(),
             key.as_str(),
         )?;
 
         url.query_pairs_mut()
             .append_pair("signature", &signature)
-            .append_pair("signature_algorithm", "HMAC-SHA256");
+            .append_pair("signature_algorithm", "HMAC-SHA512");
         url.to_owned()
     } else {
         url.to_owned()
@@ -1275,7 +1288,7 @@ pub fn make_url_with_signature(
     })
 }
 
-pub fn hmac_sha256_sorted_query_params(
+pub fn hmac_sha512_sorted_query_params(
     params: &mut [(Cow<'_, str>, Cow<'_, str>)],
     key: &str,
 ) -> RouterResult<String> {
@@ -1286,8 +1299,8 @@ pub fn hmac_sha256_sorted_query_params(
         .collect::<Vec<_>>()
         .join("&");
 
-    let signature = crypto::HmacSha256::sign_message(
-        &crypto::HmacSha256,
+    let signature = crypto::HmacSha512::sign_message(
+        &crypto::HmacSha512,
         key.as_bytes(),
         final_string.as_bytes(),
     )
