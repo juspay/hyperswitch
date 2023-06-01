@@ -189,7 +189,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentS
                 field_name: "merchant_id".to_string(),
                 expected_format: "merchant_id from merchant account".to_string(),
             })?;
-        // let mandate_type = validate_mandate(request)?;
+
         let payment_id = request.payment_id.clone();
 
         Ok((
