@@ -1,3 +1,5 @@
 pub use storage_models::merchant_account::{
-    MerchantAccount, MerchantAccountNew, MerchantAccountUpdate, MerchantAccountUpdateInternal,
+    MerchantAccount, MerchantAccountNew, MerchantAccountUpdateInternal,
 };
+
+pub use crate::types::domain::MerchantAccountUpdate;
