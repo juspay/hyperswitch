@@ -13,14 +13,13 @@ use crate::{
     connector::utils as conn_utils,
     consts,
     core::errors::{self, CustomResult},
-    db::StorageInterface,
     headers, services,
     types::{
         self,
         api::{self, ConnectorCommon},
         ErrorResponse,
     },
-    utils::{self, crypto, ByteSliceExt, BytesExt},
+    utils::{self, crypto, ByteSliceExt, BytesExt}, db::StorageInterface,
 };
 
 #[derive(Debug, Clone)]
@@ -697,20 +696,6 @@ impl api::IncomingWebhook for Rapyd {
         Ok(signature)
     }
 
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("wh_mer_sec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .get_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-
-        Ok(secret)
-    }
-
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
@@ -745,12 +730,13 @@ impl api::IncomingWebhook for Rapyd {
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
+        connector_label: &str
     ) -> CustomResult<bool, errors::ConnectorError> {
         let signature = self
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret = self
-            .get_webhook_source_verification_merchant_secret(db, merchant_id)
+            .get_webhook_source_verification_merchant_secret(db, merchant_id, connector_label)
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let message = self

@@ -475,6 +475,20 @@ pub struct MerchantConnectorCreate {
     /// Business Sub label of the merchant
     #[schema(example = "chase")]
     pub business_sub_label: Option<String>,
+    
+    /// Webhook details of this merchant connector
+    #[schema(example = json!({ 
+        "connector_webhook_details": {
+            "merchant_secret": "1234567890987654321"
+        }
+    }))]
+    pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MerchantConnectorWebhookDetails{
+    pub merchant_secret: Option<Secret<String>>
 }
 
 /// Response of creating a new Merchant Connector for the merchant account."
@@ -562,6 +576,14 @@ pub struct MerchantConnectorResponse {
         }
     ]))]
     pub frm_configs: Option<FrmConfigs>,
+
+    /// Webhook details of this merchant connector
+    #[schema(example = json!({ 
+        "connector_webhook_details": {
+            "merchant_secret": "1234567890987654321"
+        }
+    }))]
+    pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -631,6 +653,14 @@ pub struct MerchantConnectorUpdate {
         }
     ]))]
     pub frm_configs: Option<FrmConfigs>,
+
+    /// Webhook details of this merchant connector
+    #[schema(example = json!({ 
+        "connector_webhook_details": {
+            "merchant_secret": "1234567890987654321"
+        }
+    }))]
+    pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>
 }
 
 ///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table

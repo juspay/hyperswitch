@@ -15,7 +15,6 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers, services,
     types::{
         self,
@@ -1613,20 +1612,6 @@ impl api::IncomingWebhook for Stripe {
             String::from_utf8_lossy(request.body)
         )
         .into_bytes())
-    }
-
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .get_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-
-        Ok(secret)
     }
 
     fn get_webhook_object_reference_id(

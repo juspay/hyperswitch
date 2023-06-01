@@ -970,25 +970,12 @@ impl api::IncomingWebhook for Bluesnap {
         Ok(msg.into_bytes())
     }
 
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .find_config_by_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-
-        Ok(secret.config.into_bytes())
-    }
-
     async fn verify_webhook_source(
         &self,
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
+        connector_label: &str
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(request)
@@ -998,7 +985,7 @@ impl api::IncomingWebhook for Bluesnap {
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let mut secret = self
-            .get_webhook_source_verification_merchant_secret(db, merchant_id)
+            .get_webhook_source_verification_merchant_secret(db, merchant_id, connector_label)
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let mut message = self

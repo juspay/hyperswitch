@@ -73,10 +73,17 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     async fn get_webhook_source_verification_merchant_secret(
         &self,
-        _db: &dyn StorageInterface,
-        _merchant_id: &str,
+        db: &dyn StorageInterface,
+        merchant_id: &str,
+        connector_label: &str
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        Ok(Vec::new())
+        let key = format!("{}_{}", merchant_id, connector_label);
+        let secret = db
+            .find_config_by_key(&key)
+            .await
+            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
+
+        Ok(secret.config.into_bytes())
     }
 
     fn get_webhook_source_verification_signature(
@@ -100,6 +107,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         db: &dyn StorageInterface,
         request: &IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
+        connector_label: &str
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(request)
@@ -109,7 +117,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret = self
-            .get_webhook_source_verification_merchant_secret(db, merchant_id)
+            .get_webhook_source_verification_merchant_secret(db, merchant_id, connector_label)
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let message = self

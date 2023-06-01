@@ -51,6 +51,7 @@ impl ConfigInterface for Store {
         config.insert(&conn).await.map_err(Into::into).into_report()
     }
 
+    //fetch directly from DB
     async fn find_config_by_key(
         &self,
         key: &str,
@@ -73,6 +74,8 @@ impl ConfigInterface for Store {
             .map_err(Into::into)
             .into_report()
     }
+
+    //update in DB and remove in redis and cache
     async fn update_config_cached(
         &self,
         key: &str,
@@ -84,6 +87,7 @@ impl ConfigInterface for Store {
         .await
     }
 
+    //check in cache, then redis then finaly DB, and on the way back populate redis and cache
     async fn find_config_by_key_cached(
         &self,
         key: &str,

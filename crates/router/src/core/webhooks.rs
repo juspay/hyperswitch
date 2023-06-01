@@ -621,9 +621,13 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     state: &AppState,
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,
-    connector_name: &str,
+    connector_label: &str,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
+    let connector_name = connector_label.split("_") //connector_name will be the first string after splitting connector_label
+        .next()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+
     let connector = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         connector_name,
@@ -659,7 +663,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
 
     let process_webhook_further = utils::lookup_webhook_event(
         &*state.store,
-        connector_name,
+        connector_label,
         &merchant_account.merchant_id,
         &event_type,
     )
@@ -675,6 +679,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
                 &*state.store,
                 &request_details,
                 &merchant_account.merchant_id,
+                connector_label
             )
             .await
             .switch()

@@ -13,7 +13,6 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers, logger, routes,
     services::{self, ConnectorIntegration},
     types::{
@@ -940,19 +939,6 @@ impl api::IncomingWebhook for Airwallex {
             .into_report()??;
 
         Ok(format!("{}{}", timestamp, String::from_utf8_lossy(request.body)).into_bytes())
-    }
-
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .find_config_by_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-        Ok(secret.config.into_bytes())
     }
 
     fn get_webhook_object_reference_id(

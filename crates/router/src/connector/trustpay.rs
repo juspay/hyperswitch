@@ -724,19 +724,6 @@ impl api::IncomingWebhook for Trustpay {
         Ok(payload.into_bytes())
     }
 
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn crate::db::StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .get_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-        Ok(secret)
-    }
-
     fn get_dispute_details(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,

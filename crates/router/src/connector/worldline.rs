@@ -16,7 +16,6 @@ use crate::{
     connector::utils as conn_utils,
     consts,
     core::errors::{self, CustomResult},
-    db::StorageInterface,
     headers, logger,
     services::{self, ConnectorIntegration},
     types::{
@@ -706,20 +705,6 @@ impl api::IncomingWebhook for Worldline {
         _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(request.body.to_vec())
-    }
-
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .get_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-
-        Ok(secret)
     }
 
     fn get_webhook_object_reference_id(

@@ -364,6 +364,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             business_sub_label: t.business_sub_label,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
+            connector_webhook_details: t.connector_webhook_details,
         };
         accounts.push(account.clone());
         account

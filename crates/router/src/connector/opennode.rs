@@ -10,7 +10,7 @@ use self::opennode::OpennodeWebhookDetails;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
-    db, headers,
+    headers,
     services::{self, ConnectorIntegration},
     types::{
         self,
@@ -520,20 +520,6 @@ impl api::IncomingWebhook for Opennode {
             .into_report()
             .change_context(errors::ConnectorError::ParsingFailed)?;
         Ok(message.to_string().into_bytes())
-    }
-
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn db::StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .get_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-
-        Ok(secret)
     }
 
     fn get_webhook_object_reference_id(
