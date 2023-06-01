@@ -89,7 +89,7 @@ pub enum ApiErrorResponse {
     FlowNotSupported { flow: String, connector: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_21", message = "Missing required params")]
     MissingRequiredFields { field_names: Vec<&'static str> },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_21", message = "Access forbidden. Not authorized to access this resource")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_22", message = "Access forbidden. Not authorized to access this resource")]
     AccessForbidden,
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
@@ -409,7 +409,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::MissingRequiredFields { field_names } => AER::BadRequest(
                 ApiError::new("IR", 21, "Missing required params".to_string(), Some(Extra {data: Some(serde_json::json!(field_names)), ..Default::default() })),
             ),
-            Self::AccessForbidden => AER::ForbiddenCommonResource(ApiError::new("IR", 21, "Access forbidden. Not authorized to access this resource", None)),
+            Self::AccessForbidden => AER::ForbiddenCommonResource(ApiError::new("IR", 22, "Access forbidden. Not authorized to access this resource", None)),
             Self::ExternalConnectorError {
                 code,
                 message,
