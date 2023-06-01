@@ -409,7 +409,7 @@ pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
     headers: &HeaderMap,
     db: &dyn StorageInterface,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<storage::MerchantAccount, A>>,
+    Box<dyn AuthenticateAndFetch<domain::MerchantAccount, A>>,
     String,
 )> {
     let api_key = get_api_key(headers)?;
