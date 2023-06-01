@@ -389,21 +389,20 @@ pub async fn is_ephemeral_or_api_auth<A: AppStateInfo + Sync>(
     customer_id: &str,
 ) -> RouterResult<Box<dyn AuthenticateAndFetch<storage::MerchantAccount, A>>> {
     let api_key = get_api_key(headers)?;
-
     if !api_key.starts_with(consts::EPHEMERAL_KEY_PREFIX) {
-        return Ok(Box::new(ApiKeyAuth));
+        Ok(Box::new(ApiKeyAuth))
+    } else {
+        let ephemeral_key = db
+            .get_ephemeral_key(api_key)
+            .await
+            .change_context(errors::ApiErrorResponse::Unauthorized)?;
+
+        if ephemeral_key.customer_id.ne(customer_id) {
+            Err(report!(errors::ApiErrorResponse::InvalidEphemeralKey))
+        } else {
+            Ok(Box::new(MerchantIdAuth(ephemeral_key.merchant_id)))
+        }
     }
-
-    let ephemeral_key = db
-        .get_ephemeral_key(api_key)
-        .await
-        .change_context(errors::ApiErrorResponse::Unauthorized)?;
-
-    if ephemeral_key.customer_id.ne(customer_id) {
-        return Err(report!(errors::ApiErrorResponse::InvalidEphemeralKey));
-    }
-
-    Ok(Box::new(MerchantIdAuth(ephemeral_key.merchant_id)))
 }
 
 pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
@@ -415,16 +414,17 @@ pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
 )> {
     let api_key = get_api_key(headers)?;
     if !api_key.starts_with(consts::EPHEMERAL_KEY_PREFIX) {
-        return Err(report!(errors::ApiErrorResponse::InvalidEphemeralKey));
+        Err(report!(errors::ApiErrorResponse::InvalidEphemeralKey))
+    } else {
+        let ephemeral_key = db
+            .get_ephemeral_key(api_key)
+            .await
+            .change_context(errors::ApiErrorResponse::Unauthorized)?;
+        Ok((
+            Box::new(MerchantIdAuth(ephemeral_key.merchant_id)),
+            ephemeral_key.customer_id,
+        ))
     }
-    let ephemeral_key = db
-        .get_ephemeral_key(api_key)
-        .await
-        .change_context(errors::ApiErrorResponse::Unauthorized)?;
-    Ok((
-        Box::new(MerchantIdAuth(ephemeral_key.merchant_id)),
-        ephemeral_key.customer_id,
-    ))
 }
 
 pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
