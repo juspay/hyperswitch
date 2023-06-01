@@ -393,7 +393,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 19,
                 "The provided client_secret has expired", None
             )),
-            Self::AccessForbidden => AER::ForbiddenCommonResource(ApiError::new("IR", 21, format!("Access forbidden. Not authorized to access this resource"), None)),
+            Self::AccessForbidden => AER::ForbiddenCommonResource(ApiError::new("IR", 21, "Access forbidden. Not authorized to access this resource", None)),
             Self::ExternalConnectorError {
                 code,
                 message,
