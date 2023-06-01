@@ -130,7 +130,6 @@ impl
 
         crate::logger::debug!("aaaaaaaaaaa{:?}", pre_processing_request);
 
-
         Ok(Some(pre_processing_request))
     }
 
@@ -165,7 +164,6 @@ impl
             .response
             .parse_struct("StripeSourceResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -690,8 +688,8 @@ impl
         match &req.request.payment_method_data {
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data.deref() {
-                    api_models::payments::BankTransferData::AchBankTransfer { .. } |
-                    api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
+                    api_models::payments::BankTransferData::AchBankTransfer { .. }
+                    | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
                         Ok(format!("{}{}", self.base_url(connectors), "v1/charges"))
                     }
                     _ => Ok(format!(

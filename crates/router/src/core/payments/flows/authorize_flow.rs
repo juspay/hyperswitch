@@ -334,7 +334,6 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
-        
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
             router_return_url: data.router_return_url,
