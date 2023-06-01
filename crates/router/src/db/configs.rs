@@ -87,7 +87,7 @@ impl ConfigInterface for Store {
         .await
     }
 
-    //check in cache, then redis then finaly DB, and on the way back populate redis and cache
+    //check in cache, then redis then finally DB, and on the way back populate redis and cache
     async fn find_config_by_key_cached(
         &self,
         key: &str,
