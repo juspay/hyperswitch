@@ -138,4 +138,5 @@ pub struct AutomationConfigs {
     pub stripe_pub_key: Option<String>,
     pub testcases_path: Option<String>,
     pub run_minimum_steps: Option<bool>,
+    pub airwallex_merchant_name: Option<String>,
 }
