@@ -128,8 +128,6 @@ impl
             utils::Encode::<stripe::StripeCreditTransferSourceRequest>::url_encode(&req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        crate::logger::debug!("aaaaaaaaaaa{:?}", pre_processing_request);
-
         Ok(Some(pre_processing_request))
     }
 

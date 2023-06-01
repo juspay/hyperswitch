@@ -869,20 +869,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         let payment_method_data = payment_data.payment_method_data;
-        let router_base_url = &additional_data.router_base_url;
-        let connector_name = &additional_data.connector_name;
-        let attempt = &payment_data.payment_attempt;
-
-        let router_return_url = Some(helpers::create_redirect_url(
-            router_base_url,
-            attempt,
-            connector_name,
-            payment_data.creds_identifier.as_deref(),
-        ));
 
         Ok(Self {
             payment_method_data,
-            router_return_url,
             amount: Some(i64::from(payment_data.amount)),
             email: payment_data.email,
             currency: Some(payment_data.currency),
