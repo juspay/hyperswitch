@@ -1,5 +1,5 @@
 use api_models::payments;
-use common_utils::{date_time, ext_traits::StringExt, pii as secret};
+use common_utils::{crypto::Encryptable, date_time, ext_traits::StringExt, pii as secret};
 use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 
@@ -369,9 +369,9 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             payment_token: resp.payment_token,
             shipping: resp.shipping,
             billing: resp.billing,
-            email: resp.email,
-            name: resp.name,
-            phone: resp.phone,
+            email: resp.email.map(|inner| inner.into()),
+            name: resp.name.map(Encryptable::into_inner),
+            phone: resp.phone.map(Encryptable::into_inner),
             authentication_type: resp.authentication_type,
             statement_descriptor_name: resp.statement_descriptor_name,
             statement_descriptor_suffix: resp.statement_descriptor_suffix,
