@@ -95,7 +95,7 @@ impl ConnectorCommon for Nexinets {
             .parse_struct("NexinetsErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let errors = response.errors.clone();
+        let errors = response.errors;
         let mut message = String::new();
         let mut static_message = String::new();
         for error in errors.iter() {
