@@ -59,7 +59,7 @@ pub async fn refund_create_core(
         // if amount is not sent in request shouldn't we take amount_captured - amount_refunded till now ?
         payment_intent
             .amount_captured
-            .ok_or(errors::ApiErrorResponse::InternalServerError) // The status is checked preciously so this case will never happen, if it happens then it is internal server error
+            .ok_or(errors::ApiErrorResponse::InternalServerError) // The status is checked previously so this case will never happen, if it happens then it is internal server error
             .into_report()
             .attach_printable("amount captured is none in a successful payment")?,
     );
