@@ -231,6 +231,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AchTransfer,
         api_models::payments::SepaBankTransferInstructions,
         api_models::payments::BacsBankTransferInstructions,
+        api_models::payments::RedirectResponse,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
         api_models::mandates::MandateRevokedResponse,
