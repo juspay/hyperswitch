@@ -624,7 +624,8 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     connector_label: &str,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
-    let connector_name = connector_label.split("_") //connector_name will be the first string after splitting connector_label
+    let connector_name = connector_label
+        .split('_') //connector_name will be the first string after splitting connector_label
         .next()
         .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -679,7 +680,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
                 &*state.store,
                 &request_details,
                 &merchant_account.merchant_id,
-                connector_label
+                connector_label,
             )
             .await
             .switch()

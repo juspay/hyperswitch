@@ -75,7 +75,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         &self,
         db: &dyn StorageInterface,
         merchant_id: &str,
-        connector_label: &str
+        connector_label: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let key = format!("{}_{}", merchant_id, connector_label);
         let secret = db
@@ -107,7 +107,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         db: &dyn StorageInterface,
         request: &IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
-        connector_label: &str
+        connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(request)

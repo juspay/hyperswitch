@@ -83,7 +83,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 business_sub_label: self.business_sub_label,
                 created_at: self.created_at,
                 modified_at: self.modified_at,
-                connector_webhook_details: self.connector_webhook_details
+                connector_webhook_details: self.connector_webhook_details,
             },
         )
     }
@@ -130,7 +130,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             business_sub_label: other.business_sub_label,
             created_at: other.created_at,
             modified_at: other.modified_at,
-            connector_webhook_details: other.connector_webhook_details
+            connector_webhook_details: other.connector_webhook_details,
         })
     }
 

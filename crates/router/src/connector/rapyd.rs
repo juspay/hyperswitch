@@ -13,13 +13,14 @@ use crate::{
     connector::utils as conn_utils,
     consts,
     core::errors::{self, CustomResult},
+    db::StorageInterface,
     headers, services,
     types::{
         self,
         api::{self, ConnectorCommon},
         ErrorResponse,
     },
-    utils::{self, crypto, ByteSliceExt, BytesExt}, db::StorageInterface,
+    utils::{self, crypto, ByteSliceExt, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -730,7 +731,7 @@ impl api::IncomingWebhook for Rapyd {
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
-        connector_label: &str
+        connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let signature = self
             .get_webhook_source_verification_signature(request)

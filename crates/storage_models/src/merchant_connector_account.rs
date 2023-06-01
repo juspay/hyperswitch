@@ -32,7 +32,7 @@ pub struct MerchantConnectorAccount {
     pub frm_configs: Option<masking::Secret<serde_json::Value>>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub connector_webhook_details: Option<pii::SecretSerdeValue>
+    pub connector_webhook_details: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -54,7 +54,7 @@ pub struct MerchantConnectorAccountNew {
     pub frm_configs: Option<masking::Secret<serde_json::Value>>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub connector_webhook_details: Option<pii::SecretSerdeValue>
+    pub connector_webhook_details: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -71,5 +71,5 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub frm_configs: Option<masking::Secret<serde_json::Value>>,
     pub modified_at: Option<time::PrimitiveDateTime>,
-    pub connector_webhook_details: Option<pii::SecretSerdeValue>
+    pub connector_webhook_details: Option<pii::SecretSerdeValue>,
 }

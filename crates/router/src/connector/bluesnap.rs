@@ -975,7 +975,7 @@ impl api::IncomingWebhook for Bluesnap {
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
-        connector_label: &str
+        connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(request)
