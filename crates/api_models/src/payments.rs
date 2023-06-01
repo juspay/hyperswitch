@@ -1590,6 +1590,7 @@ pub struct Metadata {
     pub data: pii::SecretSerdeValue,
 
     /// Redirection response coming in request as metadata field only for redirection scenarios
+    #[schema(value_type = Option<RedirectResponse>)]
     pub redirect_response: Option<RedirectResponse>,
 
     /// Allowed payment method types for a payment intent
@@ -1599,6 +1600,7 @@ pub struct Metadata {
 
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct RedirectResponse {
+    #[schema(value_type = Option<String>)]
     pub param: Option<Secret<String>>,
     #[schema(value_type = Option<Object>)]
     pub json_payload: Option<pii::SecretSerdeValue>,
