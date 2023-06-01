@@ -44,7 +44,7 @@ pub async fn refund_create_core(
             merchant_account.storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     utils::when(
         payment_intent.status != enums::IntentStatus::Succeeded,
@@ -54,14 +54,16 @@ pub async fn refund_create_core(
         },
     )?;
 
-    // Amount is not passed in request refer from payment attempt.
+    // Amount is not passed in request refer from payment intent.
     amount = req.amount.unwrap_or(
+        // if amount is not sent in request shouldn't we take amount_captured - amount_refunded till now ?
         payment_intent
             .amount_captured
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .ok_or(errors::ApiErrorResponse::InternalServerError) // The status is checked preciously so this case will never happen, if it happens then it is internal server error
             .into_report()
             .attach_printable("amount captured is none in a successful payment")?,
     );
+
     //[#299]: Can we change the flow based on some workflow idea
     utils::when(amount <= 0, || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
@@ -78,7 +80,7 @@ pub async fn refund_create_core(
             merchant_account.storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
 
     let creds_identifier = req
         .merchant_connector_details
@@ -145,6 +147,7 @@ pub async fn trigger_refund_to_gateway(
 
     let currency = payment_attempt.currency.ok_or_else(|| {
         report!(errors::ApiErrorResponse::MissingRequiredField {
+            // at this point if there is no currency shouldn't this be internal server error.
             field_name: "currency"
         })
         .attach_printable("Transaction in invalid")
@@ -218,7 +221,7 @@ pub async fn trigger_refund_to_gateway(
                 refund_status: response.refund_status,
                 sent_to_gateway: true,
                 refund_error_message: None,
-                refund_arn: "".to_string(),
+                refund_arn: "".to_string(), // what is refund_arn
             }
         }
     };
@@ -231,7 +234,7 @@ pub async fn trigger_refund_to_gateway(
             merchant_account.storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while updating refund: refund_id: {}",
@@ -517,6 +520,7 @@ pub async fn validate_and_create_refund(
     })?;
 
     let refund = match validator::validate_uniqueness_of_refund_id_against_merchant_id(
+        // this is not required ? as (refund_id, merchant_id ) unique btree, just insert if insert fails not valid
         db,
         &payment_intent.payment_id,
         &merchant_account.merchant_id,
@@ -535,7 +539,7 @@ pub async fn validate_and_create_refund(
         None => {
             let connecter_transaction_id = match &payment_attempt.connector_transaction_id {
                 Some(id) => id,
-                None => "",
+                None => "", // shouldn't this throw error
             };
 
             all_refunds = db
@@ -545,8 +549,8 @@ pub async fn validate_and_create_refund(
                     merchant_account.storage_scheme,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::RefundNotFound)
-                .attach_printable("Failed to fetch refund")?;
+                .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
+
             currency = payment_attempt.currency.get_required_value("currency")?;
 
             //[#249]: Add Connector Based Validation here.
@@ -562,7 +566,7 @@ pub async fn validate_and_create_refund(
                 ),
             })?;
 
-            validator::validate_refund_amount(payment_attempt.amount, &all_refunds, refund_amount)
+            validator::validate_refund_amount(payment_attempt.amount, &all_refunds, refund_amount) // previously if amount is not in request amount_captured is taken. 
                 .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
             validator::validate_maximum_refund_against_payment_attempt(
@@ -574,7 +578,7 @@ pub async fn validate_and_create_refund(
             let connector = payment_attempt
                 .connector
                 .clone()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .ok_or(errors::ApiErrorResponse::InternalServerError) // makes sense
                 .into_report()
                 .attach_printable("No connector populated in payment attempt")?;
 
@@ -603,6 +607,7 @@ pub async fn validate_and_create_refund(
                 .insert_refund(refund_create_req, merchant_account.storage_scheme)
                 .await
                 .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)?;
+
             schedule_refund_execution(
                 state,
                 refund,
@@ -695,8 +700,9 @@ pub async fn schedule_refund_execution(
     let refund_process = db
         .find_process_by_id(&task_id)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::InternalServerError) // came here from create flow, why searching in process tracker if it was never inserted before + if process trackers is disabled this will give 500.
         .attach_printable("Failed to find the process id")?;
+
     let result = match refund.refund_status {
         enums::RefundStatus::Pending | enums::RefundStatus::ManualReview => {
             match (refund.sent_to_gateway, refund_process) {
@@ -729,6 +735,7 @@ pub async fn schedule_refund_execution(
                     //[#300]: return refund status response
                     match refund_type {
                         api_models::refunds::RefundType::Scheduled => {
+                            // came here from create flow, if it is (false, Some()), then why sync task added. What will it sync with.
                             add_refund_sync_task(db, &refund, runner)
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)

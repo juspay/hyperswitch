@@ -5,18 +5,18 @@ impl actix_web::ResponseError for ApiErrorResponse {
         use reqwest::StatusCode;
 
         match self {
-            Self::Unauthorized(_) => StatusCode::UNAUTHORIZED,
-            Self::ForbiddenCommonResource(_) => StatusCode::FORBIDDEN,
-            Self::ForbiddenPrivateResource(_) => StatusCode::NOT_FOUND,
-            Self::Conflict(_) => StatusCode::CONFLICT,
-            Self::Gone(_) => StatusCode::GONE,
-            Self::Unprocessable(_) => StatusCode::UNPROCESSABLE_ENTITY,
-            Self::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            Self::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
-            Self::ConnectorError(_, code) => *code,
-            Self::MethodNotAllowed(_) => StatusCode::METHOD_NOT_ALLOWED,
-            Self::NotFound(_) => StatusCode::NOT_FOUND,
-            Self::BadRequest(_) => StatusCode::BAD_REQUEST,
+            Self::Unauthorized(_) => StatusCode::UNAUTHORIZED, // 401
+            Self::ForbiddenCommonResource(_) => StatusCode::FORBIDDEN, // 403
+            Self::ForbiddenPrivateResource(_) => StatusCode::NOT_FOUND, // 404
+            Self::Conflict(_) => StatusCode::CONFLICT,         // 409
+            Self::Gone(_) => StatusCode::GONE,                 // 410
+            Self::Unprocessable(_) => StatusCode::UNPROCESSABLE_ENTITY, // 422
+            Self::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR, // 500
+            Self::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED, // 501
+            Self::ConnectorError(_, code) => *code, // whatever the connector throws , if not there 500
+            Self::MethodNotAllowed(_) => StatusCode::METHOD_NOT_ALLOWED, // 405
+            Self::NotFound(_) => StatusCode::NOT_FOUND, // 404
+            Self::BadRequest(_) => StatusCode::BAD_REQUEST, // 400
         }
     }
 

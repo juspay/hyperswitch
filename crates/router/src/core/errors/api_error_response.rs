@@ -301,9 +301,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::MissingDisputeId
             | Self::FileNotFound
             | Self::FileNotAvailable => StatusCode::BAD_REQUEST, // 400
-            Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE, // 503
-            Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,          // 400
-            Self::NotImplemented { .. } => StatusCode::NOT_IMPLEMENTED,    // 501
+            Self::ReturnUrlUnavailable => StatusCode::NOT_FOUND, // 404
+            Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST, // 400
+            Self::NotImplemented { .. } => StatusCode::NOT_IMPLEMENTED, // 501
         }
     }
 
