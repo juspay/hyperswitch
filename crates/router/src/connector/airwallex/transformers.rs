@@ -144,8 +144,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
     }
 }
 
-
-fn get_wallet_details(wallet_data: &api_models::payments::WalletData) -> Result<AirwallexPaymentMethod, errors::ConnectorError>{
+fn get_wallet_details(
+    wallet_data: &api_models::payments::WalletData,
+) -> Result<AirwallexPaymentMethod, errors::ConnectorError> {
     let wallet_details: AirwallexPaymentMethod = match wallet_data {
         api_models::payments::WalletData::GooglePay(gpay_details) => {
             AirwallexPaymentMethod::Wallets(WalletData::GooglePay(GooglePayData {
