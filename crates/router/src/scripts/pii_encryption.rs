@@ -178,7 +178,7 @@ pub async fn encrypt_merchant_connector_account_fields(
                     payment_methods_enabled: None,
                     metadata: None,
                     connector_account_details: Some(m.connector_account_details.clone()),
-                    connector_webhook_details:None
+                    connector_webhook_details: None,
                 };
 
             Conversion::convert(m)
