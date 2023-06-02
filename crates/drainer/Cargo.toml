@@ -14,7 +14,7 @@ vergen = ["router_env/vergen"]
 [dependencies]
 async-bb8-diesel = { git = "https://github.com/oxidecomputer/async-bb8-diesel", rev = "be3d9bce50051d8c0e0c06078e8066cc27db3001" }
 bb8 = "0.8"
-clap = { version = "4.3.0", default-features = false, features = ["std", "derive", "help", "usage"] }
+clap = { version = "4.3.1", default-features = false, features = ["std", "derive", "help", "usage"] }
 config = { version = "0.13.3", features = ["toml"] }
 diesel = { version = "2.1.0", features = ["postgres"] }
 error-stack = "0.3.1"
