@@ -2,10 +2,10 @@
 name = "router_env"
 description = "Environment of payment router: logger, basic config, its environment awareness."
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.65"
+edition.workspace = true
+rust-version.workspace = true
 readme = "README.md"
-license = "Apache-2.0"
+license.workspace = true
 
 [dependencies]
 config = { version = "0.13.3", features = ["toml"] }

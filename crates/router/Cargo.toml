@@ -2,11 +2,11 @@
 name = "router"
 description = "Modern, fast and open payment router"
 version = "0.2.0"
-edition = "2021"
+edition.workspace = true
 default-run = "router"
-rust-version = "1.65"
+rust-version.workspace = true
 readme = "README.md"
-license = "Apache-2.0"
+license.workspace = true
 build = "src/build.rs"
 
 [features]

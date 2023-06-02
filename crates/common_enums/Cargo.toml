@@ -1,7 +1,9 @@
 [package]
 name = "common_enums"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
 
 [dependencies]
 diesel = { version = "2.1.0", features = ["postgres"] }

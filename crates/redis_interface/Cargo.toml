@@ -2,10 +2,10 @@
 name = "redis_interface"
 description = "A user-friendly interface to Redis"
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.65"
+edition.workspace = true
+rust-version.workspace = true
 readme = "README.md"
-license = "Apache-2.0"
+license.workspace = true
 
 [dependencies]
 async-trait = "0.1.68"

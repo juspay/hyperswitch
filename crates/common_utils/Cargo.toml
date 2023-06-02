@@ -2,10 +2,10 @@
 name = "common_utils"
 description = "Utilities shared across router and other crates"
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.65"
+edition.workspace = true
+rust-version.workspace = true
 readme = "README.md"
-license = "Apache-2.0"
+license.workspace = true
 
 [features]
 signals = ["dep:signal-hook-tokio", "dep:signal-hook", "dep:tokio", "dep:router_env", "dep:futures"]

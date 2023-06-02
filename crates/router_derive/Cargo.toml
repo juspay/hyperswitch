@@ -2,10 +2,10 @@
 name = "router_derive"
 description = "Utility macros for the router crate"
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.65"
+edition.workspace = true
+rust-version.workspace = true
 readme = "README.md"
-license = "Apache-2.0"
+license.workspace = true
 
 [lib]
 proc-macro = true

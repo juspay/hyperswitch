@@ -2,10 +2,10 @@
 name = "drainer"
 description = "App that reads redis streams and executes queries in DB"
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.65"
+edition.workspace = true
+rust-version.workspace = true
 readme = "README.md"
-license = "Apache-2.0"
+license.workspace = true
 
 [features]
 kms = ["external_services/kms"]
