@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*", "examples/*"]
+members = ["crates/*"]
 package.edition = "2021"
 package.rust-version = "1.65"
 package.license = "Apache-2.0"
