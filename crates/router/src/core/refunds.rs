@@ -945,7 +945,7 @@ pub async fn add_refund_sync_task(
     };
 
     let response = db
-        .insert_process(process_tracker_entry)
+        .insert_process(process_tracker_entry) // if the process already exists in process tracker, i.e if it is is_db_unique_voilation should the error be ignored, this already happens in save cards flow
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
