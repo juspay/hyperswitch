@@ -7,7 +7,6 @@ default-run = "router"
 rust-version.workspace = true
 readme = "README.md"
 license.workspace = true
-build = "src/build.rs"
 
 [features]
 default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector"]
