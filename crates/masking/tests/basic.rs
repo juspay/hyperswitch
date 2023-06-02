@@ -40,11 +40,6 @@ fn basic() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         not_secret,
     };
 
-    // clone
-
-    let composite2 = composite.clone();
-    assert_eq!(composite, composite2);
-
     // format
 
     let got = format!("{composite:?}");
@@ -132,11 +127,6 @@ fn for_string() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         secret_number,
         not_secret,
     };
-
-    // clone
-
-    let composite2 = composite.clone();
-    assert_eq!(composite, composite2);
 
     // format
 
