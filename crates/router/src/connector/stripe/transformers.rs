@@ -1034,7 +1034,7 @@ fn create_stripe_payment_method(
                 StripePaymentMethodType::Wechatpay,
                 StripeBillingAddress::default(),
             )),
-            payments::WalletData::AliPay(_) => Ok((
+            payments::WalletData::AliPayRedirect(_) => Ok((
                 StripePaymentMethodData::Wallet(StripeWallet::AlipayPayment(AlipayPayment {
                     payment_method_types: StripePaymentMethodType::Alipay,
                     payment_method_data_type: StripePaymentMethodType::Alipay,
@@ -2472,7 +2472,7 @@ impl
                     });
                     Ok(Self::Wallet(wallet_info))
                 }
-                payments::WalletData::AliPay(_) => {
+                payments::WalletData::AliPayRedirect(_) => {
                     let wallet_info = StripeWallet::AlipayPayment(AlipayPayment {
                         payment_method_types: StripePaymentMethodType::Alipay,
                         payment_method_data_type: StripePaymentMethodType::Alipay,
