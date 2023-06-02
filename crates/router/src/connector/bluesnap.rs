@@ -345,12 +345,18 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-        Ok(format!(
-            "{}{}{}",
-            self.base_url(connectors),
-            "services/2/transactions/",
-            connector_payment_id
-        ))
+        let url = if req.payment_method == enums::PaymentMethod::BankRedirect {
+            format!(
+                "{}services/2/alt-transactions/resolve?orderId={connector_payment_id}",
+                self.base_url(connectors)
+            )
+        } else {
+            format!(
+                "{}services/2/transactions/{connector_payment_id}",
+                self.base_url(connectors)
+            )
+        };
+        Ok(url)
     }
 
     fn build_request(
@@ -380,17 +386,31 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: bluesnap::BluesnapPaymentsResponse = res
-            .response
-            .parse_struct("BluesnapPaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
+        if data.payment_method == enums::PaymentMethod::BankRedirect {
+            let response: bluesnap::BluesnapAltPaymentResponse = res
+                .response
+                .parse_struct("BluesnapAltPaymentResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            }
+            .try_into()
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        } else {
+            let response: bluesnap::BluesnapPaymentsResponse = res
+                .response
+                .parse_struct("BluesnapPaymentsResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            }
+            .try_into()
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
         }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 }
 
@@ -595,19 +615,18 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        match req.is_three_ds() && !req.request.is_wallet() {
-            true => Ok(format!(
-                "{}{}{}",
+        let url = if req.is_three_ds() && !req.request.is_wallet() {
+            format!(
+                "{}services/2/payment-fields-tokens?shopperId={}",
                 self.base_url(connectors),
-                "services/2/payment-fields-tokens?shopperId=",
                 req.get_connector_customer_id()?
-            )),
-            _ => Ok(format!(
-                "{}{}",
-                self.base_url(connectors),
-                "services/2/transactions"
-            )),
-        }
+            )
+        } else if req.request.is_bank_redirect() {
+            format!("{}services/2/alt-transactions", self.base_url(connectors))
+        } else {
+            format!("{}services/2/transactions", self.base_url(connectors))
+        };
+        Ok(url)
     }
 
     fn get_request_body(
@@ -671,15 +690,27 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 })
             }
             _ => {
-                let response: bluesnap::BluesnapPaymentsResponse = res
-                    .response
-                    .parse_struct("BluesnapPaymentsResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
+                if data.request.is_bank_redirect() {
+                    let response: bluesnap::BluesnapAltPaymentResponse = res
+                        .response
+                        .parse_struct("BluesnapAltPaymentsResponse")
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                    types::RouterData::try_from(types::ResponseRouterData {
+                        response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    })
+                } else {
+                    let response: bluesnap::BluesnapPaymentsResponse = res
+                        .response
+                        .parse_struct("BluesnapPaymentsResponse")
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                    types::RouterData::try_from(types::ResponseRouterData {
+                        response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    })
+                }
             }
         }
     }
@@ -1064,23 +1095,27 @@ impl services::ConnectorRedirectResponse for Bluesnap {
         json_payload: Option<serde_json::Value>,
         _action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        let redirection_response: bluesnap::BluesnapRedirectionResponse = json_payload
-            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "json_payload",
-            })?
-            .parse_value("BluesnapRedirectionResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if json_payload.is_none() {
+            Ok(payments::CallConnectorAction::Trigger)
+        } else {
+            let redirection_response: bluesnap::BluesnapRedirectionResponse = json_payload
+                .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                    field_name: "json_payload",
+                })?
+                .parse_value("BluesnapRedirectionResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let redirection_result: bluesnap::BluesnapThreeDsResult = redirection_response
-            .authentication_response
-            .parse_struct("BluesnapThreeDsResult")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            let redirection_result: bluesnap::BluesnapThreeDsResult = redirection_response
+                .authentication_response
+                .parse_struct("BluesnapThreeDsResult")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        match redirection_result.status.as_str() {
-            "Success" => Ok(payments::CallConnectorAction::Trigger),
-            _ => Ok(payments::CallConnectorAction::StatusUpdate(
-                enums::AttemptStatus::AuthenticationFailed,
-            )),
+            match redirection_result.status.as_str() {
+                "Success" => Ok(payments::CallConnectorAction::Trigger),
+                _ => Ok(payments::CallConnectorAction::StatusUpdate(
+                    enums::AttemptStatus::AuthenticationFailed,
+                )),
+            }
         }
     }
 }

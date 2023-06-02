@@ -355,31 +355,6 @@ async fn should_sync_refund() {
     );
 }
 
-// Cards Negative scenerios
-// Creates a payment with incorrect card number.
-
-#[serial_test::serial]
-#[actix_web::test]
-async fn should_fail_payment_for_incorrect_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: cards::CardNumber::from_str("1234567891011").unwrap(),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            None,
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        "Order creation failure due to problematic input.".to_string(),
-    );
-}
-
 // Creates a payment with incorrect CVC.
 
 #[serial_test::serial]

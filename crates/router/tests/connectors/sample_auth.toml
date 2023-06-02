@@ -115,3 +115,7 @@ api_key = "API Key"
 api_key = "Application API KEY"
 api_secret = "Application Identifier"
 key1 = "Business Identifier"
+
+[bluesnap]
+api_key = "api_key"
+key1 = "key1"
