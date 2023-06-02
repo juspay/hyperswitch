@@ -1,7 +1,6 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 
-use super::Store;
 use crate::{
     cache::{self, Cacheable},
     consts,
@@ -46,7 +45,7 @@ where
 }
 
 pub async fn get_or_populate_in_memory<T, F, Fut>(
-    store: &Store,
+    store: &dyn StorageInterface,
     key: &str,
     fun: F,
     cache: &cache::Cache,

@@ -376,7 +376,9 @@ mod tests {
     use time::macros::datetime;
 
     use crate::{
-        db::{api_keys::ApiKeyInterface, MockDb},
+        cache::{CacheKind, ACCOUNTS_CACHE},
+        db::{api_keys::ApiKeyInterface, cache, MockDb},
+        services::{PubSubInterface, RedisConnInterface},
         types::storage,
     };
 
@@ -461,5 +463,68 @@ mod tests {
                 .len(),
             1
         );
+    }
+
+    #[allow(clippy::unwrap_used)]
+    #[tokio::test]
+    async fn test_api_keys_cache() {
+        let db = MockDb::new(&Default::default()).await;
+
+        let redis_conn = db.get_redis_conn().unwrap();
+        redis_conn
+            .subscribe("hyperswitch_invalidate")
+            .await
+            .unwrap();
+
+        let merchant_id = "test_merchant";
+        let api = storage::ApiKeyNew {
+            key_id: "test_key".into(),
+            merchant_id: merchant_id.into(),
+            name: "My test key".into(),
+            description: None,
+            hashed_api_key: "a_hashed_key".to_string().into(),
+            prefix: "pre".into(),
+            created_at: datetime!(2023-06-01 0:00),
+            expires_at: None,
+            last_used: None,
+        };
+
+        let api = db.insert_api_key(api).await.unwrap();
+
+        let hashed_api_key = api.hashed_api_key.clone();
+        let find_call = || async {
+            db.find_api_key_by_hash_optional(hashed_api_key.clone())
+                .await
+        };
+        let _: Option<storage::ApiKey> = cache::get_or_populate_in_memory(
+            &db,
+            &format!("{}_{}", merchant_id, hashed_api_key.clone().into_inner()),
+            find_call,
+            &ACCOUNTS_CACHE,
+        )
+        .await
+        .unwrap();
+
+        let delete_call = || async { db.revoke_api_key(merchant_id, &api.key_id).await };
+
+        cache::publish_and_redact(
+            &db,
+            CacheKind::Accounts(
+                format!("{}_{}", merchant_id, hashed_api_key.clone().into_inner()).into(),
+            ),
+            delete_call,
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            ACCOUNTS_CACHE
+                .get_val::<storage::ApiKey>(&format!(
+                    "{}_{}",
+                    merchant_id,
+                    hashed_api_key.into_inner()
+                ),)
+                .is_none()
+        )
     }
 }
