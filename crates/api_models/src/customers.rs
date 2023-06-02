@@ -15,13 +15,13 @@ pub struct CustomerRequest {
     #[serde(default = "unknown_merchant", skip)]
     pub merchant_id: String,
     /// The customer's name
-    #[schema(max_length = 255, example = "Jon Test")]
+    #[schema(max_length = 255, value_type = String, example = "Jon Test")]
     pub name: Option<Secret<String>>,
     /// The customer's email address
-    #[schema(value_type = Option<String>,max_length = 255, example = "JonTest@test.com")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "JonTest@test.com")]
     pub email: Option<pii::Email>,
     /// The customer's phone number
-    #[schema(value_type = Option<String>,max_length = 255, example = "9999999999")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "9999999999")]
     pub phone: Option<Secret<String>>,
     /// An arbitrary string that you can attach to a customer object.
     #[schema(max_length = 255, example = "First Customer")]
@@ -55,7 +55,7 @@ pub struct CustomerResponse {
     #[schema(max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: String,
     /// The customer's name
-    #[schema(max_length = 255, example = "Jon Test")]
+    #[schema(max_length = 255, value_type = Option<String>, example = "Jon Test")]
     pub name: crypto::OptionalEncryptableName,
     /// The customer's email address
     #[schema(value_type = Option<String>,max_length = 255, example = "JonTest@test.com")]
