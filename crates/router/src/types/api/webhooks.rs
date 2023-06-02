@@ -6,6 +6,7 @@ use error_stack::ResultExt;
 
 use super::ConnectorCommon;
 use crate::{
+    connector::utils as conn_utils,
     core::errors::{self, CustomResult},
     db::StorageInterface,
     services,
@@ -77,12 +78,17 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         merchant_id: &str,
         connector_label: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("{}_{}", merchant_id, connector_label);
-        let secret = db
-            .find_config_by_key_cached(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-        Ok(secret.config.into_bytes())
+        let key = conn_utils::get_webhook_merchant_secret_key(connector_label, merchant_id);
+        let secret = match db.find_config_by_key_cached(&key).await {
+            Ok(config) => Some(config),
+            Err(e) => {
+                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
+                None
+            }
+        };
+        Ok(secret
+            .map(|conf| conf.config.into_bytes())
+            .unwrap_or_default())
     }
 
     fn get_webhook_source_verification_signature(

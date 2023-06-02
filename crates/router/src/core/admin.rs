@@ -10,6 +10,7 @@ use storage_models::{configs::ConfigNew, enums};
 use uuid::Uuid;
 
 use crate::{
+    connector::utils as conn_utils,
     consts,
     core::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
@@ -494,7 +495,7 @@ pub async fn create_payment_connector(
                 .into_report()
                 .attach_printable("failed to deserialize connector_webhook_details")
                 .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        let config_key = format!("{}_{}", merchant_id, connector_label);
+        let config_key = conn_utils::get_webhook_merchant_secret_key(&connector_label, merchant_id);
         store
             .insert_config(ConfigNew {
                 key: config_key,
@@ -655,7 +656,10 @@ pub async fn update_payment_connector(
                     .into_report()
                     .attach_printable("failed to deserialize connector_webhook_details")
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            let config_key = format!("{}_{}", merchant_id, updated_mca.connector_label.clone());
+            let config_key = conn_utils::get_webhook_merchant_secret_key(
+                &updated_mca.connector_label,
+                merchant_id,
+            );
             db.update_config_cached(
                 &config_key,
                 storage_models::configs::ConfigUpdate::Update {
@@ -707,7 +711,8 @@ pub async fn delete_payment_connector(
 
     if is_deleted {
         if let Some(_connector_webhook_details) = mca.connector_webhook_details.clone() {
-            let config_key = format!("{}_{}", merchant_id, mca.connector_label.clone());
+            let config_key =
+                conn_utils::get_webhook_merchant_secret_key(&mca.connector_label, &merchant_id);
             db.delete_config_by_key(&config_key)
                 .await
                 .attach_printable(format!(

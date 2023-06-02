@@ -634,7 +634,9 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
         connector_name,
         api::GetToken::Connector,
     )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+        message: "invalid connnector name received".to_string(),
+    })
     .attach_printable("Failed construction of ConnectorData")?;
 
     let connector = connector.connector;
@@ -659,7 +661,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
 
     let event_type = connector
         .get_webhook_event_type(&request_details)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .switch()
         .attach_printable("Could not find event type in incoming webhook body")?;
 
     let process_webhook_further = utils::lookup_webhook_event(
