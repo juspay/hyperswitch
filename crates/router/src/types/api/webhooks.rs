@@ -79,10 +79,9 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let key = format!("{}_{}", merchant_id, connector_label);
         let secret = db
-            .find_config_by_key(&key)
+            .find_config_by_key_cached(&key)
             .await
             .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-
         Ok(secret.config.into_bytes())
     }
 
