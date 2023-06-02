@@ -441,7 +441,7 @@ pub async fn sync_refund_with_gateway(
             merchant_account.storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)
         .attach_printable_lazy(|| {
             format!(
                 "Unable to update refund with refund_id: {}",
@@ -936,7 +936,7 @@ pub async fn add_refund_sync_task(
         .attach_printable_lazy(|| format!("unable to convert into value {:?}", &refund))?;
     let task = "SYNC_REFUND";
     let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{}_{}_{}", runner, task, refund.id),
+        id: format!("{}_{}_{}", runner, task, refund.id), // shouldn't merchant id also be added here.
         name: Some(String::from(task)),
         tag: vec![String::from("REFUND")],
         runner: Some(String::from(runner)),
@@ -954,7 +954,7 @@ pub async fn add_refund_sync_task(
     let response = db
         .insert_process(process_tracker_entry)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::InternalServerError) // should this be internal server error.
         .attach_printable_lazy(|| {
             format!(
                 "Failed while inserting task in process_tracker: refund_id: {}",
@@ -977,7 +977,7 @@ pub async fn add_refund_execute_task(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| format!("unable to convert into value {:?}", &refund))?;
     let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{}_{}_{}", runner, task, refund.id),
+        id: format!("{}_{}_{}", runner, task, refund.id), // shouldn't merchant_id be added here.
         name: Some(String::from(task)),
         tag: vec![String::from("REFUND")],
         runner: Some(String::from(runner)),
