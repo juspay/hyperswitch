@@ -19,6 +19,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3.1.0
 
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+
+      - name: Generate the spec file
+        shell: bash
+        run: cargo r --features openapi -- generate-openapi-spec
+
       - name: Install swagger-cli
         shell: bash
         run: npm install -g @apidevtools/swagger-cli
