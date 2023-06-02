@@ -556,3 +556,118 @@ impl MerchantConnectorAccountInterface for MockDb {
         }
     }
 }
+
+#[cfg(test)]
+mod merchant_connector_account_cache_tests {
+    use crate::{
+        cache::{CacheKind, ACCOUNTS_CACHE},
+        core::errors,
+        db::{
+            cache, merchant_connector_account::MerchantConnectorAccountInterface,
+            merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface, MockDb,
+        },
+        services::{PubSubInterface, RedisConnInterface},
+        types::{
+            domain::{self, behaviour::Conversion, types as domain_types},
+            storage,
+        },
+    };
+    use api_models::enums::CountryAlpha2;
+    use common_utils::date_time;
+    use error_stack::ResultExt;
+    use storage_models::enums::ConnectorType;
+
+    #[allow(clippy::unwrap_used)]
+    #[tokio::test]
+    async fn test_connector_label_cache() {
+        let db = MockDb::new(&Default::default()).await;
+
+        let redis_conn = db.get_redis_conn();
+        let key = db.get_master_key();
+        redis_conn
+            .subscribe("hyperswitch_invalidate")
+            .await
+            .unwrap();
+
+        let merchant_id = "test_merchant";
+        let connector_label = "stripe_USA";
+        let merchant_connector_id = "simple_merchant_connector_id";
+
+        let mca = domain::MerchantConnectorAccount {
+            id: Some(1),
+            merchant_id: merchant_id.to_string(),
+            connector_name: "stripe".to_string(),
+            connector_account_details: domain_types::encrypt(
+                serde_json::Value::default().into(),
+                key,
+            )
+            .await
+            .unwrap(),
+            test_mode: None,
+            disabled: None,
+            merchant_connector_id: merchant_connector_id.to_string(),
+            payment_methods_enabled: None,
+            connector_type: ConnectorType::FinOperations,
+            metadata: None,
+            frm_configs: None,
+            connector_label: connector_label.to_string(),
+            business_country: CountryAlpha2::US,
+            business_label: "cloth".to_string(),
+            business_sub_label: None,
+            created_at: date_time::now(),
+            modified_at: date_time::now(),
+        };
+
+        let key_store = db
+            .get_merchant_key_store_by_merchant_id(merchant_id, &key.to_vec().into())
+            .await
+            .unwrap();
+
+        db.insert_merchant_connector_account(mca, &key_store)
+            .await
+            .unwrap();
+        let find_call = || async {
+            db.find_merchant_connector_account_by_merchant_id_connector_label(
+                merchant_id,
+                connector_label,
+                &key_store,
+            )
+            .await
+            .unwrap()
+            .convert()
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+        };
+        let _: storage::MerchantConnectorAccount = cache::get_or_populate_in_memory(
+            &db,
+            &format!("{}_{}", merchant_id, connector_label),
+            find_call,
+            &ACCOUNTS_CACHE,
+        )
+        .await
+        .unwrap();
+
+        let delete_call = || async {
+            db.delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
+                merchant_id,
+                merchant_connector_id,
+            )
+            .await
+        };
+
+        cache::publish_and_redact(
+            &db,
+            CacheKind::Accounts(format!("{}_{}", merchant_id, connector_label).into()),
+            delete_call,
+        )
+        .await
+        .unwrap();
+
+        assert!(ACCOUNTS_CACHE
+            .get_val::<domain::MerchantConnectorAccount>(&format!(
+                "{}_{}",
+                merchant_id, connector_label
+            ),)
+            .is_none())
+    }
+}
