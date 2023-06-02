@@ -668,7 +668,8 @@ impl api::IncomingWebhook for Trustpay {
             (trustpay::CreditDebitIndicator::Dbit, trustpay::WebhookStatus::Chargebacked) => {
                 Ok(api_models::webhooks::IncomingWebhookEvent::DisputeLost)
             }
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+
+            _ => Ok(api::IncomingWebhookEvent::EventNotSupported),
         }
     }
 

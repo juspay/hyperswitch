@@ -284,4 +284,6 @@ pub enum WebhookEventType {
     Refunded,
     #[serde(rename = "invoice_manuallyNotified")]
     Resent,
+    #[serde(other)]
+    Unknown,
 }

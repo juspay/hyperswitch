@@ -56,6 +56,8 @@ pub enum OpennodePaymentStatus {
     Processing,
     Underpaid,
     Refunded,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<OpennodePaymentStatus> for enums::AttemptStatus {
