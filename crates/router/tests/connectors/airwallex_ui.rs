@@ -39,8 +39,6 @@ async fn should_make_airwallex_gpay_payment(c: WebDriver) -> Result<(), WebDrive
     conn.make_gpay_payment(c,
         &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=airwallex&gatewaymerchantid={merchant_name}&amount=70.00&country=US&currency=USD"),
         vec![
-            // Event::Trigger(Trigger::Sleep(10)),
-            // Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Query(By::ClassName("title"))),
             Event::Assert(Assert::Eq(Selector::Title, "Airwallex - Create 3D Secure Payment")),
             Event::Trigger(Trigger::SendKeys(By::Id("challengeDataEntry"), "1234")),
