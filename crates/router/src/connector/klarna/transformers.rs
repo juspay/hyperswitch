@@ -78,7 +78,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
                         session_id: response.session_id.clone(),
                     },
                 )),
-                resource_id: types::ResponseId::NoResponseId,
+                response_id: None,
             }),
             ..item.data
         })

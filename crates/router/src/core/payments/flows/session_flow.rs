@@ -197,90 +197,74 @@ async fn create_applepay_session_token(
 
     let delayed_response = delayed_response.contains(&connector_name);
 
-    let response_router_data = if delayed_response {
-        types::PaymentsSessionRouterData {
-            response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: payment_types::SessionToken::ApplePay(Box::new(
-                    payment_types::ApplepaySessionTokenResponse {
-                        session_token_data:
-                            payment_types::ApplePaySessionResponse::NoSessionResponse,
-                        payment_request_data: None,
-                        connector: connector_name.to_string(),
-                        delayed_session_token: delayed_response,
-                        sdk_next_action: {
-                            payment_types::SdkNextAction {
-                                next_action: payment_types::NextActionCall::SessionToken,
-                            }
-                        },
-                    },
-                )),
-                resource_id: types::ResponseId::NoResponseId,
-            }),
-            ..router_data.clone()
-        }
+    if delayed_response {
+        let delayed_response_apple_pay_session =
+            payment_types::ApplePaySessionResponse::NoSessionResponse;
+        create_apple_pay_session_response(
+            router_data,
+            delayed_response_apple_pay_session,
+            None,
+            connector_name.to_string(),
+            delayed_response,
+            payment_types::NextActionCall::SessionToken,
+            None,
+        )
     } else {
         let applepay_session_request = mk_applepay_session_request(state, router_data)?;
-        let response = services::call_connector_api(state, applepay_session_request)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failure in calling connector api")?;
+        let response = services::call_connector_api(state, applepay_session_request).await;
+        log_session_response_if_error(&response);
 
-        let session_response = match response {
-            Ok(resp) => {
-                let response: Result<
-                    payment_types::NoThirdPartySdkSessionResponse,
-                    Report<common_utils::errors::ParsingError>,
-                > = resp.response.parse_struct("NoThirdPartySdkSessionResponse");
+        let session_response = response
+            .ok()
+            .and_then(|apple_pay_res| {
+                apple_pay_res
+                    .map(|res| {
+                        let response: Result<
+                            payment_types::NoThirdPartySdkSessionResponse,
+                            Report<common_utils::errors::ParsingError>,
+                        > = res.response.parse_struct("NoThirdPartySdkSessionResponse");
+                        response.ok()
+                    })
+                    .ok()
+            })
+            .flatten();
 
-                if let Err(error) = response.as_ref() {
-                    logger::error!(?error);
-                };
+        create_apple_pay_session_response(
+            router_data,
+            payment_types::ApplePaySessionResponse::NoThirdPartySdk(session_response),
+            Some(applepay_payment_request),
+            connector_name.to_string(),
+            delayed_response,
+            payment_types::NextActionCall::Confirm,
+            None,
+        )
+    }
+}
 
-                response.ok()
-            }
-            Err(err) => {
-                let error_response: Result<payment_types::ApplepayErrorResponse, _> =
-                    err.response.parse_struct("ApplepayErrorResponse");
-
-                if let Err(error) = error_response.as_ref() {
-                    logger::error!(?error);
-                };
-
-                error_response.ok().and_then(|apple_pay_error| {
-                    logger::error!(
-                        "Failed with status code {:?} and the error message is {:?}",
-                        apple_pay_error.status_code,
-                        apple_pay_error.status_message
-                    );
-                    None
-                })
-            }
-        };
-
-        types::PaymentsSessionRouterData {
-            response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: payment_types::SessionToken::ApplePay(Box::new(
-                    payment_types::ApplepaySessionTokenResponse {
-                        session_token_data: payment_types::ApplePaySessionResponse::NoThirdPartySdk(
-                            session_response,
-                        ),
-                        payment_request_data: Some(applepay_payment_request),
-                        connector: connector_name.to_string(),
-                        delayed_session_token: delayed_response,
-                        sdk_next_action: {
-                            payment_types::SdkNextAction {
-                                next_action: payment_types::NextActionCall::Confirm,
-                            }
-                        },
-                    },
-                )),
-                resource_id: types::ResponseId::NoResponseId,
-            }),
-            ..router_data.clone()
-        }
-    };
-
-    Ok(response_router_data)
+fn create_apple_pay_session_response(
+    router_data: &types::PaymentsSessionRouterData,
+    session_response: payment_types::ApplePaySessionResponse,
+    apple_pay_payment_request: Option<payment_types::ApplePayPaymentRequest>,
+    connector_name: String,
+    delayed_response: bool,
+    next_action: payment_types::NextActionCall,
+    response_id: Option<String>,
+) -> RouterResult<types::PaymentsSessionRouterData> {
+    Ok(types::PaymentsSessionRouterData {
+        response: Ok(types::PaymentsResponseData::SessionResponse {
+            session_token: payment_types::SessionToken::ApplePay(Box::new(
+                payment_types::ApplepaySessionTokenResponse {
+                    session_token_data: session_response,
+                    payment_request_data: apple_pay_payment_request,
+                    connector: connector_name,
+                    delayed_session_token: delayed_response,
+                    sdk_next_action: { payment_types::SdkNextAction { next_action } },
+                },
+            )),
+            response_id,
+        }),
+        ..router_data.clone()
+    })
 }
 
 fn create_gpay_session_token(
@@ -326,12 +310,24 @@ fn create_gpay_session_token(
                     connector: connector.connector_name.to_string(),
                 },
             )),
-            resource_id: types::ResponseId::NoResponseId,
+            response_id: None,
         }),
         ..router_data.clone()
     };
 
     Ok(response_router_data)
+}
+
+fn log_session_response_if_error(
+    response: &Result<Result<types::Response, types::Response>, Report<errors::ApiClientError>>,
+) {
+    if let Err(error) = response.as_ref() {
+        logger::error!(?error);
+    };
+    response
+        .as_ref()
+        .ok()
+        .map(|res| res.as_ref().map_err(|error| logger::error!(?error)));
 }
 
 impl types::PaymentsSessionRouterData {

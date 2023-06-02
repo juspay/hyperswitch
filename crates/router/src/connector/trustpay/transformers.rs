@@ -893,7 +893,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<TrustpayCreateIntentRespon
                         },
                     },
                 )),
-                resource_id: types::ResponseId::ConnectorTransactionId(response.instance_id),
+                response_id: Some(response.instance_id),
             }),
             ..item.data
         })

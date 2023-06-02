@@ -286,7 +286,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
         let wallet_token = consts::BASE64_ENGINE
             .decode(response.wallet_token.clone().expose())
             .into_report()
-            .change_context(errors::ConnectorError::ParsingFailed)?;
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
         let session_response: api_models::payments::NoThirdPartySdkSessionResponse =
             wallet_token[..]
@@ -340,7 +340,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                         },
                     },
                 )),
-                resource_id: types::ResponseId::NoResponseId,
+                response_id: None,
             }),
             ..item.data
         })
