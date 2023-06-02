@@ -550,6 +550,8 @@ pub enum AirwallexWebhookEventType {
     DisputeLost,
     #[serde(rename = "dispute.dispute_reversed")]
     DisputeReversed,
+    #[serde(other)]
+    Unknown,
 }
 
 pub fn is_transaction_event(event_code: &AirwallexWebhookEventType) -> bool {
@@ -639,7 +641,7 @@ impl TryFrom<AirwallexWebhookEventType> for api_models::webhooks::IncomingWebhoo
                 Self::DisputeWon
             }
             AirwallexWebhookEventType::DisputeLost => Self::DisputeLost,
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
+            _ => Self::EventNotSupported,
         })
     }
 }

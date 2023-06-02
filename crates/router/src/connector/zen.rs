@@ -523,6 +523,8 @@ impl api::IncomingWebhook for Zen {
             ZenWebhookTxnType::TrtRefund => api_models::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.transaction_id),
             ),
+
+            ZenWebhookTxnType::Unknown => Err(errors::ConnectorError::WebhookReferenceIdNotFound)?,
         })
     }
 
@@ -546,6 +548,7 @@ impl api::IncomingWebhook for Zen {
                 ZenPaymentStatus::Accepted => api::IncomingWebhookEvent::RefundSuccess,
                 _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
             },
+            ZenWebhookTxnType::Unknown => api::IncomingWebhookEvent::EventNotSupported,
         })
     }
 

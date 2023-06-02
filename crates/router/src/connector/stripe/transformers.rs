@@ -2374,6 +2374,8 @@ pub enum WebhookEventType {
     SourceTransactionCreated,
     #[serde(rename = "payment_intent.partially_funded")]
     PaymentIntentPartiallyFunded,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Serialize, strum::Display, Deserialize, PartialEq)]

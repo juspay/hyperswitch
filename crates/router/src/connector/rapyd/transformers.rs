@@ -463,6 +463,8 @@ pub enum RapydWebhookObjectEventType {
     RefundCompleted,
     PaymentRefundRejected,
     PaymentRefundFailed,
+    #[serde(other)]
+    Unknown,
 }
 
 impl TryFrom<RapydWebhookObjectEventType> for api::IncomingWebhookEvent {
@@ -472,7 +474,7 @@ impl TryFrom<RapydWebhookObjectEventType> for api::IncomingWebhookEvent {
             RapydWebhookObjectEventType::PaymentCompleted => Ok(Self::PaymentIntentSuccess),
             RapydWebhookObjectEventType::PaymentCaptured => Ok(Self::PaymentIntentSuccess),
             RapydWebhookObjectEventType::PaymentFailed => Ok(Self::PaymentIntentFailure),
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+            _ => Ok(Self::EventNotSupported),
         }
     }
 }

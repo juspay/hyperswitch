@@ -1703,7 +1703,7 @@ impl api::IncomingWebhook for Stripe {
             stripe::WebhookEventType::PaymentIntentRequiresAction => {
                 api::IncomingWebhookEvent::PaymentActionRequired
             }
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+            _ => api::IncomingWebhookEvent::EventNotSupported,
         })
     }
 

@@ -698,7 +698,7 @@ impl api::IncomingWebhook for Worldpay {
             EventType::Error | EventType::Expired => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
             }
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
+            _ => Ok(api::IncomingWebhookEvent::EventNotSupported),
         }
     }
 
