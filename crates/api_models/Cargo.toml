@@ -1,8 +1,10 @@
 [package]
 name = "api_models"
+description = "Request/response models for the `router` crate"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
+readme = "README.md"
 license.workspace = true
 
 [features]
