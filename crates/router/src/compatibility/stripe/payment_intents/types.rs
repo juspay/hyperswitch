@@ -173,7 +173,15 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
         let routable_connector: Option<api_enums::RoutableConnectors> =
             item.connector.and_then(|v| v.into_iter().next());
 
-        let routing = routable_connector.map(crate::types::api::RoutingAlgorithm::Single);
+        let routing = routable_connector
+            .map(crate::types::api::RoutingAlgorithm::Single)
+            .map(|r| {
+                serde_json::to_value(r)
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("converting to routing failed")
+            })
+            .transpose()?;
         let request = Ok(Self {
             payment_id: item.id.map(payments::PaymentIdType::PaymentIntentId),
             amount: item.amount.map(|amount| amount.into()),
@@ -219,11 +227,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             setup_future_usage: item.setup_future_usage,
             mandate_id: item.mandate_id,
             off_session: item.off_session,
-            routing: routing.and_then(|r| {
-                serde_json::to_value(r)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("converting to routing failed")?
-            }),
+            routing,
             ..Self::default()
         });
         request
