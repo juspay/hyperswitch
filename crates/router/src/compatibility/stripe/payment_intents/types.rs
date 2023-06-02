@@ -1,4 +1,4 @@
-use api_models::{payments};
+use api_models::payments;
 use common_utils::{crypto::Encryptable, date_time, ext_traits::StringExt, pii as secret};
 use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
@@ -170,10 +170,8 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             None => (None, None),
         };
 
-        let routable_connector: Option<api_enums::RoutableConnectors> = item
-            .connector
-            .and_then(|v| v.into_iter().next());
-            
+        let routable_connector: Option<api_enums::RoutableConnectors> =
+            item.connector.and_then(|v| v.into_iter().next());
 
         let routing = routable_connector.map(crate::types::api::RoutingAlgorithm::Single);
         let request = Ok(Self {
@@ -221,7 +219,11 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             setup_future_usage: item.setup_future_usage,
             mandate_id: item.mandate_id,
             off_session: item.off_session,
-            routing: routing.and_then(|r| serde_json::to_value(r).ok()),
+            routing: routing.and_then(|r| {
+                serde_json::to_value(r)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("converting to routing failed")?
+            }),
             ..Self::default()
         });
         request
@@ -647,9 +649,4 @@ pub(crate) fn into_stripe_next_action(
             bank_transfer_steps_and_charges_details,
         },
     })
-}
-
-#[cfg(test)]
-mod tests {
-
 }
