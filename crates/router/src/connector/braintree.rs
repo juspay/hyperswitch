@@ -2,7 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 
 use self::transformers as braintree;
 use crate::{
@@ -688,20 +688,20 @@ impl api::IncomingWebhook for Braintree {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

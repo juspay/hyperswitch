@@ -11,6 +11,7 @@ use self::transformers::{ZenPaymentStatus, ZenWebhookTxnType};
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
+    connector::utils as conn_utils,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -477,13 +478,17 @@ impl api::IncomingWebhook for Zen {
         db: &dyn StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .find_config_by_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-
-        Ok(secret.config.into_bytes())
+        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
+        let secret = match db.find_config_by_key(&key).await {
+            Ok(config) => Some(config),
+            Err(e) => {
+                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
+                None
+            }
+        };
+        Ok(secret
+            .map(|conf| conf.config.into_bytes())
+            .unwrap_or_default())
     }
 
     async fn verify_webhook_source(
