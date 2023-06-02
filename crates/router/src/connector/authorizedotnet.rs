@@ -9,6 +9,7 @@ use transformers as authorizedotnet;
 
 use crate::{
     configs::settings,
+    connector::utils as conn_utils,
     consts,
     core::errors::{self, CustomResult},
     db::StorageInterface,
@@ -684,7 +685,7 @@ impl api::IncomingWebhook for Authorizedotnet {
         db: &dyn StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
+        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
         let secret = match db.find_config_by_key(&key).await {
             Ok(config) => Some(config),
             Err(e) => {
