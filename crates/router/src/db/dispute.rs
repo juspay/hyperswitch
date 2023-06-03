@@ -629,10 +629,245 @@ mod tests {
             disputes_eq(created_dispute, found_disputes.get(0).unwrap().clone());
         }
 
-        #[allow(clippy::unwrap_used)]
-        //#[tokio::test]
-        async fn test_update_dispute() {
-            let mockdb = MockDb::new(&Default::default()).await;
+        mod update_dispute {
+            use masking::Secret;
+            use serde_json::Value;
+            use storage_models::{
+                dispute::DisputeUpdate,
+                enums::{DisputeStage, DisputeStatus},
+            };
+            use time::macros::datetime;
+
+            use crate::db::{
+                dispute::{
+                    tests::mockdb_dispute_interface::{create_dispute_new, DisputeNewIds},
+                    DisputeInterface,
+                },
+                MockDb,
+            };
+
+            #[allow(clippy::unwrap_used)]
+            #[tokio::test]
+            async fn test_update_dispute_update() {
+                let mockdb = MockDb::new(&Default::default()).await;
+
+                let created_dispute = mockdb
+                    .insert_dispute(create_dispute_new(DisputeNewIds {
+                        dispute_id: "dispute_1".into(),
+                        attempt_id: "attempt_1".into(),
+                        merchant_id: "merchant_1".into(),
+                        payment_id: "payment_1".into(),
+                        connector_dispute_id: "connector_dispute_1".into(),
+                    }))
+                    .await
+                    .unwrap();
+
+                let updated_dispute = mockdb
+                    .update_dispute(
+                        created_dispute.clone(),
+                        DisputeUpdate::Update {
+                            dispute_stage: DisputeStage::PreDispute,
+                            dispute_status: DisputeStatus::DisputeAccepted,
+                            connector_status: "updated_connector_status".into(),
+                            connector_reason: Some("updated_connector_reason".into()),
+                            connector_reason_code: Some("updated_connector_reason_code".into()),
+                            challenge_required_by: Some(datetime!(2019-01-10 0:00)),
+                            connector_updated_at: Some(datetime!(2019-01-11 0:00)),
+                        },
+                    )
+                    .await
+                    .unwrap();
+
+                assert_eq!(created_dispute.id, updated_dispute.id);
+                assert_eq!(created_dispute.dispute_id, updated_dispute.dispute_id);
+                assert_eq!(created_dispute.amount, updated_dispute.amount);
+                assert_eq!(created_dispute.currency, updated_dispute.currency);
+                assert_ne!(created_dispute.dispute_stage, updated_dispute.dispute_stage);
+                assert_ne!(
+                    created_dispute.dispute_status,
+                    updated_dispute.dispute_status
+                );
+                assert_eq!(created_dispute.payment_id, updated_dispute.payment_id);
+                assert_eq!(created_dispute.attempt_id, updated_dispute.attempt_id);
+                assert_eq!(created_dispute.merchant_id, updated_dispute.merchant_id);
+                assert_ne!(
+                    created_dispute.connector_status,
+                    updated_dispute.connector_status
+                );
+                assert_eq!(
+                    created_dispute.connector_dispute_id,
+                    updated_dispute.connector_dispute_id
+                );
+                assert_ne!(
+                    created_dispute.connector_reason,
+                    updated_dispute.connector_reason
+                );
+                assert_ne!(
+                    created_dispute.connector_reason_code,
+                    updated_dispute.connector_reason_code
+                );
+                assert_ne!(
+                    created_dispute.challenge_required_by,
+                    updated_dispute.challenge_required_by
+                );
+                assert_eq!(
+                    created_dispute.connector_created_at,
+                    updated_dispute.connector_created_at
+                );
+                assert_ne!(
+                    created_dispute.connector_updated_at,
+                    updated_dispute.connector_updated_at
+                );
+                assert_eq!(created_dispute.created_at, updated_dispute.created_at);
+                assert_ne!(created_dispute.modified_at, updated_dispute.modified_at);
+                assert_eq!(created_dispute.connector, updated_dispute.connector);
+                assert_eq!(created_dispute.evidence, updated_dispute.evidence);
+            }
+
+            #[allow(clippy::unwrap_used)]
+            #[tokio::test]
+            async fn test_update_dispute_update_status() {
+                let mockdb = MockDb::new(&Default::default()).await;
+
+                let created_dispute = mockdb
+                    .insert_dispute(create_dispute_new(DisputeNewIds {
+                        dispute_id: "dispute_1".into(),
+                        attempt_id: "attempt_1".into(),
+                        merchant_id: "merchant_1".into(),
+                        payment_id: "payment_1".into(),
+                        connector_dispute_id: "connector_dispute_1".into(),
+                    }))
+                    .await
+                    .unwrap();
+
+                let updated_dispute = mockdb
+                    .update_dispute(
+                        created_dispute.clone(),
+                        DisputeUpdate::StatusUpdate {
+                            dispute_status: DisputeStatus::DisputeExpired,
+                            connector_status: Some("updated_connector_status".into()),
+                        },
+                    )
+                    .await
+                    .unwrap();
+
+                assert_eq!(created_dispute.id, updated_dispute.id);
+                assert_eq!(created_dispute.dispute_id, updated_dispute.dispute_id);
+                assert_eq!(created_dispute.amount, updated_dispute.amount);
+                assert_eq!(created_dispute.currency, updated_dispute.currency);
+                assert_eq!(created_dispute.dispute_stage, updated_dispute.dispute_stage);
+                assert_ne!(
+                    created_dispute.dispute_status,
+                    updated_dispute.dispute_status
+                );
+                assert_eq!(created_dispute.payment_id, updated_dispute.payment_id);
+                assert_eq!(created_dispute.attempt_id, updated_dispute.attempt_id);
+                assert_eq!(created_dispute.merchant_id, updated_dispute.merchant_id);
+                assert_ne!(
+                    created_dispute.connector_status,
+                    updated_dispute.connector_status
+                );
+                assert_eq!(
+                    created_dispute.connector_dispute_id,
+                    updated_dispute.connector_dispute_id
+                );
+                assert_eq!(
+                    created_dispute.connector_reason,
+                    updated_dispute.connector_reason
+                );
+                assert_eq!(
+                    created_dispute.connector_reason_code,
+                    updated_dispute.connector_reason_code
+                );
+                assert_eq!(
+                    created_dispute.challenge_required_by,
+                    updated_dispute.challenge_required_by
+                );
+                assert_eq!(
+                    created_dispute.connector_created_at,
+                    updated_dispute.connector_created_at
+                );
+                assert_eq!(
+                    created_dispute.connector_updated_at,
+                    updated_dispute.connector_updated_at
+                );
+                assert_eq!(created_dispute.created_at, updated_dispute.created_at);
+                assert_ne!(created_dispute.modified_at, updated_dispute.modified_at);
+                assert_eq!(created_dispute.connector, updated_dispute.connector);
+                assert_eq!(created_dispute.evidence, updated_dispute.evidence);
+            }
+
+            #[allow(clippy::unwrap_used)]
+            #[tokio::test]
+            async fn test_update_dispute_update_evidence() {
+                let mockdb = MockDb::new(&Default::default()).await;
+
+                let created_dispute = mockdb
+                    .insert_dispute(create_dispute_new(DisputeNewIds {
+                        dispute_id: "dispute_1".into(),
+                        attempt_id: "attempt_1".into(),
+                        merchant_id: "merchant_1".into(),
+                        payment_id: "payment_1".into(),
+                        connector_dispute_id: "connector_dispute_1".into(),
+                    }))
+                    .await
+                    .unwrap();
+
+                let updated_dispute = mockdb
+                    .update_dispute(
+                        created_dispute.clone(),
+                        DisputeUpdate::EvidenceUpdate {
+                            evidence: Secret::from(Value::String("updated_evidence".into())),
+                        },
+                    )
+                    .await
+                    .unwrap();
+
+                assert_eq!(created_dispute.id, updated_dispute.id);
+                assert_eq!(created_dispute.dispute_id, updated_dispute.dispute_id);
+                assert_eq!(created_dispute.amount, updated_dispute.amount);
+                assert_eq!(created_dispute.currency, updated_dispute.currency);
+                assert_eq!(created_dispute.dispute_stage, updated_dispute.dispute_stage);
+                assert_eq!(
+                    created_dispute.dispute_status,
+                    updated_dispute.dispute_status
+                );
+                assert_eq!(created_dispute.payment_id, updated_dispute.payment_id);
+                assert_eq!(created_dispute.attempt_id, updated_dispute.attempt_id);
+                assert_eq!(created_dispute.merchant_id, updated_dispute.merchant_id);
+                assert_eq!(
+                    created_dispute.connector_status,
+                    updated_dispute.connector_status
+                );
+                assert_eq!(
+                    created_dispute.connector_dispute_id,
+                    updated_dispute.connector_dispute_id
+                );
+                assert_eq!(
+                    created_dispute.connector_reason,
+                    updated_dispute.connector_reason
+                );
+                assert_eq!(
+                    created_dispute.connector_reason_code,
+                    updated_dispute.connector_reason_code
+                );
+                assert_eq!(
+                    created_dispute.challenge_required_by,
+                    updated_dispute.challenge_required_by
+                );
+                assert_eq!(
+                    created_dispute.connector_created_at,
+                    updated_dispute.connector_created_at
+                );
+                assert_eq!(
+                    created_dispute.connector_updated_at,
+                    updated_dispute.connector_updated_at
+                );
+                assert_eq!(created_dispute.created_at, updated_dispute.created_at);
+                assert_ne!(created_dispute.modified_at, updated_dispute.modified_at);
+                assert_eq!(created_dispute.connector, updated_dispute.connector);
+                assert_ne!(created_dispute.evidence, updated_dispute.evidence);
+            }
         }
     }
 }
