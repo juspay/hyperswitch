@@ -400,8 +400,8 @@ mod tests {
             assert_eq!(d1.challenge_required_by, d2.challenge_required_by);
             assert_eq!(d1.connector_created_at, d2.connector_created_at);
             assert_eq!(d1.connector_updated_at, d2.connector_updated_at);
-            //assert_eq!(d1.created_at, d2.created_at);
-            //assert_eq!(d1.modified_at, d2.modified_at);
+            assert_eq!(d1.created_at, d2.created_at);
+            assert_eq!(d1.modified_at, d2.modified_at);
             assert_eq!(d1.connector, d2.connector);
             assert_eq!(d1.evidence, d2.evidence);
         }
@@ -470,20 +470,40 @@ mod tests {
         async fn test_find_by_merchant_id_payment_id_connector_dispute_id() {
             let mockdb = MockDb::new(&Default::default()).await;
 
-            init_mock(&mockdb).await;
+            let created_dispute = mockdb
+                .insert_dispute(create_dispute_new(DisputeNewIds {
+                    dispute_id: "dispute_1".into(),
+                    attempt_id: "attempt_1".into(),
+                    merchant_id: "merchant_1".into(),
+                    payment_id: "payment_1".into(),
+                    connector_dispute_id: "connector_dispute_1".into(),
+                }))
+                .await
+                .unwrap();
+
+            let _ = mockdb
+                .insert_dispute(create_dispute_new(DisputeNewIds {
+                    dispute_id: "dispute_2".into(),
+                    attempt_id: "attempt_1".into(),
+                    merchant_id: "merchant_1".into(),
+                    payment_id: "payment_1".into(),
+                    connector_dispute_id: "connector_dispute_2".into(),
+                }))
+                .await
+                .unwrap();
 
             let found_dispute = mockdb
                 .find_by_merchant_id_payment_id_connector_dispute_id(
-                    "merchant_2",
-                    "payment_2",
-                    "connector_dispute_2",
+                    "merchant_1",
+                    "payment_1",
+                    "connector_dispute_1",
                 )
                 .await
                 .unwrap();
 
             assert!(found_dispute.is_some());
 
-            disputes_eq(create_dispute(2), found_dispute.unwrap());
+            disputes_eq(created_dispute, found_dispute.unwrap());
         }
 
         #[allow(clippy::unwrap_used)]
