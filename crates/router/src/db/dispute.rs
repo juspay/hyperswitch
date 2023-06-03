@@ -372,20 +372,16 @@ impl DisputeInterface for MockDb {
 #[cfg(test)]
 mod tests {
     mod mockdb_dispute_interface {
-        use std::str::FromStr;
-
+        use api_models::disputes::DisputeListConstraints;
         use masking::Secret;
         use serde_json::Value;
         use storage_models::{
-            dispute::Dispute,
+            dispute::{Dispute, DisputeNew},
             enums::{DisputeStage, DisputeStatus},
         };
-        use time::{macros::datetime, PrimitiveDateTime};
+        use time::macros::datetime;
 
-        use crate::{
-            db::{dispute::DisputeInterface, MockDb},
-            types::storage,
-        };
+        use crate::db::{dispute::DisputeInterface, MockDb};
 
         fn disputes_eq(d1: Dispute, d2: Dispute) {
             assert_eq!(d1.id, d2.id);
@@ -410,55 +406,33 @@ mod tests {
             assert_eq!(d1.evidence, d2.evidence);
         }
 
-        async fn init_mock(mockdb: &MockDb) {
-            for i in 0..6 {
-                mockdb
-                    .insert_dispute(storage::DisputeNew {
-                        dispute_id: format!("dispute_{i}").into(),
-                        amount: "amount".into(),
-                        currency: "currency".into(),
-                        dispute_stage: DisputeStage::Dispute,
-                        dispute_status: DisputeStatus::DisputeOpened,
-                        payment_id: format!("payment_{i}").into(),
-                        attempt_id: format!("attempt_{i}").into(),
-                        merchant_id: format!("merchant_{i}").into(),
-                        connector_status: "connector_status".into(),
-                        connector_dispute_id: format!("connector_dispute_{i}").into(),
-                        connector_reason: Some("connector_reason".into()),
-                        connector_reason_code: Some("connector_reason_code".into()),
-                        challenge_required_by: Some(datetime!(2019-01-01 0:00)),
-                        connector_created_at: Some(datetime!(2019-01-02 0:00)),
-                        connector_updated_at: Some(datetime!(2019-01-03 0:00)),
-                        connector: "connector".into(),
-                        evidence: Some(Secret::from(Value::String("evidence".into()))),
-                    })
-                    .await
-                    .unwrap();
-            }
+        pub struct DisputeNewIds {
+            dispute_id: String,
+            payment_id: String,
+            attempt_id: String,
+            merchant_id: String,
+            connector_dispute_id: String,
         }
 
-        fn create_dispute(id: i32) -> Dispute {
-            Dispute {
-                id,
-                dispute_id: format!("dispute_{id}").into(),
+        fn create_dispute_new(dispute_ids: DisputeNewIds) -> DisputeNew {
+            DisputeNew {
+                dispute_id: dispute_ids.dispute_id,
                 amount: "amount".into(),
                 currency: "currency".into(),
                 dispute_stage: DisputeStage::Dispute,
                 dispute_status: DisputeStatus::DisputeOpened,
-                payment_id: format!("payment_{id}").into(),
-                attempt_id: format!("attempt_{id}").into(),
-                merchant_id: format!("merchant_{id}").into(),
+                payment_id: dispute_ids.payment_id,
+                attempt_id: dispute_ids.attempt_id,
+                merchant_id: dispute_ids.merchant_id,
                 connector_status: "connector_status".into(),
-                connector_dispute_id: format!("connector_dispute_{id}").into(),
+                connector_dispute_id: dispute_ids.connector_dispute_id,
                 connector_reason: Some("connector_reason".into()),
                 connector_reason_code: Some("connector_reason_code".into()),
                 challenge_required_by: Some(datetime!(2019-01-01 0:00)),
                 connector_created_at: Some(datetime!(2019-01-02 0:00)),
                 connector_updated_at: Some(datetime!(2019-01-03 0:00)),
-                created_at: datetime!(2019-01-04 0:00),
-                modified_at: datetime!(2019-01-05 0:00),
                 connector: "connector".into(),
-                evidence: Secret::from(Value::String("evidence".into())),
+                evidence: Some(Secret::from(Value::String("evidence".into()))),
             }
         }
 
@@ -468,25 +442,13 @@ mod tests {
             let mockdb = MockDb::new(&Default::default()).await;
 
             let created_dispute = mockdb
-                .insert_dispute(storage::DisputeNew {
-                    dispute_id: "dispute_id".into(),
-                    amount: "amount".into(),
-                    currency: "currency".into(),
-                    dispute_stage: DisputeStage::Dispute,
-                    dispute_status: DisputeStatus::DisputeOpened,
-                    payment_id: "payment_id".into(),
-                    attempt_id: "attempt_id".into(),
-                    merchant_id: "merchant_id".into(),
-                    connector_status: "connector_status".into(),
-                    connector_dispute_id: "connector_dispute_id".into(),
-                    connector_reason: Some("connector_reason".into()),
-                    connector_reason_code: Some("connector_reason_code".into()),
-                    challenge_required_by: Some(datetime!(2019-01-01 0:00)),
-                    connector_created_at: Some(datetime!(2019-01-02 0:00)),
-                    connector_updated_at: Some(datetime!(2019-01-03 0:00)),
-                    connector: "connector".into(),
-                    evidence: Some(Secret::from(Value::String("evidence".into()))),
-                })
+                .insert_dispute(create_dispute_new(DisputeNewIds {
+                    dispute_id: "dispute_1".into(),
+                    attempt_id: "attempt_1".into(),
+                    merchant_id: "merchant_1".into(),
+                    payment_id: "payment_1".into(),
+                    connector_dispute_id: "connector_dispute_1".into(),
+                }))
                 .await
                 .unwrap();
 
