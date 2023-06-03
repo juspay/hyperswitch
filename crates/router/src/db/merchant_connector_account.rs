@@ -451,7 +451,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .lock()
             .await
             .iter_mut()
-            .find(|account| account.id == merchant_connector_account.id.unwrap_or_default())
+            .find(|account| Some(account.id) == merchant_connector_account.id)
             .map(|a| {
                 let updated =
                     updated_merchant_connector_account.create_merchant_connector_account(a.clone());
