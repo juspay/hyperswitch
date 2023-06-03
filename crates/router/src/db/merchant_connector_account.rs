@@ -1,8 +1,5 @@
-use common_utils::{
-    errors::ValidationError,
-    ext_traits::{AsyncExt, ByteSliceExt, Encode},
-};
-use error_stack::{IntoReport, Report, ResultExt};
+use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
+use error_stack::{IntoReport, ResultExt};
 use storage_models::merchant_connector_account::MerchantConnectorAccountUpdateInternal;
 
 #[cfg(feature = "accounts_cache")]
