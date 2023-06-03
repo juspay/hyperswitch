@@ -542,9 +542,54 @@ mod tests {
         }
 
         #[allow(clippy::unwrap_used)]
-        //#[tokio::test]
+        #[tokio::test]
         async fn test_find_disputes_by_merchant_id() {
             let mockdb = MockDb::new(&Default::default()).await;
+
+            let created_dispute = mockdb
+                .insert_dispute(create_dispute_new(DisputeNewIds {
+                    dispute_id: "dispute_1".into(),
+                    attempt_id: "attempt_1".into(),
+                    merchant_id: "merchant_1".into(),
+                    payment_id: "payment_1".into(),
+                    connector_dispute_id: "connector_dispute_1".into(),
+                }))
+                .await
+                .unwrap();
+
+            let _ = mockdb
+                .insert_dispute(create_dispute_new(DisputeNewIds {
+                    dispute_id: "dispute_2".into(),
+                    attempt_id: "attempt_1".into(),
+                    merchant_id: "merchant_2".into(),
+                    payment_id: "payment_1".into(),
+                    connector_dispute_id: "connector_dispute_1".into(),
+                }))
+                .await
+                .unwrap();
+
+            let found_disputes = mockdb
+                .find_disputes_by_merchant_id(
+                    "merchant_1",
+                    DisputeListConstraints {
+                        limit: None,
+                        dispute_status: None,
+                        dispute_stage: None,
+                        reason: None,
+                        connector: None,
+                        received_time: None,
+                        received_time_lt: None,
+                        received_time_gt: None,
+                        received_time_lte: None,
+                        received_time_gte: None,
+                    },
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(1, found_disputes.len());
+
+            disputes_eq(created_dispute, found_disputes.get(0).unwrap().clone());
         }
 
         #[allow(clippy::unwrap_used)]
