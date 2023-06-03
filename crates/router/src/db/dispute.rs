@@ -511,14 +511,34 @@ mod tests {
         async fn test_find_dispute_by_merchant_id_dispute_id() {
             let mockdb = MockDb::new(&Default::default()).await;
 
-            init_mock(&mockdb).await;
-
-            let found_dispute = mockdb
-                .find_dispute_by_merchant_id_dispute_id("merchant_3", "dispute_3")
+            let created_dispute = mockdb
+                .insert_dispute(create_dispute_new(DisputeNewIds {
+                    dispute_id: "dispute_1".into(),
+                    attempt_id: "attempt_1".into(),
+                    merchant_id: "merchant_1".into(),
+                    payment_id: "payment_1".into(),
+                    connector_dispute_id: "connector_dispute_1".into(),
+                }))
                 .await
                 .unwrap();
 
-            disputes_eq(create_dispute(3), found_dispute);
+            let _ = mockdb
+                .insert_dispute(create_dispute_new(DisputeNewIds {
+                    dispute_id: "dispute_2".into(),
+                    attempt_id: "attempt_1".into(),
+                    merchant_id: "merchant_1".into(),
+                    payment_id: "payment_1".into(),
+                    connector_dispute_id: "connector_dispute_1".into(),
+                }))
+                .await
+                .unwrap();
+
+            let found_dispute = mockdb
+                .find_dispute_by_merchant_id_dispute_id("merchant_1", "dispute_1")
+                .await
+                .unwrap();
+
+            disputes_eq(created_dispute, found_dispute);
         }
 
         #[allow(clippy::unwrap_used)]
