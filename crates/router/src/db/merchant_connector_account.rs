@@ -376,7 +376,6 @@ impl MerchantConnectorAccountInterface for MockDb {
         }
     }
 
-    #[allow(clippy::panic)]
     async fn insert_merchant_connector_account(
         &self,
         t: domain::MerchantConnectorAccount,
@@ -421,7 +420,11 @@ impl MerchantConnectorAccountInterface for MockDb {
             .await
             .iter()
             .filter(|account: &&storage::MerchantConnectorAccount| {
-                account.merchant_id == merchant_id && account.disabled == Some(get_disabled)
+                if get_disabled {
+                    account.merchant_id == merchant_id
+                } else {
+                    account.merchant_id == merchant_id && account.disabled == Some(false)
+                }
             })
             .cloned()
             .collect::<Vec<storage::MerchantConnectorAccount>>();
