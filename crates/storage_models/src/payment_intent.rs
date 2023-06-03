@@ -36,6 +36,7 @@ pub struct PaymentIntent {
     pub active_attempt_id: String,
     pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
+    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
 }
 
 #[derive(
@@ -78,6 +79,7 @@ pub struct PaymentIntentNew {
     pub active_attempt_id: String,
     pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
+    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,6 +118,7 @@ pub enum PaymentIntentUpdate {
         return_url: Option<String>,
         business_country: Option<storage_enums::CountryAlpha2>,
         business_label: Option<String>,
+        order_details: Option<Vec<pii::SecretSerdeValue>>,
     },
     PaymentAttemptUpdate {
         active_attempt_id: String,
@@ -146,6 +149,7 @@ pub struct PaymentIntentUpdateInternal {
     pub active_attempt_id: Option<String>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
+    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
 }
 
 impl PaymentIntentUpdate {
@@ -173,6 +177,7 @@ impl PaymentIntentUpdate {
                 .shipping_address_id
                 .or(source.shipping_address_id),
             modified_at: common_utils::date_time::now(),
+            order_details: internal_update.order_details.or(source.order_details),
             ..source
         }
     }
@@ -192,6 +197,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 return_url,
                 business_country,
                 business_label,
+                order_details,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -205,6 +211,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 return_url,
                 business_country,
                 business_label,
+                order_details,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate { metadata } => Self {

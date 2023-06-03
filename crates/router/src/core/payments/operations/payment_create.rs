@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use api_models::payments::OrderDetailsWithAmount;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::{self, ResultExt};
@@ -30,6 +31,7 @@ use crate::{
     },
     utils::OptionExt,
 };
+
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(ops = "all", flow = "authorize")]
 pub struct PaymentCreate;
@@ -544,7 +546,28 @@ impl PaymentCreate {
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Encoding Metadata to value failed")?;
-
+        let order_details_metadata_req =
+            request.clone().metadata.and_then(|meta| meta.order_details);
+        if request
+            .clone()
+            .order_details
+            .zip(order_details_metadata_req)
+            .is_some()
+        {
+            Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
+        }
+        let order_details_outside_value = request.clone().order_details.map(|o| {
+            o.iter()
+                .map(|order| {
+                    let encoded_order = Encode::<OrderDetailsWithAmount>::encode_to_value(&order)
+                        .change_context(errors::ApiErrorResponse::NotSupported {
+                            message: "failed while encoding order_details".to_string(),
+                        })
+                        .unwrap_or_default();
+                    masking::Secret::new(encoded_order)
+                })
+                .collect::<Vec<masking::Secret<serde_json::Value>>>()
+        });
         let (business_country, business_label) = helpers::get_business_details(
             request.business_country,
             request.business_label.as_ref(),
@@ -573,6 +596,7 @@ impl PaymentCreate {
             business_country,
             business_label,
             active_attempt_id,
+            order_details: order_details_outside_value,
             ..storage::PaymentIntentNew::default()
         })
     }
