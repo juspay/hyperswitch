@@ -1,5 +1,8 @@
-use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
-use error_stack::{IntoReport, ResultExt};
+use common_utils::{
+    errors::ValidationError,
+    ext_traits::{AsyncExt, ByteSliceExt, Encode},
+};
+use error_stack::{IntoReport, Report, ResultExt};
 use storage_models::merchant_connector_account::MerchantConnectorAccountUpdateInternal;
 
 #[cfg(feature = "accounts_cache")]
@@ -306,28 +309,38 @@ impl MerchantConnectorAccountInterface for Store {
     }
 }
 
-#[allow(clippy::unwrap_used)]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for MockDb {
-    // safety: only used for testing
-    #[allow(clippy::unwrap_used)]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,
         connector: &str,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        let accounts = self.merchant_connector_accounts.lock().await;
-        let account = accounts
+        match self
+            .merchant_connector_accounts
+            .lock()
+            .await
             .iter()
             .find(|account| {
                 account.merchant_id == merchant_id && account.connector_name == connector
             })
             .cloned()
-            .unwrap();
-        account
-            .convert(self, merchant_id)
+            .async_map(|account| async {
+                account
+                    .convert(self, merchant_id, self.get_migration_timestamp())
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            })
             .await
-            .change_context(errors::StorageError::DecryptionError)
+        {
+            Some(result) => result,
+            None => {
+                return Err(errors::StorageError::ValueNotFound(
+                    "cannot find merchant connector account".to_string(),
+                )
+                .into())
+            }
+        }
     }
 
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -335,19 +348,32 @@ impl MerchantConnectorAccountInterface for MockDb {
         merchant_id: &str,
         merchant_connector_id: &str,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        let accounts = self.merchant_connector_accounts.lock().await;
-        let account = accounts
+        match self
+            .merchant_connector_accounts
+            .lock()
+            .await
             .iter()
             .find(|account| {
                 account.merchant_id == merchant_id
                     && account.merchant_connector_id == merchant_connector_id
             })
             .cloned()
-            .unwrap();
-        account
-            .convert(self, merchant_id, self.get_migration_timestamp())
+            .async_map(|account| async {
+                account
+                    .convert(self, merchant_id, self.get_migration_timestamp())
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            })
             .await
-            .change_context(errors::StorageError::DecryptionError)
+        {
+            Some(result) => result,
+            None => {
+                return Err(errors::StorageError::ValueNotFound(
+                    "cannot find merchant connector account".to_string(),
+                )
+                .into())
+            }
+        }
     }
 
     #[allow(clippy::panic)]
@@ -417,7 +443,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         merchant_connector_account: domain::MerchantConnectorAccount,
         updated_merchant_connector_account: MerchantConnectorAccountUpdateInternal,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        let account = self
+        match self
             .merchant_connector_accounts
             .lock()
             .await
@@ -429,15 +455,26 @@ impl MerchantConnectorAccountInterface for MockDb {
                 *a = updated.clone();
                 updated
             })
-            .unwrap();
-        account
-            .convert(
-                self,
-                &merchant_connector_account.merchant_id,
-                self.get_migration_timestamp(),
-            )
+            .async_map(|account| async {
+                account
+                    .convert(
+                        self,
+                        &merchant_connector_account.merchant_id,
+                        self.get_migration_timestamp(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            })
             .await
-            .change_context(errors::StorageError::DecryptionError)
+        {
+            Some(result) => result,
+            None => {
+                return Err(errors::StorageError::ValueNotFound(
+                    "cannot find merchant connector account to update".to_string(),
+                )
+                .into())
+            }
+        }
     }
 
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
