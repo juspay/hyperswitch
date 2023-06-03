@@ -1,3 +1,4 @@
+use api_models::enums::{DisputeStage, DisputeStatus};
 use error_stack::IntoReport;
 
 use super::{MockDb, Store};
@@ -6,7 +7,7 @@ use crate::{
     core::errors::{self, CustomResult},
     types::{
         storage::{self, DisputeDbExt},
-        transformers::ForeignInto,
+        transformers::ForeignFrom,
     },
 };
 
@@ -136,6 +137,11 @@ impl DisputeInterface for MockDb {
         &self,
         dispute: storage::DisputeNew,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
+        let evidence = match dispute.evidence {
+            None => Err(errors::StorageError::MockDbError)?,
+            Some(evidence) => evidence,
+        };
+
         let mut locked_disputes = self.disputes.lock().await;
 
         if locked_disputes
@@ -144,9 +150,11 @@ impl DisputeInterface for MockDb {
         {
             Err(errors::StorageError::MockDbError)?;
         }
+
         let now = common_utils::date_time::now();
 
         let new_dispute = storage::Dispute {
+            #[allow(clippy::as_conversions)]
             id: locked_disputes.len() as i32,
             dispute_id: dispute.dispute_id,
             amount: dispute.amount,
@@ -166,7 +174,7 @@ impl DisputeInterface for MockDb {
             created_at: now,
             modified_at: now,
             connector: dispute.connector,
-            evidence: dispute.evidence.unwrap(),
+            evidence,
         };
 
         locked_disputes.push(new_dispute.clone());
@@ -217,62 +225,70 @@ impl DisputeInterface for MockDb {
         dispute_constraints: api_models::disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
-/*
+
         Ok(locked_disputes
             .iter()
             .filter(|d| {
-                let mut filtering_condition = d.merchant_id == merchant_id;
-
-                if let Some(dispute_status) = dispute_constraints.dispute_status {
-                    filtering_condition &= d.dispute_status == dispute_status.foreign_into()
-                }
-
-                if let Some(dispute_stage) = dispute_constraints.dispute_stage {
-                    filtering_condition &= d.dispute_stage == dispute_stage.foreign_into()
-                }
-
-                if d.connector_reason.is_some() {
-                    if let Some(reason) = dispute_constraints.reason {
-                        filtering_condition &= d.connector_reason.unwrap() == reason
-                    }
-                }
-
-                if let Some(connector) = dispute_constraints.connector {
-                    filtering_condition &= d.connector == connector
-                }
-
-                if let Some(received_time) = dispute_constraints.received_time {
-                    filtering_condition &= d.created_at == received_time
-                }
-
-                if let Some(received_time_lt) = dispute_constraints.received_time_lt {
-                    filtering_condition &= d.created_at < received_time_lt
-                }
-
-                if let Some(received_time_gt) = dispute_constraints.received_time_gt {
-                    filtering_condition &= d.created_at > received_time_gt
-                }
-
-                if let Some(received_time_lte) = dispute_constraints.received_time_lte {
-                    filtering_condition &= d.created_at <= received_time_lte
-                }
-
-                if let Some(received_time_gte) = dispute_constraints.received_time_gte {
-                    filtering_condition &= d.created_at >= received_time_gte
-                }
-
-                filtering_condition
+                d.merchant_id == merchant_id
+                    && dispute_constraints
+                        .dispute_status
+                        .as_ref()
+                        .map(|status| status == &DisputeStatus::foreign_from(d.dispute_status))
+                        .unwrap_or(true)
+                    && dispute_constraints
+                        .dispute_stage
+                        .as_ref()
+                        .map(|stage| stage == &DisputeStage::foreign_from(d.dispute_stage))
+                        .unwrap_or(true)
+                    && dispute_constraints
+                        .reason
+                        .as_ref()
+                        .map(|reason| {
+                            d.connector_reason
+                                .as_ref()
+                                .map(|connector_reason| connector_reason == reason)
+                                .unwrap_or(true)
+                        })
+                        .unwrap_or(true)
+                    && dispute_constraints
+                        .connector
+                        .as_ref()
+                        .map(|connector| connector == &d.connector)
+                        .unwrap_or(true)
+                    && dispute_constraints
+                        .received_time
+                        .as_ref()
+                        .map(|received_time| received_time == &d.created_at)
+                        .unwrap_or(true)
+                    && dispute_constraints
+                        .received_time_lt
+                        .as_ref()
+                        .map(|received_time_lt| received_time_lt > &d.created_at)
+                        .unwrap_or(true)
+                    && dispute_constraints
+                        .received_time_gt
+                        .as_ref()
+                        .map(|received_time_gt| received_time_gt < &d.created_at)
+                        .unwrap_or(true)
+                    && dispute_constraints
+                        .received_time_lte
+                        .as_ref()
+                        .map(|received_time_lte| received_time_lte >= &d.created_at)
+                        .unwrap_or(true)
+                    && dispute_constraints
+                        .received_time_gte
+                        .as_ref()
+                        .map(|received_time_gte| received_time_gte <= &d.created_at)
+                        .unwrap_or(true)
             })
-            .take(if let Some(limit) = dispute_constraints.limit {
-                limit as usize
-            } else {
-                usize::MAX
-            })
+            .take(
+                dispute_constraints
+                    .limit
+                    .map(|limit| usize::try_from(limit).unwrap_or(usize::MAX))
+                    .unwrap_or(usize::MAX),
+            )
             .cloned()
             .collect())
-
- */
-        Ok(vec![])
     }
 
     async fn find_disputes_by_merchant_id_payment_id(
