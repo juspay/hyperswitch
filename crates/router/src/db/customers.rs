@@ -2,7 +2,7 @@ use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 
-use super::{MasterKeyInterface, MockDb, Store};
+use super::{MockDb, Store};
 use crate::{
     connection,
     core::{
@@ -72,7 +72,7 @@ impl CustomerInterface for Store {
             .map_err(Into::into)
             .into_report()?
             .async_map(|c| async {
-                c.convert(self, merchant_id, self.get_migration_timestamp())
+                c.convert(self, merchant_id)
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -108,7 +108,7 @@ impl CustomerInterface for Store {
         .into_report()
         .async_and_then(|c| async {
             let merchant_id = c.merchant_id.clone();
-            c.convert(self, &merchant_id, self.get_migration_timestamp())
+            c.convert(self, &merchant_id)
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         })
@@ -128,7 +128,7 @@ impl CustomerInterface for Store {
                 .into_report()
                 .async_and_then(|c| async {
                     let merchant_id = c.merchant_id.clone();
-                    c.convert(self, &merchant_id, self.get_migration_timestamp())
+                    c.convert(self, &merchant_id)
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -156,7 +156,7 @@ impl CustomerInterface for Store {
             .into_report()
             .async_and_then(|c| async {
                 let merchant_id = c.merchant_id.clone();
-                c.convert(self, &merchant_id, self.get_migration_timestamp())
+                c.convert(self, &merchant_id)
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -194,7 +194,7 @@ impl CustomerInterface for MockDb {
         customer
             .async_map(|c| async {
                 let merchant_id = c.merchant_id.clone();
-                c.convert(self, &merchant_id, self.get_migration_timestamp())
+                c.convert(self, &merchant_id)
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -236,7 +236,7 @@ impl CustomerInterface for MockDb {
         customers.push(customer.clone());
 
         customer
-            .convert(self, &merchant_id, self.get_migration_timestamp())
+            .convert(self, &merchant_id)
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
