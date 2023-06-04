@@ -103,7 +103,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_account_details: Encryptable::decrypt(
                 other.connector_account_details,
                 &key,
-                GcmAes256 {},
+                GcmAes256,
             )
             .await
             .change_context(ValidationError::InvalidValue {

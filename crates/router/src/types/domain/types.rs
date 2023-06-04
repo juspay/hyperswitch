@@ -203,7 +203,7 @@ where
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     request::record_operation_time(
-        crypto::Encryptable::encrypt(inner, key, crypto::GcmAes256 {}),
+        crypto::Encryptable::encrypt(inner, key, crypto::GcmAes256),
         &ENCRYPTION_TIME,
     )
     .await
@@ -231,13 +231,7 @@ where
     crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
 {
     request::record_operation_time(
-        inner.async_map(|item| {
-            crypto::Encryptable::decrypt(
-                item,
-                key,
-                crypto::GcmAes256 {},
-            )
-        }),
+        inner.async_map(|item| crypto::Encryptable::decrypt(item, key, crypto::GcmAes256)),
         &DECRYPTION_TIME,
     )
     .await
