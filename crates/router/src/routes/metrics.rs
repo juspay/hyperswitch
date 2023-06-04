@@ -10,10 +10,12 @@ counter_metric!(AWS_KMS_FAILURES, GLOBAL_METER); // No. of AWS KMS API failures
 
 // API Level Metrics
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
-counter_metric!(FAILED_REQUEST, GLOBAL_METER);
+counter_metric!(REQUEST_STATUS, GLOBAL_METER);
 histogram_metric!(REQUEST_TIME, GLOBAL_METER);
 
 // Operation Level Metrics
+counter_metric!(PAYMENT_OPS_COUNT, GLOBAL_METER);
+
 counter_metric!(PAYMENT_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_PAYMENT, GLOBAL_METER);
 
@@ -42,6 +44,8 @@ counter_metric!(CUSTOMER_REDACTED, GLOBAL_METER);
 counter_metric!(API_KEY_CREATED, GLOBAL_METER);
 counter_metric!(API_KEY_REVOKED, GLOBAL_METER);
 
+counter_metric!(MCA_CREATE, GLOBAL_METER);
+
 // Flow Specific Metrics
 
 counter_metric!(ACCESS_TOKEN_CREATION, GLOBAL_METER);
@@ -57,6 +61,12 @@ counter_metric!(RESPONSE_DESERIALIZATION_FAILURE, GLOBAL_METER);
 counter_metric!(CONNECTOR_ERROR_RESPONSE_COUNT, GLOBAL_METER);
 counter_metric!(REQUEST_TIMEOUT_COUNT, GLOBAL_METER);
 
+counter_metric!(EXECUTE_PRETASK_COUNT, GLOBAL_METER);
+counter_metric!(CONNECTOR_PAYMENT_METHOD_TOKENIZATION, GLOBAL_METER);
+counter_metric!(PREPROCESSING_STEPS_COUNT, GLOBAL_METER);
+counter_metric!(CONNECTOR_CUSTOMER_CREATE, GLOBAL_METER);
+counter_metric!(REDIRECTION_TRIGGERED, GLOBAL_METER);
+
 // Connector Level Metric
 counter_metric!(REQUEST_BUILD_FAILURE, GLOBAL_METER);
 counter_metric!(UNIMPLEMENTED_FLOW, GLOBAL_METER);
@@ -67,6 +77,10 @@ counter_metric!(TEMP_LOCKER_FAILURES, GLOBAL_METER);
 histogram_metric!(CARD_ADD_TIME, GLOBAL_METER);
 histogram_metric!(CARD_GET_TIME, GLOBAL_METER);
 histogram_metric!(CARD_DELETE_TIME, GLOBAL_METER);
+
+// Encryption and Decryption metrics
+histogram_metric!(ENCRYPTION_TIME, GLOBAL_METER);
+histogram_metric!(DECRYPTION_TIME, GLOBAL_METER);
 
 pub mod request;
 pub mod utils;

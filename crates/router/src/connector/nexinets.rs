@@ -95,8 +95,9 @@ impl ConnectorCommon for Nexinets {
             .parse_struct("NexinetsErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let errors = response.errors.clone();
+        let errors = response.errors;
         let mut message = String::new();
+        let mut static_message = String::new();
         for error in errors.iter() {
             let field = error.field.to_owned().unwrap_or_default();
             let mut msg = String::new();
@@ -107,16 +108,18 @@ impl ConnectorCommon for Nexinets {
             }
             if message.is_empty() {
                 message.push_str(&msg);
+                static_message.push_str(&msg);
             } else {
                 message.push_str(format!(", {}", msg).as_str());
             }
         }
+        let connector_reason = format!("reason : {} , message : {}", response.message, message);
 
         Ok(ErrorResponse {
             status_code: response.status,
             code: response.code.to_string(),
-            message,
-            reason: Some(response.message),
+            message: static_message,
+            reason: Some(connector_reason),
         })
     }
 }

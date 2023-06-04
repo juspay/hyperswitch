@@ -78,14 +78,18 @@ impl ConnectorCommon for Checkout {
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = if res.response.is_empty() {
+            let (error_codes, error_type) = if res.status_code == 401 {
+                (
+                    Some(vec!["Invalid api key".to_string()]),
+                    Some("invalid_api_key".to_string()),
+                )
+            } else {
+                (None, None)
+            };
             checkout::ErrorResponse {
                 request_id: None,
-                error_type: if res.status_code == 401 || res.status_code == 422 {
-                    Some("Invalid Api Key".to_owned())
-                } else {
-                    None
-                },
-                error_codes: None,
+                error_codes,
+                error_type,
             }
         } else {
             res.response
@@ -1075,7 +1079,7 @@ impl api::IncomingWebhook for Checkout {
         db: &dyn StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
+        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
         let secret = match db.find_config_by_key(&key).await {
             Ok(config) => Some(config),
             Err(e) => {
