@@ -118,6 +118,7 @@ pub struct MockDb {
     api_keys: Arc<Mutex<Vec<storage::ApiKey>>>,
     cards_info: Arc<Mutex<Vec<storage::CardInfo>>>,
     events: Arc<Mutex<Vec<storage::Event>>>,
+    lockers: Arc<Mutex<Vec<storage::LockerMockUp>>>,
 }
 
 impl MockDb {
@@ -136,6 +137,7 @@ impl MockDb {
             api_keys: Default::default(),
             cards_info: Default::default(),
             events: Default::default(),
+            lockers: Default::default(),
         }
     }
 }
