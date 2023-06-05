@@ -18,6 +18,9 @@ pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;
 // prefix of ephemeral_key
 pub const EPHEMERAL_KEY_PREFIX: &str = "epk";
 
+// length of random suffix of ephemeral_key
+pub const EPHEMERAL_KEY_SUFFIX_LENGTH: usize = 32;
+
 // String literals
 pub(crate) const NO_ERROR_MESSAGE: &str = "No error message";
 pub(crate) const NO_ERROR_CODE: &str = "No error code";

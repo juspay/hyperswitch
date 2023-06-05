@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use common_utils::{
+    crypto as common_crypto,
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
 };
@@ -1200,7 +1201,9 @@ pub async fn make_ephemeral_key(
     let secret = format!(
         "{}_{}",
         consts::EPHEMERAL_KEY_PREFIX,
-        &Uuid::new_v4().simple().to_string()
+        common_crypto::generate_cryptographically_secure_random_string(
+            consts::EPHEMERAL_KEY_SUFFIX_LENGTH
+        )
     );
     let ek = ephemeral_key::EphemeralKeyNew {
         id,
