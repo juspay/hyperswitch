@@ -1,4 +1,4 @@
-use storage_models::errors::DatabaseError;
+use storage_models::{errors::DatabaseError, refund::RefundUpdateInternal};
 
 use super::MockDb;
 use crate::{
@@ -604,12 +604,21 @@ mod storage {
 impl RefundInterface for MockDb {
     async fn find_refund_by_internal_reference_id_merchant_id(
         &self,
-        _internal_reference_id: &str,
-        _merchant_id: &str,
+        internal_reference_id: &str,
+        merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage_types::Refund, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let refunds = self.refunds.lock().await;
+        refunds
+            .iter()
+            .find(|refund| {
+                refund.merchant_id == merchant_id
+                    && refund.internal_reference_id == internal_reference_id
+            })
+            .cloned()
+            .ok_or_else(|| {
+                errors::StorageError::DatabaseError(DatabaseError::NotFound.into()).into()
+            })
     }
 
     async fn insert_refund(
@@ -670,12 +679,24 @@ impl RefundInterface for MockDb {
 
     async fn update_refund(
         &self,
-        _this: storage_types::Refund,
-        _refund: storage_types::RefundUpdate,
+        this: storage_types::Refund,
+        refund: storage_types::RefundUpdate,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage_types::Refund, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        self.refunds
+            .lock()
+            .await
+            .iter_mut()
+            .find(|refund| this.refund_id == refund.refund_id)
+            .map(|r| {
+                let refund_updated = RefundUpdateInternal::from(refund).create_refund(r.clone());
+                *r = refund_updated.clone();
+                refund_updated
+            })
+            .ok_or_else(|| {
+                errors::StorageError::ValueNotFound("cannot find refund to update".to_string())
+                    .into()
+            })
     }
 
     async fn find_refund_by_merchant_id_refund_id(
@@ -719,23 +740,34 @@ impl RefundInterface for MockDb {
 
     async fn find_refund_by_payment_id_merchant_id(
         &self,
-        _payment_id: &str,
-        _merchant_id: &str,
+        payment_id: &str,
+        merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let refunds = self.refunds.lock().await;
+
+        Ok(refunds
+            .iter()
+            .filter(|refund| refund.merchant_id == merchant_id && refund.payment_id == payment_id)
+            .cloned()
+            .collect::<Vec<_>>())
     }
 
     #[cfg(feature = "olap")]
     async fn filter_refund_by_constraints(
         &self,
-        _merchant_id: &str,
+        merchant_id: &str,
         _refund_details: &api_models::refunds::RefundListRequest,
         _storage_scheme: enums::MerchantStorageScheme,
-        _limit: i64,
+        limit: i64,
     ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let refunds = self.refunds.lock().await;
+
+        Ok(refunds
+            .iter()
+            .filter(|refund| refund.merchant_id == merchant_id)
+            .take(usize::try_from(limit).unwrap_or(usize::MAX))
+            .cloned()
+            .collect::<Vec<_>>())
     }
 }
