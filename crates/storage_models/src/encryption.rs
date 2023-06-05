@@ -1,11 +1,10 @@
+use common_utils::pii::EncryptionStratergy;
 use diesel::{
     backend::Backend,
     deserialize::{self, FromSql, Queryable},
     serialize::ToSql,
     sql_types, AsExpression,
 };
-
-use common_utils::pii::EncryptionStratergy;
 use masking::Secret;
 
 #[derive(Debug, AsExpression, Clone, serde::Serialize, serde::Deserialize)]
