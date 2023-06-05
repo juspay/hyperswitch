@@ -380,14 +380,17 @@ pub fn generate_cryptographically_secure_random_bytes<const N: usize>() -> [u8; 
 #[derive(Debug, Clone)]
 pub struct Encryptable<T: Clone> {
     inner: T,
-    encrypted: Vec<u8>,
+    encrypted: masking::Secret<Vec<u8>, pii::EncryptionStratergy>,
 }
 
 impl<T: Clone, S: masking::Strategy<T>> Encryptable<masking::Secret<T, S>> {
     ///
     /// constructor function to be used by the encryptor and decryptor to generate the data type
     ///
-    pub fn new(masked_data: masking::Secret<T, S>, encrypted_data: Vec<u8>) -> Self {
+    pub fn new(
+        masked_data: masking::Secret<T, S>,
+        encrypted_data: masking::Secret<Vec<u8>, pii::EncryptionStratergy>,
+    ) -> Self {
         Self {
             inner: masked_data,
             encrypted: encrypted_data,
@@ -405,7 +408,7 @@ impl<T: Clone> Encryptable<T> {
     ///
     /// Get the inner encrypted data while consuming self
     ///
-    pub fn into_encrypted(self) -> Vec<u8> {
+    pub fn into_encrypted(self) -> masking::Secret<Vec<u8>, pii::EncryptionStratergy> {
         self.encrypted
     }
 }

@@ -5,11 +5,14 @@ use diesel::{
     sql_types, AsExpression,
 };
 
+use common_utils::pii::EncryptionStratergy;
+use masking::Secret;
+
 #[derive(Debug, AsExpression, Clone, serde::Serialize, serde::Deserialize)]
 #[diesel(sql_type = diesel::sql_types::Binary)]
 #[repr(transparent)]
 pub struct Encryption {
-    inner: Vec<u8>,
+    inner: Secret<Vec<u8>, EncryptionStratergy>,
 }
 
 impl<T: Clone> From<common_utils::crypto::Encryptable<T>> for Encryption {
@@ -19,17 +22,17 @@ impl<T: Clone> From<common_utils::crypto::Encryptable<T>> for Encryption {
 }
 
 impl Encryption {
-    pub fn new(item: Vec<u8>) -> Self {
+    pub fn new(item: Secret<Vec<u8>, EncryptionStratergy>) -> Self {
         Self { inner: item }
     }
 
     #[inline]
-    pub fn into_inner(self) -> Vec<u8> {
+    pub fn into_inner(self) -> Secret<Vec<u8>, EncryptionStratergy> {
         self.inner
     }
 
     #[inline]
-    pub fn get_inner(&self) -> &Vec<u8> {
+    pub fn get_inner(&self) -> &Secret<Vec<u8>, EncryptionStratergy> {
         &self.inner
     }
 }
@@ -37,17 +40,17 @@ impl Encryption {
 impl<DB> FromSql<sql_types::Binary, DB> for Encryption
 where
     DB: Backend,
-    Vec<u8>: FromSql<sql_types::Binary, DB>,
+    Secret<Vec<u8>, EncryptionStratergy>: FromSql<sql_types::Binary, DB>,
 {
     fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
-        <Vec<u8>>::from_sql(bytes).map(Self::new)
+        <Secret<Vec<u8>, EncryptionStratergy>>::from_sql(bytes).map(Self::new)
     }
 }
 
 impl<DB> ToSql<sql_types::Binary, DB> for Encryption
 where
     DB: Backend,
-    Vec<u8>: ToSql<sql_types::Binary, DB>,
+    Secret<Vec<u8>, EncryptionStratergy>: ToSql<sql_types::Binary, DB>,
 {
     fn to_sql<'b>(
         &'b self,
@@ -60,9 +63,9 @@ where
 impl<DB> Queryable<sql_types::Binary, DB> for Encryption
 where
     DB: Backend,
-    Vec<u8>: FromSql<sql_types::Binary, DB>,
+    Secret<Vec<u8>, EncryptionStratergy>: FromSql<sql_types::Binary, DB>,
 {
-    type Row = Vec<u8>;
+    type Row = Secret<Vec<u8>, EncryptionStratergy>;
     fn build(row: Self::Row) -> deserialize::Result<Self> {
         Ok(Self { inner: row })
     }

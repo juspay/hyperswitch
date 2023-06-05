@@ -45,7 +45,7 @@ impl<
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted_data = crypt_algo.encode_message(key, masked_data.peek().as_bytes())?;
 
-        Ok(Self::new(masked_data, encrypted_data))
+        Ok(Self::new(masked_data, encrypted_data.into()))
     }
 
     #[instrument(skip_all)]
@@ -55,7 +55,7 @@ impl<
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
-        let data = crypt_algo.decode_message(key, encrypted.clone())?;
+        let data = crypt_algo.decode_message(key, encrypted.clone().expose())?;
 
         let value: String = std::str::from_utf8(&data)
             .into_report()
@@ -84,7 +84,7 @@ impl<
             .change_context(errors::CryptoError::DecodingFailed)?;
         let encrypted_data = crypt_algo.encode_message(key, &data)?;
 
-        Ok(Self::new(masked_data, encrypted_data))
+        Ok(Self::new(masked_data, encrypted_data.into()))
     }
 
     #[instrument(skip_all)]
@@ -94,7 +94,7 @@ impl<
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
-        let data = crypt_algo.decode_message(key, encrypted.clone())?;
+        let data = crypt_algo.decode_message(key, encrypted.clone().expose())?;
 
         let value: serde_json::Value = serde_json::from_slice(&data)
             .into_report()
@@ -118,7 +118,7 @@ impl<
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted_data = crypt_algo.encode_message(key, masked_data.peek())?;
 
-        Ok(Self::new(masked_data, encrypted_data))
+        Ok(Self::new(masked_data, encrypted_data.into()))
     }
 
     #[instrument(skip_all)]
@@ -128,7 +128,7 @@ impl<
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
-        let data = crypt_algo.decode_message(key, encrypted.clone())?;
+        let data = crypt_algo.decode_message(key, encrypted.clone().expose())?;
 
         Ok(Self::new(data.into(), encrypted))
     }

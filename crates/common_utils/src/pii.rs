@@ -52,6 +52,19 @@ where
 }
 */
 
+/// Strategy for Encryption
+#[derive(Debug)]
+pub struct EncryptionStratergy;
+
+impl<T> Strategy<T> for EncryptionStratergy
+where
+    T: AsRef<[u8]>,
+{
+    fn fmt(_value: &T, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        fmt.write_str("*** Encrypted ***")
+    }
+}
+
 /// Client secret
 #[derive(Debug)]
 pub struct ClientSecret;
