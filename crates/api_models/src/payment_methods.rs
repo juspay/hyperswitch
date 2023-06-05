@@ -1,8 +1,5 @@
 use cards::CardNumber;
-use common_utils::{
-    crypto::{ OptionalEncryptableName},
-    pii,
-};
+use common_utils::{crypto::OptionalEncryptableName, pii};
 use serde::de;
 use utoipa::ToSchema;
 
