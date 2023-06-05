@@ -35,6 +35,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         _request: &api::PaymentsStartRequest,
         _mandate_type: Option<api::MandateTxnType>,
         merchant_account: &domain::MerchantAccount,
+        mechant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
         PaymentData<F>,
@@ -82,6 +83,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
             &payment_intent.customer_id,
+            mechant_key_store,
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
@@ -90,6 +92,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
             &payment_intent.customer_id,
+            mechant_key_store,
         )
         .await?;
 
@@ -161,6 +164,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
         _customer: Option<domain::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsStartRequest>,
         PaymentData<F>,
@@ -215,7 +219,7 @@ where
         db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
-        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsStartRequest>,
@@ -228,7 +232,8 @@ where
             db,
             payment_data,
             request,
-            merchant_id,
+            &key_store.merchant_id,
+            key_store,
         )
         .await
     }
@@ -252,6 +257,7 @@ where
         state: &AppState,
         _request: &api::PaymentsStartRequest,
         _payment_intent: &storage::payment_intent::PaymentIntent,
+        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
     }

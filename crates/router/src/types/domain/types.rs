@@ -5,7 +5,7 @@ use common_utils::{
     ext_traits::AsyncExt,
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use storage_models::encryption::Encryption;
 
@@ -132,19 +132,6 @@ impl<
 
         Ok(Self::new(data.into(), encrypted))
     }
-}
-
-pub async fn get_merchant_enc_key(
-    db: &dyn crate::db::StorageInterface,
-    merchant_id: impl AsRef<str>,
-) -> CustomResult<Vec<u8>, crate::core::errors::StorageError> {
-    let merchant_id = merchant_id.as_ref();
-    let key = db
-        .get_merchant_key_store_by_merchant_id(merchant_id)
-        .await?
-        .key
-        .into_inner();
-    Ok(key.expose())
 }
 
 pub trait Lift<U> {

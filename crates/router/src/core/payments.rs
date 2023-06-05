@@ -48,6 +48,7 @@ use crate::{
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
     call_connector_action: CallConnectorAction,
@@ -86,6 +87,7 @@ where
             &req,
             validate_result.mandate_type.to_owned(),
             &merchant_account,
+            &key_store,
         )
         .await?;
 
@@ -101,7 +103,7 @@ where
             &*state.store,
             &mut payment_data,
             customer_details,
-            validate_result.merchant_id,
+            &key_store,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -112,6 +114,7 @@ where
         state,
         &req,
         &merchant_account,
+        &key_store,
         &mut payment_data,
     )
     .await?;
@@ -124,6 +127,7 @@ where
         state,
         &customer,
         &merchant_account,
+        &key_store,
         &mut payment_data,
     )
     .await?;
@@ -137,6 +141,7 @@ where
             customer.clone(),
             validate_result.storage_scheme,
             updated_customer,
+            &key_store,
         )
         .await?;
 
@@ -153,6 +158,7 @@ where
                 let router_data = call_connector_service(
                     state,
                     &merchant_account,
+                    &key_store,
                     connector,
                     &operation,
                     &payment_data,
@@ -180,6 +186,7 @@ where
                 call_multiple_connectors_service(
                     state,
                     &merchant_account,
+                    &key_store,
                     connectors,
                     &operation,
                     payment_data,
@@ -200,6 +207,7 @@ where
 pub async fn payments_core<F, Res, Req, Op, FData>(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
     auth_flow: services::AuthFlow,
@@ -225,6 +233,7 @@ where
     let (payment_data, req, customer) = payments_operation_core(
         state,
         merchant_account,
+        key_store,
         operation.clone(),
         req,
         call_connector_action,
@@ -262,6 +271,7 @@ pub trait PaymentRedirectFlow: Sync {
         &self,
         state: &AppState,
         merchant_account: domain::MerchantAccount,
+        merchant_key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
     ) -> RouterResponse<api::PaymentsResponse>;
@@ -281,6 +291,7 @@ pub trait PaymentRedirectFlow: Sync {
         &self,
         state: &AppState,
         merchant_account: domain::MerchantAccount,
+        key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
     ) -> RouterResponse<api::RedirectionResponse> {
         metrics::REDIRECTION_TRIGGERED.add(
@@ -323,7 +334,13 @@ pub trait PaymentRedirectFlow: Sync {
             .attach_printable("Failed to decide the response flow")?;
 
         let response = self
-            .call_payment_flow(state, merchant_account.clone(), req.clone(), flow_type)
+            .call_payment_flow(
+                state,
+                merchant_account.clone(),
+                key_store,
+                req.clone(),
+                flow_type,
+            )
             .await;
 
         let payments_response = match response? {
@@ -349,6 +366,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         &self,
         state: &AppState,
         merchant_account: domain::MerchantAccount,
+        merchant_key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
     ) -> RouterResponse<api::PaymentsResponse> {
@@ -371,6 +389,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         payments_core::<api::CompleteAuthorize, api::PaymentsResponse, _, _, _>(
             state,
             merchant_account,
+            merchant_key_store,
             payment_complete_authorize::CompleteAuthorize,
             payment_confirm_req,
             services::api::AuthFlow::Merchant,
@@ -437,6 +456,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         &self,
         state: &AppState,
         merchant_account: domain::MerchantAccount,
+        merchant_key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
     ) -> RouterResponse<api::PaymentsResponse> {
@@ -456,6 +476,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
             state,
             merchant_account,
+            merchant_key_store,
             PaymentStatus,
             payment_sync_req,
             services::api::AuthFlow::Merchant,
@@ -488,6 +509,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
 pub async fn call_connector_service<F, Op, Req>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     connector: api::ConnectorData,
     _operation: &Op,
     payment_data: &PaymentData<F>,
@@ -513,7 +535,13 @@ where
     let stime_connector = Instant::now();
 
     let mut router_data = payment_data
-        .construct_router_data(state, connector.connector.id(), merchant_account, customer)
+        .construct_router_data(
+            state,
+            connector.connector.id(),
+            merchant_account,
+            key_store,
+            customer,
+        )
         .await?;
 
     let add_access_token_result = router_data
@@ -567,6 +595,7 @@ where
 pub async fn call_multiple_connectors_service<F, Op, Req>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     connectors: Vec<api::SessionConnectorData>,
     _operation: &Op,
     mut payment_data: PaymentData<F>,
@@ -593,7 +622,7 @@ where
         let connector_id = session_connector_data.connector.connector.id();
 
         let router_data = payment_data
-            .construct_router_data(state, connector_id, merchant_account, customer)
+            .construct_router_data(state, connector_id, merchant_account, key_store, customer)
             .await?;
 
         let res = router_data.decide_flows(
@@ -641,6 +670,7 @@ pub async fn call_create_connector_customer_if_required<F, Req>(
     state: &AppState,
     customer: &Option<domain::Customer>,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
 ) -> RouterResult<Option<storage::CustomerUpdate>>
 where
@@ -689,6 +719,7 @@ where
                         state,
                         connector.connector.id(),
                         merchant_account,
+                        key_store,
                         customer,
                     )
                     .await?;
@@ -1175,6 +1206,7 @@ pub async fn get_connector_choice<F, Req>(
     state: &AppState,
     req: &Req,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
 ) -> RouterResult<Option<api::ConnectorCallType>>
 where
@@ -1182,7 +1214,13 @@ where
 {
     let connector_choice = operation
         .to_domain()?
-        .get_connector(merchant_account, state, req, &payment_data.payment_intent)
+        .get_connector(
+            merchant_account,
+            state,
+            req,
+            &payment_data.payment_intent,
+            key_store,
+        )
         .await?;
 
     let connector = if should_call_connector(operation, payment_data) {

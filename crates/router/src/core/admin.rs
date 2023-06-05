@@ -5,7 +5,7 @@ use common_utils::{
     ext_traits::ValueExt,
 };
 use error_stack::{report, FutureExt, ResultExt};
-use masking::Secret; //PeekInterface
+use masking::{PeekInterface, Secret}; //PeekInterface
 use storage_models::enums;
 use uuid::Uuid;
 
@@ -21,7 +21,7 @@ use crate::{
     types::{
         self, api,
         domain::{
-            self, merchant_key_store,
+            self,
             types::{self as domain_types, AsyncLift},
         },
         storage,
@@ -116,7 +116,7 @@ pub async fn create_merchant_account(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
-    let key_store = merchant_key_store::MerchantKeyStore {
+    let key_store = domain::MerchantKeyStore {
         merchant_id: req.merchant_id.clone(),
         key: domain_types::encrypt(key.to_vec().into(), master_key)
             .await
@@ -131,12 +131,17 @@ pub async fn create_merchant_account(
         .payment_response_hash_key
         .or(Some(generate_cryptographically_secure_random_string(64)));
 
-    db.insert_merchant_key_store(key_store)
+    db.insert_merchant_key_store(key_store.clone(), &master_key.to_vec().into())
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
-    let parent_merchant_id =
-        get_parent_merchant(db, req.sub_merchants_enabled, req.parent_merchant_id).await?;
+    let parent_merchant_id = get_parent_merchant(
+        db,
+        req.sub_merchants_enabled,
+        req.parent_merchant_id,
+        &key_store,
+    )
+    .await?;
 
     let merchant_account = async {
         Ok(domain::MerchantAccount {
@@ -174,7 +179,7 @@ pub async fn create_merchant_account(
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let merchant_account = db
-        .insert_merchant(merchant_account)
+        .insert_merchant(merchant_account, &key_store)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
     Ok(service_api::ApplicationResponse::Json(
@@ -189,8 +194,16 @@ pub async fn get_merchant_account(
     db: &dyn StorageInterface,
     req: api::MerchantId,
 ) -> RouterResponse<api::MerchantAccountResponse> {
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            &req.merchant_id,
+            &db.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&req.merchant_id)
+        .find_merchant_account_by_merchant_id(&req.merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -206,10 +219,13 @@ pub async fn merchant_account_update(
     merchant_id: &String,
     req: api::MerchantAccountUpdate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
-    let key = domain_types::get_merchant_enc_key(db, merchant_id.clone())
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            &req.merchant_id,
+            &db.get_master_key().to_vec().into(),
+        )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to get data from merchant key store")?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     if &req.merchant_id != merchant_id {
         Err(report!(errors::ValidationError::IncorrectValueProvided {
@@ -244,11 +260,13 @@ pub async fn merchant_account_update(
         })
         .transpose()?;
 
+    let key = key_store.key.get_inner().peek();
+
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
         merchant_name: req
             .merchant_name
             .map(masking::Secret::new)
-            .async_lift(|inner| domain_types::encrypt_optional(inner, &key))
+            .async_lift(|inner| domain_types::encrypt_optional(inner, key))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt merchant name")?,
@@ -261,7 +279,7 @@ pub async fn merchant_account_update(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to convert merchant_details to a value")?
             .map(masking::Secret::new)
-            .async_lift(|inner| domain_types::encrypt_optional(inner, &key))
+            .async_lift(|inner| domain_types::encrypt_optional(inner, key))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt merchant details")?,
@@ -282,6 +300,7 @@ pub async fn merchant_account_update(
             db,
             req.sub_merchants_enabled,
             req.parent_merchant_id,
+            &key_store,
         )
         .await?,
         enable_payment_response_hash: req.enable_payment_response_hash,
@@ -296,7 +315,7 @@ pub async fn merchant_account_update(
     };
 
     let response = db
-        .update_specific_fields_in_merchant(merchant_id, updated_merchant_account)
+        .update_specific_fields_in_merchant(merchant_id, updated_merchant_account, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -327,6 +346,7 @@ async fn get_parent_merchant(
     db: &dyn StorageInterface,
     sub_merchants_enabled: Option<bool>,
     parent_merchant: Option<String>,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<Option<String>> {
     Ok(match sub_merchants_enabled {
         Some(true) => {
@@ -339,7 +359,7 @@ async fn get_parent_merchant(
                         message: "If `sub_merchants_enabled` is `true`, then `parent_merchant_id` is mandatory".to_string(),
                     })
                 })
-                .map(|id| validate_merchant_id(db, id).change_context(
+                .map(|id| validate_merchant_id(db, id,key_store).change_context(
                     errors::ApiErrorResponse::InvalidDataValue { field_name: "parent_merchant_id" }
                 ))?
                 .await?
@@ -353,8 +373,9 @@ async fn get_parent_merchant(
 async fn validate_merchant_id<S: Into<String>>(
     db: &dyn StorageInterface,
     merchant_id: S,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<domain::MerchantAccount> {
-    db.find_merchant_account_by_merchant_id(&merchant_id.into())
+    db.find_merchant_account_by_merchant_id(&merchant_id.into(), key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
 }
@@ -385,13 +406,16 @@ pub async fn create_payment_connector(
     req: api::MerchantConnectorCreate,
     merchant_id: &String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
-    let key = domain_types::get_merchant_enc_key(store, merchant_id.clone())
+    let key_store = store
+        .get_merchant_key_store_by_merchant_id(
+            merchant_id,
+            &store.get_master_key().to_vec().into(),
+        )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to get key from merchant key store")?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let merchant_account = store
-        .find_merchant_account_by_merchant_id(merchant_id)
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -451,7 +475,7 @@ pub async fn create_payment_connector(
                     field_name: "connector_account_details",
                 },
             )?,
-            &key,
+            key_store.key.peek(),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -471,7 +495,7 @@ pub async fn create_payment_connector(
     };
 
     let mca = store
-        .insert_merchant_connector_account(merchant_connector_account)
+        .insert_merchant_connector_account(merchant_connector_account, &key_store)
         .await
         .to_duplicate_response(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
@@ -498,8 +522,16 @@ pub async fn retrieve_payment_connector(
     merchant_id: String,
     merchant_connector_id: String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
+    let key_store = store
+        .get_merchant_key_store_by_merchant_id(
+            &merchant_id,
+            &store.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     let _merchant_account = store
-        .find_merchant_account_by_merchant_id(&merchant_id)
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -507,6 +539,7 @@ pub async fn retrieve_payment_connector(
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &merchant_id,
             &merchant_connector_id,
+            &key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -520,14 +553,26 @@ pub async fn list_payment_connectors(
     store: &dyn StorageInterface,
     merchant_id: String,
 ) -> RouterResponse<Vec<api_models::admin::MerchantConnectorResponse>> {
+    let key_store = store
+        .get_merchant_key_store_by_merchant_id(
+            &merchant_id,
+            &store.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     // Validate merchant account
     store
-        .find_merchant_account_by_merchant_id(&merchant_id)
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_connector_accounts = store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(&merchant_id, true)
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            &merchant_id,
+            true,
+            &key_store,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
     let mut response = vec![];
@@ -546,12 +591,13 @@ pub async fn update_payment_connector(
     merchant_connector_id: &str,
     req: api_models::admin::MerchantConnectorUpdate,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
-    let key = domain_types::get_merchant_enc_key(db, merchant_id)
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to get key from merchant key store")?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     let _merchant_account = db
-        .find_merchant_account_by_merchant_id(merchant_id)
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -559,6 +605,7 @@ pub async fn update_payment_connector(
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             merchant_id,
             merchant_connector_id,
+            &key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -591,7 +638,9 @@ pub async fn update_payment_connector(
         merchant_connector_id: None,
         connector_account_details: req
             .connector_account_details
-            .async_lift(|inner| domain_types::encrypt_optional(inner, &key))
+            .async_lift(|inner| {
+                domain_types::encrypt_optional(inner, key_store.key.get_inner().peek())
+            })
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while encrypting data")?,
@@ -603,7 +652,7 @@ pub async fn update_payment_connector(
     };
 
     let updated_mca = db
-        .update_merchant_connector_account(mca, payment_connector.into())
+        .update_merchant_connector_account(mca, payment_connector.into(), &key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
@@ -620,8 +669,13 @@ pub async fn delete_payment_connector(
     merchant_id: String,
     merchant_connector_id: String,
 ) -> RouterResponse<api::MerchantConnectorDeleteResponse> {
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     let _merchant_account = db
-        .find_merchant_account_by_merchant_id(&merchant_id)
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -647,9 +701,14 @@ pub async fn kv_for_merchant(
     merchant_id: String,
     enable: bool,
 ) -> RouterResponse<api_models::admin::ToggleKVResponse> {
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     // check if the merchant account exists
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&merchant_id)
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -662,6 +721,7 @@ pub async fn kv_for_merchant(
                 storage::MerchantAccountUpdate::StorageSchemeUpdate {
                     storage_scheme: enums::MerchantStorageScheme::RedisKv,
                 },
+                &key_store,
             )
             .await
         }
@@ -671,6 +731,7 @@ pub async fn kv_for_merchant(
                 storage::MerchantAccountUpdate::StorageSchemeUpdate {
                     storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
                 },
+                &key_store,
             )
             .await
         }
@@ -697,9 +758,14 @@ pub async fn check_merchant_account_kv_status(
     db: &dyn StorageInterface,
     merchant_id: String,
 ) -> RouterResponse<api_models::admin::ToggleKVResponse> {
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     // check if the merchant account exists
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&merchant_id)
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 

@@ -37,6 +37,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         request: &api::PaymentsCaptureRequest,
         _mandate_type: Option<api::MandateTxnType>,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
         payments::PaymentData<F>,
@@ -100,6 +101,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
             &payment_intent.customer_id,
+            key_store,
         )
         .await?;
 
@@ -109,6 +111,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
             &payment_intent.customer_id,
+            key_store,
         )
         .await?;
 
@@ -178,6 +181,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
         _customer: Option<domain::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
         payments::PaymentData<F>,

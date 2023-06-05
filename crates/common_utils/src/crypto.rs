@@ -399,12 +399,23 @@ impl<T: Clone> Encryptable<T> {
     ///
     /// Get the inner data while consumping self
     ///
+    #[inline]
     pub fn into_inner(self) -> T {
         self.inner
     }
+
+    ///
+    /// Get the inner data while consumping self
+    ///
+    #[inline]
+    pub fn get_inner(&self) -> &T {
+        &self.inner
+    }
+
     ///
     /// Get the inner encrypted data while consuming self
     ///
+    #[inline]
     pub fn into_encrypted(self) -> Vec<u8> {
         self.encrypted
     }

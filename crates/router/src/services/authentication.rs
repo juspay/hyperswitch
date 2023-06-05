@@ -21,6 +21,11 @@ use crate::{
     utils::OptionExt,
 };
 
+pub struct AuthenticationData {
+    pub merchant_account: domain::MerchantAccount,
+    pub key_store: domain::MerchantKeyStore,
+}
+
 pub trait AuthInfo {
     fn get_merchant_id(&self) -> Option<&str>;
 }
@@ -31,9 +36,9 @@ impl AuthInfo for () {
     }
 }
 
-impl AuthInfo for domain::MerchantAccount {
+impl AuthInfo for AuthenticationData {
     fn get_merchant_id(&self) -> Option<&str> {
-        Some(&self.merchant_id)
+        Some(&self.merchant_account.merchant_id)
     }
 }
 
@@ -70,7 +75,7 @@ where
 }
 
 #[async_trait]
-impl<A> AuthenticateAndFetch<domain::MerchantAccount, A> for ApiKeyAuth
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for ApiKeyAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -78,7 +83,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<domain::MerchantAccount> {
+    ) -> RouterResult<AuthenticationData> {
         let api_key = get_api_key(request_headers)
             .change_context(errors::ApiErrorResponse::Unauthorized)?
             .trim();
@@ -118,9 +123,18 @@ where
                 .attach_printable("API key has expired");
         }
 
-        state
+        let key_store = state
             .store()
-            .find_merchant_account_by_merchant_id(&stored_api_key.merchant_id)
+            .get_merchant_key_store_by_merchant_id(
+                &stored_api_key.merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(&stored_api_key.merchant_id, &key_store)
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
@@ -128,7 +142,12 @@ where
                 } else {
                     e.change_context(errors::ApiErrorResponse::InternalServerError)
                 }
-            })
+            })?;
+
+        Ok(AuthenticationData {
+            merchant_account: merchant,
+            key_store,
+        })
     }
 }
 
@@ -194,7 +213,7 @@ where
 pub struct MerchantIdAuth(pub String);
 
 #[async_trait]
-impl<A> AuthenticateAndFetch<domain::MerchantAccount, A> for MerchantIdAuth
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for MerchantIdAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -202,10 +221,19 @@ where
         &self,
         _request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<domain::MerchantAccount> {
-        state
+    ) -> RouterResult<AuthenticationData> {
+        let key_store = state
             .store()
-            .find_merchant_account_by_merchant_id(self.0.as_ref())
+            .get_merchant_key_store_by_merchant_id(
+                self.0.as_ref(),
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(self.0.as_ref(), &key_store)
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
@@ -213,7 +241,12 @@ where
                 } else {
                     e.change_context(errors::ApiErrorResponse::InternalServerError)
                 }
-            })
+            })?;
+
+        Ok(AuthenticationData {
+            merchant_account: merchant,
+            key_store,
+        })
     }
 }
 
@@ -221,7 +254,7 @@ where
 pub struct PublishableKeyAuth;
 
 #[async_trait]
-impl<A> AuthenticateAndFetch<domain::MerchantAccount, A> for PublishableKeyAuth
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for PublishableKeyAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -229,9 +262,10 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<domain::MerchantAccount> {
+    ) -> RouterResult<AuthenticationData> {
         let publishable_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
+
         state
             .store()
             .find_merchant_account_by_publishable_key(publishable_key)
@@ -279,7 +313,7 @@ struct JwtAuthPayloadFetchMerchantAccount {
 }
 
 #[async_trait]
-impl<A> AuthenticateAndFetch<domain::MerchantAccount, A> for JWTAuth
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for JWTAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -287,15 +321,29 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<domain::MerchantAccount> {
+    ) -> RouterResult<AuthenticationData> {
         let mut token = get_jwt(request_headers)?;
         token = strip_jwt_token(token)?;
         let payload = decode_jwt::<JwtAuthPayloadFetchMerchantAccount>(token, state).await?;
-        state
+        let key_store = state
             .store()
-            .find_merchant_account_by_merchant_id(&payload.merchant_id)
+            .get_merchant_key_store_by_merchant_id(
+                &payload.merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
             .await
-            .change_context(errors::ApiErrorResponse::InvalidJwtToken)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
+            .await
+            .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
+
+        Ok(AuthenticationData {
+            merchant_account: merchant,
+            key_store,
+        })
     }
 }
 
@@ -337,7 +385,7 @@ where
 pub fn get_auth_type_and_flow<A: AppStateInfo + Sync>(
     headers: &HeaderMap,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<domain::MerchantAccount, A>>,
+    Box<dyn AuthenticateAndFetch<AuthenticationData, A>>,
     api::AuthFlow,
 )> {
     let api_key = get_api_key(headers)?;
@@ -352,13 +400,13 @@ pub fn check_client_secret_and_get_auth<T>(
     headers: &HeaderMap,
     payload: &impl ClientSecretFetch,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<domain::MerchantAccount, T>>,
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
     api::AuthFlow,
 )>
 where
     T: AppStateInfo,
-    ApiKeyAuth: AuthenticateAndFetch<domain::MerchantAccount, T>,
-    PublishableKeyAuth: AuthenticateAndFetch<domain::MerchantAccount, T>,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
 {
     let api_key = get_api_key(headers)?;
 
@@ -386,7 +434,7 @@ pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
     headers: &HeaderMap,
     db: &dyn StorageInterface,
     customer_id: &str,
-) -> RouterResult<Box<dyn AuthenticateAndFetch<domain::MerchantAccount, A>>> {
+) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
     let api_key = get_api_key(headers)?;
 
     if !api_key.starts_with("epk") {

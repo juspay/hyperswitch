@@ -37,6 +37,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         request: &api::PaymentsRequest,
         mandate_type: Option<api::MandateTxnType>,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -125,6 +126,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
             &payment_intent.customer_id,
+            key_store,
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
@@ -133,6 +135,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
             &payment_intent.customer_id,
+            key_store,
         )
         .await?;
 
@@ -326,7 +329,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
-        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRequest>,
@@ -339,7 +342,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
             db,
             payment_data,
             request,
-            merchant_id,
+            &key_store.merchant_id,
+            key_store,
         )
         .await
     }
@@ -372,6 +376,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         state: &AppState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::payment_intent::PaymentIntent,
+        _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
     }
@@ -388,6 +393,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
