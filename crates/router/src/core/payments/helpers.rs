@@ -277,7 +277,7 @@ pub async fn get_token_pm_type_mandate_details(
 pub async fn get_token_for_recurring_mandate(
     state: &AppState,
     req: &api::PaymentsRequest,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
