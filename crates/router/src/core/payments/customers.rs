@@ -1,24 +1,23 @@
-use common_utils::ext_traits::ValueExt;
-use error_stack::{self, ResultExt};
+use router_env::{instrument, tracing};
 
 use crate::{
     core::{
-        errors::{self, ConnectorErrorExt, RouterResult},
+        errors::{ConnectorErrorExt, RouterResult},
         payments,
     },
     logger,
     routes::{metrics, AppState},
     services,
-    types::{self, api, storage},
+    types::{self, api, domain, storage},
 };
 
+#[instrument(skip_all)]
 pub async fn create_connector_customer<F: Clone, T: Clone>(
     state: &AppState,
     connector: &api::ConnectorData,
     router_data: &types::RouterData<F, T, types::PaymentsResponseData>,
     customer_request_data: types::ConnectorCustomerData,
-    connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
-) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)> {
+) -> RouterResult<Option<String>> {
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api::CreateConnectorCustomer,
@@ -68,79 +67,75 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
             _ => None,
         },
         Err(err) => {
-            logger::debug!(payment_method_tokenization_error=?err);
+            logger::error!(create_connector_customer_error=?err);
             None
         }
     };
 
-    let update_customer = update_connector_customer_in_customers(
-        connector,
-        connector_customer_map,
-        &connector_customer_id,
-    )
-    .await?;
-    Ok((connector_customer_id, update_customer))
+    Ok(connector_customer_id)
 }
 
-type CreateCustomerCheck = (
-    bool,
-    Option<String>,
-    Option<serde_json::Map<String, serde_json::Value>>,
-);
-pub fn should_call_connector_create_customer(
+pub fn get_connector_customer_details_if_present<'a>(
+    customer: &'a domain::Customer,
+    connector_name: &str,
+) -> Option<&'a str> {
+    customer
+        .connector_customer
+        .as_ref()
+        .and_then(|connector_customer_value| connector_customer_value.get(connector_name))
+        .and_then(|connector_customer| connector_customer.as_str())
+}
+
+pub fn should_call_connector_create_customer<'a>(
     state: &AppState,
     connector: &api::ConnectorData,
-    customer: &Option<storage::Customer>,
-) -> RouterResult<CreateCustomerCheck> {
-    let connector_name = connector.connector_name.to_string();
-    //Check if create customer is required for the connector
-    let connector_customer_filter = state
+    customer: &'a Option<domain::Customer>,
+    connector_label: &str,
+) -> (bool, Option<&'a str>) {
+    // Check if create customer is required for the connector
+    let connector_needs_customer = state
         .conf
         .connector_customer
         .connector_list
         .contains(&connector.connector_name);
 
-    if connector_customer_filter {
-        match customer {
-            Some(customer) => match &customer.connector_customer {
-                Some(connector_customer) => {
-                    let connector_customer_map: serde_json::Map<String, serde_json::Value> =
-                        connector_customer
-                            .clone()
-                            .parse_value("Map<String, Value>")
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to deserialize Value to CustomerConnector")?;
-                    let value = connector_customer_map.get(&connector_name); //Check if customer already created for this customer and for this connector
-                    Ok((
-                        value.is_none(),
-                        value.and_then(|val| val.as_str().map(|cust| cust.to_string())),
-                        Some(connector_customer_map),
-                    ))
-                }
-                None => Ok((true, None, None)),
-            },
-            None => Ok((false, None, None)),
-        }
+    if connector_needs_customer {
+        let connector_customer_details = customer.as_ref().and_then(|customer| {
+            get_connector_customer_details_if_present(customer, connector_label)
+        });
+        let should_call_connector = connector_customer_details.is_none();
+        (should_call_connector, connector_customer_details)
     } else {
-        Ok((false, None, None))
+        (false, None)
     }
 }
+
+#[instrument]
 pub async fn update_connector_customer_in_customers(
-    connector: &api::ConnectorData,
-    connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
-    connector_cust_id: &Option<String>,
-) -> RouterResult<Option<storage::CustomerUpdate>> {
-    let mut connector_customer = match connector_customer_map {
-        Some(cc) => cc,
-        None => serde_json::Map::new(),
-    };
-    connector_cust_id.clone().map(|cc| {
-        connector_customer.insert(
-            connector.connector_name.to_string(),
-            serde_json::Value::String(cc),
+    connector_label: &str,
+    customer: Option<&domain::Customer>,
+    connector_customer_id: &Option<String>,
+) -> Option<storage::CustomerUpdate> {
+    let connector_customer_map = customer
+        .and_then(|customer| customer.connector_customer.as_ref())
+        .and_then(|connector_customer| connector_customer.as_object())
+        .map(ToOwned::to_owned)
+        .unwrap_or(serde_json::Map::new());
+
+    let updated_connector_customer_map =
+        connector_customer_id.as_ref().map(|connector_customer_id| {
+            let mut connector_customer_map = connector_customer_map;
+            let connector_customer_value =
+                serde_json::Value::String(connector_customer_id.to_string());
+            connector_customer_map.insert(connector_label.to_string(), connector_customer_value);
+            connector_customer_map
+        });
+
+    updated_connector_customer_map
+        .map(serde_json::Value::Object)
+        .map(
+            |connector_customer_value| storage::CustomerUpdate::ConnectorCustomer {
+                connector_customer: Some(connector_customer_value),
+            },
         )
-    });
-    Ok(Some(storage::CustomerUpdate::ConnectorCustomer {
-        connector_customer: Some(serde_json::Value::Object(connector_customer)),
-    }))
 }
