@@ -136,10 +136,13 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         let headers = vec![
             (
                 headers::X_API_KEY.to_string(),
-                req.request.app_id.clone().into(),
+                req.request.app_id.clone().into_masked(),
             ),
             ("Content-Length".to_string(), "0".to_string().into()),
-            ("x-client-id".to_string(), req.get_request_id()?.into()),
+            (
+                "x-client-id".to_string(),
+                req.get_request_id()?.into_masked(),
+            ),
         ];
         Ok(headers)
     }

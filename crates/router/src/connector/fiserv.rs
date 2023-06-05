@@ -80,10 +80,7 @@ where
                     .to_string()
                     .into(),
             ),
-            (
-                "Client-Request-Id".to_string(),
-                client_request_id.into_masked(),
-            ),
+            ("Client-Request-Id".to_string(), client_request_id.into()),
             ("Auth-Token-Type".to_string(), "HMAC".to_string().into()),
             (headers::TIMESTAMP.to_string(), timestamp.to_string().into()),
             (headers::AUTHORIZATION.to_string(), hmac.into_masked()),

@@ -290,7 +290,6 @@ impl RequestBuilderExt for reqwest::RequestBuilder {
     #[instrument(skip_all)]
     fn add_headers(mut self, headers: reqwest::header::HeaderMap) -> Self {
         self = self.headers(headers);
-        // this should not be logged logger::debug!(request_builder=?self);
         self
     }
 }
