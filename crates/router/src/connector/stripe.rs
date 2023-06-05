@@ -1726,7 +1726,23 @@ impl api::IncomingWebhook for Stripe {
             stripe::WebhookEventType::PaymentIntentRequiresAction => {
                 api::IncomingWebhookEvent::PaymentActionRequired
             }
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+            stripe::WebhookEventType::Unknown
+            | stripe::WebhookEventType::ChargeCaptured
+            | stripe::WebhookEventType::ChargeDisputeCaptured
+            | stripe::WebhookEventType::ChargeDisputeFundsReinstated
+            | stripe::WebhookEventType::ChargeDisputeFundsWithdrawn
+            | stripe::WebhookEventType::ChargeExpired
+            | stripe::WebhookEventType::ChargeFailed
+            | stripe::WebhookEventType::ChargePending
+            | stripe::WebhookEventType::ChargeUpdated
+            | stripe::WebhookEventType::ChanrgeRefunded
+            | stripe::WebhookEventType::PaymentIntentCanceled
+            | stripe::WebhookEventType::PaymentIntentCreated
+            | stripe::WebhookEventType::PaymentIntentProcessing
+            | stripe::WebhookEventType::PaymentIntentAmountCapturableUpdated
+            | stripe::WebhookEventType::SourceTransactionCreated => {
+                api::IncomingWebhookEvent::EventNotSupported
+            }
         })
     }
 

@@ -473,6 +473,8 @@ pub enum NoonWebhookEventTypes {
     Fail,
     Refund,
     Sale,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
