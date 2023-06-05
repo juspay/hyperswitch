@@ -56,7 +56,7 @@ pub trait ConnectorIntegration<F: Flow, Req, Resp>:
         &self,
         _req: &types::RouterData<F, Req, Resp>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
 
