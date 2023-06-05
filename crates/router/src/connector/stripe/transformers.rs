@@ -1744,6 +1744,9 @@ impl<F, T>
         // Or we identify the mandate txns before hand and always call SetupIntent in case of mandate payment call
         let network_txn_id = Option::foreign_from(item.response.latest_attempt);
 
+        let connector_metadata =
+            get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
+
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             // client_secret: Some(item.response.client_secret.clone().as_str()),
@@ -1754,7 +1757,7 @@ impl<F, T>
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data,
                 mandate_reference,
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id,
             }),
             amount_captured: Some(item.response.amount_received),

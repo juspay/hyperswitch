@@ -115,6 +115,22 @@ pub struct RefundUpdateInternal {
     refund_error_code: Option<String>,
 }
 
+impl RefundUpdateInternal {
+    pub fn create_refund(self, source: Refund) -> Refund {
+        Refund {
+            connector_refund_id: self.connector_refund_id,
+            refund_status: self.refund_status.unwrap_or_default(),
+            sent_to_gateway: self.sent_to_gateway.unwrap_or_default(),
+            refund_error_message: self.refund_error_message,
+            refund_arn: self.refund_arn,
+            metadata: self.metadata,
+            refund_reason: self.refund_reason,
+            refund_error_code: self.refund_error_code,
+            ..source
+        }
+    }
+}
+
 impl From<RefundUpdate> for RefundUpdateInternal {
     fn from(refund_update: RefundUpdate) -> Self {
         match refund_update {

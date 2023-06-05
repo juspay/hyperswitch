@@ -9,6 +9,7 @@ use transformers as authorizedotnet;
 
 use crate::{
     configs::settings,
+    connector::utils as conn_utils,
     consts,
     core::errors::{self, CustomResult},
     db::StorageInterface,
@@ -667,13 +668,13 @@ impl api::IncomingWebhook for Authorizedotnet {
             authorizedotnet::AuthorizedotnetWebhookEvent::RefundCreated => {
                 Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                     api_models::webhooks::RefundIdType::ConnectorRefundId(
-                        authorizedotnet::get_trans_id(details)?,
+                        authorizedotnet::get_trans_id(&details)?,
                     ),
                 ))
             }
             _ => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    authorizedotnet::get_trans_id(details)?,
+                    authorizedotnet::get_trans_id(&details)?,
                 ),
             )),
         }
@@ -684,7 +685,7 @@ impl api::IncomingWebhook for Authorizedotnet {
         db: &dyn StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
+        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
         let secret = match db.find_config_by_key(&key).await {
             Ok(config) => Some(config),
             Err(e) => {
@@ -712,10 +713,16 @@ impl api::IncomingWebhook for Authorizedotnet {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let payload = serde_json::to_value(request.body)
-            .into_report()
+        let payload: authorizedotnet::AuthorizedotnetWebhookObjectId = request
+            .body
+            .parse_struct("AuthorizedotnetWebhookObjectId")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(payload)
+        let sync_payload = serde_json::to_value(
+            authorizedotnet::AuthorizedotnetSyncResponse::try_from(payload)?,
+        )
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+        Ok(sync_payload)
     }
 }
 

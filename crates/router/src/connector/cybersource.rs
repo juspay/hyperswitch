@@ -93,22 +93,30 @@ impl ConnectorCommon for Cybersource {
             .response
             .parse_struct("Cybersource ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let details = response.details.unwrap_or(vec![]);
+        let connector_reason = details
+            .iter()
+            .map(|det| format!("{} : {}", det.field, det.reason))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let (code, message) = match response.error_information {
+            Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
+            None => (
+                response
+                    .reason
+                    .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
+                        reason.to_string()
+                    }),
+                response
+                    .message
+                    .map_or(consts::NO_ERROR_MESSAGE.to_string(), |message| message),
+            ),
+        };
         Ok(types::ErrorResponse {
             status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
-            message: response
-                .message
-                .map(|m| {
-                    format!(
-                        "{} {}",
-                        m,
-                        response.details.map(|d| d.to_string()).unwrap_or_default()
-                    )
-                    .trim()
-                    .to_string()
-                })
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.reason,
+            code,
+            message,
+            reason: Some(connector_reason),
         })
     }
 }
@@ -709,20 +717,20 @@ impl api::IncomingWebhook for Cybersource {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("cybersource".to_string()).into())
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("cybersource".to_string()).into())
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("cybersource".to_string()).into())
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
