@@ -509,6 +509,7 @@ impl Default for PaymentAuthorizeType {
             setup_mandate_details: None,
             browser_info: Some(BrowserInfoType::default().0),
             order_details: None,
+            order_category: None,
             email: None,
             session_token: None,
             enrolled_for_3ds: false,
