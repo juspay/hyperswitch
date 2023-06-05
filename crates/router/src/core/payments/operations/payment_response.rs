@@ -397,12 +397,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                     None,
                 )
             }
-            types::PaymentsResponseData::SessionResponse { response_id, .. } => (
-                Some(storage::PaymentAttemptUpdate::SessionUpdate {
-                    connector_transaction_id: response_id,
-                }),
-                None,
-            ),
+            types::PaymentsResponseData::SessionResponse { .. } => (None, None),
             types::PaymentsResponseData::SessionTokenResponse { .. } => (None, None),
             types::PaymentsResponseData::TokenizationResponse { .. } => (None, None),
             types::PaymentsResponseData::ConnectorCustomerResponse { .. } => (None, None),

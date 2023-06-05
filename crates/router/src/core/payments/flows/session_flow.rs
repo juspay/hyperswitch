@@ -127,7 +127,7 @@ fn mk_applepay_session_request(
         .attach_default_headers()
         .headers(vec![(
             headers::CONTENT_TYPE.to_string(),
-            "application/json".to_string(),
+            "application/json".to_string().into(),
         )])
         .body(Some(applepay_session_request))
         .add_certificate(Some(
@@ -149,7 +149,7 @@ async fn create_applepay_session_token(
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
-    let delayed_response = &state
+    let connectors_with_delayed_response = &state
         .conf
         .delayed_session_response
         .connectors_with_delayed_session_response;
@@ -195,7 +195,7 @@ async fn create_applepay_session_token(
         ),
     };
 
-    let delayed_response = delayed_response.contains(&connector_name);
+    let delayed_response = connectors_with_delayed_response.contains(&connector_name);
 
     if delayed_response {
         let delayed_response_apple_pay_session =
@@ -203,11 +203,11 @@ async fn create_applepay_session_token(
         create_apple_pay_session_response(
             router_data,
             delayed_response_apple_pay_session,
-            None,
+            None, // Apple pay payment request will be none for delayed session response
             connector_name.to_string(),
             delayed_response,
             payment_types::NextActionCall::SessionToken,
-            None,
+            None, //Response Id will be none for delayed session response
         )
     } else {
         let applepay_session_request = mk_applepay_session_request(state, router_data)?;
@@ -236,7 +236,7 @@ async fn create_applepay_session_token(
             connector_name.to_string(),
             delayed_response,
             payment_types::NextActionCall::Confirm,
-            None,
+            None, // Response Id will be none for No third party sdk response
         )
     }
 }

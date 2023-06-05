@@ -8,6 +8,7 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
+use actix_web::ResponseError;
 use api_models::payments::Metadata;
 use common_utils::pii::Email;
 use error_stack::{IntoReport, ResultExt};
@@ -28,7 +29,7 @@ use self::{
 use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
     core::{
-        errors::{self, CustomResult, RouterResponse, RouterResult},
+        errors::{self, CustomResult, RouterResponse, RouterResult, StorageErrorExt},
         payment_methods::vault,
     },
     db::StorageInterface,
@@ -182,7 +183,6 @@ where
                     &operation,
                     payment_data,
                     &customer,
-                    &validate_result.payment_id,
                 )
                 .await?
             }
@@ -569,7 +569,6 @@ pub async fn call_multiple_connectors_service<F, Op, Req>(
     _operation: &Op,
     mut payment_data: PaymentData<F>,
     customer: &Option<domain::Customer>,
-    payment_id: &api::PaymentIdType,
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
@@ -607,12 +606,16 @@ where
 
         let router_res = match res {
             Ok(router_result) => Ok(router_result),
-            Err(error) => Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
-                .attach_printable(format!(
-                    "Connector session token error {:?} and the connector is {}",
-                    error, connector_id
-                )),
+            Err(error) => {
+                let err = error.current_context();
+                Err(errors::ApiErrorResponse::ExternalConnectorError {
+                    code: err.error_code(),
+                    message: err.error_message(),
+                    connector: connector_id.to_string(),
+                    status_code: err.status_code().into(),
+                    reason: None,
+                })
+            }
         }?;
 
         join_handlers.push(router_res.response.clone());
@@ -623,18 +626,21 @@ where
                 .and_then(|delay| delay.then_some(true))
                 .is_some()
         {
-            let operation = Box::new(PaymentResponse);
-            let db = &*state.store;
-            payment_data = operation
-                .to_post_update_tracker()?
-                .update_tracker(
-                    db,
-                    payment_id,
-                    payment_data,
-                    router_res,
-                    merchant_account.storage_scheme,
-                )
-                .await?;
+            let response_id = match router_res.response {
+                Ok(response) => match response {
+                    types::PaymentsResponseData::SessionResponse { response_id, .. } => response_id,
+                    _ => None,
+                },
+                Err(_) => None,
+            };
+
+            update_connector_txn_id_in_payment_attempt(
+                state,
+                merchant_account,
+                &payment_data,
+                response_id,
+            )
+            .await?;
         };
     }
 
@@ -650,6 +656,31 @@ where
     tracing::info!(duration = format!("Duration taken: {}", call_connectors_duration.as_millis()));
 
     Ok(payment_data)
+}
+
+pub async fn update_connector_txn_id_in_payment_attempt<F>(
+    state: &AppState,
+    merchant_account: &domain::MerchantAccount,
+    payment_data: &PaymentData<F>,
+    response_id: Option<String>,
+) -> RouterResult<()>
+where
+    F: Clone,
+{
+    let payment_attempt_update = storage::PaymentAttemptUpdate::SessionUpdate {
+        connector_transaction_id: response_id,
+    };
+
+    let db = &*state.store;
+    db.update_payment_attempt_with_attempt_id(
+        payment_data.payment_attempt.to_owned(),
+        payment_attempt_update,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    Ok(())
 }
 
 pub async fn call_create_connector_customer_if_required<F, Req>(
@@ -1101,7 +1132,7 @@ pub async fn list_payments(
 ) -> RouterResponse<api::PaymentListResponse> {
     use futures::stream::StreamExt;
 
-    use crate::{core::errors::utils::StorageErrorExt, types::transformers::ForeignFrom};
+    use crate::types::transformers::ForeignFrom;
 
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
