@@ -1057,7 +1057,7 @@ impl api::IncomingWebhook for Bluesnap {
         let details: bluesnap::BluesnapWebhookObjectResource =
             serde_urlencoded::from_bytes(request.body)
                 .into_report()
-                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         let res_json =
             utils::Encode::<transformers::BluesnapWebhookObjectResource>::encode_to_value(&details)
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
