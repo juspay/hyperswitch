@@ -1,7 +1,7 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use common_utils::fp_utils;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 use storage_models::ephemeral_key;
 
@@ -16,7 +16,7 @@ use crate::{
     routes::{metrics, AppState},
     services::{self, RedirectForm},
     types::{
-        self, api,
+        self, api, domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto},
     },
@@ -28,8 +28,8 @@ pub async fn construct_payment_router_data<'a, F, T>(
     state: &'a AppState,
     payment_data: PaymentData<F>,
     connector_id: &str,
-    merchant_account: &storage::MerchantAccount,
-    customer: &Option<storage::Customer>,
+    merchant_account: &domain::MerchantAccount,
+    customer: &Option<domain::Customer>,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
@@ -133,7 +133,7 @@ where
     fn generate_response(
         req: Option<Req>,
         data: D,
-        customer: Option<storage::Customer>,
+        customer: Option<domain::Customer>,
         auth_flow: services::AuthFlow,
         server: &Server,
         operation: Op,
@@ -148,7 +148,7 @@ where
     fn generate_response(
         req: Option<Req>,
         payment_data: PaymentData<F>,
-        customer: Option<storage::Customer>,
+        customer: Option<domain::Customer>,
         auth_flow: services::AuthFlow,
         server: &Server,
         operation: Op,
@@ -180,7 +180,7 @@ where
     fn generate_response(
         _req: Option<Req>,
         payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
         _server: &Server,
         _operation: Op,
@@ -206,7 +206,7 @@ where
     fn generate_response(
         _req: Option<Req>,
         data: PaymentData<F>,
-        customer: Option<storage::Customer>,
+        customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
         _server: &Server,
         _operation: Op,
@@ -221,7 +221,7 @@ where
                 .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
             name: customer
                 .as_ref()
-                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned().into())),
+                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned())),
             phone: customer
                 .as_ref()
                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
@@ -251,7 +251,7 @@ pub fn payments_to_payments_response<R, Op>(
     refunds: Vec<storage::Refund>,
     disputes: Vec<storage::Dispute>,
     payment_method_data: Option<api::PaymentMethodData>,
-    customer: Option<storage::Customer>,
+    customer: Option<domain::Customer>,
     auth_flow: services::AuthFlow,
     address: PaymentAddress,
     server: &Server,
@@ -380,7 +380,7 @@ where
                         .set_name(
                             customer
                                 .as_ref()
-                                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned().into())),
+                                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned())),
                         )
                         .set_phone(
                             customer
@@ -478,7 +478,7 @@ where
                 .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
             name: customer
                 .as_ref()
-                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned().into())),
+                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned())),
             phone: customer
                 .as_ref()
                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
@@ -840,13 +840,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 field_name: "browser_info",
             })?;
 
-        let json_payload = payment_data
-            .connector_response
-            .encoded_data
-            .map(|s| serde_json::from_str::<serde_json::Value>(&s))
-            .transpose()
-            .into_report()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let redirect_response = payment_data.redirect_response.map(|redirect| {
+            types::CompleteAuthorizeRedirectResponse {
+                params: redirect.param,
+                payload: redirect.json_payload,
+            }
+        });
+
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
@@ -861,7 +861,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             email: payment_data.email,
             payment_method_data: payment_data.payment_method_data,
             connector_transaction_id: payment_data.connector_response.connector_transaction_id,
-            payload: json_payload,
+            redirect_response,
             connector_meta: payment_data.payment_attempt.connector_metadata,
         })
     }
