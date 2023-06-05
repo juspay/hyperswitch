@@ -262,12 +262,6 @@ pub async fn add_card_hs(
     let db = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
 
-    let _ = merchant_account
-        .locker_id
-        .to_owned()
-        .get_required_value("locker_id")
-        .change_context(errors::VaultError::SaveCardFailed)?;
-
     let request =
         payment_methods::mk_add_card_request_hs(jwekey, locker, &card, &customer_id, merchant_id)
             .await?;
