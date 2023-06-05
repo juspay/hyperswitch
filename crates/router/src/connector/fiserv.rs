@@ -3,7 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use ring::hmac;
 use time::OffsetDateTime;
 use transformers as fiserv;
@@ -684,7 +684,7 @@ impl api::IncomingWebhook for Fiserv {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("fiserv".to_string()).into())
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_event_type(
@@ -698,6 +698,6 @@ impl api::IncomingWebhook for Fiserv {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("fiserv".to_string()).into())
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
