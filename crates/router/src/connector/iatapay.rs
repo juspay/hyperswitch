@@ -688,7 +688,17 @@ impl api::IncomingWebhook for Iatapay {
                 true => Ok(api::IncomingWebhookEvent::PaymentIntentFailure),
                 false => Ok(api::IncomingWebhookEvent::RefundFailure),
             },
-            iatapay::IatapayPaymentStatus::Unknown |  iatapay::IatapayPaymentStatus::Created |iatapay::IatapayPaymentStatus::Initiated | iatapay::IatapayPaymentStatus::Cleared | iatapay::IatapayPaymentStatus::Settled |iatapay::IatapayPaymentStatus::Tobeinvestigated | iatapay::IatapayPaymentStatus::Blocked | iatapay::IatapayPaymentStatus::Locked | iatapay::IatapayPaymentStatus::UnexpectedSettled=> Ok(api::IncomingWebhookEvent::EventNotSupported),
+            iatapay::IatapayPaymentStatus::Unknown
+            | iatapay::IatapayPaymentStatus::Created
+            | iatapay::IatapayPaymentStatus::Initiated
+            | iatapay::IatapayPaymentStatus::Cleared
+            | iatapay::IatapayPaymentStatus::Settled
+            | iatapay::IatapayPaymentStatus::Tobeinvestigated
+            | iatapay::IatapayPaymentStatus::Blocked
+            | iatapay::IatapayPaymentStatus::Locked
+            | iatapay::IatapayPaymentStatus::UnexpectedSettled => {
+                Ok(api::IncomingWebhookEvent::EventNotSupported)
+            }
         }
     }
 
