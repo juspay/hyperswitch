@@ -310,12 +310,19 @@ impl
         &self,
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        // Adyen doesn't support PSync flow. We use PSync flow to fetch payment details,
+        // specifically the redirect URL that takes the user to their Payment page. In non-redirection flows,
+        // we rely on webhooks to obtain the payment status since there is no encoded data available.
+        // encoded_data only includes the redirect URL and is only relevant in redirection flows.
         let encoded_data = req
             .request
             .encoded_data
             .clone()
             .get_required_value("encoded_data")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::ConnectorError::FlowNotSupported {
+                flow: String::from("PSync"),
+                connector: self.id().to_string(),
+            })?;
 
         let adyen_redirection_type = serde_urlencoded::from_str::<
             transformers::AdyenRedirectRequestTypes,
