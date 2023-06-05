@@ -1,8 +1,15 @@
 name: Postman Collection Api test 
 
 on:
+  push:
+    branches:
+      - "add-api-collections-runner"
+  pull_request:
+    branches:
+      - main
   schedule:
       - cron: "15 0 * * *"
+  
 
 env:
   TZ: 'Asia/Kolkata' 
