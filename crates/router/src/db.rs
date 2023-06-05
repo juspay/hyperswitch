@@ -74,15 +74,11 @@ pub trait StorageInterface:
 
 pub trait MasterKeyInterface {
     fn get_master_key(&self) -> &[u8];
-    fn get_migration_timestamp(&self) -> i64;
 }
 
 impl MasterKeyInterface for Store {
     fn get_master_key(&self) -> &[u8] {
         &self.master_key
-    }
-    fn get_migration_timestamp(&self) -> i64 {
-        self.migration_timestamp
     }
 }
 
@@ -93,10 +89,6 @@ impl MasterKeyInterface for MockDb {
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
             25, 26, 27, 28, 29, 30, 31, 32,
         ]
-    }
-
-    fn get_migration_timestamp(&self) -> i64 {
-        0
     }
 }
 
@@ -118,6 +110,7 @@ pub struct MockDb {
     api_keys: Arc<Mutex<Vec<storage::ApiKey>>>,
     cards_info: Arc<Mutex<Vec<storage::CardInfo>>>,
     events: Arc<Mutex<Vec<storage::Event>>>,
+    disputes: Arc<Mutex<Vec<storage::Dispute>>>,
     lockers: Arc<Mutex<Vec<storage::LockerMockUp>>>,
 }
 
@@ -137,6 +130,7 @@ impl MockDb {
             api_keys: Default::default(),
             cards_info: Default::default(),
             events: Default::default(),
+            disputes: Default::default(),
             lockers: Default::default(),
         }
     }
