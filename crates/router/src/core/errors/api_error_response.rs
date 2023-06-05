@@ -194,6 +194,8 @@ pub enum ApiErrorResponse {
     WebhookBadRequest,
     #[error(error_type = ErrorType::RouterError, code = "WE_03", message = "There was some issue processing the webhook")]
     WebhookProcessingFailure,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "WE_05", message = "Unable to process the webhook body")]
+    WebhookUnprocessableEntity,
 }
 
 #[derive(Clone)]
@@ -304,6 +306,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE, // 503
             Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,          // 400
             Self::NotImplemented { .. } => StatusCode::NOT_IMPLEMENTED,    // 501
+            Self::WebhookUnprocessableEntity => StatusCode::UNPROCESSABLE_ENTITY,
         }
     }
 
@@ -537,6 +540,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::WebhookProcessingFailure => {
                 AER::InternalServerError(ApiError::new("WE", 3, "There was an issue processing the webhook", None))
+            }
+            Self::WebhookUnprocessableEntity => {
+                AER::Unprocessable(ApiError::new("WE", 5, "There was an issue processing the webhook body", None))
             }
         }
     }
