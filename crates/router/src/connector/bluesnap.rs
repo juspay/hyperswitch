@@ -1037,7 +1037,7 @@ impl api::IncomingWebhook for Bluesnap {
         Ok(match details.transaction_type.as_str() {
             "DECLINE" | "CC_CHARGE_FAILED" => api::IncomingWebhookEvent::PaymentIntentFailure,
             "CHARGE" => api::IncomingWebhookEvent::PaymentIntentSuccess,
-            _ => api::IncomingWebhookEvent::EventNotSupported,
+            "UNKNOWN" => api::IncomingWebhookEvent::EventNotSupported,
         })
     }
 

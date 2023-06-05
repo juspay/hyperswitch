@@ -641,7 +641,15 @@ impl TryFrom<AirwallexWebhookEventType> for api_models::webhooks::IncomingWebhoo
                 Self::DisputeWon
             }
             AirwallexWebhookEventType::DisputeLost => Self::DisputeLost,
-            _ => Self::EventNotSupported,
+            AirwallexWebhookEventType::Unknown | AirwallexWebhookEventType::PaymentIntentCreated|  AirwallexWebhookEventType:: PaymentIntentRequiresPaymentMethod|  AirwallexWebhookEventType:: PaymentIntentCancelled  |
+            AirwallexWebhookEventType::PaymentIntentSucceeded |  AirwallexWebhookEventType:: PaymentIntentRequiresCapture |  AirwallexWebhookEventType:: PaymentIntentRequiresCustomerAction |
+            AirwallexWebhookEventType::PaymentAttemptAuthorizationFailed |  AirwallexWebhookEventType:: PaymentAttemptCaptureRequested | AirwallexWebhookEventType:: PaymentAttemptCaptureFailed |
+            AirwallexWebhookEventType::PaymentAttemptAuthenticationRedirected | AirwallexWebhookEventType:: PaymentAttemptAuthenticationFailed | AirwallexWebhookEventType:: PaymentAttemptCancelled |
+            AirwallexWebhookEventType::PaymentAttemptExpired | AirwallexWebhookEventType:: PaymentAttemptRiskDeclined | AirwallexWebhookEventType::PaymentAttemptSettled |
+            AirwallexWebhookEventType::PaymentAttemptPaid |  AirwallexWebhookEventType:: RefundReceived |  AirwallexWebhookEventType:: RefundAccepted |
+            AirwallexWebhookEventType::DisputeRfiRespondedByMerchant |AirwallexWebhookEventType:: DisputeReceivedByMerchant
+
+            => Self::EventNotSupported,
         })
     }
 }

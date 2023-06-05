@@ -914,7 +914,7 @@ impl api::IncomingWebhook for Nuvei {
             nuvei::NuveiWebhookStatus::Declined => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
             }
-            _ => Ok(api::IncomingWebhookEvent::EventNotSupported),
+            nuvei::NuveiWebhookStatus::Unknown | nuvei::NuveiWebhookStatus::Pending | nuvei::NuveiWebhookStatus::Update => Ok(api::IncomingWebhookEvent::EventNotSupported),
         }
     }
 

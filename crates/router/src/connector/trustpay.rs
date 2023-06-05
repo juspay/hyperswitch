@@ -647,7 +647,7 @@ impl api::IncomingWebhook for Trustpay {
             .parse_struct("TrustpayWebhookResponse")
             .switch()?;
         match (
-            response.payment_information.credit_debit_indicator,
+           response.payment_information.credit_debit_indicator,
             response.payment_information.status,
         ) {
             (trustpay::CreditDebitIndicator::Crdt, trustpay::WebhookStatus::Paid) => {
@@ -668,8 +668,12 @@ impl api::IncomingWebhook for Trustpay {
             (trustpay::CreditDebitIndicator::Dbit, trustpay::WebhookStatus::Chargebacked) => {
                 Ok(api_models::webhooks::IncomingWebhookEvent::DisputeLost)
             }
+       
+            (trustpay::CreditDebitIndicator::Dbit | trustpay::CreditDebitIndicator::Crdt, trustpay::WebhookStatus::Unknown  )   => Ok(api::IncomingWebhookEvent::EventNotSupported),
+            (trustpay::CreditDebitIndicator::Crdt, trustpay::WebhookStatus::Refunded) => Ok(api::IncomingWebhookEvent::EventNotSupported),
+            (trustpay::CreditDebitIndicator::Crdt, trustpay::WebhookStatus::Chargebacked) =>Ok(api::IncomingWebhookEvent::EventNotSupported),
 
-            _ => Ok(api::IncomingWebhookEvent::EventNotSupported),
+
         }
     }
 
