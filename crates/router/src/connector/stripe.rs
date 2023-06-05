@@ -1716,7 +1716,6 @@ impl api::IncomingWebhook for Stripe {
             | stripe::WebhookEventType::ChargeExpired
             | stripe::WebhookEventType::ChargeFailed
             | stripe::WebhookEventType::ChargePending
-            | stripe::WebhookEventType::ChargeCaptured
             | stripe::WebhookEventType::ChargeUpdated
             | stripe::WebhookEventType::ChanrgeRefunded
             | stripe::WebhookEventType::PaymentIntentCanceled

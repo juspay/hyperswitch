@@ -474,7 +474,10 @@ impl TryFrom<RapydWebhookObjectEventType> for api::IncomingWebhookEvent {
             RapydWebhookObjectEventType::PaymentCompleted => Ok(Self::PaymentIntentSuccess),
             RapydWebhookObjectEventType::PaymentCaptured => Ok(Self::PaymentIntentSuccess),
             RapydWebhookObjectEventType::PaymentFailed => Ok(Self::PaymentIntentFailure),
-            _ => Ok(Self::EventNotSupported),
+            RapydWebhookObjectEventType::Unknown
+            | RapydWebhookObjectEventType::RefundCompleted
+            | RapydWebhookObjectEventType::PaymentRefundRejected
+            | RapydWebhookObjectEventType::PaymentRefundFailed => Ok(Self::EventNotSupported),
         }
     }
 }

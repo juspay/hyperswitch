@@ -700,7 +700,17 @@ pub struct BluesnapWebhookBody {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapWebhookObjectEventType {
-    pub transaction_type: String,
+    pub transaction_type: BluesnapWebhookEvents,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum BluesnapWebhookEvents {
+    Decline,
+    CcChargeFailed,
+    Charge,
+    #[serde(other)]
+    Unknown,
 }
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]

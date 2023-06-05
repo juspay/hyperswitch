@@ -919,7 +919,7 @@ pub enum AuthorizedotnetWebhookEvent {
     #[serde(rename = "net.authorize.payment.refund.created")]
     RefundCreated,
 }
-
+///Including Unknown to map unknown webhook events
 #[derive(Debug, Deserialize)]
 pub enum AuthorizedotnetIncomingWebhookEventType {
     #[serde(rename = "net.authorize.payment.authorization.created")]
