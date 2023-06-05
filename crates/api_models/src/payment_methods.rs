@@ -1,6 +1,6 @@
 use cards::CardNumber;
 use common_utils::{
-    crypto::{Encryptable, OptionalEncryptableName},
+    crypto::{ OptionalEncryptableName},
     pii,
 };
 use serde::de;
