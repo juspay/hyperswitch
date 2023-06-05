@@ -1,5 +1,8 @@
 use cards::CardNumber;
-use common_utils::{crypto::Encryptable, pii};
+use common_utils::{
+    crypto::{Encryptable, OptionalEncryptableName},
+    pii,
+};
 use serde::de;
 use utoipa::ToSchema;
 
@@ -437,7 +440,8 @@ pub struct PaymentMethodListResponse {
         }
     ]
     ))]
-    pub merchant_name: Option<Encryptable<masking::Secret<String>>>,
+    pub merchant_name: OptionalEncryptableName,
+
     pub payment_methods: Vec<ResponsePaymentMethodsEnabled>,
     /// Value indicating if the current payment is a mandate payment
     #[schema(value_type = MandateType)]
