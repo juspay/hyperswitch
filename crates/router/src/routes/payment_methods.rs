@@ -96,7 +96,7 @@ pub async fn list_payment_method_api(
 /// To filter and list the applicable payment methods for a particular Customer ID
 #[utoipa::path(
     get,
-    path = "/customer/payment_methods",
+    path = "/customers/payment_methods",
     params (
         ("customer_id" = String, Path, description = "The unique identifier for the customer account"),
         ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
