@@ -683,7 +683,10 @@ impl api::IncomingWebhook for Trustpay {
                 trustpay::CreditDebitIndicator::Dbit | trustpay::CreditDebitIndicator::Crdt,
                 trustpay::WebhookStatus::Unknown,
             ) => Ok(api::IncomingWebhookEvent::EventNotSupported),
-            (trustpay::CreditDebitIndicator::Crdt, trustpay::WebhookStatus::Refunded | trustpay::WebhookStatus::Chargebacked) => {
+            (trustpay::CreditDebitIndicator::Crdt, trustpay::WebhookStatus::Refunded) => {
+                Ok(api::IncomingWebhookEvent::EventNotSupported)
+            }
+            (trustpay::CreditDebitIndicator::Crdt, trustpay::WebhookStatus::Chargebacked) => {
                 Ok(api::IncomingWebhookEvent::EventNotSupported)
             }
         }
