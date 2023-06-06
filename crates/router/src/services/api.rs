@@ -21,6 +21,7 @@ use self::request::{ContentType, HeaderExt, RequestBuilderExt};
 pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
     configs::settings::Connectors,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -190,8 +191,19 @@ where
             connector_integration.handle_response(req, response)
         }
         payments::CallConnectorAction::Avoid => Ok(router_data),
-        payments::CallConnectorAction::StatusUpdate(status) => {
+        payments::CallConnectorAction::StatusUpdate {
+            status,
+            code,
+            message,
+        } => {
             router_data.status = status;
+            let response = ErrorResponse {
+                code: code.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                message: message.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                status_code: 200,
+                reason: None,
+            };
+            router_data.response = Err(response);
             Ok(router_data)
         }
         payments::CallConnectorAction::Trigger => {

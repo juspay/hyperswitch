@@ -783,9 +783,11 @@ impl services::ConnectorRedirectResponse for Trustpay {
         Ok(query.status.map_or(
             payments::CallConnectorAction::Trigger,
             |status| match status.as_str() {
-                "SuccessOk" => payments::CallConnectorAction::StatusUpdate(
-                    storage_models::enums::AttemptStatus::Charged,
-                ),
+                "SuccessOk" => payments::CallConnectorAction::StatusUpdate {
+                    status: storage_models::enums::AttemptStatus::Charged,
+                    code: None,
+                    message: None,
+                },
                 _ => payments::CallConnectorAction::Trigger,
             },
         ))

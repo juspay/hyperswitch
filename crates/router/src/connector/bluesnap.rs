@@ -1083,9 +1083,15 @@ impl services::ConnectorRedirectResponse for Bluesnap {
 
         match redirection_result.status.as_str() {
             "Success" => Ok(payments::CallConnectorAction::Trigger),
-            _ => Ok(payments::CallConnectorAction::StatusUpdate(
-                enums::AttemptStatus::AuthenticationFailed,
-            )),
+            _ => Ok(payments::CallConnectorAction::StatusUpdate {
+                status: enums::AttemptStatus::AuthenticationFailed,
+                code: redirection_result.code,
+                message: redirection_result
+                    .info
+                    .as_ref()
+                    .and_then(|info| info.errors.as_ref().and_then(|error| error.first()))
+                    .cloned(),
+            }),
         }
     }
 }

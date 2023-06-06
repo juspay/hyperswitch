@@ -1,6 +1,7 @@
 use api_models::enums as api_enums;
 use base64::Engine;
 use common_utils::{
+    errors::CustomResult,
     ext_traits::{ByteSliceExt, StringExt, ValueExt},
     pii::Email,
 };
@@ -9,7 +10,7 @@ use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, RouterData},
+    connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     pii::Secret,
@@ -26,6 +27,15 @@ pub struct BluesnapPaymentsRequest {
     currency: enums::Currency,
     card_transaction_type: BluesnapTxnType,
     three_d_secure: Option<BluesnapThreeDSecureInfo>,
+    card_holder_info: Option<BluesnapCardHolderInfo>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapCardHolderInfo {
+    first_name: Secret<String>,
+    last_name: Secret<String>,
+    email: Email,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -242,6 +252,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             currency: item.request.currency,
             card_transaction_type: auth_mode,
             three_d_secure: None,
+            card_holder_info: get_card_holder_info(item)?,
         })
     }
 }
@@ -384,6 +395,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
                     })?
                     .three_d_secure_reference_id,
             }),
+            card_holder_info: None,
         })
     }
 }
@@ -398,6 +410,14 @@ pub struct BluesnapRedirectionResponse {
 pub struct BluesnapThreeDsResult {
     three_d_secure: Option<BluesnapThreeDsReference>,
     pub status: String,
+    pub code: Option<String>,
+    pub info: Option<RedirectErrorMessage>,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RedirectErrorMessage {
+    pub errors: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -735,4 +755,15 @@ pub struct BluesnapAuthErrorResponse {
 pub enum BluesnapErrors {
     PaymentError(BluesnapErrorResponse),
     AuthError(BluesnapAuthErrorResponse),
+}
+
+fn get_card_holder_info(
+    item: &types::PaymentsAuthorizeRouterData,
+) -> CustomResult<Option<BluesnapCardHolderInfo>, errors::ConnectorError> {
+    let address = item.get_billing_address()?;
+    Ok(Some(BluesnapCardHolderInfo {
+        first_name: address.get_first_name()?.to_owned(),
+        last_name: address.get_last_name()?.to_owned(),
+        email: item.request.get_email()?,
+    }))
 }

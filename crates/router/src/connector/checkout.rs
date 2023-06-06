@@ -1187,9 +1187,13 @@ impl services::ConnectorRedirectResponse for Checkout {
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let connector_action = query
             .status
-            .map(|checkout_status| {
-                payments::CallConnectorAction::StatusUpdate(checkout_status.into())
-            })
+            .map(
+                |checkout_status| payments::CallConnectorAction::StatusUpdate {
+                    status: checkout_status.into(),
+                    code: None,
+                    message: None,
+                },
+            )
             .unwrap_or(payments::CallConnectorAction::Trigger);
         Ok(connector_action)
     }

@@ -905,9 +905,11 @@ impl services::ConnectorRedirectResponse for Globalpay {
             payments::CallConnectorAction::Trigger,
             |status| match status {
                 response::GlobalpayPaymentStatus::Captured => {
-                    payments::CallConnectorAction::StatusUpdate(
-                        storage_models::enums::AttemptStatus::from(status),
-                    )
+                    payments::CallConnectorAction::StatusUpdate {
+                        status: storage_models::enums::AttemptStatus::from(status),
+                        code: None,
+                        message: None,
+                    }
                 }
                 _ => payments::CallConnectorAction::Trigger,
             },

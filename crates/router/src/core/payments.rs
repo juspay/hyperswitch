@@ -936,7 +936,11 @@ where
 pub enum CallConnectorAction {
     Trigger,
     Avoid,
-    StatusUpdate(storage_enums::AttemptStatus),
+    StatusUpdate {
+        status: storage_enums::AttemptStatus,
+        code: Option<String>,
+        message: Option<String>,
+    },
     HandleResponse(Vec<u8>),
 }
 
