@@ -2330,6 +2330,21 @@ pub struct WebhookStatusData {
 #[derive(Debug, Deserialize)]
 pub struct WebhookStatusObjectData {
     pub status: Option<WebhookEventStatus>,
+    pub payment_method_details: Option<WebhookPaymentMethodDetails>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WebhookPaymentMethodType {
+    AchCreditTransfer,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WebhookPaymentMethodDetails {
+    #[serde(rename = "type")]
+    pub payment_method: WebhookPaymentMethodType,
 }
 
 #[derive(Debug, Deserialize)]

@@ -1711,6 +1711,16 @@ impl api::IncomingWebhook for Stripe {
             stripe::WebhookEventType::PaymentIntentSucceed => {
                 api::IncomingWebhookEvent::PaymentIntentSuccess
             }
+            stripe::WebhookEventType::ChargeSucceeded => {
+                if let Some(stripe::WebhookPaymentMethodDetails {
+                    payment_method: stripe::WebhookPaymentMethodType::AchCreditTransfer,
+                }) = details.event_data.event_object.payment_method_details
+                {
+                    api::IncomingWebhookEvent::PaymentIntentSuccess
+                } else {
+                    api::IncomingWebhookEvent::EventNotSupported
+                }
+            }
             stripe::WebhookEventType::SourceChargeable => {
                 api::IncomingWebhookEvent::SourceChargeable
             }
@@ -1729,7 +1739,6 @@ impl api::IncomingWebhook for Stripe {
                 api::IncomingWebhookEvent::PaymentActionRequired
             }
             stripe::WebhookEventType::Unknown
-            | stripe::WebhookEventType::ChargeSucceeded
             | stripe::WebhookEventType::ChargeCaptured
             | stripe::WebhookEventType::ChargeDisputeCaptured
             | stripe::WebhookEventType::ChargeDisputeFundsReinstated
