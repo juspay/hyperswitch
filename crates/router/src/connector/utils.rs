@@ -474,19 +474,17 @@ impl CardData for api::Card {
         let card_holder_name = self.card_holder_name.peek();
         let words: Vec<&str> = card_holder_name.split_whitespace().collect();
         if !words.is_empty() {
-            let last_name = if words.len() == 1 {
-                Secret::new("".to_string())
+            let first_name = Secret::new(if words.len() > 1 {
+                words[..words.len() - 1].join(" ")
             } else {
-                Secret::new(words.last().unwrap_or(&"").to_string())
-            };
-            let first_name = Secret::new(
-                words
-                    .iter()
-                    .take((words.len() - 1) | 1)
-                    .map(|&word| word.to_string())
-                    .collect::<Vec<_>>()
-                    .join(" "),
-            );
+                words.first().unwrap_or(&"").to_string()
+            });
+            let last_name = Secret::new(if words.len() > 1 {
+                words.last().unwrap_or(&"").to_string()
+            } else {
+                String::new()
+            });
+
             Ok((first_name, last_name))
         } else {
             Err(errors::ConnectorError::MissingRequiredField {
