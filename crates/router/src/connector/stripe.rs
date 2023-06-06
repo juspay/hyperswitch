@@ -1666,9 +1666,15 @@ impl api::IncomingWebhook for Stripe {
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         Ok(match details.event_data.event_object.object {
-            stripe::WebhookEventObjectType::PaymentIntent
-            | stripe::WebhookEventObjectType::Charge
-            | stripe::WebhookEventObjectType::Dispute => {
+            stripe::WebhookEventObjectType::PaymentIntent => {
+                api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        details.event_data.event_object.id,
+                    ),
+                )
+            }
+
+            stripe::WebhookEventObjectType::Charge | stripe::WebhookEventObjectType::Dispute => {
                 api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
                         details
@@ -1693,7 +1699,7 @@ impl api::IncomingWebhook for Stripe {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: stripe::WebhookEvent = request
+        let details: stripe::WebhookEventTypeBody = request
             .body
             .parse_struct("WebhookEvent")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
@@ -1708,18 +1714,14 @@ impl api::IncomingWebhook for Stripe {
             stripe::WebhookEventType::SourceChargeable => {
                 api::IncomingWebhookEvent::SourceChargeable
             }
-            stripe::WebhookEventType::ChargeSucceeded => {
-                api::IncomingWebhookEvent::PaymentIntentSuccess
-            }
             stripe::WebhookEventType::DisputeCreated => api::IncomingWebhookEvent::DisputeOpened,
             stripe::WebhookEventType::DisputeClosed => api::IncomingWebhookEvent::DisputeCancelled,
-            stripe::WebhookEventType::DisputeUpdated => api::IncomingWebhookEvent::try_from(
-                details
-                    .event_data
-                    .event_object
-                    .status
-                    .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?,
-            )?,
+            stripe::WebhookEventType::DisputeUpdated => details
+                .event_data
+                .event_object
+                .status
+                .map(Into::into)
+                .unwrap_or(api::IncomingWebhookEvent::EventNotSupported),
             stripe::WebhookEventType::PaymentIntentPartiallyFunded => {
                 api::IncomingWebhookEvent::PaymentIntentPartiallyFunded
             }
@@ -1727,6 +1729,7 @@ impl api::IncomingWebhook for Stripe {
                 api::IncomingWebhookEvent::PaymentActionRequired
             }
             stripe::WebhookEventType::Unknown
+            | stripe::WebhookEventType::ChargeSucceeded
             | stripe::WebhookEventType::ChargeCaptured
             | stripe::WebhookEventType::ChargeDisputeCaptured
             | stripe::WebhookEventType::ChargeDisputeFundsReinstated

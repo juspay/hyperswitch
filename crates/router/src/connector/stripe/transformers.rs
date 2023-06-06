@@ -566,17 +566,27 @@ pub enum StripeBankNames {
     Boz,
 }
 
-impl TryFrom<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
-    type Error = errors::ConnectorError;
-    fn try_from(value: WebhookEventStatus) -> Result<Self, Self::Error> {
-        Ok(match value {
+impl From<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
+    fn from(value: WebhookEventStatus) -> Self {
+        match value {
             WebhookEventStatus::WarningNeedsResponse => Self::DisputeOpened,
             WebhookEventStatus::WarningClosed => Self::DisputeCancelled,
             WebhookEventStatus::WarningUnderReview => Self::DisputeChallenged,
             WebhookEventStatus::Won => Self::DisputeWon,
             WebhookEventStatus::Lost => Self::DisputeLost,
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
-        })
+            WebhookEventStatus::NeedsResponse
+            | WebhookEventStatus::UnderReview
+            | WebhookEventStatus::ChargeRefunded
+            | WebhookEventStatus::Succeeded
+            | WebhookEventStatus::RequiresPaymentMethod
+            | WebhookEventStatus::RequiresConfirmation
+            | WebhookEventStatus::RequiresAction
+            | WebhookEventStatus::Processing
+            | WebhookEventStatus::RequiresCapture
+            | WebhookEventStatus::Canceled
+            | WebhookEventStatus::Chargeable
+            | WebhookEventStatus::Unknown => Self::EventNotSupported,
+        }
     }
 }
 
@@ -2298,9 +2308,28 @@ pub struct WebhookEvent {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct WebhookEventTypeBody {
+    #[serde(rename = "type")]
+    pub event_type: WebhookEventType,
+    #[serde(rename = "data")]
+    pub event_data: WebhookStatusData,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct WebhookEventData {
     #[serde(rename = "object")]
     pub event_object: WebhookEventObjectData,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WebhookStatusData {
+    #[serde(rename = "object")]
+    pub event_object: WebhookStatusObjectData,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WebhookStatusObjectData {
+    pub status: Option<WebhookEventStatus>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2397,6 +2426,8 @@ pub enum WebhookEventStatus {
     RequiresCapture,
     Canceled,
     Chargeable,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
