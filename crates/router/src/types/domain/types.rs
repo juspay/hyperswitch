@@ -55,7 +55,7 @@ impl<
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
-        let data = crypt_algo.decode_message(key, encrypted.clone().expose())?;
+        let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
         let value: String = std::str::from_utf8(&data)
             .into_report()
@@ -94,7 +94,7 @@ impl<
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
-        let data = crypt_algo.decode_message(key, encrypted.clone().expose())?;
+        let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
         let value: serde_json::Value = serde_json::from_slice(&data)
             .into_report()
@@ -128,7 +128,7 @@ impl<
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
-        let data = crypt_algo.decode_message(key, encrypted.clone().expose())?;
+        let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
         Ok(Self::new(data.into(), encrypted))
     }
