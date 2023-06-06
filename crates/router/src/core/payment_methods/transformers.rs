@@ -280,7 +280,7 @@ pub async fn mk_add_card_request_hs(
     let mut url = locker.host.to_owned();
     url.push_str("/cards/add");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/json");
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.set_body(body.to_string());
     Ok(request)
 }
@@ -382,7 +382,10 @@ pub fn mk_add_card_request(
     let mut url = locker.host.to_owned();
     url.push_str("/card/addCard");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/x-www-form-urlencoded");
+    request.add_header(
+        headers::CONTENT_TYPE,
+        "application/x-www-form-urlencoded".into(),
+    );
     request.set_body(body);
     Ok(request)
 }
@@ -425,7 +428,7 @@ pub async fn mk_get_card_request_hs(
     let mut url = locker.host.to_owned();
     url.push_str("/cards/retrieve");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/json");
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.set_body(body.to_string());
     Ok(request)
 }
@@ -445,7 +448,10 @@ pub fn mk_get_card_request<'a>(
     let mut url = locker.host.to_owned();
     url.push_str("/card/getCard");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/x-www-form-urlencoded");
+    request.add_header(
+        headers::CONTENT_TYPE,
+        "application/x-www-form-urlencoded".into(),
+    );
     request.set_body(body);
     Ok(request)
 }
@@ -506,7 +512,7 @@ pub async fn mk_delete_card_request_hs(
     let mut url = locker.host.to_owned();
     url.push_str("/cards/delete");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/json");
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.set_body(body.to_string());
     Ok(request)
 }
@@ -526,7 +532,10 @@ pub fn mk_delete_card_request<'a>(
     url.push_str("/card/deleteCard");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_default_headers();
-    request.add_header(headers::CONTENT_TYPE, "application/x-www-form-urlencoded");
+    request.add_header(
+        headers::CONTENT_TYPE,
+        "application/x-www-form-urlencoded".into(),
+    );
 
     request.set_body(body);
     Ok(request)
@@ -574,7 +583,7 @@ pub fn mk_crud_locker_request(
     url.push_str(path);
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_default_headers();
-    request.add_header(headers::CONTENT_TYPE, "application/json");
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.set_body(body.to_string());
     Ok(request)
 }

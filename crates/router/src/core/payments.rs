@@ -364,6 +364,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                     json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
                 }),
                 allowed_payment_method_types: None,
+                order_category: None,
             }),
             ..Default::default()
         };
