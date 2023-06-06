@@ -1,14 +1,10 @@
-
 use error_stack::IntoReport;
 
 use super::{MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    types::{
-        storage::{self, DisputeDbExt},
-       
-    },
+    types::storage::{self, DisputeDbExt},
 };
 
 #[async_trait::async_trait]

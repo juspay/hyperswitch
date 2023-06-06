@@ -16,7 +16,7 @@ use crate::{
         api::{self, disputes},
         domain,
         storage::enums as storage_enums,
-        transformers::{ForeignFrom},
+        transformers::ForeignFrom,
         AcceptDisputeRequestData, AcceptDisputeResponse, DefendDisputeRequestData,
         DefendDisputeResponse, SubmitEvidenceRequestData, SubmitEvidenceResponse,
     },
