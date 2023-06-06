@@ -22,7 +22,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly
+          toolchain: stable
 
       - name: Generate the spec file
         shell: bash
