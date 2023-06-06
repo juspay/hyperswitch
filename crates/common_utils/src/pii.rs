@@ -60,8 +60,8 @@ impl<T> Strategy<T> for EncryptionStratergy
 where
     T: AsRef<[u8]>,
 {
-    fn fmt(_value: &T, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        fmt.write_str("*** Encrypted ***")
+    fn fmt(value: &T, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(fmt, "*** Encrypted {} of bytes ***", value.as_ref().len())
     }
 }
 
