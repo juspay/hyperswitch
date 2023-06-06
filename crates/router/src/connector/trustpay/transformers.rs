@@ -806,6 +806,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, t
 pub struct TrustpayCreateIntentRequest {
     pub amount: String,
     pub currency: String,
+    // If true, Apple Pay will be initialized
     pub init_apple_pay: Option<bool>,
 }
 
