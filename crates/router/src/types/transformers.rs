@@ -208,65 +208,6 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
     }
 }
 
-// impl ForeignFrom<storage_enums::EventType> for api_enums::EventType {
-//     fn foreign_from(event_type: storage_enums::EventType) -> Self {
-//         frunk::labelled_convert_from(event_type)
-//     }
-// }
-
-// impl ForeignFrom<api_enums::FutureUsage> for storage_enums::FutureUsage {
-//     fn foreign_from(future_usage: api_enums::FutureUsage) -> Self {
-//         frunk::labelled_convert_from(future_usage)
-//     }
-// }
-
-// impl ForeignFrom<storage_enums::FutureUsage> for api_enums::FutureUsage {
-//     fn foreign_from(future_usage: storage_enums::FutureUsage) -> Self {
-//         frunk::labelled_convert_from(future_usage)
-//     }
-// }
-
-// impl ForeignFrom<storage_enums::RefundStatus> for api_enums::RefundStatus {
-//     fn foreign_from(status: storage_enums::RefundStatus) -> Self {
-//         frunk::labelled_convert_from(status)
-//     }
-// }
-
-// impl ForeignFrom<api_enums::CaptureMethod> for storage_enums::CaptureMethod {
-//     fn foreign_from(capture_method: api_enums::CaptureMethod) -> Self {
-//         frunk::labelled_convert_from(capture_method)
-//     }
-// }
-
-// impl ForeignFrom<storage_enums::CaptureMethod> for api_enums::CaptureMethod {
-//     fn foreign_from(capture_method: storage_enums::CaptureMethod) -> Self {
-//         frunk::labelled_convert_from(capture_method)
-//     }
-// }
-
-// impl ForeignFrom<api_enums::AuthenticationType> for storage_enums::AuthenticationType {
-//     fn foreign_from(auth_type: api_enums::AuthenticationType) -> Self {
-//         frunk::labelled_convert_from(auth_type)
-//     }
-// }
-
-// impl ForeignFrom<storage_enums::AuthenticationType> for api_enums::AuthenticationType {
-//     fn foreign_from(auth_type: storage_enums::AuthenticationType) -> Self {
-//         frunk::labelled_convert_from(auth_type)
-//     }
-// }
-
-// impl ForeignFrom<api_enums::Currency> for storage_enums::Currency {
-//     fn foreign_from(currency: api_enums::Currency) -> Self {
-//         frunk::labelled_convert_from(currency)
-//     }
-// }
-
-// impl ForeignFrom<storage_enums::Currency> for api_enums::Currency {
-//     fn foreign_from(currency: storage_enums::Currency) -> Self {
-//         frunk::labelled_convert_from(currency)
-//     }
-// }
 
 impl ForeignFrom<storage::Config> for api_types::Config {
     fn foreign_from(config: storage::Config) -> Self {
@@ -310,21 +251,6 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
     }
 }
 
-// impl ForeignFrom<api_models::enums::PaymentMethodType>
-//     for storage_models::enums::PaymentMethodType
-// {
-//     fn foreign_from(payment_method_type: api_models::enums::PaymentMethodType) -> Self {
-//         frunk::labelled_convert_from(payment_method_type)
-//     }
-// }
-
-// impl ForeignFrom<storage_models::enums::PaymentMethodType>
-//     for api_models::enums::PaymentMethodType
-// {
-//     fn foreign_from(payment_method_type: storage_models::enums::PaymentMethodType) -> Self {
-//         frunk::labelled_convert_from(payment_method_type)
-//     }
-// }
 
 impl
     ForeignFrom<(
