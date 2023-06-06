@@ -437,12 +437,13 @@ pub struct PaymentMethodListResponse {
         }
     ]
     ))]
-    pub merchant_name: OptionalEncryptableName,
-
     pub payment_methods: Vec<ResponsePaymentMethodsEnabled>,
     /// Value indicating if the current payment is a mandate payment
     #[schema(value_type = MandateType)]
     pub mandate_payment: Option<payments::MandateType>,
+
+    #[schema(value_type = Option<String>)]
+    pub merchant_name: OptionalEncryptableName,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
