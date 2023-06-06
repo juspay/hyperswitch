@@ -174,11 +174,19 @@ There is no limit to the number of commits any single Pull Request may have, and
 many contributors find it easier to review changes that are split across
 multiple commits.
 
-That said, if you have a number of commits that are "checkpoints" and don't
-represent a single logical change, please squash those together.
+Please adhere to the general guideline that you should never force push to a
+publicly shared branch.
+Once you have opened your pull request, you should consider your branch publicly shared.
+Instead of force pushing you can just add incremental commits;
+this is generally easier on your reviewers.
+If you need to pick up changes from main, you can merge main into your branch.
 
-Note that multiple commits often get squashed when they are landed (see the
-notes about [commit squashing](#commit-squashing)).
+A reviewer might ask you to rebase a long-running pull request
+in which case force pushing is okay for that request.
+
+Note that squashing at the end of the review process should also not be done,
+that can be done when the pull request is integrated via GitHub.
+
 
 #### Commit message guidelines
 

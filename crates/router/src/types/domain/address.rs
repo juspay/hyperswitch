@@ -74,7 +74,6 @@ impl behaviour::Conversion for Address {
         other: Self::DstType,
         db: &dyn StorageInterface,
         merchant_id: &str,
-        migration_timestamp: i64,
     ) -> CustomResult<Self, ValidationError> {
         let key = types::get_merchant_enc_key(db, merchant_id)
             .await
@@ -83,9 +82,7 @@ impl behaviour::Conversion for Address {
             })?;
 
         async {
-            let modified_at = other.modified_at.assume_utc().unix_timestamp();
-            let inner_decrypt =
-                |inner| types::decrypt(inner, &key, modified_at, migration_timestamp);
+            let inner_decrypt = |inner| types::decrypt(inner, &key);
             Ok(Self {
                 id: Some(other.id),
                 address_id: other.address_id,
