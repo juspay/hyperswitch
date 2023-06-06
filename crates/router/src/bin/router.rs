@@ -4,10 +4,6 @@ use router::{
     logger,
 };
 
-// fn print_type_of<T>(_: &T) {
-//     println!("{}", std::any::type_name::<T>())
-// }
-
 #[actix_web::main]
 async fn main() -> ApplicationResult<()> {
     // get commandline config before initializing config
@@ -27,8 +23,6 @@ async fn main() -> ApplicationResult<()> {
             )
             .expect("Failed to write OpenAPI specification to file");
             println!("Successfully saved OpenAPI specification file at '{file_path}'");
-            // let mut json_schema = std::fs::read_to_string(file_path).unwrap();
-            // let spec: oas3::OpenApiV3Spec = serde_json::from_str(json_schema.as_str()).expect("OpenApiV3 Deserialized");
             return Ok(());
         }
     }
