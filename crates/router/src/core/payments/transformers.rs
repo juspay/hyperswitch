@@ -609,6 +609,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
             .payment_intent
+            .clone()
             .metadata
             .map(|metadata_value| {
                 metadata_value
@@ -620,37 +621,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             })
             .transpose()
             .unwrap_or_default();
-        //fetch outer order_details....check if both metadata and outer order_details are not
-        //present at the same time... send error
-        let order_details_metadata_parsed = parsed_metadata.and_then(|data| data.order_details);
-        let order_details_outside_metadata_parsed =
-            payment_data.payment_intent.order_details.clone().map(
-                |order_details_outside_metadata_value| {
-                    order_details_outside_metadata_value
-                        .iter()
-                        .map(|data| {
-                            let parsed_order_details: OrderDetailsWithAmount = data
-                                .peek()
-                                .to_owned()
-                                .parse_value("OrderDetailsWithAmount")
-                                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                                    field_name: "OrderDetailsWithAmount",
-                                })
-                                .attach_printable("unable to parse OrderDetailsWithAmount")
-                                .unwrap_or_default();
-                            parsed_order_details
-                        })
-                        .collect::<Vec<OrderDetailsWithAmount>>()
-                },
-            );
-        let order_details = match order_details_metadata_parsed {
-            Some(odm) => change_order_details_to_new_type(
-                additional_data.clone().payment_data.payment_intent.amount,
-                odm,
-            ),
-            None => order_details_outside_metadata_parsed,
-        };
-
+        let order_details =
+            fetch_order_details(additional_data.clone(), parsed_metadata, &payment_data)?;
         let complete_authorize_url = Some(helpers::create_complete_authorize_url(
             router_base_url,
             attempt,
@@ -808,6 +780,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.clone().payment_data;
         let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
+            .clone()
             .payment_intent
             .metadata
             .map(|metadata_value| {
@@ -821,36 +794,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             .transpose()
             .unwrap_or_default();
 
-        //fetch outer order_details....check if both metadata and outer order_details are not
-        //present at the same time... send error
-        let order_details_metadata_parsed = parsed_metadata.and_then(|data| data.order_details);
-        let order_details_outside_metadata_parsed =
-            payment_data.payment_intent.order_details.clone().map(
-                |order_details_outside_metadata_value| {
-                    order_details_outside_metadata_value
-                        .iter()
-                        .map(|data| {
-                            let parsed_order_details: OrderDetailsWithAmount = data
-                                .peek()
-                                .to_owned()
-                                .parse_value("OrderDetailsWithAmount")
-                                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                                    field_name: "OrderDetailsWithAmount",
-                                })
-                                .attach_printable("unable to parse OrderDetailsWithAmount")
-                                .unwrap_or_default();
-                            parsed_order_details
-                        })
-                        .collect::<Vec<OrderDetailsWithAmount>>()
-                },
-            );
-        let order_details = match order_details_metadata_parsed {
-            Some(odm) => change_order_details_to_new_type(
-                additional_data.clone().payment_data.payment_intent.amount,
-                odm,
-            ),
-            None => order_details_outside_metadata_parsed,
-        };
+        let order_details =
+            fetch_order_details(additional_data.clone(), parsed_metadata, &payment_data)?;
 
         Ok(Self {
             amount: payment_data.amount.into(),
@@ -947,4 +892,40 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             currency: Some(payment_data.currency),
         })
     }
+}
+
+pub fn fetch_order_details<F: Clone>(
+    additional_data: PaymentAdditionalData<'_, F>,
+    parsed_metadata: Option<api_models::payments::Metadata>,
+    payment_data: &PaymentData<F>,
+) -> RouterResult<Option<Vec<OrderDetailsWithAmount>>> {
+    let order_details_metadata_parsed = parsed_metadata.and_then(|data| data.order_details);
+    let order_details_outside_metadata_parsed =
+        payment_data.payment_intent.order_details.clone().map(
+            |order_details_outside_metadata_value| {
+                order_details_outside_metadata_value
+                    .iter()
+                    .map(|data| {
+                        let parsed_order_details: OrderDetailsWithAmount = data
+                            .peek()
+                            .to_owned()
+                            .parse_value("OrderDetailsWithAmount")
+                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "OrderDetailsWithAmount",
+                            })
+                            .attach_printable("unable to parse OrderDetailsWithAmount")
+                            .unwrap_or_default();
+                        parsed_order_details
+                    })
+                    .collect::<Vec<OrderDetailsWithAmount>>()
+            },
+        );
+    let order_details = match order_details_metadata_parsed {
+        Some(odm) => change_order_details_to_new_type(
+            additional_data.clone().payment_data.payment_intent.amount,
+            odm,
+        ),
+        None => order_details_outside_metadata_parsed,
+    };
+    Ok(order_details)
 }

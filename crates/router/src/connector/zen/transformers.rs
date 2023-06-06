@@ -196,7 +196,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
         Ok(Self {
             merchant_transaction_id: item.payment_id.clone(),
             payment_channel,
-            amount: order_amount.clone(),
+            amount: order_amount,
             currency: item.request.currency,
             payment_specific_data,
             customer: ZenCustomerDetails {
@@ -210,7 +210,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                     name: data.product_name.clone(),
                     quantity: data.quantity,
                     price: data.amount.to_string(),
-                    line_amount_total: order_amount.clone(),
+                    line_amount_total: item.request.amount.to_string(),
                 })
                 .collect(),
         })

@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use common_utils::{
-    ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
+    ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
     fp_utils, pii,
 };
 // TODO : Evaluate all the helper functions ()
@@ -1891,4 +1891,111 @@ impl AttemptType {
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
         }
     }
+}
+
+pub fn validate_and_add_order_details_to_payment_intent(
+    mut payment_intent: &mut storage::payment_intent::PaymentIntent,
+    request: &api::PaymentsRequest,
+) -> RouterResult<()> {
+    let parsed_metadata_db: Option<api_models::payments::Metadata> = payment_intent
+        .clone()
+        .metadata
+        .map(|metadata_value| {
+            metadata_value
+                .peek()
+                .clone()
+                .parse_value("metadata")
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "metadata",
+                })
+                .attach_printable("unable to parse metadata")
+        })
+        .transpose()?;
+    let order_details_metadata_db = parsed_metadata_db
+        .clone()
+        .and_then(|meta| meta.order_details);
+    let order_details_outside_metadata_db = payment_intent.clone().order_details;
+    let order_details_outside_metadata_req = request.clone().order_details;
+    let order_details_metadata_req = request.clone().metadata.and_then(|meta| meta.order_details);
+
+    if order_details_outside_metadata_req
+        .clone()
+        .zip(order_details_metadata_req.clone())
+        .is_some()
+    {
+        Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
+    }
+    if order_details_metadata_db
+        .clone()
+        .zip(order_details_outside_metadata_db.clone())
+        .is_some()
+    {
+        Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payment intent in db".to_string() })?
+    }
+    let order_details_outside = match order_details_outside_metadata_req {
+        Some(order) => match order_details_metadata_db {
+            Some(_) => Err(errors::ApiErrorResponse::NotSupported {
+                message: "order_details previously present inside of metadata".to_string(),
+            })?,
+            None => Some(order),
+        },
+        None => match order_details_metadata_req {
+            Some(_order) => match order_details_outside_metadata_db {
+                Some(_) => Err(errors::ApiErrorResponse::NotSupported {
+                    message: "order_details previously present outside of metadata".to_string(),
+                })?,
+                None => None,
+            },
+            None => None,
+        },
+    };
+    add_order_details_and_metadata_to_payment_intent(
+        &mut payment_intent,
+        request,
+        parsed_metadata_db,
+        &order_details_outside,
+    )
+}
+
+pub fn add_order_details_and_metadata_to_payment_intent(
+    mut payment_intent: &mut storage::payment_intent::PaymentIntent,
+    request: &api::PaymentsRequest,
+    parsed_metadata_db: Option<api_models::payments::Metadata>,
+    order_details_outside: &Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+) -> RouterResult<()> {
+    let metadata_with_order_details = request.clone().metadata.map(|meta| {
+        let transformed_metadata = match parsed_metadata_db {
+            Some(meta_db) => api_models::payments::Metadata {
+                order_details: meta.order_details,
+                ..meta_db
+            },
+            None => meta,
+        };
+        let transformed_metadata_value =
+            Encode::<api_models::payments::Metadata>::encode_to_value(&transformed_metadata)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Encoding Metadata to value failed")
+                .unwrap_or_default();
+        masking::Secret::new(transformed_metadata_value)
+    });
+
+    if let Some(order_details_outside_struct) = order_details_outside {
+        let order_details_outside_value = order_details_outside_struct
+            .iter()
+            .map(|order| {
+                Encode::<api_models::payments::OrderDetailsWithAmount>::encode_to_value(order)
+                    .change_context(errors::ApiErrorResponse::NotSupported {
+                        message: "failed while encoding order_details".to_string(),
+                    })
+                    .map(masking::Secret::new)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        payment_intent.order_details = Some(order_details_outside_value);
+    };
+
+    if metadata_with_order_details.is_some() {
+        payment_intent.metadata = metadata_with_order_details;
+    }
+
+    Ok(())
 }

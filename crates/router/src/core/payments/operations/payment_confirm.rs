@@ -1,9 +1,8 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
+use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -70,8 +69,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             "confirm",
         )?;
 
-        let _ =
-            validate_and_update_payment_intent_with_order_details(&mut payment_intent, request)?;
+        let _ = helpers::validate_and_add_order_details_to_payment_intent(
+            &mut payment_intent,
+            request,
+        )?;
 
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -406,20 +407,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let business_label = Some(payment_data.payment_intent.business_label.clone());
         let business_country = Some(payment_data.payment_intent.business_country);
         let order_details = payment_data.payment_intent.order_details.clone();
-
-        //to update metadata... payment_data has metadata which is populated with old metadata from db + new metadata in request
-        if let Some(meta) = payment_data.payment_intent.clone().metadata {
-            let _ = db
-                .update_payment_intent(
-                    payment_data.payment_intent.clone(),
-                    storage::PaymentIntentUpdate::MetadataUpdate {
-                        metadata: meta.clone(),
-                    },
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-        };
+        let metadata = payment_data.payment_intent.metadata.clone();
 
         payment_data.payment_intent = db
             .update_payment_intent(
@@ -436,6 +424,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     business_country,
                     business_label,
                     order_details,
+                    metadata,
                 },
                 storage_scheme,
             )
@@ -467,6 +456,16 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
+        let order_details_inside_metadata =
+            request.clone().metadata.and_then(|meta| meta.order_details);
+        if request
+            .order_details
+            .clone()
+            .zip(order_details_inside_metadata)
+            .is_some()
+        {
+            Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
+        }
         let given_payment_id = match &request.payment_id {
             Some(id_type) => Some(
                 id_type
@@ -498,100 +497,4 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
             },
         ))
     }
-}
-
-pub fn validate_and_update_payment_intent_with_order_details(
-    mut payment_intent: &mut storage::payment_intent::PaymentIntent,
-    request: &api::PaymentsRequest,
-) -> RouterResult<()> {
-    let parsed_metadata_db: Option<api_models::payments::Metadata> = payment_intent
-        .clone()
-        .metadata
-        .map(|metadata_value| {
-            metadata_value
-                .peek()
-                .clone()
-                .parse_value("metadata")
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "metadata",
-                })
-                .attach_printable("unable to parse metadata")
-        })
-        .transpose()
-        .unwrap_or_default();
-    let order_details_metadata_db = parsed_metadata_db
-        .clone()
-        .and_then(|meta| meta.order_details);
-    let order_details_outside_metadata_db = payment_intent.clone().order_details;
-    let order_details_outside_metadata_req = request.clone().order_details;
-    let order_details_metadata_req = request.clone().metadata.and_then(|meta| meta.order_details);
-
-    if order_details_outside_metadata_req
-        .clone()
-        .zip(order_details_metadata_req.clone())
-        .is_some()
-    {
-        Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
-    }
-    if order_details_metadata_db
-        .clone()
-        .zip(order_details_outside_metadata_db.clone())
-        .is_some()
-    {
-        Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payment intent in db".to_string() })?
-    }
-    let order_details_outside = match order_details_outside_metadata_req {
-        Some(order) => match order_details_metadata_db {
-            Some(_) => Err(errors::ApiErrorResponse::NotSupported {
-                message: "order_details previously present inside of metadata".to_string(),
-            })?,
-            None => Some(order),
-        },
-        None => match order_details_metadata_req {
-            Some(_order) => match order_details_outside_metadata_db {
-                Some(_) => Err(errors::ApiErrorResponse::NotSupported {
-                    message: "order_details previously present outside of metadata".to_string(),
-                })?,
-                None => None,
-            },
-            None => None,
-        },
-    };
-    let metadata_with_order_details = request.clone().metadata.map(|meta| {
-        let transformed_metadata = match parsed_metadata_db {
-            Some(meta_db) => api_models::payments::Metadata {
-                order_details: meta.order_details,
-                ..meta_db
-            },
-            None => meta,
-        };
-        let transformed_metadata_value =
-            Encode::<api_models::payments::Metadata>::encode_to_value(&transformed_metadata)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Encoding Metadata to value failed")
-                .unwrap_or_default();
-        Secret::new(transformed_metadata_value)
-    });
-    if order_details_outside.is_some() {
-        payment_intent.order_details = order_details_outside.map(|o| {
-            o.iter()
-                .map(|order| {
-                    let encoded_order = <api_models::payments::OrderDetailsWithAmount as Encode<
-                        '_,
-                        frunk_core::labelled::chars::P,
-                    >>::encode_to_value(order)
-                    .change_context(errors::ApiErrorResponse::NotSupported {
-                        message: "failed while encoding order_details".to_string(),
-                    })
-                    .unwrap_or_default();
-                    masking::Secret::new(encoded_order)
-                })
-                .collect()
-        });
-    };
-    if metadata_with_order_details.is_some() {
-        payment_intent.metadata = metadata_with_order_details;
-    }
-
-    Ok(())
 }

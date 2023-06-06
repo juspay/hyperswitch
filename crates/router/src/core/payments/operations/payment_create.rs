@@ -408,6 +408,16 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
+        let order_details_inside_metadata =
+            request.clone().metadata.and_then(|meta| meta.order_details);
+        if request
+            .order_details
+            .clone()
+            .zip(order_details_inside_metadata)
+            .is_some()
+        {
+            Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
+        }
         let given_payment_id = match &request.payment_id {
             Some(id_type) => Some(
                 id_type
@@ -556,18 +566,23 @@ impl PaymentCreate {
         {
             Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
         }
-        let order_details_outside_value = request.clone().order_details.map(|o| {
-            o.iter()
-                .map(|order| {
-                    let encoded_order = Encode::<OrderDetailsWithAmount>::encode_to_value(&order)
-                        .change_context(errors::ApiErrorResponse::NotSupported {
-                            message: "failed while encoding order_details".to_string(),
-                        })
-                        .unwrap_or_default();
-                    masking::Secret::new(encoded_order)
-                })
-                .collect::<Vec<masking::Secret<serde_json::Value>>>()
-        });
+        let order_details_outside_value = match request.clone().order_details {
+            Some(od_value) => {
+                let order_details_outside_value_secret = od_value
+                    .iter()
+                    .map(|order| {
+                        Encode::<OrderDetailsWithAmount>::encode_to_value(order)
+                            .change_context(errors::ApiErrorResponse::NotSupported {
+                                message: "failed while encoding order_details".to_string(),
+                            })
+                            .map(masking::Secret::new)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Some(order_details_outside_value_secret)
+            }
+            None => None,
+        };
+
         let (business_country, business_label) = helpers::get_business_details(
             request.business_country,
             request.business_label.as_ref(),

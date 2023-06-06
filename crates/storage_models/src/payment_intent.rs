@@ -119,6 +119,7 @@ pub enum PaymentIntentUpdate {
         business_country: Option<storage_enums::CountryAlpha2>,
         business_label: Option<String>,
         order_details: Option<Vec<pii::SecretSerdeValue>>,
+        metadata: Option<pii::SecretSerdeValue>,
     },
     PaymentAttemptUpdate {
         active_attempt_id: String,
@@ -198,6 +199,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 business_country,
                 business_label,
                 order_details,
+                metadata,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -212,6 +214,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 business_country,
                 business_label,
                 order_details,
+                metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate { metadata } => Self {
