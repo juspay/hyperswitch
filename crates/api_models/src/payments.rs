@@ -1559,6 +1559,8 @@ pub struct Metadata {
     #[schema(value_type = Object, example = r#"{ "city": "NY", "unit": "245" }"#)]
     #[serde(flatten)]
     pub data: pii::SecretSerdeValue,
+    /// Information about the order category that merchant wants to specify at connector level. (e.g. In Noon Payments it can take values like "pay", "food", or any other custom string set by the merchant in Noon's Dashboard)
+    pub order_category: Option<String>,
 
     /// Redirection response coming in request as metadata field only for redirection scenarios
     pub redirect_response: Option<RedirectResponse>,
