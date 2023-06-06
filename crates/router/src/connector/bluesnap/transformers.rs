@@ -10,7 +10,7 @@ use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     pii::Secret,
@@ -152,13 +152,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             Some(enums::CaptureMethod::Manual) => BluesnapTxnType::AuthOnly,
             _ => BluesnapTxnType::AuthCapture,
         };
-        let payment_method = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ccard) => Ok(PaymentMethodDetails::CreditCard(Card {
-                card_number: ccard.card_number,
-                expiration_month: ccard.card_exp_month.clone(),
-                expiration_year: ccard.card_exp_year.clone(),
-                security_code: ccard.card_cvc,
-            })),
+        let (payment_method, card_holder_info) = match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Card(ccard) => Ok((
+                PaymentMethodDetails::CreditCard(Card {
+                    card_number: ccard.card_number.clone(),
+                    expiration_month: ccard.card_exp_month.clone(),
+                    expiration_year: ccard.card_exp_year.clone(),
+                    security_code: ccard.card_cvc.clone(),
+                }),
+                get_card_holder_info(item, &ccard)?,
+            )),
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 api_models::payments::WalletData::GooglePay(payment_method_data) => {
                     let gpay_object = Encode::<BluesnapGooglePayObject>::encode_to_string_of_json(
@@ -169,10 +172,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                         },
                     )
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                    Ok(PaymentMethodDetails::Wallet(BluesnapWallet {
-                        wallet_type: BluesnapWalletTypes::GooglePay,
-                        encoded_payment_token: consts::BASE64_ENGINE.encode(gpay_object),
-                    }))
+                    Ok((
+                        PaymentMethodDetails::Wallet(BluesnapWallet {
+                            wallet_type: BluesnapWalletTypes::GooglePay,
+                            encoded_payment_token: consts::BASE64_ENGINE.encode(gpay_object),
+                        }),
+                        None,
+                    ))
                 }
                 api_models::payments::WalletData::ApplePay(payment_method_data) => {
                     let apple_pay_payment_data = consts::BASE64_ENGINE
@@ -233,10 +239,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                     )
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-                    Ok(PaymentMethodDetails::Wallet(BluesnapWallet {
-                        wallet_type: BluesnapWalletTypes::ApplePay,
-                        encoded_payment_token: consts::BASE64_ENGINE.encode(apple_pay_object),
-                    }))
+                    Ok((
+                        PaymentMethodDetails::Wallet(BluesnapWallet {
+                            wallet_type: BluesnapWalletTypes::ApplePay,
+                            encoded_payment_token: consts::BASE64_ENGINE.encode(apple_pay_object),
+                        }),
+                        None,
+                    ))
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     "Wallets".to_string(),
@@ -252,7 +261,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             currency: item.request.currency,
             card_transaction_type: auth_mode,
             three_d_secure: None,
-            card_holder_info: get_card_holder_info(item)?,
+            card_holder_info,
         })
     }
 }
@@ -759,11 +768,12 @@ pub enum BluesnapErrors {
 
 fn get_card_holder_info(
     item: &types::PaymentsAuthorizeRouterData,
+    card: &api_models::payments::Card,
 ) -> CustomResult<Option<BluesnapCardHolderInfo>, errors::ConnectorError> {
-    let address = item.get_billing_address()?;
+    let (first_name, last_name) = card.get_first_name_and_last_name_from_cardholdername()?;
     Ok(Some(BluesnapCardHolderInfo {
-        first_name: address.get_first_name()?.to_owned(),
-        last_name: address.get_last_name()?.to_owned(),
+        first_name,
+        last_name,
         email: item.request.get_email()?,
     }))
 }

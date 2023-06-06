@@ -429,6 +429,9 @@ pub trait CardData {
         delimiter: String,
     ) -> Secret<String>;
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String>;
+    fn get_first_name_and_last_name_from_cardholdername(
+        &self,
+    ) -> Result<(Secret<String>, Secret<String>), errors::ConnectorError>;
 }
 
 impl CardData for api::Card {
@@ -463,6 +466,33 @@ impl CardData for api::Card {
             delimiter,
             self.card_exp_month.peek().clone()
         ))
+    }
+
+    fn get_first_name_and_last_name_from_cardholdername(
+        &self,
+    ) -> Result<(Secret<String>, Secret<String>), errors::ConnectorError> {
+        let card_holder_name = self.card_holder_name.peek();
+        let words: Vec<&str> = card_holder_name.split_whitespace().collect();
+        if !words.is_empty() {
+            let last_name = if words.len() == 1 {
+                Secret::new("".to_string())
+            } else {
+                Secret::new(words.last().unwrap_or(&"").to_string())
+            };
+            let first_name = Secret::new(
+                words
+                    .iter()
+                    .take((words.len() - 1) | 1)
+                    .map(|&word| word.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            );
+            Ok((first_name, last_name))
+        } else {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "card.card_holder_name",
+            })?
+        }
     }
 }
 
