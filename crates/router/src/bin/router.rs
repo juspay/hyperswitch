@@ -42,24 +42,6 @@ async fn main() -> ApplicationResult<()> {
 
     let _guard = logger::setup(&conf.log);
 
-    #[cfg(feature = "pii-encryption-script")]
-    {
-        let store =
-            router::services::Store::new(&conf, false, tokio::sync::oneshot::channel().0).await;
-
-        // ^-------- KMS decryption of the master key is a fallible and the server will panic in
-        // the above mentioned line
-
-        router::scripts::pii_encryption::test_2_step_encryption(&store).await;
-
-        #[allow(clippy::expect_used)]
-        router::scripts::pii_encryption::encrypt_merchant_account_fields(&store)
-            .await
-            .expect("Failed while encrypting merchant account");
-
-        crate::logger::error!("Done with everything");
-    }
-
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
 
     #[allow(clippy::expect_used)]
