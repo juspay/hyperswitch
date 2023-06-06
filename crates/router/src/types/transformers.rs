@@ -208,7 +208,6 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
     }
 }
 
-
 impl ForeignFrom<storage::Config> for api_types::Config {
     fn foreign_from(config: storage::Config) -> Self {
         let config = config;
@@ -250,7 +249,6 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
         }
     }
 }
-
 
 impl
     ForeignFrom<(
