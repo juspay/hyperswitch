@@ -4,6 +4,9 @@ use actix_web::cookie::SameSite;
 use async_trait::async_trait;
 use thirtyfour::{components::SelectElement, prelude::*, WebDriver};
 
+use crate::connector_auth;
+
+#[derive(Clone)]
 pub enum Event<'a> {
     RunIf(Assert<'a>, Vec<Event<'a>>),
     EitherOr(Assert<'a>, Vec<Event<'a>>, Vec<Event<'a>>),
@@ -11,6 +14,7 @@ pub enum Event<'a> {
     Trigger(Trigger<'a>),
 }
 
+#[derive(Clone)]
 #[allow(dead_code)]
 pub enum Trigger<'a> {
     Goto(&'a str),
@@ -26,18 +30,22 @@ pub enum Trigger<'a> {
     Sleep(u64),
 }
 
+#[derive(Clone)]
 pub enum Position {
     Prev,
     Next,
 }
+#[derive(Clone)]
 pub enum Selector {
     Title,
     QueryParamStr,
 }
 
+#[derive(Clone)]
 pub enum Assert<'a> {
     Eq(Selector, &'a str),
     Contains(Selector, &'a str),
+    ContainsAny(Selector, Vec<&'a str>),
     IsPresent(&'a str),
     IsPresentNow(&'a str),
 }
@@ -46,6 +54,15 @@ pub static CHEKOUT_BASE_URL: &str = "https://hs-payments-test.netlify.app";
 pub static CHEKOUT_DOMAIN: &str = "hs-payments-test.netlify.app";
 #[async_trait]
 pub trait SeleniumTest {
+    fn get_configs(&self) -> connector_auth::ConnectorAuthentication {
+        let path = env::var("CONNECTOR_AUTH_FILE_PATH")
+            .expect("connector authentication file path not set");
+        toml::from_str(
+            &std::fs::read_to_string(path).expect("connector authentication config file not found"),
+        )
+        .expect("Failed to read connector authentication config file")
+    }
+    fn get_connector_name(&self) -> String;
     async fn complete_actions(
         &self,
         driver: &WebDriver,
@@ -60,6 +77,15 @@ pub trait SeleniumTest {
                             assert!(url.query().unwrap().contains(text))
                         }
                         _ => assert!(driver.title().await?.contains(text)),
+                    },
+                    Assert::ContainsAny(selector, search_keys) => match selector {
+                        Selector::QueryParamStr => {
+                            let url = driver.current_url().await?;
+                            assert!(search_keys
+                                .iter()
+                                .any(|key| url.query().unwrap().contains(key)))
+                        }
+                        _ => assert!(driver.title().await?.contains(search_keys.first().unwrap())),
                     },
                     Assert::Eq(_selector, text) => assert_eq!(driver.title().await?, text),
                     Assert::IsPresent(text) => {
@@ -78,6 +104,15 @@ pub trait SeleniumTest {
                             }
                         }
                         _ => assert!(driver.title().await?.contains(text)),
+                    },
+                    Assert::ContainsAny(selector, keys) => match selector {
+                        Selector::QueryParamStr => {
+                            let url = driver.current_url().await?;
+                            if keys.iter().any(|key| url.query().unwrap().contains(key)) {
+                                self.complete_actions(driver, events).await?;
+                            }
+                        }
+                        _ => assert!(driver.title().await?.contains(keys.first().unwrap())),
                     },
                     Assert::Eq(_selector, text) => {
                         if text == driver.title().await? {
@@ -110,6 +145,21 @@ pub trait SeleniumTest {
                             .await?;
                         }
                         _ => assert!(driver.title().await?.contains(text)),
+                    },
+                    Assert::ContainsAny(selector, keys) => match selector {
+                        Selector::QueryParamStr => {
+                            let url = driver.current_url().await?;
+                            self.complete_actions(
+                                driver,
+                                if keys.iter().any(|key| url.query().unwrap().contains(key)) {
+                                    success
+                                } else {
+                                    failure
+                                },
+                            )
+                            .await?;
+                        }
+                        _ => assert!(driver.title().await?.contains(keys.first().unwrap())),
                     },
                     Assert::Eq(_selector, text) => {
                         self.complete_actions(
@@ -148,15 +198,34 @@ pub trait SeleniumTest {
                 Event::Trigger(trigger) => match trigger {
                     Trigger::Goto(url) => {
                         driver.goto(url).await?;
-                        let hs_base_url =
-                            env::var("HS_BASE_URL").unwrap_or("http://localhost:8080".to_string()); //Issue: #924
-                        let hs_api_key =
-                            env::var("HS_API_KEY").expect("Hyperswitch user API key not present"); //Issue: #924
+                        let conf = serde_json::to_string(&self.get_configs()).unwrap();
+                        let hs_base_url = self
+                            .get_configs()
+                            .automation_configs
+                            .unwrap()
+                            .hs_base_url
+                            .unwrap_or_else(|| "http://localhost:8080".to_string());
+                        let configs_url = self
+                            .get_configs()
+                            .automation_configs
+                            .unwrap()
+                            .configs_url
+                            .unwrap();
+                        let script = &[
+                            format!("localStorage.configs='{configs_url}'").as_str(),
+                            format!("localStorage.hs_api_configs='{conf}'").as_str(),
+                            "localStorage.force_sync='true'",
+                            format!(
+                                "localStorage.current_connector=\"{}\";",
+                                self.get_connector_name().clone()
+                            )
+                            .as_str(),
+                        ]
+                        .join(";");
+
+                        driver.execute(script, Vec::new()).await?;
                         driver
                             .add_cookie(new_cookie("hs_base_url", hs_base_url).clone())
-                            .await?;
-                        driver
-                            .add_cookie(new_cookie("hs_api_key", hs_api_key).clone())
                             .await?;
                     }
                     Trigger::Click(by) => {
@@ -232,7 +301,12 @@ pub trait SeleniumTest {
         c: WebDriver,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
-        self.complete_actions(&c, actions).await
+        let config = self.get_configs().automation_configs.unwrap();
+        if config.run_minimum_steps.unwrap() {
+            self.complete_actions(&c, actions[..3].to_vec()).await
+        } else {
+            self.complete_actions(&c, actions).await
+        }
     }
     async fn make_gpay_payment(
         &self,
@@ -240,10 +314,8 @@ pub trait SeleniumTest {
         url: &str,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
-        let (email, pass) = (
-            &get_env("GMAIL_EMAIL").clone(),
-            &get_env("GMAIL_PASS").clone(),
-        );
+        let config = self.get_configs().automation_configs.unwrap();
+        let (email, pass) = (&config.gmail_email.unwrap(), &config.gmail_pass.unwrap());
         let default_actions = vec![
             Event::Trigger(Trigger::Goto(url)),
             Event::Trigger(Trigger::Click(By::Css(".gpay-button"))),
@@ -294,8 +366,18 @@ pub trait SeleniumTest {
         )
         .await?;
         let (email, pass) = (
-            &get_env("PYPL_EMAIL").clone(),
-            &get_env("PYPL_PASS").clone(),
+            &self
+                .get_configs()
+                .automation_configs
+                .unwrap()
+                .pypl_email
+                .unwrap(),
+            &self
+                .get_configs()
+                .automation_configs
+                .unwrap()
+                .pypl_pass
+                .unwrap(),
         );
         let mut pypl_actions = vec![
             Event::EitherOr(
@@ -392,7 +474,7 @@ macro_rules! tester {
 }
 
 pub fn get_browser() -> String {
-    env::var("HS_TEST_BROWSER").unwrap_or("firefox".to_string()) //Issue: #924
+    "firefox".to_string()
 }
 
 pub fn make_capabilities(s: &str) -> Capabilities {
@@ -420,44 +502,32 @@ pub fn make_capabilities(s: &str) -> Capabilities {
     }
 }
 fn get_chrome_profile_path() -> Result<String, WebDriverError> {
-    env::var("CHROME_PROFILE_PATH").map_or_else(
-        //Issue: #924
-        |_| -> Result<String, WebDriverError> {
-            let exe = env::current_exe()?;
-            let dir = exe.parent().expect("Executable must be in some directory");
-            let mut base_path = dir
-                .to_str()
-                .map(|str| {
-                    let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
-                    fp.truncate(3);
-                    fp.join(&MAIN_SEPARATOR.to_string())
-                })
-                .unwrap();
-            base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#);
-            Ok(base_path)
-        },
-        Ok,
-    )
+    let exe = env::current_exe()?;
+    let dir = exe.parent().expect("Executable must be in some directory");
+    let mut base_path = dir
+        .to_str()
+        .map(|str| {
+            let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
+            fp.truncate(3);
+            fp.join(&MAIN_SEPARATOR.to_string())
+        })
+        .unwrap();
+    base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#);
+    Ok(base_path)
 }
 fn get_firefox_profile_path() -> Result<String, WebDriverError> {
-    env::var("FIREFOX_PROFILE_PATH").map_or_else(
-        //Issue: #924
-        |_| -> Result<String, WebDriverError> {
-            let exe = env::current_exe()?;
-            let dir = exe.parent().expect("Executable must be in some directory");
-            let mut base_path = dir
-                .to_str()
-                .map(|str| {
-                    let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
-                    fp.truncate(3);
-                    fp.join(&MAIN_SEPARATOR.to_string())
-                })
-                .unwrap();
-            base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#);
-            Ok(base_path)
-        },
-        Ok,
-    )
+    let exe = env::current_exe()?;
+    let dir = exe.parent().expect("Executable must be in some directory");
+    let mut base_path = dir
+        .to_str()
+        .map(|str| {
+            let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
+            fp.truncate(3);
+            fp.join(&MAIN_SEPARATOR.to_string())
+        })
+        .unwrap();
+    base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#);
+    Ok(base_path)
 }
 
 pub fn make_url(s: &str) -> &'static str {
@@ -486,8 +556,4 @@ pub fn handle_test_error(
             false
         }
     }
-}
-
-pub fn get_env(name: &str) -> String {
-    env::var(name).unwrap_or_else(|_| panic!("{name} not present")) //Issue: #924
 }
