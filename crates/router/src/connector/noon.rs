@@ -663,7 +663,10 @@ impl api::IncomingWebhook for Noon {
                 }
             }
             noon::NoonWebhookEventTypes::Fail => api::IncomingWebhookEvent::PaymentIntentFailure,
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
+            noon::NoonWebhookEventTypes::Authorize
+            | noon::NoonWebhookEventTypes::Authenticate
+            | noon::NoonWebhookEventTypes::Refund
+            | noon::NoonWebhookEventTypes::Unknown => api::IncomingWebhookEvent::EventNotSupported,
         })
     }
 

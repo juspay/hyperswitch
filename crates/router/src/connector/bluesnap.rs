@@ -1025,10 +1025,17 @@ impl api::IncomingWebhook for Bluesnap {
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        Ok(match details.transaction_type.as_str() {
-            "DECLINE" | "CC_CHARGE_FAILED" => api::IncomingWebhookEvent::PaymentIntentFailure,
-            "CHARGE" => api::IncomingWebhookEvent::PaymentIntentSuccess,
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+        Ok(match details.transaction_type {
+            bluesnap::BluesnapWebhookEvents::Decline
+            | bluesnap::BluesnapWebhookEvents::CcChargeFailed => {
+                api::IncomingWebhookEvent::PaymentIntentFailure
+            }
+            bluesnap::BluesnapWebhookEvents::Charge => {
+                api::IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            bluesnap::BluesnapWebhookEvents::Unknown => {
+                api::IncomingWebhookEvent::EventNotSupported
+            }
         })
     }
 

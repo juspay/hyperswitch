@@ -752,6 +752,7 @@ impl api::IncomingWebhook for Worldline {
                 worldline::WebhookEvent::Rejected | worldline::WebhookEvent::RejectedCapture => {
                     api::IncomingWebhookEvent::PaymentIntentFailure
                 }
+                worldline::WebhookEvent::Unknown => api::IncomingWebhookEvent::EventNotSupported,
             };
             Ok(event)
         }
