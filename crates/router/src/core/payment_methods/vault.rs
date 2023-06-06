@@ -447,10 +447,10 @@ impl Vault {
                     if resp == "Ok" {
                         logger::info!("Card From locker deleted Successfully")
                     } else {
-                        logger::error!("Error: Deleting Card From Locker : {}", resp)
+                        logger::warn!("Error: Deleting Card From Locker : {}", resp)
                     }
                 }
-                Err(err) => logger::error!("Err: Deleting Card From Locker : {}", err),
+                Err(err) => logger::warn!("Err: Deleting Card From Locker : {}", err),
             }
         }
     }
@@ -648,7 +648,9 @@ pub async fn delete_tokenized_data(
         service_name: VAULT_SERVICE_NAME.to_string(),
     };
     let payload = serde_json::to_string(&payload_to_be_encrypted)
-        .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error serializing api::DeleteTokenizeByTokenRequest")?;
 
     let (public_key, _private_key) = get_locker_jwe_keys(&state.kms_secrets)
         .await
@@ -764,14 +766,14 @@ pub async fn start_tokenize_data_workflow(
                     .finish_with_status(db, format!("COMPLETED_BY_PT_{id}"))
                     .await?;
             } else {
-                logger::error!("Error: Deleting Card From Locker : {}", resp);
+                logger::warn!("Error: Deleting Card From Locker : {}", resp);
                 retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
                     .await?;
                 scheduler_metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
             }
         }
         Err(err) => {
-            logger::error!("Err: Deleting Card From Locker : {}", err);
+            logger::warn!("Err: Deleting Card From Locker : {}", err);
             retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
                 .await?;
             scheduler_metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
