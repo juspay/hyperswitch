@@ -14,7 +14,11 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     db::StorageInterface,
-    headers, services,
+    headers,
+    services::{
+        self,
+        request::{self, Mask},
+    },
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -66,7 +70,7 @@ impl ConnectorCommon for Rapyd {
     fn get_auth_header(
         &self,
         _auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
 
@@ -123,10 +127,12 @@ impl
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
         )])
     }
 
@@ -161,10 +167,10 @@ impl
         let signature =
             self.generate_signature(&auth, "post", "/v1/payments", &rapyd_req, &timestamp, &salt)?;
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
-            ("salt".to_string(), salt),
-            ("timestamp".to_string(), timestamp.to_string()),
-            ("signature".to_string(), signature),
+            ("access_key".to_string(), auth.access_key.into_masked()),
+            ("salt".to_string(), salt.into_masked()),
+            ("timestamp".to_string(), timestamp.to_string().into()),
+            ("signature".to_string(), signature.into_masked()),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -241,10 +247,12 @@ impl
         &self,
         _req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsVoidType::get_content_type(self).to_string(),
+            types::PaymentsVoidType::get_content_type(self)
+                .to_string()
+                .into(),
         )])
     }
 
@@ -278,10 +286,10 @@ impl
             self.generate_signature(&auth, "delete", &url_path, "", &timestamp, &salt)?;
 
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
-            ("salt".to_string(), salt),
-            ("timestamp".to_string(), timestamp.to_string()),
-            ("signature".to_string(), signature),
+            ("access_key".to_string(), auth.access_key.into_masked()),
+            ("salt".to_string(), salt.into_masked()),
+            ("timestamp".to_string(), timestamp.to_string().into()),
+            ("signature".to_string(), signature.into_masked()),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Delete)
@@ -328,10 +336,12 @@ impl
         &self,
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsSyncType::get_content_type(self).to_string(),
+            types::PaymentsSyncType::get_content_type(self)
+                .to_string()
+                .into(),
         )])
     }
 
@@ -372,10 +382,10 @@ impl
         let signature = self.generate_signature(&auth, "get", &url_path, "", &timestamp, &salt)?;
 
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
-            ("salt".to_string(), salt),
-            ("timestamp".to_string(), timestamp.to_string()),
-            ("signature".to_string(), signature),
+            ("access_key".to_string(), auth.access_key.into_masked()),
+            ("salt".to_string(), salt.into_masked()),
+            ("timestamp".to_string(), timestamp.to_string().into()),
+            ("signature".to_string(), signature.into_masked()),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Get)
@@ -425,10 +435,12 @@ impl
         &self,
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsCaptureType::get_content_type(self).to_string(),
+            types::PaymentsCaptureType::get_content_type(self)
+                .to_string()
+                .into(),
         )])
     }
 
@@ -464,10 +476,10 @@ impl
         let signature =
             self.generate_signature(&auth, "post", &url_path, &rapyd_req, &timestamp, &salt)?;
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
-            ("salt".to_string(), salt),
-            ("timestamp".to_string(), timestamp.to_string()),
-            ("signature".to_string(), signature),
+            ("access_key".to_string(), auth.access_key.into_masked()),
+            ("salt".to_string(), salt.into_masked()),
+            ("timestamp".to_string(), timestamp.to_string().into()),
+            ("signature".to_string(), signature.into_masked()),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -543,10 +555,12 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         _req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::RefundExecuteType::get_content_type(self).to_string(),
+            types::RefundExecuteType::get_content_type(self)
+                .to_string()
+                .into(),
         )])
     }
 
@@ -586,10 +600,10 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let signature =
             self.generate_signature(&auth, "post", "/v1/refunds", &rapyd_req, &timestamp, &salt)?;
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
-            ("salt".to_string(), salt),
-            ("timestamp".to_string(), timestamp.to_string()),
-            ("signature".to_string(), signature),
+            ("access_key".to_string(), auth.access_key.into_masked()),
+            ("salt".to_string(), salt.into_masked()),
+            ("timestamp".to_string(), timestamp.to_string().into()),
+            ("signature".to_string(), signature.into_masked()),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -634,7 +648,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         &self,
         _req: &types::RefundSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
 
@@ -702,13 +716,17 @@ impl api::IncomingWebhook for Rapyd {
         db: &dyn StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("wh_mer_sec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .get_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-
-        Ok(secret)
+        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
+        let secret = match db.find_config_by_key(&key).await {
+            Ok(config) => Some(config),
+            Err(e) => {
+                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
+                None
+            }
+        };
+        Ok(secret
+            .map(|conf| conf.config.into_bytes())
+            .unwrap_or_default())
     }
 
     fn get_webhook_source_verification_message(

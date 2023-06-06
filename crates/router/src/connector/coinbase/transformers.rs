@@ -306,6 +306,8 @@ pub enum WebhookEventType {
     Failed,
     #[serde(rename = "charge:resolved")]
     Resolved,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
