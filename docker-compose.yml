@@ -14,7 +14,6 @@ networks:
 
 
 services:
-
   promtail:
     image: grafana/promtail:latest
     volumes:
@@ -92,21 +91,9 @@ services:
     volumes:
       - ./:/app
 
-  hyperswitch-server-init:
-    image: rust:1.65
-    command: cargo build --bin router
-    working_dir: /app
-    networks:
-      - router_net
-    volumes:
-      - ./:/app
-      - cargo_cache:/cargo_cache
-      - cargo_build_cache:/cargo_build_cache
-    environment:
-      - CARGO_TARGET_DIR=/cargo_build_cache
   hyperswitch-server:
     image: rust:1.65
-    command: /cargo_build_cache/debug/router -f ./config/docker_compose.toml
+    command: cargo run -- -f ./config/docker_compose.toml
     working_dir: /app
     ports:
       - "8080:8080"
@@ -126,10 +113,6 @@ services:
       retries: 3
       start_period: 20s
       timeout: 10s
-
-    depends_on:
-      hyperswitch-server-init:
-        condition: service_completed_successfully
 
   hyperswitch-producer:
     image: rust:1.65
