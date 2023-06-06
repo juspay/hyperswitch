@@ -18,7 +18,7 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        api,
+        api, domain,
         storage::{self, enums},
         transformers::{ForeignInto, ForeignTryInto},
     },
@@ -30,7 +30,7 @@ const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 #[instrument(skip_all)]
 pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -106,7 +106,7 @@ pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
 #[instrument(skip_all)]
 pub async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
     connector_name: &str,
     source_verified: bool,
@@ -211,7 +211,7 @@ pub async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
 pub async fn get_payment_attempt_from_object_reference_id(
     state: &AppState,
     object_reference_id: api_models::webhooks::ObjectReferenceId,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<storage_models::payment_attempt::PaymentAttempt, errors::ApiErrorResponse> {
     let db = &*state.store;
     match object_reference_id {
@@ -323,7 +323,7 @@ pub async fn get_or_update_dispute_object(
 #[instrument(skip_all)]
 pub async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
     connector: &(dyn api::Connector + Sync),
@@ -386,7 +386,7 @@ pub async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
 
 async fn bank_transfer_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -461,7 +461,7 @@ async fn bank_transfer_webhook_flow<W: api::OutgoingWebhookType>(
 #[instrument(skip_all)]
 pub async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookType>(
     state: AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     event_type: enums::EventType,
     event_class: enums::EventClass,
     intent_reference_id: Option<String>,
@@ -539,7 +539,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookTy
 }
 
 pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     webhook: api::OutgoingWebhook,
     outgoing_webhooks_signature: Option<String>,
     state: &AppState,
@@ -575,7 +575,7 @@ pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
     )];
 
     if let Some(signature) = outgoing_webhooks_signature {
-        header.push((headers::X_WEBHOOK_SIGNATURE.to_string(), signature))
+        header.push((headers::X_WEBHOOK_SIGNATURE.to_string(), signature.into()))
     }
 
     let request = services::RequestBuilder::new()
@@ -620,7 +620,7 @@ pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
 pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     state: &AppState,
     req: &actix_web::HttpRequest,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     connector_name: &str,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
@@ -629,7 +629,9 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
         connector_name,
         api::GetToken::Connector,
     )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+        message: "invalid connnector name received".to_string(),
+    })
     .attach_printable("Failed construction of ConnectorData")?;
 
     let connector = connector.connector;
@@ -654,7 +656,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
 
     let event_type = connector
         .get_webhook_event_type(&request_details)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .switch()
         .attach_printable("Could not find event type in incoming webhook body")?;
 
     let process_webhook_further = utils::lookup_webhook_event(

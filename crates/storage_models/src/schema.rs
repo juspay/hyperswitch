@@ -11,22 +11,14 @@ diesel::table! {
         #[max_length = 128]
         city -> Nullable<Varchar>,
         country -> Nullable<CountryAlpha2>,
-        #[max_length = 255]
-        line1 -> Nullable<Varchar>,
-        #[max_length = 255]
-        line2 -> Nullable<Varchar>,
-        #[max_length = 255]
-        line3 -> Nullable<Varchar>,
-        #[max_length = 128]
-        state -> Nullable<Varchar>,
-        #[max_length = 16]
-        zip -> Nullable<Varchar>,
-        #[max_length = 255]
-        first_name -> Nullable<Varchar>,
-        #[max_length = 255]
-        last_name -> Nullable<Varchar>,
-        #[max_length = 32]
-        phone_number -> Nullable<Varchar>,
+        line1 -> Nullable<Bytea>,
+        line2 -> Nullable<Bytea>,
+        line3 -> Nullable<Bytea>,
+        state -> Nullable<Bytea>,
+        zip -> Nullable<Bytea>,
+        first_name -> Nullable<Bytea>,
+        last_name -> Nullable<Bytea>,
+        phone_number -> Nullable<Bytea>,
         #[max_length = 8]
         country_code -> Nullable<Varchar>,
         created_at -> Timestamp,
@@ -130,12 +122,9 @@ diesel::table! {
         customer_id -> Varchar,
         #[max_length = 64]
         merchant_id -> Varchar,
-        #[max_length = 255]
-        name -> Nullable<Varchar>,
-        #[max_length = 255]
-        email -> Nullable<Varchar>,
-        #[max_length = 32]
-        phone -> Nullable<Varchar>,
+        name -> Nullable<Bytea>,
+        email -> Nullable<Bytea>,
+        phone -> Nullable<Bytea>,
         #[max_length = 8]
         phone_country_code -> Nullable<Varchar>,
         #[max_length = 255]
@@ -321,9 +310,8 @@ diesel::table! {
         #[max_length = 255]
         payment_response_hash_key -> Nullable<Varchar>,
         redirect_to_merchant_with_http_post -> Bool,
-        #[max_length = 128]
-        merchant_name -> Nullable<Varchar>,
-        merchant_details -> Nullable<Json>,
+        merchant_name -> Nullable<Bytea>,
+        merchant_details -> Nullable<Bytea>,
         webhook_details -> Nullable<Json>,
         sub_merchants_enabled -> Nullable<Bool>,
         #[max_length = 64]
@@ -353,7 +341,7 @@ diesel::table! {
         merchant_id -> Varchar,
         #[max_length = 64]
         connector_name -> Varchar,
-        connector_account_details -> Json,
+        connector_account_details -> Bytea,
         test_mode -> Nullable<Bool>,
         disabled -> Nullable<Bool>,
         #[max_length = 128]
@@ -371,6 +359,18 @@ diesel::table! {
         frm_configs -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    merchant_key_store (merchant_id) {
+        #[max_length = 255]
+        merchant_id -> Varchar,
+        key -> Bytea,
+        created_at -> Timestamp,
     }
 }
 
@@ -619,6 +619,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     mandate,
     merchant_account,
     merchant_connector_account,
+    merchant_key_store,
     payment_attempt,
     payment_intent,
     payment_methods,

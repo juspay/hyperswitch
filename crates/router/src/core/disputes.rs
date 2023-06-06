@@ -14,8 +14,9 @@ use crate::{
     services,
     types::{
         api::{self, disputes},
-        storage::{self, enums as storage_enums},
-        transformers::ForeignFrom,
+        domain,
+        storage::enums as storage_enums,
+        transformers::{ForeignFrom},
         AcceptDisputeRequestData, AcceptDisputeResponse, DefendDisputeRequestData,
         DefendDisputeResponse, SubmitEvidenceRequestData, SubmitEvidenceResponse,
     },
@@ -25,7 +26,7 @@ use crate::{
 #[instrument(skip(state))]
 pub async fn retrieve_dispute(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: disputes::DisputeId,
 ) -> RouterResponse<api_models::disputes::DisputeResponse> {
     let dispute = state
@@ -42,7 +43,7 @@ pub async fn retrieve_dispute(
 #[instrument(skip(state))]
 pub async fn retrieve_disputes_list(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     constraints: api_models::disputes::DisputeListConstraints,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeResponse>> {
     let disputes = state
@@ -61,7 +62,7 @@ pub async fn retrieve_disputes_list(
 #[instrument(skip(state))]
 pub async fn accept_dispute(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: disputes::DisputeId,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
     let db = &state.store;
@@ -158,7 +159,7 @@ pub async fn accept_dispute(
 #[instrument(skip(state))]
 pub async fn submit_evidence(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: dispute_models::SubmitEvidenceRequest,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
     let db = &state.store;
@@ -306,7 +307,7 @@ pub async fn submit_evidence(
 
 pub async fn attach_evidence(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     attach_evidence_request: api::AttachEvidenceRequest,
 ) -> RouterResponse<files_api_models::CreateFileResponse> {
     let db = &state.store;
@@ -379,7 +380,7 @@ pub async fn attach_evidence(
 #[instrument(skip(state))]
 pub async fn retrieve_dispute_evidence(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: disputes::DisputeId,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeEvidenceBlock>> {
     let dispute = state

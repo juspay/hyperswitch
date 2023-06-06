@@ -16,7 +16,11 @@ use crate::{
     core::errors::{self, CustomResult},
     db::StorageInterface,
     headers,
-    services::{self, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -36,10 +40,10 @@ where
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut headers = vec![(
             headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string(),
+            self.get_content_type().to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         headers.append(&mut api_key);
@@ -63,11 +67,14 @@ impl ConnectorCommon for Worldpay {
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth: worldpay::WorldpayAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth.api_key.into_masked(),
+        )])
     }
 
     fn build_error_response(
@@ -116,7 +123,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -207,7 +214,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -287,7 +294,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -376,7 +383,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -462,7 +469,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -547,7 +554,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -641,12 +648,17 @@ impl api::IncomingWebhook for Worldpay {
         db: &dyn StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("wh_mer_sec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .get_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-        Ok(secret)
+        let key = utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
+        let secret = match db.find_config_by_key(&key).await {
+            Ok(config) => Some(config),
+            Err(e) => {
+                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
+                None
+            }
+        };
+        Ok(secret
+            .map(|conf| conf.config.into_bytes())
+            .unwrap_or_default())
     }
 
     fn get_webhook_source_verification_message(
@@ -698,7 +710,14 @@ impl api::IncomingWebhook for Worldpay {
             EventType::Error | EventType::Expired => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
             }
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
+            EventType::Unknown
+            | EventType::Authorized
+            | EventType::Cancelled
+            | EventType::Refused
+            | EventType::Refunded
+            | EventType::SentForRefund
+            | EventType::CaptureFailed
+            | EventType::RefundFailed => Ok(api::IncomingWebhookEvent::EventNotSupported),
         }
     }
 

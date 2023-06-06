@@ -1,5 +1,5 @@
 use api_models::payments;
-use common_utils::{date_time, ext_traits::StringExt, pii as secret};
+use common_utils::{crypto::Encryptable, date_time, ext_traits::StringExt, pii as secret};
 use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 
@@ -125,7 +125,7 @@ impl From<Shipping> for payments::Address {
 pub struct StripePaymentIntentRequest {
     pub id: Option<String>,
     pub amount: Option<i64>, //amount in cents, hence passed as integer
-    pub connector: Option<Vec<api_enums::Connector>>,
+    pub connector: Option<Vec<api_enums::RoutableConnectors>>,
     pub currency: Option<String>,
     #[serde(rename = "amount_to_capture")]
     pub amount_capturable: Option<i64>,
@@ -169,10 +169,22 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             }
             None => (None, None),
         };
+
+        let routable_connector: Option<api_enums::RoutableConnectors> =
+            item.connector.and_then(|v| v.into_iter().next());
+
+        let routing = routable_connector
+            .map(crate::types::api::RoutingAlgorithm::Single)
+            .map(|r| {
+                serde_json::to_value(r)
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("converting to routing failed")
+            })
+            .transpose()?;
         let request = Ok(Self {
             payment_id: item.id.map(payments::PaymentIdType::PaymentIntentId),
             amount: item.amount.map(|amount| amount.into()),
-            connector: item.connector,
             currency: item
                 .currency
                 .as_ref()
@@ -215,6 +227,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             setup_future_usage: item.setup_future_usage,
             mandate_id: item.mandate_id,
             off_session: item.off_session,
+            routing,
             ..Self::default()
         });
         request
@@ -369,9 +382,9 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             payment_token: resp.payment_token,
             shipping: resp.shipping,
             billing: resp.billing,
-            email: resp.email,
-            name: resp.name,
-            phone: resp.phone,
+            email: resp.email.map(|inner| inner.into()),
+            name: resp.name.map(Encryptable::into_inner),
+            phone: resp.phone.map(Encryptable::into_inner),
             authentication_type: resp.authentication_type,
             statement_descriptor_name: resp.statement_descriptor_name,
             statement_descriptor_suffix: resp.statement_descriptor_suffix,
