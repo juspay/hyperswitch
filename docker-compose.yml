@@ -84,7 +84,7 @@ services:
       - POSTGRES_DB=hyperswitch_db
 
   migration_runner:
-    image: rust:1.69
+    image: rust:1.70
     command: "bash -c 'cargo install diesel_cli --no-default-features --features \"postgres\" && diesel migration --database-url postgres://db_user:db_pass@pg:5432/hyperswitch_db run'"
     working_dir: /app
     networks:
@@ -93,7 +93,7 @@ services:
       - ./:/app
 
   hyperswitch-server-init:
-    image: rust:1.69
+    image: rust:1.70
     command: cargo build --bin router
     working_dir: /app
     networks:
@@ -104,9 +104,8 @@ services:
       - cargo_build_cache:/cargo_build_cache
     environment:
       - CARGO_TARGET_DIR=/cargo_build_cache
-      - CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
   hyperswitch-server:
-    image: rust:1.69
+    image: rust:1.70
     command: /cargo_build_cache/debug/router -f ./config/docker_compose.toml
     working_dir: /app
     ports:
@@ -133,7 +132,7 @@ services:
         condition: service_completed_successfully
 
   hyperswitch-producer:
-    image: rust:1.69
+    image: rust:1.70
     command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
     working_dir: /app
     networks:
@@ -147,7 +146,6 @@ services:
     environment:
       - CARGO_TARGET_DIR=/cargo_build_cache
       - SCHEDULER_FLOW=producer
-      - CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
     depends_on:
       hyperswitch-consumer:
         condition: service_healthy
@@ -155,7 +153,7 @@ services:
       logs: "promtail"
 
   hyperswitch-consumer:
-    image: rust:1.69
+    image: rust:1.70
     command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
     working_dir: /app
     networks:
@@ -169,7 +167,6 @@ services:
     environment:
       - CARGO_TARGET_DIR=/cargo_build_cache
       - SCHEDULER_FLOW=consumer
-      - CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
     depends_on:
       hyperswitch-server:
         condition: service_started
@@ -273,7 +270,7 @@ services:
       - "4317" # otlp grpc
     restart: unless-stopped
   hyperswitch-drainer:
-    image: rust:1.69
+    image: rust:1.70
     command: cargo run --bin drainer -- -f ./config/docker_compose.toml
     working_dir: /app
     deploy:
@@ -288,7 +285,6 @@ services:
       - cargo_build_cache:/cargo_build_cache
     environment:
       - CARGO_TARGET_DIR=/cargo_build_cache
-      - CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
     restart: unless-stopped
     depends_on:
       hyperswitch-server:
