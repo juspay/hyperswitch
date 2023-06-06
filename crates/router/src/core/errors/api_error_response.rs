@@ -195,7 +195,7 @@ pub enum ApiErrorResponse {
     #[error(error_type = ErrorType::RouterError, code = "WE_03", message = "There was some issue processing the webhook")]
     WebhookProcessingFailure,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Required payment method is not configured for the connector")]
-    PaymentMethodNotConfigure,
+    PaymentMethodNotConfigured,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_05", message = "Unable to process the webhook body")]
     WebhookUnprocessableEntity,
 }
@@ -264,7 +264,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::MandateValidationFailed { .. }
             | Self::RefundAmountExceedsPaymentAmount
             | Self::MaximumRefundCount
-            | Self::PaymentMethodNotConfigure
+            | Self::PaymentMethodNotConfigured
             | Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST, // 400
 
             Self::MandateUpdateFailed
@@ -544,7 +544,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::WebhookProcessingFailure => {
                 AER::InternalServerError(ApiError::new("WE", 3, "There was an issue processing the webhook", None))
             },
-            Self::PaymentMethodNotConfigure => {
+            Self::PaymentMethodNotConfigured => {
                 AER::BadRequest(ApiError::new("HE", 4, "Required payment method is not configured for the connector", None))
             }
             Self::WebhookUnprocessableEntity => {

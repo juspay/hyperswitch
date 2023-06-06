@@ -510,7 +510,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::WebhookProcessingFailure
             | errors::ApiErrorResponse::WebhookAuthenticationFailed
             | errors::ApiErrorResponse::WebhookUnprocessableEntity => Self::WebhookProcessingError,
-            errors::ApiErrorResponse::PaymentMethodNotConfigure => Self::PaymentMethodUnactivated,
+            errors::ApiErrorResponse::PaymentMethodNotConfigured => Self::PaymentMethodUnactivated,
         }
     }
 }
