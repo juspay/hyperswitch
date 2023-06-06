@@ -475,7 +475,6 @@ diesel::table! {
         business_country -> CountryAlpha2,
         #[max_length = 64]
         business_label -> Varchar,
-
     }
 }
 
