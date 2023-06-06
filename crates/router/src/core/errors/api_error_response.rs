@@ -194,6 +194,8 @@ pub enum ApiErrorResponse {
     WebhookBadRequest,
     #[error(error_type = ErrorType::RouterError, code = "WE_03", message = "There was some issue processing the webhook")]
     WebhookProcessingFailure,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Required payment method is not configured for the connector")]
+    PaymentMethodNotConfigure,
 }
 
 #[derive(Clone)]
@@ -247,9 +249,6 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::InvalidDataFormat { .. } | Self::InvalidRequestData { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
             } // 422
-            Self::RefundAmountExceedsPaymentAmount => StatusCode::BAD_REQUEST,                // 400
-            Self::MaximumRefundCount => StatusCode::BAD_REQUEST,                              // 400
-            Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST,                       // 400
 
             Self::PaymentAuthorizationFailed { .. }
             | Self::PaymentAuthenticationFailed { .. }
@@ -260,7 +259,11 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::RefundNotPossible { .. }
             | Self::VerificationFailed { .. }
             | Self::PaymentUnexpectedState { .. }
-            | Self::MandateValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
+            | Self::MandateValidationFailed { .. }
+            | Self::RefundAmountExceedsPaymentAmount
+            | Self::MaximumRefundCount
+            | Self::PaymentMethodNotConfigure
+            | Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST, // 400
 
             Self::MandateUpdateFailed
             | Self::InternalServerError
@@ -537,6 +540,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::WebhookProcessingFailure => {
                 AER::InternalServerError(ApiError::new("WE", 3, "There was an issue processing the webhook", None))
+            },
+            Self::PaymentMethodNotConfigure => {
+                AER::BadRequest(ApiError::new("HE", 4, "Required payment method is not configured for the connector", None))
             }
         }
     }
