@@ -37,8 +37,6 @@ pub enum Subcommand {
     #[cfg(feature = "openapi")]
     /// Generate the OpenAPI specification file from code.
     GenerateOpenapiSpec,
-    #[cfg(feature = "pii-encryption-script")]
-    EncryptDatabase,
 }
 
 #[cfg(feature = "kms")]
@@ -288,8 +286,6 @@ pub struct Secrets {
     pub kms_encrypted_jwt_secret: String,
     #[cfg(feature = "kms")]
     pub kms_encrypted_admin_api_key: String,
-
-    pub migration_encryption_timestamp: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]

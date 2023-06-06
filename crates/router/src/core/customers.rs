@@ -239,7 +239,7 @@ pub async fn delete_customer(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while getting key for encryption")?;
     let redacted_encrypted_value: Encryptable<masking::Secret<_>> =
-        Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
+        Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -278,7 +278,7 @@ pub async fn delete_customer(
     let updated_customer = storage::CustomerUpdate::Update {
         name: Some(redacted_encrypted_value.clone()),
         email: Some(
-            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
+            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
         ),
