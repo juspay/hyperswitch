@@ -176,7 +176,7 @@ where
             }
 
             api::ConnectorCallType::Multiple(connectors) => {
-                call_multiple_connectors_service(
+                get_session_tokens_and_persist_if_required(
                     state,
                     &merchant_account,
                     connectors,
@@ -562,7 +562,7 @@ where
     router_data_res
 }
 
-pub async fn call_multiple_connectors_service<F, Op, Req>(
+pub async fn get_session_tokens_and_persist_if_required<F, Op, Req>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     connectors: Vec<api::SessionConnectorData>,
@@ -620,19 +620,12 @@ where
 
         join_handlers.push(router_res.response.clone());
 
-        if connector_id == "trustpay"
-            && payment_data
-                .delayed_session_token
-                .and_then(|delay| delay.then_some(true))
-                .is_some()
-        {
-            let response_id = match router_res.response {
-                Ok(response) => match response {
-                    types::PaymentsResponseData::SessionResponse { response_id, .. } => response_id,
-                    _ => None,
-                },
-                Err(_) => None,
-            };
+        if connector_id == "trustpay" && payment_data.delayed_session_token.unwrap_or(false) {
+            //Fix: Add post update tracker for payment_session operation
+            let response_id = router_res.response.ok().and_then(|res| match res {
+                types::PaymentsResponseData::SessionResponse { response_id, .. } => response_id,
+                _ => None,
+            });
 
             update_connector_txn_id_in_payment_attempt(
                 state,
