@@ -1,0 +1,93 @@
+name: Integration test 
+
+on:
+
+  pull_request:
+
+  merge_group:
+    types:
+      - checks_requested
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Allow more retries for network requests in cargo (downloading crates) and
+  # rustup (installing toolchains). This should help to reduce flaky CI failures
+  # from transient network timeouts or other issues.
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+  # Use cargo's sparse index protocol
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
+jobs:
+  api_tests:
+    name: Run integration tests on backend APIs
+    runs-on: ubuntu-latest
+
+ # Service containers to run with `container-job`
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_USER: db_user
+          POSTGRES_PASSWORD: db_pass
+          POSTGRES_DB: hyperswitch_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      # Label used to access the service container
+      redis:
+        # Docker Hub image
+        image: redis
+        # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        
+        ports:
+          # Maps port 6379 on service container to the host
+          - 6379:6379
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3.1.0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@v2.2.0
+
+      - name: Install diesel_cli
+        shell: bash
+        run: cargo install diesel_cli --no-default-features --features postgres
+
+      - name: Execute `diesel migration run`
+        shell: bash
+        env:
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
+        run: diesel migration run
+
+      - name: Decrypt connector auth file
+        run: ./scripts/decrypt_connector_auth.sh
+        env:
+          CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
+
+      - name: Set connector auth file path in env
+        run: echo "CONNECTOR_AUTH_FILE_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
+
+      - name: Cargo integration tests for payment api
+        run: cargo test --package router --test payments_apis -- run_payment_apis_test --exact --nocapture
+      
+      - name: Cargo integration tests for dashboard api
+        run: cargo test --package router --test dashboard_apis -- run_dashboard_apis_test --exact --nocapture
