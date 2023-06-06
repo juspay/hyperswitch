@@ -8,6 +8,7 @@ key1 = "MyEntityId"
 [adyen]
 api_key = "Bearer MyApiKey"
 key1 = "MerchantId"
+api_secret = "Secondary key"
 
 [authorizedotnet]
 api_key = "MyMerchantName"
