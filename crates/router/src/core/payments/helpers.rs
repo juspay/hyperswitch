@@ -1561,7 +1561,7 @@ pub fn get_business_details(
 pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String> {
     let (payment_id, _) = cs
         .rsplit_once("_secret_")
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .ok_or(errors::ApiErrorResponse::ClientSecretInvalid)
         .into_report()?;
     Ok(payment_id.to_string())
 }
@@ -2064,7 +2064,8 @@ mod test {
     fn test_client_secret_parse() {
         let client_secret1 = "pay_3TgelAms4RQec8xSStjF_secret_fc34taHLw1ekPgNh92qr";
         let client_secret2 = "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_fc34taHLw1ekPgNh92qr";
-        let client_secret3 = "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret__secret_fc34taHLw1ekPgNh92qr";
+        let client_secret3 =
+            "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret__secret_fc34taHLw1ekPgNh92qr";
 
         assert_eq!(
             "pay_3TgelAms4RQec8xSStjF",
