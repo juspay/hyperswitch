@@ -121,6 +121,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 flow: PhantomData,
                 payment_intent,
                 currency,
+                customer_ip: None,
                 amount,
                 email: None,
                 mandate_id: None,

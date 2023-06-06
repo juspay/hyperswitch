@@ -61,6 +61,7 @@ impl AdyenTest {
     ) -> Option<types::PaymentsAuthorizeData> {
         Some(types::PaymentsAuthorizeData {
             amount: 3500,
+            customer_ip: None,
             currency: enums::Currency::USD,
             payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
                 card_number: cards::CardNumber::from_str(card_number).unwrap(),

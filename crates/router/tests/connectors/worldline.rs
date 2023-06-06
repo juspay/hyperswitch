@@ -65,6 +65,7 @@ impl WorldlineTest {
         Some(types::PaymentsAuthorizeData {
             amount: 3500,
             currency: enums::Currency::USD,
+            customer_ip: None,
             payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
                 card_number: cards::CardNumber::from_str(card_number).unwrap(),
                 card_exp_month: Secret::new(card_exp_month.to_string()),

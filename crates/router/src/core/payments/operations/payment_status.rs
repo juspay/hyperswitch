@@ -258,6 +258,7 @@ async fn get_tracker_for_sync<
             payment_intent,
             connector_response,
             currency,
+            customer_ip: None,
             amount,
             email: None,
             mandate_id: payment_attempt.mandate_id.clone().map(|id| {

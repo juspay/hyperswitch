@@ -135,6 +135,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             payments::PaymentData {
                 flow: PhantomData,
                 payment_intent,
+                customer_ip: None,
                 payment_attempt,
                 currency,
                 force_sync: None,

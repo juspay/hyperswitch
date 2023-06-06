@@ -70,6 +70,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             "confirm",
         )?;
 
+        let customer_ip = &request.customer_ip;
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
@@ -225,6 +226,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 payment_intent,
                 payment_attempt,
                 currency,
+                customer_ip: customer_ip.clone(),
                 connector_response,
                 amount,
                 email: request.email.clone(),

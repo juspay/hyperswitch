@@ -1,5 +1,6 @@
 use actix_web::{web, Responder};
 use error_stack::report;
+use masking::Secret;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
@@ -320,6 +321,14 @@ pub async fn payments_confirm(
     if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
     };
+
+    if payload.customer_ip.is_none() {
+        payload.customer_ip = req
+            .headers()
+            .get("x-forwarded-for")
+            .and_then(|val| val.to_str().ok().and_then(|ip| ip.split(',').next()))
+            .map(|val| Secret::new(val.to_string()));
+    }
 
     let payment_id = path.into_inner();
     payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));

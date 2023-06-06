@@ -34,6 +34,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         request: types::PaymentsAuthorizeData {
             amount: 1000,
             currency: enums::Currency::USD,
+            customer_ip: None,
             payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
                 card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
