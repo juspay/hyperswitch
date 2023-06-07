@@ -1894,7 +1894,7 @@ impl AttemptType {
 }
 
 pub fn validate_and_add_order_details_to_payment_intent(
-    mut payment_intent: &mut storage::payment_intent::PaymentIntent,
+    payment_intent: &mut storage::payment_intent::PaymentIntent,
     request: &api::PaymentsRequest,
 ) -> RouterResult<()> {
     let parsed_metadata_db: Option<api_models::payments::Metadata> = payment_intent
@@ -1950,7 +1950,7 @@ pub fn validate_and_add_order_details_to_payment_intent(
         },
     };
     add_order_details_and_metadata_to_payment_intent(
-        &mut payment_intent,
+        payment_intent,
         request,
         parsed_metadata_db,
         &order_details_outside,
