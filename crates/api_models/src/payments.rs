@@ -1853,7 +1853,11 @@ pub struct ThirdPartySdkSessionResponse {
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
 pub struct SecretInfoToInitiateSdk {
+    // Authorization secrets used by client to initiate sdk
+    #[schema(value_type = String)]
     pub display: Secret<String>,
+    // Authorization secrets used by client for payment
+    #[schema(value_type = String)]
     pub payment: Secret<String>,
 }
 
