@@ -1814,8 +1814,12 @@ pub enum NextActionCall {
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum ApplePaySessionResponse {
+    ///  We get this session response, when third party sdk is involved
     ThirdPartySdk(ThirdPartySdkSessionResponse),
+    ///  We get this session response, when there is no involvement of third party sdk
+    /// This is the common response most of the times
     NoThirdPartySdk(Option<NoThirdPartySdkSessionResponse>),
+    /// This is for the empty session response
     NoSessionResponse,
 }
 
