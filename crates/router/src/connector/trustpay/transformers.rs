@@ -824,8 +824,11 @@ impl TryFrom<&types::PaymentsSessionRouterData> for TrustpayCreateIntentRequest 
 #[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustpayCreateIntentResponse {
+    // TrustPay's authorization secrets used by client
     pub secrets: SdkSecretInfo,
+    // 	Data object to be used for Apple Pay
     pub apple_init_result_data: TrustpayApplePayResponse,
+    // Unique operation/transaction identifier
     pub instance_id: String,
 }
 
