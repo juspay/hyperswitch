@@ -1,4 +1,4 @@
-use api_models::enums as api_enums;
+use api_models::{enums as api_enums, payments};
 use base64::Engine;
 use common_utils::{
     errors::CustomResult,
@@ -306,11 +306,12 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
         let wallet_token = consts::BASE64_ENGINE
             .decode(response.wallet_token.clone().expose())
             .into_report()
-            .change_context(errors::ConnectorError::ParsingFailed)?;
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
-        let session_response: api_models::payments::ApplePaySessionResponse = wallet_token[..]
-            .parse_struct("ApplePayResponse")
-            .change_context(errors::ConnectorError::ParsingFailed)?;
+        let session_response: api_models::payments::NoThirdPartySdkSessionResponse =
+            wallet_token[..]
+                .parse_struct("NoThirdPartySdkSessionResponse")
+                .change_context(errors::ConnectorError::ParsingFailed)?;
 
         let metadata = item.data.get_connector_meta()?.expose();
         let applepay_metadata = metadata
@@ -323,13 +324,16 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: types::api::SessionToken::ApplePay(Box::new(
                     api_models::payments::ApplepaySessionTokenResponse {
-                        session_token_data: session_response,
-                        payment_request_data: api_models::payments::ApplePayPaymentRequest {
+                        session_token_data:
+                            api_models::payments::ApplePaySessionResponse::NoThirdPartySdk(Some(
+                                session_response,
+                            )),
+                        payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
                             country_code: item.data.get_billing_country()?,
                             currency_code: item.data.request.currency.to_string(),
                             total: api_models::payments::AmountInfo {
                                 label: applepay_metadata.data.payment_request_data.label,
-                                total_type: "final".to_string(),
+                                total_type: Some("final".to_string()),
                                 amount: item.data.request.amount.to_string(),
                             },
                             merchant_capabilities: applepay_metadata
@@ -340,14 +344,23 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                                 .data
                                 .payment_request_data
                                 .supported_networks,
-                            merchant_identifier: applepay_metadata
-                                .data
-                                .session_token_data
-                                .merchant_identifier,
-                        },
+                            merchant_identifier: Some(
+                                applepay_metadata
+                                    .data
+                                    .session_token_data
+                                    .merchant_identifier,
+                            ),
+                        }),
                         connector: "bluesnap".to_string(),
+                        delayed_session_token: false,
+                        sdk_next_action: {
+                            payments::SdkNextAction {
+                                next_action: payments::NextActionCall::Confirm,
+                            }
+                        },
                     },
                 )),
+                response_id: None,
             }),
             ..item.data
         })
