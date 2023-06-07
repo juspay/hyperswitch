@@ -898,7 +898,6 @@ pub enum RoutableConnectors {
     Multisafepay,
     Nexinets,
     Nmi,
-    // Noon, added as template code for future usage
     Noon,
     Nuvei,
     Opennode,
