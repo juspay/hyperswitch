@@ -200,6 +200,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsSessionResponse,
         api_models::payments::SessionToken,
         api_models::payments::ApplePaySessionResponse,
+        api_models::payments::ThirdPartySdkSessionResponse,
+        api_models::payments::NoThirdPartySdkSessionResponse,
         api_models::payments::ApplePayPaymentRequest,
         api_models::payments::AmountInfo,
         api_models::payments::GooglePayWalletData,
