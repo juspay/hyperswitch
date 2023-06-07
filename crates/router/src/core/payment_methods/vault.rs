@@ -447,10 +447,10 @@ impl Vault {
                     if resp == "Ok" {
                         logger::info!("Card From locker deleted Successfully")
                     } else {
-                        logger::warn!("Error: Deleting Card From Locker : {}", resp)
+                        logger::error!("Error: Deleting Card From Locker : {:?}", resp)
                     }
                 }
-                Err(err) => logger::warn!("Err: Deleting Card From Locker : {}", err),
+                Err(err) => logger::error!("Err: Deleting Card From Locker : {:?}", err),
             }
         }
     }
@@ -674,7 +674,8 @@ pub async fn delete_tokenized_data(
     .attach_printable("Making Delete Tokenized request failed")?;
     let response = services::call_connector_api(state, request)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while making /tokenize/delete/token call to the locker")?;
     match response {
         Ok(r) => {
             let delete_response = std::str::from_utf8(&r.response)
@@ -766,14 +767,14 @@ pub async fn start_tokenize_data_workflow(
                     .finish_with_status(db, format!("COMPLETED_BY_PT_{id}"))
                     .await?;
             } else {
-                logger::warn!("Error: Deleting Card From Locker : {}", resp);
+                logger::error!("Error: Deleting Card From Locker : {:?}", resp);
                 retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
                     .await?;
                 scheduler_metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
             }
         }
         Err(err) => {
-            logger::warn!("Err: Deleting Card From Locker : {}", err);
+            logger::error!("Err: Deleting Card From Locker : {:?}", err);
             retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
                 .await?;
             scheduler_metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
