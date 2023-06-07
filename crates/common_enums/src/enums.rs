@@ -556,9 +556,6 @@ pub enum PaymentMethod {
     BankDebit,
 }
 
-
-
-
 #[derive(
     Clone,
     Copy,
