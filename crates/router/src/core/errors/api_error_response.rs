@@ -194,8 +194,8 @@ pub enum ApiErrorResponse {
     WebhookBadRequest,
     #[error(error_type = ErrorType::RouterError, code = "WE_03", message = "There was some issue processing the webhook")]
     WebhookProcessingFailure,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Required payment method is not configured for the connector")]
-    PaymentMethodNotConfigured,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Required payment method is not configured / configured incorrectly for the connector")]
+    IncorrectPaymentMethodConfiguration,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_05", message = "Unable to process the webhook body")]
     WebhookUnprocessableEntity,
 }
@@ -264,7 +264,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::MandateValidationFailed { .. }
             | Self::RefundAmountExceedsPaymentAmount
             | Self::MaximumRefundCount
-            | Self::PaymentMethodNotConfigured
+            | Self::IncorrectPaymentMethodConfiguration
             | Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST, // 400
 
             Self::MandateUpdateFailed
@@ -544,8 +544,8 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::WebhookProcessingFailure => {
                 AER::InternalServerError(ApiError::new("WE", 3, "There was an issue processing the webhook", None))
             },
-            Self::PaymentMethodNotConfigured => {
-                AER::BadRequest(ApiError::new("HE", 4, "Required payment method is not configured for the connector", None))
+            Self::IncorrectPaymentMethodConfiguration => {
+                AER::BadRequest(ApiError::new("HE", 4, "No eligible connector was found for the current payment method configuration", None))
             }
             Self::WebhookUnprocessableEntity => {
                 AER::Unprocessable(ApiError::new("WE", 5, "There was an issue processing the webhook body", None))
