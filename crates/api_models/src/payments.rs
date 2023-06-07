@@ -792,6 +792,8 @@ pub enum WalletData {
     AliPay(AliPayRedirection),
     /// The wallet data for Apple pay
     ApplePay(ApplePayWalletData),
+    /// Wallet data for apple pay redirect flow
+    ApplePayRedirect(Box<ApplePayRedirectData>),
     /// The wallet data for Google pay
     GooglePay(GooglePayWalletData),
     MbWay(Box<MbWayRedirection>),
@@ -818,6 +820,9 @@ pub struct GooglePayWalletData {
     /// The tokenization data of Google pay
     pub tokenization_data: GpayTokenizationData,
 }
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ApplePayRedirectData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct WeChatPayRedirection {}
