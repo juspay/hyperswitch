@@ -4,7 +4,7 @@ use api_models::payments::{ApplePayRedirectData, Card, GooglePayWalletData};
 use cards::CardNumber;
 use common_utils::{ext_traits::ValueExt, pii::Email};
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use ring::digest;
 use serde::{Deserialize, Serialize};
 use strum::Display;
@@ -66,7 +66,7 @@ pub struct CheckoutRequest {
     merchant_transaction_id: String,
     signature: Option<Secret<String>>,
     specified_payment_channel: ZenPaymentChannels,
-    terminal_uuid: String,
+    terminal_uuid: Secret<String>,
     url_redirect: String,
 }
 
@@ -245,7 +245,7 @@ impl
             custom_ipn_url: item.request.get_webhook_url()?,
             items: get_item_object(item, amount.clone())?,
             amount,
-            terminal_uuid,
+            terminal_uuid: Secret::new(terminal_uuid),
             signature: None,
             url_redirect: router_return_url,
         };
@@ -308,7 +308,10 @@ fn get_signature_data(checkout_request: &CheckoutRequest) -> String {
     signature_data.push(format!(
         "specifiedpaymentchannel={specified_payment_channel}"
     ));
-    signature_data.push(format!("terminaluuid={}", checkout_request.terminal_uuid));
+    signature_data.push(format!(
+        "terminaluuid={}",
+        checkout_request.terminal_uuid.peek()
+    ));
     signature_data.push(format!("urlredirect={}", checkout_request.url_redirect));
     let signature = signature_data.join("&");
     signature.to_lowercase()
