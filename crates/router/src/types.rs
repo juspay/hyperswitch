@@ -226,6 +226,7 @@ pub struct PaymentsAuthorizeData {
     pub setup_mandate_details: Option<payments::MandateData>,
     pub browser_info: Option<BrowserInformation>,
     pub order_details: Option<api_models::payments::OrderDetails>,
+    pub order_category: Option<String>,
     pub session_token: Option<String>,
     pub enrolled_for_3ds: bool,
     pub related_transaction_id: Option<String>,
@@ -374,6 +375,7 @@ pub enum PaymentsResponseData {
     },
     SessionResponse {
         session_token: api::SessionToken,
+        response_id: Option<String>,
     },
     SessionTokenResponse {
         session_token: String,
@@ -729,6 +731,7 @@ impl From<&VerifyRouterData> for PaymentsAuthorizeData {
             complete_authorize_url: None,
             browser_info: None,
             order_details: None,
+            order_category: None,
             session_token: None,
             enrolled_for_3ds: true,
             related_transaction_id: None,

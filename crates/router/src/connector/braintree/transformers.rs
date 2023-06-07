@@ -249,6 +249,7 @@ impl<F, T>
                         session_token: item.response.client_token.value,
                     },
                 )),
+                response_id: None,
             }),
             ..item.data
         })
