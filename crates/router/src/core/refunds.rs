@@ -994,7 +994,7 @@ pub async fn add_refund_execute_task(
     let response = db
         .insert_process(process_tracker_entry)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while inserting task in process_tracker: refund_id: {}",
