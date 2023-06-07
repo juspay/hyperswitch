@@ -83,8 +83,8 @@ pub struct Settings {
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
     pub email: EmailSettings,
-    pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
+    pub required_fields: RequiredFields,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
