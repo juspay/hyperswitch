@@ -209,7 +209,16 @@ pub struct ResponsePaymentMethodTypes {
     pub bank_transfers: Option<BankTransferTypes>,
 
     /// Required fields for the payment_method_type.
-    pub required_fields: Option<Vec<String>>,
+    pub required_fields: Option<Vec<RequiredFieldInfo>>,
+}
+
+// Required fields info used while listing the payment methods
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq)]
+pub struct RequiredFieldInfo {
+    pub required_field: Option<String>,
+    pub display_name: Option<String>,
+    pub field_type: Option<String>,
+    pub field_options: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]

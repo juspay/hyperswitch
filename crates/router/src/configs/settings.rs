@@ -4,7 +4,7 @@ use std::{
     str::FromStr,
 };
 
-use api_models::enums;
+use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 #[cfg(feature = "email")]
@@ -225,12 +225,15 @@ pub struct NotAvailableFlows {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct RequiredFields(
-    pub  HashMap<
-        api_models::enums::PaymentMethod,
-        HashMap<api_models::enums::PaymentMethodType, HashMap<String, Vec<String>>>,
-    >,
-);
+pub struct RequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct PaymentMethodType(pub HashMap<enums::PaymentMethodType, ConnectorFields>);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ConnectorFields {
+    pub fields: HashMap<enums::Connector, Vec<RequiredFieldInfo>>,
+}
 
 fn string_set_deser<'a, D>(
     deserializer: D,

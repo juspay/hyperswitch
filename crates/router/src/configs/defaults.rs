@@ -1,5 +1,9 @@
 use std::collections::HashMap;
 
+use api_models::{enums, payment_methods::RequiredFieldInfo};
+
+use super::settings::{ConnectorFields, PaymentMethodType};
+
 impl Default for super::settings::Server {
     fn default() -> Self {
         Self {
@@ -144,95 +148,293 @@ impl Default for super::settings::RequiredFields {
     fn default() -> Self {
         Self(HashMap::from([
             (
-                api_models::enums::PaymentMethod::PayLater,
-                HashMap::from([
-                    (
-                        api_models::enums::PaymentMethodType::AfterpayClearpay,
-                        HashMap::from([(
-                            "stripe".to_string(),
-                            vec![
-                                "shipping.address.first_name".to_string(),
-                                "shipping.address.line1".to_string(),
-                                "shipping.address.country".to_string(),
-                                "shipping.address.zip".to_string(),
-                            ],
+                enums::PaymentMethod::Card,
+                PaymentMethodType(HashMap::from([(
+                    enums::PaymentMethodType::Debit,
+                    ConnectorFields {
+                        fields: HashMap::from([(
+                            enums::Connector::Stripe,
+                            vec![RequiredFieldInfo {
+                                required_field: Some("card_exp_year".to_string()),
+                                display_name: Some("card_exp_year".to_string()),
+                                field_type: Some("text".to_string()),
+                                field_options: None,
+                            }],
                         )]),
-                    ),
-                    (
-                        api_models::enums::PaymentMethodType::ApplePay,
-                        HashMap::from([(
-                            "bluesnap".to_string(),
-                            vec!["billing_address".to_string()],
-                        )]),
-                    ),
-                    (
-                        api_models::enums::PaymentMethodType::Ach,
-                        HashMap::from([
-                            ("stripe".to_string(), vec!["currency".to_string()]),
-                            ("adyen".to_string(), vec!["card_holder_name".to_string()]),
-                        ]),
-                    ),
-                    (
-                        api_models::enums::PaymentMethodType::Przelewy24,
-                        HashMap::from([("stripe".to_string(), vec!["bank_name".to_string()])]),
-                    ),
-                    (
-                        api_models::enums::PaymentMethodType::BancontactCard,
-                        HashMap::from([
-                            (
-                                "stripe".to_string(),
-                                vec!["bancontact_card.billing_name".to_string()],
-                            ),
-                            (
-                                "adyen".to_string(),
-                                vec![
-                                    "bancontact_card.card_number".to_string(),
-                                    "bancontact_card.card_exp_month".to_string(),
-                                    "bancontact_card.card_exp_year".to_string(),
-                                    "bancontact_card.card_holder_name".to_string(),
-                                ],
-                            ),
-                        ]),
-                    ),
-                    (
-                        api_models::enums::PaymentMethodType::Sepa,
-                        HashMap::from([(
-                            "adyen".to_string(),
-                            vec!["bank_account_holder_name".to_string()],
-                        )]),
-                    ),
-                    (
-                        api_models::enums::PaymentMethodType::Bacs,
-                        HashMap::from([(
-                            "adyen".to_string(),
-                            vec![
-                                "bancontact_card.billing_name".to_string(),
-                                "bank_account_holder_name".to_string(),
-                            ],
-                        )]),
-                    ),
-                    (
-                        api_models::enums::PaymentMethodType::Paypal,
-                        HashMap::from([(
-                            "mollie".to_string(),
-                            vec!["billing_address".to_string(), "shippy_address".to_string()],
-                        )]),
-                    ),
-                    (
-                        api_models::enums::PaymentMethodType::Giropay,
-                        HashMap::from([(
-                            "wordline".to_string(),
-                            vec!["billing_details.billing_name".to_string()],
-                        )]),
-                    ),
-                ]),
+                    },
+                )])),
             ),
             (
-                api_models::enums::PaymentMethod::Card,
-                HashMap::from([(
-                    api_models::enums::PaymentMethodType::Debit,
-                    HashMap::from([("stripe".to_string(), vec!["card_exp_year".to_string()])]),
-                )]),
+                enums::PaymentMethod::PayLater,
+                PaymentMethodType(HashMap::from([
+                    (
+                        enums::PaymentMethodType::AfterpayClearpay,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Stripe,
+                                    vec![
+                                        RequiredFieldInfo {
+                                            required_field: Some(
+                                                "shipping.address.first_name".to_string(),
+                                            ),
+                                            display_name: Some("first_name".to_string()),
+                                            field_type: Some("text".to_string()),
+                                            field_options: None,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: Some(
+                                                "shipping.address.line1".to_string(),
+                                            ),
+                                            display_name: Some("line1".to_string()),
+                                            field_type: Some("text".to_string()),
+                                            field_options: None,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: Some(
+                                                "shipping.address.country".to_string(),
+                                            ),
+                                            display_name: Some("country".to_string()),
+                                            field_type: Some("dropdown".to_string()),
+                                            field_options: None,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: Some(
+                                                "shipping.address.zip".to_string(),
+                                            ),
+                                            display_name: Some("zip".to_string()),
+                                            field_type: Some("text".to_string()),
+                                            field_options: None,
+                                        },
+                                    ],
+                                ),
+                                (
+                                    enums::Connector::Adyen,
+                                    vec![
+                                        RequiredFieldInfo {
+                                            required_field: Some(
+                                                "shipping.address.first_name".to_string(),
+                                            ),
+                                            display_name: Some("first_name".to_string()),
+                                            field_type: Some("text".to_string()),
+                                            field_options: None,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: Some(
+                                                "shipping.address.line1".to_string(),
+                                            ),
+                                            display_name: Some("line1".to_string()),
+                                            field_type: Some("text".to_string()),
+                                            field_options: None,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: Some(
+                                                "shipping.address.country".to_string(),
+                                            ),
+                                            display_name: Some("country".to_string()),
+                                            field_type: Some("dropdown".to_string()),
+                                            field_options: None,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: Some(
+                                                "shipping.address.zip".to_string(),
+                                            ),
+                                            display_name: Some("zip".to_string()),
+                                            field_type: Some("text".to_string()),
+                                            field_options: None,
+                                        },
+                                    ],
+                                ),
+                            ]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::ApplePay,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Bluesnap,
+                                vec![RequiredFieldInfo {
+                                    required_field: Some("billing_address".to_string()),
+                                    display_name: Some("billing_address".to_string()),
+                                    field_type: Some("text".to_string()),
+                                    field_options: None,
+                                }],
+                            )]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::Ach,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Stripe,
+                                    vec![RequiredFieldInfo {
+                                        required_field: Some("currency".to_string()),
+                                        display_name: Some("currency".to_string()),
+                                        field_type: Some("text".to_string()),
+                                        field_options: None,
+                                    }],
+                                ),
+                                (
+                                    enums::Connector::Adyen,
+                                    vec![RequiredFieldInfo {
+                                        required_field: Some("card_holder_name".to_string()),
+                                        display_name: Some("card_holder_name".to_string()),
+                                        field_type: Some("text".to_string()),
+                                        field_options: None,
+                                    }],
+                                ),
+                            ]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::Przelewy24,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Stripe,
+                                vec![RequiredFieldInfo {
+                                    required_field: Some("bank_name".to_string()),
+                                    display_name: Some("bank_name".to_string()),
+                                    field_type: Some("text".to_string()),
+                                    field_options: None,
+                                }],
+                            )]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::BancontactCard,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Stripe,
+                                    vec![RequiredFieldInfo {
+                                        required_field: Some(
+                                            "bancontact_card.billing_name".to_string(),
+                                        ),
+                                        display_name: Some("billing_name".to_string()),
+                                        field_type: Some("text".to_string()),
+                                        field_options: None,
+                                    }],
+                                ),
+                                (
+                                    enums::Connector::Adyen,
+                                    vec![
+                                        RequiredFieldInfo {
+                                            required_field: Some(
+                                                "bancontact_card.card_number".to_string(),
+                                            ),
+                                            display_name: Some("card_number".to_string()),
+                                            field_type: Some("text".to_string()),
+                                            field_options: None,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: Some(
+                                                "bancontact_card.card_exp_month".to_string(),
+                                            ),
+                                            display_name: Some("card_exp_month".to_string()),
+                                            field_type: Some("text".to_string()),
+                                            field_options: None,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: Some(
+                                                "bancontact_card.card_exp_year".to_string(),
+                                            ),
+                                            display_name: Some("card_exp_year".to_string()),
+                                            field_type: Some("text".to_string()),
+                                            field_options: None,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: Some(
+                                                "bancontact_card.card_holder_name".to_string(),
+                                            ),
+                                            display_name: Some("card_holder_name".to_string()),
+                                            field_type: Some("text".to_string()),
+                                            field_options: None,
+                                        },
+                                    ],
+                                ),
+                            ]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::Sepa,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Adyen,
+                                vec![RequiredFieldInfo {
+                                    required_field: Some("bank_account_holder_name".to_string()),
+                                    display_name: Some("bank_account_holder_name".to_string()),
+                                    field_type: Some("text".to_string()),
+                                    field_options: None,
+                                }],
+                            )]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::Bacs,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Adyen,
+                                vec![
+                                    RequiredFieldInfo {
+                                        required_field: Some(
+                                            "bancontact_card.billing_name".to_string(),
+                                        ),
+                                        display_name: Some("billing_name".to_string()),
+                                        field_type: Some("text".to_string()),
+                                        field_options: None,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: Some(
+                                            "bank_account_holder_name".to_string(),
+                                        ),
+                                        display_name: Some("bank_account_holder_name".to_string()),
+                                        field_type: Some("text".to_string()),
+                                        field_options: None,
+                                    },
+                                ],
+                            )]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::Paypal,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Mollie,
+                                vec![
+                                    RequiredFieldInfo {
+                                        required_field: Some("billing_address".to_string()),
+                                        display_name: Some("billing_address".to_string()),
+                                        field_type: Some("text".to_string()),
+                                        field_options: None,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: Some("shipping_address".to_string()),
+                                        display_name: Some("shipping_address".to_string()),
+                                        field_type: Some("text".to_string()),
+                                        field_options: None,
+                                    },
+                                ],
+                            )]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::Giropay,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Worldline,
+                                vec![RequiredFieldInfo {
+                                    required_field: Some(
+                                        "billing_details.billing_name".to_string(),
+                                    ),
+                                    display_name: Some("billing_name".to_string()),
+                                    field_type: Some("text".to_string()),
+                                    field_options: None,
+                                }],
+                            )]),
+                        },
+                    ),
+                ])),
             ),
         ]))
     }
