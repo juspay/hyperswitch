@@ -165,14 +165,15 @@ impl types::PaymentsAuthorizeRouterData {
                         call_connector_action,
                     )
                     .await
-                    .to_payment_failed_response()?;
-
+                    .map_err(|error| error.to_payment_failed_response())?;
+                    let payment_method_type = self.request.payment_method_type.clone();
                     let pm_id = tokenization::save_payment_method(
                         state,
                         connector,
                         resp.to_owned(),
                         maybe_customer,
                         merchant_account,
+                        payment_method_type,
                     )
                     .await?;
 

@@ -844,6 +844,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             router_return_url,
             email: payment_data.email,
             return_url: payment_data.payment_intent.return_url,
+            payment_method_type: attempt.payment_method_type.clone(),
         })
     }
 }
