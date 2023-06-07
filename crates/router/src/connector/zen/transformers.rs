@@ -385,7 +385,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
 }
 
 // PaymentsResponse
-#[derive(Debug, Default, Deserialize, Clone, PartialEq, strum::Display)]
+#[derive(Debug, Default, Deserialize, Clone, strum::Display)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum ZenPaymentStatus {
     Authorized,
@@ -623,7 +623,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenWebhookBody {
     pub merchant_transaction_id: String,
@@ -637,7 +637,7 @@ pub struct ZenWebhookSignature {
     pub hash: String,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenWebhookObjectReference {
     #[serde(rename = "type")]
@@ -646,7 +646,7 @@ pub struct ZenWebhookObjectReference {
     pub merchant_transaction_id: String,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenWebhookEventType {
     #[serde(rename = "type")]
@@ -655,11 +655,13 @@ pub struct ZenWebhookEventType {
     pub status: ZenPaymentStatus,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ZenWebhookTxnType {
     TrtPurchase,
     TrtRefund,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
