@@ -432,6 +432,7 @@ pub trait CardData {
     fn get_first_name_and_last_name_from_cardholdername(
         &self,
     ) -> Result<(Secret<String>, Secret<String>), errors::ConnectorError>;
+    fn get_expiry_year_4_digit(&self) -> Secret<String>;
 }
 
 impl CardData for api::Card {
@@ -456,13 +457,10 @@ impl CardData for api::Card {
         ))
     }
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
-        let mut x = self.card_exp_year.peek().clone();
-        if x.len() == 2 {
-            x = format!("20{}", x);
-        }
+        let year = self.get_expiry_year_4_digit();
         Secret::new(format!(
             "{}{}{}",
-            x,
+            year.peek(),
             delimiter,
             self.card_exp_month.peek().clone()
         ))
@@ -487,6 +485,13 @@ impl CardData for api::Card {
             ),
         };
         Ok((first_name, last_name))
+    }
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.card_exp_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{}", year);
+        }
+        Secret::new(year)
     }
 }
 

@@ -153,14 +153,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             _ => BluesnapTxnType::AuthCapture,
         };
         let (payment_method, card_holder_info) = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ccard) => Ok((
+            api::PaymentMethodData::Card(ref ccard) => Ok((
                 PaymentMethodDetails::CreditCard(Card {
                     card_number: ccard.card_number.clone(),
                     expiration_month: ccard.card_exp_month.clone(),
-                    expiration_year: ccard.card_exp_year.clone(),
+                    expiration_year: ccard.get_expiry_year_4_digit(),
                     security_code: ccard.card_cvc.clone(),
                 }),
-                get_card_holder_info(item, &ccard)?,
+                get_card_holder_info(item, ccard)?,
             )),
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 api_models::payments::WalletData::GooglePay(payment_method_data) => {
