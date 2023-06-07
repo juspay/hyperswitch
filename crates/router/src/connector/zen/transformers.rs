@@ -181,9 +181,8 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &Card)> for ZenPaymentsReques
 impl TryFrom<(&types::PaymentsAuthorizeRouterData, &GooglePayWalletData)> for ZenPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (&types::PaymentsAuthorizeRouterData, &GooglePayWalletData),
+        (item, gpay_pay_redirect_data): (&types::PaymentsAuthorizeRouterData, &GooglePayWalletData),
     ) -> Result<Self, Self::Error> {
-        let (item, gpay_pay_redirect_data) = value;
         let amount = utils::to_currency_base_unit(item.request.amount, item.request.currency)?;
         let browser_info = item.request.get_browser_info()?;
         let browser_details = get_browser_details(&browser_info)?;
@@ -218,12 +217,11 @@ impl
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (
+        (item, _apple_pay_redirect_data): (
             &types::PaymentsAuthorizeRouterData,
             &Box<ApplePayRedirectData>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (item, _apple_pay_redirect_data) = value;
         let amount = utils::to_currency_base_unit(item.request.amount, item.request.currency)?;
         let connector_meta = item.get_connector_meta()?;
         let session: SessionObject = connector_meta
@@ -231,11 +229,6 @@ impl
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let terminal_uuid = session
             .terminal_uuid
-            .clone()
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let router_return_url = item
-            .request
-            .router_return_url
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         let mut checkout_request = CheckoutRequest {
@@ -247,7 +240,7 @@ impl
             amount,
             terminal_uuid: Secret::new(terminal_uuid),
             signature: None,
-            url_redirect: router_return_url,
+            url_redirect: item.request.get_return_url()?,
         };
         checkout_request.signature = Some(get_checkout_signature(&checkout_request, &session)?);
         Ok(Self::CheckoutRequest(Box::new(checkout_request)))
