@@ -95,7 +95,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        currency =request.currency.or(payment_attempt.currency).get_required_value("currency")?;
+        currency = request
+            .currency
+            .or(payment_attempt.currency)
+            .get_required_value("currency")?;
 
         payment_attempt.payment_method = payment_method_type.or(payment_attempt.payment_method);
 

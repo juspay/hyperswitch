@@ -21,7 +21,6 @@ use common_utils::pii;
 use diesel::serialize::{Output, ToSql};
 use time::PrimitiveDateTime;
 
-
 #[derive(
     Clone,
     Copy,
@@ -1163,7 +1162,6 @@ pub struct UnresolvedResponseReason {
     /// A message to merchant to give hint on next action he/she should do to resolve
     pub message: String,
 }
-
 
 #[derive(
     Clone,

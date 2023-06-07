@@ -22,7 +22,7 @@ olap = []
 oltp = []
 kv_store = []
 accounts_cache = []
-openapi = ["olap", "oltp"]
+openapi = ["olap", "oltp", "dep:oas3"]
 vergen = ["router_env/vergen"]
 multiple_mca = ["api_models/multiple_mca"]
 dummy_connector = ["api_models/dummy_connector"]
@@ -60,6 +60,7 @@ mime = "0.3.17"
 moka = { version = "0.10", features = ["future"] }
 nanoid = "0.4.0"
 num_cpus = "1.15.0"
+oas3 = { version = "0.2.1", optional = true }
 once_cell = "1.17.1"
 rand = "0.8.5"
 regex = "1.7.3"
