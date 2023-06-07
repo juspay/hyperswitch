@@ -52,9 +52,7 @@ impl MandateResponseExt for MandateResponse {
                 &payment_method.payment_method_id,
                 merchant_account.locker_id.clone(),
             )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting card from card vault")?;
+            .await?;
             let card_detail = payment_methods::transformers::get_card_detail(&payment_method, card)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while getting card details")?;
