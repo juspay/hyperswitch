@@ -10,7 +10,7 @@ function find_prev_connector() {
     sed -i'' -e "s/^    connectors=.*/    connectors=($res \"\$1\")/" $self.tmp
     for i in "${!sorted[@]}"; do
     if [ "${sorted[$i]}" = "$1" ] && [ $i != "0" ]; then
-        # find and return the connector name where this new connector should be added next to it 
+        # find and return the connector name where this new connector should be added next to it
         eval "$2='${sorted[i-1]}'"
         mv $self.tmp $self
         rm $self.tmp-e
@@ -20,7 +20,7 @@ function find_prev_connector() {
     mv $self.tmp $self
     rm $self.tmp-e
     # if the new connector needs to be added in first place, add it after Aci, sorted order needs to be covered in code review
-    eval "$2='aci'" 
+    eval "$2='aci'"
 }
 pg=$1;
 base_url=$2;
@@ -33,7 +33,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 ORANGE='\033[0;33m'
 
-if [ -z "$pg" ] || [ -z "$base_url" ]; then 
+if [ -z "$pg" ] || [ -z "$base_url" ]; then
     echo "$RED Connector name or base_url not present: try $GREEN\"sh add_connector.sh adyen https://test.adyen.com\""
     exit
 fi
@@ -48,7 +48,7 @@ prvc=''
 find_prev_connector $1 prvc
 prvcc="$(tr '[:lower:]' '[:upper:]' <<< ${prvc:0:1})${prvc:1}"
 sed -i'' -e "s|pub mod $prvc;|pub mod $prvc;\npub mod ${pg};|" $conn.rs
-sed -i'' -e "s/};/${pg}::${pgc},\n};/" $conn.rs 
+sed -i'' -e "s/};/${pg}::${pgc},\n};/" $conn.rs
 sed -i'' -e "s|\"$prvc\" \(.*\)|\"$prvc\" \1\n\t\t\t\"${pg}\" => Ok(Box::new(\&connector::${pgc})),|" $src/types/api.rs
 sed -i'' -e "s/pub $prvc: \(.*\)/pub $prvc: \1\n\tpub ${pg}: ConnectorParams,/" $src/configs/settings.rs
 sed -i'' -e "s|$prvc.base_url \(.*\)|$prvc.base_url \1\n${pg}.base_url = \"$base_url\"|" config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml
@@ -59,7 +59,7 @@ sed -i'' -e "s/^default_imp_for_\(.*\)/default_imp_for_\1\n\tconnector::${pgc},/
 
 # remove temporary files created in above step
 rm $conn.rs-e $src/types/api.rs-e $src/configs/settings.rs-e config/development.toml-e config/docker_compose.toml-e config/config.example.toml-e loadtest/config/development.toml-e crates/api_models/src/enums.rs-e $src/core/payments/flows.rs-e
-cd $conn/ 
+cd $conn/
 
 # generate template files for the connector
 cargo install cargo-generate
@@ -74,7 +74,7 @@ git checkout ${tests}/main.rs ${tests}/connector_auth.rs ${tests}/sample_auth.to
 
 # add enum for this connector in test folder
 sed -i'' -e "s/mod utils;/mod ${pg};\nmod utils;/" ${tests}/main.rs
-sed -i'' -e "s/    pub $prvc: \(.*\)/\tpub $prvc: \1\n\tpub ${pg}: Option<HeaderKey>,/; s/auth.toml/sample_auth.toml/" ${tests}/connector_auth.rs 
+sed -i'' -e "s/    pub $prvc: \(.*\)/\tpub $prvc: \1\n\tpub ${pg}: Option<HeaderKey>,/; s/auth.toml/sample_auth.toml/" ${tests}/connector_auth.rs
 echo "\n\n[${pg}]\napi_key=\"API Key\"" >> ${tests}/sample_auth.toml
 
 # remove temporary files created in above step
