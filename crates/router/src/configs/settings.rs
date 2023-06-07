@@ -83,8 +83,8 @@ pub struct Settings {
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
     pub email: EmailSettings,
-    pub delayed_session_response: DelayedSessionConfig,
     pub supported_payment_methods_for_mandate: SupportedPaymentMethodsForMandate,
+    pub delayed_session_response: DelayedSessionConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
