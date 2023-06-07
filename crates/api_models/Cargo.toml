@@ -16,7 +16,6 @@ detailed_errors = []
 
 [dependencies]
 actix-web = { version = "4.3.1", optional = true }
-error-stack = "0.3.1"
 frunk = "0.4.1"
 frunk_core = "0.4.1"
 mime = "0.3.17"
