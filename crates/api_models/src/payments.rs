@@ -952,7 +952,6 @@ impl Default for PaymentIdType {
     ToSchema,
     serde::Deserialize,
     serde::Serialize,
-    frunk::LabelledGeneric,
 )]
 #[serde(deny_unknown_fields)]
 pub struct Address {
@@ -972,7 +971,6 @@ pub struct Address {
     serde::Serialize,
     PartialEq,
     ToSchema,
-    frunk::LabelledGeneric,
 )]
 #[serde(deny_unknown_fields)]
 pub struct AddressDetails {
@@ -1022,7 +1020,6 @@ pub struct AddressDetails {
     ToSchema,
     serde::Deserialize,
     serde::Serialize,
-    frunk::LabelledGeneric,
 )]
 pub struct PhoneDetails {
     /// The contact number

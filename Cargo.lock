@@ -374,8 +374,6 @@ dependencies = [
  "common_enums",
  "common_utils",
  "error-stack",
- "frunk",
- "frunk_core",
  "masking",
  "mime",
  "reqwest",
@@ -2017,70 +2015,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "frunk"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a89c703bf50009f383a0873845357cc400a95fc535f836feddfe015d7df6e1e0"
-dependencies = [
- "frunk_core",
- "frunk_derives",
- "frunk_proc_macros",
-]
-
-[[package]]
-name = "frunk_core"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a446d01a558301dca28ef43222864a9fa2bd9a2e71370f769d5d5d5ec9f3537"
-
-[[package]]
-name = "frunk_derives"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b83164912bb4c97cfe0772913c7af7387ee2e00cb6d4636fb65a35b3d0c8f173"
-dependencies = [
- "frunk_proc_macro_helpers",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "frunk_proc_macro_helpers"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "015425591bbeb0f5b8a75593340f1789af428e9f887a4f1e36c0c471f067ef50"
-dependencies = [
- "frunk_core",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "frunk_proc_macros"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea01524f285deab48affffb342b97f186e657b119c3f1821ac531780e0fbfae0"
-dependencies = [
- "frunk_core",
- "frunk_proc_macros_impl",
- "proc-macro-hack",
-]
-
-[[package]]
-name = "frunk_proc_macros_impl"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a802d974cc18ee7fe1a7868fc9ce31086294fd96ba62f8da64ecb44e92a2653"
-dependencies = [
- "frunk_core",
- "frunk_proc_macro_helpers",
- "proc-macro-hack",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "futures"
 version = "0.3.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3060,7 +2994,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry"
 version = "0.18.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "opentelemetry_api",
  "opentelemetry_sdk",
@@ -3069,7 +3003,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry-otlp"
 version = "0.11.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "async-trait",
  "futures",
@@ -3086,7 +3020,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry-proto"
 version = "0.1.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "futures",
  "futures-util",
@@ -3098,7 +3032,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry_api"
 version = "0.18.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "fnv",
  "futures-channel",
@@ -3113,7 +3047,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry_sdk"
 version = "0.18.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "async-trait",
  "crossbeam-channel",
@@ -3361,12 +3295,6 @@ dependencies = [
  "quote",
  "version_check",
 ]
-
-[[package]]
-name = "proc-macro-hack"
-version = "0.5.20+deprecated"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc375e1527247fe1a97d8b7156678dfe7c1af2fc075c9a4db3690ecd2a148068"
 
 [[package]]
 name = "proc-macro2"
@@ -3765,8 +3693,6 @@ dependencies = [
  "encoding_rs",
  "error-stack",
  "external_services",
- "frunk",
- "frunk_core",
  "futures",
  "hex",
  "http",
@@ -4371,8 +4297,6 @@ dependencies = [
  "common_utils",
  "diesel",
  "error-stack",
- "frunk",
- "frunk_core",
  "hex",
  "masking",
  "router_derive",

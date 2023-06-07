@@ -21,7 +21,7 @@ use common_utils::pii;
 use diesel::serialize::{Output, ToSql};
 use time::PrimitiveDateTime;
 
-//sep
+
 #[derive(
     Clone,
     Copy,
@@ -899,8 +899,6 @@ pub enum RoutableConnectors {
     Multisafepay,
     Nexinets,
     Nmi,
-    // Noon, added as template code for future usage
-    // Noon,
     Nuvei,
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
@@ -1166,7 +1164,7 @@ pub struct UnresolvedResponseReason {
     pub message: String,
 }
 
-//before
+
 #[derive(
     Clone,
     Debug,
