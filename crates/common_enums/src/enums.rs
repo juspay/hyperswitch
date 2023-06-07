@@ -556,27 +556,8 @@ pub enum PaymentMethod {
     BankDebit,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    ToSchema,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "lowercase")]
-#[strum(serialize_all = "lowercase")]
-pub enum WalletIssuer {
-    GooglePay,
-    ApplePay,
-    Paypal,
-}
+
+
 
 #[derive(
     Clone,
@@ -816,7 +797,6 @@ pub enum Connector {
     Multisafepay,
     Nexinets,
     Nmi,
-    // Noon, added as template code for future usage
     Noon,
     Nuvei,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
