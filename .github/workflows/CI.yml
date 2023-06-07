@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v3.5.2
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -81,7 +81,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v3.5.2
 
       - name: "Fetch base branch"
         run: git fetch origin $GITHUB_BASE_REF --depth 1
@@ -97,12 +97,12 @@ jobs:
         with:
           toolchain: 1.65
 
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: Swatinem/rust-cache@v2.4.0
         with:
           save-if: ${{ github.event_name == 'push' }}
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v1.3.0
+        uses: baptiste0928/cargo-install@v2.0.0
         with:
           crate: cargo-hack
 
@@ -217,7 +217,7 @@ jobs:
 
   #   steps:
   #     - name: Checkout repository
-  #       uses: actions/checkout@v3.1.0
+  #       uses: actions/checkout@v3.5.2
 
   #     - name: Run cargo-deny
   #       uses: EmbarkStudios/cargo-deny-action@v1.3.2
@@ -237,7 +237,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v3.5.2
 
       - name: "Fetch base branch"
         run: git fetch origin $GITHUB_BASE_REF --depth 1
@@ -252,19 +252,19 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          components: clippy, rustfmt
+          components: clippy
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v1.3.0
+        uses: baptiste0928/cargo-install@v2.0.0
         with:
           crate: cargo-hack
 
       # - name: Install cargo-nextest
-      #   uses: baptiste0928/cargo-install@v1.3.0
+      #   uses: baptiste0928/cargo-install@v2.0.0
       #   with:
       #     crate: cargo-nextest
 
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: Swatinem/rust-cache@v2.4.0
         with:
           save-if: ${{ github.event_name == 'push' }}
 
@@ -380,8 +380,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v3.5.2
 
       - name: Spell check
         uses: crate-ci/typos@master
-
