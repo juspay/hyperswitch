@@ -339,6 +339,87 @@ impl api::PaymentSession for Trustpay {}
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Trustpay
 {
+    fn get_headers(
+        &self,
+        req: &types::PaymentsSessionRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsSessionType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::PaymentsSessionRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}{}", self.base_url(connectors), "api/v1/intent"))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsSessionRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let create_intent_req = trustpay::TrustpayCreateIntentRequest::try_from(req)?;
+        let trustpay_req =
+            utils::Encode::<trustpay::TrustpayCreateIntentRequest>::url_encode(&create_intent_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(trustpay_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsSessionRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let req = Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .attach_default_headers()
+                .headers(types::PaymentsSessionType::get_headers(
+                    self, req, connectors,
+                )?)
+                .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
+                .body(types::PaymentsSessionType::get_request_body(self, req)?)
+                .build(),
+        );
+        Ok(req)
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsSessionRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
+        let response: trustpay::TrustpayCreateIntentResponse = res
+            .response
+            .parse_struct("TrustpayCreateIntentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
 }
 
 impl api::PaymentAuthorize for Trustpay {}
