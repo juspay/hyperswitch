@@ -425,6 +425,8 @@ pub struct ZenWebhookEventType {
 pub enum ZenWebhookTxnType {
     TrtPurchase,
     TrtRefund,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]

@@ -15,7 +15,7 @@ pub struct CustomerRequest {
     #[serde(default = "unknown_merchant", skip)]
     pub merchant_id: String,
     /// The customer's name
-    #[schema(max_length = 255, value_type = String, example = "Jon Test")]
+    #[schema(max_length = 255, value_type = Option<String>, example = "Jon Test")]
     pub name: Option<Secret<String>>,
     /// The customer's email address
     #[schema(value_type = Option<String>, max_length = 255, example = "JonTest@test.com")]
