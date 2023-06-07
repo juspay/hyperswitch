@@ -32,7 +32,6 @@ connection_timeout = 10
 
 [secrets]
 admin_api_key = "test_admin"
-migration_encryption_timestamp = 1682425530
 master_enc_key = "73ad7bbbbc640c845a150f67d058b279849370cd2c1f3c67c4dd6c869213e13a"
 
 [locker]
@@ -258,3 +257,6 @@ refund_duration = 1000
 refund_tolerance = 100
 refund_retrieve_duration = 500
 refund_retrieve_tolerance = 100
+
+[delayed_session_response]
+connectors_with_delayed_session_response = "trustpay"
