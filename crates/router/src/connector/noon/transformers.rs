@@ -37,6 +37,7 @@ pub struct NoonOrder {
     currency: Option<storage_models::enums::Currency>,
     channel: NoonChannels,
     category: Option<String>,
+    reference: String,
     //Short description of the order.
     name: String,
 }
@@ -142,6 +143,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             currency,
             channel: NoonChannels::Web,
             category,
+            reference: item.payment_id.clone(),
             name,
         };
         let payment_action = if item.request.is_auto_capture()? {
