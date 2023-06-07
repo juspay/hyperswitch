@@ -23,12 +23,11 @@ pub trait TypeEncryption<
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError>;
+
     async fn decrypt(
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
-        timestamp: i64,
-        migration_timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError>;
 }
 
@@ -54,22 +53,9 @@ impl<
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
-        timestamp: i64,
-        migration_timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
-
-        let (data, encrypted) = if timestamp < migration_timestamp {
-            (
-                encrypted.clone(),
-                crypt_algo.encode_message(key, &encrypted)?,
-            )
-        } else {
-            (
-                crypt_algo.decode_message(key, encrypted.clone())?,
-                encrypted,
-            )
-        };
+        let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
         let value: String = std::str::from_utf8(&data)
             .into_report()
@@ -106,21 +92,9 @@ impl<
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
-        timestamp: i64,
-        migration_timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
-        let (data, encrypted) = if timestamp < migration_timestamp {
-            (
-                encrypted.clone(),
-                crypt_algo.encode_message(key, &encrypted)?,
-            )
-        } else {
-            (
-                crypt_algo.decode_message(key, encrypted.clone())?,
-                encrypted,
-            )
-        };
+        let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
         let value: serde_json::Value = serde_json::from_slice(&data)
             .into_report()
@@ -152,22 +126,10 @@ impl<
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
-        timestamp: i64,
-        migration_timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
+        let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
-        let (data, encrypted) = if timestamp < migration_timestamp {
-            (
-                encrypted.clone(),
-                crypt_algo.encode_message(key, &encrypted)?,
-            )
-        } else {
-            (
-                crypt_algo.decode_message(key, encrypted.clone())?,
-                encrypted,
-            )
-        };
         Ok(Self::new(data.into(), encrypted))
     }
 }
@@ -241,7 +203,7 @@ where
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     request::record_operation_time(
-        crypto::Encryptable::encrypt(inner, key, crypto::GcmAes256 {}),
+        crypto::Encryptable::encrypt(inner, key, crypto::GcmAes256),
         &ENCRYPTION_TIME,
     )
     .await
@@ -264,22 +226,12 @@ where
 pub async fn decrypt<T: Clone, S: masking::Strategy<T>>(
     inner: Option<Encryption>,
     key: &[u8],
-    timestamp: i64,
-    migration_timestamp: i64,
 ) -> CustomResult<Option<crypto::Encryptable<Secret<T, S>>>, errors::CryptoError>
 where
     crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
 {
     request::record_operation_time(
-        inner.async_map(|item| {
-            crypto::Encryptable::decrypt(
-                item,
-                key,
-                crypto::GcmAes256 {},
-                timestamp,
-                migration_timestamp,
-            )
-        }),
+        inner.async_map(|item| crypto::Encryptable::decrypt(item, key, crypto::GcmAes256)),
         &DECRYPTION_TIME,
     )
     .await

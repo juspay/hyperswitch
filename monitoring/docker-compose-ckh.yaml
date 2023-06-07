@@ -140,7 +140,7 @@ services:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka0:29092
       KAFKA_CLUSTERS_0_JMXPORT: 9997
-  
+
   clickhouse-server:
     image: clickhouse/clickhouse-server:latest
     networks:
@@ -154,7 +154,7 @@ services:
       nofile:
         soft: 262144
         hard: 262144
-  
+
   hyperswitch-server:
     image: rust:1.65
     command: cargo run -- -f ./config/docker_compose.toml
@@ -193,9 +193,9 @@ services:
       - POSTGRES_USER=db_user
       - POSTGRES_PASSWORD=db_pass
       - POSTGRES_DB=hyperswitch_db
-  
+
   redis-queue:
-    image: redis:7    
+    image: redis:7
     command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
       - ../config/redis.conf:/usr/local/etc/redis/redis.conf

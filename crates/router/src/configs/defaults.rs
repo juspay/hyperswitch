@@ -40,7 +40,6 @@ impl Default for super::settings::Secrets {
             kms_encrypted_jwt_secret: "".into(),
             #[cfg(feature = "kms")]
             kms_encrypted_admin_api_key: "".into(),
-            migration_encryption_timestamp: 0,
         }
     }
 }

@@ -6,6 +6,3 @@ members = ["crates/*", "examples/*"]
 strip = true
 lto = true
 codegen-units = 1
-
-[patch.crates-io]
-opentelemetry = { git = "https://github.com/open-telemetry/opentelemetry-rust", rev = "44b90202fd744598db8b0ace5b8f0bad7ec45658" }
