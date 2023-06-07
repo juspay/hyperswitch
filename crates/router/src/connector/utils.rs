@@ -473,24 +473,20 @@ impl CardData for api::Card {
     ) -> Result<(Secret<String>, Secret<String>), errors::ConnectorError> {
         let card_holder_name = self.card_holder_name.peek();
         let words: Vec<&str> = card_holder_name.split_whitespace().collect();
-        if !words.is_empty() {
-            let first_name = Secret::new(if words.len() > 1 {
-                words[..words.len() - 1].join(" ")
-            } else {
-                words.first().unwrap_or(&"").to_string()
-            });
-            let last_name = Secret::new(if words.len() > 1 {
-                words.last().unwrap_or(&"").to_string()
-            } else {
-                String::new()
-            });
-
-            Ok((first_name, last_name))
-        } else {
-            Err(errors::ConnectorError::MissingRequiredField {
+        let (first_name, last_name) = match words.len() {
+            0 => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "card.card_holder_name",
-            })?
-        }
+            })?,
+            1 => (
+                Secret::new(words.first().unwrap_or(&"").to_string()),
+                Secret::new(String::new()),
+            ),
+            _ => (
+                Secret::new(words[..words.len() - 1].join(" ")),
+                Secret::new(words.last().unwrap_or(&"").to_string()),
+            ),
+        };
+        Ok((first_name, last_name))
     }
 }
 
