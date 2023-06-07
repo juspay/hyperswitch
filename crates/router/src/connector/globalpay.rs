@@ -880,6 +880,9 @@ impl api::IncomingWebhook for Globalpay {
             response::GlobalpayWebhookStatus::Captured => {
                 api::IncomingWebhookEvent::PaymentIntentSuccess
             }
+            response::GlobalpayWebhookStatus::Unknown => {
+                api::IncomingWebhookEvent::EventNotSupported
+            }
         })
     }
 

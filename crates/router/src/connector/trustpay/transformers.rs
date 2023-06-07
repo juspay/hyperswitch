@@ -1250,6 +1250,8 @@ pub enum WebhookStatus {
     Rejected,
     Refunded,
     Chargebacked,
+    #[serde(other)]
+    Unknown,
 }
 
 impl TryFrom<WebhookStatus> for enums::AttemptStatus {
