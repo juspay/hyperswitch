@@ -194,7 +194,7 @@ pub enum ApiErrorResponse {
     WebhookBadRequest,
     #[error(error_type = ErrorType::RouterError, code = "WE_03", message = "There was some issue processing the webhook")]
     WebhookProcessingFailure,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Required payment method is not configured / configured incorrectly for the connector")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "required payment method is not configured or configured incorrectly for all configured connectors")]
     IncorrectPaymentMethodConfiguration,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_05", message = "Unable to process the webhook body")]
     WebhookUnprocessableEntity,
