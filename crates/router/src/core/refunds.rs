@@ -929,7 +929,10 @@ pub async fn add_refund_sync_task(
         .attach_printable_lazy(|| format!("unable to convert into value {:?}", &refund))?;
     let task = "SYNC_REFUND";
     let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{}_{}_{}_{}", runner, task, refund.merchant_id, refund.refund_id),
+        id: format!(
+            "{}_{}_{}_{}",
+            runner, task, refund.merchant_id, refund.refund_id
+        ),
         name: Some(String::from(task)),
         tag: vec![String::from("REFUND")],
         runner: Some(String::from(runner)),
@@ -970,7 +973,10 @@ pub async fn add_refund_execute_task(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| format!("unable to convert into value {:?}", &refund))?;
     let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{}_{}_{}_{}", runner, task, refund.merchant_id, refund.refund_id),
+        id: format!(
+            "{}_{}_{}_{}",
+            runner, task, refund.merchant_id, refund.refund_id
+        ),
         name: Some(String::from(task)),
         tag: vec![String::from("REFUND")],
         runner: Some(String::from(runner)),
