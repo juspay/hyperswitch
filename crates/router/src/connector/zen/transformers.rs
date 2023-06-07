@@ -166,7 +166,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &Card)> for ZenPaymentsReques
             return_verify_url: item.request.router_return_url.clone(),
         };
         Ok(Self::ApiRequest(Box::new(ApiRequest {
-            merchant_transaction_id: item.payment_id.clone(),
+            merchant_transaction_id: item.attempt_id.clone(),
             payment_channel: ZenPaymentChannels::PclCard,
             currency: item.request.currency,
             payment_specific_data,
@@ -198,7 +198,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &GooglePayWalletData)> for Ze
             return_verify_url: item.request.router_return_url.clone(),
         };
         Ok(Self::ApiRequest(Box::new(ApiRequest {
-            merchant_transaction_id: item.payment_id.clone(),
+            merchant_transaction_id: item.attempt_id.clone(),
             payment_channel: ZenPaymentChannels::PclGooglepay,
             currency: item.request.currency,
             payment_specific_data,
@@ -239,7 +239,7 @@ impl
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         let mut checkout_request = CheckoutRequest {
-            merchant_transaction_id: item.payment_id.clone(),
+            merchant_transaction_id: item.attempt_id.clone(),
             specified_payment_channel: ZenPaymentChannels::PclApplepay,
             currency: item.request.currency,
             custom_ipn_url: item.request.get_webhook_url()?,
@@ -626,6 +626,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenWebhookBody {
+    #[serde(rename = "transactionId")]
+    pub id: String,
     pub merchant_transaction_id: String,
     pub amount: String,
     pub currency: String,
