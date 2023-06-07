@@ -380,6 +380,36 @@ fn get_business_details_wrapper(
     }
 }
 
+fn validate_certificate_in_mca_metadata(
+    connector_metadata: Secret<serde_json::Value>,
+) -> RouterResult<()> {
+    let parsed_connector_metadata = connector_metadata
+        .parse_value::<api_models::payments::ConnectorMetadata>("ApplepaySessionTokenData")
+        .change_context(errors::ParsingError::StructParseFailure("Metadata"))
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "apple_pay".to_string(),
+            expected_format: "apple pay metadata format".to_string(),
+        })?;
+
+    parsed_connector_metadata
+        .apple_pay
+        .map(|applepay_metadata| {
+            let api_models::payments::SessionTokenInfo {
+                certificate,
+                certificate_keys,
+                ..
+            } = applepay_metadata.session_token_data;
+            helpers::create_identity_from_certificate_and_key(certificate, certificate_keys)
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "certificate/certificate key",
+                })
+                .map(|_identity_result| ())
+        })
+        .transpose()?;
+
+    Ok(())
+}
+
 pub async fn create_payment_connector(
     store: &dyn StorageInterface,
     req: api::MerchantConnectorCreate,
@@ -389,6 +419,11 @@ pub async fn create_payment_connector(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to get key from merchant key store")?;
+
+    req.metadata
+        .clone()
+        .map(validate_certificate_in_mca_metadata)
+        .transpose()?;
 
     let merchant_account = store
         .find_merchant_account_by_merchant_id(merchant_id)

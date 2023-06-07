@@ -1707,6 +1707,12 @@ pub struct ApplepaySessionRequest {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ConnectorMetadata {
+    pub apple_pay: Option<ApplePayMetadata>,
+    pub google_pay: Option<GpayMetaData>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApplepaySessionTokenData {
     #[serde(rename = "apple_pay")]
     pub data: ApplePayMetadata,
