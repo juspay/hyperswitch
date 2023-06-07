@@ -839,25 +839,25 @@ fn get_recurring_processing_model(
     }
 }
 
-fn get_browser_info(item: &types::PaymentsAuthorizeRouterData) -> Option<AdyenBrowserInfo> {
+fn get_browser_info(
+    item: &types::PaymentsAuthorizeRouterData,
+) -> Result<Option<AdyenBrowserInfo>, Error> {
     if item.auth_type == storage_enums::AuthenticationType::ThreeDs
         || item.payment_method == storage_enums::PaymentMethod::BankRedirect
     {
-        item.request
-            .browser_info
-            .as_ref()
-            .map(|info| AdyenBrowserInfo {
-                accept_header: info.accept_header.clone(),
-                language: info.language.clone(),
-                screen_height: info.screen_height,
-                screen_width: info.screen_width,
-                color_depth: info.color_depth,
-                user_agent: info.user_agent.clone(),
-                time_zone_offset: info.time_zone,
-                java_enabled: info.java_enabled,
-            })
+        let info = item.request.get_browser_info()?;
+        Ok(Some(AdyenBrowserInfo {
+            accept_header: info.accept_header.clone(),
+            language: info.language.clone(),
+            screen_height: info.screen_height,
+            screen_width: info.screen_width,
+            color_depth: info.color_depth,
+            user_agent: info.user_agent.clone(),
+            time_zone_offset: info.time_zone,
+            java_enabled: info.java_enabled,
+        }))
     } else {
-        None
+        Ok(None)
     }
 }
 
@@ -1011,7 +1011,7 @@ impl<'a> TryFrom<&api::Card> for AdyenPaymentMethod<'a> {
             payment_type: PaymentType::Scheme,
             number: card.card_number.clone(),
             expiry_month: card.card_exp_month.clone(),
-            expiry_year: card.card_exp_year.clone(),
+            expiry_year: card.get_year_in_4_digits(),
             cvc: Some(card.card_cvc.clone()),
             brand: None,
             network_payment_reference: None,
@@ -1246,7 +1246,7 @@ impl<'a>
         let shopper_interaction = AdyenShopperInteraction::from(item);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item)?;
-        let browser_info = get_browser_info(item);
+        let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
         let payment_method = match mandate_ref_id {
@@ -1318,7 +1318,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::Card)> for AdyenPay
         let shopper_interaction = AdyenShopperInteraction::from(item);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item)?;
-        let browser_info = get_browser_info(item);
+        let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(card_data)?;
@@ -1365,7 +1365,7 @@ impl<'a>
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item);
         let recurring_processing_model = get_recurring_processing_model(item)?.0;
-        let browser_info = get_browser_info(item);
+        let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(bank_debit_data)?;
@@ -1414,7 +1414,7 @@ impl<'a>
         let shopper_interaction = AdyenShopperInteraction::from(item);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item)?;
-        let browser_info = get_browser_info(item);
+        let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(bank_redirect_data)?;
@@ -1478,7 +1478,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)>
         let (item, wallet_data) = value;
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
-        let browser_info = get_browser_info(item);
+        let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let payment_method = AdyenPaymentMethod::try_from(wallet_data)?;
         let shopper_interaction = AdyenShopperInteraction::from(item);
@@ -1519,7 +1519,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::PayLaterData)>
         let (item, paylater_data) = value;
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
-        let browser_info = get_browser_info(item);
+        let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let payment_method = AdyenPaymentMethod::try_from(paylater_data)?;
         let shopper_interaction = AdyenShopperInteraction::from(item);
@@ -1629,8 +1629,9 @@ pub fn get_adyen_response(
     let mandate_reference = response
         .additional_data
         .as_ref()
-        .map(|data| types::MandateReference {
-            connector_mandate_id: data.recurring_detail_reference.to_owned(),
+        .and_then(|data| data.recurring_detail_reference.to_owned())
+        .map(|mandate_id| types::MandateReference {
+            connector_mandate_id: Some(mandate_id),
             payment_method_id: None,
         });
     let network_txn_id = response
