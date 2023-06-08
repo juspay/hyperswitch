@@ -1,6 +1,5 @@
 FROM rust:slim as builder
 
-ARG RUN_ENV=sandbox
 ARG EXTRA_FEATURES=""
 
 RUN apt-get update \
@@ -33,7 +32,7 @@ ENV RUST_BACKTRACE="short"
 ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
 
 COPY . .
-RUN cargo build --release --features ${RUN_ENV} ${EXTRA_FEATURES}
+RUN cargo build --release --features release ${EXTRA_FEATURES}
 
 
 
