@@ -527,7 +527,11 @@ impl api::IncomingWebhook for Bitpay {
             bitpay::WebhookEventType::Declined => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
             }
-            _ => Ok(api::IncomingWebhookEvent::EventNotSupported),
+            bitpay::WebhookEventType::Unknown
+            | bitpay::WebhookEventType::Expired
+            | bitpay::WebhookEventType::Invalid
+            | bitpay::WebhookEventType::Refunded
+            | bitpay::WebhookEventType::Resent => Ok(api::IncomingWebhookEvent::EventNotSupported),
         }
     }
 

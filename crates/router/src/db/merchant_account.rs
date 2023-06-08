@@ -7,7 +7,6 @@ use crate::cache::{self, ACCOUNTS_CACHE};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    db::MasterKeyInterface,
     types::{
         domain::{
             self,
@@ -72,7 +71,7 @@ impl MerchantAccountInterface for Store {
             .await
             .map_err(Into::into)
             .into_report()?
-            .convert(self, &merchant_id, self.get_migration_timestamp())
+            .convert(self, &merchant_id)
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -93,7 +92,7 @@ impl MerchantAccountInterface for Store {
         {
             fetch_func()
                 .await?
-                .convert(self, merchant_id, self.get_migration_timestamp())
+                .convert(self, merchant_id)
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }
@@ -102,7 +101,7 @@ impl MerchantAccountInterface for Store {
         {
             super::cache::get_or_populate_in_memory(self, merchant_id, fetch_func, &ACCOUNTS_CACHE)
                 .await?
-                .convert(self, merchant_id, self.get_migration_timestamp())
+                .convert(self, merchant_id)
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }
@@ -124,7 +123,7 @@ impl MerchantAccountInterface for Store {
                 .map_err(Into::into)
                 .into_report()
                 .async_and_then(|item| async {
-                    item.convert(self, &_merchant_id, self.get_migration_timestamp())
+                    item.convert(self, &_merchant_id)
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -163,7 +162,7 @@ impl MerchantAccountInterface for Store {
             .map_err(Into::into)
             .into_report()
             .async_and_then(|item| async {
-                item.convert(self, merchant_id, self.get_migration_timestamp())
+                item.convert(self, merchant_id)
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -197,7 +196,7 @@ impl MerchantAccountInterface for Store {
             .into_report()
             .async_and_then(|item| async {
                 let merchant_id = item.merchant_id.clone();
-                item.convert(self, &merchant_id, self.get_migration_timestamp())
+                item.convert(self, &merchant_id)
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -248,7 +247,7 @@ impl MerchantAccountInterface for MockDb {
         accounts.push(account.clone());
 
         account
-            .convert(self, &merchant_id, self.get_migration_timestamp())
+            .convert(self, &merchant_id)
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -264,7 +263,7 @@ impl MerchantAccountInterface for MockDb {
             .find(|account| account.merchant_id == merchant_id)
             .cloned()
             .async_map(|a| async {
-                a.convert(self, merchant_id, self.get_migration_timestamp())
+                a.convert(self, merchant_id)
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })

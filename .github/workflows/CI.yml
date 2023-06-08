@@ -189,7 +189,7 @@ jobs:
 
       - name: Cargo hack router
         if: env.router_changes_exist == 'true'
-        run: cargo hack check --each-feature --skip kms,basilisk,production,kv_store,accounts_cache,openapi --no-dev-deps -p router
+        run: cargo hack check --each-feature --skip kms,basilisk,kv_store,accounts_cache,openapi --no-dev-deps -p router
 
       - name: Cargo hack router_derive
         if: env.router_derive_changes_exist == 'true'
@@ -361,7 +361,7 @@ jobs:
 
       - name: Cargo hack router
         if: env.router_changes_exist == 'true'
-        run: cargo hack check --each-feature --skip kms,basilisk,production,kv_store,accounts_cache,openapi --no-dev-deps -p router
+        run: cargo hack check --each-feature --skip kms,basilisk,kv_store,accounts_cache,openapi --no-dev-deps -p router
 
       - name: Cargo hack router_derive
         if: env.router_derive_changes_exist == 'true'
@@ -374,7 +374,7 @@ jobs:
       - name: Cargo hack storage_models
         if: env.storage_models_changes_exist == 'true'
         run: cargo hack check --each-feature --no-dev-deps -p storage_models
-  
+
   typos:
     name: Spell check
     runs-on: ubuntu-latest
@@ -384,3 +384,4 @@ jobs:
 
       - name: Spell check
         uses: crate-ci/typos@master
+
