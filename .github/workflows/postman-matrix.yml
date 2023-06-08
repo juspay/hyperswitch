@@ -42,7 +42,7 @@ env:
 
 jobs:
   test_connectors:
-    name: Run tests on stable toolchain for connectors
+    name: Run Postman
     runs-on: ubuntu-latest
 
     strategy:
@@ -73,10 +73,10 @@ jobs:
 
       - name: Set ENV Flags
         run: |
-          echo "CONNECTOR_API_KEY=${${{ matrix.connector }}}_API_KEY" >> GITHUB_ENV
-          echo "CONNECTOR_GATEWAY_MERCHANT_ID=${${{ matrix.connector }}}_GATEWAY_MERCHANT_ID" >> GITHUB_ENV
-          echo "CONNECTOR_GPAY_CERTIFICATE=${${{ matrix.connector }}}_GPAY_CERTIFICATE" >> GITHUB_ENV
-          echo "CONNECTOR_GPAY_CERTIFICATE_KEYS=${${{ matrix.connector }}}_GPAY_CERTIFICATE_KEYS" >> GITHUB_ENV
+          echo "CONNECTOR_API_KEY=${${{ matrix.connector }}}_API_KEY" >> $GITHUB_ENV
+          echo "CONNECTOR_GATEWAY_MERCHANT_ID=${${{ matrix.connector }}}_GATEWAY_MERCHANT_ID" >> $GITHUB_ENV
+          echo "CONNECTOR_GPAY_CERTIFICATE=${${{ matrix.connector }}}_GPAY_CERTIFICATE" >> $GITHUB_ENV
+          echo "CONNECTOR_GPAY_CERTIFICATE_KEYS=${${{ matrix.connector }}}_GPAY_CERTIFICATE_KEYS" >> $GITHUB_ENV
         env: 
           STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
           STRIPE_GATEWAY_MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
