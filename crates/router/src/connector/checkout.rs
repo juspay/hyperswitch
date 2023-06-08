@@ -1202,8 +1202,8 @@ impl services::ConnectorRedirectResponse for Checkout {
             .map(
                 |checkout_status| payments::CallConnectorAction::StatusUpdate {
                     status: storage_models::enums::AttemptStatus::from(checkout_status),
-                    code: None,
-                    message: None,
+                    error_code: None,
+                    error_message: None,
                 },
             )
             .unwrap_or(payments::CallConnectorAction::Trigger);

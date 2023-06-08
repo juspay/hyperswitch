@@ -979,8 +979,8 @@ pub enum CallConnectorAction {
     Avoid,
     StatusUpdate {
         status: storage_enums::AttemptStatus,
-        code: Option<String>,
-        message: Option<String>,
+        error_code: Option<String>,
+        error_message: Option<String>,
     },
     HandleResponse(Vec<u8>),
 }

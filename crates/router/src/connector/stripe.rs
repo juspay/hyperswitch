@@ -1833,8 +1833,8 @@ impl services::ConnectorRedirectResponse for Stripe {
                     }
                     _ => payments::CallConnectorAction::StatusUpdate {
                         status: enums::AttemptStatus::from(status),
-                        code: None,
-                        message: None,
+                        error_code: None,
+                        error_message: None,
                     },
                 },
             ))

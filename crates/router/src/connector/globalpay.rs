@@ -916,8 +916,8 @@ impl services::ConnectorRedirectResponse for Globalpay {
                 response::GlobalpayPaymentStatus::Captured => {
                     payments::CallConnectorAction::StatusUpdate {
                         status: storage_models::enums::AttemptStatus::from(status),
-                        code: None,
-                        message: None,
+                        error_code: None,
+                        error_message: None,
                     }
                 }
                 _ => payments::CallConnectorAction::Trigger,

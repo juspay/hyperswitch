@@ -21,6 +21,7 @@ use self::request::{ContentType, HeaderExt, RequestBuilderExt};
 pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
     configs::settings::Connectors,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -192,18 +193,20 @@ where
         payments::CallConnectorAction::Avoid => Ok(router_data),
         payments::CallConnectorAction::StatusUpdate {
             status,
-            code,
-            message,
+            error_code,
+            error_message,
         } => {
             router_data.status = status;
-            let error_response = code.zip(message).map(|(error_code, error_message)| {
-                ErrorResponse {
-                    code: error_code,
-                    message: error_message,
+            let error_response = if error_code.is_some() | error_message.is_some() {
+                Some(ErrorResponse {
+                    code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                     status_code: 200, // This status code is ignored in redirection response it will override with 302 status code.
                     reason: None,
-                }
-            });
+                })
+            } else {
+                None
+            };
             router_data.response = error_response.map(Err).unwrap_or(router_data.response);
             Ok(router_data)
         }

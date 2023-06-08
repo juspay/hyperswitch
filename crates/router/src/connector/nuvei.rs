@@ -959,8 +959,8 @@ impl services::ConnectorRedirectResponse for Nuvei {
                         None | Some(nuvei::LiabilityShift::Failed) => {
                             Ok(payments::CallConnectorAction::StatusUpdate {
                                 status: enums::AttemptStatus::AuthenticationFailed,
-                                code: None,
-                                message: None,
+                                error_code: None,
+                                error_message: None,
                             })
                         }
                         _ => Ok(payments::CallConnectorAction::Trigger),
