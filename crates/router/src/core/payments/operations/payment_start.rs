@@ -124,6 +124,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 amount,
                 email: None,
                 mandate_id: None,
+                mandate_connector: None,
                 connector_response,
                 setup_mandate: None,
                 token: payment_attempt.payment_token.clone(),
@@ -144,7 +145,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 connector_customer_id: None,
                 ephemeral_key: None,
                 redirect_response: None,
-                delayed_session_token: None,
             },
             Some(customer_details),
         ))
