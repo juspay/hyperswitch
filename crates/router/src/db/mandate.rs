@@ -252,9 +252,10 @@ impl MandateInterface for MockDb {
                 };
                 mandate_info.push(mandate.clone());
                 Ok(mandate)
-
             }
-            None => Err(StorageError::ValueNotFound("created_date not provided".to_string()).into()),
+            None => {
+                Err(StorageError::ValueNotFound("created_date not provided".to_string()).into())
+            }
         }
     }
 }
