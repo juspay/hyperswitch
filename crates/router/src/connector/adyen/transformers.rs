@@ -2460,7 +2460,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
             },
             |pe| {
                 if pe {
-                    Some(storage_enums::PayoutStatus::RequiresCreation)
+                    Some(storage_enums::PayoutStatus::RequiresFulfillment)
                 } else {
                     Some(storage_enums::PayoutStatus::Ineligible)
                 }

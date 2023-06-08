@@ -51,8 +51,15 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<api_enums::Currency>,
 
+    /// Specifies routing algorithm for selecting a connector
+    #[schema(value_type = Option<RoutingAlgorithm>, example = json!({
+        "type": "single",
+        "data": "adyen"
+    }))]
+    pub routing: Option<serde_json::Value>,
+
     /// This allows the merchant to manually select a connector with which the payout can go through
-    #[schema(value_type = Option<Vec<Connector>>, max_length = 255, example = json!(["stripe", "adyen"]))]
+    #[schema(value_type = Option<Vec<Connector>>, max_length = 255, example = json!(["wise", "adyen"]))]
     pub connector: Option<Vec<api_enums::Connector>>,
 
     /// The boolean value to create payout with connector

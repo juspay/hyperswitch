@@ -2,7 +2,7 @@ pub mod helpers;
 pub mod validator;
 
 use api_models::enums as api_enums;
-use common_utils::crypto::Encryptable;
+use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 use serde_json::{self};
@@ -39,6 +39,56 @@ pub struct PayoutData {
 }
 
 // ********************************************** CORE FLOWS **********************************************
+#[cfg(feature = "payouts")]
+pub async fn get_connector_data(
+    state: &AppState,
+    merchant_account: &domain::MerchantAccount,
+    routed_through: Option<String>,
+    routing_algorithm: Option<serde_json::Value>,
+) -> RouterResult<api::ConnectorData> {
+    let mut routing_data = storage::RoutingData {
+        routed_through,
+        algorithm: None,
+    };
+    let connector_choice = payment_helpers::get_connector_default(state, routing_algorithm).await?;
+    let connector_details = match connector_choice {
+        api::ConnectorChoice::SessionMultiple(session_connectors) => {
+            api::ConnectorCallType::Multiple(session_connectors)
+        }
+
+        api::ConnectorChoice::StraightThrough(straight_through) => {
+            let request_straight_through: Option<api::StraightThroughAlgorithm> =
+                Some(straight_through)
+                    .map(|val| val.parse_value("StraightThroughAlgorithm"))
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Invalid straight through routing rules format")?;
+            payments::decide_connector(
+                state,
+                merchant_account,
+                request_straight_through,
+                &mut routing_data,
+            )?
+        }
+
+        api::ConnectorChoice::Decide => {
+            payments::decide_connector(state, merchant_account, None, &mut routing_data)?
+        }
+    };
+    let connector_data = match connector_details {
+        api::ConnectorCallType::Single(connector) => connector,
+
+        api::ConnectorCallType::Multiple(connectors) => {
+            // TODO: route through actual multiple connectors.
+            connectors.first().map_or(
+                Err(errors::ApiErrorResponse::IncorrectConnectorNameGiven),
+                |c| Ok(c.connector.to_owned()),
+            )?
+        }
+    };
+
+    Ok(connector_data)
+}
 
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
@@ -49,25 +99,29 @@ pub async fn payouts_create_core(
 ) -> RouterResponse<payouts::PayoutCreateResponse>
 where
 {
-    // TODO: Remove hardcoded connector
-    let connector_name = api_enums::Connector::Wise;
+    // Form connector data
+    let connector_data = get_connector_data(
+        state,
+        &merchant_account,
+        req.connector
+            .clone()
+            .and_then(|c| c.first().map(|c| c.to_string())),
+        req.routing.clone(),
+    )
+    .await?;
 
     // Validate create request
     let payout_id = validator::validate_create_request(state, &merchant_account, &req).await?;
 
     // Create DB entries
-    let mut payout_data =
-        payout_create_db_entries(state, &merchant_account, &req, &payout_id, &connector_name)
-            .await?;
-
-    // Form connector data
-    let connector_data: api::ConnectorData = api::ConnectorData::get_connector_by_name(
-        &state.conf.connectors,
-        &connector_name.to_string(),
-        api::GetToken::Connector,
+    let mut payout_data = payout_create_db_entries(
+        state,
+        &merchant_account,
+        &req,
+        &payout_id,
+        &connector_data.connector_name,
     )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to get the connector data")?;
+    .await?;
 
     call_connector_payout(
         state,
@@ -266,15 +320,14 @@ pub async fn payouts_cancel_core(
 
     // Trigger connector's cancellation
     } else {
-        // TODO: Remove hardcoded connector
-        let connector_name = api_enums::Connector::Wise;
-        let connector_data: api::ConnectorData = api::ConnectorData::get_connector_by_name(
-            &state.conf.connectors,
-            &connector_name.to_string(),
-            api::GetToken::Connector,
+        // Form connector data
+        let connector_data = get_connector_data(
+            state,
+            &merchant_account,
+            Some(payout_attempt.connector),
+            None,
         )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get the connector data")?;
+        .await?;
 
         payout_data = cancel_payout(
             state,
@@ -284,7 +337,7 @@ pub async fn payouts_cancel_core(
             &mut payout_data,
         )
         .await
-        .attach_printable("Payout fulfillment failed for given Payout request")?;
+        .attach_printable("Payout cancellation failed for given Payout request")?;
     }
 
     response_handler(
@@ -325,17 +378,14 @@ pub async fn payouts_fulfill_core(
         }));
     }
 
-    // TODO: Remove hardcoded connector
-    let connector_name = api_enums::Connector::Wise;
-
     // Form connector data
-    let connector_data: api::ConnectorData = api::ConnectorData::get_connector_by_name(
-        &state.conf.connectors,
-        &connector_name.to_string(),
-        api::GetToken::Connector,
+    let connector_data = get_connector_data(
+        state,
+        &merchant_account,
+        Some(payout_attempt.connector.clone()),
+        None,
     )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to get the connector data")?;
+    .await?;
 
     // Trigger fulfillment
     let payout_method_data = helpers::make_payout_method_data(state, &None, &payout_attempt)
@@ -548,7 +598,9 @@ pub async fn create_recipient(
                     )
                 }
             }
-            Err(_err) => {}
+            Err(err) => Err(errors::ApiErrorResponse::PayoutFailed {
+                data: serde_json::to_value(err).ok(),
+            })?,
         }
     }
     Ok(payout_data.clone())

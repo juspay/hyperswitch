@@ -204,6 +204,108 @@ impl api::PayoutFulfill for Wise {}
 impl services::ConnectorIntegration<api::PCancel, types::PayoutsData, types::PayoutsResponseData>
     for Wise
 {
+    fn get_url(
+        &self,
+        req: &types::PayoutsRouterData<api::PCancel>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let transfer_id = req.request.connector_payout_id.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "transfer_id",
+            },
+        )?;
+        Ok(format!(
+            "{}v1/transfers/{}/cancel",
+            connectors.wise.base_url, transfer_id
+        ))
+    }
+
+    fn get_headers(
+        &self,
+        req: &types::PayoutsRouterData<api::PCancel>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PayoutQuoteType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let auth = wise::WiseAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let mut api_key = vec![(headers::AUTHORIZATION.to_string(), auth.api_key.into())];
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PayoutsRouterData<api::PCancel>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Put)
+            .url(&types::PayoutCancelType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutCancelType::get_headers(self, req, connectors)?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    #[instrument(skip_all)]
+    fn handle_response(
+        &self,
+        data: &types::PayoutsRouterData<api::PCancel>,
+        res: types::Response,
+    ) -> CustomResult<types::PayoutsRouterData<api::PCancel>, errors::ConnectorError> {
+        let response: wise::WisePayoutResponse = res
+            .response
+            .parse_struct("WisePayoutResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: wise::ErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let def_res = response.status.unwrap_or_default().to_string();
+        match response.errors {
+            Some(errs) => {
+                if let Some(e) = errs.get(0) {
+                    Ok(types::ErrorResponse {
+                        status_code: res.status_code,
+                        code: e.code.clone(),
+                        message: e.message.clone(),
+                        reason: None,
+                    })
+                } else {
+                    Ok(types::ErrorResponse {
+                        status_code: res.status_code,
+                        code: def_res,
+                        message: response.message.unwrap_or_default(),
+                        reason: None,
+                    })
+                }
+            }
+            None => Ok(types::ErrorResponse {
+                status_code: res.status_code,
+                code: def_res,
+                message: response.message.unwrap_or_default(),
+                reason: None,
+            }),
+        }
+    }
 }
 
 #[cfg(feature = "payouts")]
@@ -444,9 +546,9 @@ impl services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::Pay
         data: &types::PayoutsRouterData<api::PCreate>,
         res: types::Response,
     ) -> CustomResult<types::PayoutsRouterData<api::PCreate>, errors::ConnectorError> {
-        let response: wise::WisePayoutCreateResponse = res
+        let response: wise::WisePayoutResponse = res
             .response
-            .parse_struct("WisePayoutCreateResponse")
+            .parse_struct("WisePayoutResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,

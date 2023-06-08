@@ -678,7 +678,7 @@ pub struct Response {
     pub status_code: u16,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct ErrorResponse {
     pub code: String,
     pub message: String,

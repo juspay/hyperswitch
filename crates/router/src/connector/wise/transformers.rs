@@ -220,7 +220,7 @@ pub struct WiseTransferDetails {
 #[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WisePayoutCreateResponse {
+pub struct WisePayoutResponse {
     id: i64,
     user: i64,
     target_account: i64,
@@ -274,6 +274,9 @@ pub enum WiseStatus {
     Completed,
     Pending,
     Rejected,
+
+    #[serde(rename = "cancelled")]
+    Cancelled,
 
     #[serde(rename = "processing")]
     #[default]
@@ -497,18 +500,22 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutCreateRequest {
 
 // Payouts transfer creation response
 #[cfg(feature = "payouts")]
-impl<F> TryFrom<types::PayoutsResponseRouterData<F, WisePayoutCreateResponse>>
+impl<F> TryFrom<types::PayoutsResponseRouterData<F, WisePayoutResponse>>
     for types::PayoutsRouterData<F>
 {
     type Error = Error;
     fn try_from(
-        item: types::PayoutsResponseRouterData<F, WisePayoutCreateResponse>,
+        item: types::PayoutsResponseRouterData<F, WisePayoutResponse>,
     ) -> Result<Self, Self::Error> {
-        let response: WisePayoutCreateResponse = item.response;
+        let response: WisePayoutResponse = item.response;
+        let status = match storage_enums::PayoutStatus::foreign_from(response.status) {
+            storage_enums::PayoutStatus::Cancelled => storage_enums::PayoutStatus::Cancelled,
+            _ => storage_enums::PayoutStatus::RequiresFulfillment,
+        };
 
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
-                status: Some(storage_enums::PayoutStatus::RequiresFulfillment),
+                status: Some(status),
                 connector_payout_id: response.id.to_string(),
                 payout_eligible: None,
             }),
@@ -564,6 +571,7 @@ impl ForeignFrom<WiseStatus> for storage_enums::PayoutStatus {
         match wise_status {
             WiseStatus::Completed => Self::Success,
             WiseStatus::Rejected => Self::Failed,
+            WiseStatus::Cancelled => Self::Cancelled,
             WiseStatus::Pending | WiseStatus::Processing | WiseStatus::IncomingPaymentWaiting => {
                 Self::Pending
             }

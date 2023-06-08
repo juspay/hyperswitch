@@ -365,7 +365,7 @@ impl Vaultable for api::BankPayout {
                 iban: None,
             },
             Self::Bacs(b) => api::TokenizedBankValue1 {
-                bank_account_number: None,
+                bank_account_number: Some(b.bank_account_number.to_owned()),
                 bank_routing_number: None,
                 bic: None,
                 bank_sort_code: Some(b.bank_sort_code.to_owned()),
