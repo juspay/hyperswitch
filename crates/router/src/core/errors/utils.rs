@@ -94,6 +94,9 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
             errors::ConnectorError::MissingRequiredField { field_name } => {
                 errors::ApiErrorResponse::MissingRequiredField { field_name }
             }
+            errors::ConnectorError::MissingRequiredFields { field_names } => {
+                errors::ApiErrorResponse::MissingRequiredFields { field_names: field_names.to_vec() }
+            }
             errors::ConnectorError::NotImplemented(reason) => {
                 errors::ApiErrorResponse::NotImplemented {
                     message: errors::api_error_response::NotImplementedMessage::Reason(

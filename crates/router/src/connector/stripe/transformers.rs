@@ -566,17 +566,27 @@ pub enum StripeBankNames {
     Boz,
 }
 
-impl TryFrom<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
-    type Error = errors::ConnectorError;
-    fn try_from(value: WebhookEventStatus) -> Result<Self, Self::Error> {
-        Ok(match value {
+impl From<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
+    fn from(value: WebhookEventStatus) -> Self {
+        match value {
             WebhookEventStatus::WarningNeedsResponse => Self::DisputeOpened,
             WebhookEventStatus::WarningClosed => Self::DisputeCancelled,
             WebhookEventStatus::WarningUnderReview => Self::DisputeChallenged,
             WebhookEventStatus::Won => Self::DisputeWon,
             WebhookEventStatus::Lost => Self::DisputeLost,
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
-        })
+            WebhookEventStatus::NeedsResponse
+            | WebhookEventStatus::UnderReview
+            | WebhookEventStatus::ChargeRefunded
+            | WebhookEventStatus::Succeeded
+            | WebhookEventStatus::RequiresPaymentMethod
+            | WebhookEventStatus::RequiresConfirmation
+            | WebhookEventStatus::RequiresAction
+            | WebhookEventStatus::Processing
+            | WebhookEventStatus::RequiresCapture
+            | WebhookEventStatus::Canceled
+            | WebhookEventStatus::Chargeable
+            | WebhookEventStatus::Unknown => Self::EventNotSupported,
+        }
     }
 }
 
@@ -1399,11 +1409,11 @@ pub struct PaymentIntentResponse {
     pub id: String,
     pub object: String,
     pub amount: i64,
-    pub amount_received: i64,
-    pub amount_capturable: i64,
+    pub amount_received: Option<i64>,
+    pub amount_capturable: Option<i64>,
     pub currency: String,
     pub status: StripePaymentStatus,
-    pub client_secret: Secret<String>,
+    pub client_secret: Option<Secret<String>>,
     pub created: i32,
     pub customer: Option<String>,
     pub payment_method: Option<String>,
@@ -1519,7 +1529,7 @@ impl From<SetupIntentResponse> for PaymentIntentResponse {
             id: value.id,
             object: value.object,
             status: value.status,
-            client_secret: value.client_secret,
+            client_secret: Some(value.client_secret),
             customer: value.customer,
             description: None,
             statement_descriptor: value.statement_descriptor,
@@ -1619,7 +1629,7 @@ impl<F, T>
                 connector_metadata,
                 network_txn_id,
             }),
-            amount_captured: Some(item.response.amount_received),
+            amount_captured: item.response.amount_received,
             ..item.data
         })
     }
@@ -1707,7 +1717,7 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status.to_owned()),
             response,
-            amount_captured: Some(item.response.amount_received),
+            amount_captured: item.response.amount_received,
             ..item.data
         })
     }
@@ -2298,9 +2308,43 @@ pub struct WebhookEvent {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct WebhookEventTypeBody {
+    #[serde(rename = "type")]
+    pub event_type: WebhookEventType,
+    #[serde(rename = "data")]
+    pub event_data: WebhookStatusData,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct WebhookEventData {
     #[serde(rename = "object")]
     pub event_object: WebhookEventObjectData,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WebhookStatusData {
+    #[serde(rename = "object")]
+    pub event_object: WebhookStatusObjectData,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WebhookStatusObjectData {
+    pub status: Option<WebhookEventStatus>,
+    pub payment_method_details: Option<WebhookPaymentMethodDetails>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WebhookPaymentMethodType {
+    AchCreditTransfer,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WebhookPaymentMethodDetails {
+    #[serde(rename = "type")]
+    pub payment_method: WebhookPaymentMethodType,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2374,6 +2418,8 @@ pub enum WebhookEventType {
     SourceTransactionCreated,
     #[serde(rename = "payment_intent.partially_funded")]
     PaymentIntentPartiallyFunded,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Serialize, strum::Display, Deserialize, PartialEq)]
@@ -2395,6 +2441,8 @@ pub enum WebhookEventStatus {
     RequiresCapture,
     Canceled,
     Chargeable,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]

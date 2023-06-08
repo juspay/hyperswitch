@@ -13,6 +13,7 @@ pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;
+pub mod merchant_key_store;
 pub mod payment_attempt;
 pub mod payment_intent;
 pub mod payment_method;
@@ -64,10 +65,33 @@ pub trait StorageInterface:
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + cards_info::CardsInfoInterface
+    + merchant_key_store::MerchantKeyStoreInterface
+    + MasterKeyInterface
     + services::RedisConnInterface
     + 'static
 {
 }
+
+pub trait MasterKeyInterface {
+    fn get_master_key(&self) -> &[u8];
+}
+
+impl MasterKeyInterface for Store {
+    fn get_master_key(&self) -> &[u8] {
+        &self.master_key
+    }
+}
+
+/// Default dummy key for MockDb
+impl MasterKeyInterface for MockDb {
+    fn get_master_key(&self) -> &[u8] {
+        &[
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+            25, 26, 27, 28, 29, 30, 31, 32,
+        ]
+    }
+}
+
 #[async_trait::async_trait]
 impl StorageInterface for Store {}
 
@@ -85,6 +109,9 @@ pub struct MockDb {
     redis: Arc<redis_interface::RedisConnectionPool>,
     api_keys: Arc<Mutex<Vec<storage::ApiKey>>>,
     cards_info: Arc<Mutex<Vec<storage::CardInfo>>>,
+    events: Arc<Mutex<Vec<storage::Event>>>,
+    disputes: Arc<Mutex<Vec<storage::Dispute>>>,
+    lockers: Arc<Mutex<Vec<storage::LockerMockUp>>>,
 }
 
 impl MockDb {
@@ -102,6 +129,9 @@ impl MockDb {
             redis: Arc::new(crate::connection::redis_connection(redis).await),
             api_keys: Default::default(),
             cards_info: Default::default(),
+            events: Default::default(),
+            disputes: Default::default(),
+            lockers: Default::default(),
         }
     }
 }

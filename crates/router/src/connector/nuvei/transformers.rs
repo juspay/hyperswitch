@@ -75,6 +75,15 @@ pub struct NuveiPaymentsRequest {
     pub checksum: String,
     pub billing_address: Option<BillingAddress>,
     pub related_transaction_id: Option<String>,
+    pub url_details: Option<UrlDetails>,
+}
+
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct UrlDetails {
+    pub success_url: String,
+    pub failure_url: String,
+    pub pending_url: String,
 }
 
 #[derive(Debug, Serialize, Default)]
@@ -676,12 +685,18 @@ impl<F>
             capture_method: item.request.capture_method,
             ..Default::default()
         })?;
+        let return_url = item.request.get_return_url()?;
         Ok(Self {
             is_rebilling: request_data.is_rebilling,
             user_token_id: request_data.user_token_id,
             related_transaction_id: request_data.related_transaction_id,
             payment_option: request_data.payment_option,
             billing_address: request_data.billing_address,
+            url_details: Some(UrlDetails {
+                success_url: return_url.clone(),
+                failure_url: return_url.clone(),
+                pending_url: return_url,
+            }),
             ..request
         })
     }
@@ -1017,6 +1032,7 @@ pub enum NuveiTransactionStatus {
     Declined,
     Error,
     Redirect,
+    Pending,
     #[default]
     Processing,
 }
@@ -1100,7 +1116,9 @@ fn get_payment_status(response: &NuveiPaymentsResponse) -> enums::AttemptStatus 
                     _ => enums::AttemptStatus::Failure,
                 }
             }
-            NuveiTransactionStatus::Processing => enums::AttemptStatus::Pending,
+            NuveiTransactionStatus::Processing | NuveiTransactionStatus::Pending => {
+                enums::AttemptStatus::Pending
+            }
             NuveiTransactionStatus::Redirect => enums::AttemptStatus::AuthenticationPending,
         },
         None => match response.status {
@@ -1253,7 +1271,9 @@ impl From<NuveiTransactionStatus> for enums::RefundStatus {
         match item {
             NuveiTransactionStatus::Approved => Self::Success,
             NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error => Self::Failure,
-            NuveiTransactionStatus::Processing | NuveiTransactionStatus::Redirect => Self::Pending,
+            NuveiTransactionStatus::Processing
+            | NuveiTransactionStatus::Pending
+            | NuveiTransactionStatus::Redirect => Self::Pending,
         }
     }
 }
@@ -1388,6 +1408,8 @@ pub enum NuveiWebhookStatus {
     #[default]
     Pending,
     Update,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<NuveiWebhookStatus> for NuveiTransactionStatus {

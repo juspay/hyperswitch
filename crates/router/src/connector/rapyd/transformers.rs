@@ -483,6 +483,8 @@ pub enum RapydWebhookObjectEventType {
     PaymentRefundFailed,
     PaymentDisputeCreated,
     PaymentDisputeUpdated,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, strum::Display)]
@@ -495,6 +497,8 @@ pub enum RapydWebhookDisputeStatus {
     Lose,
     #[serde(rename = "WIN")]
     Win,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<RapydWebhookDisputeStatus> for api_models::webhooks::IncomingWebhookEvent {
@@ -504,6 +508,7 @@ impl From<RapydWebhookDisputeStatus> for api_models::webhooks::IncomingWebhookEv
             RapydWebhookDisputeStatus::Review => Self::DisputeChallenged,
             RapydWebhookDisputeStatus::Lose => Self::DisputeLost,
             RapydWebhookDisputeStatus::Win => Self::DisputeWon,
+            RapydWebhookDisputeStatus::Unknown => Self::EventNotSupported,
         }
     }
 }
