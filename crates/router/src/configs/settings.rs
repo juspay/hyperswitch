@@ -421,6 +421,7 @@ pub struct Connectors {
 #[serde(default)]
 pub struct ConnectorParams {
     pub base_url: String,
+    pub secondary_base_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
