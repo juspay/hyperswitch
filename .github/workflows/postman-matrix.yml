@@ -1,0 +1,107 @@
+name: Connector Sanity Tests
+
+on:
+  push:
+    branches:
+      - main
+      - add-api-collections-runner
+
+  schedule:
+    - cron: "5 0 * * *"
+
+  merge_group:
+    types:
+      - checks_requested
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Disable incremental compilation.
+  #
+  # Incremental compilation is useful as part of an edit-build-test-edit cycle,
+  # as it lets the compiler avoid recompiling code that hasn't changed. However,
+  # on CI, we're not making small edits; we're almost always building the entire
+  # project from scratch. Thus, incremental compilation on CI actually
+  # introduces *additional* overhead to support making future builds
+  # faster...but no future builds will ever occur in any given CI environment.
+  #
+  # See https://matklad.github.io/2021/09/04/fast-rust-builds.html#ci-workflow
+  # for details.
+  CARGO_INCREMENTAL: 0
+  # Allow more retries for network requests in cargo (downloading crates) and
+  # rustup (installing toolchains). This should help to reduce flaky CI failures
+  # from transient network timeouts or other issues.
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+  # Don't emit giant backtraces in the CI logs.
+  RUST_BACKTRACE: short
+  # Use cargo's sparse index protocol
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
+jobs:
+  test_connectors:
+    name: Run tests on stable toolchain for connectors
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    strategy:
+      fail-fast: false
+      matrix:
+        connector:
+          - STRIPE
+          # - aci
+          - ADYEN
+          #- authorizedotnet
+          #- checkout
+          #- cybersource
+          # - shift4
+          #- worldpay
+          #- payu
+          #- globalpay
+          #- rapyd
+          #- fiserv
+          # - worldline
+          #- multisafepay
+          #- dlocal
+          #- bambora
+          #- nuvei
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3.1.0
+
+      - name: Set ENV Flags
+        run: |
+          echo "CONNECTOR_API_KEY=${${{ matrix.connector }}}_API_KEY" >> GITHUB_ENV
+          echo "CONNECTOR_GATEWAY_MERCHANT_ID=${${{ matrix.connector }}}_GATEWAY_MERCHANT_ID" >> GITHUB_ENV
+          echo "CONNECTOR_GPAY_CERTIFICATE=${${{ matrix.connector }}}_GPAY_CERTIFICATE" >> GITHUB_ENV
+          echo "CONNECTOR_GPAY_CERTIFICATE_KEYS=${${{ matrix.connector }}}_GPAY_CERTIFICATE_KEYS" >> GITHUB_ENV
+        env: 
+          STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+          STRIPE_GATEWAY_MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
+          STRIPE_GPAY_CERTIFICATE: ${{ secrets.STRIPE_GPAY_CERTIFICATE }}
+          STRIPE_GPAY_CERTIFICATE_KEYS: ${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
+          ADYEN_API_KEY: ${{ secrets.ADYEN_API_KEY }}
+          ADYEN_GATEWAY_MERCHANT_ID: ${{ secrets.ADYEN_GATEWAY_MERCHANT_ID }}
+          ADYEN_GPAY_CERTIFICATE: ${{ secrets.ADYEN_GPAY_CERTIFICATE }}
+          ADYEN_GPAY_CERTIFICATE_KEYS: ${{ secrets.ADYEN_GPAY_CERTIFICATE_KEYS }}
+      
+      - name: Install Newman
+        run: npm install -g newman
+
+      - name: Run Newman
+        run: newman run postman/hyperswitch.postman_collection.json --env-var admin_api_key=${{ secrets.INTEG_ADMIN_API_KEY }} --env-var baseUrl=${{ secrets.INTEG_BASE_URL }} --env-var connector_api_key=${{ env.CONNECTOR_API_KEY }} 
+             --env-var gateway_merchant_id=${{ env.CONNECTOR_GATEWAY_MERCHANT_ID }} --env-var certificate=${{ env.CONNECTOR_GPAY_CERTIFICATE }} --env-var certificate_keys=${{ env.CONNECTOR_GPAY_CERTIFICATE_KEYS }}
+          

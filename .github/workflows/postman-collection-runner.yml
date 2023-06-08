@@ -36,6 +36,21 @@ jobs:
       # - name: Generate postman collection
       #   run: portman --cliOptionsFile postman/portman-cli.json
 
+  run_api_test_stripe:
+    name: Run Postman Collection on integ env
+    runs-on: ubuntu-latest
+    needs: init_api_tests
+    steps:
       - name: Run Newman
         run: newman run postman/hyperswitch.postman_collection.json --env-var admin_api_key=${{ secrets.INTEG_ADMIN_API_KEY }} --env-var baseUrl=${{ secrets.INTEG_BASE_URL }} --env-var connector_api_key=${{ secrets.STRIPE_API_KEY }} 
              --env-var gateway_merchant_id=${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }} --env-var certificate=${{ secrets.STRIPE_GPAY_CERTIFICATE }} --env-var certificate_keys=${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
+            
+  run_api_test_adyen:
+    name: Run Postman Collection on integ env
+    runs-on: ubuntu-latest
+    needs: init_api_tests
+    steps:
+      - name: Run Newman
+        run: newman run postman/adyen.postman_collection.json --env-var admin_api_key=${{ secrets.INTEG_ADMIN_API_KEY }} --env-var baseUrl=${{ secrets.INTEG_BASE_URL }} --env-var connector_api_key=${{ secrets.STRIPE_API_KEY }} 
+             --env-var gateway_merchant_id=${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }} --env-var certificate=${{ secrets.STRIPE_GPAY_CERTIFICATE }} --env-var certificate_keys=${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
+            
