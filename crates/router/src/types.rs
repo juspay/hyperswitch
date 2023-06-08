@@ -375,7 +375,6 @@ pub enum PaymentsResponseData {
     },
     SessionResponse {
         session_token: api::SessionToken,
-        response_id: Option<String>,
     },
     SessionTokenResponse {
         session_token: String,

@@ -291,7 +291,6 @@ async fn get_tracker_for_sync<
             connector_customer_id: None,
             ephemeral_key: None,
             redirect_response: None,
-            delayed_session_token: None,
         },
         None,
     ))
