@@ -1,5 +1,6 @@
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -19,6 +20,7 @@ use crate::{
         storage::enums as storage_enums,
         transformers::ForeignFrom,
     },
+    utils::OptionExt,
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -839,25 +841,76 @@ fn get_recurring_processing_model(
     }
 }
 
-fn get_browser_info(item: &types::PaymentsAuthorizeRouterData) -> Option<AdyenBrowserInfo> {
+fn get_browser_info(item: &types::PaymentsAuthorizeRouterData) -> Result<AdyenBrowserInfo, Error> {
     if item.auth_type == storage_enums::AuthenticationType::ThreeDs
         || item.payment_method == storage_enums::PaymentMethod::BankRedirect
     {
         item.request
             .browser_info
             .as_ref()
-            .map(|info| AdyenBrowserInfo {
-                accept_header: info.accept_header.clone(),
-                language: info.language.clone(),
-                screen_height: info.screen_height,
-                screen_width: info.screen_width,
-                color_depth: info.color_depth,
-                user_agent: info.user_agent.clone(),
-                time_zone_offset: info.time_zone,
-                java_enabled: info.java_enabled,
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "browser_info",
             })
+            .map(|info| {
+                Ok(AdyenBrowserInfo {
+                    accept_header: info
+                        .accept_header
+                        .clone()
+                        .get_required_value("accept_header")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "accept_header",
+                        })?,
+                    language: info
+                        .language
+                        .clone()
+                        .get_required_value("language")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "language",
+                        })?,
+                    screen_height: info
+                        .screen_height
+                        .get_required_value("screen_height")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "screen_height",
+                        })?,
+                    screen_width: info
+                        .screen_width
+                        .get_required_value("screen_width")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "screen_width",
+                        })?,
+                    color_depth: info
+                        .color_depth
+                        .get_required_value("color_depth")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "color_depth",
+                        })?,
+                    user_agent: info
+                        .user_agent
+                        .clone()
+                        .get_required_value("user_agent")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "user_agent",
+                        })?,
+                    time_zone_offset: info
+                        .time_zone
+                        .get_required_value("time_zone_offset")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "time_zone_offset",
+                        })?,
+                    java_enabled: info
+                        .java_enabled
+                        .get_required_value("java_enabled")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "java_enabled",
+                        })?,
+                })
+            })?
     } else {
-        None
+        Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "browser_info",
+        }
+        .into())
     }
 }
 
@@ -1292,7 +1345,7 @@ impl<'a>
             return_url,
             shopper_interaction,
             recurring_processing_model,
-            browser_info,
+            browser_info: Some(browser_info?),
             additional_data,
             telephone_number: None,
             shopper_name: None,
@@ -1330,7 +1383,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::Card)> for AdyenPay
             return_url,
             shopper_interaction,
             recurring_processing_model,
-            browser_info,
+            browser_info: Some(browser_info?),
             additional_data,
             telephone_number: None,
             shopper_name: None,
@@ -1376,7 +1429,7 @@ impl<'a>
             payment_method,
             reference: item.payment_id.to_string(),
             return_url,
-            browser_info,
+            browser_info: Some(browser_info?),
             shopper_interaction,
             recurring_processing_model,
             additional_data,
@@ -1429,7 +1482,7 @@ impl<'a>
             return_url,
             shopper_interaction,
             recurring_processing_model,
-            browser_info,
+            browser_info: Some(browser_info?),
             additional_data,
             telephone_number: None,
             shopper_name: None,
@@ -1493,7 +1546,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)>
             return_url,
             shopper_interaction,
             recurring_processing_model,
-            browser_info,
+            browser_info: Some(browser_info?),
             additional_data,
             telephone_number: None,
             shopper_name: None,
@@ -1541,7 +1594,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::PayLaterData)>
             return_url,
             shopper_interaction,
             recurring_processing_model,
-            browser_info,
+            browser_info: Some(browser_info?),
             additional_data,
             telephone_number,
             shopper_name,

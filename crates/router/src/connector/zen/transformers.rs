@@ -2,6 +2,7 @@ use std::net::IpAddr;
 
 use cards::CardNumber;
 use common_utils::pii::Email;
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -12,8 +13,8 @@ use crate::{
     core::errors,
     services::{self, Method},
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
+    utils::OptionExt,
 };
-
 // Auth Struct
 pub struct ZenAuthType {
     pub(super) api_key: String,
@@ -121,24 +122,68 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
         let ip = browser_info.get_ip_address()?;
 
         let window_size = match (browser_info.screen_height, browser_info.screen_width) {
-            (250, 400) => "01",
-            (390, 400) => "02",
-            (500, 600) => "03",
-            (600, 400) => "04",
+            (Some(250), Some(400)) => "01",
+            (Some(390), Some(400)) => "02",
+            (Some(500), Some(600)) => "03",
+            (Some(600), Some(400)) => "04",
             _ => "05",
         }
         .to_string();
-        let browser_details = ZenBrowserDetails {
-            color_depth: browser_info.color_depth.to_string(),
-            java_enabled: browser_info.java_enabled,
-            lang: browser_info.language,
-            screen_height: browser_info.screen_height.to_string(),
-            screen_width: browser_info.screen_width.to_string(),
-            timezone: browser_info.time_zone.to_string(),
-            accept_header: browser_info.accept_header,
+        let browser_details = Ok::<ZenBrowserDetails, Self::Error>(ZenBrowserDetails {
+            color_depth: browser_info
+                .color_depth
+                .get_required_value("color_depth")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "color_depth",
+                })?
+                .to_string(),
+            java_enabled: browser_info
+                .java_enabled
+                .get_required_value("java_enabled")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "java_enabled",
+                })?,
+            lang: browser_info
+                .language
+                .get_required_value("language")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "language",
+                })?,
+            screen_height: browser_info
+                .screen_height
+                .get_required_value("screen_height")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "screen_height",
+                })?
+                .to_string(),
+            screen_width: browser_info
+                .screen_width
+                .get_required_value("screen_width")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "screen_width",
+                })?
+                .to_string(),
+            timezone: browser_info
+                .time_zone
+                .get_required_value("time_zone")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "time_zone",
+                })?
+                .to_string(),
+            accept_header: browser_info
+                .accept_header
+                .get_required_value("accept_header")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "accept_header",
+                })?,
+            user_agent: browser_info
+                .user_agent
+                .get_required_value("user_agent")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "user_agent",
+                })?,
             window_size,
-            user_agent: browser_info.user_agent,
-        };
+        })?;
         let (payment_specific_data, payment_channel) = match &item.request.payment_method_data {
             api::PaymentMethodData::Card(ccard) => Ok((
                 ZenPaymentData {
