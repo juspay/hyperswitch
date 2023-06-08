@@ -173,6 +173,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 mandate_metadata: None,
                 ephemeral_key: None,
                 redirect_response: None,
+                delayed_session_token: request.delayed_session_token,
             },
             Some(customer_details),
         ))
@@ -377,15 +378,15 @@ where
         for (connector, payment_method_type, business_sub_label) in
             connector_and_supporting_payment_method_type
         {
-            if let Ok(connector_data) = api::ConnectorData::get_connector_by_name(
-                connectors,
-                &connector,
-                api::GetToken::from(payment_method_type),
-            )
-            .map_err(|err| {
-                logger::error!(session_token_error=?err);
-                err
-            }) {
+            let connector_type =
+                get_connector_type_for_session_token(payment_method_type, request, &connector);
+            if let Ok(connector_data) =
+                api::ConnectorData::get_connector_by_name(connectors, &connector, connector_type)
+                    .map_err(|err| {
+                        logger::error!(session_token_error=?err);
+                        err
+                    })
+            {
                 session_connector_data.push(api::SessionConnectorData {
                     payment_method_type,
                     connector: connector_data,
@@ -412,16 +413,30 @@ impl From<api_models::enums::PaymentMethodType> for api::GetToken {
 
 pub fn get_connector_type_for_session_token(
     payment_method_type: api_models::enums::PaymentMethodType,
-    _request: &api::PaymentsSessionRequest,
-    connector: String,
+    request: &api::PaymentsSessionRequest,
+    connector: &str,
 ) -> api::GetToken {
     if payment_method_type == api_models::enums::PaymentMethodType::ApplePay {
-        if connector == *"bluesnap" {
+        if is_apple_pay_get_token_connector(connector, request) {
             api::GetToken::Connector
         } else {
             api::GetToken::ApplePayMetadata
         }
     } else {
         api::GetToken::from(payment_method_type)
+    }
+}
+
+pub fn is_apple_pay_get_token_connector(
+    connector: &str,
+    request: &api::PaymentsSessionRequest,
+) -> bool {
+    match connector {
+        "bluesnap" => true,
+        "trustpay" => request
+            .delayed_session_token
+            .and_then(|delay| delay.then_some(true))
+            .is_some(),
+        _ => false,
     }
 }

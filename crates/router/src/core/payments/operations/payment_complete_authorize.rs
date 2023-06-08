@@ -206,6 +206,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 mandate_metadata,
                 ephemeral_key: None,
                 redirect_response,
+                delayed_session_token: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),

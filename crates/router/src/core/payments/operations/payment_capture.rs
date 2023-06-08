@@ -160,6 +160,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 mandate_metadata: None,
                 ephemeral_key: None,
                 redirect_response: None,
+                delayed_session_token: None,
             },
             None,
         ))
