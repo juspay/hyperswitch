@@ -232,7 +232,7 @@ pub async fn trigger_refund_to_gateway(
             merchant_account.storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound) // If we are at this point this means that refund should already exist in db. Shouldn't this be internal server error.
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while updating refund: refund_id: {}",
