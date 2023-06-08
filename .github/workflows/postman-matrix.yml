@@ -1,4 +1,4 @@
-name: Connector Sanity Tests
+name: Postman Matrix
 
 on:
   push:
@@ -44,17 +44,6 @@ jobs:
   test_connectors:
     name: Run tests on stable toolchain for connectors
     runs-on: ubuntu-latest
-
-    services:
-      redis:
-        image: redis
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
 
     strategy:
       fail-fast: false
@@ -102,6 +91,6 @@ jobs:
         run: npm install -g newman
 
       - name: Run Newman
-        run: newman run postman/hyperswitch.postman_collection.json --env-var admin_api_key=${{ secrets.INTEG_ADMIN_API_KEY }} --env-var baseUrl=${{ secrets.INTEG_BASE_URL }} --env-var connector_api_key=${{ env.CONNECTOR_API_KEY }} 
-             --env-var gateway_merchant_id=${{ env.CONNECTOR_GATEWAY_MERCHANT_ID }} --env-var certificate=${{ env.CONNECTOR_GPAY_CERTIFICATE }} --env-var certificate_keys=${{ env.CONNECTOR_GPAY_CERTIFICATE_KEYS }}
+        run: newman run postman/hyperswitch.postman_collection.json --env-var admin_api_key=${{ secrets.INTEG_ADMIN_API_KEY }} --env-var baseUrl=${{ secrets.INTEG_BASE_URL }} --env-var connector_api_key=$CONNECTOR_API_KEY
+             --env-var gateway_merchant_id=$CONNECTOR_GATEWAY_MERCHANT_ID --env-var certificate=$CONNECTOR_GPAY_CERTIFICATE --env-var certificate_keys=$CONNECTOR_GPAY_CERTIFICATE_KEYS
           
