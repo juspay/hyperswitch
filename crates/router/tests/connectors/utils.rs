@@ -488,6 +488,7 @@ impl Default for CCardType {
             card_cvc: Secret::new("999".to_string()),
             card_issuer: None,
             card_network: None,
+            nick_name: Some(masking::Secret::new("nick_name".into())),
         })
     }
 }
