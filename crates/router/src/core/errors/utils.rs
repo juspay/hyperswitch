@@ -168,18 +168,19 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
                     }
                 };
                 errors::ApiErrorResponse::DisputeFailed { data }
-            },
+            }
             errors::ConnectorError::MissingRequiredField { field_name } => {
                 errors::ApiErrorResponse::MissingRequiredField { field_name }
-            },
+            }
             errors::ConnectorError::MissingRequiredFields { field_names } => {
-                errors::ApiErrorResponse::MissingRequiredFields { field_names: field_names.to_vec() }
-            },
+                errors::ApiErrorResponse::MissingRequiredFields {
+                    field_names: field_names.to_vec(),
+                }
+            }
             _ => errors::ApiErrorResponse::InternalServerError,
         };
         self.change_context(error)
     }
-
 }
 
 pub trait RedisErrorExt {

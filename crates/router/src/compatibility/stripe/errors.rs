@@ -408,9 +408,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::PaymentCaptureFailed { data } => {
                 Self::PaymentIntentPaymentAttemptFailed { data }
             }
-            errors::ApiErrorResponse::DisputeFailed { data } => {
-                Self::DisputeFailed { data }
-            }
+            errors::ApiErrorResponse::DisputeFailed { data } => Self::DisputeFailed { data },
             errors::ApiErrorResponse::InvalidCardData { data } => Self::InvalidCardType, // Maybe it is better to de generalize this router error
             errors::ApiErrorResponse::CardExpired { data } => Self::ExpiredCard,
             errors::ApiErrorResponse::RefundNotPossible { connector } => Self::RefundFailed,

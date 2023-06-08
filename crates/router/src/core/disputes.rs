@@ -5,7 +5,7 @@ use router_env::{instrument, tracing};
 pub mod transformers;
 
 use super::{
-    errors::{self, RouterResponse, StorageErrorExt, ConnectorErrorExt},
+    errors::{self, ConnectorErrorExt, RouterResponse, StorageErrorExt},
     metrics,
 };
 use crate::{
