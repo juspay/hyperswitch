@@ -10,7 +10,7 @@ use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData,RouterData,AddressDetailsData},
+    connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     pii::Secret,
@@ -790,12 +790,12 @@ pub enum BluesnapErrors {
 }
 
 fn get_card_holder_info(
-    item: &types::PaymentsAuthorizeRouterData
+    item: &types::PaymentsAuthorizeRouterData,
 ) -> CustomResult<Option<BluesnapCardHolderInfo>, errors::ConnectorError> {
     let address = item.get_billing_address()?;
     Ok(Some(BluesnapCardHolderInfo {
-        first_name:address.get_first_name()?.clone(),
-        last_name : address.get_last_name()?.clone(),
+        first_name: address.get_first_name()?.clone(),
+        last_name: address.get_last_name()?.clone(),
         email: item.request.get_email()?,
     }))
 }
