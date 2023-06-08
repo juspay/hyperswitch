@@ -84,6 +84,7 @@ jobs:
         uses: actions/checkout@v3.5.2
 
       - name: "Fetch base branch"
+        shell: bash
         run: git fetch origin $GITHUB_BASE_REF --depth 1
 
       - name: Install mold linker
@@ -111,6 +112,7 @@ jobs:
         run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
       - name: Check files changed
+        shell: bash
         run: |
           if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/api_models/; then
             echo "api_models_changes_exist=false" >> $GITHUB_ENV
@@ -165,42 +167,52 @@ jobs:
 
       - name: Cargo hack api_models
         if: env.api_models_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p api_models
 
       - name: Cargo hack common_enums
         if: env.common_enums_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p common_enums
 
       - name: Cargo hack common_utils
         if: env.common_utils_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p common_utils
 
       - name: Cargo hack drainer
         if: env.drainer_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p drainer
 
       - name: Cargo hack masking
         if: env.masking_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p masking
 
       - name: Cargo hack redis_interface
         if: env.redis_interface_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p redis_interface
 
       - name: Cargo hack router
         if: env.router_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --skip kms,basilisk,kv_store,accounts_cache,openapi --no-dev-deps -p router
 
       - name: Cargo hack router_derive
         if: env.router_derive_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p router_derive
 
       - name: Cargo hack router_env
         if: env.router_env_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p router_env
 
       - name: Cargo hack storage_models
         if: env.storage_models_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p storage_models
 
   # cargo-deny:
@@ -240,6 +252,7 @@ jobs:
         uses: actions/checkout@v3.5.2
 
       - name: "Fetch base branch"
+        shell: bash
         run: git fetch origin $GITHUB_BASE_REF --depth 1
 
       - name: Install mold linker
@@ -283,6 +296,7 @@ jobs:
         run: cargo clippy --all-features --all-targets
 
       - name: Check files changed
+        shell: bash
         run: |
           if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/api_models/; then
             echo "api_models_changes_exist=false" >> $GITHUB_ENV
@@ -337,42 +351,52 @@ jobs:
 
       - name: Cargo hack api_models
         if: env.api_models_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p api_models
 
       - name: Cargo hack common_enums
         if: env.common_enums_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p common_enums
 
       - name: Cargo hack common_utils
         if: env.common_utils_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p common_utils
 
       - name: Cargo hack drainer
         if: env.drainer_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p drainer
 
       - name: Cargo hack masking
         if: env.masking_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p masking
 
       - name: Cargo hack redis_interface
         if: env.redis_interface_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p redis_interface
 
       - name: Cargo hack router
         if: env.router_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --skip kms,basilisk,kv_store,accounts_cache,openapi --no-dev-deps -p router
 
       - name: Cargo hack router_derive
         if: env.router_derive_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p router_derive
 
       - name: Cargo hack router_env
         if: env.router_env_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p router_env
 
       - name: Cargo hack storage_models
         if: env.storage_models_changes_exist == 'true'
+        shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p storage_models
 
   typos:
