@@ -387,8 +387,8 @@ fn validate_certificate_in_mca_metadata(
         .parse_value::<api_models::payments::ConnectorMetadata>("ApplepaySessionTokenData")
         .change_context(errors::ParsingError::StructParseFailure("Metadata"))
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "apple_pay".to_string(),
-            expected_format: "apple pay metadata format".to_string(),
+            field_name: "metadata".to_string(),
+            expected_format: "connector metadata".to_string(),
         })?;
 
     parsed_connector_metadata
