@@ -196,6 +196,8 @@ pub enum ApiErrorResponse {
     WebhookBadRequest,
     #[error(error_type = ErrorType::RouterError, code = "WE_03", message = "There was some issue processing the webhook")]
     WebhookProcessingFailure,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "required payment method is not configured or configured incorrectly for all configured connectors")]
+    IncorrectPaymentMethodConfiguration,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_05", message = "Unable to process the webhook body")]
     WebhookUnprocessableEntity,
 }
@@ -251,9 +253,6 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::InvalidDataFormat { .. } | Self::InvalidRequestData { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
             } // 422
-            Self::RefundAmountExceedsPaymentAmount => StatusCode::BAD_REQUEST,                // 400
-            Self::MaximumRefundCount => StatusCode::BAD_REQUEST,                              // 400
-            Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST,                       // 400
 
             Self::PaymentAuthorizationFailed { .. }
             | Self::PaymentAuthenticationFailed { .. }
@@ -265,7 +264,11 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::VerificationFailed { .. }
             | Self::PaymentUnexpectedState { .. }
             | Self::MandateValidationFailed { .. }
-            | Self::DisputeFailed { .. } => StatusCode::BAD_REQUEST, // 400
+            | Self::DisputeFailed { .. }
+            | Self::RefundAmountExceedsPaymentAmount
+            | Self::MaximumRefundCount
+            | Self::IncorrectPaymentMethodConfiguration
+            | Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST, // 400
 
             Self::MandateUpdateFailed
             | Self::InternalServerError
@@ -546,6 +549,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::WebhookProcessingFailure => {
                 AER::InternalServerError(ApiError::new("WE", 3, "There was an issue processing the webhook", None))
+            },
+            Self::IncorrectPaymentMethodConfiguration => {
+                AER::BadRequest(ApiError::new("HE", 4, "No eligible connector was found for the current payment method configuration", None))
             }
             Self::WebhookUnprocessableEntity => {
                 AER::Unprocessable(ApiError::new("WE", 5, "There was an issue processing the webhook body", None))

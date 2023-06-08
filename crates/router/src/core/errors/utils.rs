@@ -167,7 +167,7 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
                         None
                     }
                 };
-                errors::ApiErrorResponse::PaymentAuthorizationFailed { data }
+                errors::ApiErrorResponse::DisputeFailed { data }
             },
             errors::ConnectorError::MissingRequiredField { field_name } => {
                 errors::ApiErrorResponse::MissingRequiredField { field_name }
