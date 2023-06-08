@@ -54,7 +54,7 @@ impl MandateDbExt for Mandate {
             filter = filter.filter(dsl::mandate_status.eq(storage_mandate_status));
         }
         if let Some(limit) = mandate_list_constraints.limit {
-            filter = filter.limit(limit);
+            filter = filter.limit(limit as i64);
         }
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());

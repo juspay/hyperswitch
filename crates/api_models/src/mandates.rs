@@ -66,7 +66,7 @@ pub struct MandateCardDetails {
 #[serde(deny_unknown_fields)]
 pub struct MandateListConstraints {
     /// limit on the number of objects to return
-    pub limit: Option<i64>,
+    pub limit: Option<usize>,
     /// status of the mandate
     pub mandate_status: Option<api_enums::MandateStatus>,
     /// connector linked to mandate
