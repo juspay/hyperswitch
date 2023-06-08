@@ -35,6 +35,10 @@ pub fn populate_ip_into_browser_info(
     browser_info.ip_address = browser_info
         .ip_address
         .or_else(|| {
+            // Parse the IP Address from the "X-Forwarded-For" header
+            // This header will contain multiple IP addresses for each ALB hop which has
+            // a comma separated list of IP addresses: 'X.X.X.X, Y.Y.Y.Y, Z.Z.Z.Z'
+            // The first one here will be the client IP which we want to retrieve
             req.headers()
                 .get(headers::X_FORWARDED_FOR)
                 .map(|val| val.to_str())
