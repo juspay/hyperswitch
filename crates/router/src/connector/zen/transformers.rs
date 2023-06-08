@@ -140,6 +140,11 @@ pub struct ZenItemObject {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SessionObject {
+    pub apple_pay: Option<ApplePaySessionData>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ApplePaySessionData {
     pub terminal_uuid: Option<String>,
     pub pay_wall_secret: Option<String>,
 }
@@ -227,7 +232,10 @@ impl
         let session: SessionObject = connector_meta
             .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let terminal_uuid = session
+        let applepay_session_data = session
+            .apple_pay
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let terminal_uuid = applepay_session_data
             .terminal_uuid
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
@@ -242,14 +250,17 @@ impl
             signature: None,
             url_redirect: item.request.get_return_url()?,
         };
-        checkout_request.signature = Some(get_checkout_signature(&checkout_request, &session)?);
+        checkout_request.signature = Some(get_checkout_signature(
+            &checkout_request,
+            &applepay_session_data,
+        )?);
         Ok(Self::CheckoutRequest(Box::new(checkout_request)))
     }
 }
 
 fn get_checkout_signature(
     checkout_request: &CheckoutRequest,
-    session: &SessionObject,
+    session: &ApplePaySessionData,
 ) -> Result<Secret<String>, error_stack::Report<errors::ConnectorError>> {
     let pay_wall_secret = session
         .pay_wall_secret
