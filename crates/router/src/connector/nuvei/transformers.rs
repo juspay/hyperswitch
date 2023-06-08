@@ -1408,6 +1408,8 @@ pub enum NuveiWebhookStatus {
     #[default]
     Pending,
     Update,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<NuveiWebhookStatus> for NuveiTransactionStatus {

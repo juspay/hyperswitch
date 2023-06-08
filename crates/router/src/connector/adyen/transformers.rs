@@ -1932,6 +1932,8 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
+    #[serde(other)]
+    Unknown,
 }
 
 pub fn is_transaction_event(event_code: &WebhookEventCode) -> bool {
@@ -1981,6 +1983,7 @@ impl ForeignFrom<(WebhookEventCode, Option<DisputeStatus>)> for webhooks::Incomi
             }
             (WebhookEventCode::PrearbitrationWon, _) => Self::DisputeWon,
             (WebhookEventCode::PrearbitrationLost, _) => Self::DisputeLost,
+            (WebhookEventCode::Unknown, _) => Self::EventNotSupported,
         }
     }
 }
