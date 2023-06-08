@@ -121,14 +121,29 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
         let order_details = item.request.get_order_details()?;
         let ip = browser_info.get_ip_address()?;
 
-        let window_size = match (browser_info.screen_height, browser_info.screen_width) {
-            (Some(250), Some(400)) => "01",
-            (Some(390), Some(400)) => "02",
-            (Some(500), Some(600)) => "03",
-            (Some(600), Some(400)) => "04",
+        let screen_height = browser_info
+            .screen_height
+            .get_required_value("screen_height")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "screen_height",
+            })?;
+
+        let screen_width = browser_info
+            .screen_width
+            .get_required_value("screen_width")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "screen_width",
+            })?;
+
+        let window_size = match (screen_height, screen_width) {
+            (250, 400) => "01",
+            (390, 400) => "02",
+            (500, 600) => "03",
+            (600, 400) => "04",
             _ => "05",
         }
         .to_string();
+
         let browser_details = Ok::<ZenBrowserDetails, Self::Error>(ZenBrowserDetails {
             color_depth: browser_info
                 .color_depth
@@ -149,20 +164,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                 .change_context(errors::ConnectorError::MissingRequiredField {
                     field_name: "language",
                 })?,
-            screen_height: browser_info
-                .screen_height
-                .get_required_value("screen_height")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "screen_height",
-                })?
-                .to_string(),
-            screen_width: browser_info
-                .screen_width
-                .get_required_value("screen_width")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "screen_width",
-                })?
-                .to_string(),
+            screen_height: screen_height.to_string(),
+            screen_width: screen_width.to_string(),
             timezone: browser_info
                 .time_zone
                 .get_required_value("time_zone")

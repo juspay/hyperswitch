@@ -963,7 +963,6 @@ where
     pub address: PaymentAddress,
     pub token: Option<String>,
     pub confirm: Option<bool>,
-    pub customer_ip: Option<Secret<String, pii::IpAddress>>,
     pub force_sync: Option<bool>,
     pub payment_method_data: Option<api::PaymentMethodData>,
     pub refunds: Vec<storage::Refund>,

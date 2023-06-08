@@ -182,7 +182,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 payment_intent,
                 payment_attempt,
                 currency,
-                customer_ip: None,
                 connector_response,
                 amount,
                 email: request.email.clone(),

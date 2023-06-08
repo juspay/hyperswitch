@@ -357,7 +357,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
             .browser_info
             .as_ref()
             .unwrap_or(&default_browser_info);
-        // .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "browser_info" });
         let params = get_mandatory_fields(item)?;
         let amount = format!(
             "{:.2}",

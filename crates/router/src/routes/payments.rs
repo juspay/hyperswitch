@@ -1,6 +1,7 @@
+pub mod helpers;
+
 use actix_web::{web, Responder};
 use error_stack::report;
-use masking::Secret;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
@@ -322,12 +323,8 @@ pub async fn payments_confirm(
         return http_not_implemented();
     };
 
-    if payload.customer_ip.is_none() {
-        payload.customer_ip = req
-            .headers()
-            .get("x-forwarded-for")
-            .and_then(|val| val.to_str().ok().and_then(|ip| ip.split(',').next()))
-            .map(|val| Secret::new(val.to_string()));
+    if let Err(err) = helpers::populate_ip_into_browser_info(&req, &mut payload) {
+        return api::log_and_return_error_response(err);
     }
 
     let payment_id = path.into_inner();

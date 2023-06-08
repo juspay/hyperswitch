@@ -58,14 +58,11 @@ pub struct BamboraPaymentsRequest {
 
 fn get_browser_info(
     item: &types::PaymentsAuthorizeRouterData,
-) -> Result<BamboraBrowserInfo, error_stack::Report<errors::ConnectorError>> {
+) -> Result<Option<BamboraBrowserInfo>, error_stack::Report<errors::ConnectorError>> {
     if matches!(item.auth_type, enums::AuthenticationType::ThreeDs) {
         item.request
             .browser_info
             .as_ref()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "browser_info",
-            })
             .map(|info| {
                 Ok(BamboraBrowserInfo {
                     accept_header: info
@@ -126,12 +123,10 @@ fn get_browser_info(
                             field_name: "javascript_enabled",
                         })?,
                 })
-            })?
+            })
+            .transpose()
     } else {
-        Err(errors::ConnectorError::MissingRequiredField {
-            field_name: "browser_info",
-        }
-        .into())
+        Ok(None)
     }
 }
 
@@ -163,7 +158,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                 let three_ds = match item.auth_type {
                     enums::AuthenticationType::ThreeDs => Some(ThreeDSecure {
                         enabled: true,
-                        browser: get_browser_info(item).ok(),
+                        browser: get_browser_info(item)?,
                         version: Some(2),
                         auth_required: Some(true),
                     }),

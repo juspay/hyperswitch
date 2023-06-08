@@ -231,7 +231,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 payment_attempt,
                 currency,
                 amount,
-                customer_ip: None,
                 email: request.email.clone(),
                 mandate_id,
                 setup_mandate,

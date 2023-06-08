@@ -591,7 +591,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 field_name: "browser_info",
             })?;
 
-        let customer_ip = payment_data.customer_ip;
         let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
             .payment_intent
             .metadata
@@ -651,7 +650,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             email: payment_data.email,
             payment_experience: payment_data.payment_attempt.payment_experience,
             order_details,
-            customer_ip,
             order_category,
             session_token: None,
             enrolled_for_3ds: true,
