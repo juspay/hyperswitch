@@ -10,7 +10,7 @@ use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{self, PaymentsAuthorizeRequestData,RouterData,AddressDetailsData},
     consts,
     core::errors,
     pii::Secret,
@@ -153,14 +153,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             _ => BluesnapTxnType::AuthCapture,
         };
         let (payment_method, card_holder_info) = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ref ccard) => Ok((
+            api::PaymentMethodData::Card(ccard) => Ok((
                 PaymentMethodDetails::CreditCard(Card {
-                    card_number: ccard.card_number.clone(),
+                    card_number: ccard.card_number,
                     expiration_month: ccard.card_exp_month.clone(),
-                    expiration_year: ccard.get_expiry_year_4_digit(),
-                    security_code: ccard.card_cvc.clone(),
+                    expiration_year: ccard.card_exp_year.clone(),
+                    security_code: ccard.card_cvc,
                 }),
-                get_card_holder_info(item, ccard)?,
+                get_card_holder_info(item)?,
             )),
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 api_models::payments::WalletData::GooglePay(payment_method_data) => {
@@ -790,13 +790,12 @@ pub enum BluesnapErrors {
 }
 
 fn get_card_holder_info(
-    item: &types::PaymentsAuthorizeRouterData,
-    card: &api_models::payments::Card,
+    item: &types::PaymentsAuthorizeRouterData
 ) -> CustomResult<Option<BluesnapCardHolderInfo>, errors::ConnectorError> {
-    let (first_name, last_name) = card.get_first_name_and_last_name_from_cardholdername()?;
+    let address = item.get_billing_address()?;
     Ok(Some(BluesnapCardHolderInfo {
-        first_name,
-        last_name,
+        first_name:address.get_first_name()?.clone(),
+        last_name : address.get_last_name()?.clone(),
         email: item.request.get_email()?,
     }))
 }
