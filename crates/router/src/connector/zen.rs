@@ -175,10 +175,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let endpoint = match &req.request.payment_method_data {
             api_models::payments::PaymentMethodData::Wallet(
                 api_models::payments::WalletData::ApplePayRedirect(_),
-            ) => "api/checkouts",
-            _ => "v1/transactions",
+            ) => {
+                let base_url = connectors
+                    .zen
+                    .secondary_base_url
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                format!("{base_url}api/checkouts")
+            }
+            _ => format!("{}v1/transactions", self.base_url(connectors)),
         };
-        Ok(format!("{}{}", self.base_url(connectors), endpoint))
+        Ok(endpoint)
     }
 
     fn get_request_body(
