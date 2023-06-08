@@ -150,19 +150,3 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
         self.change_context(data)
     }
 }
-
-pub trait RedisErrorExt {
-    #[track_caller]
-    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<errors::StorageError>;
-}
-
-impl RedisErrorExt for error_stack::Report<errors::RedisError> {
-    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<errors::StorageError> {
-        match self.current_context() {
-            errors::RedisError::NotFound => self.change_context(
-                errors::StorageError::ValueNotFound(format!("Data does not exist for key {key}",)),
-            ),
-            _ => self.change_context(errors::StorageError::KVError),
-        }
-    }
-}
