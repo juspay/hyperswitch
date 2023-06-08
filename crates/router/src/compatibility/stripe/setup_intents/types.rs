@@ -86,6 +86,7 @@ impl From<StripeCard> for payments::Card {
             card_cvc: card.cvc,
             card_issuer: None,
             card_network: None,
+            nick_name: None,
         }
     }
 }

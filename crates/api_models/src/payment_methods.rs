@@ -86,6 +86,10 @@ pub struct CardDetail {
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
     pub card_holder_name: Option<masking::Secret<String>>,
+
+    /// Card Holder's Nick Name
+    #[schema(value_type = String,example = "John Doe")]
+    pub nick_name: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -159,6 +163,9 @@ pub struct CardDetailFromLocker {
 
     #[schema(value_type=Option<String>)]
     pub card_fingerprint: Option<masking::Secret<String>>,
+
+    #[schema(value_type=Option<String>)]
+    pub nick_name: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
