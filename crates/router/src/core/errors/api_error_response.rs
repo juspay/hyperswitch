@@ -111,7 +111,7 @@ pub enum ApiErrorResponse {
     RefundFailed { data: Option<serde_json::Value> },
     #[error(error_type = ErrorType::ProcessingError, code = "CE_07", message = "Verification failed while processing with connector. Retry operation")]
     VerificationFailed { data: Option<serde_json::Value> },
-    #[error(error_type = ErrorType::ProcessingError, code = "CE_08", message = "Dispute failed during authorization with connector. Retry operation")]
+    #[error(error_type = ErrorType::ProcessingError, code = "CE_08", message = "Dispute operation failed while processing with connector. Retry operation")]
     DisputeFailed { data: Option<serde_json::Value> },
 
     #[error(error_type = ErrorType::ServerNotAvailable, code = "HE_00", message = "Something went wrong")]
