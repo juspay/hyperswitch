@@ -56,7 +56,7 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let payment_method_type = payment_attempt
         .payment_method
-        .get_required_value("payment_method_type")?;
+        .get_required_value("payment_method_type")?; // This throws 400, but, at this point shouldn't it be internal server error
 
     let webhook_url = Some(helpers::create_webhook_url(
         &state.conf.server.base_url.clone(),

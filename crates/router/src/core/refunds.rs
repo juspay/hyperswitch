@@ -70,7 +70,7 @@ pub async fn refund_create_core(
             field_name: "amount".to_string(),
             expected_format: "positive integer".to_string()
         })
-        .attach_printable("amount less than zero"))
+        .attach_printable("amount less than or equal to zero"))
     })?;
 
     payment_attempt = db
@@ -141,9 +141,7 @@ pub async fn trigger_refund_to_gateway(
         &state.conf.connectors,
         &routed_through,
         api::GetToken::Connector,
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to get the connector")?;
+    )?;
 
     let currency = payment_attempt.currency.ok_or_else(|| {
         report!(errors::ApiErrorResponse::MissingRequiredField {
@@ -234,7 +232,7 @@ pub async fn trigger_refund_to_gateway(
             merchant_account.storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound) // If we are at this point this means that refund should already exist in db. Shouldn't this be internal server error.
         .attach_printable_lazy(|| {
             format!(
                 "Failed while updating refund: refund_id: {}",
@@ -301,7 +299,7 @@ pub async fn refund_retrieve_core(
             merchant_account.storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?; // If intent is found and attempt not found shouldn't it be internal server error.
 
     let creds_identifier = request
         .merchant_connector_details
