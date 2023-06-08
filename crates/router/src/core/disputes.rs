@@ -5,7 +5,7 @@ use router_env::{instrument, tracing};
 pub mod transformers;
 
 use super::{
-    errors::{self, RouterResponse, StorageErrorExt},
+    errors::{self, RouterResponse, StorageErrorExt, ConnectorErrorExt},
     metrics,
 };
 use crate::{
@@ -129,8 +129,7 @@ pub async fn accept_dispute(
         payments::CallConnectorAction::Trigger,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError) // should this be internal server error
-    .attach_printable("Failed while calling accept dispute connector api")?;
+    .map_err(|error| error.to_dispute_failed_response())?;
     let accept_dispute_response =
         response
             .response
@@ -236,8 +235,7 @@ pub async fn submit_evidence(
         payments::CallConnectorAction::Trigger,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError) // should this be internal server error
-    .attach_printable("Failed while calling submit evidence connector api")?;
+    .map_err(|error| error.to_payment_failed_response())?;
     let submit_evidence_response =
         response
             .response
@@ -272,8 +270,7 @@ pub async fn submit_evidence(
                 payments::CallConnectorAction::Trigger,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError) // should this be internal server error, Mapping should be there from connector module error to dispute error
-            .attach_printable("Failed while calling defend dispute connector api")?;
+            .map_err(|error| error.to_payment_failed_response())?;
             let defend_dispute_response = defend_response.response.map_err(|err| {
                 errors::ApiErrorResponse::ExternalConnectorError {
                     code: err.code,
