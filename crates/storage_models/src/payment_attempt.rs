@@ -159,9 +159,6 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
     },
-    SessionUpdate {
-        connector_transaction_id: Option<String>,
-    },
     StatusUpdate {
         status: storage_enums::AttemptStatus,
     },
@@ -391,12 +388,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 modified_at: Some(common_utils::date_time::now()),
                 connector_metadata,
                 preprocessing_step_id,
-                ..Default::default()
-            },
-            PaymentAttemptUpdate::SessionUpdate {
-                connector_transaction_id,
-            } => Self {
-                connector_transaction_id,
                 ..Default::default()
             },
         }
