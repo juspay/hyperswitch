@@ -138,6 +138,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                 amount,
                 email: None,
                 mandate_id: None,
+                mandate_connector: None,
                 setup_mandate: None,
                 token: None,
                 address: PaymentAddress {

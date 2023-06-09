@@ -281,6 +281,7 @@ async fn get_tracker_for_sync<
                     mandate_reference_id: None,
                 }
             }),
+            mandate_connector: None,
             setup_mandate: None,
             token: None,
             address: PaymentAddress {

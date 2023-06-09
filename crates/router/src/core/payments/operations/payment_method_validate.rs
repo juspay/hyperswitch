@@ -167,6 +167,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 amount: api::Amount::Zero,
                 email: None,
                 mandate_id: None,
+                mandate_connector: None,
                 setup_mandate: request.mandate_data.clone(),
                 token: request.payment_token.clone(),
                 connector_response,
