@@ -156,13 +156,10 @@ impl EphemeralKeyInterface for MockDb {
             .iter()
             .find(|ephemeral_key| ephemeral_key.secret == key)
         {
-            Some(ephemeral_key) => return Ok(ephemeral_key.clone()),
-            None => {
-                return Err(errors::StorageError::ValueNotFound(
-                    "ephrmeral key not found".to_string(),
-                )
-                .into())
-            }
+            Some(ephemeral_key) => Ok(ephemeral_key.clone()),
+            None => Err(
+                errors::StorageError::ValueNotFound("ephrmeral key not found".to_string()).into(),
+            ),
         }
     }
     async fn delete_ephemeral_key(
@@ -170,14 +167,13 @@ impl EphemeralKeyInterface for MockDb {
         id: &str,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
         let mut ephemeral_keys = self.ephemeral_keys.lock().await;
-        let ek = self.get_ephemeral_key(id).await?;
-        if let Some(pos) = ephemeral_keys.iter().position(|x| *x.id == ek.id) {
-            ephemeral_keys.remove(pos);
+        if let Some(pos) = ephemeral_keys.iter().position(|x| *x.id == id) {
+            let ek = ephemeral_keys.remove(pos);
+            Ok(ek)
         } else {
             return Err(
                 errors::StorageError::ValueNotFound("ephrmeral key not found".to_string()).into(),
             );
         }
-        Ok(ek)
     }
 }
