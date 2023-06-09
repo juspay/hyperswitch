@@ -1,3 +1,5 @@
+pub mod helpers;
+
 use actix_web::{web, Responder};
 use error_stack::report;
 use router_env::{instrument, tracing, Flow};
@@ -325,6 +327,10 @@ pub async fn payments_confirm(
     if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
     };
+
+    if let Err(err) = helpers::populate_ip_into_browser_info(&req, &mut payload) {
+        return api::log_and_return_error_response(err);
+    }
 
     let payment_id = path.into_inner();
     payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));

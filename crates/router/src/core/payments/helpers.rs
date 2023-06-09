@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
@@ -45,6 +46,33 @@ use crate::{
         OptionExt,
     },
 };
+
+pub fn create_identity_from_certificate_and_key(
+    encoded_certificate: String,
+    encoded_certificate_key: String,
+) -> Result<reqwest::Identity, error_stack::Report<errors::ApiClientError>> {
+    let decoded_certificate = consts::BASE64_ENGINE
+        .decode(encoded_certificate)
+        .into_report()
+        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+
+    let decoded_certificate_key = consts::BASE64_ENGINE
+        .decode(encoded_certificate_key)
+        .into_report()
+        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+
+    let certificate = String::from_utf8(decoded_certificate)
+        .into_report()
+        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+
+    let certificate_key = String::from_utf8(decoded_certificate_key)
+        .into_report()
+        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+
+    reqwest::Identity::from_pkcs8_pem(certificate.as_bytes(), certificate_key.as_bytes())
+        .into_report()
+        .change_context(errors::ApiClientError::CertificateDecodeFailed)
+}
 
 pub fn filter_mca_based_on_business_details(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,

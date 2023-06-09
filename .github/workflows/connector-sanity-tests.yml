@@ -79,25 +79,25 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v3
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
 
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: Swatinem/rust-cache@v2.4.0
 
       - name: Decrypt connector auth file
-        run: ./scripts/decrypt_connector_auth.sh
         env:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
+        shell: bash
+        run: ./scripts/decrypt_connector_auth.sh
 
       - name: Set connector auth file path in env
+        shell: bash
         run: echo "CONNECTOR_AUTH_FILE_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
 
       - name: Run connector tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --package router --test connectors -- "${{ matrix.connector }}::" --test-threads=1
+        shell: bash
+        run: cargo test --package router --test connectors -- "${{ matrix.connector }}::" --test-threads=1
