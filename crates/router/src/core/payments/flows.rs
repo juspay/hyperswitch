@@ -975,7 +975,7 @@ macro_rules! default_imp_for_payouts_quote {
             impl api::PayoutQuote for $path::$connector {}
             impl
             services::ConnectorIntegration<
-            api::PQuote,
+            api::PoQuote,
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
@@ -990,7 +990,7 @@ impl<const T: u8> api::PayoutQuote for connector::DummyConnector<T> {}
 #[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
-    services::ConnectorIntegration<api::PQuote, types::PayoutsData, types::PayoutsResponseData>
+    services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyConnector<T>
 {
 }
@@ -1040,7 +1040,7 @@ macro_rules! default_imp_for_payouts_recipient {
             impl api::PayoutRecipient for $path::$connector {}
             impl
             services::ConnectorIntegration<
-            api::PRecipient,
+            api::PoRecipient,
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
@@ -1055,7 +1055,7 @@ impl<const T: u8> api::PayoutRecipient for connector::DummyConnector<T> {}
 #[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
-    services::ConnectorIntegration<api::PRecipient, types::PayoutsData, types::PayoutsResponseData>
+    services::ConnectorIntegration<api::PoRecipient, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyConnector<T>
 {
 }

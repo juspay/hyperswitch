@@ -510,7 +510,7 @@ pub async fn create_recipient(
         // 2. Fetch connector integration details
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
-            api::PRecipient,
+            api::PoRecipient,
             types::PayoutsData,
             types::PayoutsResponseData,
         > = connector_data.connector.get_connector_integration();

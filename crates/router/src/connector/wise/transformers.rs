@@ -1,15 +1,22 @@
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutMethodData;
 #[cfg(feature = "payouts")]
-use masking::PeekInterface;
-use serde::{Deserialize, Serialize};
+use common_utils::pii::Email;
+#[cfg(feature = "payouts")]
+use masking::Secret;
+use serde::Deserialize;
+#[cfg(feature = "payouts")]
+use serde::Serialize;
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
 #[cfg(feature = "payouts")]
 use crate::{
     connector::utils::RouterData,
-    types::{storage::enums as storage_enums, transformers::ForeignFrom},
+    types::{
+        storage::enums::{self as storage_enums, EntityType},
+        transformers::ForeignFrom,
+    },
 };
 use crate::{core::errors, types};
 
@@ -33,7 +40,7 @@ impl TryFrom<&types::ConnectorAuthType> for WiseAuthType {
 }
 
 // Wise error response
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct ErrorResponse {
     pub timestamp: Option<String>,
     pub errors: Option<Vec<SubError>>,
@@ -44,7 +51,7 @@ pub struct ErrorResponse {
     pub path: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct SubError {
     pub code: String,
     pub message: String,
@@ -55,110 +62,92 @@ pub struct SubError {
 
 // Payouts
 #[cfg(feature = "payouts")]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WiseRecipientCreateRequest {
     currency: String,
     #[serde(rename = "type")]
-    _type: String,
+    recipient_type: RecipientType,
     profile: String,
-    owned_by_customer: bool,
-    account_holder_name: String,
+    account_holder_name: Secret<String>,
     details: WiseBankDetails,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+#[allow(dead_code)]
+pub enum RecipientType {
+    Iban,
+    SortCode,
+    SwiftCode,
 }
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WiseBankDetails {
+    legal_type: LegalType,
     address: WiseAddressDetails,
-    legal_type: String,
-    email: Option<String>,
-    account_number: Option<String>,
-    sort_code: Option<String>,
-    account_holder_name: Option<String>,
-    abartn: Option<String>,
-    account_type: Option<String>,
-    bankgiro_number: Option<String>,
-    ifsc_code: Option<String>,
-    bsb_code: Option<String>,
-    institution_number: Option<String>,
-    transit_number: Option<String>,
-    phone_number: Option<String>,
-    bank_code: Option<String>,
-    russia_region: Option<String>,
-    routing_number: Option<String>,
-    branch_code: Option<String>,
-    cpf: Option<String>,
-    card_token: Option<String>,
-    id_type: Option<String>,
-    id_number: Option<String>,
-    id_country_iso3: Option<String>,
-    id_valid_from: Option<String>,
-    id_valid_to: Option<String>,
-    clabe: Option<String>,
-    swift_code: Option<String>,
-    date_of_birth: Option<String>,
-    clearing_number: Option<String>,
-    bank_name: Option<String>,
-    branch_name: Option<String>,
-    business_number: Option<String>,
-    province: Option<String>,
-    city: Option<String>,
-    rut: Option<String>,
-    token: Option<String>,
-    cnpj: Option<String>,
-    payin_reference: Option<String>,
-    psp_reference: Option<String>,
-    order_id: Option<String>,
-    id_document_type: Option<String>,
-    id_document_number: Option<String>,
-    target_profile: Option<String>,
-    target_user_id: Option<String>,
-    tax_id: Option<String>,
-    job: Option<String>,
-    nationality: Option<String>,
-    interac_account: Option<String>,
-    bban: Option<String>,
-    town: Option<String>,
     post_code: Option<String>,
-    language: Option<String>,
-    biller_code: Option<String>,
-    customer_reference_number: Option<String>,
-    prefix: Option<String>,
+    nationality: Option<String>,
+    account_holder_name: Option<Secret<String>>,
+    email: Option<Email>,
+    account_number: Option<String>,
+    city: Option<String>,
+    sort_code: Option<String>,
     iban: Option<String>,
     bic: Option<String>,
+    transit_number: Option<String>,
+    routing_number: Option<String>,
+    abartn: Option<String>,
+    swift_code: Option<String>,
+    payin_reference: Option<String>,
+    psp_reference: Option<String>,
+    tax_id: Option<String>,
+    order_id: Option<String>,
+    job: Option<String>,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum LegalType {
+    Business,
+    #[default]
+    Private,
 }
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WiseAddressDetails {
-    country: Option<String>,
-    country_code: Option<String>,
-    first_line: Option<String>,
-    post_code: Option<String>,
+    country: Option<storage_enums::CountryAlpha2>,
+    country_code: Option<storage_enums::CountryAlpha2>,
+    first_line: Option<Secret<String>>,
+    post_code: Option<Secret<String>>,
     city: Option<String>,
-    state: Option<String>,
+    state: Option<Secret<String>>,
 }
 
+#[allow(dead_code)]
 #[cfg(feature = "payouts")]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WiseRecipientCreateResponse {
     id: i64,
     business: Option<i64>,
     profile: Option<i64>,
-    account_holder_name: String,
+    account_holder_name: Secret<String>,
     currency: String,
     country: String,
     #[serde(rename = "type")]
-    _type: String,
+    request_type: String,
     details: WiseBankDetails,
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WisePayoutQuoteRequest {
     source_currency: String,
@@ -180,8 +169,9 @@ pub enum WisePayOutOption {
     Interac,
 }
 
+#[allow(dead_code)]
 #[cfg(feature = "payouts")]
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WisePayoutQuoteResponse {
     source_amount: f64,
@@ -198,7 +188,7 @@ pub struct WisePayoutQuoteResponse {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum WiseRateType {
     #[default]
@@ -207,7 +197,7 @@ pub enum WiseRateType {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WisePayoutCreateRequest {
     target_account: i64,
@@ -225,8 +215,9 @@ pub struct WiseTransferDetails {
     transfer_purpose_sub_transfer_purpose: Option<String>,
 }
 
+#[allow(dead_code)]
 #[cfg(feature = "payouts")]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WisePayoutCreateResponse {
     id: i64,
@@ -248,19 +239,27 @@ pub struct WisePayoutCreateResponse {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WisePayoutFulfillRequest {
     #[serde(rename = "type")]
-    _type: String,
+    fund_type: FundType,
 }
 
+// NOTE - Only balance is allowed as time of incorporating this field - https://api-docs.transferwise.com/api-reference/transfer#fund
 #[cfg(feature = "payouts")]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum FundType {
+    #[default]
+    Balance,
+}
+
+#[allow(dead_code)]
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WiseFulfillResponse {
-    #[serde(rename = "type")]
-    _type: String,
     status: WiseStatus,
     error_code: Option<String>,
     error_message: Option<String>,
@@ -289,12 +288,12 @@ fn get_payout_address_details(
 ) -> Option<WiseAddressDetails> {
     address.as_ref().and_then(|add| {
         add.address.as_ref().map(|a| WiseAddressDetails {
-            country: a.country.map(|c| c.to_string()),
-            country_code: a.country.map(|c| c.to_string()),
-            first_line: a.line1.as_ref().map(|l1| l1.peek().to_string()),
-            post_code: a.zip.as_ref().map(|z| z.peek().to_string()),
-            city: a.city.to_owned(),
-            state: a.state.as_ref().map(|s| s.peek().to_string()),
+            country: a.country,
+            country_code: a.country,
+            first_line: a.line1.clone(),
+            post_code: a.zip.clone(),
+            city: a.city.clone(),
+            state: a.state.clone(),
         })
     })
 }
@@ -303,6 +302,7 @@ fn get_payout_address_details(
 fn get_payout_bank_details(
     payout_method_data: PayoutMethodData,
     address: &Option<api_models::payments::Address>,
+    entity_type: EntityType,
 ) -> Result<WiseBankDetails, errors::ConnectorError> {
     let wise_address_details = match get_payout_address_details(address) {
         Some(a) => Ok(a),
@@ -312,7 +312,7 @@ fn get_payout_bank_details(
     }?;
     match payout_method_data {
         PayoutMethodData::Bank(b) => Ok(WiseBankDetails {
-            legal_type: "PRIVATE".to_string(), // TODO: Remove hardcoded value
+            legal_type: LegalType::foreign_from(entity_type),
             address: wise_address_details,
             account_number: b.bank_account_number.to_owned(),
             sort_code: b.bank_sort_code.to_owned(),
@@ -338,7 +338,11 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
         let request = item.request.to_owned();
         let customer_details = request.customer_details;
         let payout_method_data = item.get_payout_method_data()?;
-        let bank_details = get_payout_bank_details(payout_method_data, &item.address.billing)?;
+        let bank_details = get_payout_bank_details(
+            payout_method_data,
+            &item.address.billing,
+            item.request.entity_type,
+        )?;
         let source_id = match item.connector_auth_type.to_owned() {
             types::ConnectorAuthType::BodyKey { api_key: _, key1 } => Ok(key1),
             _ => Err(errors::ConnectorError::MissingRequiredField {
@@ -353,22 +357,17 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
             })?,
             storage_enums::PayoutType::Bank => {
                 let account_holder_name = customer_details
-                    .as_ref()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "customer_details for PayoutRecipient creation",
                     })?
                     .name
-                    .as_ref()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "customer_details.name for PayoutRecipient creation",
-                    })?
-                    .peek()
-                    .to_string();
+                    })?;
                 Ok(Self {
                     profile: source_id,
                     currency: request.destination_currency.to_string(),
-                    _type: "sort_code".to_string(), // TODO: Add a new enum BankType for handling various different banks across the world
-                    owned_by_customer: true,        // TODO: Remove hardcoded value
+                    recipient_type: RecipientType::SortCode, // TODO: Map it to BankType (added in future commit)
                     account_holder_name,
                     details: bank_details,
                 })
@@ -452,11 +451,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutCreateRequest {
         let request = item.request.to_owned();
         match request.payout_type.to_owned() {
             storage_enums::PayoutType::Bank => {
-                let connector_customer_id = item.connector_customer.clone().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "connector_customer",
-                    },
-                )?;
+                let connector_customer_id = item.get_connector_customer_id()?;
                 let quote_uuid =
                     request
                         .quote_id
@@ -519,7 +514,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutFulfillRequest {
         let request = item.request.to_owned();
         match request.payout_type.to_owned() {
             storage_enums::PayoutType::Bank => Ok(Self {
-                _type: "BALANCE".to_string(), // TODO: Look for ways to remove this hardcoded value
+                fund_type: FundType::default(),
             }),
             storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotSupported {
                 message: "Card payout fulfillment is not supported".to_string(),
@@ -561,6 +556,16 @@ impl ForeignFrom<WiseStatus> for storage_enums::PayoutStatus {
             WiseStatus::Pending | WiseStatus::Processing | WiseStatus::IncomingPaymentWaiting => {
                 Self::Pending
             }
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<EntityType> for LegalType {
+    fn foreign_from(entity_type: EntityType) -> Self {
+        match entity_type {
+            EntityType::Individual | EntityType::Personal | EntityType::NonProfit => Self::Private,
+            EntityType::Company | EntityType::PublicSector | EntityType::Business => Self::Business,
         }
     }
 }

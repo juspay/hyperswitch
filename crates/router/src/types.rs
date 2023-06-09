@@ -140,10 +140,10 @@ pub type PayoutFulfillType =
     dyn services::ConnectorIntegration<api::PFulfill, PayoutsData, PayoutsResponseData>;
 #[cfg(feature = "payouts")]
 pub type PayoutRecipientType =
-    dyn services::ConnectorIntegration<api::PRecipient, PayoutsData, PayoutsResponseData>;
+    dyn services::ConnectorIntegration<api::PoRecipient, PayoutsData, PayoutsResponseData>;
 #[cfg(feature = "payouts")]
 pub type PayoutQuoteType =
-    dyn services::ConnectorIntegration<api::PQuote, PayoutsData, PayoutsResponseData>;
+    dyn services::ConnectorIntegration<api::PoQuote, PayoutsData, PayoutsResponseData>;
 
 pub type RefreshTokenType =
     dyn services::ConnectorIntegration<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;

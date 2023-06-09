@@ -27,11 +27,11 @@ pub struct PFulfill;
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
-pub struct PQuote;
+pub struct PoQuote;
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
-pub struct PRecipient;
+pub struct PoRecipient;
 
 #[cfg(feature = "payouts")]
 pub trait PayoutCancel:
@@ -59,13 +59,13 @@ pub trait PayoutFulfill:
 
 #[cfg(feature = "payouts")]
 pub trait PayoutQuote:
-    api::ConnectorIntegration<PQuote, types::PayoutsData, types::PayoutsResponseData>
+    api::ConnectorIntegration<PoQuote, types::PayoutsData, types::PayoutsResponseData>
 {
 }
 
 #[cfg(feature = "payouts")]
 pub trait PayoutRecipient:
-    api::ConnectorIntegration<PRecipient, types::PayoutsData, types::PayoutsResponseData>
+    api::ConnectorIntegration<PoRecipient, types::PayoutsData, types::PayoutsResponseData>
 {
 }
 

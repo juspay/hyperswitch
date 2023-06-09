@@ -14,18 +14,39 @@ use crate::{
     services::request,
     types::{
         self,
-        api::{self, ConnectorCommon},
+        api::{self, ConnectorCommon, ConnectorCommonExt},
     },
+    utils::BytesExt,
 };
 #[cfg(feature = "payouts")]
-use crate::{
-    core::payments,
-    logger, routes,
-    utils::{self, BytesExt},
-};
+use crate::{core::payments, routes, utils};
 
 #[derive(Debug, Clone)]
 pub struct Wise;
+
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Wise
+where
+    Self: services::ConnectorIntegration<Flow, Request, Response>,
+{
+    #[cfg(feature = "payouts")]
+    fn build_headers(
+        &self,
+        req: &types::RouterData<Flow, Request, Response>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PayoutQuoteType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let auth = wise::WiseAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let mut api_key = vec![(headers::AUTHORIZATION.to_string(), auth.api_key.into())];
+        header.append(&mut api_key);
+        Ok(header)
+    }
+}
 
 impl ConnectorCommon for Wise {
     fn id(&self) -> &'static str {
@@ -46,6 +67,42 @@ impl ConnectorCommon for Wise {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.wise.base_url.as_ref()
+    }
+
+    fn build_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: wise::ErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let default_status = response.status.unwrap_or_default().to_string();
+        match response.errors {
+            Some(errs) => {
+                if let Some(e) = errs.get(0) {
+                    Ok(types::ErrorResponse {
+                        status_code: res.status_code,
+                        code: e.code.clone(),
+                        message: e.message.clone(),
+                        reason: None,
+                    })
+                } else {
+                    Ok(types::ErrorResponse {
+                        status_code: res.status_code,
+                        code: default_status,
+                        message: response.message.unwrap_or_default(),
+                        reason: None,
+                    })
+                }
+            }
+            None => Ok(types::ErrorResponse {
+                status_code: res.status_code,
+                code: default_status,
+                message: response.message.unwrap_or_default(),
+                reason: None,
+            }),
+        }
     }
 }
 
@@ -150,12 +207,12 @@ impl services::ConnectorIntegration<api::PCancel, types::PayoutsData, types::Pay
 }
 
 #[cfg(feature = "payouts")]
-impl services::ConnectorIntegration<api::PQuote, types::PayoutsData, types::PayoutsResponseData>
+impl services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::PayoutsResponseData>
     for Wise
 {
     fn get_url(
         &self,
-        req: &types::PayoutsRouterData<api::PQuote>,
+        req: &types::PayoutsRouterData<api::PoQuote>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth = wise::WiseAuthType::try_from(&req.connector_auth_type)
@@ -168,25 +225,15 @@ impl services::ConnectorIntegration<api::PQuote, types::PayoutsData, types::Payo
 
     fn get_headers(
         &self,
-        req: &types::PayoutsRouterData<api::PQuote>,
-        _connectors: &settings::Connectors,
+        req: &types::PayoutsRouterData<api::PoQuote>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PayoutQuoteType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
-        let auth = wise::WiseAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let mut api_key = vec![(headers::AUTHORIZATION.to_string(), auth.api_key.into())];
-        header.append(&mut api_key);
-        Ok(header)
+        self.build_headers(req, connectors)
     }
 
     fn get_request_body(
         &self,
-        req: &types::PayoutsRouterData<api::PQuote>,
+        req: &types::PayoutsRouterData<api::PoQuote>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = wise::WisePayoutQuoteRequest::try_from(req)?;
         let wise_req =
@@ -197,7 +244,7 @@ impl services::ConnectorIntegration<api::PQuote, types::PayoutsData, types::Payo
 
     fn build_request(
         &self,
-        req: &types::PayoutsRouterData<api::PQuote>,
+        req: &types::PayoutsRouterData<api::PoQuote>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
@@ -214,67 +261,36 @@ impl services::ConnectorIntegration<api::PQuote, types::PayoutsData, types::Payo
     #[instrument(skip_all)]
     fn handle_response(
         &self,
-        data: &types::PayoutsRouterData<api::PQuote>,
+        data: &types::PayoutsRouterData<api::PoQuote>,
         res: types::Response,
-    ) -> CustomResult<types::PayoutsRouterData<api::PQuote>, errors::ConnectorError> {
+    ) -> CustomResult<types::PayoutsRouterData<api::PoQuote>, errors::ConnectorError> {
         let response: wise::WisePayoutQuoteResponse = res
             .response
             .parse_struct("WisePayoutQuoteResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: wise::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
-        let def_res = response.status.unwrap_or_default().to_string();
-        match response.errors {
-            Some(errs) => {
-                if let Some(e) = errs.get(0) {
-                    Ok(types::ErrorResponse {
-                        status_code: res.status_code,
-                        code: e.code.clone(),
-                        message: e.message.clone(),
-                        reason: None,
-                    })
-                } else {
-                    Ok(types::ErrorResponse {
-                        status_code: res.status_code,
-                        code: def_res,
-                        message: response.message.unwrap_or_default(),
-                        reason: None,
-                    })
-                }
-            }
-            None => Ok(types::ErrorResponse {
-                status_code: res.status_code,
-                code: def_res,
-                message: response.message.unwrap_or_default(),
-                reason: None,
-            }),
-        }
+        self.build_error_response(res)
     }
 }
 
 #[cfg(feature = "payouts")]
-impl services::ConnectorIntegration<api::PRecipient, types::PayoutsData, types::PayoutsResponseData>
+impl
+    services::ConnectorIntegration<api::PoRecipient, types::PayoutsData, types::PayoutsResponseData>
     for Wise
 {
     fn get_url(
         &self,
-        _req: &types::PayoutsRouterData<api::PRecipient>,
+        _req: &types::PayoutsRouterData<api::PoRecipient>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}v1/accounts", connectors.wise.base_url))
@@ -282,25 +298,15 @@ impl services::ConnectorIntegration<api::PRecipient, types::PayoutsData, types::
 
     fn get_headers(
         &self,
-        req: &types::PayoutsRouterData<api::PRecipient>,
-        _connectors: &settings::Connectors,
+        req: &types::PayoutsRouterData<api::PoRecipient>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PayoutRecipientType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
-        let auth = wise::WiseAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let mut api_key = vec![(headers::AUTHORIZATION.to_string(), auth.api_key.into())];
-        header.append(&mut api_key);
-        Ok(header)
+        self.build_headers(req, connectors)
     }
 
     fn get_request_body(
         &self,
-        req: &types::PayoutsRouterData<api::PRecipient>,
+        req: &types::PayoutsRouterData<api::PoRecipient>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = wise::WiseRecipientCreateRequest::try_from(req)?;
         let wise_req = utils::Encode::<wise::WiseRecipientCreateRequest>::encode_to_string_of_json(
@@ -312,7 +318,7 @@ impl services::ConnectorIntegration<api::PRecipient, types::PayoutsData, types::
 
     fn build_request(
         &self,
-        req: &types::PayoutsRouterData<api::PRecipient>,
+        req: &types::PayoutsRouterData<api::PoRecipient>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
@@ -331,57 +337,25 @@ impl services::ConnectorIntegration<api::PRecipient, types::PayoutsData, types::
     #[instrument(skip_all)]
     fn handle_response(
         &self,
-        data: &types::PayoutsRouterData<api::PRecipient>,
+        data: &types::PayoutsRouterData<api::PoRecipient>,
         res: types::Response,
-    ) -> CustomResult<types::PayoutsRouterData<api::PRecipient>, errors::ConnectorError> {
+    ) -> CustomResult<types::PayoutsRouterData<api::PoRecipient>, errors::ConnectorError> {
         let response: wise::WiseRecipientCreateResponse = res
             .response
             .parse_struct("WiseRecipientCreateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: wise::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
-        let def_res = response.status.unwrap_or_default().to_string();
-        match response.errors {
-            Some(errs) => {
-                if let Some(e) = errs.get(0) {
-                    Ok(types::ErrorResponse {
-                        status_code: res.status_code,
-                        code: e.code.clone(),
-                        message: e.message.clone(),
-                        reason: None,
-                    })
-                } else {
-                    Ok(types::ErrorResponse {
-                        status_code: res.status_code,
-                        code: def_res,
-                        message: response.message.unwrap_or_default(),
-                        reason: None,
-                    })
-                }
-            }
-            None => Ok(types::ErrorResponse {
-                status_code: res.status_code,
-                code: def_res,
-                message: response.message.unwrap_or_default(),
-                reason: None,
-            }),
-        }
+        self.build_error_response(res)
     }
 }
 
@@ -400,7 +374,7 @@ impl services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::Pay
             &types::PayoutsRouterData::from((&router_data, router_data.request.clone()));
         let quote_connector_integration: Box<
             &(dyn services::ConnectorIntegration<
-                api::PQuote,
+                api::PoQuote,
                 types::PayoutsData,
                 types::PayoutsResponseData,
             > + Send
@@ -431,19 +405,9 @@ impl services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::Pay
     fn get_headers(
         &self,
         req: &types::PayoutsRouterData<api::PCreate>,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PayoutCreateType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
-        let auth = wise::WiseAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let mut api_key = vec![(headers::AUTHORIZATION.to_string(), auth.api_key.into())];
-        header.append(&mut api_key);
-        Ok(header)
+        self.build_headers(req, connectors)
     }
 
     fn get_request_body(
@@ -484,50 +448,18 @@ impl services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::Pay
             .response
             .parse_struct("WisePayoutCreateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: wise::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
-        let def_res = response.status.unwrap_or_default().to_string();
-        match response.errors {
-            Some(errs) => {
-                if let Some(e) = errs.get(0) {
-                    Ok(types::ErrorResponse {
-                        status_code: res.status_code,
-                        code: e.code.clone(),
-                        message: e.message.clone(),
-                        reason: None,
-                    })
-                } else {
-                    Ok(types::ErrorResponse {
-                        status_code: res.status_code,
-                        code: def_res,
-                        message: response.message.unwrap_or_default(),
-                        reason: None,
-                    })
-                }
-            }
-            None => Ok(types::ErrorResponse {
-                status_code: res.status_code,
-                code: def_res,
-                message: response.message.unwrap_or_default(),
-                reason: None,
-            }),
-        }
+        self.build_error_response(res)
     }
 }
 
@@ -566,19 +498,9 @@ impl services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::Pa
     fn get_headers(
         &self,
         req: &types::PayoutsRouterData<api::PFulfill>,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PayoutFulfillType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
-        let auth = wise::WiseAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let mut api_key = vec![(headers::AUTHORIZATION.to_string(), auth.api_key.into())];
-        header.append(&mut api_key);
-        Ok(header)
+        self.build_headers(req, connectors)
     }
 
     fn get_request_body(
@@ -621,50 +543,18 @@ impl services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::Pa
             .response
             .parse_struct("WiseFulfillResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: wise::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
-        let def_res = response.status.unwrap_or_default().to_string();
-        match response.errors {
-            Some(errs) => {
-                if let Some(e) = errs.get(0) {
-                    Ok(types::ErrorResponse {
-                        status_code: res.status_code,
-                        code: e.code.clone(),
-                        message: e.message.clone(),
-                        reason: None,
-                    })
-                } else {
-                    Ok(types::ErrorResponse {
-                        status_code: res.status_code,
-                        code: def_res,
-                        message: response.message.unwrap_or_default(),
-                        reason: None,
-                    })
-                }
-            }
-            None => Ok(types::ErrorResponse {
-                status_code: res.status_code,
-                code: def_res,
-                message: response.message.unwrap_or_default(),
-                reason: None,
-            }),
-        }
+        self.build_error_response(res)
     }
 }
 
