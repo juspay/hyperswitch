@@ -1,6 +1,5 @@
 use error_stack::{IntoReport, ResultExt};
 
-use super::MasterKeyInterface;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -41,7 +40,7 @@ impl MerchantKeyStoreInterface for Store {
             .await
             .map_err(Into::into)
             .into_report()?
-            .convert(self, &merchant_id, self.get_migration_timestamp())
+            .convert(self, &merchant_id)
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -57,7 +56,7 @@ impl MerchantKeyStoreInterface for Store {
         .await
         .map_err(Into::into)
         .into_report()?
-        .convert(self, merchant_id, self.get_migration_timestamp())
+        .convert(self, merchant_id)
         .await
         .change_context(errors::StorageError::DecryptionError)
     }

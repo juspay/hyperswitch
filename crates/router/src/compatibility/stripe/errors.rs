@@ -198,6 +198,8 @@ pub enum StripeErrorCode {
     FileNotAvailable,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "There was an issue with processing webhooks")]
     WebhookProcessingError,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "payment_method_unactivated", message = "The operation cannot be performed as the payment method used has not been activated. Activate the payment method in the Dashboard, then try again.")]
+    PaymentMethodUnactivated,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -298,7 +300,6 @@ pub enum StripeErrorCode {
         PaymentMethodMicrodepositVerificationTimeout,
         PaymentMethodProviderDecline,
         PaymentMethodProviderTimeout,
-        PaymentMethodUnactivated,
         PaymentMethodUnexpectedState,
         PaymentMethodUnsupportedType,
         PayoutsNotAllowed,
@@ -511,6 +512,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::WebhookProcessingFailure
             | errors::ApiErrorResponse::WebhookAuthenticationFailed
             | errors::ApiErrorResponse::WebhookUnprocessableEntity => Self::WebhookProcessingError,
+            errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration => {
+                Self::PaymentMethodUnactivated
+            }
         }
     }
 }
@@ -566,7 +570,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::MissingFilePurpose
             | Self::MissingDisputeId
             | Self::FileNotFound
-            | Self::FileNotAvailable => StatusCode::BAD_REQUEST,
+            | Self::FileNotAvailable
+            | Self::PaymentMethodUnactivated => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::InternalServerError
             | Self::MandateActive
