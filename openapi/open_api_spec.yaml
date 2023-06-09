@@ -2593,7 +2593,7 @@ components:
           type: string
           description: |
             Unique Identifier for the Payment. It is always recommended to provide this ID while creating a payment.
-            If the identifiers in not provided in the Payment Request, this filed shall be auto generated and provide in the API response. It is suggested to keep the payment_id length as a maximum of 30 alphanumeric characters irrespective of payment methods and gateways. 
+            If the identifiers in not provided in the Payment Request, this filed shall be auto generated and provide in the API response. It is suggested to keep the payment_id length as a maximum of 30 alphanumeric characters irrespective of payment methods and gateways.
             Sequential and only numeric characters are not recommended.
           maxLength: 30
           minLength: 30
@@ -2968,7 +2968,7 @@ components:
           type: string
           description: |
             Unique Identifier for the Payment. It is always recommended to provide this ID while creating a payment.
-            If the identifiers in not provided in the Payment Request, this filed shall be auto generated and provide in the API response. It is suggested to keep the payment_id length as a maximum of 30 alphanumeric characters irrespective of payment methods and gateways. 
+            If the identifiers in not provided in the Payment Request, this filed shall be auto generated and provide in the API response. It is suggested to keep the payment_id length as a maximum of 30 alphanumeric characters irrespective of payment methods and gateways.
             Sequential and only numeric characters are not recommended.
           maxLength: 30
           example: "pay_mbabizu24mvu3mela5njyhpit4"
@@ -3439,7 +3439,7 @@ components:
           type: string
           description: |
             Unique Identifier for the Payment. It is always recommended to provide this ID while creating a payment.
-            If the identifiers in not provided in the Payment Request, this filed shall be auto generated and provide in the API response. It is suggested to keep the payment_id length as a maximum of 30 alphanumeric characters irrespective of payment methods and gateways. 
+            If the identifiers in not provided in the Payment Request, this filed shall be auto generated and provide in the API response. It is suggested to keep the payment_id length as a maximum of 30 alphanumeric characters irrespective of payment methods and gateways.
             Sequential and only numeric characters are not recommended.
           maxLength: 30
           minLength: 30
@@ -3509,7 +3509,7 @@ components:
           type: string
           description: |
             Unique Identifier for the Payment. It is always recommended to provide this ID while creating a payment.
-            If the identifiers in not provided in the Payment Request, this filed shall be auto generated and provide in the API response. It is suggested to keep the payment_id length as a maximum of 30 alphanumeric characters irrespective of payment methods and gateways. 
+            If the identifiers in not provided in the Payment Request, this filed shall be auto generated and provide in the API response. It is suggested to keep the payment_id length as a maximum of 30 alphanumeric characters irrespective of payment methods and gateways.
             Sequential and only numeric characters are not recommended.
           maxLength: 30
           example: "pay_mbabizu24mvu3mela5njyhpit4"
@@ -3554,7 +3554,7 @@ components:
             type: string
             description: |
               Unique Identifier for the Payment. It is always recommended to provide this ID while creating a payment.
-              If the identifiers in not provided in the Payment Request, this filed shall be auto generated and provide in the API response. It is suggested to keep the payment_id length as a maximum of 30 alphanumeric characters irrespective of payment methods and gateways. 
+              If the identifiers in not provided in the Payment Request, this filed shall be auto generated and provide in the API response. It is suggested to keep the payment_id length as a maximum of 30 alphanumeric characters irrespective of payment methods and gateways.
               Sequential and only numeric characters are not recommended.
             maxLength: 30
             minLength: 30
@@ -4596,7 +4596,7 @@ components:
   securitySchemes:
     ApiSecretKey:
       description: >
-        Unless explicitly stated, all endpoints require authentication using your secret key. 
+        Unless explicitly stated, all endpoints require authentication using your secret key.
         You may generate your API keys from the Juspay Dashboard.
 
         #### Format

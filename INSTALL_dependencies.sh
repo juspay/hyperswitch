@@ -5,7 +5,7 @@
 #
 # Global config
 
-if [[ "${TRACE-0}" == "1" ]]; then 
+if [[ "${TRACE-0}" == "1" ]]; then
     set -o xtrace
 fi
 
@@ -44,8 +44,8 @@ else
     SUDO=""
 fi
 
-ver () { 
-    printf "%03d%03d%03d%03d" `echo "$1" | tr '.' ' '`; 
+ver () {
+    printf "%03d%03d%03d%03d" `echo "$1" | tr '.' ' '`;
 }
 
 PROGNAME=`basename $0`
@@ -59,7 +59,7 @@ err () {
 }
 
 need_cmd () {
-    if ! command -v $1 > /dev/null 
+    if ! command -v $1 > /dev/null
     then
         err "Command \"${1}\" not found. Bailing out"
     fi
@@ -187,7 +187,7 @@ if [[ ! -x "`command -v psql`" ]] || [[ ! -x "`command -v redis-server`" ]] ; th
        install_dep postgresql
        install_dep postgresql-contrib # not needed for macos?
        install_dep postgresql-devel # needed for diesel_cli in some linux distributions
-       install_dep postgresql-libs # needed for diesel_cli in some linux distributions 
+       install_dep postgresql-libs # needed for diesel_cli in some linux distributions
        init_start_postgres # installing libpq messes with initdb creating two copies. better to run it better libpq.
        install_dep libpq-dev || install_dep libpq
     else
