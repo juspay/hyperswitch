@@ -410,6 +410,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::RefundFailed { data } => Self::RefundFailed, // Nothing at stripe to map
 
             errors::ApiErrorResponse::MandateUpdateFailed
+            | errors::ApiErrorResponse::MandateSerializationFailed
+            | errors::ApiErrorResponse::MandateDeserializationFailed
             | errors::ApiErrorResponse::InternalServerError => Self::InternalServerError, // not a stripe code
             errors::ApiErrorResponse::ExternalConnectorError {
                 code,

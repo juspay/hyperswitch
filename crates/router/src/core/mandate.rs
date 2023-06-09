@@ -197,7 +197,9 @@ where
                     let mandate_ids = mandate_reference
                         .map(|md| {
                             Encode::<types::MandateReference>::encode_to_value(&md)
-                                .change_context(errors::ApiErrorResponse::MandateNotFound) // Shouldn't this be internal server error?
+                                .change_context(
+                                    errors::ApiErrorResponse::MandateSerializationFailed,
+                                )
                                 .map(masking::Secret::new)
                         })
                         .transpose()?;
@@ -224,7 +226,7 @@ where
                                     .parse_value::<api_models::payments::ConnectorMandateReferenceId>(
                                         "ConnectorMandateId",
                                     )
-                                    .change_context(errors::ApiErrorResponse::MandateNotFound) // Shouldn't this be unable to parse Error (500)?
+                                    .change_context(errors::ApiErrorResponse::MandateDeserializationFailed)
                             })
                             .transpose()?
                             .map_or(
