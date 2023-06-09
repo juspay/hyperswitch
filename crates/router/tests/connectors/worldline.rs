@@ -84,6 +84,7 @@ impl WorldlineTest {
             capture_method: Some(capture_method),
             browser_info: None,
             order_details: None,
+            order_category: None,
             email: None,
             session_token: None,
             enrolled_for_3ds: false,

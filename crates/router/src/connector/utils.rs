@@ -793,3 +793,8 @@ pub fn collect_and_sort_values_by_removing_signature(
     values.sort();
     values
 }
+
+#[inline]
+pub fn get_webhook_merchant_secret_key(connector: &str, merchant_id: &str) -> String {
+    format!("whsec_verification_{connector}_{merchant_id}")
+}

@@ -89,14 +89,12 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         other: Self::DstType,
         db: &dyn StorageInterface,
         merchant_id: &str,
-        migration_timestamp: i64,
     ) -> CustomResult<Self, ValidationError> {
         let key = types::get_merchant_enc_key(db, merchant_id)
             .await
             .change_context(ValidationError::InvalidValue {
                 message: "Error while getting key from keystore".to_string(),
             })?;
-        let modified_at = other.modified_at.assume_utc().unix_timestamp();
 
         Ok(Self {
             id: Some(other.id),
@@ -105,9 +103,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_account_details: Encryptable::decrypt(
                 other.connector_account_details,
                 &key,
-                GcmAes256 {},
-                modified_at,
-                migration_timestamp,
+                GcmAes256,
             )
             .await
             .change_context(ValidationError::InvalidValue {
