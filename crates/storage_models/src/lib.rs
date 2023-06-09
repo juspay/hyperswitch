@@ -1,4 +1,3 @@
-#![recursion_limit = "256"]
 pub mod address;
 pub mod api_keys;
 pub mod cards_info;
