@@ -13,11 +13,11 @@ use crate::{
     connector::utils::{
         self, BrowserInformationData, CardData, PaymentsAuthorizeRequestData, RouterData,
     },
-    core::errors,
+    core::errors::{self, CustomResult},
     services::{self, Method},
-    types::{self, api, storage::enums, transformers::ForeignTryFrom, BrowserInformation},
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
+    utils::OptionExt,
 };
-
 // Auth Struct
 pub struct ZenAuthType {
     pub(super) api_key: String,
@@ -345,9 +345,23 @@ fn get_item_object(
 }
 
 fn get_browser_details(
-    browser_info: &BrowserInformation,
-) -> Result<ZenBrowserDetails, error_stack::Report<errors::ConnectorError>> {
-    let window_size = match (browser_info.screen_height, browser_info.screen_width) {
+    browser_info: &types::BrowserInformation,
+) -> CustomResult<ZenBrowserDetails, errors::ConnectorError> {
+    let screen_height = browser_info
+        .screen_height
+        .get_required_value("screen_height")
+        .change_context(errors::ConnectorError::MissingRequiredField {
+            field_name: "screen_height",
+        })?;
+
+    let screen_width = browser_info
+        .screen_width
+        .get_required_value("screen_width")
+        .change_context(errors::ConnectorError::MissingRequiredField {
+            field_name: "screen_width",
+        })?;
+
+    let window_size = match (screen_height, screen_width) {
         (250, 400) => "01",
         (390, 400) => "02",
         (500, 600) => "03",
@@ -355,16 +369,52 @@ fn get_browser_details(
         _ => "05",
     }
     .to_string();
+
     Ok(ZenBrowserDetails {
-        color_depth: browser_info.color_depth.to_string(),
-        java_enabled: browser_info.java_enabled,
-        lang: browser_info.language.clone(),
-        screen_height: browser_info.screen_height.to_string(),
-        screen_width: browser_info.screen_width.to_string(),
-        timezone: browser_info.time_zone.to_string(),
-        accept_header: browser_info.accept_header.clone(),
+        color_depth: browser_info
+            .color_depth
+            .get_required_value("color_depth")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "color_depth",
+            })?
+            .to_string(),
+        java_enabled: browser_info
+            .java_enabled
+            .get_required_value("java_enabled")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "java_enabled",
+            })?,
+        lang: browser_info
+            .language
+            .clone()
+            .get_required_value("language")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "language",
+            })?,
+        screen_height: screen_height.to_string(),
+        screen_width: screen_width.to_string(),
+        timezone: browser_info
+            .time_zone
+            .get_required_value("time_zone")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "time_zone",
+            })?
+            .to_string(),
+        accept_header: browser_info
+            .accept_header
+            .clone()
+            .get_required_value("accept_header")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "accept_header",
+            })?,
+        user_agent: browser_info
+            .user_agent
+            .clone()
+            .get_required_value("user_agent")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "user_agent",
+            })?,
         window_size,
-        user_agent: browser_info.user_agent.clone(),
     })
 }
 
