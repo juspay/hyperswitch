@@ -245,6 +245,7 @@ pub async fn get_token_pm_type_mandate_details(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
     Option<api::MandateData>,
+    Option<String>,
 )> {
     match mandate_type {
         Some(api::MandateTxnType::NewMandateTxn) => {
@@ -256,17 +257,19 @@ pub async fn get_token_pm_type_mandate_details(
                 request.payment_token.to_owned(),
                 request.payment_method.map(ForeignInto::foreign_into),
                 Some(setup_mandate),
+                None,
             ))
         }
         Some(api::MandateTxnType::RecurringMandateTxn) => {
-            let (token_, payment_method_type_) =
+            let (token_, payment_method_type_, mandate_connector) =
                 get_token_for_recurring_mandate(state, request, merchant_account).await?;
-            Ok((token_, payment_method_type_, None))
+            Ok((token_, payment_method_type_, None, mandate_connector))
         }
         None => Ok((
             request.payment_token.to_owned(),
             request.payment_method.map(ForeignInto::foreign_into),
             request.mandate_data.clone(),
+            None,
         )),
     }
 }
@@ -275,7 +278,11 @@ pub async fn get_token_for_recurring_mandate(
     state: &AppState,
     req: &api::PaymentsRequest,
     merchant_account: &domain::MerchantAccount,
-) -> RouterResult<(Option<String>, Option<storage_enums::PaymentMethod>)> {
+) -> RouterResult<(
+    Option<String>,
+    Option<storage_enums::PaymentMethod>,
+    Option<String>,
+)> {
     let db = &*state.store;
     let mandate_id = req.mandate_id.clone().get_required_value("mandate_id")?;
 
@@ -330,9 +337,17 @@ pub async fn get_token_for_recurring_mandate(
             }
         };
 
-        Ok((Some(token), Some(payment_method.payment_method)))
+        Ok((
+            Some(token),
+            Some(payment_method.payment_method),
+            Some(mandate.connector),
+        ))
     } else {
-        Ok((None, Some(payment_method.payment_method)))
+        Ok((
+            None,
+            Some(payment_method.payment_method),
+            Some(mandate.connector),
+        ))
     }
 }
 

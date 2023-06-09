@@ -9,7 +9,7 @@ pub mod transformers;
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
 use api_models::payments::Metadata;
-use common_utils::pii::Email;
+use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
@@ -958,6 +958,7 @@ where
     pub connector_response: storage::ConnectorResponse,
     pub amount: api::Amount,
     pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_connector: Option<String>,
     pub currency: storage_enums::Currency,
     pub setup_mandate: Option<api::MandateData>,
     pub address: PaymentAddress,
@@ -969,7 +970,7 @@ where
     pub disputes: Vec<storage::Dispute>,
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<Secret<String>>,
-    pub email: Option<Email>,
+    pub email: Option<pii::Email>,
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
@@ -981,7 +982,7 @@ where
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
     pub name: Option<Secret<String, masking::WithType>>,
-    pub email: Option<Email>,
+    pub email: Option<pii::Email>,
     pub phone: Option<Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
 }
