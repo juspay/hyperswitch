@@ -88,7 +88,7 @@ pub struct CardDetail {
     pub card_holder_name: Option<masking::Secret<String>>,
 
     /// Card Holder's Nick Name
-    #[schema(value_type = String,example = "John Doe")]
+    #[schema(value_type = Option<String>,example = "John Doe")]
     pub nick_name: Option<masking::Secret<String>>,
 }
 

@@ -468,7 +468,7 @@ pub struct Card {
     pub card_network: Option<api_enums::CardNetwork>,
 
     /// The card holder's nick name
-    #[schema(value_type = String, example = "John Test")]
+    #[schema(value_type = Option<String>, example = "John Test")]
     pub nick_name: Option<Secret<String>>,
 }
 
