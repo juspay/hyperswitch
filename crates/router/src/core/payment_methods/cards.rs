@@ -179,6 +179,53 @@ pub async fn add_card_to_locker(
     .await
 }
 
+pub async fn migrate_data_from_legacy_to_basilisk_hs(
+    state: &routes::AppState,
+    customer_id: &str,
+    merchant_account: &domain::MerchantAccount,
+    card_reference: &str,
+    locker_id: Option<String>,
+) -> errors::RouterResult<payment_methods::Card> {
+    
+    let card = get_card_from_legacy_locker(
+        state,
+        &locker_id.get_required_value("locker_id")?,
+        card_reference,
+    ).await?;
+
+    let card_details = transform_card_to_card_detail(card.clone());
+    let req = api::PaymentMethodCreate {
+        payment_method: enums::PaymentMethod::Card.foreign_into(),
+        payment_method_type: None,
+        payment_method_issuer: None,
+        payment_method_issuer_code: None,
+        card: Some(card_details.clone()),
+        metadata: None,
+        customer_id: Some(customer_id.to_string()),
+        card_network: None,
+    };
+    match add_card_hs(state, req, card_details.clone(), customer_id.to_string(), merchant_account).await {
+        Ok(_) => {
+            Ok(card)
+        }
+        Err(e) => {
+            println!("customerId is {} and merchantId is {}",customer_id.to_string(), merchant_account.merchant_id);
+            logger::error!("Error while adding card to locker: {:?}", e);
+            Ok(card)
+        }
+    }
+}
+
+fn transform_card_to_card_detail(card: payment_methods::Card) -> api::CardDetail {
+    api::CardDetail {
+        card_exp_month: card.card_exp_month,
+        card_exp_year: card.card_exp_year,
+        card_holder_name:  card.name_on_card,
+        card_number: card.card_number,
+    }
+}
+
+
 pub async fn get_card_from_locker(
     state: &routes::AppState,
     customer_id: &str,

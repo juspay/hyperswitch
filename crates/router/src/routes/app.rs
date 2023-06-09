@@ -100,6 +100,17 @@ impl AppState {
     }
 }
 
+
+pub struct MigrateLegacyToBasilisk;
+
+impl MigrateLegacyToBasilisk {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/migrate-legacy-to-basilisk")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(super::migrate_legacy_to_basilisk::migrate_data_from_legacy_to_basilisk_hs)))
+    }
+}
+
 pub struct Health;
 
 impl Health {

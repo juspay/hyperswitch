@@ -22,7 +22,7 @@ pub struct StoreCardReq<'a> {
     pub card: Card,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Card {
     pub card_number: cards::CardNumber,
     pub name_on_card: Option<Secret<String>>,

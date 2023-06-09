@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, ExpressionMethods};
+use diesel::{associations::HasTable, ExpressionMethods, Table};
 use router_env::{instrument, tracing};
 
 use super::generics;
@@ -89,5 +89,21 @@ impl MerchantAccount {
             dsl::publishable_key.eq(publishable_key.to_owned()),
         )
         .await
+    }
+    
+    pub async fn find_all_merchants(conn: &PgPooledConn) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::merchant_id.is_not_null(),
+        None,
+        None,
+        None,
+    )
+    .await
     }
 }
