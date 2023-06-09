@@ -439,6 +439,7 @@ pub struct Connectors {
 #[serde(default)]
 pub struct ConnectorParams {
     pub base_url: String,
+    pub secondary_base_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -522,27 +523,6 @@ pub struct FileUploadConfig {
     pub region: String,
     /// The AWS s3 bucket to send file uploads
     pub bucket_name: String,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct DelayedSessionConfig {
-    #[serde(deserialize_with = "delayed_session_deser")]
-    pub connectors_with_delayed_session_response: HashSet<api_models::enums::Connector>,
-}
-
-fn delayed_session_deser<'a, D>(
-    deserializer: D,
-) -> Result<HashSet<api_models::enums::Connector>, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let value = <String>::deserialize(deserializer)?;
-    value
-        .trim()
-        .split(',')
-        .map(api_models::enums::Connector::from_str)
-        .collect::<Result<_, _>>()
-        .map_err(D::Error::custom)
 }
 
 impl Settings {
