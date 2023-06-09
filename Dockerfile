@@ -1,9 +1,11 @@
+# syntax=docker/dockerfile:1
 FROM rust:slim as builder
 
 ARG EXTRA_FEATURES=""
 
 RUN apt-get update \
-    && apt-get install -y libpq-dev libssl-dev pkg-config
+    && apt-get install -y --no-install-recommends libpq-dev libssl-dev pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copying codebase from current dir to /router dir
 # and creating a fresh build
@@ -18,9 +20,14 @@ WORKDIR /router
 # introduces *additional* overhead to support making future builds
 # faster...but no future builds will ever occur in any given CI environment.
 #
+
 # See https://matklad.github.io/2021/09/04/fast-rust-builds.html#ci-workflow
 # for details.
-ENV CARGO_INCREMENTAL=0
+# ENV CARGO_INCREMENTAL=0
+# with docker build cache, incremental builds may be useful
+ENV CARGO_INCREMENTAL=1
+ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
+
 # Allow more retries for network requests in cargo (downloading crates) and
 # rustup (installing toolchains). This should help to reduce flaky CI failures
 # from transient network timeouts or other issues.
@@ -29,10 +36,13 @@ ENV RUSTUP_MAX_RETRIES=10
 # Don't emit giant backtraces in the CI logs.
 ENV RUST_BACKTRACE="short"
 # Use cargo's sparse index protocol
-ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
+# ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
 
-COPY . .
-RUN cargo build --release --features release ${EXTRA_FEATURES}
+COPY --link . .
+RUN --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,sharing=private,target=/router/target \
+    cargo build --release --features release ${EXTRA_FEATURES}
 
 
 
@@ -53,7 +63,8 @@ ARG BINARY=router
 ARG SCHEDULER_FLOW=consumer
 
 RUN apt-get update \
-    && apt-get install -y ca-certificates tzdata libpq-dev curl procps
+    && apt-get install -y --no-install-recommends ca-certificates tzdata libpq-dev curl procps \
+    && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 8080
 
