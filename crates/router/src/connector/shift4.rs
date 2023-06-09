@@ -754,7 +754,7 @@ impl api::IncomingWebhook for Shift4 {
                 ),
             ))
         } else {
-            Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()
+            Err(errors::ConnectorError::WebhookReferenceIdNotFound).into_report()
         }
     }
 

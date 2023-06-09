@@ -636,12 +636,13 @@ impl From<Shift4WebhookEvent> for api::IncomingWebhookEvent {
     fn from(event: Shift4WebhookEvent) -> Self {
         match event {
             Shift4WebhookEvent::ChargeSucceeded | Shift4WebhookEvent::ChargeUpdated => {
+                //reference : https://dev.shift4.com/docs/api#event-types
                 Self::PaymentIntentProcessing
             }
             Shift4WebhookEvent::ChargeCaptured => Self::PaymentIntentSuccess,
             Shift4WebhookEvent::ChargeFailed => Self::PaymentIntentFailure,
             Shift4WebhookEvent::ChargeRefunded => Self::RefundSuccess,
-            Shift4WebhookEvent::Unknown => Self::EventNotSupported
+            Shift4WebhookEvent::Unknown => Self::EventNotSupported,
         }
     }
 }
