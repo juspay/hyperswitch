@@ -1918,13 +1918,6 @@ pub fn validate_and_add_order_details_to_payment_intent(
     let order_details_outside_metadata_req = request.clone().order_details;
     let order_details_metadata_req = request.clone().metadata.and_then(|meta| meta.order_details);
 
-    if order_details_outside_metadata_req
-        .clone()
-        .zip(order_details_metadata_req.clone())
-        .is_some()
-    {
-        Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
-    }
     if order_details_metadata_db
         .clone()
         .zip(order_details_outside_metadata_db.clone())
@@ -1963,22 +1956,23 @@ pub fn add_order_details_and_metadata_to_payment_intent(
     parsed_metadata_db: Option<api_models::payments::Metadata>,
     order_details_outside: &Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
 ) -> RouterResult<()> {
-    let metadata_with_order_details = request.clone().metadata.map(|meta| {
-        let transformed_metadata = match parsed_metadata_db {
-            Some(meta_db) => api_models::payments::Metadata {
-                order_details: meta.order_details,
-                ..meta_db
-            },
-            None => meta,
-        };
-        let transformed_metadata_value =
-            Encode::<api_models::payments::Metadata>::encode_to_value(&transformed_metadata)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Encoding Metadata to value failed")
-                .unwrap_or_default();
-        masking::Secret::new(transformed_metadata_value)
-    });
-
+    let metadata_with_order_details = match request.clone().metadata {
+        Some(meta) => {
+            let transformed_metadata = match parsed_metadata_db {
+                Some(meta_db) => api_models::payments::Metadata {
+                    order_details: meta.order_details,
+                    ..meta_db
+                },
+                None => meta,
+            };
+            let transformed_metadata_value =
+                Encode::<api_models::payments::Metadata>::encode_to_value(&transformed_metadata)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Encoding Metadata to value failed")?;
+            Some(masking::Secret::new(transformed_metadata_value))
+        }
+        None => None,
+    };
     if let Some(order_details_outside_struct) = order_details_outside {
         let order_details_outside_value = order_details_outside_struct
             .iter()

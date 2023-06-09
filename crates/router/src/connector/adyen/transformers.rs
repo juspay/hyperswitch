@@ -900,11 +900,12 @@ fn get_line_items(item: &types::PaymentsAuthorizeRouterData) -> Vec<LineItem> {
     match order_details {
         Some(od) => od
             .iter()
-            .map(|data: &payments::OrderDetailsWithAmount| LineItem {
+            .enumerate()
+            .map(|(i, data)| LineItem {
                 amount_including_tax: Some(data.amount),
                 amount_excluding_tax: Some(data.amount),
                 description: Some(data.product_name.clone()),
-                id: Some(common_utils::generate_id(consts::ID_LENGTH, "item_")),
+                id: Some(format!("Items #{i}")),
                 tax_amount: None,
                 quantity: Some(data.quantity),
             })
@@ -914,7 +915,7 @@ fn get_line_items(item: &types::PaymentsAuthorizeRouterData) -> Vec<LineItem> {
                 amount_including_tax: Some(item.request.amount),
                 amount_excluding_tax: Some(item.request.amount),
                 description: None,
-                id: Some(common_utils::generate_id(consts::ID_LENGTH, "item_")),
+                id: Some(String::from("Items #1")),
                 tax_amount: None,
                 quantity: Some(1),
             };

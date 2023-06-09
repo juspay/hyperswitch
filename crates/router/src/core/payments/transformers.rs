@@ -901,25 +901,24 @@ pub fn fetch_order_details<F: Clone>(
 ) -> RouterResult<Option<Vec<OrderDetailsWithAmount>>> {
     let order_details_metadata_parsed = parsed_metadata.and_then(|data| data.order_details);
     let order_details_outside_metadata_parsed =
-        payment_data.payment_intent.order_details.clone().map(
-            |order_details_outside_metadata_value| {
-                order_details_outside_metadata_value
+        match payment_data.payment_intent.order_details.clone() {
+            Some(order_details_outside_metadata_value) => {
+                let parsed_value = order_details_outside_metadata_value
                     .iter()
                     .map(|data| {
-                        let parsed_order_details: OrderDetailsWithAmount = data
-                            .peek()
+                        data.peek()
                             .to_owned()
                             .parse_value("OrderDetailsWithAmount")
                             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                                 field_name: "OrderDetailsWithAmount",
                             })
                             .attach_printable("unable to parse OrderDetailsWithAmount")
-                            .unwrap_or_default();
-                        parsed_order_details
                     })
-                    .collect::<Vec<OrderDetailsWithAmount>>()
-            },
-        );
+                    .collect::<Result<Vec<_>, _>>()?;
+                Some(parsed_value)
+            }
+            None => None,
+        };
     let order_details = match order_details_metadata_parsed {
         Some(odm) => change_order_details_to_new_type(
             additional_data.clone().payment_data.payment_intent.amount,

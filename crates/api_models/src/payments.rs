@@ -184,7 +184,11 @@ pub struct PaymentsRequest {
     pub metadata: Option<Metadata>,
 
     /// Information about the product , quantity and amount for connectors. (e.g. Klarna)
-    #[schema(value_type = Option<Vec<OrderDetailsWithAmount>>, example = "order_details as vector of objects")]
+    #[schema(value_type = Option<Vec<OrderDetailsWithAmount>>, example = r#"[{
+        "product_name": "gillete creme",
+        "quantity": 15,
+        "amount" : 900
+    }]"#)]
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
 
     /// It's a token used for client side verification.
@@ -1243,7 +1247,11 @@ pub struct PaymentsResponse {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Information about the product , quantity and amount for connectors. (e.g. Klarna)
-    #[schema(value_type = Option<Vec<OrderDetailsWithAmount>>, example = "order_details as vector of objects")]
+    #[schema(value_type = Option<Vec<OrderDetailsWithAmount>>, example = r#"[{
+        "product_name": "gillete creme",
+        "quantity": 15,
+        "amount" : 900
+    }]"#)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
 
     /// description: The customer's email address

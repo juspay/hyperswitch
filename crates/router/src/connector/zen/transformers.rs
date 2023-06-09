@@ -210,7 +210,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                     name: data.product_name.clone(),
                     quantity: data.quantity,
                     price: data.amount.to_string(),
-                    line_amount_total: item.request.amount.to_string(),
+                    line_amount_total: (i64::from(data.quantity) * data.amount).to_string(),
                 })
                 .collect(),
         })
