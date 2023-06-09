@@ -407,10 +407,7 @@ pub async fn create_payment_connector(
     merchant_id: &String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let key_store = store
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &store.get_master_key().to_vec().into(),
-        )
+        .get_merchant_key_store_by_merchant_id(merchant_id, &store.get_master_key().to_vec().into())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 

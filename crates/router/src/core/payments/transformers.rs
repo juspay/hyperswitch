@@ -52,7 +52,7 @@ where
         merchant_account.merchant_id.as_str(),
         &connector_label,
         payment_data.creds_identifier.to_owned(),
-        key_store
+        key_store,
     )
     .await?;
 

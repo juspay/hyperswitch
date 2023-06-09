@@ -1,4 +1,5 @@
 use error_stack::{IntoReport, ResultExt};
+use masking::Secret;
 
 use crate::{
     connection,
@@ -10,8 +11,6 @@ use crate::{
         behaviour::{Conversion, ReverseConversion},
     },
 };
-
-use masking::Secret;
 
 #[async_trait::async_trait]
 pub trait MerchantKeyStoreInterface {
