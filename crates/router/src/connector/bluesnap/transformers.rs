@@ -339,10 +339,11 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
     fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
         let redirection_response: BluesnapRedirectionResponse = item
             .request
-            .payload
-            .clone()
+            .redirect_response
+            .as_ref()
+            .and_then(|res| res.payload.to_owned())
             .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "request.payload",
+                field_name: "request.redirect_response.payload",
             })?
             .parse_value("BluesnapRedirectionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -699,7 +700,17 @@ pub struct BluesnapWebhookBody {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapWebhookObjectEventType {
-    pub transaction_type: String,
+    pub transaction_type: BluesnapWebhookEvents,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BluesnapWebhookEvents {
+    Decline,
+    CcChargeFailed,
+    Charge,
+    #[serde(other)]
+    Unknown,
 }
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]

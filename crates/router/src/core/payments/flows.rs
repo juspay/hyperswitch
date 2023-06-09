@@ -4,7 +4,7 @@ pub mod capture_flow;
 pub mod complete_authorize_flow;
 pub mod psync_flow;
 pub mod session_flow;
-pub mod verfiy_flow;
+pub mod verify_flow;
 
 use async_trait::async_trait;
 
@@ -16,7 +16,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage},
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -25,8 +25,8 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         &self,
         state: &AppState,
         connector_id: &str,
-        merchant_account: &storage::MerchantAccount,
-        customer: &Option<storage::Customer>,
+        merchant_account: &domain::MerchantAccount,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 }
 
@@ -36,9 +36,9 @@ pub trait Feature<F, T> {
         self,
         state: &AppState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<storage::Customer>,
+        maybe_customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -49,7 +49,7 @@ pub trait Feature<F, T> {
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult>
     where
         F: Clone,
@@ -87,14 +87,13 @@ pub trait Feature<F, T> {
         &self,
         _state: &AppState,
         _connector: &api::ConnectorData,
-        _connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
-    ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)>
+    ) -> RouterResult<Option<String>>
     where
         F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
-        Ok((None, None))
+        Ok(None)
     }
 }
 

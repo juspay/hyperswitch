@@ -180,10 +180,14 @@ impl ForeignFrom<(RapydPaymentStatus, NextAction)> for enums::AttemptStatus {
         let (status, next_action) = item;
         match (status, next_action) {
             (RapydPaymentStatus::Closed, _) => Self::Charged,
-            (RapydPaymentStatus::Active, NextAction::ThreedsVerification) => {
-                Self::AuthenticationPending
-            }
-            (RapydPaymentStatus::Active, NextAction::PendingCapture) => Self::Authorized,
+            (
+                RapydPaymentStatus::Active,
+                NextAction::ThreedsVerification | NextAction::PendingConfirmation,
+            ) => Self::AuthenticationPending,
+            (
+                RapydPaymentStatus::Active,
+                NextAction::PendingCapture | NextAction::NotApplicable,
+            ) => Self::Authorized,
             (
                 RapydPaymentStatus::CanceledByClientOrBank
                 | RapydPaymentStatus::Expired
@@ -217,6 +221,10 @@ pub enum NextAction {
     ThreedsVerification,
     #[serde(rename = "pending_capture")]
     PendingCapture,
+    #[serde(rename = "not_applicable")]
+    NotApplicable,
+    #[serde(rename = "pending_confirmation")]
+    PendingConfirmation,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -225,7 +233,7 @@ pub struct ResponseData {
     pub amount: i64,
     pub status: RapydPaymentStatus,
     pub next_action: NextAction,
-    pub redirect_url: Option<Url>,
+    pub redirect_url: Option<String>,
     pub original_amount: Option<i64>,
     pub is_partial: Option<bool>,
     pub currency_code: Option<enums::Currency>,
@@ -387,12 +395,20 @@ impl<F, T>
                         }),
                     ),
                     _ => {
-                        let redirection_data = data.redirect_url.as_ref().map(|redirect_url| {
-                            services::RedirectForm::from((
-                                redirect_url.to_owned(),
-                                services::Method::Get,
-                            ))
-                        });
+                        let redirction_url = data
+                            .redirect_url
+                            .as_ref()
+                            .filter(|redirect_str| !redirect_str.is_empty())
+                            .map(|url| {
+                                Url::parse(url).into_report().change_context(
+                                    errors::ConnectorError::FailedToObtainIntegrationUrl,
+                                )
+                            })
+                            .transpose()?;
+
+                        let redirection_data = redirction_url
+                            .map(|url| services::RedirectForm::from((url, services::Method::Get)));
+
                         (
                             attempt_status,
                             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -447,6 +463,8 @@ pub enum RapydWebhookObjectEventType {
     RefundCompleted,
     PaymentRefundRejected,
     PaymentRefundFailed,
+    #[serde(other)]
+    Unknown,
 }
 
 impl TryFrom<RapydWebhookObjectEventType> for api::IncomingWebhookEvent {
@@ -456,7 +474,10 @@ impl TryFrom<RapydWebhookObjectEventType> for api::IncomingWebhookEvent {
             RapydWebhookObjectEventType::PaymentCompleted => Ok(Self::PaymentIntentSuccess),
             RapydWebhookObjectEventType::PaymentCaptured => Ok(Self::PaymentIntentSuccess),
             RapydWebhookObjectEventType::PaymentFailed => Ok(Self::PaymentIntentFailure),
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+            RapydWebhookObjectEventType::Unknown
+            | RapydWebhookObjectEventType::RefundCompleted
+            | RapydWebhookObjectEventType::PaymentRefundRejected
+            | RapydWebhookObjectEventType::PaymentRefundFailed => Ok(Self::EventNotSupported),
         }
     }
 }
