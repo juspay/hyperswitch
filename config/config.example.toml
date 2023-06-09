@@ -96,6 +96,7 @@ use_xray_generator = false                            # Set this to true for AWS
 
 # This section provides some secret values.
 [secrets]
+master_enc_key = "sample_key"    # Master Encryption key used to encrypt merchant wise encryption key. Should be 32-byte long.
 admin_api_key = "test_admin"     # admin API key for admin authentication. Only applicable when KMS is disabled.
 kms_encrypted_admin_api_key = "" # Base64-encoded (KMS encrypted) ciphertext of the admin_api_key. Only applicable when KMS is enabled.
 jwt_secret = "secret"            # JWT secret used for user authentication. Only applicable when KMS is disabled.
@@ -246,7 +247,7 @@ region = "" # The AWS region used by the KMS SDK for decrypting data.
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]
 from_email = "notify@example.com" # Sender email
-aws_region = "" # AWS region used by AWS SES 
+aws_region = "" # AWS region used by AWS SES
 base_url = "" # Base url used when adding links that should redirect to self
 
 [dummy_connector]

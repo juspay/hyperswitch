@@ -3,6 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
+use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
 use transformers as noon;
 
@@ -14,8 +15,13 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
+    db::StorageInterface,
     headers,
-    services::{self, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -58,10 +64,12 @@ where
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -85,7 +93,7 @@ impl ConnectorCommon for Noon {
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = noon::NoonAuthType::try_from(auth_type)?;
 
         let encoded_api_key = consts::BASE64_ENGINE.encode(format!(
@@ -94,7 +102,7 @@ impl ConnectorCommon for Noon {
         ));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Key_Test {encoded_api_key}"),
+            format!("Key_Test {encoded_api_key}").into_masked(),
         )])
     }
 
@@ -139,7 +147,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -217,7 +225,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -283,7 +291,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -359,7 +367,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -431,7 +439,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -504,7 +512,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -579,24 +587,115 @@ impl services::ConnectorRedirectResponse for Noon {
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Noon {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha512))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let webhook_body: noon::NoonWebhookSignature = request
+            .body
+            .parse_struct("NoonWebhookSignature")
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let signature = webhook_body.signature;
+        consts::BASE64_ENGINE
+            .decode(signature)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &str,
+        _secret: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let webhook_body: noon::NoonWebhookBody = request
+            .body
+            .parse_struct("NoonWebhookBody")
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let message = format!(
+            "{},{},{},{},{}",
+            webhook_body.order_id,
+            webhook_body.order_status,
+            webhook_body.event_id,
+            webhook_body.event_type,
+            webhook_body.time_stamp,
+        );
+        Ok(message.into_bytes())
+    }
+
+    async fn get_webhook_source_verification_merchant_secret(
+        &self,
+        db: &dyn StorageInterface,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
+        let secret = match db.find_config_by_key(&key).await {
+            Ok(config) => Some(config),
+            Err(e) => {
+                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
+                None
+            }
+        };
+        Ok(secret
+            .map(|conf| conf.config.into_bytes())
+            .unwrap_or_default())
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let details: noon::NoonWebhookOrderId = request
+            .body
+            .parse_struct("NoonWebhookOrderId")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(
+                details.order_id.to_string(),
+            ),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let details: noon::NoonWebhookEvent = request
+            .body
+            .parse_struct("NoonWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+        Ok(match &details.event_type {
+            noon::NoonWebhookEventTypes::Sale | noon::NoonWebhookEventTypes::Capture => {
+                match &details.order_status {
+                    noon::NoonPaymentStatus::Captured => {
+                        api::IncomingWebhookEvent::PaymentIntentSuccess
+                    }
+                    _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
+                }
+            }
+            noon::NoonWebhookEventTypes::Fail => api::IncomingWebhookEvent::PaymentIntentFailure,
+            noon::NoonWebhookEventTypes::Authorize
+            | noon::NoonWebhookEventTypes::Authenticate
+            | noon::NoonWebhookEventTypes::Refund
+            | noon::NoonWebhookEventTypes::Unknown => api::IncomingWebhookEvent::EventNotSupported,
+        })
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let reference_object: serde_json::Value = serde_json::from_slice(request.body)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(reference_object)
     }
 }

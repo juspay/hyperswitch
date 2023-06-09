@@ -33,10 +33,14 @@ use crate::{
     },
     db, logger,
     pii::prelude::*,
-    routes::{self, metrics},
+    routes::{
+        self,
+        metrics::{self, request},
+    },
     services,
     types::{
         api::{self, PaymentMethodCreateExt},
+        domain::{self},
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -73,7 +77,7 @@ pub async fn create_payment_method(
 pub async fn add_payment_method(
     state: &routes::AppState,
     req: api::PaymentMethodCreate,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     req.validate()?;
     let merchant_id = &merchant_account.merchant_id;
@@ -107,7 +111,7 @@ pub async fn add_payment_method(
 #[instrument(skip_all)]
 pub async fn update_customer_payment_method(
     state: &routes::AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: api::PaymentMethodUpdate,
     payment_method_id: &str,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
@@ -152,10 +156,10 @@ pub async fn add_card_to_locker(
     req: api::PaymentMethodCreate,
     card: api::CardDetail,
     customer_id: String,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> errors::CustomResult<(api::PaymentMethodResponse, bool), errors::VaultError> {
     metrics::STORED_TO_LOCKER.add(&metrics::CONTEXT, 1, &[]);
-    metrics::request::record_card_operation_time(
+    request::record_operation_time(
         async {
             match state.conf.locker.locker_setup {
                 settings::LockerSetup::BasiliskLocker => {
@@ -184,7 +188,7 @@ pub async fn get_card_from_locker(
 ) -> errors::RouterResult<payment_methods::Card> {
     metrics::GET_FROM_LOCKER.add(&metrics::CONTEXT, 1, &[]);
 
-    metrics::request::record_card_operation_time(
+    request::record_operation_time(
         async {
             match state.conf.locker.locker_setup {
                 settings::LockerSetup::LegacyLocker => {
@@ -220,7 +224,7 @@ pub async fn delete_card_from_locker(
 ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
     metrics::DELETE_FROM_LOCKER.add(&metrics::CONTEXT, 1, &[]);
 
-    metrics::request::record_card_operation_time(
+    request::record_operation_time(
         async {
             match state.conf.locker.locker_setup {
                 settings::LockerSetup::LegacyLocker => {
@@ -247,7 +251,7 @@ pub async fn add_card_hs(
     req: api::PaymentMethodCreate,
     card: api::CardDetail,
     customer_id: String,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> errors::CustomResult<(api::PaymentMethodResponse, bool), errors::VaultError> {
     let locker = &state.conf.locker;
     #[cfg(not(feature = "kms"))]
@@ -257,12 +261,6 @@ pub async fn add_card_hs(
 
     let db = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
-
-    let _ = merchant_account
-        .locker_id
-        .to_owned()
-        .get_required_value("locker_id")
-        .change_context(errors::VaultError::SaveCardFailed)?;
 
     let request =
         payment_methods::mk_add_card_request_hs(jwekey, locker, &card, &customer_id, merchant_id)
@@ -313,7 +311,7 @@ pub async fn add_card(
     req: api::PaymentMethodCreate,
     card: api::CardDetail,
     customer_id: String,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> errors::CustomResult<(api::PaymentMethodResponse, bool), errors::VaultError> {
     let locker = &state.conf.locker;
     let db = &*state.store;
@@ -766,7 +764,7 @@ pub fn get_banks(
 
 pub async fn list_payment_methods(
     state: &routes::AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     mut req: api::PaymentMethodListRequest,
 ) -> errors::RouterResponse<api::PaymentMethodListResponse> {
     let db = &*state.store;
@@ -1125,7 +1123,7 @@ pub async fn filter_payment_methods(
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,
     payment_intent: Option<&storage::PaymentIntent>,
     payment_attempt: Option<&storage::PaymentAttempt>,
-    address: Option<&storage::Address>,
+    address: Option<&domain::Address>,
     connector: String,
     config: &settings::ConnectorFilters,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
@@ -1510,7 +1508,7 @@ fn filter_installment_based(
 
 async fn filter_payment_country_based(
     pm: &RequestPaymentMethodTypes,
-    address: Option<&storage::Address>,
+    address: Option<&domain::Address>,
 ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
     Ok(address.map_or(true, |address| {
         address.country.as_ref().map_or(true, |country| {
@@ -1559,7 +1557,7 @@ async fn filter_payment_mandate_based(
 
 pub async fn list_customer_payment_method(
     state: &routes::AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     customer_id: &str,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
@@ -1859,7 +1857,7 @@ impl BasiliskCardSupport {
 pub async fn retrieve_payment_method(
     state: &routes::AppState,
     pm: api::PaymentMethodId,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
     let pm = db
@@ -1904,7 +1902,7 @@ pub async fn retrieve_payment_method(
 #[instrument(skip_all)]
 pub async fn delete_payment_method(
     state: &routes::AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     pm: api::PaymentMethodId,
 ) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
     let (_, supplementary_data) =

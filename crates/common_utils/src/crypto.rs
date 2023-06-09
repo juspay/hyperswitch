@@ -1,11 +1,69 @@
 //! Utilities for cryptographic algorithms
+use std::ops::Deref;
+
 use error_stack::{IntoReport, ResultExt};
 use md5;
-use ring::{aead, hmac};
+use ring::{
+    aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
+    hmac,
+};
 
-use crate::errors::{self, CustomResult};
+use crate::{
+    errors::{self, CustomResult},
+    pii,
+};
 
-const RING_ERR_UNSPECIFIED: &str = "ring::error::Unspecified";
+#[derive(Clone, Debug)]
+struct NonceSequence(u128);
+
+impl NonceSequence {
+    /// Byte index at which sequence number starts in a 16-byte (128-bit) sequence.
+    /// This byte index considers the big endian order used while encoding and decoding the nonce
+    /// to/from a 128-bit unsigned integer.
+    const SEQUENCE_NUMBER_START_INDEX: usize = 4;
+
+    /// Generate a random nonce sequence.
+    fn new() -> Result<Self, ring::error::Unspecified> {
+        use ring::rand::{SecureRandom, SystemRandom};
+
+        let rng = SystemRandom::new();
+
+        // 96-bit sequence number, stored in a 128-bit unsigned integer in big-endian order
+        let mut sequence_number = [0_u8; 128 / 8];
+        rng.fill(&mut sequence_number[Self::SEQUENCE_NUMBER_START_INDEX..])?;
+        let sequence_number = u128::from_be_bytes(sequence_number);
+
+        Ok(Self(sequence_number))
+    }
+
+    /// Returns the current nonce value as bytes.
+    fn current(&self) -> [u8; ring::aead::NONCE_LEN] {
+        let mut nonce = [0_u8; ring::aead::NONCE_LEN];
+        nonce.copy_from_slice(&self.0.to_be_bytes()[Self::SEQUENCE_NUMBER_START_INDEX..]);
+        nonce
+    }
+
+    /// Constructs a nonce sequence from bytes
+    fn from_bytes(bytes: [u8; ring::aead::NONCE_LEN]) -> Self {
+        let mut sequence_number = [0_u8; 128 / 8];
+        sequence_number[Self::SEQUENCE_NUMBER_START_INDEX..].copy_from_slice(&bytes);
+        let sequence_number = u128::from_be_bytes(sequence_number);
+        Self(sequence_number)
+    }
+}
+
+impl ring::aead::NonceSequence for NonceSequence {
+    fn advance(&mut self) -> Result<ring::aead::Nonce, ring::error::Unspecified> {
+        let mut nonce = [0_u8; ring::aead::NONCE_LEN];
+        nonce.copy_from_slice(&self.0.to_be_bytes()[Self::SEQUENCE_NUMBER_START_INDEX..]);
+
+        // Increment sequence number
+        self.0 = self.0.wrapping_add(1);
+
+        // Return previous sequence number as bytes
+        Ok(ring::aead::Nonce::assume_unique_for_key(nonce))
+    }
+}
 
 /// Trait for cryptographically signing messages
 pub trait SignMessage {
@@ -36,7 +94,7 @@ pub trait EncodeMessage {
         &self,
         _secret: &[u8],
         _msg: &[u8],
-    ) -> CustomResult<(Vec<u8>, Vec<u8>), errors::CryptoError>;
+    ) -> CustomResult<Vec<u8>, errors::CryptoError>;
 }
 
 /// Trait for cryptographically decoding a message
@@ -45,7 +103,7 @@ pub trait DecodeMessage {
     fn decode_message(
         &self,
         _secret: &[u8],
-        _msg: &[u8],
+        _msg: Vec<u8>,
     ) -> CustomResult<Vec<u8>, errors::CryptoError>;
 }
 
@@ -80,8 +138,8 @@ impl EncodeMessage for NoAlgorithm {
         &self,
         _secret: &[u8],
         msg: &[u8],
-    ) -> CustomResult<(Vec<u8>, Vec<u8>), errors::CryptoError> {
-        Ok((msg.to_vec(), Vec::new()))
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        Ok(msg.to_vec())
     }
 }
 
@@ -89,7 +147,7 @@ impl DecodeMessage for NoAlgorithm {
     fn decode_message(
         &self,
         _secret: &[u8],
-        msg: &[u8],
+        msg: Vec<u8>,
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
         Ok(msg.to_vec())
     }
@@ -153,36 +211,30 @@ impl VerifySignature for HmacSha512 {
 
 /// Represents the GCM-AES-256 algorithm
 #[derive(Debug)]
-pub struct GcmAes256 {
-    nonce: Vec<u8>,
-}
+pub struct GcmAes256;
 
 impl EncodeMessage for GcmAes256 {
     fn encode_message(
         &self,
         secret: &[u8],
         msg: &[u8],
-    ) -> CustomResult<(Vec<u8>, Vec<u8>), errors::CryptoError> {
-        let unbound_key = aead::UnboundKey::new(&aead::AES_256_GCM, secret)
-            .map_err(|_| errors::CryptoError::EncodingFailed)
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let nonce_sequence = NonceSequence::new()
             .into_report()
-            .attach_printable(RING_ERR_UNSPECIFIED)?;
-
-        let nonce = aead::Nonce::try_assume_unique_for_key(&self.nonce)
-            .map_err(|_| errors::CryptoError::EncodingFailed)
+            .change_context(errors::CryptoError::EncodingFailed)?;
+        let current_nonce = nonce_sequence.current();
+        let key = UnboundKey::new(&aead::AES_256_GCM, secret)
             .into_report()
-            .attach_printable(RING_ERR_UNSPECIFIED)?;
+            .change_context(errors::CryptoError::EncodingFailed)?;
+        let mut key = SealingKey::new(key, nonce_sequence);
+        let mut in_out = msg.to_vec();
 
-        let sealing_key = aead::LessSafeKey::new(unbound_key);
-        let mut mutable_msg = msg.to_vec();
-
-        let tag = sealing_key
-            .seal_in_place_separate_tag(nonce, aead::Aad::empty(), &mut mutable_msg)
-            .map_err(|_| errors::CryptoError::EncodingFailed)
+        key.seal_in_place_append_tag(aead::Aad::empty(), &mut in_out)
             .into_report()
-            .attach_printable(RING_ERR_UNSPECIFIED)?;
+            .change_context(errors::CryptoError::EncodingFailed)?;
+        in_out.splice(0..0, current_nonce);
 
-        Ok((mutable_msg, tag.as_ref().to_vec()))
+        Ok(in_out)
     }
 }
 
@@ -190,29 +242,29 @@ impl DecodeMessage for GcmAes256 {
     fn decode_message(
         &self,
         secret: &[u8],
-        msg: &[u8],
+        msg: Vec<u8>,
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
-        let unbound_key = aead::UnboundKey::new(&aead::AES_256_GCM, secret)
-            .map_err(|_| errors::CryptoError::DecodingFailed)
+        let key = UnboundKey::new(&aead::AES_256_GCM, secret)
             .into_report()
-            .attach_printable(RING_ERR_UNSPECIFIED)?;
+            .change_context(errors::CryptoError::DecodingFailed)?;
 
-        let nonce = aead::Nonce::try_assume_unique_for_key(&self.nonce)
-            .map_err(|_| errors::CryptoError::DecodingFailed)
+        let nonce_sequence = NonceSequence::from_bytes(
+            msg[..ring::aead::NONCE_LEN]
+                .try_into()
+                .into_report()
+                .change_context(errors::CryptoError::DecodingFailed)?,
+        );
+
+        let mut key = OpeningKey::new(key, nonce_sequence);
+        let mut binding = msg;
+        let output = binding.as_mut_slice();
+
+        let result = key
+            .open_within(aead::Aad::empty(), output, ring::aead::NONCE_LEN..)
             .into_report()
-            .attach_printable(RING_ERR_UNSPECIFIED)?;
+            .change_context(errors::CryptoError::DecodingFailed)?;
 
-        let opening_key = aead::LessSafeKey::new(unbound_key);
-
-        let mut mutable_msg = msg.to_vec();
-
-        let output = opening_key
-            .open_in_place(nonce, aead::Aad::empty(), &mut mutable_msg)
-            .map_err(|_| errors::CryptoError::DecodingFailed)
-            .into_report()
-            .attach_printable(RING_ERR_UNSPECIFIED)?;
-
-        Ok(output.to_vec())
+        Ok(result.into())
     }
 }
 
@@ -321,6 +373,84 @@ pub fn generate_cryptographically_secure_random_bytes<const N: usize>() -> [u8; 
     rand::rngs::OsRng.fill_bytes(&mut bytes);
     bytes
 }
+
+///
+/// A wrapper type to store the encrypted data for sensitive pii domain data types
+///
+#[derive(Debug, Clone)]
+pub struct Encryptable<T: Clone> {
+    inner: T,
+    encrypted: Vec<u8>,
+}
+
+impl<T: Clone, S: masking::Strategy<T>> Encryptable<masking::Secret<T, S>> {
+    ///
+    /// constructor function to be used by the encryptor and decryptor to generate the data type
+    ///
+    pub fn new(masked_data: masking::Secret<T, S>, encrypted_data: Vec<u8>) -> Self {
+        Self {
+            inner: masked_data,
+            encrypted: encrypted_data,
+        }
+    }
+}
+
+impl<T: Clone> Encryptable<T> {
+    ///
+    /// Get the inner data while consumping self
+    ///
+    pub fn into_inner(self) -> T {
+        self.inner
+    }
+    ///
+    /// Get the inner encrypted data while consuming self
+    ///
+    pub fn into_encrypted(self) -> Vec<u8> {
+        self.encrypted
+    }
+}
+
+impl<T: Clone> Deref for Encryptable<masking::Secret<T>> {
+    type Target = masking::Secret<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<T: Clone> masking::Serialize for Encryptable<T>
+where
+    T: masking::Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.inner.serialize(serializer)
+    }
+}
+
+impl<T: Clone> PartialEq for Encryptable<T>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.inner.eq(&other.inner)
+    }
+}
+
+/// Type alias for `Option<Encryptable<Secret<String>>>`
+pub type OptionalEncryptableSecretString = Option<Encryptable<masking::Secret<String>>>;
+/// Type alias for `Option<Encryptable<Secret<String>>>` used for `name` field
+pub type OptionalEncryptableName = Option<Encryptable<masking::Secret<String>>>;
+/// Type alias for `Option<Encryptable<Secret<String>>>` used for `email` field
+pub type OptionalEncryptableEmail =
+    Option<Encryptable<masking::Secret<String, pii::EmailStrategy>>>;
+/// Type alias for `Option<Encryptable<Secret<String>>>` used for `phone` field
+pub type OptionalEncryptablePhone = Option<Encryptable<masking::Secret<String>>>;
+/// Type alias for `Option<Encryptable<Secret<serde_json::Value>>>` used for `phone` field
+pub type OptionalEncryptableValue = Option<Encryptable<masking::Secret<serde_json::Value>>>;
+/// Type alias for `Option<Secret<serde_json::Value>>` used for `phone` field
+pub type OptionalSecretValue = Option<masking::Secret<serde_json::Value>>;
 
 #[cfg(test)]
 mod crypto_tests {
@@ -434,22 +564,18 @@ mod crypto_tests {
         let secret =
             hex::decode("000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f")
                 .expect("Secret decoding");
-        let nonce = hex::decode("000000000000000000000000").expect("Nonce hex decoding");
-        let actual_encoded_message =
-            hex::decode("0A3471C72D9BE49A8520F79C66BBD9A12FF9").expect("Message decoding");
-        let actual_auth_tag =
-            hex::decode("CE573FB7A41AB78E743180DC83FF09BD").expect("Auth tag decoding");
+        let algorithm = super::GcmAes256;
 
-        let algorithm = super::GcmAes256 {
-            nonce: nonce.to_vec(),
-        };
-
-        let (encoded_message, auth_tag) = algorithm
+        let encoded_message = algorithm
             .encode_message(&secret, message)
             .expect("Encoded message and tag");
 
-        assert_eq!(encoded_message, actual_encoded_message);
-        assert_eq!(auth_tag, actual_auth_tag);
+        assert_eq!(
+            algorithm
+                .decode_message(&secret, encoded_message)
+                .expect("Decode Failed"),
+            message
+        );
     }
 
     #[test]
@@ -460,25 +586,20 @@ mod crypto_tests {
         let wrong_secret =
             hex::decode("000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0e")
                 .expect("Secret decoding");
-        let nonce = hex::decode("000000000000000000000000").expect("Nonce hex decoding");
-        let mut auth_tag =
-            hex::decode("CE573FB7A41AB78E743180DC83FF09BD").expect("Auth tag decoding");
-        let mut message =
+        let message =
             hex::decode("0A3471C72D9BE49A8520F79C66BBD9A12FF9").expect("Message decoding");
 
-        message.append(&mut auth_tag);
-
         let algorithm = super::GcmAes256 {
-            nonce: nonce.to_vec(),
+            // nonce: nonce.to_vec(),
         };
 
         let decoded = algorithm
-            .decode_message(&right_secret, &message)
+            .decode_message(&right_secret, message.clone())
             .expect("Decoded message");
 
         assert_eq!(decoded, r#"{"type":"PAYMENT"}"#.as_bytes());
 
-        let err_decoded = algorithm.decode_message(&wrong_secret, &message);
+        let err_decoded = algorithm.decode_message(&wrong_secret, message);
 
         assert!(err_decoded.is_err());
     }

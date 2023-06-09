@@ -7,6 +7,7 @@
 // Separation of concerns instead of separation of forms.
 
 pub mod api;
+pub mod domain;
 pub mod storage;
 pub mod transformers;
 
@@ -225,6 +226,7 @@ pub struct PaymentsAuthorizeData {
     pub setup_mandate_details: Option<payments::MandateData>,
     pub browser_info: Option<BrowserInformation>,
     pub order_details: Option<api_models::payments::OrderDetails>,
+    pub order_category: Option<String>,
     pub session_token: Option<String>,
     pub enrolled_for_3ds: bool,
     pub related_transaction_id: Option<String>,
@@ -284,10 +286,16 @@ pub struct CompleteAuthorizeData {
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
-    pub payload: Option<serde_json::Value>,
+    pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CompleteAuthorizeRedirectResponse {
+    pub params: Option<Secret<String>>,
+    pub payload: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -367,6 +375,7 @@ pub enum PaymentsResponseData {
     },
     SessionResponse {
         session_token: api::SessionToken,
+        response_id: Option<String>,
     },
     SessionTokenResponse {
         session_token: String,
@@ -722,6 +731,7 @@ impl From<&VerifyRouterData> for PaymentsAuthorizeData {
             complete_authorize_url: None,
             browser_info: None,
             order_details: None,
+            order_category: None,
             session_token: None,
             enrolled_for_3ds: true,
             related_transaction_id: None,

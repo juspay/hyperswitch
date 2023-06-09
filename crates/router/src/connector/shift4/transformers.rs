@@ -330,6 +330,8 @@ pub enum Shift4WebhookEvent {
     ChargeUpdated,
     ChargeCaptured,
     ChargeRefunded,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
@@ -639,6 +641,7 @@ impl From<Shift4WebhookEvent> for api::IncomingWebhookEvent {
             Shift4WebhookEvent::ChargeCaptured => Self::PaymentIntentSuccess,
             Shift4WebhookEvent::ChargeFailed => Self::PaymentIntentFailure,
             Shift4WebhookEvent::ChargeRefunded => Self::RefundSuccess,
+            Shift4WebhookEvent::Unknown => Self::EventNotSupported
         }
     }
 }
