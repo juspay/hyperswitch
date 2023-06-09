@@ -1,6 +1,6 @@
 use api_models::enums as api_enums;
 use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
 use storage_models::enums as storage_enums;
 
@@ -611,11 +611,13 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
             business_sub_label: item.business_sub_label,
             frm_configs,
             connector_webhook_details: match item.connector_webhook_details {
-                Some(webhook_details) => serde_json::from_value(webhook_details.expose())
-                    .into_report()
-                    .attach_printable("Unable to deserialize connector_webhook_details")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .map(Some)?,
+                Some(webhook_details) => serde_json::Value::parse_value(
+                    webhook_details.expose(),
+                    "MerchantConnectorWebhookDetails",
+                )
+                .attach_printable("Unable to deserialize connector_webhook_details")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .map(Some)?,
                 None => None,
             },
         })

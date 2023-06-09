@@ -4,13 +4,12 @@ use common_utils::{
     date_time,
     ext_traits::{Encode, ValueExt},
 };
-use error_stack::{report, FutureExt, IntoReport, ResultExt};
-use masking::{ExposeInterface, PeekInterface, Secret};
-use storage_models::{configs::ConfigNew, enums};
+use error_stack::{report, FutureExt, ResultExt};
+use masking::Secret;
+use storage_models::enums;
 use uuid::Uuid;
 
 use crate::{
-    connector::utils as conn_utils,
     consts,
     core::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
@@ -475,7 +474,9 @@ pub async fn create_payment_connector(
                     &connector_webhook_details,
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .map(|value| Some(Secret::new(value)))?
+                .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {}", merchant_id))
+                .map(Some)?
+                .map(masking::Secret::new)
             }
             None => None,
         },
@@ -489,24 +490,6 @@ pub async fn create_payment_connector(
                 connector_label: connector_label.clone(),
             },
         )?;
-    if let Some(connector_webhook_details) = mca.connector_webhook_details.clone() {
-        let connector_webhook: api_models::admin::MerchantConnectorWebhookDetails =
-            serde_json::from_value(connector_webhook_details.peek().to_owned())
-                .into_report()
-                .attach_printable("failed to deserialize connector_webhook_details")
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        let config_key = conn_utils::get_webhook_merchant_secret_key(&connector_label, merchant_id);
-        store
-            .insert_config(ConfigNew {
-                key: config_key,
-                config: connector_webhook.merchant_secret.expose(),
-            })
-            .await
-            .attach_printable(format!(
-                "failed to create merchant_secret for merchant: {merchant_id}"
-            ))
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    };
 
     metrics::MCA_CREATE.add(
         &metrics::CONTEXT,
@@ -634,7 +617,8 @@ pub async fn update_payment_connector(
                     connector_webhook_details,
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .map(|value| Some(Secret::new(value)))?
+                .map(Some)?
+                .map(masking::Secret::new)
             }
             None => None,
         },
@@ -647,32 +631,6 @@ pub async fn update_payment_connector(
         .attach_printable_lazy(|| {
             format!("Failed while updating MerchantConnectorAccount: id: {merchant_connector_id}")
         })?;
-
-    if req.connector_webhook_details.is_some() {
-        //check if connector_webhook_details field was present in update request body
-        if let Some(connector_webhook_details) = updated_mca.connector_webhook_details.clone() {
-            let connector_webhook: api_models::admin::MerchantConnectorWebhookDetails =
-                serde_json::from_value(connector_webhook_details.peek().to_owned())
-                    .into_report()
-                    .attach_printable("failed to deserialize connector_webhook_details")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            let config_key = conn_utils::get_webhook_merchant_secret_key(
-                &updated_mca.connector_label,
-                merchant_id,
-            );
-            db.update_config_cached(
-                &config_key,
-                storage_models::configs::ConfigUpdate::Update {
-                    config: Some(connector_webhook.merchant_secret.expose()),
-                },
-            )
-            .await
-            .attach_printable(format!(
-                "failed to update merchant_secret for merchant: {merchant_id}"
-            ))
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        };
-    }
 
     let response = updated_mca.try_into()?;
 
@@ -689,7 +647,7 @@ pub async fn delete_payment_connector(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let mca = db
+    let _mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &merchant_id,
             &merchant_connector_id,
@@ -709,18 +667,6 @@ pub async fn delete_payment_connector(
             id: merchant_connector_id.clone(),
         })?;
 
-    if is_deleted {
-        if let Some(_connector_webhook_details) = mca.connector_webhook_details.clone() {
-            let config_key =
-                conn_utils::get_webhook_merchant_secret_key(&mca.connector_label, &merchant_id);
-            db.delete_config_by_key(&config_key)
-                .await
-                .attach_printable(format!(
-                    "failed to delete merchant_secret for merchant: {merchant_id}"
-                ))
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        };
-    }
     let response = api::MerchantConnectorDeleteResponse {
         merchant_id,
         merchant_connector_id,

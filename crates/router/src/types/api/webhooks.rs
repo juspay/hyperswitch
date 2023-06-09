@@ -1,12 +1,14 @@
+use api_models::admin::MerchantConnectorWebhookDetails;
 pub use api_models::webhooks::{
     IncomingWebhookDetails, IncomingWebhookEvent, MerchantWebhookConfig, ObjectReferenceId,
     OutgoingWebhook, OutgoingWebhookContent, OutgoingWebhookType, WebhookFlow,
 };
-use error_stack::ResultExt;
+use common_utils::ext_traits::ValueExt;
+use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 
 use super::ConnectorCommon;
 use crate::{
-    connector::utils as conn_utils,
     core::errors::{self, CustomResult},
     db::StorageInterface,
     services,
@@ -78,17 +80,52 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         merchant_id: &str,
         connector_label: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = conn_utils::get_webhook_merchant_secret_key(connector_label, merchant_id);
-        let secret = match db.find_config_by_key_cached(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
+        let debug_suffix = format!(
+            "For merchant_id: {}, and connector_label: {}",
+            merchant_id, connector_label
+        );
+        let merchant_connector_webhook_details = db
+            .find_merchant_connector_account_by_merchant_id_connector_label(
+                merchant_id,
+                connector_label,
+            )
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .attach_printable_lazy(|| {
+                crate::logger::warn!(
+                    "Fetch merchant_webhook_secret from MCA table failed {}",
+                    debug_suffix
+                );
+                format!(
+                    "Fetch merchant_webhook_secret from MCA table failed {}",
+                    debug_suffix
+                )
+            })?
+            .connector_webhook_details;
+        let merchant_secret = merchant_connector_webhook_details
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .into_report()
+            .attach_printable_lazy(|| {
+                crate::logger::warn!("Merchant Secret not configured {}", debug_suffix);
+                format!("Merchant Secret not configured {}", debug_suffix)
+            })?
+            .expose()
+            .parse_value::<MerchantConnectorWebhookDetails>("MerchantConnectorWebhookDetails")
+            .change_context_lazy(|| errors::ConnectorError::WebhookSourceVerificationFailed)
+            .attach_printable_lazy(|| {
+                crate::logger::warn!(
+                    "Deserializing MerchantConnectorWebhookDetails failed {}",
+                    debug_suffix
+                );
+                format!(
+                    "Deserializing MerchantConnectorWebhookDetails failed {}",
+                    debug_suffix
+                )
+            })?
+            .merchant_secret
+            .expose();
+        //need to fetch merchant secret from config table with caching in future for enhanced performance
+        Ok(merchant_secret.into_bytes())
     }
 
     fn get_webhook_source_verification_signature(
