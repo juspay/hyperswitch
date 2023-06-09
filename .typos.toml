@@ -2,6 +2,9 @@
 check-filename = true
 
 [default.extend-identifiers]
+ZAR = "ZAR" # South African rand
+CAF = "CAF"
+NAM = "NAM"
 BA = "BA"  # Bosnia and Herzegovina country code
 flate2 = "flate2"
 FO = "FO"  # Faroe Islands (the) country code
@@ -13,6 +16,8 @@ SOM = "SOM"  # Somalia country code
 THA = "THA"  # Thailand country code
 
 [default.extend-words]
+fpt = "fpt" # Prefix used for card identifier
+Regio = "Regio" # Bank name
 aci = "aci"                   # Name of a connector
 encrypter = "encrypter"       # Used by the `ring` crate
 nin = "nin"                   # National identification number, a field used by PayU connector
