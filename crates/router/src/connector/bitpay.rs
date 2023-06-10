@@ -109,9 +109,9 @@ impl ConnectorCommon for Bitpay {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.code.unwrap_or(format!("{}", res.status_code)),
+            message: response.error,
+            reason: response.message,
         })
     }
 }

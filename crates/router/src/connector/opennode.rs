@@ -103,9 +103,9 @@ impl ConnectorCommon for Opennode {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
+            code: format!("{}", res.status_code),
             message: response.message,
-            reason: response.reason,
+            reason: None,
         })
     }
 }
