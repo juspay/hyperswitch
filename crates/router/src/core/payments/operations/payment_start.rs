@@ -234,19 +234,6 @@ where
         .await
     }
 
-    #[instrument(skip_all)]
-    async fn make_pm_data<'a>(
-        &'a self,
-        state: &'a AppState,
-        payment_data: &mut PaymentData<F>,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsStartRequest>,
-        Option<api::PaymentMethodData>,
-    )> {
-        helpers::make_pm_data(Box::new(self), state, payment_data).await
-    }
-
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
