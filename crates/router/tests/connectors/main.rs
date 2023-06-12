@@ -7,7 +7,7 @@
 
 mod aci;
 mod adyen;
-mod adyen_ui;
+mod adyen_uk_ui;
 mod airwallex;
 mod authorizedotnet;
 mod bambora;
@@ -35,6 +35,7 @@ mod opennode;
 mod payeezy;
 mod paypal;
 mod payu;
+mod payu_ui;
 mod rapyd;
 mod selenium;
 mod shift4;
@@ -43,5 +44,6 @@ mod stripe_ui;
 mod trustpay;
 mod utils;
 mod worldline;
+mod worldline_ui;
 mod worldpay;
 mod zen;

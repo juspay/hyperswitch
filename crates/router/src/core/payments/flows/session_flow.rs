@@ -123,7 +123,7 @@ fn mk_applepay_session_request(
         .attach_default_headers()
         .headers(vec![(
             headers::CONTENT_TYPE.to_string(),
-            "application/json".to_string(),
+            "application/json".to_string().into(),
         )])
         .body(Some(applepay_session_request))
         .add_certificate(Some(

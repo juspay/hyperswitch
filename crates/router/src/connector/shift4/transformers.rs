@@ -325,6 +325,8 @@ pub struct Shift4WebhookObjectEventType {
 #[derive(Debug, Deserialize)]
 pub enum Shift4WebhookEvent {
     ChargeSucceeded,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
