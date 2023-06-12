@@ -13,7 +13,6 @@ use crate::{
     types::{
         api::{admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignTryFrom},
-        BrowserInformation,
     },
 };
 
@@ -150,6 +149,7 @@ pub struct StripePaymentIntentRequest {
     pub mandate_id: Option<String>,
     pub off_session: Option<bool>,
     pub receipt_ipaddress: Option<String>,
+    pub user_agent: Option<String>,
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
@@ -243,8 +243,9 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             off_session: item.off_session,
             routing,
             browser_info: Some(
-                serde_json::to_value(BrowserInformation {
+                serde_json::to_value(crate::types::BrowserInformation {
                     ip_address,
+                    user_agent: item.user_agent,
                     ..Default::default()
                 })
                 .into_report()
