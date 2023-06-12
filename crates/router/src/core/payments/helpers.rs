@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use ::cards::{CardExpiration, CardExpirationMonth, CardExpirationYear, CardSecurityCode};
+use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
@@ -36,7 +37,7 @@ use crate::{
             self,
             types::{self, AsyncLift},
         },
-        storage::{self, enums as storage_enums, ephemeral_key},
+        storage::{self, enums as storage_enums, ephemeral_key, CustomerUpdate::Update},
         transformers::ForeignInto,
         ErrorResponse, RouterData,
     },
@@ -46,6 +47,33 @@ use crate::{
         OptionExt,
     },
 };
+
+pub fn create_identity_from_certificate_and_key(
+    encoded_certificate: String,
+    encoded_certificate_key: String,
+) -> Result<reqwest::Identity, error_stack::Report<errors::ApiClientError>> {
+    let decoded_certificate = consts::BASE64_ENGINE
+        .decode(encoded_certificate)
+        .into_report()
+        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+
+    let decoded_certificate_key = consts::BASE64_ENGINE
+        .decode(encoded_certificate_key)
+        .into_report()
+        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+
+    let certificate = String::from_utf8(decoded_certificate)
+        .into_report()
+        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+
+    let certificate_key = String::from_utf8(decoded_certificate_key)
+        .into_report()
+        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+
+    reqwest::Identity::from_pkcs8_pem(certificate.as_bytes(), certificate_key.as_bytes())
+        .into_report()
+        .change_context(errors::ApiClientError::CertificateDecodeFailed)
+}
 
 pub fn filter_mca_based_on_business_details(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
@@ -246,6 +274,7 @@ pub async fn get_token_pm_type_mandate_details(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
     Option<api::MandateData>,
+    Option<String>,
 )> {
     match mandate_type {
         Some(api::MandateTxnType::NewMandateTxn) => {
@@ -257,17 +286,19 @@ pub async fn get_token_pm_type_mandate_details(
                 request.payment_token.to_owned(),
                 request.payment_method.map(ForeignInto::foreign_into),
                 Some(setup_mandate),
+                None,
             ))
         }
         Some(api::MandateTxnType::RecurringMandateTxn) => {
-            let (token_, payment_method_type_) =
+            let (token_, payment_method_type_, mandate_connector) =
                 get_token_for_recurring_mandate(state, request, merchant_account).await?;
-            Ok((token_, payment_method_type_, None))
+            Ok((token_, payment_method_type_, None, mandate_connector))
         }
         None => Ok((
             request.payment_token.to_owned(),
             request.payment_method.map(ForeignInto::foreign_into),
             request.mandate_data.clone(),
+            None,
         )),
     }
 }
@@ -276,7 +307,11 @@ pub async fn get_token_for_recurring_mandate(
     state: &AppState,
     req: &api::PaymentsRequest,
     merchant_account: &domain::MerchantAccount,
-) -> RouterResult<(Option<String>, Option<storage_enums::PaymentMethod>)> {
+) -> RouterResult<(
+    Option<String>,
+    Option<storage_enums::PaymentMethod>,
+    Option<String>,
+)> {
     let db = &*state.store;
     let mandate_id = req.mandate_id.clone().get_required_value("mandate_id")?;
 
@@ -331,9 +366,17 @@ pub async fn get_token_for_recurring_mandate(
             }
         };
 
-        Ok((Some(token), Some(payment_method.payment_method)))
+        Ok((
+            Some(token),
+            Some(payment_method.payment_method),
+            Some(mandate.connector),
+        ))
     } else {
-        Ok((None, Some(payment_method.payment_method)))
+        Ok((
+            None,
+            Some(payment_method.payment_method),
+            Some(mandate.connector),
+        ))
     }
 }
 
@@ -851,11 +894,11 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     req: Option<CustomerDetails>,
     merchant_id: &str,
 ) -> CustomResult<(BoxedOperation<'a, F, R>, Option<domain::Customer>), errors::StorageError> {
-    let req = req
+    let request_customer_details = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
 
-    let customer_id = req
+    let customer_id = request_customer_details
         .customer_id
         .or(payment_data.payment_intent.customer_id.clone());
 
@@ -864,31 +907,80 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
             let customer_data = db
                 .find_customer_optional_by_customer_id_merchant_id(&customer_id, merchant_id)
                 .await?;
+
             Some(match customer_data {
-                Some(c) => Ok(c),
+                Some(c) => {
+                    // Update the customer data if new data is passed in the request
+                    if request_customer_details.email.is_some()
+                        | request_customer_details.name.is_some()
+                        | request_customer_details.phone.is_some()
+                        | request_customer_details.phone_country_code.is_some()
+                    {
+                        let key = types::get_merchant_enc_key(db, merchant_id.to_string()).await?;
+                        let customer_update = async {
+                            Ok(Update {
+                                name: request_customer_details
+                                    .name
+                                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                                    .await?,
+                                email: request_customer_details
+                                    .email
+                                    .clone()
+                                    .async_lift(|inner| {
+                                        types::encrypt_optional(
+                                            inner.map(|inner| inner.expose()),
+                                            &key,
+                                        )
+                                    })
+                                    .await?,
+                                phone: request_customer_details
+                                    .phone
+                                    .clone()
+                                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                                    .await?,
+                                phone_country_code: request_customer_details.phone_country_code,
+                                description: None,
+                                connector_customer: None,
+                                metadata: None,
+                            })
+                        }
+                        .await
+                        .change_context(errors::StorageError::SerializationFailed)
+                        .attach_printable("Failed while encrypting Customer while Update")?;
+
+                        db.update_customer_by_customer_id_merchant_id(
+                            customer_id,
+                            merchant_id.to_string(),
+                            customer_update,
+                        )
+                        .await
+                    } else {
+                        Ok(c)
+                    }
+                }
                 None => {
                     let key = types::get_merchant_enc_key(db, merchant_id.to_string()).await?;
                     let new_customer = async {
                         Ok(domain::Customer {
                             customer_id: customer_id.to_string(),
                             merchant_id: merchant_id.to_string(),
-                            name: req
+                            name: request_customer_details
                                 .name
                                 .async_lift(|inner| types::encrypt_optional(inner, &key))
                                 .await?,
-                            email: req
+                            email: request_customer_details
                                 .email
                                 .clone()
                                 .async_lift(|inner| {
                                     types::encrypt_optional(inner.map(|inner| inner.expose()), &key)
                                 })
                                 .await?,
-                            phone: req
+                            phone: request_customer_details
                                 .phone
                                 .clone()
                                 .async_lift(|inner| types::encrypt_optional(inner, &key))
                                 .await?,
-                            phone_country_code: req.phone_country_code.clone(),
+                            phone_country_code: request_customer_details.phone_country_code.clone(),
                             description: None,
                             created_at: common_utils::date_time::now(),
                             id: None,
