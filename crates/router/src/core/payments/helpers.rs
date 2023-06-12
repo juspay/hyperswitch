@@ -487,7 +487,7 @@ pub fn validate_card_data(
         let card_expiration = CardExpiration { month, year };
         let expiry = card_expiration.is_expired().change_context(
             errors::ApiErrorResponse::PreconditionFailed {
-                message: "Invalid data".to_string(),
+                message: "Invalid card data".to_string(),
             },
         )?;
         if expiry {
