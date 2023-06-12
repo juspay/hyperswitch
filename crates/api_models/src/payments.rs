@@ -739,8 +739,10 @@ pub enum BankRedirectData {
     },
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AchBillingDetails {
+    /// The Email ID for ACH billing
+    #[schema(value_type = String, example = "example@me.com")]
     pub email: Email,
 }
 
@@ -749,9 +751,13 @@ pub struct MultibancoBillingDetails {
     pub email: Email,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SepaAndBacsBillingDetails {
+    /// The Email ID for SEPA and BACS billing
+    #[schema(value_type = String, example = "example@me.com")]
     pub email: Email,
+    /// The billing name for SEPA and BACS billing
+    #[schema(value_type = String, example = "Jane Doe")]
     pub name: Secret<String>,
 }
 
@@ -780,13 +786,19 @@ pub struct BankRedirectBilling {
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferData {
     AchBankTransfer {
+        /// The billing details for ACH Bank Transfer
         billing_details: AchBillingDetails,
     },
     SepaBankTransfer {
+        /// The billing details for SEPA
         billing_details: SepaAndBacsBillingDetails,
+
+        /// The two-letter ISO country code for SEPA and BACS
+        #[schema(value_type = CountryAlpha2, example = "US")]
         country: api_enums::CountryAlpha2,
     },
     BacsBankTransfer {
+        /// The billing details for SEPA
         billing_details: SepaAndBacsBillingDetails,
     },
     MultibancoBankTransfer {
@@ -813,6 +825,8 @@ pub enum WalletData {
     AliPay(AliPayRedirection),
     /// The wallet data for Apple pay
     ApplePay(ApplePayWalletData),
+    /// Wallet data for apple pay redirect flow
+    ApplePayRedirect(Box<ApplePayRedirectData>),
     /// The wallet data for Google pay
     GooglePay(GooglePayWalletData),
     MbWay(Box<MbWayRedirection>),
@@ -839,6 +853,9 @@ pub struct GooglePayWalletData {
     /// The tokenization data of Google pay
     pub tokenization_data: GpayTokenizationData,
 }
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ApplePayRedirectData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct WeChatPayRedirection {}
@@ -1103,42 +1120,56 @@ pub enum NextActionData {
     },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BankTransferNextStepsData {
+    /// The instructions for performing a bank transfer
     #[serde(flatten)]
     pub bank_transfer_instructions: BankTransferInstructions,
+    /// The details received by the receiver
     pub receiver: ReceiverDetails,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferInstructions {
+    /// The credit transfer for ACH transactions
     AchCreditTransfer(Box<AchTransfer>),
+    /// The instructions for SEPA bank transactions
     SepaBankInstructions(Box<SepaBankTransferInstructions>),
+    /// The instructions for BACS bank transactions
     BacsBankInstructions(Box<BacsBankTransferInstructions>),
     Multibanco(Box<MultibancoTransferInstructions>),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SepaBankTransferInstructions {
+    #[schema(value_type = String, example = "Jane Doe")]
     pub account_holder_name: Secret<String>,
+    #[schema(value_type = String, example = "1024419982")]
     pub bic: Secret<String>,
     pub country: String,
+    #[schema(value_type = String, example = "123456789")]
     pub iban: Secret<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct BacsBankTransferInstructions {
+    #[schema(value_type = String, example = "Jane Doe")]
     pub account_holder_name: Secret<String>,
+    #[schema(value_type = String, example = "10244123908")]
     pub account_number: Secret<String>,
+    #[schema(value_type = String, example = "012")]
     pub sort_code: Secret<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AchTransfer {
+    #[schema(value_type = String, example = "122385736258")]
     pub account_number: Secret<String>,
     pub bank_name: String,
+    #[schema(value_type = String, example = "012")]
     pub routing_number: Secret<String>,
+    #[schema(value_type = String, example = "234")]
     pub swift_code: Secret<String>,
 }
 
@@ -1148,10 +1179,13 @@ pub struct MultibancoTransferInstructions {
     pub entity: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ReceiverDetails {
+    /// The amount received by receiver
     amount_received: i64,
+    /// The amount charged by ACH
     amount_charged: Option<i64>,
+    /// The amount remaining to be sent via ACH
     amount_remaining: Option<i64>,
 }
 
@@ -1324,7 +1358,7 @@ pub struct PaymentsResponse {
     pub connector_label: Option<String>,
 
     /// The business country of merchant for this payment
-    #[schema(value_type = CountryAlpha2)]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     pub business_country: api_enums::CountryAlpha2,
 
     /// The business label of merchant for this payment
@@ -1587,8 +1621,11 @@ pub struct Metadata {
     #[schema(value_type = Object, example = r#"{ "city": "NY", "unit": "245" }"#)]
     #[serde(flatten)]
     pub data: pii::SecretSerdeValue,
+    /// Information about the order category that merchant wants to specify at connector level. (e.g. In Noon Payments it can take values like "pay", "food", or any other custom string set by the merchant in Noon's Dashboard)
+    pub order_category: Option<String>,
 
     /// Redirection response coming in request as metadata field only for redirection scenarios
+    #[schema(value_type = Option<RedirectResponse>)]
     pub redirect_response: Option<RedirectResponse>,
 
     /// Allowed payment method types for a payment intent
@@ -1598,6 +1635,7 @@ pub struct Metadata {
 
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct RedirectResponse {
+    #[schema(value_type = Option<String>)]
     pub param: Option<Secret<String>>,
     #[schema(value_type = Option<Object>)]
     pub json_payload: Option<pii::SecretSerdeValue>,
@@ -1699,6 +1737,12 @@ pub struct ApplepaySessionRequest {
     pub display_name: String,
     pub initiative: String,
     pub initiative_context: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ConnectorMetadata {
+    pub apple_pay: Option<ApplePayMetadata>,
+    pub google_pay: Option<GpayMetaData>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

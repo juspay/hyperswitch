@@ -8,7 +8,11 @@ use transformers as aci;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
-    headers, services,
+    headers,
+    services::{
+        self,
+        request::{self, Mask},
+    },
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -35,11 +39,14 @@ impl ConnectorCommon for Aci {
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth: aci::AciAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth.api_key.into_masked(),
+        )])
     }
 }
 
@@ -113,10 +120,12 @@ impl
         &self,
         req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsSyncType::get_content_type(self).to_string(),
+            types::PaymentsSyncType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -218,10 +227,12 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -326,10 +337,12 @@ impl
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -425,10 +438,12 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::RefundExecuteType::get_content_type(self).to_string(),
+            types::RefundExecuteType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -537,7 +552,7 @@ impl api::IncomingWebhook for Aci {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Ok(api::IncomingWebhookEvent::EventNotSupported)
     }
 
     fn get_webhook_resource_object(
