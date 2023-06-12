@@ -613,7 +613,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .as_ref()
             .map(|metadata_value| {
                 metadata_value
-                    .clone().parse_value("metadata")
+                    .clone()
+                    .parse_value("metadata")
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "metadata",
                     })
@@ -789,7 +790,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             .as_ref()
             .map(|metadata_value| {
                 metadata_value
-                    .clone().parse_value("metadata")
+                    .clone()
+                    .parse_value("metadata")
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "metadata",
                     })

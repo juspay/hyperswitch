@@ -2171,7 +2171,10 @@ pub fn validate_and_add_order_details_to_payment_intent(
         .and_then(|meta| meta.order_details.to_owned());
     let order_details_outside_metadata_db = payment_intent.order_details.as_ref();
     let order_details_outside_metadata_req = request.order_details.as_ref();
-    let order_details_metadata_req = request.metadata.as_ref().and_then(|meta| meta.order_details.to_owned());
+    let order_details_metadata_req = request
+        .metadata
+        .as_ref()
+        .and_then(|meta| meta.order_details.to_owned());
 
     if order_details_metadata_db
         .as_ref()

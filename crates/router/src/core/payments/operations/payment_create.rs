@@ -411,8 +411,10 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
-        let order_details_inside_metadata =
-            request.metadata.as_ref().and_then(|meta| meta.order_details.to_owned());
+        let order_details_inside_metadata = request
+            .metadata
+            .as_ref()
+            .and_then(|meta| meta.order_details.to_owned());
         if request
             .order_details
             .as_ref()
@@ -560,8 +562,10 @@ impl PaymentCreate {
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Encoding Metadata to value failed")?;
-        let order_details_metadata_req =
-            request.metadata.as_ref().and_then(|meta| meta.order_details.to_owned());
+        let order_details_metadata_req = request
+            .metadata
+            .as_ref()
+            .and_then(|meta| meta.order_details.to_owned());
         if request
             .order_details
             .as_ref()
