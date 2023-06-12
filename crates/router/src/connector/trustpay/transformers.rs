@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+        self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
+        RouterData,
     },
     consts,
     core::errors,
@@ -109,7 +110,7 @@ pub struct CallbackURLs {
     pub error: String,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 pub struct PaymentRequestCards {
     pub amount: String,
     pub currency: String,
@@ -130,9 +131,9 @@ pub struct PaymentRequestCards {
     #[serde(rename = "billing[postcode]")]
     pub billing_postcode: Secret<String>,
     #[serde(rename = "customer[email]")]
-    pub customer_email: Option<Email>,
+    pub customer_email: Email,
     #[serde(rename = "customer[ipAddress]")]
-    pub customer_ip_address: Option<std::net::IpAddr>,
+    pub customer_ip_address: std::net::IpAddr,
     #[serde(rename = "browser[acceptHeader]")]
     pub browser_accept_header: String,
     #[serde(rename = "browser[language]")]
@@ -220,6 +221,8 @@ fn get_card_request_data(
     ccard: &api_models::payments::Card,
     return_url: String,
 ) -> Result<TrustpayPaymentsRequest, Error> {
+    let email = item.request.get_email()?;
+    let customer_ip_address = browser_info.get_ip_address()?;
     Ok(TrustpayPaymentsRequest::CardsPaymentRequest(Box::new(
         PaymentRequestCards {
             amount,
@@ -234,8 +237,8 @@ fn get_card_request_data(
             billing_country: params.billing_country,
             billing_street1: params.billing_street1,
             billing_postcode: params.billing_postcode,
-            customer_email: item.request.email.clone(),
-            customer_ip_address: browser_info.ip_address,
+            customer_email: email,
+            customer_ip_address,
             browser_accept_header: browser_info
                 .accept_header
                 .clone()
@@ -349,8 +352,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
             screen_width: Some(1920),
             time_zone: Some(3600),
             accept_header: Some("*".to_string()),
-            user_agent: Some("none".to_string()),
-            ip_address: None,
+            user_agent: item
+                .request
+                .browser_info
+                .as_ref()
+                .and_then(|info| info.user_agent.clone()),
+            ip_address: item
+                .request
+                .browser_info
+                .as_ref()
+                .and_then(|info| info.ip_address),
         };
         let browser_info = item
             .request
