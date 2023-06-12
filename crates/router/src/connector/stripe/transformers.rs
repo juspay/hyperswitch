@@ -122,8 +122,6 @@ pub struct PaymentIntentRequest {
     pub off_session: Option<bool>,
     #[serde(rename = "payment_method_types[0]")]
     pub payment_method_types: Option<StripePaymentMethodType>,
-    #[serde(rename = "payment_method_types[0]")]
-    pub payment_method_types: Option<StripePaymentMethodType>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1676,11 +1674,6 @@ impl Deref for PaymentIntentSyncResponse {
 }
 
 #[derive(Deserialize, Clone, Debug)]
-pub struct StripeCharge {
-    pub id: String,
-    pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
-}
-#[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum StripePaymentMethodDetailsResponse {
     //only ideal, sofort and bancontact is supported by stripe for recurring payment in bank redirect
@@ -1717,11 +1710,6 @@ pub enum StripePaymentMethodDetailsResponse {
     #[serde(rename = "wechat_pay")]
     Wechatpay,
     Alipay,
-}
-#[derive(Deserialize, Clone, Debug)]
-pub struct StripeBankRedirectDetails {
-    #[serde(rename = "generated_sepa_debit")]
-    attached_payment_method: Option<String>,
 }
 
 #[derive(Deserialize)]
