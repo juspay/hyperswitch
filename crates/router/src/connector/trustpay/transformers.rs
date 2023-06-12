@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+        self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
+        RouterData,
     },
     consts,
     core::errors,
@@ -109,7 +110,7 @@ pub struct CallbackURLs {
     pub error: String,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 pub struct PaymentRequestCards {
     pub amount: String,
     pub currency: String,
@@ -130,9 +131,9 @@ pub struct PaymentRequestCards {
     #[serde(rename = "billing[postcode]")]
     pub billing_postcode: Secret<String>,
     #[serde(rename = "customer[email]")]
-    pub customer_email: Option<Email>,
+    pub customer_email: Email,
     #[serde(rename = "customer[ipAddress]")]
-    pub customer_ip_address: Option<std::net::IpAddr>,
+    pub customer_ip_address: std::net::IpAddr,
     #[serde(rename = "browser[acceptHeader]")]
     pub browser_accept_header: String,
     #[serde(rename = "browser[language]")]
@@ -220,6 +221,8 @@ fn get_card_request_data(
     ccard: &api_models::payments::Card,
     return_url: String,
 ) -> Result<TrustpayPaymentsRequest, Error> {
+    let email = item.request.get_email()?;
+    let customer_ip_address = browser_info.get_ip_address()?;
     Ok(TrustpayPaymentsRequest::CardsPaymentRequest(Box::new(
         PaymentRequestCards {
             amount,
@@ -234,8 +237,8 @@ fn get_card_request_data(
             billing_country: params.billing_country,
             billing_street1: params.billing_street1,
             billing_postcode: params.billing_postcode,
-            customer_email: item.request.email.clone(),
-            customer_ip_address: browser_info.ip_address,
+            customer_email: email,
+            customer_ip_address,
             browser_accept_header: browser_info
                 .accept_header
                 .clone()
@@ -340,23 +343,19 @@ fn get_bank_redirection_request_data(
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
     type Error = Error;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let browser_info = item.request.browser_info.clone().unwrap_or_default();
         let default_browser_info = BrowserInformation {
-            color_depth: Some(24),
-            java_enabled: Some(false),
-            java_script_enabled: Some(true),
-            language: Some("en-US".to_string()),
-            screen_height: Some(1080),
-            screen_width: Some(1920),
-            time_zone: Some(3600),
-            accept_header: Some("*".to_string()),
-            user_agent: Some("none".to_string()),
-            ip_address: None,
+            color_depth: Some(browser_info.color_depth.unwrap_or(24)),
+            java_enabled: Some(browser_info.java_enabled.unwrap_or(false)),
+            java_script_enabled: Some(browser_info.java_enabled.unwrap_or(true)),
+            language: Some(browser_info.language.unwrap_or("en-US".to_string())),
+            screen_height: Some(browser_info.screen_height.unwrap_or(1080)),
+            screen_width: Some(browser_info.screen_width.unwrap_or(1920)),
+            time_zone: Some(browser_info.time_zone.unwrap_or(3600)),
+            accept_header: Some(browser_info.accept_header.unwrap_or("*".to_string())),
+            user_agent: browser_info.user_agent,
+            ip_address: browser_info.ip_address,
         };
-        let browser_info = item
-            .request
-            .browser_info
-            .as_ref()
-            .unwrap_or(&default_browser_info);
         let params = get_mandatory_fields(item)?;
         let amount = format!(
             "{:.2}",
@@ -370,7 +369,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
         match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref ccard) => Ok(get_card_request_data(
                 item,
-                browser_info,
+                &default_browser_info,
                 params,
                 amount,
                 ccard,
