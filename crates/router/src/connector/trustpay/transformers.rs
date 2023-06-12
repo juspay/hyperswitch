@@ -343,31 +343,19 @@ fn get_bank_redirection_request_data(
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
     type Error = Error;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let browser_info = item.request.browser_info.clone().unwrap_or_default();
         let default_browser_info = BrowserInformation {
-            color_depth: Some(24),
-            java_enabled: Some(false),
-            java_script_enabled: Some(true),
-            language: Some("en-US".to_string()),
-            screen_height: Some(1080),
-            screen_width: Some(1920),
-            time_zone: Some(3600),
-            accept_header: Some("*".to_string()),
-            user_agent: item
-                .request
-                .browser_info
-                .as_ref()
-                .and_then(|info| info.user_agent.clone()),
-            ip_address: item
-                .request
-                .browser_info
-                .as_ref()
-                .and_then(|info| info.ip_address),
+            color_depth: Some(browser_info.color_depth.unwrap_or(24)),
+            java_enabled: Some(browser_info.java_enabled.unwrap_or(false)),
+            java_script_enabled: Some(browser_info.java_enabled.unwrap_or(true)),
+            language: Some(browser_info.language.unwrap_or("en-US".to_string())),
+            screen_height: Some(browser_info.screen_height.unwrap_or(1080)),
+            screen_width: Some(browser_info.screen_width.unwrap_or(1920)),
+            time_zone: Some(browser_info.time_zone.unwrap_or(3600)),
+            accept_header: Some(browser_info.accept_header.unwrap_or("*".to_string())),
+            user_agent: browser_info.user_agent,
+            ip_address: browser_info.ip_address,
         };
-        let browser_info = item
-            .request
-            .browser_info
-            .as_ref()
-            .unwrap_or(&default_browser_info);
         let params = get_mandatory_fields(item)?;
         let amount = format!(
             "{:.2}",
@@ -381,7 +369,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
         match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref ccard) => Ok(get_card_request_data(
                 item,
-                browser_info,
+                &default_browser_info,
                 params,
                 amount,
                 ccard,
