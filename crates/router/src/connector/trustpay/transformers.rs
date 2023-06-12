@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+        self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
+        RouterData,
     },
     consts,
     core::errors,
@@ -221,6 +222,7 @@ fn get_card_request_data(
     return_url: String,
 ) -> Result<TrustpayPaymentsRequest, Error> {
     let email = item.request.get_email()?;
+    let customer_ip_address = browser_info.get_ip_address()?;
     Ok(TrustpayPaymentsRequest::CardsPaymentRequest(Box::new(
         PaymentRequestCards {
             amount,
@@ -236,12 +238,7 @@ fn get_card_request_data(
             billing_street1: params.billing_street1,
             billing_postcode: params.billing_postcode,
             customer_email: email,
-            customer_ip_address: browser_info
-                .ip_address
-                .get_required_value("ip_address")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "ip_address",
-                })?,
+            customer_ip_address,
             browser_accept_header: browser_info
                 .accept_header
                 .clone()
