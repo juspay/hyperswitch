@@ -109,7 +109,7 @@ pub struct CallbackURLs {
     pub error: String,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 pub struct PaymentRequestCards {
     pub amount: String,
     pub currency: String,
@@ -132,7 +132,7 @@ pub struct PaymentRequestCards {
     #[serde(rename = "customer[email]")]
     pub customer_email: Email,
     #[serde(rename = "customer[ipAddress]")]
-    pub customer_ip_address: Option<std::net::IpAddr>,
+    pub customer_ip_address: std::net::IpAddr,
     #[serde(rename = "browser[acceptHeader]")]
     pub browser_accept_header: String,
     #[serde(rename = "browser[language]")]
@@ -236,7 +236,12 @@ fn get_card_request_data(
             billing_street1: params.billing_street1,
             billing_postcode: params.billing_postcode,
             customer_email: email,
-            customer_ip_address: browser_info.ip_address,
+            customer_ip_address: browser_info
+                .ip_address
+                .get_required_value("ip_address")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "ip_address",
+                })?,
             browser_accept_header: browser_info
                 .accept_header
                 .clone()
@@ -350,8 +355,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
             screen_width: Some(1920),
             time_zone: Some(3600),
             accept_header: Some("*".to_string()),
-            user_agent: Some("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36".to_string()),
-            ip_address: None,
+            user_agent: item
+                .request
+                .browser_info
+                .as_ref()
+                .and_then(|info| info.user_agent.clone()),
+            ip_address: item
+                .request
+                .browser_info
+                .as_ref()
+                .and_then(|info| info.ip_address),
         };
         let browser_info = item
             .request
