@@ -2153,8 +2153,8 @@ pub fn validate_and_add_order_details_to_payment_intent(
     request: &api::PaymentsRequest,
 ) -> RouterResult<()> {
     let parsed_metadata_db: Option<api_models::payments::Metadata> = payment_intent
-        .clone()
         .metadata
+        .as_ref()
         .map(|metadata_value| {
             metadata_value
                 .peek()
@@ -2167,15 +2167,15 @@ pub fn validate_and_add_order_details_to_payment_intent(
         })
         .transpose()?;
     let order_details_metadata_db = parsed_metadata_db
-        .clone()
-        .and_then(|meta| meta.order_details);
-    let order_details_outside_metadata_db = payment_intent.clone().order_details;
-    let order_details_outside_metadata_req = request.clone().order_details;
-    let order_details_metadata_req = request.clone().metadata.and_then(|meta| meta.order_details);
+        .as_ref()
+        .and_then(|meta| meta.order_details.to_owned());
+    let order_details_outside_metadata_db = payment_intent.order_details.as_ref();
+    let order_details_outside_metadata_req = request.order_details.as_ref();
+    let order_details_metadata_req = request.metadata.as_ref().and_then(|meta| meta.order_details.to_owned());
 
     if order_details_metadata_db
-        .clone()
-        .zip(order_details_outside_metadata_db.clone())
+        .as_ref()
+        .zip(order_details_outside_metadata_db.as_ref())
         .is_some()
     {
         Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payment intent in db".to_string() })?
@@ -2201,7 +2201,7 @@ pub fn validate_and_add_order_details_to_payment_intent(
         payment_intent,
         request,
         parsed_metadata_db,
-        &order_details_outside,
+        &order_details_outside.map(|data| data.to_owned()),
     )
 }
 
@@ -2211,14 +2211,14 @@ pub fn add_order_details_and_metadata_to_payment_intent(
     parsed_metadata_db: Option<api_models::payments::Metadata>,
     order_details_outside: &Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
 ) -> RouterResult<()> {
-    let metadata_with_order_details = match request.clone().metadata {
+    let metadata_with_order_details = match request.metadata.as_ref() {
         Some(meta) => {
             let transformed_metadata = match parsed_metadata_db {
                 Some(meta_db) => api_models::payments::Metadata {
-                    order_details: meta.order_details,
+                    order_details: meta.order_details.to_owned(),
                     ..meta_db
                 },
-                None => meta,
+                None => meta.to_owned(),
             };
             let transformed_metadata_value =
                 Encode::<api_models::payments::Metadata>::encode_to_value(&transformed_metadata)
