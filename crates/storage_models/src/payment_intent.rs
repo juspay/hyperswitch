@@ -36,6 +36,7 @@ pub struct PaymentIntent {
     pub active_attempt_id: String,
     pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
+    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
 }
 
@@ -79,6 +80,7 @@ pub struct PaymentIntentNew {
     pub active_attempt_id: String,
     pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
+    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
 }
 
@@ -150,6 +152,7 @@ pub struct PaymentIntentUpdateInternal {
     pub active_attempt_id: Option<String>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
 }
 

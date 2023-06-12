@@ -475,7 +475,7 @@ diesel::table! {
         business_country -> CountryAlpha2,
         #[max_length = 64]
         business_label -> Varchar,
-        order_details -> Nullable<Array<Jsonb>>,
+        order_details -> Nullable<Array<Nullable<Jsonb>>>,
     }
 }
 
