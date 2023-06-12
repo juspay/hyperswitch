@@ -412,10 +412,10 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         operations::ValidateResult<'a>,
     )> {
         let order_details_inside_metadata =
-            request.clone().metadata.and_then(|meta| meta.order_details);
+            request.metadata.as_ref().and_then(|meta| meta.order_details.to_owned());
         if request
             .order_details
-            .clone()
+            .as_ref()
             .zip(order_details_inside_metadata)
             .is_some()
         {
@@ -561,16 +561,16 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Encoding Metadata to value failed")?;
         let order_details_metadata_req =
-            request.clone().metadata.and_then(|meta| meta.order_details);
+            request.metadata.as_ref().and_then(|meta| meta.order_details.to_owned());
         if request
-            .clone()
             .order_details
+            .as_ref()
             .zip(order_details_metadata_req)
             .is_some()
         {
             Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
         }
-        let order_details_outside_value = match request.clone().order_details {
+        let order_details_outside_value = match request.order_details.as_ref() {
             Some(od_value) => {
                 let order_details_outside_value_secret = od_value
                     .iter()

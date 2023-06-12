@@ -594,7 +594,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
-        let payment_data = additional_data.clone().payment_data;
+        let payment_data = additional_data.payment_data.clone();
         let router_base_url = &additional_data.router_base_url;
         let connector_name = &additional_data.connector_name;
         let attempt = &payment_data.payment_attempt;
@@ -609,11 +609,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
             .payment_intent
-            .clone()
             .metadata
+            .as_ref()
             .map(|metadata_value| {
                 metadata_value
-                    .parse_value("metadata")
+                    .clone().parse_value("metadata")
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "metadata",
                     })
@@ -782,14 +782,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
-        let payment_data = additional_data.clone().payment_data;
+        let payment_data = additional_data.payment_data.clone();
         let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
-            .clone()
             .payment_intent
             .metadata
+            .as_ref()
             .map(|metadata_value| {
                 metadata_value
-                    .parse_value("metadata")
+                    .clone().parse_value("metadata")
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "metadata",
                     })

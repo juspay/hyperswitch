@@ -461,10 +461,10 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
         operations::ValidateResult<'a>,
     )> {
         let order_details_inside_metadata =
-            request.clone().metadata.and_then(|meta| meta.order_details);
+            request.metadata.as_ref().and_then(|meta| meta.order_details.to_owned());
         if request
             .order_details
-            .clone()
+            .as_ref()
             .zip(order_details_inside_metadata)
             .is_some()
         {
