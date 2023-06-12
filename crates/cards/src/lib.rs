@@ -39,7 +39,7 @@ impl<'de> Deserialize<'de> for CardSecurityCode {
 }
 
 #[derive(Serialize)]
-pub struct CardExpirationMonth(StrongSecret<u8>);
+pub struct CardExpirationMonth(pub StrongSecret<u8>);
 
 impl CardExpirationMonth {
     pub fn two_digits(&self) -> String {
@@ -71,7 +71,7 @@ impl<'de> Deserialize<'de> for CardExpirationMonth {
 }
 
 #[derive(Serialize)]
-pub struct CardExpirationYear(StrongSecret<u16>);
+pub struct CardExpirationYear(pub StrongSecret<u16>);
 
 impl CardExpirationYear {
     pub fn four_digits(&self) -> String {
