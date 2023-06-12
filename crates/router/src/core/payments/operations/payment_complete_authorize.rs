@@ -9,7 +9,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
     db::StorageInterface,
@@ -70,13 +70,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             "confirm",
         )?;
 
-        let (token, payment_method, setup_mandate) = helpers::get_token_pm_type_mandate_details(
-            state,
-            request,
-            mandate_type.clone(),
-            merchant_account,
-        )
-        .await?;
+        let (token, payment_method, setup_mandate, mandate_connector) =
+            helpers::get_token_pm_type_mandate_details(
+                state,
+                request,
+                mandate_type.clone(),
+                merchant_account,
+            )
+            .await?;
 
         let browser_info = request
             .browser_info
@@ -186,6 +187,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 amount,
                 email: request.email.clone(),
                 mandate_id: None,
+                mandate_connector,
                 setup_mandate,
                 token,
                 address: PaymentAddress {
@@ -331,7 +333,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for CompleteAutho
 
         helpers::validate_payment_method_fields_present(request)?;
 
-        let mandate_type = helpers::validate_mandate(request)?;
+        let mandate_type =
+            helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
 
         Ok((

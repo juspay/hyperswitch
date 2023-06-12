@@ -7,7 +7,6 @@ use super::{MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    db::MasterKeyInterface,
     services::logger,
     types::{
         self,
@@ -166,7 +165,7 @@ impl MerchantConnectorAccountInterface for Store {
         .map_err(Into::into)
         .into_report()
         .async_and_then(|item| async {
-            item.convert(self, merchant_id, self.get_migration_timestamp())
+            item.convert(self, merchant_id)
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         })
@@ -194,7 +193,7 @@ impl MerchantConnectorAccountInterface for Store {
         {
             find_call()
                 .await?
-                .convert(self, merchant_id, self.get_migration_timestamp())
+                .convert(self, merchant_id)
                 .await
                 .change_context(errors::StorageError::DeserializationFailed)
         }
@@ -203,7 +202,7 @@ impl MerchantConnectorAccountInterface for Store {
         {
             cache::get_or_populate_redis(self, merchant_connector_id, find_call)
                 .await?
-                .convert(self, merchant_id, self.get_migration_timestamp())
+                .convert(self, merchant_id)
                 .await
                 .change_context(errors::StorageError::DeserializationFailed)
         }
@@ -223,7 +222,7 @@ impl MerchantConnectorAccountInterface for Store {
             .into_report()
             .async_and_then(|item| async {
                 let merchant_id = item.merchant_id.clone();
-                item.convert(self, &merchant_id, self.get_migration_timestamp())
+                item.convert(self, &merchant_id)
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -244,7 +243,7 @@ impl MerchantConnectorAccountInterface for Store {
                 let mut output = Vec::with_capacity(items.len());
                 for item in items.into_iter() {
                     output.push(
-                        item.convert(self, merchant_id, self.get_migration_timestamp())
+                        item.convert(self, merchant_id)
                             .await
                             .change_context(errors::StorageError::DecryptionError)?,
                     )
@@ -271,7 +270,7 @@ impl MerchantConnectorAccountInterface for Store {
                 .into_report()
                 .async_and_then(|item| async {
                     let merchant_id = item.merchant_id.clone();
-                    item.convert(self, &merchant_id, self.get_migration_timestamp())
+                    item.convert(self, &merchant_id)
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -324,7 +323,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .cloned()
             .unwrap();
         account
-            .convert(self, merchant_id, self.get_migration_timestamp())
+            .convert(self, merchant_id)
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -367,7 +366,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         };
         accounts.push(account.clone());
         account
-            .convert(self, &merchant_id, self.get_migration_timestamp())
+            .convert(self, &merchant_id)
             .await
             .change_context(errors::StorageError::DecryptionError)
     }

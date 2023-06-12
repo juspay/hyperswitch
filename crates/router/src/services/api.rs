@@ -21,6 +21,7 @@ use self::request::{ContentType, HeaderExt, RequestBuilderExt};
 pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
     configs::settings::Connectors,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -53,7 +54,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         &self,
         _req: &types::RouterData<T, Req, Resp>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
 
@@ -190,8 +191,23 @@ where
             connector_integration.handle_response(req, response)
         }
         payments::CallConnectorAction::Avoid => Ok(router_data),
-        payments::CallConnectorAction::StatusUpdate(status) => {
+        payments::CallConnectorAction::StatusUpdate {
+            status,
+            error_code,
+            error_message,
+        } => {
             router_data.status = status;
+            let error_response = if error_code.is_some() | error_message.is_some() {
+                Some(ErrorResponse {
+                    code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    status_code: 200, // This status code is ignored in redirection response it will override with 302 status code.
+                    reason: None,
+                })
+            } else {
+                None
+            };
+            router_data.response = error_response.map(Err).unwrap_or(router_data.response);
             Ok(router_data)
         }
         payments::CallConnectorAction::Trigger => {

@@ -19,7 +19,7 @@ use crate::{
     },
     db::StorageInterface,
     headers,
-    services::{self, ConnectorIntegration},
+    services::{self, request, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt, InitPayment},
@@ -40,10 +40,10 @@ where
         &self,
         _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let headers = vec![(
             headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string(),
+            self.get_content_type().to_string().into(),
         )];
         Ok(headers)
     }
@@ -65,7 +65,7 @@ impl ConnectorCommon for Nuvei {
     fn get_auth_header(
         &self,
         _auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
 }
@@ -112,7 +112,7 @@ impl
         &self,
         req: &types::PaymentsCompleteAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
     fn get_content_type(&self) -> &'static str {
@@ -193,7 +193,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -276,7 +276,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -354,7 +354,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -441,7 +441,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -595,7 +595,7 @@ impl
         &self,
         req: &types::PaymentsAuthorizeSessionTokenRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -676,7 +676,7 @@ impl ConnectorIntegration<InitPayment, types::PaymentsAuthorizeData, types::Paym
         &self,
         req: &types::PaymentsInitRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -753,7 +753,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -852,12 +852,17 @@ impl api::IncomingWebhook for Nuvei {
         db: &dyn StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("wh_mer_sec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .get_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-        Ok(secret)
+        let key = utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
+        let secret = match db.find_config_by_key(&key).await {
+            Ok(config) => Some(config),
+            Err(e) => {
+                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
+                None
+            }
+        };
+        Ok(secret
+            .map(|conf| conf.config.into_bytes())
+            .unwrap_or_default())
     }
 
     fn get_webhook_source_verification_message(
@@ -914,7 +919,9 @@ impl api::IncomingWebhook for Nuvei {
             nuvei::NuveiWebhookStatus::Declined => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
             }
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
+            nuvei::NuveiWebhookStatus::Unknown
+            | nuvei::NuveiWebhookStatus::Pending
+            | nuvei::NuveiWebhookStatus::Update => Ok(api::IncomingWebhookEvent::EventNotSupported),
         }
     }
 
@@ -950,9 +957,11 @@ impl services::ConnectorRedirectResponse for Nuvei {
                             .switch()?;
                     match acs_response.trans_status {
                         None | Some(nuvei::LiabilityShift::Failed) => {
-                            Ok(payments::CallConnectorAction::StatusUpdate(
-                                enums::AttemptStatus::AuthenticationFailed,
-                            ))
+                            Ok(payments::CallConnectorAction::StatusUpdate {
+                                status: enums::AttemptStatus::AuthenticationFailed,
+                                error_code: None,
+                                error_message: None,
+                            })
                         }
                         _ => Ok(payments::CallConnectorAction::Trigger),
                     }

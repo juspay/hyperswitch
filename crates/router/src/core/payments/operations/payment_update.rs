@@ -72,7 +72,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             "update",
         )?;
 
-        let (token, payment_method_type, setup_mandate) =
+        let (token, payment_method_type, setup_mandate, mandate_connector) =
             helpers::get_token_pm_type_mandate_details(
                 state,
                 request,
@@ -287,6 +287,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 amount,
                 email: request.email.clone(),
                 mandate_id,
+                mandate_connector,
                 token,
                 setup_mandate,
                 address: PaymentAddress {
@@ -532,7 +533,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
 
         helpers::validate_payment_method_fields_present(request)?;
 
-        let mandate_type = helpers::validate_mandate(request)?;
+        let mandate_type = helpers::validate_mandate(request, false)?;
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
 
         Ok((

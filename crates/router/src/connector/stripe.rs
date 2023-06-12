@@ -10,13 +10,18 @@ use self::transformers as stripe;
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
+    connector::utils as conn_utils,
     consts,
     core::{
         errors::{self, CustomResult},
         payments,
     },
     db::StorageInterface,
-    headers, services,
+    headers,
+    services::{
+        self,
+        request::{self, Mask},
+    },
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -44,13 +49,13 @@ impl ConnectorCommon for Stripe {
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth: stripe::StripeAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key),
+            format!("Bearer {}", auth.api_key).into_masked(),
         )])
     }
 }
@@ -97,10 +102,12 @@ impl
         &self,
         req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsPreProcessingType::get_content_type(self).to_string(),
+            types::PaymentsPreProcessingType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -207,10 +214,12 @@ impl
         &self,
         req: &types::ConnectorCustomerRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::ConnectorCustomerType::get_content_type(self).to_string(),
+            types::ConnectorCustomerType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -318,10 +327,12 @@ impl
         &self,
         req: &types::TokenizationRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::TokenizationType::get_content_type(self).to_string(),
+            types::TokenizationType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -425,10 +436,10 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            Self::common_get_content_type(self).to_string(),
+            Self::common_get_content_type(self).to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -535,10 +546,12 @@ impl
         &self,
         req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsSyncType::get_content_type(self).to_string(),
+            types::PaymentsSyncType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -664,10 +677,12 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -800,10 +815,12 @@ impl
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsVoidType::get_content_type(self).to_string(),
+            types::PaymentsVoidType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -907,10 +924,10 @@ impl
         &self,
         req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            Verify::get_content_type(self).to_string(),
+            Verify::get_content_type(self).to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -1026,10 +1043,12 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::RefundExecuteType::get_content_type(self).to_string(),
+            types::RefundExecuteType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -1122,10 +1141,12 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         &self,
         req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::RefundSyncType::get_content_type(self).to_string(),
+            types::RefundSyncType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -1250,7 +1271,7 @@ impl
             types::UploadFileResponse,
         >,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.get_auth_header(&req.connector_auth_type)
     }
 
@@ -1355,7 +1376,7 @@ impl
             types::RetrieveFileResponse,
         >,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.get_auth_header(&req.connector_auth_type)
     }
 
@@ -1443,10 +1464,12 @@ impl
         &self,
         req: &types::SubmitEvidenceRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::SubmitEvidenceType::get_content_type(self).to_string(),
+            types::SubmitEvidenceType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -1620,13 +1643,17 @@ impl api::IncomingWebhook for Stripe {
         db: &dyn StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .get_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-
-        Ok(secret)
+        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
+        let secret = match db.find_config_by_key(&key).await {
+            Ok(config) => Some(config),
+            Err(e) => {
+                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
+                None
+            }
+        };
+        Ok(secret
+            .map(|conf| conf.config.into_bytes())
+            .unwrap_or_default())
     }
 
     fn get_webhook_object_reference_id(
@@ -1639,15 +1666,15 @@ impl api::IncomingWebhook for Stripe {
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         Ok(match details.event_data.event_object.object {
-            stripe::WebhookEventObjectType::PaymentIntent
-            | stripe::WebhookEventObjectType::Charge => {
+            stripe::WebhookEventObjectType::PaymentIntent => {
                 api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
                         details.event_data.event_object.id,
                     ),
                 )
             }
-            stripe::WebhookEventObjectType::Dispute => {
+
+            stripe::WebhookEventObjectType::Charge | stripe::WebhookEventObjectType::Dispute => {
                 api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
                         details
@@ -1672,7 +1699,7 @@ impl api::IncomingWebhook for Stripe {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: stripe::WebhookEvent = request
+        let details: stripe::WebhookEventTypeBody = request
             .body
             .parse_struct("WebhookEvent")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
@@ -1684,26 +1711,50 @@ impl api::IncomingWebhook for Stripe {
             stripe::WebhookEventType::PaymentIntentSucceed => {
                 api::IncomingWebhookEvent::PaymentIntentSuccess
             }
+            stripe::WebhookEventType::ChargeSucceeded => {
+                if let Some(stripe::WebhookPaymentMethodDetails {
+                    payment_method: stripe::WebhookPaymentMethodType::AchCreditTransfer,
+                }) = details.event_data.event_object.payment_method_details
+                {
+                    api::IncomingWebhookEvent::PaymentIntentSuccess
+                } else {
+                    api::IncomingWebhookEvent::EventNotSupported
+                }
+            }
             stripe::WebhookEventType::SourceChargeable => {
                 api::IncomingWebhookEvent::SourceChargeable
             }
-            stripe::WebhookEventType::ChargeSucceeded => api::IncomingWebhookEvent::ChargeSucceeded,
             stripe::WebhookEventType::DisputeCreated => api::IncomingWebhookEvent::DisputeOpened,
             stripe::WebhookEventType::DisputeClosed => api::IncomingWebhookEvent::DisputeCancelled,
-            stripe::WebhookEventType::DisputeUpdated => api::IncomingWebhookEvent::try_from(
-                details
-                    .event_data
-                    .event_object
-                    .status
-                    .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?,
-            )?,
+            stripe::WebhookEventType::DisputeUpdated => details
+                .event_data
+                .event_object
+                .status
+                .map(Into::into)
+                .unwrap_or(api::IncomingWebhookEvent::EventNotSupported),
             stripe::WebhookEventType::PaymentIntentPartiallyFunded => {
                 api::IncomingWebhookEvent::PaymentIntentPartiallyFunded
             }
             stripe::WebhookEventType::PaymentIntentRequiresAction => {
                 api::IncomingWebhookEvent::PaymentActionRequired
             }
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+            stripe::WebhookEventType::Unknown
+            | stripe::WebhookEventType::ChargeCaptured
+            | stripe::WebhookEventType::ChargeDisputeCaptured
+            | stripe::WebhookEventType::ChargeDisputeFundsReinstated
+            | stripe::WebhookEventType::ChargeDisputeFundsWithdrawn
+            | stripe::WebhookEventType::ChargeExpired
+            | stripe::WebhookEventType::ChargeFailed
+            | stripe::WebhookEventType::ChargePending
+            | stripe::WebhookEventType::ChargeUpdated
+            | stripe::WebhookEventType::ChanrgeRefunded
+            | stripe::WebhookEventType::PaymentIntentCanceled
+            | stripe::WebhookEventType::PaymentIntentCreated
+            | stripe::WebhookEventType::PaymentIntentProcessing
+            | stripe::WebhookEventType::PaymentIntentAmountCapturableUpdated
+            | stripe::WebhookEventType::SourceTransactionCreated => {
+                api::IncomingWebhookEvent::EventNotSupported
+            }
         })
     }
 
@@ -1780,9 +1831,11 @@ impl services::ConnectorRedirectResponse for Stripe {
                     transformers::StripePaymentStatus::Failed => {
                         payments::CallConnectorAction::Trigger
                     }
-                    _ => payments::CallConnectorAction::StatusUpdate(enums::AttemptStatus::from(
-                        status,
-                    )),
+                    _ => payments::CallConnectorAction::StatusUpdate {
+                        status: enums::AttemptStatus::from(status),
+                        error_code: None,
+                        error_message: None,
+                    },
                 },
             ))
     }

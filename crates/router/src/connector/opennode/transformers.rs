@@ -56,6 +56,8 @@ pub enum OpennodePaymentStatus {
     Processing,
     Underpaid,
     Refunded,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<OpennodePaymentStatus> for enums::AttemptStatus {
@@ -225,7 +227,7 @@ fn get_crypto_specific_payment_data(
     let description = item.get_description()?;
     let auto_settle = true;
     let success_url = item.get_return_url()?;
-    let callback_url = item.request.get_router_return_url()?;
+    let callback_url = item.request.get_webhook_url()?;
 
     Ok(OpennodePaymentsRequest {
         amount,

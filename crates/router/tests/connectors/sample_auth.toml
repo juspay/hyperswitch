@@ -115,3 +115,13 @@ api_key = "API Key"
 api_key = "Application API KEY"
 api_secret = "Application Identifier"
 key1 = "Business Identifier"
+
+[automation_configs]
+hs_base_url="http://localhost:8080"
+hs_test_browser="firefox"
+chrome_profile_path=""
+firefox_profile_path=""
+pypl_email=""
+pypl_pass=""
+gmail_email=""
+gmail_pass=""
