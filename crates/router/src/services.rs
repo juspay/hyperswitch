@@ -14,7 +14,7 @@ use tokio::sync::oneshot;
 pub use self::{api::*, encryption::*};
 use crate::{
     async_spawn,
-    cache::{CacheKind, ACCOUNTS_CACHE, CONFIG_CACHE},
+    cache::{CacheKind, ACCOUNTS_CACHE, CONFIG_CACHE, KEY_STORE_CACHE},
     configs::settings,
     connection::{diesel_make_pg_pool, PgPool},
     consts,
@@ -85,6 +85,10 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
                 }
                 CacheKind::Accounts(key) => {
                     ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
+                    key
+                }
+                CacheKind::KeyStore(key) => {
+                    KEY_STORE_CACHE.invalidate(key.as_ref()).await;
                     key
                 }
             };

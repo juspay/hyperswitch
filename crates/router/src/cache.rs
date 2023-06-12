@@ -14,6 +14,9 @@ const CONFIG_CACHE_PREFIX: &str = "config";
 /// Prefix for accounts cache key
 const ACCOUNTS_CACHE_PREFIX: &str = "accounts";
 
+/// Prefix for key store cache
+const KEY_STORE_CACHE_PREFIX: &str = "keystore";
+
 /// Time to live 30 mins
 const CACHE_TTL: u64 = 30 * 60;
 
@@ -30,6 +33,10 @@ pub static CONFIG_CACHE: Lazy<Cache> = Lazy::new(|| Cache::new(CACHE_TTL, CACHE_
 pub static ACCOUNTS_CACHE: Lazy<Cache> =
     Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
 
+/// Using same cache config as above cache.
+pub static KEY_STORE_CACHE: Lazy<Cache> =
+    Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI, Some(MAX_CAPACITY)));
+
 /// Trait which defines the behaviour of types that's gonna be stored in Cache
 pub trait Cacheable: Any + Send + Sync + DynClone {
     fn as_any(&self) -> &dyn Any;
@@ -38,6 +45,7 @@ pub trait Cacheable: Any + Send + Sync + DynClone {
 pub enum CacheKind<'a> {
     Config(Cow<'a, str>),
     Accounts(Cow<'a, str>),
+    KeyStore(Cow<'a, str>),
 }
 
 impl<'a> From<CacheKind<'a>> for RedisValue {
@@ -45,6 +53,7 @@ impl<'a> From<CacheKind<'a>> for RedisValue {
         let value = match kind {
             CacheKind::Config(s) => format!("{CONFIG_CACHE_PREFIX},{s}"),
             CacheKind::Accounts(s) => format!("{ACCOUNTS_CACHE_PREFIX},{s}"),
+            CacheKind::KeyStore(s) => format!("{KEY_STORE_CACHE_PREFIX},{s}"),
         };
         Self::from_string(value)
     }
@@ -61,6 +70,7 @@ impl<'a> TryFrom<RedisValue> for CacheKind<'a> {
         match split.0 {
             ACCOUNTS_CACHE_PREFIX => Ok(Self::Accounts(Cow::Owned(split.1.to_string()))),
             CONFIG_CACHE_PREFIX => Ok(Self::Config(Cow::Owned(split.1.to_string()))),
+            KEY_STORE_CACHE_PREFIX => Ok(Self::KeyStore(Cow::Owned(split.1.to_string()))),
             _ => Err(validation_err.into()),
         }
     }

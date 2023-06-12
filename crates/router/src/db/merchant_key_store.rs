@@ -1,5 +1,7 @@
 use error_stack::{IntoReport, ResultExt};
 
+#[cfg(feature = "key_store_cache")]
+use crate::cache::KEY_STORE_CACHE;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -48,17 +50,34 @@ impl MerchantKeyStoreInterface for Store {
         &self,
         merchant_id: &str,
     ) -> CustomResult<merchant_key_store::MerchantKeyStore, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage_models::merchant_key_store::MerchantKeyStore::find_by_merchant_id(
-            &conn,
-            merchant_id,
-        )
-        .await
-        .map_err(Into::into)
-        .into_report()?
-        .convert(self, merchant_id)
-        .await
-        .change_context(errors::StorageError::DecryptionError)
+        let fetch_func = || async {
+            let conn = connection::pg_connection_read(self).await?;
+
+            storage_models::merchant_key_store::MerchantKeyStore::find_by_merchant_id(
+                &conn,
+                merchant_id,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
+        };
+        #[cfg(not(feature = "key_store_cache"))]
+        {
+            fetch_func()
+                .await?
+                .convert(self, merchant_id)
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }
+
+        #[cfg(feature = "key_store_cache")]
+        {
+            super::cache::get_or_populate_in_memory(self, merchant_id, fetch_func, &KEY_STORE_CACHE)
+                .await?
+                .convert(self, merchant_id)
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }
     }
 }
 
