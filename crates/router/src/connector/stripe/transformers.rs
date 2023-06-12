@@ -490,6 +490,36 @@ pub enum StripePaymentMethodType {
     CustomerBalance,
 }
 
+impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: enums::PaymentMethodType) -> Result<Self, Self::Error> {
+        match value {
+            enums::PaymentMethodType::Credit => Ok(Self::Card),
+            enums::PaymentMethodType::Debit => Ok(Self::Card),
+            enums::PaymentMethodType::Klarna => Ok(Self::Klarna),
+            enums::PaymentMethodType::Affirm => Ok(Self::Affirm),
+            enums::PaymentMethodType::AfterpayClearpay => Ok(Self::AfterpayClearpay),
+            enums::PaymentMethodType::Eps => Ok(Self::Eps),
+            enums::PaymentMethodType::Giropay => Ok(Self::Giropay),
+            enums::PaymentMethodType::Ideal => Ok(Self::Ideal),
+            enums::PaymentMethodType::Sofort => Ok(Self::Sofort),
+            enums::PaymentMethodType::ApplePay => Ok(Self::ApplePay),
+            enums::PaymentMethodType::Ach => Ok(Self::Ach),
+            enums::PaymentMethodType::Sepa => Ok(Self::Sepa),
+            enums::PaymentMethodType::Becs => Ok(Self::Becs),
+            enums::PaymentMethodType::Bacs => Ok(Self::Bacs),
+            enums::PaymentMethodType::BancontactCard => Ok(Self::Bancontact),
+            enums::PaymentMethodType::WeChatPay => Ok(Self::Wechatpay),
+            enums::PaymentMethodType::AliPay => Ok(Self::Alipay),
+            enums::PaymentMethodType::Przelewy24 => Ok(Self::Przelewy24),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "this payment method for stripe".to_string(),
+            )
+            .into()),
+        }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferType {
@@ -1279,8 +1309,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
         };
 
         let payment_method_types = if payment_method.is_some() {
-            //if recurring payment
-            get_payment_method_type_from_mandate_metadata_for_recurring_payment(item)
+            //if recurring payment get payment_method_type
+            get_payment_method_type_for_saved_payment_method_payment(item).map(Some)?
         } else {
             payment_method_types
         };
@@ -1322,7 +1352,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 },
             )
             .or_else(|| {
-                //stripe requires us to send mandate_data while making payment through saved bank debit
+                //stripe requires us to send mandate_data while making recurring payment through saved bank debit
                 if payment_method.is_some() {
                     //check if payment is done through saved payment method
                     match &payment_method_types {
@@ -1372,46 +1402,35 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
     }
 }
 
-fn get_payment_method_type_from_mandate_metadata_for_recurring_payment(
+fn get_payment_method_type_for_saved_payment_method_payment(
     item: &types::PaymentsAuthorizeRouterData,
-) -> Option<StripePaymentMethodType> {
-    match item.mandate_metadata.clone() {
-        Some(value) => {
-            let payment_method_data =
-                serde_json::from_value::<api_models::payments::PaymentMethodData>(value.expose())
-                    .ok(); //deserializing payment method data
-            match payment_method_data {
-                Some(payments::PaymentMethodData::BankDebit(bank_debit_data)) => {
-                    match bank_debit_data {
-                        payments::BankDebitData::AchBankDebit { .. } => {
-                            Some(StripePaymentMethodType::Ach)
-                        }
-                        payments::BankDebitData::SepaBankDebit { .. } => {
-                            Some(StripePaymentMethodType::Sepa)
-                        }
-                        payments::BankDebitData::BecsBankDebit { .. } => {
-                            Some(StripePaymentMethodType::Becs)
-                        }
-                        payments::BankDebitData::BacsBankDebit { .. } => {
-                            Some(StripePaymentMethodType::Bacs)
-                        }
-                    }
-                }
-                Some(payments::PaymentMethodData::BankRedirect(bank_redirect_data)) => {
-                    match bank_redirect_data {
-                        //bank redirect method is converted to sepa direct bank debit and attached to customer by stripe for future usage
-                        payments::BankRedirectData::BancontactCard { .. }
-                        | payments::BankRedirectData::Ideal { .. }
-                        | payments::BankRedirectData::Sofort { .. } => {
-                            Some(StripePaymentMethodType::Sepa)
-                        }
-                        _ => None,
-                    }
-                }
-                _ => None,
+) -> Result<StripePaymentMethodType, error_stack::Report<errors::ConnectorError>> {
+    let stripe_payment_method_type = match item.recurring_mandate_payment_data.clone() {
+        Some(recurring_payment_method_data) => {
+            match recurring_payment_method_data.payment_method_type {
+                Some(payment_method_type) => StripePaymentMethodType::try_from(payment_method_type),
+                None => Err(errors::ConnectorError::NoPaymentMethodType.into()),
             }
         }
-        None => None,
+        None => Err::<_, error_stack::Report<errors::ConnectorError>>(
+            errors::ConnectorError::NoPaymentMethodType.into(),
+        ),
+    }?;
+    match stripe_payment_method_type {
+        //Stripe converts Ideal, Bancontact & Sofort Bank redirect methods to Sepa direct debit and attaches to the customer for future usage
+        StripePaymentMethodType::Ideal
+        | StripePaymentMethodType::Bancontact
+        | StripePaymentMethodType::Sofort => Ok(StripePaymentMethodType::Sepa),
+
+        StripePaymentMethodType::Eps
+        | StripePaymentMethodType::Giropay
+        | StripePaymentMethodType::Przelewy24 => Err(errors::ConnectorError::NotSupported {
+            message: "Eps, Giropay, Przelewy24 Recurring payments ".into(),
+            connector: "Stripe",
+            payment_experience: "Recurring Payments".into(),
+        }
+        .into()),
+        _ => Ok(stripe_payment_method_type),
     }
 }
 

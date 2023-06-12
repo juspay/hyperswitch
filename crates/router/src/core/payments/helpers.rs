@@ -273,7 +273,7 @@ pub async fn get_token_pm_type_mandate_details(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
     Option<api::MandateData>,
-    Option<pii::SecretSerdeValue>,
+    Option<payments::RecurringMandatePaymentData>,
     Option<String>,
 )> {
     match mandate_type {
@@ -287,17 +287,25 @@ pub async fn get_token_pm_type_mandate_details(
                 request.payment_method.map(ForeignInto::foreign_into),
                 Some(setup_mandate),
                 None,
+                None,
             ))
         }
         Some(api::MandateTxnType::RecurringMandateTxn) => {
-            let (token_, payment_method_type_, mandate_metadata, mandate_connector) =
+            let (token_, payment_method_type_, recurring_mandate_payment_data, mandate_connector) =
                 get_token_for_recurring_mandate(state, request, merchant_account).await?;
-            Ok((token_, payment_method_type_, None, mandate_metadata, mandate_connector))
+            Ok((
+                token_,
+                payment_method_type_,
+                None,
+                recurring_mandate_payment_data,
+                mandate_connector,
+            ))
         }
         None => Ok((
             request.payment_token.to_owned(),
             request.payment_method.map(ForeignInto::foreign_into),
             request.mandate_data.clone(),
+            None,
             None,
         )),
     }
@@ -310,7 +318,7 @@ pub async fn get_token_for_recurring_mandate(
 ) -> RouterResult<(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
-    Option<pii::SecretSerdeValue>,
+    Option<payments::RecurringMandatePaymentData>,
     Option<String>,
 )> {
     let db = &*state.store;
@@ -352,31 +360,37 @@ pub async fn get_token_for_recurring_mandate(
         .locker_id
         .to_owned()
         .get_required_value("locker_id")?;
-    match payment_method.payment_method {
-        storage_enums::PaymentMethod::Card => {
-            let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id)
-                .await?;
-            if let Some(payment_method_from_request) = req.payment_method {
-                let pm: storage_enums::PaymentMethod = payment_method_from_request.foreign_into();
-                if pm != payment_method.payment_method {
-                    Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                        message:
-                            "payment method in request does not match previously provided payment \
-                                    method information"
-                                .into()
-                    }))?
-                }
-            };
+    let payment_method_type = payment_method.payment_method_type.clone();
+    if let storage_models::enums::PaymentMethod::Card = payment_method.payment_method {
+        let _ =
+            cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
+        if let Some(payment_method_from_request) = req.payment_method {
+            let pm: storage_enums::PaymentMethod = payment_method_from_request.foreign_into();
+            if pm != payment_method.payment_method {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message:
+                        "payment method in request does not match previously provided payment \
+                                  method information"
+                            .into()
+                }))?
+            }
+        };
 
         Ok((
             Some(token),
             Some(payment_method.payment_method),
+            Some(payments::RecurringMandatePaymentData {
+                payment_method_type,
+            }),
             Some(mandate.connector),
         ))
     } else {
         Ok((
             None,
             Some(payment_method.payment_method),
+            Some(payments::RecurringMandatePaymentData {
+                payment_method_type,
+            }),
             Some(mandate.connector),
         ))
     }
@@ -1940,7 +1954,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         customer_id: router_data.customer_id,
         connector_customer: router_data.connector_customer,
         preprocessing_id: router_data.preprocessing_id,
-        mandate_metadata: router_data.mandate_metadata,
+        recurring_mandate_payment_data: router_data.recurring_mandate_payment_data,
     }
 }
 

@@ -119,7 +119,7 @@ where
         reference_id: None,
         payment_method_token: payment_data.pm_token,
         connector_customer: payment_data.connector_customer_id,
-        mandate_metadata: payment_data.mandate_metadata,
+        recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
     };
 

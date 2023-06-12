@@ -72,14 +72,19 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             "update",
         )?;
 
-        let (token, payment_method_type, setup_mandate, mandate_metadata, mandate_connector) =
-            helpers::get_token_pm_type_mandate_details(
-                state,
-                request,
-                mandate_type.clone(),
-                merchant_account,
-            )
-            .await?;
+        let (
+            token,
+            payment_method_type,
+            setup_mandate,
+            recurring_mandate_payment_data,
+            mandate_connector,
+        ) = helpers::get_token_pm_type_mandate_details(
+            state,
+            request,
+            mandate_type.clone(),
+            merchant_account,
+        )
+        .await?;
 
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
@@ -305,7 +310,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
-                mandate_metadata,
+                recurring_mandate_payment_data,
                 ephemeral_key: None,
                 redirect_response: None,
             },

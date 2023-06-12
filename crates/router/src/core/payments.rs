@@ -9,7 +9,7 @@ pub mod transformers;
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
 use api_models::payments::Metadata;
-use common_utils::pii::{Email, SecretSerdeValue};
+use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
@@ -976,9 +976,14 @@ where
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
-    pub mandate_metadata: Option<SecretSerdeValue>,
+    pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct RecurringMandatePaymentData {
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
 }
 
 #[derive(Debug, Default)]

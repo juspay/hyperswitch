@@ -20,7 +20,10 @@ use masking::Secret;
 
 use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::PaymentAddress;
-use crate::{core::errors, services};
+use crate::{
+    core::{errors, payments::RecurringMandatePaymentData},
+    services,
+};
 
 pub type PaymentsAuthorizeRouterData =
     RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
@@ -194,7 +197,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
     pub payment_method_token: Option<String>,
-    pub mandate_metadata: Option<pii::SecretSerdeValue>,
+    pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub preprocessing_id: Option<String>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
@@ -774,7 +777,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_method_token: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
-            mandate_metadata: data.mandate_metadata.clone(),
+            recurring_mandate_payment_data: data.recurring_mandate_payment_data.clone(),
         }
     }
 }
