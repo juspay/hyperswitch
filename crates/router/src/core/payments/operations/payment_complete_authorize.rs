@@ -70,7 +70,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             "confirm",
         )?;
 
-        let (token, payment_method, setup_mandate, mandate_connector) =
+        let (token, payment_method, payment_method_type, setup_mandate, mandate_connector) =
             helpers::get_token_pm_type_mandate_details(
                 state,
                 request,
@@ -110,10 +110,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
-        payment_attempt.payment_method_type = request
-            .payment_method_type
-            .map(|pmt| pmt.foreign_into())
-            .or(payment_attempt.payment_method_type);
+        payment_attempt.payment_method_type =
+            payment_method_type.or(payment_attempt.payment_method_type);
         payment_attempt.payment_experience = request
             .payment_experience
             .map(|experience| experience.foreign_into());
