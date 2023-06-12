@@ -1978,9 +1978,7 @@ pub fn add_order_details_and_metadata_to_payment_intent(
             .iter()
             .map(|order| {
                 Encode::<api_models::payments::OrderDetailsWithAmount>::encode_to_value(order)
-                    .change_context(errors::ApiErrorResponse::NotSupported {
-                        message: "failed while encoding order_details".to_string(),
-                    })
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
                     .map(masking::Secret::new)
             })
             .collect::<Result<Vec<_>, _>>()?;
