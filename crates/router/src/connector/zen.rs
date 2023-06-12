@@ -46,6 +46,12 @@ impl api::Refund for Zen {}
 impl api::RefundExecute for Zen {}
 impl api::RefundSync for Zen {}
 
+impl Zen {
+    fn get_default_header() -> (String, request::Maskable<String>) {
+        ("request-id".to_string(), Uuid::new_v4().to_string().into())
+    }
+}
+
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Zen
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
@@ -55,13 +61,10 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut headers = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                self.get_content_type().to_string().into(),
-            ),
-            ("request-id".to_string(), Uuid::new_v4().to_string().into()),
-        ];
+        let mut headers = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            self.get_content_type().to_string().into(),
+        )];
 
         let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
         headers.append(&mut auth_header);
@@ -146,7 +149,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        let api_headers = match req.request.payment_method_data {
+            api_models::payments::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::ApplePayRedirect(_),
+            ) => None,
+            _ => Some(Self::get_default_header()),
+        };
+        if let Some(api_header) = api_headers {
+            headers.push(api_header)
+        }
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -155,10 +168,23 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}v1/transactions", self.base_url(connectors),))
+        let endpoint = match &req.request.payment_method_data {
+            api_models::payments::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::ApplePayRedirect(_),
+            ) => {
+                let base_url = connectors
+                    .zen
+                    .secondary_base_url
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                format!("{base_url}api/checkouts")
+            }
+            _ => format!("{}v1/transactions", self.base_url(connectors)),
+        };
+        Ok(endpoint)
     }
 
     fn get_request_body(
@@ -223,7 +249,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        headers.push(Self::get_default_header());
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -289,11 +317,37 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
     for Zen
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<
+            api::Capture,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Capture".to_owned(),
+            connector: "Zen".to_owned(),
+        }
+        .into())
+    }
 }
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Zen
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Void".to_owned(),
+            connector: "Zen".to_owned(),
+        }
+        .into())
+    }
 }
 
 impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Zen {
@@ -302,7 +356,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        headers.push(Self::get_default_header());
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -377,7 +433,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        headers.push(Self::get_default_header());
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -507,8 +565,8 @@ impl api::IncomingWebhook for Zen {
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
         Ok(match &webhook_body.transaction_type {
             ZenWebhookTxnType::TrtPurchase => api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    webhook_body.transaction_id,
+                api_models::payments::PaymentIdType::PaymentAttemptId(
+                    webhook_body.merchant_transaction_id,
                 ),
             ),
             ZenWebhookTxnType::TrtRefund => api_models::webhooks::ObjectReferenceId::RefundId(

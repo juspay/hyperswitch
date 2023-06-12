@@ -70,9 +70,9 @@ body:
         If yes, please provide the value of the `x-request-id` response header for helping us debug your issue.
 
         If not (or if building/running locally), please provide the following details:
-        1. Operating System or Linux distribution: 
+        1. Operating System or Linux distribution:
         2. Rust version (output of `rustc --version`): ``
-        3. App version (output of `cargo r -- --version`): ``
+        3. App version (output of `cargo r --features vergen -- --version`): ``
     validations:
       required: true
 

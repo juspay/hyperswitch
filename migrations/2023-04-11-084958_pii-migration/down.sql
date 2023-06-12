@@ -1,6 +1,6 @@
 -- This file should undo anything in `up.sql`
 
-ALTER TABLE merchant_connector_account 
+ALTER TABLE merchant_connector_account
     ALTER COLUMN connector_account_details TYPE JSON
     USING convert_from(connector_account_details, 'UTF8')::json;
 
