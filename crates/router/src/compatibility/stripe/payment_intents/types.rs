@@ -591,7 +591,7 @@ impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments
                 acceptance_type: payments::AcceptanceType::Online,
                 accepted_at: mandate.accepted_at,
                 online: Some(payments::OnlineMandate {
-                    ip_address: mandate.ip_address.unwrap_or_default(),
+                    ip_address: mandate.ip_address,
                     user_agent: mandate.user_agent.unwrap_or_default(),
                 }),
             }),
