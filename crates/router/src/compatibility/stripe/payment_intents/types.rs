@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use api_models::payments;
 use common_utils::{crypto::Encryptable, date_time, ext_traits::StringExt, pii as secret};
 use error_stack::{IntoReport, ResultExt};
@@ -11,6 +13,7 @@ use crate::{
     types::{
         api::{admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignTryFrom},
+        BrowserInformation,
     },
 };
 
@@ -146,6 +149,7 @@ pub struct StripePaymentIntentRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     pub mandate_id: Option<String>,
     pub off_session: Option<bool>,
+    pub receipt_ipaddress: Option<String>,
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
@@ -182,6 +186,16 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                     .attach_printable("converting to routing failed")
             })
             .transpose()?;
+
+        let ip_address = item
+            .receipt_ipaddress
+            .map(|ip| std::net::IpAddr::from_str(ip.as_str()))
+            .transpose()
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "receipt_ipaddress".to_string(),
+                expected_format: "127.0.0.1".to_string(),
+            })?;
         let request = Ok(Self {
             payment_id: item.id.map(payments::PaymentIdType::PaymentIntentId),
             amount: item.amount.map(|amount| amount.into()),
@@ -228,6 +242,15 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             mandate_id: item.mandate_id,
             off_session: item.off_session,
             routing,
+            browser_info: Some(
+                serde_json::to_value(BrowserInformation {
+                    ip_address,
+                    ..Default::default()
+                })
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("convert to browser info failed")?,
+            ),
             ..Self::default()
         });
         request

@@ -442,7 +442,7 @@ pub struct RefundsData {
     pub connector_metadata: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct BrowserInformation {
     pub color_depth: Option<u8>,
     pub java_enabled: Option<bool>,
