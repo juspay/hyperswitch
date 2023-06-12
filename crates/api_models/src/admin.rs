@@ -488,6 +488,7 @@ pub struct MerchantConnectorCreate {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorWebhookDetails {
+    #[schema(value_type = String, example = "12345678900987654321")]
     pub merchant_secret: Secret<String>,
 }
 
