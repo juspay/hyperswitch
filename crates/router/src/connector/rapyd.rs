@@ -835,7 +835,8 @@ impl api::IncomingWebhook for Rapyd {
             rapyd::RapydWebhookObjectEventType::PaymentFailed => {
                 api::IncomingWebhookEvent::PaymentIntentFailure
             }
-            rapyd::RapydWebhookObjectEventType::PaymentRefundFailed => {
+            rapyd::RapydWebhookObjectEventType::PaymentRefundFailed
+            | rapyd::RapydWebhookObjectEventType::PaymentRefundRejected => {
                 api::IncomingWebhookEvent::RefundFailure
             }
             rapyd::RapydWebhookObjectEventType::RefundCompleted => {
@@ -844,8 +845,7 @@ impl api::IncomingWebhook for Rapyd {
             rapyd::RapydWebhookObjectEventType::PaymentDisputeCreated => {
                 api::IncomingWebhookEvent::DisputeOpened
             }
-            rapyd::RapydWebhookObjectEventType::Unknown
-            | rapyd::RapydWebhookObjectEventType::PaymentRefundRejected => {
+            rapyd::RapydWebhookObjectEventType::Unknown => {
                 api::IncomingWebhookEvent::EventNotSupported
             }
             rapyd::RapydWebhookObjectEventType::PaymentDisputeUpdated => match webhook.data {
