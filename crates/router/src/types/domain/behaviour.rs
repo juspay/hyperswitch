@@ -13,7 +13,6 @@ pub trait Conversion {
         item: Self::DstType,
         db: &dyn StorageInterface,
         merchant_id: &str,
-        migration_timestamp: i64,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized;
@@ -27,7 +26,6 @@ pub trait ReverseConversion<SrcType: Conversion> {
         self,
         db: &dyn StorageInterface,
         merchant_id: &str,
-        migration_timestamp: i64,
     ) -> CustomResult<SrcType, ValidationError>;
 }
 
@@ -37,8 +35,7 @@ impl<T: Send, U: Conversion<DstType = T>> ReverseConversion<U> for T {
         self,
         db: &dyn StorageInterface,
         merchant_id: &str,
-        migration_timestamp: i64,
     ) -> CustomResult<U, ValidationError> {
-        U::convert_back(self, db, merchant_id, migration_timestamp).await
+        U::convert_back(self, db, merchant_id).await
     }
 }

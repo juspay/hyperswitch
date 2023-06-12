@@ -3,10 +3,10 @@
 ### I. Objective
 A clear and concise title for the RFC
 
-### II. Proposal 
+### II. Proposal
 A detailed description of the proposed changes, discussion time frame, technical details and potential drawbacks or alternative solutions that were considered
 
-### III. Open Questions 
+### III. Open Questions
 Any questions or concerns that are still open for discussion and debate within the community
 
 ### IV. Additional Context / Previous Improvements

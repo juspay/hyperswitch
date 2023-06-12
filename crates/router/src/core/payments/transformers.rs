@@ -606,6 +606,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .transpose()
             .unwrap_or_default();
 
+        let order_category = parsed_metadata
+            .as_ref()
+            .and_then(|data| data.order_category.clone());
         let order_details = parsed_metadata.and_then(|data| data.order_details);
         let complete_authorize_url = Some(helpers::create_complete_authorize_url(
             router_base_url,
@@ -648,6 +651,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             email: payment_data.email,
             payment_experience: payment_data.payment_attempt.payment_experience,
             order_details,
+            order_category,
             session_token: None,
             enrolled_for_3ds: true,
             related_transaction_id: None,
@@ -818,6 +822,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             router_return_url,
             email: payment_data.email,
             return_url: payment_data.payment_intent.return_url,
+            payment_method_type: attempt.payment_method_type.clone(),
         })
     }
 }
