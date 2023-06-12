@@ -147,6 +147,8 @@ mod cache_tests {
         cache.push("key".to_string(), "val".to_string()).await;
 
         cache.remove("key").await;
+
+        assert_eq!(cache.get_val::<String>("key"), None);
     }
 
     #[tokio::test]
