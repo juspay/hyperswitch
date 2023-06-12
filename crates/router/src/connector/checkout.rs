@@ -18,7 +18,11 @@ use crate::{
     },
     db::StorageInterface,
     headers,
-    services::{self, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -37,10 +41,12 @@ where
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -60,13 +66,13 @@ impl ConnectorCommon for Checkout {
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth: checkout::CheckoutAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_secret),
+            format!("Bearer {}", auth.api_secret).into_masked(),
         )])
     }
 
@@ -78,14 +84,18 @@ impl ConnectorCommon for Checkout {
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         let response: checkout::ErrorResponse = if res.response.is_empty() {
+            let (error_codes, error_type) = if res.status_code == 401 {
+                (
+                    Some(vec!["Invalid api key".to_string()]),
+                    Some("invalid_api_key".to_string()),
+                )
+            } else {
+                (None, None)
+            };
             checkout::ErrorResponse {
                 request_id: None,
-                error_type: if res.status_code == 401 || res.status_code == 422 {
-                    Some("Invalid Api Key".to_owned())
-                } else {
-                    None
-                },
-                error_codes: None,
+                error_codes,
+                error_type,
             }
         } else {
             res.response
@@ -133,16 +143,16 @@ impl
         &self,
         req: &types::TokenizationRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            self.common_get_content_type().to_string(),
+            self.common_get_content_type().to_string().into(),
         )];
         let api_key = checkout::CheckoutAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let mut auth = vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", api_key.api_key),
+            format!("Bearer {}", api_key.api_key).into_masked(),
         )];
         header.append(&mut auth);
         Ok(header)
@@ -243,7 +253,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -322,7 +332,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -395,7 +405,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -473,7 +483,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -552,7 +562,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -636,7 +646,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundsRouterData<api::RSync>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -710,10 +720,12 @@ impl
         &self,
         req: &types::AcceptDisputeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::AcceptDisputeType::get_content_type(self).to_string(),
+            types::AcceptDisputeType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -821,7 +833,7 @@ impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::Uplo
             types::UploadFileResponse,
         >,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.get_auth_header(&req.connector_auth_type)
     }
 
@@ -903,10 +915,12 @@ impl
         &self,
         req: &types::SubmitEvidenceRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::SubmitEvidenceType::get_content_type(self).to_string(),
+            types::SubmitEvidenceType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -983,10 +997,12 @@ impl
         &self,
         req: &types::DefendDisputeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::DefendDisputeType::get_content_type(self).to_string(),
+            types::DefendDisputeType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -1075,7 +1091,7 @@ impl api::IncomingWebhook for Checkout {
         db: &dyn StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
+        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
         let secret = match db.find_config_by_key(&key).await {
             Ok(config) => Some(config),
             Err(e) => {
@@ -1183,9 +1199,13 @@ impl services::ConnectorRedirectResponse for Checkout {
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let connector_action = query
             .status
-            .map(|checkout_status| {
-                payments::CallConnectorAction::StatusUpdate(checkout_status.into())
-            })
+            .map(
+                |checkout_status| payments::CallConnectorAction::StatusUpdate {
+                    status: storage_models::enums::AttemptStatus::from(checkout_status),
+                    error_code: None,
+                    error_message: None,
+                },
+            )
             .unwrap_or(payments::CallConnectorAction::Trigger);
         Ok(connector_action)
     }

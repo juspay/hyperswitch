@@ -24,8 +24,8 @@ pub struct Metadata {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct CoinbasePaymentsRequest {
-    pub name: Secret<String>,
-    pub description: String,
+    pub name: Option<Secret<String>>,
+    pub description: Option<String>,
     pub pricing_type: String,
     pub local_price: LocalPrice,
     pub redirect_url: String,
@@ -245,12 +245,12 @@ fn get_crypto_specific_payment_data(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<CoinbasePaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let billing_address = item
-        .get_billing()?
-        .address
-        .as_ref()
-        .ok_or_else(utils::missing_field_err("billing.address"))?;
-    let name = billing_address.get_first_name()?.to_owned();
-    let description = item.get_description()?;
+        .get_billing()
+        .ok()
+        .and_then(|billing_address| billing_address.address.as_ref());
+    let name =
+        billing_address.and_then(|add| add.get_first_name().ok().map(|name| name.to_owned()));
+    let description = item.get_description().ok();
     let connector_meta: CoinbaseConnectorMeta =
         utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
     let pricing_type = connector_meta.pricing_type;
@@ -306,13 +306,15 @@ pub enum WebhookEventType {
     Failed,
     #[serde(rename = "charge:resolved")]
     Resolved,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct CoinbasePaymentResponseData {
     pub id: String,
     pub code: String,
-    pub name: String,
+    pub name: Option<String>,
     pub utxo: bool,
     pub pricing: HashMap<String, OverpaymentAbsoluteThreshold>,
     pub fee_rate: f64,
@@ -327,7 +329,7 @@ pub struct CoinbasePaymentResponseData {
     pub expires_at: String,
     pub hosted_url: String,
     pub brand_color: String,
-    pub description: String,
+    pub description: Option<String>,
     pub confirmed_at: Option<String>,
     pub fees_settled: bool,
     pub pricing_type: String,

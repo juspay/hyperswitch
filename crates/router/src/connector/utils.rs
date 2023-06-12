@@ -429,6 +429,7 @@ pub trait CardData {
         delimiter: String,
     ) -> Secret<String>;
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String>;
+    fn get_expiry_year_4_digit(&self) -> Secret<String>;
 }
 
 impl CardData for api::Card {
@@ -453,16 +454,20 @@ impl CardData for api::Card {
         ))
     }
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
-        let mut x = self.card_exp_year.peek().clone();
-        if x.len() == 2 {
-            x = format!("20{}", x);
-        }
+        let year = self.get_expiry_year_4_digit();
         Secret::new(format!(
             "{}{}{}",
-            x,
+            year.peek(),
             delimiter,
             self.card_exp_month.peek().clone()
         ))
+    }
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.card_exp_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{}", year);
+        }
+        Secret::new(year)
     }
 }
 
@@ -792,4 +797,9 @@ pub fn collect_and_sort_values_by_removing_signature(
     let mut values = collect_values_by_removing_signature(value, signature);
     values.sort();
     values
+}
+
+#[inline]
+pub fn get_webhook_merchant_secret_key(connector: &str, merchant_id: &str) -> String {
+    format!("whsec_verification_{connector}_{merchant_id}")
 }

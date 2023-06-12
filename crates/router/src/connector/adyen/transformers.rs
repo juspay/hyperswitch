@@ -1,5 +1,6 @@
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -19,6 +20,7 @@ use crate::{
         storage::enums as storage_enums,
         transformers::ForeignFrom,
     },
+    utils::OptionExt,
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -839,25 +841,73 @@ fn get_recurring_processing_model(
     }
 }
 
-fn get_browser_info(item: &types::PaymentsAuthorizeRouterData) -> Option<AdyenBrowserInfo> {
+fn get_browser_info(
+    item: &types::PaymentsAuthorizeRouterData,
+) -> Result<Option<AdyenBrowserInfo>, Error> {
     if item.auth_type == storage_enums::AuthenticationType::ThreeDs
         || item.payment_method == storage_enums::PaymentMethod::BankRedirect
     {
         item.request
             .browser_info
             .as_ref()
-            .map(|info| AdyenBrowserInfo {
-                accept_header: info.accept_header.clone(),
-                language: info.language.clone(),
-                screen_height: info.screen_height,
-                screen_width: info.screen_width,
-                color_depth: info.color_depth,
-                user_agent: info.user_agent.clone(),
-                time_zone_offset: info.time_zone,
-                java_enabled: info.java_enabled,
+            .map(|info| {
+                Ok(AdyenBrowserInfo {
+                    accept_header: info
+                        .accept_header
+                        .clone()
+                        .get_required_value("accept_header")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "accept_header",
+                        })?,
+                    language: info
+                        .language
+                        .clone()
+                        .get_required_value("language")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "language",
+                        })?,
+                    screen_height: info
+                        .screen_height
+                        .get_required_value("screen_height")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "screen_height",
+                        })?,
+                    screen_width: info
+                        .screen_width
+                        .get_required_value("screen_width")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "screen_width",
+                        })?,
+                    color_depth: info
+                        .color_depth
+                        .get_required_value("color_depth")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "color_depth",
+                        })?,
+                    user_agent: info
+                        .user_agent
+                        .clone()
+                        .get_required_value("user_agent")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "user_agent",
+                        })?,
+                    time_zone_offset: info
+                        .time_zone
+                        .get_required_value("time_zone_offset")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "time_zone_offset",
+                        })?,
+                    java_enabled: info
+                        .java_enabled
+                        .get_required_value("java_enabled")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "java_enabled",
+                        })?,
+                })
             })
+            .transpose()
     } else {
-        None
+        Ok(None)
     }
 }
 
@@ -1260,7 +1310,7 @@ impl<'a>
         let shopper_interaction = AdyenShopperInteraction::from(item);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item)?;
-        let browser_info = get_browser_info(item);
+        let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
         let payment_method = match mandate_ref_id {
@@ -1332,7 +1382,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::Card)> for AdyenPay
         let shopper_interaction = AdyenShopperInteraction::from(item);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item)?;
-        let browser_info = get_browser_info(item);
+        let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(card_data)?;
@@ -1379,7 +1429,7 @@ impl<'a>
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item);
         let recurring_processing_model = get_recurring_processing_model(item)?.0;
-        let browser_info = get_browser_info(item);
+        let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(bank_debit_data)?;
@@ -1428,7 +1478,7 @@ impl<'a>
         let shopper_interaction = AdyenShopperInteraction::from(item);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item)?;
-        let browser_info = get_browser_info(item);
+        let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(bank_redirect_data)?;
@@ -1492,7 +1542,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)>
         let (item, wallet_data) = value;
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
-        let browser_info = get_browser_info(item);
+        let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let payment_method = AdyenPaymentMethod::try_from(wallet_data)?;
         let shopper_interaction = AdyenShopperInteraction::from(item);
@@ -1533,7 +1583,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::PayLaterData)>
         let (item, paylater_data) = value;
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
-        let browser_info = get_browser_info(item);
+        let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let payment_method = AdyenPaymentMethod::try_from(paylater_data)?;
         let shopper_interaction = AdyenShopperInteraction::from(item);
@@ -1945,6 +1995,8 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
+    #[serde(other)]
+    Unknown,
 }
 
 pub fn is_transaction_event(event_code: &WebhookEventCode) -> bool {
@@ -1994,6 +2046,7 @@ impl ForeignFrom<(WebhookEventCode, Option<DisputeStatus>)> for webhooks::Incomi
             }
             (WebhookEventCode::PrearbitrationWon, _) => Self::DisputeWon,
             (WebhookEventCode::PrearbitrationLost, _) => Self::DisputeLost,
+            (WebhookEventCode::Unknown, _) => Self::EventNotSupported,
         }
     }
 }

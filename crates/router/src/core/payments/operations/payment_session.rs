@@ -17,8 +17,8 @@ use crate::{
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
+        domain,
         storage::{self, enums as storage_enums},
-        transformers::ForeignInto,
     },
     utils::OptionExt,
 };
@@ -38,7 +38,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsSessionRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
@@ -153,11 +153,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 amount,
                 email: None,
                 mandate_id: None,
+                mandate_connector: None,
                 token: None,
                 setup_mandate: None,
                 address: payments::PaymentAddress {
-                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
+                    shipping: shipping_address.as_ref().map(|a| a.into()),
+                    billing: billing_address.as_ref().map(|a| a.into()),
                 },
                 confirm: None,
                 payment_method_data: None,
@@ -171,6 +172,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 pm_token: None,
                 connector_customer_id: None,
                 ephemeral_key: None,
+                redirect_response: None,
             },
             Some(customer_details),
         ))
@@ -185,7 +187,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
         db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(
@@ -217,7 +219,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsSessionRequest,
-        merchant_account: &'a storage::MerchantAccount,
+        merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         operations::ValidateResult<'a>,
@@ -253,7 +255,7 @@ where
     ) -> errors::CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsSessionRequest>,
-            Option<storage::Customer>,
+            Option<domain::Customer>,
         ),
         errors::StorageError,
     > {
@@ -292,7 +294,7 @@ where
     /// or from separate implementation ( for googlepay - from metadata and applepay - from metadata and call connector)
     async fn get_connector<'a>(
         &'a self,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsSessionRequest,
         payment_intent: &storage::payment_intent::PaymentIntent,
