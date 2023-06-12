@@ -266,6 +266,7 @@ async fn get_tracker_for_sync<
                     mandate_reference_id: None,
                 }
             }),
+            mandate_connector: None,
             setup_mandate: None,
             token: None,
             address: PaymentAddress {
@@ -289,7 +290,7 @@ async fn get_tracker_for_sync<
             creds_identifier,
             pm_token: None,
             connector_customer_id: None,
-            mandate_metadata: None,
+            recurring_mandate_payment_data: None,
             ephemeral_key: None,
             redirect_response: None,
             delayed_session_token: None,

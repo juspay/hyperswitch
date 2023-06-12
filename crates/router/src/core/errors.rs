@@ -305,6 +305,8 @@ pub enum ConnectorError {
     FileValidationFailed { reason: String },
     #[error("Missing 3DS redirection payload: {field_name}")]
     MissingConnectorRedirectionPayload { field_name: &'static str },
+    #[error("Payment Method Type not found for saved method payment (Recurring payments)")]
+    NoPaymentMethodType,
 }
 
 #[derive(Debug, thiserror::Error)]

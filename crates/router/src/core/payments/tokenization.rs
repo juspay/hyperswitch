@@ -15,6 +15,7 @@ use crate::{
         self,
         api::{self, PaymentMethodCreateExt},
         domain,
+        storage::enums as storage_enums,
     },
     utils::OptionExt,
 };
@@ -25,6 +26,7 @@ pub async fn save_payment_method<F: Clone, FData>(
     resp: types::RouterData<F, FData, types::PaymentsResponseData>,
     maybe_customer: &Option<domain::Customer>,
     merchant_account: &domain::MerchantAccount,
+    payment_method_type: Option<storage_enums::PaymentMethodType>,
 ) -> RouterResult<Option<String>>
 where
     FData: mandate::MandateBehaviour,
@@ -53,6 +55,7 @@ where
         let payment_method_create_request = helpers::get_payment_method_create_request(
             Some(&resp.request.get_payment_method_data()),
             Some(resp.payment_method),
+            payment_method_type,
             &customer,
         )
         .await?;

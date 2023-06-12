@@ -141,6 +141,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 amount,
                 email: None,
                 mandate_id: None,
+                mandate_connector: None,
                 setup_mandate: None,
                 token: None,
                 address: payments::PaymentAddress {
@@ -157,7 +158,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
-                mandate_metadata: None,
+                recurring_mandate_payment_data: None,
                 ephemeral_key: None,
                 redirect_response: None,
                 delayed_session_token: None,

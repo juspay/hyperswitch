@@ -63,14 +63,19 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let (token, payment_method_type, setup_mandate, mandate_metadata) =
-            helpers::get_token_pm_type_mandate_details(
-                state,
-                request,
-                mandate_type,
-                merchant_account,
-            )
-            .await?;
+        let (
+            token,
+            payment_method_type,
+            setup_mandate,
+            recurring_mandate_payment_data,
+            mandate_connector,
+        ) = helpers::get_token_pm_type_mandate_details(
+            state,
+            request,
+            mandate_type,
+            merchant_account,
+        )
+        .await?;
 
         let shipping_address = helpers::get_address_for_payment_request(
             db,
@@ -233,6 +238,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 amount,
                 email: request.email.clone(),
                 mandate_id,
+                mandate_connector,
                 setup_mandate,
                 token,
                 address: PaymentAddress {
@@ -250,7 +256,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
-                mandate_metadata,
+                recurring_mandate_payment_data,
                 ephemeral_key,
                 redirect_response: None,
                 delayed_session_token: None,

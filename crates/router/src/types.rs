@@ -20,7 +20,10 @@ use masking::Secret;
 
 use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::PaymentAddress;
-use crate::{core::errors, services};
+use crate::{
+    core::{errors, payments::RecurringMandatePaymentData},
+    services,
+};
 
 pub type PaymentsAuthorizeRouterData =
     RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
@@ -194,7 +197,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
     pub payment_method_token: Option<String>,
-    pub mandate_metadata: Option<pii::SecretSerdeValue>,
+    pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub preprocessing_id: Option<String>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
@@ -339,6 +342,7 @@ pub struct VerifyRequestData {
     pub router_return_url: Option<String>,
     pub email: Option<Email>,
     pub return_url: Option<String>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Clone)]
@@ -376,7 +380,6 @@ pub enum PaymentsResponseData {
     },
     SessionResponse {
         session_token: api::SessionToken,
-        response_id: Option<String>,
     },
     SessionTokenResponse {
         session_token: String,
@@ -446,16 +449,16 @@ pub struct RefundsData {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BrowserInformation {
-    pub color_depth: u8,
-    pub java_enabled: bool,
-    pub java_script_enabled: bool,
-    pub language: String,
-    pub screen_height: u32,
-    pub screen_width: u32,
-    pub time_zone: i32,
+    pub color_depth: Option<u8>,
+    pub java_enabled: Option<bool>,
+    pub java_script_enabled: Option<bool>,
+    pub language: Option<String>,
+    pub screen_height: Option<u32>,
+    pub screen_width: Option<u32>,
+    pub time_zone: Option<i32>,
     pub ip_address: Option<std::net::IpAddr>,
-    pub accept_header: String,
-    pub user_agent: String,
+    pub accept_header: Option<String>,
+    pub user_agent: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -774,7 +777,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_method_token: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
-            mandate_metadata: data.mandate_metadata.clone(),
+            recurring_mandate_payment_data: data.recurring_mandate_payment_data.clone(),
         }
     }
 }

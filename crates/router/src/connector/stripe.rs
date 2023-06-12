@@ -1835,9 +1835,11 @@ impl services::ConnectorRedirectResponse for Stripe {
                     | transformers::StripePaymentStatus::Succeeded => {
                         payments::CallConnectorAction::Trigger
                     }
-                    _ => payments::CallConnectorAction::StatusUpdate(enums::AttemptStatus::from(
-                        status,
-                    )),
+                    _ => payments::CallConnectorAction::StatusUpdate {
+                        status: enums::AttemptStatus::from(status),
+                        error_code: None,
+                        error_message: None,
+                    },
                 },
             ))
     }

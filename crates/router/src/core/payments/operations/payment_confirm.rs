@@ -98,14 +98,19 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .map(ForeignInto::foreign_into)
             .or(payment_intent.setup_future_usage);
 
-        let (token, payment_method, setup_mandate, mandate_metadata) =
-            helpers::get_token_pm_type_mandate_details(
-                state,
-                request,
-                mandate_type.clone(),
-                merchant_account,
-            )
-            .await?;
+        let (
+            token,
+            payment_method,
+            setup_mandate,
+            recurring_mandate_payment_data,
+            mandate_connector,
+        ) = helpers::get_token_pm_type_mandate_details(
+            state,
+            request,
+            mandate_type.clone(),
+            merchant_account,
+        )
+        .await?;
 
         let browser_info = request
             .browser_info
@@ -230,6 +235,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 amount,
                 email: request.email.clone(),
                 mandate_id: None,
+                mandate_connector,
                 setup_mandate,
                 token,
                 address: PaymentAddress {
@@ -246,7 +252,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
-                mandate_metadata,
+                recurring_mandate_payment_data,
                 ephemeral_key: None,
                 redirect_response: None,
                 delayed_session_token: None,
