@@ -94,15 +94,15 @@ pub struct WiseBankDetails {
     nationality: Option<String>,
     account_holder_name: Option<Secret<String>>,
     email: Option<Email>,
-    account_number: Option<String>,
+    account_number: Option<Secret<String>>,
     city: Option<String>,
-    sort_code: Option<String>,
-    iban: Option<String>,
-    bic: Option<String>,
-    transit_number: Option<String>,
-    routing_number: Option<String>,
-    abartn: Option<String>,
-    swift_code: Option<String>,
+    sort_code: Option<Secret<String>>,
+    iban: Option<Secret<String>>,
+    bic: Option<Secret<String>>,
+    transit_number: Option<Secret<String>>,
+    routing_number: Option<Secret<String>>,
+    abartn: Option<Secret<String>>,
+    swift_code: Option<Secret<String>>,
     payin_reference: Option<String>,
     psp_reference: Option<String>,
     tax_id: Option<String>,
@@ -353,7 +353,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
         let customer_details = request.customer_details;
         let payout_method_data = item.get_payout_method_data()?;
         let bank_details = get_payout_bank_details(
-            payout_method_data,
+            payout_method_data.to_owned(),
             &item.address.billing,
             item.request.entity_type,
         )?;
@@ -381,7 +381,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
                 Ok(Self {
                     profile: source_id,
                     currency: request.destination_currency.to_string(),
-                    recipient_type: RecipientType::SortCode, // TODO: Map it to BankType (added in future commit)
+                    recipient_type: RecipientType::try_from(payout_method_data)?,
                     account_holder_name,
                     details: bank_details,
                 })
@@ -585,6 +585,23 @@ impl ForeignFrom<EntityType> for LegalType {
         match entity_type {
             EntityType::Individual | EntityType::Personal | EntityType::NonProfit => Self::Private,
             EntityType::Company | EntityType::PublicSector | EntityType::Business => Self::Business,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<PayoutMethodData> for RecipientType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(payout_method_type: PayoutMethodData) -> Result<Self, Self::Error> {
+        match payout_method_type {
+            PayoutMethodData::Bank(api_models::payouts::Bank::Bacs(_)) => Ok(Self::SortCode),
+            PayoutMethodData::Bank(api_models::payouts::Bank::Sepa(_)) => Ok(Self::Iban),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "Requested payout_method_type is not supported".to_string(),
+                connector: "Wise",
+                payment_experience: "".to_string(),
+            }
+            .into()),
         }
     }
 }

@@ -195,11 +195,11 @@ pub struct AchBankTransfer {
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "000123456")]
-    pub bank_account_number: String,
+    pub bank_account_number: Secret<String>,
 
     /// [9 digits] Routing number - used in USA for identifying a specific bank.
     #[schema(value_type = String, example = "110000000")]
-    pub bank_routing_number: String,
+    pub bank_routing_number: Secret<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -219,11 +219,11 @@ pub struct BacsBankTransfer {
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "000123456")]
-    pub bank_account_number: String,
+    pub bank_account_number: Secret<String>,
 
     /// [6 digits] Sort Code - used in UK and Ireland for identifying a bank and it's branches.
     #[schema(value_type = String, example = "98-76-54")]
-    pub bank_sort_code: String,
+    pub bank_sort_code: Secret<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -244,11 +244,11 @@ pub struct SepaBankTransfer {
 
     /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
     #[schema(value_type = String, example = "DE89370400440532013000")]
-    pub iban: String,
+    pub iban: Secret<String>,
 
     /// [8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches
     #[schema(value_type = String, example = "HSBCGB2LXXX")]
-    pub bic: Option<String>,
+    pub bic: Option<Secret<String>>,
 }
 
 #[cfg(feature = "payouts")]
