@@ -324,7 +324,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .cloned()
             .async_map(|account| async {
                 account
-                    .convert(self, merchant_id, self.get_migration_timestamp())
+                    .convert(self, merchant_id)
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -357,7 +357,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .cloned()
             .async_map(|account| async {
                 account
-                    .convert(self, merchant_id, self.get_migration_timestamp())
+                    .convert(self, merchant_id)
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -430,7 +430,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         for account in accounts.into_iter() {
             output.push(
                 account
-                    .convert(self, merchant_id, self.get_migration_timestamp())
+                    .convert(self, merchant_id)
                     .await
                     .change_context(errors::StorageError::DecryptionError)?,
             )
@@ -457,11 +457,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             })
             .async_map(|account| async {
                 account
-                    .convert(
-                        self,
-                        &merchant_connector_account.merchant_id,
-                        self.get_migration_timestamp(),
-                    )
+                    .convert(self, &merchant_connector_account.merchant_id)
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
