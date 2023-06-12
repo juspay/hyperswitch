@@ -1798,14 +1798,10 @@ impl services::ConnectorRedirectResponse for Stripe {
         Ok(query
             .redirect_status
             .map_or(
-                payments::CallConnectorAction::Trigger,
-                |status| match status {
-                    transformers::StripePaymentStatus::Failed => {
-                        payments::CallConnectorAction::Trigger
-                    }
-                    _ => payments::CallConnectorAction::StatusUpdate(enums::AttemptStatus::from(
-                        status,
-                    )),
+                payments::CallConnectorAction::Avoid,
+                
+                |_| {
+                    payments::CallConnectorAction::Trigger
                 },
             ))
     }
