@@ -2165,13 +2165,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
 impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSourceRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        let currency = item
-            .request
-            .currency
-            .get_required_value("currency")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "currency",
-            })?
+        let currency = item.request.get_currency()?
             .to_string();
 
         match &item.request.payment_method_data {
