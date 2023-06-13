@@ -2166,9 +2166,9 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
         let currency = item
             .request
             .currency
-            .get_required_value("amount")
+            .get_required_value("currency")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "amount",
+                field_name: "currency",
             })?
             .to_string();
 
