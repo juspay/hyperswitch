@@ -15,7 +15,9 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    collect_missing_value_keys, connector, consts,
+    collect_missing_value_keys,
+    connector::utils::{PaymentsPreProcessingData, RouterData},
+    consts,
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
@@ -2165,8 +2167,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
 impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSourceRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        let currency = item.request.get_currency()?
-            .to_string();
+        let currency = item.request.get_currency()?.to_string();
 
         match &item.request.payment_method_data {
             Some(payments::PaymentMethodData::BankTransfer(bank_transfer_data)) => {
@@ -2178,12 +2179,8 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                             payment_method_data: MultibancoTransferData {
                                 email: item.request.get_email()?,
                             },
-                            amount: Some(
-                                item.request.get_amount()?,
-                            ),
-                            return_url: Some(
-                                item.get_return_url()?,
-                            ),
+                            amount: Some(item.request.get_amount()?),
+                            return_url: Some(item.get_return_url()?),
                         }),
                     ),
                     payments::BankTransferData::AchBankTransfer { .. } => {
