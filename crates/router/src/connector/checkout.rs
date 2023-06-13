@@ -102,6 +102,8 @@ impl ConnectorCommon for Checkout {
                 .parse_struct("ErrorResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
         };
+
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response

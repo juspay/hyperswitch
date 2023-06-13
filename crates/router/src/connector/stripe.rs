@@ -188,6 +188,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -302,6 +303,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -413,6 +415,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -530,6 +533,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -659,6 +663,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -801,6 +806,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -907,6 +913,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1033,6 +1040,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1137,6 +1145,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1230,6 +1239,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1364,6 +1374,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1456,6 +1467,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1569,6 +1581,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response

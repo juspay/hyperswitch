@@ -95,6 +95,7 @@ impl ConnectorCommon for Bluesnap {
             .response
             .parse_struct("BluesnapErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
 
         let response_error_message = match response {
             bluesnap::BluesnapErrors::PaymentError(error_res) => error_res.message.first().map_or(

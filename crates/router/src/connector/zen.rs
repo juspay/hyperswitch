@@ -106,6 +106,7 @@ impl ConnectorCommon for Zen {
             .response
             .parse_struct("Zen ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
 
         Ok(ErrorResponse {
             status_code: res.status_code,
