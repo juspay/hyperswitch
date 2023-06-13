@@ -442,18 +442,18 @@ pub struct RefundsData {
     pub connector_metadata: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct BrowserInformation {
-    pub color_depth: u8,
-    pub java_enabled: bool,
-    pub java_script_enabled: bool,
-    pub language: String,
-    pub screen_height: u32,
-    pub screen_width: u32,
-    pub time_zone: i32,
+    pub color_depth: Option<u8>,
+    pub java_enabled: Option<bool>,
+    pub java_script_enabled: Option<bool>,
+    pub language: Option<String>,
+    pub screen_height: Option<u32>,
+    pub screen_width: Option<u32>,
+    pub time_zone: Option<i32>,
     pub ip_address: Option<std::net::IpAddr>,
-    pub accept_header: String,
-    pub user_agent: String,
+    pub accept_header: Option<String>,
+    pub user_agent: Option<String>,
 }
 
 #[derive(Debug, Clone)]

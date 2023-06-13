@@ -211,12 +211,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct OpennodeErrorResponse {
-    pub status_code: u16,
-    pub code: String,
     pub message: String,
-    pub reason: Option<String>,
 }
 
 fn get_crypto_specific_payment_data(
