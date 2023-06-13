@@ -1,5 +1,4 @@
 use error_stack::IntoReport;
-use time::{OffsetDateTime, PrimitiveDateTime};
 
 use super::{MockDb, Store};
 use crate::{
@@ -241,10 +240,9 @@ impl MandateInterface for MockDb {
             customer_user_agent: mandate_new.customer_user_agent,
             network_transaction_id: mandate_new.network_transaction_id,
             previous_attempt_id: mandate_new.previous_attempt_id,
-            created_at: mandate_new.created_at.unwrap_or_else(|| {
-                let now = OffsetDateTime::now_utc();
-                PrimitiveDateTime::new(now.date(), now.time())
-            }),
+            created_at: mandate_new
+                .created_at
+                .unwrap_or_else(common_utils::date_time::now),
             mandate_amount: mandate_new.mandate_amount,
             mandate_currency: mandate_new.mandate_currency,
             amount_captured: mandate_new.amount_captured,
