@@ -9,12 +9,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+        self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
+        RouterData,
     },
     consts,
     core::errors,
     services,
     types::{self, api, storage::enums, BrowserInformation},
+    utils::OptionExt,
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -108,7 +110,7 @@ pub struct CallbackURLs {
     pub error: String,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 pub struct PaymentRequestCards {
     pub amount: String,
     pub currency: String,
@@ -129,9 +131,9 @@ pub struct PaymentRequestCards {
     #[serde(rename = "billing[postcode]")]
     pub billing_postcode: Secret<String>,
     #[serde(rename = "customer[email]")]
-    pub customer_email: Option<Email>,
+    pub customer_email: Email,
     #[serde(rename = "customer[ipAddress]")]
-    pub customer_ip_address: Option<std::net::IpAddr>,
+    pub customer_ip_address: std::net::IpAddr,
     #[serde(rename = "browser[acceptHeader]")]
     pub browser_accept_header: String,
     #[serde(rename = "browser[language]")]
@@ -218,35 +220,93 @@ fn get_card_request_data(
     amount: String,
     ccard: &api_models::payments::Card,
     return_url: String,
-) -> TrustpayPaymentsRequest {
-    TrustpayPaymentsRequest::CardsPaymentRequest(Box::new(PaymentRequestCards {
-        amount,
-        currency: item.request.currency.to_string(),
-        pan: ccard.card_number.clone(),
-        cvv: ccard.card_cvc.clone(),
-        expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
-        cardholder: ccard.card_holder_name.clone(),
-        reference: item.attempt_id.clone(),
-        redirect_url: return_url,
-        billing_city: params.billing_city,
-        billing_country: params.billing_country,
-        billing_street1: params.billing_street1,
-        billing_postcode: params.billing_postcode,
-        customer_email: item.request.email.clone(),
-        customer_ip_address: browser_info.ip_address,
-        browser_accept_header: browser_info.accept_header.clone(),
-        browser_language: browser_info.language.clone(),
-        browser_screen_height: browser_info.screen_height.clone().to_string(),
-        browser_screen_width: browser_info.screen_width.clone().to_string(),
-        browser_timezone: browser_info.time_zone.clone().to_string(),
-        browser_user_agent: browser_info.user_agent.clone(),
-        browser_java_enabled: browser_info.java_enabled.clone().to_string(),
-        browser_java_script_enabled: browser_info.java_script_enabled.clone().to_string(),
-        browser_screen_color_depth: browser_info.color_depth.clone().to_string(),
-        browser_challenge_window: "1".to_string(),
-        payment_action: None,
-        payment_type: "Plain".to_string(),
-    }))
+) -> Result<TrustpayPaymentsRequest, Error> {
+    let email = item.request.get_email()?;
+    let customer_ip_address = browser_info.get_ip_address()?;
+    Ok(TrustpayPaymentsRequest::CardsPaymentRequest(Box::new(
+        PaymentRequestCards {
+            amount,
+            currency: item.request.currency.to_string(),
+            pan: ccard.card_number.clone(),
+            cvv: ccard.card_cvc.clone(),
+            expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
+            cardholder: ccard.card_holder_name.clone(),
+            reference: item.attempt_id.clone(),
+            redirect_url: return_url,
+            billing_city: params.billing_city,
+            billing_country: params.billing_country,
+            billing_street1: params.billing_street1,
+            billing_postcode: params.billing_postcode,
+            customer_email: email,
+            customer_ip_address,
+            browser_accept_header: browser_info
+                .accept_header
+                .clone()
+                .get_required_value("accept_header")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "accept_header",
+                })?,
+            browser_language: browser_info
+                .language
+                .clone()
+                .get_required_value("language")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "language",
+                })?,
+            browser_screen_height: browser_info
+                .screen_height
+                .get_required_value("screen_height")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "screen_height",
+                })?
+                .to_string(),
+            browser_screen_width: browser_info
+                .screen_width
+                .get_required_value("screen_width")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "screen_width",
+                })?
+                .to_string(),
+            browser_timezone: browser_info
+                .time_zone
+                .get_required_value("time_zone_offset")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "time_zone_offset",
+                })?
+                .to_string(),
+            browser_user_agent: browser_info
+                .user_agent
+                .clone()
+                .get_required_value("user_agent")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "user_agent",
+                })?,
+            browser_java_enabled: browser_info
+                .java_enabled
+                .get_required_value("java_enabled")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "java_enabled",
+                })?
+                .to_string(),
+            browser_java_script_enabled: browser_info
+                .java_script_enabled
+                .get_required_value("java_script_enabled")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "java_script_enabled",
+                })?
+                .to_string(),
+            browser_screen_color_depth: browser_info
+                .color_depth
+                .get_required_value("color_depth")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "color_depth",
+                })?
+                .to_string(),
+            browser_challenge_window: "1".to_string(),
+            payment_action: None,
+            payment_type: "Plain".to_string(),
+        },
+    )))
 }
 
 fn get_bank_redirection_request_data(
@@ -283,23 +343,19 @@ fn get_bank_redirection_request_data(
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
     type Error = Error;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let browser_info = item.request.browser_info.clone().unwrap_or_default();
         let default_browser_info = BrowserInformation {
-            color_depth: 24,
-            java_enabled: false,
-            java_script_enabled: true,
-            language: "en-US".to_string(),
-            screen_height: 1080,
-            screen_width: 1920,
-            time_zone: 3600,
-            accept_header: "*".to_string(),
-            user_agent: "none".to_string(),
-            ip_address: None,
+            color_depth: Some(browser_info.color_depth.unwrap_or(24)),
+            java_enabled: Some(browser_info.java_enabled.unwrap_or(false)),
+            java_script_enabled: Some(browser_info.java_enabled.unwrap_or(true)),
+            language: Some(browser_info.language.unwrap_or("en-US".to_string())),
+            screen_height: Some(browser_info.screen_height.unwrap_or(1080)),
+            screen_width: Some(browser_info.screen_width.unwrap_or(1920)),
+            time_zone: Some(browser_info.time_zone.unwrap_or(3600)),
+            accept_header: Some(browser_info.accept_header.unwrap_or("*".to_string())),
+            user_agent: browser_info.user_agent,
+            ip_address: browser_info.ip_address,
         };
-        let browser_info = item
-            .request
-            .browser_info
-            .as_ref()
-            .unwrap_or(&default_browser_info);
         let params = get_mandatory_fields(item)?;
         let amount = format!(
             "{:.2}",
@@ -313,12 +369,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
         match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref ccard) => Ok(get_card_request_data(
                 item,
-                browser_info,
+                &default_browser_info,
                 params,
                 amount,
                 ccard,
                 item.request.get_return_url()?,
-            )),
+            )?),
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 get_bank_redirection_request_data(item, bank_redirection_data, amount, auth)
             }
@@ -1128,6 +1184,8 @@ pub enum WebhookStatus {
     Rejected,
     Refunded,
     Chargebacked,
+    #[serde(other)]
+    Unknown,
 }
 
 impl TryFrom<WebhookStatus> for enums::AttemptStatus {
