@@ -10,6 +10,7 @@ use self::opennode::OpennodeWebhookDetails;
 use crate::{
     configs::settings,
     connector::utils as conn_utils,
+    consts,
     core::errors::{self, CustomResult},
     db, headers,
     services::{
@@ -103,9 +104,9 @@ impl ConnectorCommon for Opennode {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
+            code: consts::NO_ERROR_CODE.to_string(),
             message: response.message,
-            reason: response.reason,
+            reason: None,
         })
     }
 }
