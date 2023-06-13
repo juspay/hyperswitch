@@ -262,7 +262,8 @@ pub trait BrowserInformationData {
 
 impl BrowserInformationData for types::BrowserInformation {
     fn get_ip_address(&self) -> Result<std::net::IpAddr, Error> {
-        self.ip_address.ok_or_else(missing_field_err("ip_address"))
+        self.ip_address
+            .ok_or_else(missing_field_err("browser_info.ip_address"))
     }
 }
 
@@ -430,6 +431,7 @@ pub trait CardData {
     ) -> Secret<String>;
     fn get_year_in_4_digits(&self) -> Secret<String>;
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String>;
+    fn get_expiry_year_4_digit(&self) -> Secret<String>;
 }
 
 impl CardData for api::Card {
@@ -461,16 +463,20 @@ impl CardData for api::Card {
         Secret::new(x)
     }
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
-        let mut x = self.card_exp_year.peek().clone();
-        if x.len() == 2 {
-            x = format!("20{}", x);
-        }
+        let year = self.get_expiry_year_4_digit();
         Secret::new(format!(
             "{}{}{}",
-            x,
+            year.peek(),
             delimiter,
             self.card_exp_month.peek().clone()
         ))
+    }
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.card_exp_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{}", year);
+        }
+        Secret::new(year)
     }
 }
 
