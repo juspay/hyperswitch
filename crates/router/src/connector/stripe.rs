@@ -130,9 +130,9 @@ impl
         &self,
         req: &types::PaymentsPreProcessingRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req = stripe::StripeAchSourceRequest::try_from(req)?;
+        let req = stripe::StripeCreditTransferSourceRequest::try_from(req)?;
         let pre_processing_request =
-            utils::Encode::<stripe::StripeAchSourceRequest>::url_encode(&req)
+            utils::Encode::<stripe::StripeCreditTransferSourceRequest>::url_encode(&req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         Ok(Some(pre_processing_request))
@@ -701,7 +701,7 @@ impl
         match &req.request.payment_method_data {
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data.deref() {
-                    api_models::payments::BankTransferData::AchBankTransfer { .. } => {
+                    api_models::payments::BankTransferData::AchBankTransfer { .. } | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }=> {
                         Ok(format!("{}{}", self.base_url(connectors), "v1/charges"))
                     }
                     _ => Ok(format!(

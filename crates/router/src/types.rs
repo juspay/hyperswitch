@@ -268,6 +268,8 @@ pub struct PaymentMethodTokenizationData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsPreProcessingData {
+    pub payment_method_data: Option<payments::PaymentMethodData>,
+    pub amount: Option<i64>,
     pub email: Option<Email>,
     pub currency: Option<storage_enums::Currency>,
 }

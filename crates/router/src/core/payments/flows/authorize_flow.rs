@@ -335,6 +335,8 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
 
     fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            amount: Some(data.amount),
             email: data.email,
             currency: Some(data.currency),
         })

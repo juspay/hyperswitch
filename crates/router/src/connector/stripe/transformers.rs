@@ -287,7 +287,13 @@ pub struct StripeBankRedirectData {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct AchBankTransferData {
+pub struct AchTransferData {
+    #[serde(rename = "owner[email]")]
+    pub email: Email,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct MultibancoTransferData {
     #[serde(rename = "owner[email]")]
     pub email: Email,
 }
@@ -321,12 +327,31 @@ pub struct SepaBankTransferData {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct StripeAchSourceRequest {
+#[serde(untagged)]
+pub enum StripeCreditTransferSourceRequest {
+    AchBankTansfer(AchCreditTransferSourceRequest),
+    MultibancoBankTansfer(MultibancoCreditTransferSourceRequest),
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct AchCreditTransferSourceRequest {
     #[serde(rename = "type")]
     pub transfer_type: StripePaymentMethodType,
     #[serde(flatten)]
-    pub payment_method_data: AchBankTransferData,
+    pub payment_method_data: AchTransferData,
     pub currency: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct MultibancoCreditTransferSourceRequest {
+    #[serde(rename = "type")]
+    pub transfer_type: StripePaymentMethodType,
+    #[serde(flatten)]
+    pub payment_method_data: MultibancoTransferData,
+    pub currency: String,
+    pub amount: Option<i64>,
+    #[serde(rename = "redirect[return_url]")]
+    pub return_url: Option<String>,
 }
 
 // Remove untagged when Deserialize is added
@@ -390,9 +415,10 @@ pub struct BankTransferData {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum StripeBankTransferData {
-    AchBankTransfer(Box<AchBankTransferData>),
+    AchBankTransfer(Box<AchTransferData>),
     SepaBankTransfer(Box<SepaBankTransferData>),
     BacsBankTransfers(Box<BacsBankTransferData>),
+    MultibancoBankTransfers(Box<MultibancoTransferData>),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -489,6 +515,7 @@ pub enum StripePaymentMethodType {
     #[serde(rename = "p24")]
     Przelewy24,
     CustomerBalance,
+    Multibanco
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -1076,11 +1103,22 @@ fn create_stripe_payment_method(
             match bank_transfer_data.deref() {
                 payments::BankTransferData::AchBankTransfer { billing_details } => Ok((
                     StripePaymentMethodData::BankTransfer(StripeBankTransferData::AchBankTransfer(
-                        Box::new(AchBankTransferData {
+                        Box::new(AchTransferData {
                             email: billing_details.email.to_owned(),
                         }),
                     )),
                     StripePaymentMethodType::AchCreditTransfer,
+                    StripeBillingAddress::default(),
+                )),
+                payments::BankTransferData::MultibancoBankTransfer { billing_details } => Ok((
+                    StripePaymentMethodData::BankTransfer(
+                        StripeBankTransferData::MultibancoBankTransfers(Box::new(
+                            MultibancoTransferData {
+                                email: billing_details.email.to_owned(),
+                            },
+                        )),
+                    ),
+                    StripePaymentMethodType::Multibanco,
                     StripeBillingAddress::default(),
                 )),
                 payments::BankTransferData::SepaBankTransfer {
@@ -1430,7 +1468,8 @@ pub struct PaymentIntentResponse {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeSourceResponse {
     pub id: String,
-    pub ach_credit_transfer: AchCreditTransferResponse,
+    pub ach_credit_transfer: Option<AchCreditTransferResponse>,
+    pub multibanco: Option<MultibancoCreditTansferResponse>,
     pub receiver: AchReceiverDetails,
     pub status: StripePaymentStatus,
 }
@@ -1441,6 +1480,12 @@ pub struct AchCreditTransferResponse {
     pub bank_name: Secret<String>,
     pub routing_number: Secret<String>,
     pub swift_code: Secret<String>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct MultibancoCreditTansferResponse {
+    pub reference: Secret<String>,
+    pub entity: Secret<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -1583,7 +1628,8 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
                 | StripePaymentMethodOptions::Sepa {}
                 | StripePaymentMethodOptions::Bancontact {}
                 | StripePaymentMethodOptions::Przelewy24 {}
-                | StripePaymentMethodOptions::CustomerBalance {} => None,
+                | StripePaymentMethodOptions::CustomerBalance {}
+                | StripePaymentMethodOptions::Multibanco {} => None,
             }),
             payment_method_id: Some(payment_method_id),
         }
@@ -2074,6 +2120,7 @@ pub enum StripePaymentMethodOptions {
     #[serde(rename = "p24")]
     Przelewy24 {},
     CustomerBalance {},
+    Multibanco {},
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -2113,23 +2160,71 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
     }
 }
 
-impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeAchSourceRequest {
+impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSourceRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            transfer_type: StripePaymentMethodType::AchCreditTransfer,
-            payment_method_data: AchBankTransferData {
-                email: connector::utils::PaymentsPreProcessingData::get_email(&item.request)?,
-            },
-            currency: item
-                .request
-                .currency
-                .get_required_value("currency")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?
-                .to_string(),
-        })
+        let currency = item
+        .request
+        .currency
+        .get_required_value("amount")
+        .change_context(errors::ConnectorError::MissingRequiredField {
+            field_name: "amount",
+        })?
+        .to_string();
+
+    match &item.request.payment_method_data {
+        Some(payments::PaymentMethodData::BankTransfer(bank_transfer_data)) => {
+            match **bank_transfer_data {
+                payments::BankTransferData::MultibancoBankTransfer { .. } => Ok(
+                    Self::MultibancoBankTansfer(MultibancoCreditTransferSourceRequest {
+                        transfer_type: StripePaymentMethodType::Multibanco,
+                        currency,
+                        payment_method_data: MultibancoTransferData {
+                            email: connector::utils::PaymentsPreProcessingData::get_email(
+                                &item.request,
+                            )?,
+                        },
+                        amount: Some(
+                            item.request
+                                .amount
+                                .get_required_value("amount")
+                                .change_context(
+                                    errors::ConnectorError::MissingRequiredField {
+                                        field_name: "amount",
+                                    },
+                                )?,
+                        ),
+                        return_url: Some(
+                            item.return_url
+                                .clone()
+                                .get_required_value("return_url")
+                                .change_context(
+                                    errors::ConnectorError::MissingRequiredField {
+                                        field_name: "return_url",
+                                    },
+                                )?,
+                        ),
+                    }),
+                ),
+                payments::BankTransferData::AchBankTransfer { .. } => {
+                    Ok(Self::AchBankTansfer(AchCreditTransferSourceRequest {
+                        transfer_type: StripePaymentMethodType::AchCreditTransfer,
+                        payment_method_data: AchTransferData {
+                            email: connector::utils::PaymentsPreProcessingData::get_email(
+                                &item.request,
+                            )?,
+                        },
+                        currency,
+                    }))
+                }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Bank Transfer Method".to_string(),
+                )
+                .into()),
+            }
+        }
+        _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
+      }
     }
 }
 
@@ -2542,11 +2637,18 @@ impl
                 match bank_transfer_data.deref() {
                     payments::BankTransferData::AchBankTransfer { billing_details } => {
                         Ok(Self::BankTransfer(StripeBankTransferData::AchBankTransfer(
-                            Box::new(AchBankTransferData {
+                            Box::new(AchTransferData {
                                 email: billing_details.email.to_owned(),
                             }),
                         )))
                     }
+                    payments::BankTransferData::MultibancoBankTransfer { billing_details } => Ok(
+                        Self::BankTransfer(StripeBankTransferData::MultibancoBankTransfers(
+                            Box::new(MultibancoTransferData {
+                                email: billing_details.email.to_owned(),
+                            }),
+                        )),
+                    ),
                     payments::BankTransferData::SepaBankTransfer { country, .. } => Ok(
                         Self::BankTransfer(StripeBankTransferData::SepaBankTransfer(Box::new(
                             SepaBankTransferData {
@@ -2590,7 +2692,7 @@ pub fn get_bank_transfer_request_data(
     bank_transfer_data: &api_models::payments::BankTransferData,
 ) -> CustomResult<Option<String>, errors::ConnectorError> {
     match bank_transfer_data {
-        api_models::payments::BankTransferData::AchBankTransfer { .. } => {
+        api_models::payments::BankTransferData::AchBankTransfer { .. } | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
             let req = ChargesRequest::try_from(req)?;
             let request = utils::Encode::<ChargesRequest>::url_encode(&req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
