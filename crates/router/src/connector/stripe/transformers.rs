@@ -2190,9 +2190,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                         Ok(Self::AchBankTansfer(AchCreditTransferSourceRequest {
                             transfer_type: StripePaymentMethodType::AchCreditTransfer,
                             payment_method_data: AchTransferData {
-                                email: connector::utils::PaymentsPreProcessingData::get_email(
-                                    &item.request,
-                                )?,
+                                email: item.request.get_email()?,
                             },
                             currency,
                         }))
