@@ -194,7 +194,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let req_obj = zen::ZenPaymentsRequest::try_from(req)?;
-        router_env::logger::info!(?req_obj);
+        router_env::logger::info!(connector_request=?req_obj);
         let zen_req = utils::Encode::<zen::ZenPaymentsRequest>::encode_to_string_of_json(&req_obj)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(zen_req))
@@ -386,7 +386,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let req_obj = zen::ZenRefundRequest::try_from(req)?;
-        router_env::logger::info!(?req_obj);
+        router_env::logger::info!(connector_request=?req_obj);
         let zen_req = utils::Encode::<zen::ZenRefundRequest>::encode_to_string_of_json(&req_obj)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(zen_req))
