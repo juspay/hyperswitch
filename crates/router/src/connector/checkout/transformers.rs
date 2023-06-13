@@ -520,7 +520,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
     }
 }
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct RefundResponse {
     action_id: String,
     reference: String,
@@ -585,7 +585,7 @@ pub struct ErrorResponse {
     pub error_codes: Option<Vec<String>>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub enum ActionType {
     Authorization,
     Void,
@@ -597,7 +597,7 @@ pub enum ActionType {
     CardVerification,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct ActionResponse {
     #[serde(rename = "id")]
     pub action_id: String,
