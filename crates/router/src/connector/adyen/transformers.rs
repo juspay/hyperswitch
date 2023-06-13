@@ -847,65 +847,60 @@ fn get_browser_info(
     if item.auth_type == storage_enums::AuthenticationType::ThreeDs
         || item.payment_method == storage_enums::PaymentMethod::BankRedirect
     {
-        item.request
-            .browser_info
-            .as_ref()
-            .map(|info| {
-                Ok(AdyenBrowserInfo {
-                    accept_header: info
-                        .accept_header
-                        .clone()
-                        .get_required_value("accept_header")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "accept_header",
-                        })?,
-                    language: info
-                        .language
-                        .clone()
-                        .get_required_value("language")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "language",
-                        })?,
-                    screen_height: info
-                        .screen_height
-                        .get_required_value("screen_height")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "screen_height",
-                        })?,
-                    screen_width: info
-                        .screen_width
-                        .get_required_value("screen_width")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "screen_width",
-                        })?,
-                    color_depth: info
-                        .color_depth
-                        .get_required_value("color_depth")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "color_depth",
-                        })?,
-                    user_agent: info
-                        .user_agent
-                        .clone()
-                        .get_required_value("user_agent")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "user_agent",
-                        })?,
-                    time_zone_offset: info
-                        .time_zone
-                        .get_required_value("time_zone_offset")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "time_zone_offset",
-                        })?,
-                    java_enabled: info
-                        .java_enabled
-                        .get_required_value("java_enabled")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "java_enabled",
-                        })?,
-                })
-            })
-            .transpose()
+        let info = item.request.get_browser_info()?;
+        Ok(Some(AdyenBrowserInfo {
+            accept_header: info
+                .accept_header
+                .clone()
+                .get_required_value("accept_header")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "accept_header",
+                })?,
+            language: info
+                .language
+                .clone()
+                .get_required_value("language")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "language",
+                })?,
+            screen_height: info
+                .screen_height
+                .get_required_value("screen_height")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "screen_height",
+                })?,
+            screen_width: info
+                .screen_width
+                .get_required_value("screen_width")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "screen_width",
+                })?,
+            color_depth: info
+                .color_depth
+                .get_required_value("color_depth")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "color_depth",
+                })?,
+            user_agent: info
+                .user_agent
+                .clone()
+                .get_required_value("user_agent")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "user_agent",
+                })?,
+            time_zone_offset: info
+                .time_zone
+                .get_required_value("time_zone_offset")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "time_zone_offset",
+                })?,
+            java_enabled: info
+                .java_enabled
+                .get_required_value("java_enabled")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "java_enabled",
+                })?,
+        }))
     } else {
         Ok(None)
     }
@@ -1061,7 +1056,7 @@ impl<'a> TryFrom<&api::Card> for AdyenPaymentMethod<'a> {
             payment_type: PaymentType::Scheme,
             number: card.card_number.clone(),
             expiry_month: card.card_exp_month.clone(),
-            expiry_year: card.get_year_in_4_digits(),
+            expiry_year: card.get_expiry_year_4_digit(),
             cvc: Some(card.card_cvc.clone()),
             brand: None,
             network_payment_reference: None,
