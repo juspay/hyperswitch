@@ -131,7 +131,7 @@ impl
         _req: &types::TokenizationRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("https://api.cc.mollie.com/v1/card-tokens"))
+        Ok("https://api.cc.mollie.com/v1/card-tokens".to_string())
     }
 
     fn get_request_body(
