@@ -29,7 +29,7 @@ use self::{
 use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
     core::{
-        errors::{self, CustomResult, RouterResponse, RouterResult, StorageErrorExt},
+        errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::vault,
     },
     db::StorageInterface,
@@ -1114,7 +1114,7 @@ pub async fn list_payments(
 ) -> RouterResponse<api::PaymentListResponse> {
     use futures::stream::StreamExt;
 
-    use crate::types::transformers::ForeignFrom;
+    use crate::{core::errors::utils::StorageErrorExt, types::transformers::ForeignFrom};
 
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
