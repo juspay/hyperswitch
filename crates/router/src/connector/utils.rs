@@ -262,7 +262,8 @@ pub trait BrowserInformationData {
 
 impl BrowserInformationData for types::BrowserInformation {
     fn get_ip_address(&self) -> Result<std::net::IpAddr, Error> {
-        self.ip_address.ok_or_else(missing_field_err("ip_address"))
+        self.ip_address
+            .ok_or_else(missing_field_err("browser_info.ip_address"))
     }
 }
 
