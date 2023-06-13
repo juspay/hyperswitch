@@ -1,7 +1,7 @@
 use error_stack::{IntoReport, ResultExt};
 
-#[cfg(feature = "key_store_cache")]
-use crate::cache::KEY_STORE_CACHE;
+#[cfg(feature = "accounts_cache")]
+use crate::cache::ACCOUNTS_CACHE;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -61,7 +61,7 @@ impl MerchantKeyStoreInterface for Store {
             .map_err(Into::into)
             .into_report()
         };
-        #[cfg(not(feature = "key_store_cache"))]
+        #[cfg(not(feature = "accounts_cache"))]
         {
             fetch_func()
                 .await?
@@ -70,13 +70,19 @@ impl MerchantKeyStoreInterface for Store {
                 .change_context(errors::StorageError::DecryptionError)
         }
 
-        #[cfg(feature = "key_store_cache")]
+        #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_in_memory(self, merchant_id, fetch_func, &KEY_STORE_CACHE)
-                .await?
-                .convert(self, merchant_id)
-                .await
-                .change_context(errors::StorageError::DecryptionError)
+            let key_store_cache_key = format!("merchant_key_store_{}", merchant_id);
+            super::cache::get_or_populate_in_memory(
+                self,
+                &key_store_cache_key,
+                fetch_func,
+                &ACCOUNTS_CACHE,
+            )
+            .await?
+            .convert(self, merchant_id)
+            .await
+            .change_context(errors::StorageError::DecryptionError)
         }
     }
 }
