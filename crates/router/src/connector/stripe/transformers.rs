@@ -2197,14 +2197,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                                     )?,
                             ),
                             return_url: Some(
-                                item.return_url
-                                    .clone()
-                                    .get_required_value("return_url")
-                                    .change_context(
-                                        errors::ConnectorError::MissingRequiredField {
-                                            field_name: "return_url",
-                                        },
-                                    )?,
+                                item.get_return_url()?,
                             ),
                         }),
                     ),
