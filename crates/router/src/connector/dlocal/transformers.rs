@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{AddressDetailsData, RouterData, PaymentsAuthorizeRequestData},
+    connector::utils::{AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -63,7 +63,7 @@ pub struct DlocalPaymentsRequest {
     pub order_id: String,
     pub three_dsecure: Option<ThreeDSecureReqData>,
     pub callback_url: Option<String>,
-    pub description: Option<String> 
+    pub description: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest {
@@ -114,7 +114,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest {
                         storage_models::enums::AuthenticationType::NoThreeDs => None,
                     },
                     callback_url: Some(item.request.get_router_return_url()?),
-                    description: item.description.clone()
+                    description: item.description.clone(),
                 };
                 Ok(payment_request)
             }
