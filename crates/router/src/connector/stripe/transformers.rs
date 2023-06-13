@@ -1254,22 +1254,31 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             _ => payment_data,
         };
 
-        let setup_mandate_details =
-            item.request
-                .setup_mandate_details
-                .as_ref()
-                .and_then(|mandate_details| {
-                    mandate_details
-                        .customer_acceptance
-                        .as_ref()?
-                        .online
-                        .as_ref()
-                        .map(|online_details| StripeMandateRequest {
+        let setup_mandate_details = item
+            .request
+            .setup_mandate_details
+            .as_ref()
+            .and_then(|mandate_details| {
+                mandate_details
+                    .customer_acceptance
+                    .as_ref()?
+                    .online
+                    .as_ref()
+                    .map(|online_details| {
+                        Ok::<_, error_stack::Report<errors::ConnectorError>>(StripeMandateRequest {
                             mandate_type: StripeMandateType::Online,
-                            ip_address: online_details.ip_address.to_owned(),
+                            ip_address: online_details
+                                .ip_address
+                                .clone()
+                                .get_required_value("ip_address")
+                                .change_context(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "ip_address",
+                                })?,
                             user_agent: online_details.user_agent.to_owned(),
                         })
-                });
+                    })
+            })
+            .transpose()?;
 
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
