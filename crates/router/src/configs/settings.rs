@@ -384,6 +384,7 @@ pub struct Connectors {
     pub bitpay: ConnectorParams,
     pub bluesnap: ConnectorParams,
     pub braintree: ConnectorParams,
+    pub cashtocode: ConnectorParams,
     pub checkout: ConnectorParams,
     pub coinbase: ConnectorParams,
     pub cybersource: ConnectorParams,

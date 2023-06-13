@@ -2577,7 +2577,7 @@ impl
                     )),
                 }
             }
-            api::PaymentMethodData::MandatePayment | api::PaymentMethodData::Crypto(_) => {
+            api::PaymentMethodData::MandatePayment | api::PaymentMethodData::Crypto(_) | api::PaymentMethodData::Reward(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("{pm_type:?}"),
                     connector: "Stripe",

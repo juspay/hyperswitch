@@ -419,10 +419,12 @@ pub enum PaymentMethodType {
     BancontactCard,
     Becs,
     Blik,
+    Classic,
     Credit,
     CryptoCurrency,
     Debit,
     Eps,
+    Evoucher,
     Giropay,
     GooglePay,
     Ideal,
@@ -471,6 +473,7 @@ pub enum PaymentMethod {
     BankTransfer,
     Crypto,
     BankDebit,
+    Reward,
 }
 
 #[derive(
@@ -589,6 +592,7 @@ pub enum Connector {
     Bitpay,
     Bluesnap,
     Braintree,
+    Cashtocode,
     Checkout,
     Coinbase,
     Cybersource,
@@ -666,6 +670,7 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
+    Cashtocode,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "dummyconnector1")]
     #[strum(serialize = "dummyconnector1")]

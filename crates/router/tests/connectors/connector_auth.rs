@@ -48,7 +48,7 @@ pub struct ConnectorAuthentication {
 impl ConnectorAuthentication {
     #[allow(clippy::expect_used)]
     pub(crate) fn new() -> Self {
-        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
+        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_sample_auth.toml"`
         // before running tests
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
             .expect("connector authentication file path not set");

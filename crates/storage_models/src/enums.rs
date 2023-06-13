@@ -462,6 +462,7 @@ pub enum PaymentMethod {
     BankTransfer,
     Crypto,
     BankDebit,
+    Reward,
 }
 
 #[derive(
@@ -675,10 +676,12 @@ pub enum PaymentMethodType {
     BancontactCard,
     Becs,
     Blik,
+    Classic,
     Credit,
     CryptoCurrency,
     Debit,
     Eps,
+    Evoucher,
     Giropay,
     GooglePay,
     Ideal,

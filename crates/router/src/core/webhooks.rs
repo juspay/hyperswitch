@@ -35,11 +35,12 @@ pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     source_verified: bool,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let consume_or_trigger_flow = if source_verified {
+        logger::info!("Hanlde response ------");
         payments::CallConnectorAction::HandleResponse(webhook_details.resource_object)
     } else {
+        logger::info!("Trigger-------");
         payments::CallConnectorAction::Trigger
     };
-
     let payments_response = match webhook_details.object_reference_id {
         api_models::webhooks::ObjectReferenceId::PaymentId(id) => {
             payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
