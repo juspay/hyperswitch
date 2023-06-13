@@ -10,7 +10,9 @@ use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{
+        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+    },
     consts,
     core::errors,
     pii::Secret,
@@ -160,12 +162,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             _ => BluesnapTxnType::AuthCapture,
         };
         let (payment_method, card_holder_info) = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ccard) => Ok((
+            api::PaymentMethodData::Card(ref ccard) => Ok((
                 PaymentMethodDetails::CreditCard(Card {
-                    card_number: ccard.card_number,
+                    card_number: ccard.card_number.clone(),
                     expiration_month: ccard.card_exp_month.clone(),
-                    expiration_year: ccard.card_exp_year.clone(),
-                    security_code: ccard.card_cvc,
+                    expiration_year: ccard.get_expiry_year_4_digit(),
+                    security_code: ccard.card_cvc.clone(),
                 }),
                 get_card_holder_info(item)?,
             )),
