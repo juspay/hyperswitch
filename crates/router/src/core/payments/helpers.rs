@@ -36,7 +36,7 @@ use crate::{
             self,
             types::{self, AsyncLift},
         },
-        storage::{self, enums as storage_enums, ephemeral_key},
+        storage::{self, enums as storage_enums, ephemeral_key, CustomerUpdate::Update},
         transformers::ForeignInto,
         ErrorResponse, RouterData,
     },
@@ -828,11 +828,11 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     req: Option<CustomerDetails>,
     merchant_id: &str,
 ) -> CustomResult<(BoxedOperation<'a, F, R>, Option<domain::Customer>), errors::StorageError> {
-    let req = req
+    let request_customer_details = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
 
-    let customer_id = req
+    let customer_id = request_customer_details
         .customer_id
         .or(payment_data.payment_intent.customer_id.clone());
 
@@ -841,31 +841,80 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
             let customer_data = db
                 .find_customer_optional_by_customer_id_merchant_id(&customer_id, merchant_id)
                 .await?;
+
             Some(match customer_data {
-                Some(c) => Ok(c),
+                Some(c) => {
+                    // Update the customer data if new data is passed in the request
+                    if request_customer_details.email.is_some()
+                        | request_customer_details.name.is_some()
+                        | request_customer_details.phone.is_some()
+                        | request_customer_details.phone_country_code.is_some()
+                    {
+                        let key = types::get_merchant_enc_key(db, merchant_id.to_string()).await?;
+                        let customer_update = async {
+                            Ok(Update {
+                                name: request_customer_details
+                                    .name
+                                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                                    .await?,
+                                email: request_customer_details
+                                    .email
+                                    .clone()
+                                    .async_lift(|inner| {
+                                        types::encrypt_optional(
+                                            inner.map(|inner| inner.expose()),
+                                            &key,
+                                        )
+                                    })
+                                    .await?,
+                                phone: request_customer_details
+                                    .phone
+                                    .clone()
+                                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                                    .await?,
+                                phone_country_code: request_customer_details.phone_country_code,
+                                description: None,
+                                connector_customer: None,
+                                metadata: None,
+                            })
+                        }
+                        .await
+                        .change_context(errors::StorageError::SerializationFailed)
+                        .attach_printable("Failed while encrypting Customer while Update")?;
+
+                        db.update_customer_by_customer_id_merchant_id(
+                            customer_id,
+                            merchant_id.to_string(),
+                            customer_update,
+                        )
+                        .await
+                    } else {
+                        Ok(c)
+                    }
+                }
                 None => {
                     let key = types::get_merchant_enc_key(db, merchant_id.to_string()).await?;
                     let new_customer = async {
                         Ok(domain::Customer {
                             customer_id: customer_id.to_string(),
                             merchant_id: merchant_id.to_string(),
-                            name: req
+                            name: request_customer_details
                                 .name
                                 .async_lift(|inner| types::encrypt_optional(inner, &key))
                                 .await?,
-                            email: req
+                            email: request_customer_details
                                 .email
                                 .clone()
                                 .async_lift(|inner| {
                                     types::encrypt_optional(inner.map(|inner| inner.expose()), &key)
                                 })
                                 .await?,
-                            phone: req
+                            phone: request_customer_details
                                 .phone
                                 .clone()
                                 .async_lift(|inner| types::encrypt_optional(inner, &key))
                                 .await?,
-                            phone_country_code: req.phone_country_code.clone(),
+                            phone_country_code: request_customer_details.phone_country_code.clone(),
                             description: None,
                             created_at: common_utils::date_time::now(),
                             id: None,
