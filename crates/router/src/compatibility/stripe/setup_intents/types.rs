@@ -293,6 +293,9 @@ pub enum StripeNextAction {
     DisplayBankTransferInformation {
         bank_transfer_steps_and_charges_details: payments::BankTransferNextStepsData,
     },
+    ThirdPartySdkSessionToken {
+        session_token: payments::SessionToken,
+    },
 }
 
 pub(crate) fn into_stripe_next_action(
@@ -313,6 +316,9 @@ pub(crate) fn into_stripe_next_action(
         } => StripeNextAction::DisplayBankTransferInformation {
             bank_transfer_steps_and_charges_details,
         },
+        payments::NextActionData::ThirdPartySdkSessionToken { session_token } => {
+            StripeNextAction::ThirdPartySdkSessionToken { session_token }
+        }
     })
 }
 

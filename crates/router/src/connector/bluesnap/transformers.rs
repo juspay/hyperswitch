@@ -335,9 +335,9 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                 session_token: types::api::SessionToken::ApplePay(Box::new(
                     api_models::payments::ApplepaySessionTokenResponse {
                         session_token_data:
-                            api_models::payments::ApplePaySessionResponse::NoThirdPartySdk(Some(
+                            api_models::payments::ApplePaySessionResponse::NoThirdPartySdk(
                                 session_response,
-                            )),
+                            ),
                         payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
                             country_code: item.data.get_billing_country()?,
                             currency_code: item.data.request.currency.to_string(),
@@ -370,7 +370,6 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                         },
                     },
                 )),
-                response_id: None,
             }),
             ..item.data
         })

@@ -173,7 +173,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 connector_customer_id: None,
                 ephemeral_key: None,
                 redirect_response: None,
-                delayed_session_token: request.delayed_session_token,
             },
             Some(customer_details),
         ))
@@ -429,14 +428,8 @@ pub fn get_connector_type_for_session_token(
 
 pub fn is_apple_pay_get_token_connector(
     connector: &str,
-    request: &api::PaymentsSessionRequest,
+    _request: &api::PaymentsSessionRequest,
 ) -> bool {
-    match connector {
-        "bluesnap" => true,
-        "trustpay" => request
-            .delayed_session_token
-            .and_then(|delay| delay.then_some(true))
-            .is_some(),
-        _ => false,
-    }
+    // Add connectors here, which all are required to hit connector for session call
+    matches!(connector, "bluesnap")
 }

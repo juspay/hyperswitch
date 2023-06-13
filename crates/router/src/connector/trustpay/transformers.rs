@@ -878,6 +878,31 @@ impl TryFrom<&types::PaymentsSessionRouterData> for TrustpayCreateIntentRequest 
     }
 }
 
+impl TryFrom<&types::PaymentsPreProcessingRouterData> for TrustpayCreateIntentRequest {
+    type Error = Error;
+    fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: item
+                .request
+                .amount
+                .get_required_value("amount")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "amount",
+                })?
+                .to_string(),
+            currency: item
+                .request
+                .currency
+                .get_required_value("amount")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "amount",
+                })?
+                .to_string(),
+            init_apple_pay: Some(true),
+        })
+    }
+}
+
 #[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustpayCreateIntentResponse {
@@ -913,17 +938,29 @@ pub struct ApplePayTotalInfo {
     pub amount: String,
 }
 
-impl TryFrom<types::PaymentsSessionResponseRouterData<TrustpayCreateIntentResponse>>
-    for types::PaymentsSessionRouterData
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<F, TrustpayCreateIntentResponse, T, types::PaymentsResponseData>,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
-        item: types::PaymentsSessionResponseRouterData<TrustpayCreateIntentResponse>,
+        item: types::ResponseRouterData<
+            F,
+            TrustpayCreateIntentResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let response = item.response;
+
         Ok(Self {
-            response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: types::api::SessionToken::ApplePay(Box::new(
+            response: Ok(types::PaymentsResponseData::PreProcessingResponse {
+                connector_metadata: None,
+                pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(
+                    response.instance_id,
+                ),
+                session_token: Some(types::api::SessionToken::ApplePay(Box::new(
                     api_models::payments::ApplepaySessionTokenResponse {
                         session_token_data:
                             api_models::payments::ApplePaySessionResponse::ThirdPartySdk(
@@ -953,8 +990,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<TrustpayCreateIntentRespon
                             }
                         },
                     },
-                )),
-                response_id: Some(response.instance_id),
+                ))),
             }),
             ..item.data
         })
