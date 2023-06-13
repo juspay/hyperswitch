@@ -1761,7 +1761,7 @@ pub enum SessionToken {
     /// The session response structure for Apple Pay
     ApplePay(Box<ApplepaySessionTokenResponse>),
     /// Whenever there is no session token response or an error in session response
-    NoSessionTokenRecieved,
+    NoSessionTokenReceived,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]

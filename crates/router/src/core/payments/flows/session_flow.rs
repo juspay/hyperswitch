@@ -275,7 +275,7 @@ fn create_apple_pay_session_response(
         }),
         None => Ok(types::PaymentsSessionRouterData {
             response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: payment_types::SessionToken::NoSessionTokenRecieved,
+                session_token: payment_types::SessionToken::NoSessionTokenReceived,
             }),
             ..router_data.clone()
         }),

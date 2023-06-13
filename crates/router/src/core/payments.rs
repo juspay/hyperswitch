@@ -624,11 +624,11 @@ where
                 if let Ok(types::PaymentsResponseData::SessionResponse { session_token, .. }) =
                     connector_response.response
                 {
-                    // If session token is NoSessionTokenRecieved, it is not pushed into the sessions_token as there is no response or there can be some error
+                    // If session token is NoSessionTokenReceived, it is not pushed into the sessions_token as there is no response or there can be some error
                     // In case of error, that error is already logged
                     if !matches!(
                         session_token,
-                        api_models::payments::SessionToken::NoSessionTokenRecieved,
+                        api_models::payments::SessionToken::NoSessionTokenReceived,
                     ) {
                         payment_data.sessions_token.push(session_token);
                     }

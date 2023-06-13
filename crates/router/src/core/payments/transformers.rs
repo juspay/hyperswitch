@@ -338,7 +338,7 @@ where
                 };
 
                 // next action check for third party sdk session (for ex: Apple pay through trustpay has third party sdk session response)
-                if third_party_sdk_session_next_action(&payment_attempt) {
+                if third_party_sdk_session_next_action(&payment_attempt, operation) {
                     next_action_response = Some(
                         api_models::payments::NextActionData::ThirdPartySdkSessionToken {
                             session_token: session_tokens[0].clone(),
@@ -517,21 +517,32 @@ where
     output
 }
 
-pub fn third_party_sdk_session_next_action(payment_attempt: &storage::PaymentAttempt) -> bool {
-    payment_attempt
-        .connector
-        .as_ref()
-        .map(|connector| matches!(connector.as_str(), "trustpay"))
-        .and_then(|is_connector_supports_third_party_sdk| {
-            if is_connector_supports_third_party_sdk {
-                payment_attempt
-                    .payment_method
-                    .map(|pm| matches!(pm, storage_models::enums::PaymentMethod::Wallet))
-            } else {
-                Some(false)
-            }
-        })
-        .unwrap_or(false)
+pub fn third_party_sdk_session_next_action<Op>(
+    payment_attempt: &storage::PaymentAttempt,
+    operation: &Op,
+) -> bool
+where
+    Op: Debug,
+{
+    // If the operation is confirm, we will send session token response in next action
+    if format!("{operation:?}").eq("PaymentConfirm") {
+        payment_attempt
+            .connector
+            .as_ref()
+            .map(|connector| matches!(connector.as_str(), "trustpay"))
+            .and_then(|is_connector_supports_third_party_sdk| {
+                if is_connector_supports_third_party_sdk {
+                    payment_attempt
+                        .payment_method
+                        .map(|pm| matches!(pm, storage_models::enums::PaymentMethod::Wallet))
+                } else {
+                    Some(false)
+                }
+            })
+            .unwrap_or(false)
+    } else {
+        false
+    }
 }
 
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
