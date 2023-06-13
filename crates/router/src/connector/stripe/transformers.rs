@@ -2176,9 +2176,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                             transfer_type: StripePaymentMethodType::Multibanco,
                             currency,
                             payment_method_data: MultibancoTransferData {
-                                email: connector::utils::PaymentsPreProcessingData::get_email(
-                                    &item.request,
-                                )?,
+                                email: item.request.get_email()?,
                             },
                             amount: Some(
                                 item.request
