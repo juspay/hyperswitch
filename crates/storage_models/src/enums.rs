@@ -80,7 +80,6 @@ pub enum AttemptStatus {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticationType {
-   
     ThreeDs,
     #[default]
     NoThreeDs,
