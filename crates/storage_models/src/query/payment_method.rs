@@ -123,4 +123,16 @@ impl PaymentMethod {
             result => result,
         }
     }
+    
+    #[instrument(skip(conn))]
+    #[cfg(feature = "migrate_data_from_legacy_to_basilisk_hs")]
+    pub async fn find_all_payment_methods(conn: &PgPooledConn) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(conn, dsl::merchant_id.is_not_null(), None, None, None)
+        .await
+    }
 }

@@ -7,18 +7,20 @@ use super::app;
 use crate::core::payment_methods::cards;
 
 // #[actix_web::get("/migrate-legacy-to-basilisk")]
-/// 
+///
 /// # Panics
-/// 
+///
 /// When the merchant account or payment method or card reference is not found in the database.
-#[allow (clippy::expect_used)]
-pub async fn migrate_data_from_legacy_to_basilisk_hs(
+#[allow(clippy::expect_used)]
+pub async fn test_migrate_data_from_legacy_to_basilisk_hs(
     state: web::Data<app::AppState>,
     _req: actix_web::HttpRequest,
     json_payload: web::Json<types::MigrateLegacyToBasiliskRequest>,
 ) -> impl actix_web::Responder {
-    logger::info!("migrate-legacy-to-basilisk was called");
+    logger::info!("testing migrate-legacy-to-basilisk");
     let request_data = json_payload.into_inner();
+    
+    // Fetching merchant account, payment method and card reference from the database for the given input
     let merchant_account = state
         .store
         .find_merchant_account_by_merchant_id(&request_data.merchant_id)
@@ -35,15 +37,17 @@ pub async fn migrate_data_from_legacy_to_basilisk_hs(
         .pop()
         .expect("payment method not found");
     let card_reference = payment_method.token.expect("card reference not found");
+    
+    // Migrating data from legacy to basilisk
     cards::migrate_data_from_legacy_to_basilisk_hs(
         &state,
         request_data.customer_id.as_str(),
-        &merchant_account,
+        &merchant_account.merchant_id,
         card_reference.as_str(),
-        merchant_account.locker_id.clone(),
+        "m0010", // locker id is same for all the merchant accounts who has saved cards. 
     )
     .await
     .expect("Failed to migrate data from legacy to basilisk");
 
-    actix_web::HttpResponse::Ok().body("migrate-legacy-to-basilisk is good")
+    actix_web::HttpResponse::Ok().body("migrate-legacy-to-basilisk is working as expected")
 }

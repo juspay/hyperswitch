@@ -6,7 +6,6 @@ use router::{
 #[cfg(feature = "migrate_data_from_legacy_to_basilisk_hs")]
 use router::{
     core::payment_methods::cards::migrate_data_from_legacy_to_basilisk_hs, routes, services::Store,
-    types::domain::behaviour::ReverseConversion,
 };
 #[cfg(feature = "migrate_data_from_legacy_to_basilisk_hs")]
 use tokio::sync::oneshot;
@@ -44,45 +43,43 @@ async fn main() -> ApplicationResult<()> {
     let _guard = logger::setup(&conf.log);
 
     #[cfg(feature = "migrate_data_from_legacy_to_basilisk_hs")]
+    #[allow(clippy::expect_used)]
     {
         let (tx, _rx) = oneshot::channel();
         let state = routes::AppState::new(conf.clone(), tx).await;
+        
+        // Creating a replication database connection, so that we can do bulk read from replica database without affecting the primary database
         let (tx, _rx) = oneshot::channel();
         let store = Store::new(&conf, true, tx).await;
         let conn = &store
-            .master_pool
+            .replica_pool
             .get()
             .await
             .expect("PG connection not established");
 
-        let merchants = storage_models::merchant_account::MerchantAccount::find_all_merchants(conn)
+        // Read all the payment methods from the database (~1000 records)
+        // decided to remove reading all merchant accounts from the database which is more than 3000 records.
+        let payment_methods =
+            storage_models::payment_method::PaymentMethod::find_all_payment_methods(
+                conn
+            )
             .await
-            .expect("Failed to fetch merchants from db");
-        for merchant in merchants.into_iter() {
-            let merchant_id = merchant.merchant_id.clone();
-            let payment_methods =
-                storage_models::payment_method::PaymentMethod::find_by_merchant_id(
-                    conn,
-                    &merchant_id.clone(),
-                )
-                .await
-                .expect("Failed to fetch payment methods from db");
-            for payment_method in payment_methods.iter() {
-                let merchant_account = merchant
-                    .clone()
-                    .convert(&store, &merchant_id)
-                    .await
-                    .expect("Failed to convert merchant account");
-                let card_reference = payment_method.token.clone().unwrap();
-                let _ = migrate_data_from_legacy_to_basilisk_hs(
-                    &state,
-                    &payment_method.customer_id,
-                    &merchant_account,
-                    card_reference.as_str(),
-                    merchant_account.locker_id.clone(),
-                )
-                .await;
-            }
+            .expect("Failed to fetch payment methods from db");
+
+        // Iterate over all the payment methods and migrate the data from legacy to basilisk
+        for payment_method in payment_methods.iter() {
+            let card_reference = payment_method
+                .token
+                .clone()
+                .expect("card reference not present");
+            let _ = migrate_data_from_legacy_to_basilisk_hs(
+                &state,
+                &payment_method.customer_id,
+                payment_method.merchant_id.as_str(),
+                card_reference.as_str(),
+                "m0010", // locker id is same for all the merchant accounts who has saved cards. 
+            )
+            .await;
         }
     }
 

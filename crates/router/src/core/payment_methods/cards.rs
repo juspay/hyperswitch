@@ -163,7 +163,7 @@ pub async fn add_card_to_locker(
         async {
             match state.conf.locker.locker_setup {
                 settings::LockerSetup::BasiliskLocker => {
-                    add_card_hs(state, req, card, customer_id, merchant_account).await
+                    add_card_hs(state, req, card, customer_id, &merchant_account.merchant_id).await
                 }
                 settings::LockerSetup::LegacyLocker => {
                     add_card(state, req, card, customer_id, merchant_account).await
@@ -182,16 +182,11 @@ pub async fn add_card_to_locker(
 pub async fn migrate_data_from_legacy_to_basilisk_hs(
     state: &routes::AppState,
     customer_id: &str,
-    merchant_account: &domain::MerchantAccount,
+    merchant_id: &str,
     card_reference: &str,
-    locker_id: Option<String>,
+    locker_id: &str,
 ) -> errors::RouterResult<payment_methods::Card> {
-    let card = get_card_from_legacy_locker(
-        state,
-        &locker_id.get_required_value("locker_id")?,
-        card_reference,
-    )
-    .await?;
+    let card = get_card_from_legacy_locker(state, locker_id, card_reference).await?;
 
     let card_details = transform_card_to_card_detail(card.clone());
     let req = api::PaymentMethodCreate {
@@ -209,18 +204,13 @@ pub async fn migrate_data_from_legacy_to_basilisk_hs(
         req,
         card_details.clone(),
         customer_id.to_string(),
-        merchant_account,
+        merchant_id,
     )
     .await
     {
         Ok(_) => Ok(card),
         Err(e) => {
-            println!(
-                "customerId is {} and merchantId is {}",
-                customer_id,
-                merchant_account.merchant_id
-            );
-            logger::error!("Error while adding card to locker: {:?}", e);
+            logger::error!("Error while adding card to locker for customer {} and merchant {} with the error: {:?}", customer_id, merchant_id, e);
             Ok(card)
         }
     }
@@ -307,7 +297,7 @@ pub async fn add_card_hs(
     req: api::PaymentMethodCreate,
     card: api::CardDetail,
     customer_id: String,
-    merchant_account: &domain::MerchantAccount,
+    merchant_id: &str,
 ) -> errors::CustomResult<(api::PaymentMethodResponse, bool), errors::VaultError> {
     let locker = &state.conf.locker;
     #[cfg(not(feature = "kms"))]
@@ -316,7 +306,6 @@ pub async fn add_card_hs(
     let jwekey = &state.kms_secrets;
 
     let db = &*state.store;
-    let merchant_id = &merchant_account.merchant_id;
 
     let request =
         payment_methods::mk_add_card_request_hs(jwekey, locker, &card, &customer_id, merchant_id)
