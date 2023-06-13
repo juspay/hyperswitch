@@ -3,13 +3,13 @@ use error_stack::ResultExt;
 use crate::{
     core::errors::{self, RouterResult},
     headers, logger,
-    types::{self, api::payments as payment_types},
+    types::{self, api},
     utils::{Encode, ValueExt},
 };
 
 pub fn populate_ip_into_browser_info(
     req: &actix_web::HttpRequest,
-    payload: &mut payment_types::PaymentsRequest,
+    payload: &mut api::PaymentsRequest,
 ) -> RouterResult<()> {
     let mut browser_info: types::BrowserInformation = payload
         .browser_info
@@ -32,29 +32,46 @@ pub fn populate_ip_into_browser_info(
             ip_address: None,
         });
 
-    browser_info.ip_address = browser_info
-        .ip_address
-        .or_else(|| {
-            // Parse the IP Address from the "X-Forwarded-For" header
-            // This header will contain multiple IP addresses for each ALB hop which has
-            // a comma separated list of IP addresses: 'X.X.X.X, Y.Y.Y.Y, Z.Z.Z.Z'
-            // The first one here will be the client IP which we want to retrieve
-            req.headers()
-                .get(headers::X_FORWARDED_FOR)
-                .map(|val| val.to_str())
-                .transpose()
-                .unwrap_or_else(|e| {
-                    logger::error!(error=?e, message="failed to retrieve ip address from X-Forwarded-For header");
-                    None
-                })
-                .and_then(|ips| ips.split(',').next())
-                .map(|ip| ip.parse())
-                .transpose()
-                .unwrap_or_else(|e| {
-                    logger::error!(error=?e, message="failed to parse ip address from X-Forwarded-For");
-                    None
-                })
-        });
+    // Parse the IP Address from the "X-Forwarded-For" header
+    // This header will contain multiple IP addresses for each ALB hop which has
+    // a comma separated list of IP addresses: 'X.X.X.X, Y.Y.Y.Y, Z.Z.Z.Z'
+    // The first one here will be the client IP which we want to retrieve
+    let ip_address_from_header = req.headers()
+        .get(headers::X_FORWARDED_FOR)
+        .map(|val| val.to_str())
+        .transpose()
+        .unwrap_or_else(|e| {
+            logger::error!(error=?e, message="failed to retrieve ip address from X-Forwarded-For header");
+            None
+        })
+        .and_then(|ips| ips.split(',').next());
+
+    browser_info.ip_address = browser_info.ip_address.or_else(|| {
+        ip_address_from_header
+            .map(|ip| ip.parse())
+            .transpose()
+            .unwrap_or_else(|e| {
+                logger::error!(error=?e, message="failed to parse ip address from X-Forwarded-For");
+                None
+            })
+    });
+
+    if let Some(api::MandateData {
+        customer_acceptance:
+            Some(api::CustomerAcceptance {
+                online:
+                    Some(api::OnlineMandate {
+                        ip_address: req_ip, ..
+                    }),
+                ..
+            }),
+        ..
+    }) = &mut payload.mandate_data
+    {
+        *req_ip = req_ip
+            .clone()
+            .or_else(|| ip_address_from_header.map(|ip| masking::Secret::new(ip.to_string())));
+    }
 
     let encoded = Encode::<types::BrowserInformation>::encode_to_value(&browser_info)
         .change_context(errors::ApiErrorResponse::InternalServerError)

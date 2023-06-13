@@ -432,7 +432,7 @@ pub enum AcceptanceType {
 pub struct OnlineMandate {
     /// Ip address of the customer machine from which the mandate was created
     #[schema(value_type = String, example = "123.32.25.123")]
-    pub ip_address: Secret<String, pii::IpAddress>,
+    pub ip_address: Option<Secret<String, pii::IpAddress>>,
     /// The user-agent of the customer's browser
     pub user_agent: String,
 }
