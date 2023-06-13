@@ -23,7 +23,7 @@ pub struct ConnectorAuthentication {
     pub forte: Option<MultiAuthKey>,
     pub globalpay: Option<HeaderKey>,
     pub iatapay: Option<SignatureKey>,
-    pub mollie: Option<HeaderKey>,
+    pub mollie: Option<BodyKey>,
     pub multisafepay: Option<HeaderKey>,
     pub nexinets: Option<BodyKey>,
     pub noon: Option<SignatureKey>,
