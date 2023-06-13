@@ -1468,7 +1468,9 @@ pub struct PaymentIntentResponse {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeSourceResponse {
     pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ach_credit_transfer: Option<AchCreditTransferResponse>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub multibanco: Option<MultibancoCreditTansferResponse>,
     pub receiver: AchReceiverDetails,
     pub status: StripePaymentStatus,

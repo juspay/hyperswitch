@@ -733,7 +733,7 @@ pub struct AchBillingDetails {
     pub email: Email,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MultibancoBillingDetails {
     pub email: Email,
 }
@@ -1151,7 +1151,7 @@ pub struct BacsBankTransferInstructions {
     pub sort_code: Secret<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct MultibancoTransferInstructions {
     pub reference: Secret<String>,
     pub entity: String,

@@ -1675,6 +1675,19 @@
           }
         }
       },
+      "MultibancoBillingDetails": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "The Email ID for ACH billing",
+            "example": "example@me.com"
+          }
+        }
+      },
       "AchTransfer": {
         "type": "object",
         "required": [
@@ -1698,6 +1711,23 @@
           "swift_code": {
             "type": "string",
             "example": "234"
+          }
+        }
+      },
+      "MultibancoTransferInstructions": {
+        "type": "object",
+        "required": [
+          "reference",
+          "entity"
+        ],
+        "properties": {
+          "reference": {
+            "type": "string",
+            "example": "122385736258"
+          },
+          "entity": {
+            "type": "string",
+            "example": "12345"
           }
         }
       },
