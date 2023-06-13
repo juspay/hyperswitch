@@ -2179,14 +2179,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                                 email: item.request.get_email()?,
                             },
                             amount: Some(
-                                item.request
-                                    .amount
-                                    .get_required_value("amount")
-                                    .change_context(
-                                        errors::ConnectorError::MissingRequiredField {
-                                            field_name: "amount",
-                                        },
-                                    )?,
+                                item.request.get_amount()?,
                             ),
                             return_url: Some(
                                 item.get_return_url()?,
