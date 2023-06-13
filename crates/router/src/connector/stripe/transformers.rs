@@ -515,7 +515,7 @@ pub enum StripePaymentMethodType {
     #[serde(rename = "p24")]
     Przelewy24,
     CustomerBalance,
-    Multibanco
+    Multibanco,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -2164,67 +2164,67 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
         let currency = item
-        .request
-        .currency
-        .get_required_value("amount")
-        .change_context(errors::ConnectorError::MissingRequiredField {
-            field_name: "amount",
-        })?
-        .to_string();
+            .request
+            .currency
+            .get_required_value("amount")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "amount",
+            })?
+            .to_string();
 
-    match &item.request.payment_method_data {
-        Some(payments::PaymentMethodData::BankTransfer(bank_transfer_data)) => {
-            match **bank_transfer_data {
-                payments::BankTransferData::MultibancoBankTransfer { .. } => Ok(
-                    Self::MultibancoBankTansfer(MultibancoCreditTransferSourceRequest {
-                        transfer_type: StripePaymentMethodType::Multibanco,
-                        currency,
-                        payment_method_data: MultibancoTransferData {
-                            email: connector::utils::PaymentsPreProcessingData::get_email(
-                                &item.request,
-                            )?,
-                        },
-                        amount: Some(
-                            item.request
-                                .amount
-                                .get_required_value("amount")
-                                .change_context(
-                                    errors::ConnectorError::MissingRequiredField {
-                                        field_name: "amount",
-                                    },
+        match &item.request.payment_method_data {
+            Some(payments::PaymentMethodData::BankTransfer(bank_transfer_data)) => {
+                match **bank_transfer_data {
+                    payments::BankTransferData::MultibancoBankTransfer { .. } => Ok(
+                        Self::MultibancoBankTansfer(MultibancoCreditTransferSourceRequest {
+                            transfer_type: StripePaymentMethodType::Multibanco,
+                            currency,
+                            payment_method_data: MultibancoTransferData {
+                                email: connector::utils::PaymentsPreProcessingData::get_email(
+                                    &item.request,
                                 )?,
-                        ),
-                        return_url: Some(
-                            item.return_url
-                                .clone()
-                                .get_required_value("return_url")
-                                .change_context(
-                                    errors::ConnectorError::MissingRequiredField {
-                                        field_name: "return_url",
-                                    },
+                            },
+                            amount: Some(
+                                item.request
+                                    .amount
+                                    .get_required_value("amount")
+                                    .change_context(
+                                        errors::ConnectorError::MissingRequiredField {
+                                            field_name: "amount",
+                                        },
+                                    )?,
+                            ),
+                            return_url: Some(
+                                item.return_url
+                                    .clone()
+                                    .get_required_value("return_url")
+                                    .change_context(
+                                        errors::ConnectorError::MissingRequiredField {
+                                            field_name: "return_url",
+                                        },
+                                    )?,
+                            ),
+                        }),
+                    ),
+                    payments::BankTransferData::AchBankTransfer { .. } => {
+                        Ok(Self::AchBankTansfer(AchCreditTransferSourceRequest {
+                            transfer_type: StripePaymentMethodType::AchCreditTransfer,
+                            payment_method_data: AchTransferData {
+                                email: connector::utils::PaymentsPreProcessingData::get_email(
+                                    &item.request,
                                 )?,
-                        ),
-                    }),
-                ),
-                payments::BankTransferData::AchBankTransfer { .. } => {
-                    Ok(Self::AchBankTansfer(AchCreditTransferSourceRequest {
-                        transfer_type: StripePaymentMethodType::AchCreditTransfer,
-                        payment_method_data: AchTransferData {
-                            email: connector::utils::PaymentsPreProcessingData::get_email(
-                                &item.request,
-                            )?,
-                        },
-                        currency,
-                    }))
+                            },
+                            currency,
+                        }))
+                    }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Bank Transfer Method".to_string(),
+                    )
+                    .into()),
                 }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Bank Transfer Method".to_string(),
-                )
-                .into()),
             }
+            _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
         }
-        _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
-      }
     }
 }
 
@@ -2692,7 +2692,8 @@ pub fn get_bank_transfer_request_data(
     bank_transfer_data: &api_models::payments::BankTransferData,
 ) -> CustomResult<Option<String>, errors::ConnectorError> {
     match bank_transfer_data {
-        api_models::payments::BankTransferData::AchBankTransfer { .. } | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
+        api_models::payments::BankTransferData::AchBankTransfer { .. }
+        | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
             let req = ChargesRequest::try_from(req)?;
             let request = utils::Encode::<ChargesRequest>::url_encode(&req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;

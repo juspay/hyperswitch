@@ -733,7 +733,6 @@ pub struct AchBillingDetails {
     pub email: Email,
 }
 
-
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct MultibancoBillingDetails {
     pub email: Email,
