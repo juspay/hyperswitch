@@ -735,6 +735,7 @@ pub struct AchBillingDetails {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MultibancoBillingDetails {
+    #[schema(value_type = String, example = "example@me.com")]
     pub email: Email,
 }
 
@@ -1153,7 +1154,9 @@ pub struct BacsBankTransferInstructions {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct MultibancoTransferInstructions {
+    #[schema(value_type = String, example = "122385736258")]
     pub reference: Secret<String>,
+    #[schema(value_type = String, example = "12345")]
     pub entity: String,
 }
 
