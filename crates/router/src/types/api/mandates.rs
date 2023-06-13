@@ -73,7 +73,7 @@ impl MandateResponseExt for MandateResponse {
                 },
                 accepted_at: mandate.customer_accepted_at,
                 online: Some(api::payments::OnlineMandate {
-                    ip_address: mandate.customer_ip_address.unwrap_or_default(),
+                    ip_address: mandate.customer_ip_address,
                     user_agent: mandate.customer_user_agent.unwrap_or_default(),
                 }),
             }),

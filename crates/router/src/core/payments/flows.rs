@@ -4,7 +4,7 @@ pub mod capture_flow;
 pub mod complete_authorize_flow;
 pub mod psync_flow;
 pub mod session_flow;
-pub mod verfiy_flow;
+pub mod verify_flow;
 
 use async_trait::async_trait;
 

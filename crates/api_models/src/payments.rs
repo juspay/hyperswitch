@@ -432,7 +432,7 @@ pub enum AcceptanceType {
 pub struct OnlineMandate {
     /// Ip address of the customer machine from which the mandate was created
     #[schema(value_type = String, example = "123.32.25.123")]
-    pub ip_address: Secret<String, pii::IpAddress>,
+    pub ip_address: Option<Secret<String, pii::IpAddress>>,
     /// The user-agent of the customer's browser
     pub user_agent: String,
 }
@@ -804,6 +804,8 @@ pub enum WalletData {
     AliPay(AliPayRedirection),
     /// The wallet data for Apple pay
     ApplePay(ApplePayWalletData),
+    /// Wallet data for apple pay redirect flow
+    ApplePayRedirect(Box<ApplePayRedirectData>),
     /// The wallet data for Google pay
     GooglePay(GooglePayWalletData),
     MbWay(Box<MbWayRedirection>),
@@ -830,6 +832,9 @@ pub struct GooglePayWalletData {
     /// The tokenization data of Google pay
     pub tokenization_data: GpayTokenizationData,
 }
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ApplePayRedirectData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct WeChatPayRedirection {}
@@ -1704,6 +1709,12 @@ pub struct ApplepaySessionRequest {
     pub display_name: String,
     pub initiative: String,
     pub initiative_context: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ConnectorMetadata {
+    pub apple_pay: Option<ApplePayMetadata>,
+    pub google_pay: Option<GpayMetaData>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
