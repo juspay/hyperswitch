@@ -1,6 +1,7 @@
+use api_models::payments::{Address, AddressDetails};
 use masking::Secret;
 use router::types::{self, api, storage::enums};
-use api_models::payments::{Address, AddressDetails};
+
 use crate::{
     connector_auth,
     utils::{self, ConnectorActions},
@@ -100,8 +101,14 @@ impl CashtocodeTest {
 #[actix_web::test]
 async fn should_fetch_pay_url() {
     let authorize_response = CONNECTOR
-        .make_payment(CashtocodeTest::get_payment_authorize_data("1bc20b0a",types::api::RewardType::Classic), CashtocodeTest::get_payment_info())
+        .make_payment(
+            CashtocodeTest::get_payment_authorize_data("1bc20b0a", types::api::RewardType::Classic),
+            CashtocodeTest::get_payment_info(),
+        )
         .await
         .unwrap();
-    assert_eq!(authorize_response.status, enums::AttemptStatus::AuthenticationPending);
+    assert_eq!(
+        authorize_response.status,
+        enums::AttemptStatus::AuthenticationPending
+    );
 }

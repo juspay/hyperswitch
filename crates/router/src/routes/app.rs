@@ -409,9 +409,7 @@ impl Webhooks {
                     .route(
                         web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     )
-                    .route(
-                        web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                    )
+                    .route(web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>))
                     .route(
                         web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     ),

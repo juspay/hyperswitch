@@ -2577,14 +2577,13 @@ impl
                     )),
                 }
             }
-            api::PaymentMethodData::MandatePayment | api::PaymentMethodData::Crypto(_) | api::PaymentMethodData::Reward(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: format!("{pm_type:?}"),
-                    connector: "Stripe",
-                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                        .to_string(),
-                })?
-            }
+            api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::Reward(_) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{pm_type:?}"),
+                connector: "Stripe",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })?,
         }
     }
 }

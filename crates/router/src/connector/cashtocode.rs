@@ -9,19 +9,19 @@ use crate::{
     configs::settings,
     connector::utils as conn_utils,
     core::errors::{self, CustomResult},
+    db::StorageInterface,
     headers,
     services::{
         self,
         request::{self, Mask},
         ConnectorIntegration,
     },
-    db::StorageInterface,
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt, ByteSliceExt},
+    utils::{self, ByteSliceExt, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -48,25 +48,21 @@ fn get_auth_cashtocode(
         api_models::payments::PaymentMethodData::Reward(reward_data) => {
             match reward_data.reward_type {
                 api_models::payments::RewardType::Classic => match auth_type {
-                    types::ConnectorAuthType::BodyKey { api_key, key1: _ } =>
-                    Ok(vec![
-                    (
+                    types::ConnectorAuthType::BodyKey { api_key, key1: _ } => Ok(vec![(
                         headers::AUTHORIZATION.to_string(),
                         format!("Basic {}", api_key).into_masked(),
                     )]),
                     _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-                }
+                },
                 api_models::payments::RewardType::Evoucher => match auth_type {
-                    types::ConnectorAuthType::BodyKey { api_key: _, key1 } =>
-                    Ok(vec![
-                    (
+                    types::ConnectorAuthType::BodyKey { api_key: _, key1 } => Ok(vec![(
                         headers::AUTHORIZATION.to_string(),
                         format!("Basic {}", key1.to_owned()).into_masked(),
                     )]),
                     _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-                }
+                },
+            }
         }
-    },
         _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
     }
 }
@@ -81,9 +77,8 @@ impl
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Cashtocode
-where
-    Self: ConnectorIntegration<Flow, Request, Response>,
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Cashtocode where
+    Self: ConnectorIntegration<Flow, Request, Response>
 {
 }
 
@@ -155,7 +150,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_owned().into(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_owned()
+                .into(),
         )];
         let auth_differentiator =
             get_auth_cashtocode(&req.request.payment_method_data, &req.connector_auth_type);
@@ -245,10 +242,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     for Cashtocode
 {
     fn get_headers(
-            &self,
-            _req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
-            _connectors: &settings::Connectors,
-        ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        &self,
+        _req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_headers method".to_string()).into())
     }
 
@@ -292,7 +289,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         self.build_error_response(res)
     }
 }
-
 
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
     for Cashtocode
@@ -386,7 +382,8 @@ impl api::IncomingWebhook for Cashtocode {
             .body
             .parse_struct("CashtocodeIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        let res_json = utils::Encode::<transformers::CashtocodeIncomingWebhook>::encode_to_value(&webhook)
+        let res_json =
+            utils::Encode::<transformers::CashtocodeIncomingWebhook>::encode_to_value(&webhook)
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(res_json)
@@ -416,11 +413,9 @@ impl api::IncomingWebhook for Cashtocode {
 impl ConnectorIntegration<api::refunds::Execute, types::RefundsData, types::RefundsResponseData>
     for Cashtocode
 {
-
 }
 
 impl ConnectorIntegration<api::refunds::RSync, types::RefundsData, types::RefundsResponseData>
     for Cashtocode
 {
-
 }

@@ -1,9 +1,9 @@
+use common_utils::pii::Email;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use common_utils::pii::Email;
 
 use crate::{
-    connector::utils::{RouterData},
+    connector::utils::RouterData,
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -135,7 +135,6 @@ pub struct CashtocodePaymentsResponse {
     pub pay_url: String,
 }
 
-
 pub struct CashtocodePaymentsSyncResponse {}
 
 impl<F, T>
@@ -229,5 +228,5 @@ pub struct CashtocodeIncomingWebhook {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodeObjectId {
-    pub transaction_id: String ,
+    pub transaction_id: String,
 }
