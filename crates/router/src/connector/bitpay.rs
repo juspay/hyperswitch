@@ -9,6 +9,7 @@ use transformers as bitpay;
 use self::bitpay::BitpayWebhookDetails;
 use crate::{
     configs::settings,
+    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{
@@ -109,9 +110,11 @@ impl ConnectorCommon for Bitpay {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response
+                .code
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response.error,
+            reason: response.message,
         })
     }
 }
@@ -527,7 +530,11 @@ impl api::IncomingWebhook for Bitpay {
             bitpay::WebhookEventType::Declined => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
             }
-            _ => Ok(api::IncomingWebhookEvent::EventNotSupported),
+            bitpay::WebhookEventType::Unknown
+            | bitpay::WebhookEventType::Expired
+            | bitpay::WebhookEventType::Invalid
+            | bitpay::WebhookEventType::Refunded
+            | bitpay::WebhookEventType::Resent => Ok(api::IncomingWebhookEvent::EventNotSupported),
         }
     }
 

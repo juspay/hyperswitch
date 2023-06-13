@@ -2,7 +2,7 @@
 
 Hyperswitch welcomes contributions from anyone in the open-source community. Although some contributions can be easily reviewed and implemented through regular GitHub pull requests, larger changes that require design decisions will require more discussion and collaboration within the community.
 
-To facilitate this process, Hyperswitch has adopted the RFC (Request for Comments) process from other successful open-source projects like Rust and React. The RFC process is designed to encourage community-driven change and ensure that everyone has a voice in the decision-making process, including both core and non-core contributors. 
+To facilitate this process, Hyperswitch has adopted the RFC (Request for Comments) process from other successful open-source projects like Rust and React. The RFC process is designed to encourage community-driven change and ensure that everyone has a voice in the decision-making process, including both core and non-core contributors.
 
 Here are the steps involved:
 1. Prepare an RFC Proposal
@@ -15,7 +15,7 @@ Here are the steps involved:
 
 **Prepare an RFC Proposal:** Anyone interested in proposing a change to Hyperswitch should first create an RFC(in the format given below) that outlines the proposed change. This document should describe the problem the proposal is trying to solve, the proposed solution, and any relevant technical details. The document should also include any potential drawbacks or alternative solutions that were considered.
 
-**Submit Proposal:** Once the RFC document is complete, the proposer should submit it to the Hyperswitch community for review. The proposal can be submitted either as a pull request to the RFC Documents folder or as a GitHub Issue. 
+**Submit Proposal:** Once the RFC document is complete, the proposer should submit it to the Hyperswitch community for review. The proposal can be submitted either as a pull request to the RFC Documents folder or as a GitHub Issue.
 
 **Complete Initial Review:** After the proposal is submitted, the Hyperswitch core team would review it and provide feedback. Feedback can include suggestions for improvements, questions about the proposal, or concerns about its potential impact.
 
@@ -33,35 +33,35 @@ This RFC process for Hyperswitch is intended to encourage collaboration and comm
 
 ### Issuing an RFC
 ```text
-**Title** 
+**Title**
 
 **Objective**
 A clear and concise title for the RFC
 
-**Proposal** 
+**Proposal**
 A detailed description of the proposed changes, discussion time frame, technical details and potential drawbacks or alternative solutions that were considered
 
-**Open Questions** 
+**Open Questions**
 Any questions or concerns that are still open for discussion and debate within the community
 
-**Additional Context / Previous Improvements** 
+**Additional Context / Previous Improvements**
 Any relevant external resources or references like slack / discord threads that support the proposal
 ```
 
 ### Resolving an RFC
 ```text
-**Title** 
+**Title**
 The title of the resolved RFC
 
-**Status** 
+**Status**
 The final status of the RFC (Accepted / Rejected)
 
-**Resolution** 
+**Resolution**
 A description of the final resolution of the RFC, including any modifications or adjustments made during the discussion and review process
 
-**Implementation** 
+**Implementation**
 A description of how the resolution will be implemented, including any relevant future scope for the solution
 
-**Acknowledgements** 
+**Acknowledgements**
 Any final thoughts or acknowledgements for the community and contributors who participated in the RFC process
 ```

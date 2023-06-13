@@ -754,6 +754,7 @@ impl api::IncomingWebhook for Shift4 {
             shift4::Shift4WebhookEvent::ChargeSucceeded => {
                 api::IncomingWebhookEvent::PaymentIntentSuccess
             }
+            shift4::Shift4WebhookEvent::Unknown => api::IncomingWebhookEvent::EventNotSupported,
         })
     }
 

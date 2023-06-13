@@ -1043,10 +1043,17 @@ impl api::IncomingWebhook for Bluesnap {
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        Ok(match details.transaction_type.as_str() {
-            "DECLINE" | "CC_CHARGE_FAILED" => api::IncomingWebhookEvent::PaymentIntentFailure,
-            "CHARGE" => api::IncomingWebhookEvent::PaymentIntentSuccess,
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+        Ok(match details.transaction_type {
+            bluesnap::BluesnapWebhookEvents::Decline
+            | bluesnap::BluesnapWebhookEvents::CcChargeFailed => {
+                api::IncomingWebhookEvent::PaymentIntentFailure
+            }
+            bluesnap::BluesnapWebhookEvents::Charge => {
+                api::IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            bluesnap::BluesnapWebhookEvents::Unknown => {
+                api::IncomingWebhookEvent::EventNotSupported
+            }
         })
     }
 
@@ -1087,9 +1094,15 @@ impl services::ConnectorRedirectResponse for Bluesnap {
 
         match redirection_result.status.as_str() {
             "Success" => Ok(payments::CallConnectorAction::Trigger),
-            _ => Ok(payments::CallConnectorAction::StatusUpdate(
-                enums::AttemptStatus::AuthenticationFailed,
-            )),
+            _ => Ok(payments::CallConnectorAction::StatusUpdate {
+                status: enums::AttemptStatus::AuthenticationFailed,
+                error_code: redirection_result.code,
+                error_message: redirection_result
+                    .info
+                    .as_ref()
+                    .and_then(|info| info.errors.as_ref().and_then(|error| error.first()))
+                    .cloned(),
+            }),
         }
     }
 }

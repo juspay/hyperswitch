@@ -103,9 +103,9 @@ impl ConnectorCommon for Coinbase {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error.error_type,
+            message: response.error.message,
+            reason: response.error.code,
         })
     }
 }
@@ -578,7 +578,9 @@ impl api::IncomingWebhook for Coinbase {
             coinbase::WebhookEventType::Pending => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentProcessing)
             }
-            _ => Ok(api::IncomingWebhookEvent::EventNotSupported),
+            coinbase::WebhookEventType::Unknown | coinbase::WebhookEventType::Created => {
+                Ok(api::IncomingWebhookEvent::EventNotSupported)
+            }
         }
     }
 

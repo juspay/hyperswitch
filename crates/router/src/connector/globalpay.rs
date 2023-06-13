@@ -880,6 +880,9 @@ impl api::IncomingWebhook for Globalpay {
             response::GlobalpayWebhookStatus::Captured => {
                 api::IncomingWebhookEvent::PaymentIntentSuccess
             }
+            response::GlobalpayWebhookStatus::Unknown => {
+                api::IncomingWebhookEvent::EventNotSupported
+            }
         })
     }
 
@@ -911,9 +914,11 @@ impl services::ConnectorRedirectResponse for Globalpay {
             payments::CallConnectorAction::Trigger,
             |status| match status {
                 response::GlobalpayPaymentStatus::Captured => {
-                    payments::CallConnectorAction::StatusUpdate(
-                        storage_models::enums::AttemptStatus::from(status),
-                    )
+                    payments::CallConnectorAction::StatusUpdate {
+                        status: storage_models::enums::AttemptStatus::from(status),
+                        error_code: None,
+                        error_message: None,
+                    }
                 }
                 _ => payments::CallConnectorAction::Trigger,
             },
