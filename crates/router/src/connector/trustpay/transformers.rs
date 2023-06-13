@@ -893,9 +893,9 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for TrustpayCreateIntentRe
             currency: item
                 .request
                 .currency
-                .get_required_value("amount")
+                .get_required_value("currency")
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "amount",
+                    field_name: "currency",
                 })?
                 .to_string(),
             init_apple_pay: Some(true),
