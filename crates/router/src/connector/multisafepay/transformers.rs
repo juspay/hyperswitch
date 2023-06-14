@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, CardData, RouterData},
+    connector::utils::{
+        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+    },
     core::errors,
     pii::Secret,
     services,
@@ -28,6 +30,7 @@ pub enum Gateway {
     MasterCard,
     Visa,
     Klarna,
+    Googlepay,
 }
 
 #[serde_with::skip_serializing_none]
@@ -122,6 +125,7 @@ pub struct GatewayInfo {
     pub moto: Option<bool>,
     pub term_url: Option<String>,
     pub email: Option<Email>,
+    pub payment_token: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -218,12 +222,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let payment_type = match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref _ccard) => Type::Direct,
+            api::PaymentMethodData::Wallet(api::WalletData::GooglePay(_)) => Type::Direct,
             api::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
             _ => Type::Redirect,
         };
 
         let gateway = match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref ccard) => Gateway::try_from(ccard.get_card_issuer()?)?,
+            api::PaymentMethodData::Wallet(api::WalletData::GooglePay(_)) => Gateway::Googlepay,
             api::PaymentMethodData::PayLater(
                 api_models::payments::PayLaterData::KlarnaRedirect {
                     billing_email: _,
@@ -237,7 +243,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
         let description = item.get_description()?;
         let payment_options = PaymentOptions {
             notification_url: None,
-            redirect_url: item.request.router_return_url.clone(),
+            redirect_url: Some(item.request.get_router_return_url()?),
             cancel_url: None,
             close_window: None,
             notification_method: None,
@@ -302,7 +308,21 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                 moto: None,
                 term_url: None,
                 email: None,
+                payment_token: None,
             },
+            api::PaymentMethodData::Wallet(api::WalletData::GooglePay(ref google_pay)) => {
+                GatewayInfo {
+                    card_number: None,
+                    card_holder_name: None,
+                    card_expiry_date: None,
+                    card_cvc: None,
+                    flexible_3d: None,
+                    moto: None,
+                    term_url: None,
+                    email: None,
+                    payment_token: Some(google_pay.tokenization_data.token.clone()),
+                }
+            }
             api::PaymentMethodData::PayLater(ref paylater) => GatewayInfo {
                 card_number: None,
                 card_expiry_date: None,
@@ -320,6 +340,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                         "Only KlarnaRedirect is implemented".to_string(),
                     ))?,
                 }),
+                payment_token: None,
             },
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method".to_string(),
