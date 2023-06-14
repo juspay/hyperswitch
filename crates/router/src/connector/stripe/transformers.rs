@@ -1366,7 +1366,7 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
         let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
         let metadata_txn_uuid = Uuid::new_v4().to_string();
 
-        //Only cards and Candian PAD supported for mandates
+        //Only cards supported for mandates
         let pm_type = StripePaymentMethodType::Card;
 
         let payment_data = StripePaymentMethodData::try_from((
@@ -1626,7 +1626,7 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
             connector_mandate_id: payment_method_options.and_then(|options| match options {
                 StripePaymentMethodOptions::Card {
                     mandate_options, ..
-                } => mandate_options.map(|mandate_options| mandate_options.reference).flatten(),
+                } => mandate_options.map(|mandate_options| mandate_options.reference),
                 StripePaymentMethodOptions::Acss {}
                 |StripePaymentMethodOptions::Klarna {}
                 | StripePaymentMethodOptions::Affirm {}
@@ -2157,7 +2157,7 @@ pub struct LatestPaymentAttempt {
 // pub struct Card
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct StripeMandateOptions {
-    reference: Option<String>
+    reference: String
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
