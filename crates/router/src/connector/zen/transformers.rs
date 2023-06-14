@@ -333,15 +333,18 @@ fn get_customer(
 
 fn get_item_object(
     item: &types::PaymentsAuthorizeRouterData,
-    amount: String,
+    _amount: String,
 ) -> Result<Vec<ZenItemObject>, error_stack::Report<errors::ConnectorError>> {
     let order_details = item.request.get_order_details()?;
-    Ok(vec![ZenItemObject {
-        name: order_details.product_name,
-        price: amount.clone(),
-        quantity: 1,
-        line_amount_total: amount,
-    }])
+    Ok(order_details
+        .iter()
+        .map(|data| ZenItemObject {
+            name: data.product_name.clone(),
+            quantity: data.quantity,
+            price: data.amount.to_string(),
+            line_amount_total: (i64::from(data.quantity) * data.amount).to_string(),
+        })
+        .collect())
 }
 
 fn get_browser_details(
