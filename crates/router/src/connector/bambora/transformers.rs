@@ -144,7 +144,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BamboraPaymentsRequest {
 }
 
 pub struct BamboraAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType {
@@ -154,7 +154,7 @@ impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType {
             let auth_key = format!("{key1}:{api_key}");
             let auth_header = format!("Passcode {}", consts::BASE64_ENGINE.encode(auth_key));
             Ok(Self {
-                api_key: auth_header,
+                api_key: Secret::new(auth_header),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?

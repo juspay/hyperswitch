@@ -1,3 +1,4 @@
+use masking::Secret;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -39,7 +40,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BitpayPaymentsRequest {
 
 // Auth Struct
 pub struct BitpayAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for BitpayAuthType {
@@ -47,7 +48,7 @@ impl TryFrom<&ConnectorAuthType> for BitpayAuthType {
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: Secret::new(api_key.to_owned()),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

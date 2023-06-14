@@ -646,7 +646,7 @@ pub struct AdyenRefundResponse {
 }
 
 pub struct AdyenAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
     pub(super) merchant_account: String,
 }
 
@@ -760,7 +760,7 @@ impl TryFrom<&types::ConnectorAuthType> for AdyenAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: Secret::new(api_key.to_owned()),
                 merchant_account: key1.to_string(),
             })
         } else {

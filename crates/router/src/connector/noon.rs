@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use transformers as noon;
 
 use super::utils::PaymentsSyncRequestData;
@@ -98,7 +99,9 @@ impl ConnectorCommon for Noon {
 
         let encoded_api_key = consts::BASE64_ENGINE.encode(format!(
             "{}.{}:{}",
-            auth.business_identifier, auth.application_identifier, auth.api_key
+            auth.business_identifier.expose(),
+            auth.application_identifier.expose(),
+            auth.api_key.expose()
         ));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),

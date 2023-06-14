@@ -20,9 +20,9 @@ use crate::{
 type Error = error_stack::Report<errors::ConnectorError>;
 
 pub struct TrustpayAuthType {
-    pub(super) api_key: String,
-    pub(super) project_id: String,
-    pub(super) secret_key: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) project_id: Secret<String>,
+    pub(super) secret_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for TrustpayAuthType {
@@ -35,9 +35,9 @@ impl TryFrom<&types::ConnectorAuthType> for TrustpayAuthType {
         } = auth_type
         {
             Ok(Self {
-                api_key: api_key.to_string(),
-                project_id: key1.to_string(),
-                secret_key: api_secret.to_string(),
+                api_key: Secret::new(api_key.to_owned()),
+                project_id: Secret::new(key1.to_owned()),
+                secret_key: Secret::new(api_secret.to_owned()),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -57,7 +57,7 @@ pub enum TrustpayPaymentMethod {
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct MerchantIdentification {
-    pub project_id: String,
+    pub project_id: Secret<String>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]

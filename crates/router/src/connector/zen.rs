@@ -94,7 +94,7 @@ impl ConnectorCommon for Zen {
         let auth = zen::ZenAuthType::try_from(auth_type)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key).into_masked(),
+            format!("Bearer {}", masking::ExposeInterface::expose(auth.api_key)).into_masked(),
         )])
     }
 

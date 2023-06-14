@@ -74,7 +74,7 @@ impl ConnectorCommon for Mollie {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key).into_masked(),
+            format!("Bearer {}", masking::ExposeInterface::expose(auth.api_key)).into_masked(),
         )])
     }
 

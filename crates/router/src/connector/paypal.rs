@@ -3,6 +3,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use transformers as paypal;
 
 use self::transformers::PaypalMeta;
@@ -228,7 +229,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
-        let auth_id = format!("{}:{}", auth.key1, auth.api_key);
+        let auth_id = format!("{}:{}", auth.key1.expose(), auth.api_key.expose());
         let auth_val = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_id));
 
         Ok(vec![

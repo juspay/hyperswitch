@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use ring::{digest, hmac};
 use time::OffsetDateTime;
 use transformers as cybersource;
@@ -59,17 +60,19 @@ impl Cybersource {
             format!("(request-target): get {resource}\n")
         };
         let signature_string = format!(
-            "host: {host}\ndate: {date}\n{request_target}v-c-merchant-id: {merchant_account}"
+            "host: {host}\ndate: {date}\n{request_target}v-c-merchant-id: {}",
+            merchant_account.expose()
         );
         let key_value = consts::BASE64_ENGINE
-            .decode(api_secret)
+            .decode(api_secret.expose())
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let key = hmac::Key::new(hmac::HMAC_SHA256, &key_value);
         let signature_value =
             consts::BASE64_ENGINE.encode(hmac::sign(&key, signature_string.as_bytes()).as_ref());
         let signature_header = format!(
-            r#"keyid="{api_key}", algorithm="HmacSHA256", headers="{headers}", signature="{signature_value}""#
+            r#"keyid="{}", algorithm="HmacSHA256", headers="{headers}", signature="{signature_value}""#,
+            api_key.expose()
         );
 
         Ok(signature_header)

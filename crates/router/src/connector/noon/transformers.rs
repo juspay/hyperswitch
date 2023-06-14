@@ -167,9 +167,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
 
 // Auth Struct
 pub struct NoonAuthType {
-    pub(super) api_key: String,
-    pub(super) application_identifier: String,
-    pub(super) business_identifier: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) application_identifier: Secret<String>,
+    pub(super) business_identifier: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for NoonAuthType {
@@ -181,9 +181,9 @@ impl TryFrom<&types::ConnectorAuthType> for NoonAuthType {
                 key1,
                 api_secret,
             } => Ok(Self {
-                api_key: api_key.to_string(),
-                application_identifier: api_secret.to_string(),
-                business_identifier: key1.to_string(),
+                api_key: Secret::new(api_key.to_owned()),
+                application_identifier: Secret::new(api_secret.to_owned()),
+                business_identifier: Secret::new(key1.to_owned()),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use transformers as trustpay;
 
 use super::utils::collect_and_sort_values_by_removing_signature;
@@ -174,7 +175,11 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let auth_value = format!(
             "Basic {}",
-            consts::BASE64_ENGINE.encode(format!("{}:{}", auth.project_id, auth.secret_key))
+            consts::BASE64_ENGINE.encode(format!(
+                "{}:{}",
+                auth.project_id.expose(),
+                auth.secret_key.expose()
+            ))
         );
         Ok(vec![
             (

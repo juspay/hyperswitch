@@ -185,7 +185,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
 
 // Auth Struct
 pub struct NexinetsAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for NexinetsAuthType {
@@ -196,7 +196,7 @@ impl TryFrom<&types::ConnectorAuthType> for NexinetsAuthType {
                 let auth_key = format!("{key1}:{api_key}");
                 let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
                 Ok(Self {
-                    api_key: auth_header,
+                    api_key: Secret::new(auth_header),
                 })
             }
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,

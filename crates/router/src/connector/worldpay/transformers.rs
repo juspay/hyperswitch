@@ -1,7 +1,7 @@
 use base64::Engine;
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
+use masking::{PeekInterface, Secret};
 use storage_models::enums;
 
 use super::{requests::*, response::*};
@@ -88,7 +88,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
 }
 
 pub struct WorldpayAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for WorldpayAuthType {
@@ -99,7 +99,7 @@ impl TryFrom<&types::ConnectorAuthType> for WorldpayAuthType {
                 let auth_key = format!("{key1}:{api_key}");
                 let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
                 Ok(Self {
-                    api_key: auth_header,
+                    api_key: Secret::new(auth_header),
                 })
             }
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,

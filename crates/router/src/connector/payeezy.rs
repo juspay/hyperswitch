@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use rand::distributions::DistString;
 use ring::hmac;
 use transformers as payeezy;
@@ -50,9 +51,13 @@ where
         let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 19);
         let signature_string = format!(
             "{}{}{}{}{}",
-            auth.api_key, nonce, timestamp, auth.merchant_token, request_payload
+            auth.api_key.clone().expose(),
+            nonce,
+            timestamp,
+            auth.merchant_token.clone().expose(),
+            request_payload
         );
-        let key = hmac::Key::new(hmac::HMAC_SHA256, auth.api_secret.as_bytes());
+        let key = hmac::Key::new(hmac::HMAC_SHA256, auth.api_secret.expose().as_bytes());
         let tag = hmac::sign(&key, signature_string.as_bytes());
         let hmac_sign = hex::encode(tag);
         let signature_value = consts::BASE64_ENGINE_URL_SAFE.encode(hmac_sign);

@@ -15,8 +15,8 @@ use crate::{
 };
 
 pub struct AciAuthType {
-    pub api_key: String,
-    pub entity_id: String,
+    pub api_key: Secret<String>,
+    pub entity_id: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for AciAuthType {
@@ -24,8 +24,8 @@ impl TryFrom<&types::ConnectorAuthType> for AciAuthType {
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = item {
             Ok(Self {
-                api_key: api_key.to_string(),
-                entity_id: key1.to_string(),
+                api_key: Secret::new(api_key.to_owned()),
+                entity_id: Secret::new(key1.to_owned()),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -36,7 +36,7 @@ impl TryFrom<&types::ConnectorAuthType> for AciAuthType {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciPaymentsRequest {
-    pub entity_id: String,
+    pub entity_id: Secret<String>,
     pub amount: String,
     pub currency: String,
     pub payment_type: AciPaymentType,
@@ -47,7 +47,7 @@ pub struct AciPaymentsRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciCancelRequest {
-    pub entity_id: String,
+    pub entity_id: Secret<String>,
     pub payment_type: AciPaymentType,
 }
 
@@ -463,7 +463,7 @@ pub struct AciRefundRequest {
     pub amount: String,
     pub currency: String,
     pub payment_type: AciPaymentType,
-    pub entity_id: String,
+    pub entity_id: Secret<String>,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for AciRefundRequest {

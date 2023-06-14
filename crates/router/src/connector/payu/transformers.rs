@@ -16,7 +16,7 @@ const WALLET_IDENTIFIER: &str = "PBL";
 #[serde(rename_all = "camelCase")]
 pub struct PayuPaymentsRequest {
     customer_ip: std::net::IpAddr,
-    merchant_pos_id: String,
+    merchant_pos_id: Secret<String>,
     total_amount: i64,
     currency_code: enums::Currency,
     description: String,
@@ -131,8 +131,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
 }
 
 pub struct PayuAuthType {
-    pub(super) api_key: String,
-    pub(super) merchant_pos_id: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) merchant_pos_id: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for PayuAuthType {
@@ -140,8 +140,8 @@ impl TryFrom<&types::ConnectorAuthType> for PayuAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                api_key: api_key.to_string(),
-                merchant_pos_id: key1.to_string(),
+                api_key: Secret::new(api_key.to_owned()),
+                merchant_pos_id: Secret::new(key1.to_owned()),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
