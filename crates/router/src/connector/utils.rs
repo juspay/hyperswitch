@@ -5,7 +5,7 @@ use base64::Engine;
 use common_utils::{
     date_time,
     errors::ReportSwitchExt,
-    pii::{self, Email},
+    pii::{self, Email, IpAddress},
 };
 use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
@@ -257,13 +257,15 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
 }
 
 pub trait BrowserInformationData {
-    fn get_ip_address(&self) -> Result<std::net::IpAddr, Error>;
+    fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error>;
 }
 
 impl BrowserInformationData for types::BrowserInformation {
-    fn get_ip_address(&self) -> Result<std::net::IpAddr, Error> {
-        self.ip_address
-            .ok_or_else(missing_field_err("browser_info.ip_address"))
+    fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error> {
+        let ip_address = self
+            .ip_address
+            .ok_or_else(missing_field_err("browser_info.ip_address"))?;
+        Ok(Secret::new(ip_address.to_string()))
     }
 }
 
@@ -368,7 +370,7 @@ pub struct GooglePayPaymentMethodInfo {
 pub struct GpayTokenizationData {
     #[serde(rename = "type")]
     pub token_type: String,
-    pub token: String,
+    pub token: Secret<String>,
 }
 
 impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
@@ -382,7 +384,7 @@ impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
             },
             tokenization_data: GpayTokenizationData {
                 token_type: data.tokenization_data.token_type,
-                token: data.tokenization_data.token,
+                token: Secret::new(data.tokenization_data.token),
             },
         }
     }
@@ -488,18 +490,18 @@ fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
     ))
 }
 pub trait WalletData {
-    fn get_wallet_token(&self) -> Result<String, Error>;
+    fn get_wallet_token(&self) -> Result<Secret<String>, Error>;
     fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
 }
 
 impl WalletData for api::WalletData {
-    fn get_wallet_token(&self) -> Result<String, Error> {
+    fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
         match self {
-            Self::GooglePay(data) => Ok(data.tokenization_data.token.clone()),
+            Self::GooglePay(data) => Ok(Secret::new(data.tokenization_data.token.clone())),
             Self::ApplePay(data) => Ok(data.get_applepay_decoded_payment_data()?),
-            Self::PaypalSdk(data) => Ok(data.token.clone()),
+            Self::PaypalSdk(data) => Ok(Secret::new(data.token.clone())),
             _ => Err(errors::ConnectorError::InvalidWallet.into()),
         }
     }
@@ -507,26 +509,28 @@ impl WalletData for api::WalletData {
     where
         T: serde::de::DeserializeOwned,
     {
-        serde_json::from_str::<T>(&self.get_wallet_token()?)
+        serde_json::from_str::<T>(self.get_wallet_token()?.peek())
             .into_report()
             .change_context(errors::ConnectorError::InvalidWalletToken)
     }
 }
 
 pub trait ApplePay {
-    fn get_applepay_decoded_payment_data(&self) -> Result<String, Error>;
+    fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error>;
 }
 
 impl ApplePay for payments::ApplePayWalletData {
-    fn get_applepay_decoded_payment_data(&self) -> Result<String, Error> {
-        let token = String::from_utf8(
-            consts::BASE64_ENGINE
-                .decode(&self.payment_data)
-                .into_report()
-                .change_context(errors::ConnectorError::InvalidWalletToken)?,
-        )
-        .into_report()
-        .change_context(errors::ConnectorError::InvalidWalletToken)?;
+    fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error> {
+        let token = Secret::new(
+            String::from_utf8(
+                consts::BASE64_ENGINE
+                    .decode(&self.payment_data)
+                    .into_report()
+                    .change_context(errors::ConnectorError::InvalidWalletToken)?,
+            )
+            .into_report()
+            .change_context(errors::ConnectorError::InvalidWalletToken)?,
+        );
         Ok(token)
     }
 }
