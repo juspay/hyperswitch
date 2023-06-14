@@ -347,6 +347,34 @@ pub struct AccessTokenRequestData {
     // Add more keys if required
 }
 
+pub trait Capturable {
+    fn get_capture_amount(&self) -> Option<i64> {
+        Some(0)
+    }
+}
+
+impl Capturable for PaymentsAuthorizeData {
+    fn get_capture_amount(&self) -> Option<i64> {
+        Some(self.amount)
+    }
+}
+
+impl Capturable for PaymentsCaptureData {
+    fn get_capture_amount(&self) -> Option<i64> {
+        Some(self.amount_to_capture)
+    }
+}
+
+impl Capturable for CompleteAuthorizeData {
+    fn get_capture_amount(&self) -> Option<i64> {
+        Some(self.amount)
+    }
+}
+impl Capturable for VerifyRequestData {}
+impl Capturable for PaymentsCancelData {}
+impl Capturable for PaymentsSessionData {}
+impl Capturable for PaymentsSyncData {}
+
 pub struct AddAccessTokenResult {
     pub access_token_result: Result<Option<AccessToken>, ErrorResponse>,
     pub connector_supports_access_token: bool,
