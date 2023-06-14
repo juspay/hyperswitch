@@ -77,7 +77,7 @@ impl ConnectorCommon for Shift4 {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.into_masked(),
+            format!("Basic {}", auth.api_key).into_masked(),
         )])
     }
 
