@@ -161,7 +161,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     fn get_preprocessing_id(&self) -> Result<String, Error> {
         self.preprocessing_id
             .to_owned()
-            .ok_or_else(missing_field_err("connector_customer_id"))
+            .ok_or_else(missing_field_err("preprocessing_id"))
     }
 }
 
