@@ -11,9 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        
-        self, AddressDetailsData, CardData, ApplePay, PaymentsAuthorizeRequestData, RouterData,
-    ,
+        self, AddressDetailsData, ApplePay, CardData, PaymentsAuthorizeRequestData, RouterData,
     },
     consts,
     core::errors,
