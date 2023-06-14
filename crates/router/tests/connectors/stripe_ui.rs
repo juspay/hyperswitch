@@ -85,7 +85,6 @@ async fn should_make_3ds_mandate_with_zero_dollar_payment(
 
 async fn should_make_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = StripeSeleniumTest {};
-    let pub_key = conn.get_configs().stripe_pub_key.unwrap();
     let pub_key = conn
         .get_configs()
         .automation_configs
