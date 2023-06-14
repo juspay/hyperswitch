@@ -15,6 +15,7 @@ use super::utils::{
 };
 use crate::{
     configs::settings,
+    connector::utils as conn_utils,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -22,7 +23,11 @@ use crate::{
     },
     db::StorageInterface,
     headers, logger,
-    services::{self, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -43,11 +48,11 @@ where
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = self.get_auth_header(&req.connector_auth_type)?;
         header.push((
             headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string(),
+            self.get_content_type().to_string().into(),
         ));
         Ok(header)
     }
@@ -69,7 +74,7 @@ impl ConnectorCommon for Bluesnap {
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth: bluesnap::BluesnapAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -77,7 +82,7 @@ impl ConnectorCommon for Bluesnap {
             consts::BASE64_ENGINE.encode(format!("{}:{}", auth.key1, auth.api_key));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Basic {encoded_api_key}"),
+            format!("Basic {encoded_api_key}").into_masked(),
         )])
     }
 
@@ -150,7 +155,7 @@ impl
         &self,
         req: &types::ConnectorCustomerRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -239,7 +244,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -327,7 +332,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -402,7 +407,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -498,7 +503,7 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
         &self,
         req: &types::PaymentsSessionRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -582,7 +587,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -705,7 +710,7 @@ impl
         &self,
         req: &types::PaymentsCompleteAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
     fn get_content_type(&self) -> &'static str {
@@ -790,7 +795,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -872,7 +877,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -966,7 +971,7 @@ impl api::IncomingWebhook for Bluesnap {
             serde_urlencoded::from_bytes(request.body)
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        let msg = webhook_body.reference_number + &webhook_body.contract_id;
+        let msg = webhook_body.reference_number + webhook_body.contract_id.as_str();
         Ok(msg.into_bytes())
     }
 
@@ -975,13 +980,17 @@ impl api::IncomingWebhook for Bluesnap {
         db: &dyn StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .find_config_by_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-
-        Ok(secret.config.into_bytes())
+        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
+        let secret = match db.find_config_by_key(&key).await {
+            Ok(config) => Some(config),
+            Err(e) => {
+                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
+                None
+            }
+        };
+        Ok(secret
+            .map(|conf| conf.config.into_bytes())
+            .unwrap_or_default())
     }
 
     async fn verify_webhook_source(
@@ -1034,10 +1043,17 @@ impl api::IncomingWebhook for Bluesnap {
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        Ok(match details.transaction_type.as_str() {
-            "DECLINE" | "CC_CHARGE_FAILED" => api::IncomingWebhookEvent::PaymentIntentFailure,
-            "CHARGE" => api::IncomingWebhookEvent::PaymentIntentSuccess,
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+        Ok(match details.transaction_type {
+            bluesnap::BluesnapWebhookEvents::Decline
+            | bluesnap::BluesnapWebhookEvents::CcChargeFailed => {
+                api::IncomingWebhookEvent::PaymentIntentFailure
+            }
+            bluesnap::BluesnapWebhookEvents::Charge => {
+                api::IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            bluesnap::BluesnapWebhookEvents::Unknown => {
+                api::IncomingWebhookEvent::EventNotSupported
+            }
         })
     }
 
@@ -1048,7 +1064,7 @@ impl api::IncomingWebhook for Bluesnap {
         let details: bluesnap::BluesnapWebhookObjectResource =
             serde_urlencoded::from_bytes(request.body)
                 .into_report()
-                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         let res_json =
             utils::Encode::<transformers::BluesnapWebhookObjectResource>::encode_to_value(&details)
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
@@ -1078,9 +1094,15 @@ impl services::ConnectorRedirectResponse for Bluesnap {
 
         match redirection_result.status.as_str() {
             "Success" => Ok(payments::CallConnectorAction::Trigger),
-            _ => Ok(payments::CallConnectorAction::StatusUpdate(
-                enums::AttemptStatus::AuthenticationFailed,
-            )),
+            _ => Ok(payments::CallConnectorAction::StatusUpdate {
+                status: enums::AttemptStatus::AuthenticationFailed,
+                error_code: redirection_result.code,
+                error_message: redirection_result
+                    .info
+                    .as_ref()
+                    .and_then(|info| info.errors.as_ref().and_then(|error| error.first()))
+                    .cloned(),
+            }),
         }
     }
 }

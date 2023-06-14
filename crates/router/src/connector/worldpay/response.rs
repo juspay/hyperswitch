@@ -51,6 +51,8 @@ pub enum EventType {
     SentForSettlement,
     Expired,
     CaptureFailed,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]

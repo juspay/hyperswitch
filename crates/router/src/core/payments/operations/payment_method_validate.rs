@@ -20,6 +20,7 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums, PaymentIdTypeExt},
+        domain,
         storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
@@ -35,7 +36,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::VerifyRequest,
-        merchant_account: &'a types::storage::MerchantAccount,
+        merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::VerifyRequest>,
         operations::ValidateResult<'a>,
@@ -44,7 +45,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-        let mandate_type = helpers::validate_mandate(request)?;
+        let mandate_type =
+            helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
         let validation_id = core_utils::get_or_generate_id("validation_id", &None, "val")?;
 
         Ok((
@@ -68,7 +70,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         payment_id: &api::PaymentIdType,
         request: &api::VerifyRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         PaymentData<F>,
@@ -164,6 +166,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 amount: api::Amount::Zero,
                 email: None,
                 mandate_id: None,
+                mandate_connector: None,
                 setup_mandate: request.mandate_data.clone(),
                 token: request.payment_token.clone(),
                 connector_response,
@@ -179,6 +182,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 pm_token: None,
                 connector_customer_id: None,
                 ephemeral_key: None,
+                redirect_response: None,
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -199,7 +203,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
         db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::VerifyRequest>, PaymentData<F>)>
@@ -247,7 +251,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::VerifyRequest>,
-            Option<storage::Customer>,
+            Option<domain::Customer>,
         ),
         errors::StorageError,
     > {
@@ -276,7 +280,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &storage::MerchantAccount,
+        _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         _request: &api::VerifyRequest,
         _payment_intent: &storage::payment_intent::PaymentIntent,

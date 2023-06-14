@@ -1,3 +1,5 @@
+use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -166,9 +168,18 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for AirwallexCompleteR
             three_ds: AirwallexThreeDsData {
                 acs_response: item
                     .request
-                    .payload
+                    .redirect_response
                     .as_ref()
-                    .map(|data| Secret::new(serde_json::Value::to_string(data))),
+                    .map(|f| f.payload.to_owned())
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "redirect_response.payload",
+                    })?
+                    .as_ref()
+                    .map(|data| serde_json::to_string(data.peek()))
+                    .transpose()
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+                    .map(Secret::new),
             },
             three_ds_type: AirwallexThreeDsType::ThreeDSContinue,
         })
@@ -550,6 +561,8 @@ pub enum AirwallexWebhookEventType {
     DisputeLost,
     #[serde(rename = "dispute.dispute_reversed")]
     DisputeReversed,
+    #[serde(other)]
+    Unknown,
 }
 
 pub fn is_transaction_event(event_code: &AirwallexWebhookEventType) -> bool {
@@ -639,7 +652,27 @@ impl TryFrom<AirwallexWebhookEventType> for api_models::webhooks::IncomingWebhoo
                 Self::DisputeWon
             }
             AirwallexWebhookEventType::DisputeLost => Self::DisputeLost,
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
+            AirwallexWebhookEventType::Unknown
+            | AirwallexWebhookEventType::PaymentIntentCreated
+            | AirwallexWebhookEventType::PaymentIntentRequiresPaymentMethod
+            | AirwallexWebhookEventType::PaymentIntentCancelled
+            | AirwallexWebhookEventType::PaymentIntentSucceeded
+            | AirwallexWebhookEventType::PaymentIntentRequiresCapture
+            | AirwallexWebhookEventType::PaymentIntentRequiresCustomerAction
+            | AirwallexWebhookEventType::PaymentAttemptAuthorizationFailed
+            | AirwallexWebhookEventType::PaymentAttemptCaptureRequested
+            | AirwallexWebhookEventType::PaymentAttemptCaptureFailed
+            | AirwallexWebhookEventType::PaymentAttemptAuthenticationRedirected
+            | AirwallexWebhookEventType::PaymentAttemptAuthenticationFailed
+            | AirwallexWebhookEventType::PaymentAttemptCancelled
+            | AirwallexWebhookEventType::PaymentAttemptExpired
+            | AirwallexWebhookEventType::PaymentAttemptRiskDeclined
+            | AirwallexWebhookEventType::PaymentAttemptSettled
+            | AirwallexWebhookEventType::PaymentAttemptPaid
+            | AirwallexWebhookEventType::RefundReceived
+            | AirwallexWebhookEventType::RefundAccepted
+            | AirwallexWebhookEventType::DisputeRfiRespondedByMerchant
+            | AirwallexWebhookEventType::DisputeReceivedByMerchant => Self::EventNotSupported,
         })
     }
 }
