@@ -328,7 +328,7 @@ fn get_bank_redirection_request_data(
                     currency: item.request.currency.to_string(),
                 },
                 references: References {
-                    merchant_reference: item.attempt_id.clone(),
+                    merchant_reference: item.payment_id.clone(),
                 },
             },
             callback_urls: CallbackURLs {
