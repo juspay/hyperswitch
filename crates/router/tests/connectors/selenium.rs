@@ -562,7 +562,3 @@ pub fn handle_test_error(
         }
     }
 }
-
-pub fn get_env(name: &str) -> String {
-    env::var(name).unwrap_or_else(|_| panic!("{name} not present"))
-}
