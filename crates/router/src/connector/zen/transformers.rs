@@ -1,8 +1,6 @@
-use std::net::IpAddr;
-
 use api_models::payments::{ApplePayRedirectData, Card, GooglePayWalletData};
 use cards::CardNumber;
-use common_utils::{ext_traits::ValueExt, pii::Email};
+use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use ring::digest;
@@ -13,11 +11,11 @@ use crate::{
     connector::utils::{
         self, BrowserInformationData, CardData, PaymentsAuthorizeRequestData, RouterData,
     },
-    core::errors,
+    core::errors::{self, CustomResult},
     services::{self, Method},
-    types::{self, api, storage::enums, transformers::ForeignTryFrom, BrowserInformation},
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
+    utils::OptionExt,
 };
-
 // Auth Struct
 pub struct ZenAuthType {
     pub(super) api_key: Secret<String>,
@@ -82,8 +80,8 @@ pub enum ZenPaymentChannels {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenCustomerDetails {
-    email: Email,
-    ip: IpAddr,
+    email: pii::Email,
+    ip: Secret<String, pii::IpAddress>,
 }
 
 #[derive(Debug, Serialize)]
@@ -93,7 +91,7 @@ pub struct ZenPaymentData {
     #[serde(rename = "type")]
     payment_type: ZenPaymentTypes,
     #[serde(skip_serializing_if = "Option::is_none")]
-    token: Option<String>,
+    token: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     card: Option<ZenCardDetails>,
     descriptor: String,
@@ -140,6 +138,11 @@ pub struct ZenItemObject {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SessionObject {
+    pub apple_pay: Option<ApplePaySessionData>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ApplePaySessionData {
     pub terminal_uuid: Option<String>,
     pub pay_wall_secret: Option<String>,
 }
@@ -191,7 +194,9 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &GooglePayWalletData)> for Ze
             browser_details,
             //Connector Specific for wallet
             payment_type: ZenPaymentTypes::ExternalPaymentToken,
-            token: Some(gpay_pay_redirect_data.tokenization_data.token.clone()),
+            token: Some(Secret::new(
+                gpay_pay_redirect_data.tokenization_data.token.clone(),
+            )),
             card: None,
             descriptor: item.get_description()?.chars().take(24).collect(),
             return_verify_url: item.request.router_return_url.clone(),
@@ -227,7 +232,10 @@ impl
         let session: SessionObject = connector_meta
             .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let terminal_uuid = session
+        let applepay_session_data = session
+            .apple_pay
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let terminal_uuid = applepay_session_data
             .terminal_uuid
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
@@ -242,14 +250,17 @@ impl
             signature: None,
             url_redirect: item.request.get_return_url()?,
         };
-        checkout_request.signature = Some(get_checkout_signature(&checkout_request, &session)?);
+        checkout_request.signature = Some(get_checkout_signature(
+            &checkout_request,
+            &applepay_session_data,
+        )?);
         Ok(Self::CheckoutRequest(Box::new(checkout_request)))
     }
 }
 
 fn get_checkout_signature(
     checkout_request: &CheckoutRequest,
-    session: &SessionObject,
+    session: &ApplePaySessionData,
 ) -> Result<Secret<String>, error_stack::Report<errors::ConnectorError>> {
     let pay_wall_secret = session
         .pay_wall_secret
@@ -312,7 +323,7 @@ fn get_signature_data(checkout_request: &CheckoutRequest) -> String {
 
 fn get_customer(
     item: &types::PaymentsAuthorizeRouterData,
-    ip: IpAddr,
+    ip: Secret<String, pii::IpAddress>,
 ) -> Result<ZenCustomerDetails, error_stack::Report<errors::ConnectorError>> {
     Ok(ZenCustomerDetails {
         email: item.request.get_email()?,
@@ -334,9 +345,23 @@ fn get_item_object(
 }
 
 fn get_browser_details(
-    browser_info: &BrowserInformation,
-) -> Result<ZenBrowserDetails, error_stack::Report<errors::ConnectorError>> {
-    let window_size = match (browser_info.screen_height, browser_info.screen_width) {
+    browser_info: &types::BrowserInformation,
+) -> CustomResult<ZenBrowserDetails, errors::ConnectorError> {
+    let screen_height = browser_info
+        .screen_height
+        .get_required_value("screen_height")
+        .change_context(errors::ConnectorError::MissingRequiredField {
+            field_name: "screen_height",
+        })?;
+
+    let screen_width = browser_info
+        .screen_width
+        .get_required_value("screen_width")
+        .change_context(errors::ConnectorError::MissingRequiredField {
+            field_name: "screen_width",
+        })?;
+
+    let window_size = match (screen_height, screen_width) {
         (250, 400) => "01",
         (390, 400) => "02",
         (500, 600) => "03",
@@ -344,16 +369,52 @@ fn get_browser_details(
         _ => "05",
     }
     .to_string();
+
     Ok(ZenBrowserDetails {
-        color_depth: browser_info.color_depth.to_string(),
-        java_enabled: browser_info.java_enabled,
-        lang: browser_info.language.clone(),
-        screen_height: browser_info.screen_height.to_string(),
-        screen_width: browser_info.screen_width.to_string(),
-        timezone: browser_info.time_zone.to_string(),
-        accept_header: browser_info.accept_header.clone(),
+        color_depth: browser_info
+            .color_depth
+            .get_required_value("color_depth")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "color_depth",
+            })?
+            .to_string(),
+        java_enabled: browser_info
+            .java_enabled
+            .get_required_value("java_enabled")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "java_enabled",
+            })?,
+        lang: browser_info
+            .language
+            .clone()
+            .get_required_value("language")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "language",
+            })?,
+        screen_height: screen_height.to_string(),
+        screen_width: screen_width.to_string(),
+        timezone: browser_info
+            .time_zone
+            .get_required_value("time_zone")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "time_zone",
+            })?
+            .to_string(),
+        accept_header: browser_info
+            .accept_header
+            .clone()
+            .get_required_value("accept_header")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "accept_header",
+            })?,
+        user_agent: browser_info
+            .user_agent
+            .clone()
+            .get_required_value("user_agent")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "user_agent",
+            })?,
         window_size,
-        user_agent: browser_info.user_agent.clone(),
     })
 }
 
@@ -664,10 +725,11 @@ pub enum ZenWebhookTxnType {
 
 #[derive(Debug, Deserialize)]
 pub struct ZenErrorResponse {
-    pub error: ZenErrorBody,
+    pub error: Option<ZenErrorBody>,
+    pub message: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ZenErrorBody {
     pub message: String,
     pub code: String,

@@ -1,11 +1,12 @@
-use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use once_cell::sync::OnceCell;
 
 use crate::{
     configs::settings::{Locker, Proxy},
-    consts,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
 };
 
 static NON_PROXIED_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
@@ -74,30 +75,13 @@ pub(super) fn create_client(
     client_certificate_key: Option<String>,
 ) -> CustomResult<reqwest::Client, errors::ApiClientError> {
     match (client_certificate, client_certificate_key) {
-        (Some(encoded_cert), Some(encoded_cert_key)) => {
+        (Some(encoded_certificate), Some(encoded_certificate_key)) => {
             let client_builder = get_client_builder(proxy_config, should_bypass_proxy)?;
 
-            let decoded_cert = consts::BASE64_ENGINE
-                .decode(encoded_cert)
-                .into_report()
-                .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-            let decoded_cert_key = consts::BASE64_ENGINE
-                .decode(encoded_cert_key)
-                .into_report()
-                .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-            let certificate = String::from_utf8(decoded_cert)
-                .into_report()
-                .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-            let certificate_key = String::from_utf8(decoded_cert_key)
-                .into_report()
-                .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-            let identity = reqwest::Identity::from_pkcs8_pem(
-                certificate.as_bytes(),
-                certificate_key.as_bytes(),
-            )
-            .into_report()
-            .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
+            let identity = payments::helpers::create_identity_from_certificate_and_key(
+                encoded_certificate,
+                encoded_certificate_key,
+            )?;
 
             client_builder
                 .identity(identity)
