@@ -6,7 +6,7 @@ use common_utils::{
     pii::Email,
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, PeekInterface};
+use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -195,11 +195,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                     let apple_pay_payment_data = payment_method_data
                         .get_applepay_decoded_payment_data()
                         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                    let apple_pay_payment_data: ApplePayEncodedPaymentData =
-                        apple_pay_payment_data.peek().to_string()[..]
-                            .as_bytes()
-                            .parse_struct("ApplePayEncodedPaymentData")
-                            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                    let apple_pay_payment_data: ApplePayEncodedPaymentData = apple_pay_payment_data
+                        .expose()[..]
+                        .as_bytes()
+                        .parse_struct("ApplePayEncodedPaymentData")
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
                     let billing = item
                         .address
@@ -550,7 +550,7 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::ConnectorCustomerResponse {
-                connector_customer_id: item.response.vaulted_shopper_id.peek().to_string(),
+                connector_customer_id: item.response.vaulted_shopper_id.expose().to_string(),
             }),
             ..item.data
         })

@@ -1,6 +1,6 @@
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
+use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -87,7 +87,7 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
-                token: item.response.token.peek().to_owned(),
+                token: item.response.token.expose(),
             }),
             ..item.data
         })

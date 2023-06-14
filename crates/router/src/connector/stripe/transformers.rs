@@ -7,7 +7,7 @@ use common_utils::{
     pii::{self, Email},
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -1775,7 +1775,7 @@ impl ForeignFrom<Option<LatestAttempt>> for Option<String> {
                     StripePaymentMethodOptions::Card {
                         network_transaction_id,
                         ..
-                    } => network_transaction_id.map(|network_id| network_id.peek().to_owned()),
+                    } => network_transaction_id.map(|network_id| network_id.expose()),
                     _ => None,
                 }),
             _ => None,
