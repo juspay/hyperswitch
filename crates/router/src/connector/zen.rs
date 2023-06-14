@@ -152,9 +152,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut headers = self.build_headers(req, connectors)?;
         let api_headers = match req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Wallet(
-                api_models::payments::WalletData::ApplePayRedirect(_),
-            ) => None,
+            api_models::payments::PaymentMethodData::Wallet(_) => None,
             _ => Some(Self::get_default_header()),
         };
         if let Some(api_header) = api_headers {
@@ -173,9 +171,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = match &req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Wallet(
-                api_models::payments::WalletData::ApplePayRedirect(_),
-            ) => {
+            api_models::payments::PaymentMethodData::Wallet(_) => {
                 let base_url = connectors
                     .zen
                     .secondary_base_url
@@ -195,6 +191,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let req_obj = zen::ZenPaymentsRequest::try_from(req)?;
         let zen_req = utils::Encode::<zen::ZenPaymentsRequest>::encode_to_string_of_json(&req_obj)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("ggggg {:?}", zen_req);
         Ok(Some(zen_req))
     }
 
