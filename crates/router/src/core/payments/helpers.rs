@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use ::cards::{CardExpiration, CardExpirationMonth, CardExpirationYear, CardSecurityCode};
+use ::cards as Card;
 use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
@@ -448,7 +448,7 @@ pub fn validate_card_data(
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "card_cvc",
             })?;
-        CardSecurityCode::try_from(card_cvc).change_context(
+        Card::CardSecurityCode::try_from(card_cvc).change_context(
             errors::ApiErrorResponse::PreconditionFailed {
                 message: "Invalid Card CVC".to_string(),
             },
@@ -463,7 +463,7 @@ pub fn validate_card_data(
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "card_exp_month",
             })?;
-        let month = CardExpirationMonth::try_from(exp_month).change_context(
+        let month = Card::CardExpirationMonth::try_from(exp_month).change_context(
             errors::ApiErrorResponse::PreconditionFailed {
                 message: "Invalid Expiry Month".to_string(),
             },
@@ -478,13 +478,13 @@ pub fn validate_card_data(
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "card_exp_year",
             })?;
-        let year = CardExpirationYear::try_from(exp_year).change_context(
+        let year = Card::CardExpirationYear::try_from(exp_year).change_context(
             errors::ApiErrorResponse::PreconditionFailed {
                 message: "Invalid Expiry Year".to_string(),
             },
         )?;
 
-        let card_expiration = CardExpiration { month, year };
+        let card_expiration = Card::CardExpiration { month, year };
         let expiry = card_expiration.is_expired().change_context(
             errors::ApiErrorResponse::PreconditionFailed {
                 message: "Invalid card data".to_string(),
