@@ -1,7 +1,6 @@
 use std::ops::Deref;
 
 use api_models::{self, enums as api_enums, payments};
-use base64::Engine;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt},
@@ -17,7 +16,6 @@ use uuid::Uuid;
 use crate::{
     collect_missing_value_keys,
     connector::{self, utils::ApplePay},
-    consts,
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
@@ -1021,7 +1019,9 @@ fn create_stripe_payment_method(
         payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
             payments::WalletData::ApplePay(applepay_data) => Ok((
                 StripePaymentMethodData::Wallet(StripeWallet::ApplepayToken(StripeApplePay {
-                    pk_token: applepay_data.get_applepay_decoded_payment_data()?,
+                    pk_token: applepay_data
+                        .get_applepay_decoded_payment_data()
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
                     pk_token_instrument_name: applepay_data.payment_method.pm_type.to_owned(),
                     pk_token_payment_network: applepay_data.payment_method.network.to_owned(),
                     pk_token_transaction_id: applepay_data.transaction_identifier.to_owned(),
@@ -2499,7 +2499,9 @@ impl
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 payments::WalletData::ApplePay(data) => {
                     let wallet_info = StripeWallet::ApplepayToken(StripeApplePay {
-                        pk_token: data.get_applepay_decoded_payment_data()?,
+                        pk_token: data
+                            .get_applepay_decoded_payment_data()
+                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
                         pk_token_instrument_name: data.payment_method.pm_type,
                         pk_token_payment_network: data.payment_method.network,
                         pk_token_transaction_id: data.transaction_identifier,
