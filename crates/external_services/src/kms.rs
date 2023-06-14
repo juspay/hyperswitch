@@ -1,5 +1,7 @@
 //! Interactions with the AWS KMS SDK
 
+use std::time::Instant;
+
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_kms::{config::Region, primitives::Blob, Client};
 use base64::Engine;
@@ -52,6 +54,7 @@ impl KmsClient {
     /// `AWS_SECRET_ACCESS_KEY`) either set in environment variables, or that the SDK is running in
     /// a machine that is able to assume an IAM role.
     pub async fn decrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, KmsError> {
+        let start = Instant::now();
         let data = consts::BASE64_ENGINE
             .decode(data)
             .into_report()
@@ -75,7 +78,7 @@ impl KmsClient {
             .into_report()
             .change_context(KmsError::DecryptionFailed)?;
 
-        decrypt_output
+        let output = decrypt_output
             .plaintext
             .ok_or(KmsError::MissingPlaintextDecryptionOutput)
             .into_report()
@@ -83,7 +86,12 @@ impl KmsClient {
                 String::from_utf8(blob.into_inner())
                     .into_report()
                     .change_context(KmsError::Utf8DecodingFailed)
-            })
+            })?;
+
+        let time_taken = start.elapsed();
+        metrics::AWS_KMS_DECRYPT_TIME.record(&metrics::CONTEXT, time_taken.as_secs_f64(), &[]);
+
+        Ok(output)
     }
 }
 

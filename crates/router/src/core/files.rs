@@ -13,12 +13,12 @@ use crate::{
     consts,
     routes::AppState,
     services::{self, ApplicationResponse},
-    types::{api, storage},
+    types::{api, domain},
 };
 
 pub async fn files_create_core(
     state: &AppState,
-    merchant_account: storage::merchant_account::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     create_file_request: api::CreateFileRequest,
 ) -> RouterResponse<files::CreateFileResponse> {
     helpers::validate_file_upload(state, merchant_account.clone(), create_file_request.clone())
@@ -75,7 +75,7 @@ pub async fn files_create_core(
 
 pub async fn files_delete_core(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: api::FileId,
 ) -> RouterResponse<serde_json::Value> {
     helpers::delete_file_using_file_id(state, req.file_id.clone(), &merchant_account).await?;
@@ -90,7 +90,7 @@ pub async fn files_delete_core(
 
 pub async fn files_retrieve_core(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: api::FileId,
 ) -> RouterResponse<serde_json::Value> {
     let file_metadata_object = state
