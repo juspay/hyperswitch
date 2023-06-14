@@ -15,7 +15,10 @@ use uuid::Uuid;
 
 use crate::{
     collect_missing_value_keys,
-    connector::{self, utils::ApplePay},
+    connector::{
+        self,
+        utils::{ApplePay, RouterData},
+    },
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
@@ -2171,24 +2174,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ChargesRequest {
         Ok(Self {
             amount: value.request.amount.to_string(),
             currency: value.request.currency.to_string(),
-            customer: Secret::new(
-                value
-                    .connector_customer
-                    .to_owned()
-                    .get_required_value("customer_id")
-                    .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "customer_id",
-                    })?,
-            ),
-            source: Secret::new(
-                value
-                    .preprocessing_id
-                    .to_owned()
-                    .get_required_value("source")
-                    .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "source",
-                    })?,
-            ),
+            customer: Secret::new(value.get_connector_customer_id()?),
+            source: Secret::new(value.get_preprocessing_id()?),
         })
     }
 }
