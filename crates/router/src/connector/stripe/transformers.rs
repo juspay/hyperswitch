@@ -1,4 +1,5 @@
 use std::ops::Deref;
+
 use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
 use common_utils::{
@@ -377,13 +378,13 @@ pub enum BankDebitData {
         account_number: Secret<String>,
         #[serde(rename = "payment_method_data[acss_debit][institution_number]")]
         institution_number: Secret<String>,
-        #[serde(rename = "payment_method_data[acss_debit][transit_number]")]    
+        #[serde(rename = "payment_method_data[acss_debit][transit_number]")]
         transit_number: Secret<String>,
         #[serde(rename = "payment_method_options[acss_debit][mandate_options][payment_schedule]")]
         payment_schedule: PaymentSchedule,
         #[serde(rename = "payment_method_options[acss_debit][mandate_options][transaction_type]")]
         transaction_type: TransactionType,
-    }
+    },
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -502,7 +503,7 @@ pub enum StripePaymentMethodType {
     Przelewy24,
     CustomerBalance,
     #[serde(rename = "acss_debit")]
-    Acss
+    Acss,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -720,13 +721,17 @@ fn validate_mandate_request_against_payment_method(
     payment_method: &payments::PaymentMethodData,
 ) -> Result<(), errors::ConnectorError> {
     match payment_method {
-        payments::PaymentMethodData::BankDebit(payments::BankDebitData::AcssBankDebit{..})  => {
-            mandate_request.as_ref().ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: "mandate_data",
-            })?;
+        payments::PaymentMethodData::BankDebit(payments::BankDebitData::AcssBankDebit {
+            ..
+        }) => {
+            mandate_request
+                .as_ref()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "mandate_data",
+                })?;
             Ok(())
-        },
-        _ => Ok(())
+        }
+        _ => Ok(()),
     }
 }
 
@@ -974,7 +979,7 @@ fn get_bank_debit_data(
             billing_details,
             account_number,
             institution_number,
-            transit_number
+            transit_number,
         } => {
             let acss_data = BankDebitData::Acss {
                 account_number: account_number.to_owned(),
@@ -1327,7 +1332,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             })
             .transpose()?;
 
-        validate_mandate_request_against_payment_method(&setup_mandate_details, &item.request.payment_method_data)?;
+        validate_mandate_request_against_payment_method(
+            &setup_mandate_details,
+            &item.request.payment_method_data,
+        )?;
 
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
@@ -1628,7 +1636,7 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
                     mandate_options, ..
                 } => mandate_options.map(|mandate_options| mandate_options.reference),
                 StripePaymentMethodOptions::Acss {}
-                |StripePaymentMethodOptions::Klarna {}
+                | StripePaymentMethodOptions::Klarna {}
                 | StripePaymentMethodOptions::Affirm {}
                 | StripePaymentMethodOptions::AfterpayClearpay {}
                 | StripePaymentMethodOptions::Eps {}
@@ -2135,7 +2143,7 @@ pub enum StripePaymentMethodOptions {
     Przelewy24 {},
     CustomerBalance {},
     #[serde(rename = "acss_debit")]
-    Acss {}
+    Acss {},
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -2163,13 +2171,13 @@ pub struct StripeMandateOptions {
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentSchedule {
-    Sporadic
+    Sporadic,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum TransactionType {
-    Personal
+    Personal,
 }
 /// Represents the capture request body for stripe connector.
 #[derive(Debug, Serialize, Clone, Copy)]
