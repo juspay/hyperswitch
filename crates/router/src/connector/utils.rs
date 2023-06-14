@@ -249,7 +249,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn get_router_return_url(&self) -> Result<String, Error> {
         self.router_return_url
             .clone()
-            .ok_or_else(missing_field_err("webhook_url"))
+            .ok_or_else(missing_field_err("return_url"))
     }
     fn is_wallet(&self) -> bool {
         matches!(self.payment_method_data, api::PaymentMethodData::Wallet(_))
