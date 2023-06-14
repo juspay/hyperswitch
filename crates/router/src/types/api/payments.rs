@@ -43,7 +43,7 @@ impl CustomerAcceptanceExt for CustomerAcceptance {
     fn get_ip_address(&self) -> Option<String> {
         self.online
             .as_ref()
-            .map(|data| data.ip_address.peek().to_owned())
+            .and_then(|data| data.ip_address.as_ref().map(|ip| ip.peek().to_owned()))
     }
 
     fn get_user_agent(&self) -> Option<String> {
