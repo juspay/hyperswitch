@@ -2157,7 +2157,7 @@ pub struct LatestPaymentAttempt {
 // pub struct Card
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct StripeMandateOptions {
-    reference: String
+    reference: String, // Extendable, But only important field to be captured
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
