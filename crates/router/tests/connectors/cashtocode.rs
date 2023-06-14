@@ -1,6 +1,5 @@
 use api_models::payments::{Address, AddressDetails};
-use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::types::{self, storage::enums};
 
 use crate::{
     connector_auth,
@@ -35,26 +34,14 @@ impl utils::Connector for CashtocodeTest {
 
 static CONNECTOR: CashtocodeTest = CashtocodeTest {};
 
-fn get_default_payment_info() -> Option<utils::PaymentInfo> {
-    None
-}
-
-fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
-    None
-}
-
 impl CashtocodeTest {
     fn get_payment_authorize_data(
-        mid: &str,
-        payment_method_type: types::api::RewardType,
+        payment_method_data: types::api::PaymentMethodData,
     ) -> Option<types::PaymentsAuthorizeData> {
         Some(types::PaymentsAuthorizeData {
             amount: 3500,
             currency: enums::Currency::USD,
-            payment_method_data: types::api::PaymentMethodData::Reward(types::api::RewardData {
-                reward_type: payment_method_type,
-                mid: mid,
-            }),
+            payment_method_data,
             confirm: true,
             statement_descriptor_suffix: None,
             statement_descriptor: None,
@@ -79,7 +66,7 @@ impl CashtocodeTest {
         })
     }
 
-    fn get_payment_info() -> Option<PaymentInfo> {
+    fn get_payment_info() -> Option<utils::PaymentInfo> {
         Some(utils::PaymentInfo {
             address: Some(types::PaymentAddress {
                 billing: Some(Address {
@@ -91,7 +78,7 @@ impl CashtocodeTest {
                 }),
                 ..Default::default()
             }),
-            return_url: "https://google.com",
+            return_url: Some("https://google.com".to_owned()),
             ..Default::default()
         })
     }
@@ -102,7 +89,12 @@ impl CashtocodeTest {
 async fn should_fetch_pay_url() {
     let authorize_response = CONNECTOR
         .make_payment(
-            CashtocodeTest::get_payment_authorize_data("1bc20b0a", types::api::RewardType::Classic),
+            CashtocodeTest::get_payment_authorize_data(
+                api_models::payments::PaymentMethodData::Reward(api_models::payments::RewardData {
+                    reward_type: api_models::payments::RewardType::Classic,
+                    mid: "1bc20b0a".to_owned(),
+                }),
+            ),
             CashtocodeTest::get_payment_info(),
         )
         .await

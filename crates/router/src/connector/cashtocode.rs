@@ -346,7 +346,7 @@ impl api::IncomingWebhook for Cashtocode {
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert secret to UTF-8")?;
-        let mut success = true;
+        let mut success = false;
         if signature_auth == secret_auth {
             success = true;
         }
