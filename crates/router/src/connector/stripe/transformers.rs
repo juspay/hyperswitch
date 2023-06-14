@@ -1,7 +1,6 @@
 use std::ops::Deref;
 
 use api_models::{self, enums as api_enums, payments};
-use base64::Engine;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt},
@@ -15,7 +14,11 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    collect_missing_value_keys, connector, consts,
+    collect_missing_value_keys,
+    connector::{
+        self,
+        utils::{ApplePay, RouterData},
+    },
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
@@ -99,9 +102,9 @@ pub struct PaymentIntentRequest {
     pub metadata_txn_uuid: String,
     pub return_url: String,
     pub confirm: bool,
-    pub mandate: Option<String>,
+    pub mandate: Option<Secret<String>>,
     pub payment_method: Option<String>,
-    pub customer: Option<String>,
+    pub customer: Option<Secret<String>>,
     #[serde(flatten)]
     pub setup_mandate_details: Option<StripeMandateRequest>,
     pub description: Option<String>,
@@ -127,7 +130,7 @@ pub struct SetupIntentRequest {
     pub metadata_txn_uuid: String,
     pub confirm: bool,
     pub usage: Option<enums::FutureUsage>,
-    pub customer: Option<String>,
+    pub customer: Option<Secret<String>>,
     pub off_session: Option<bool>,
     pub return_url: Option<String>,
     #[serde(flatten)]
@@ -177,7 +180,7 @@ pub struct CustomerRequest {
     pub description: Option<String>,
     pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
-    pub name: Option<String>,
+    pub name: Option<Secret<String>>,
     pub source: Option<String>,
 }
 
@@ -187,15 +190,15 @@ pub struct StripeCustomerResponse {
     pub description: Option<String>,
     pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
-    pub name: Option<String>,
+    pub name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ChargesRequest {
     pub amount: String,
     pub currency: String,
-    pub customer: String,
-    pub source: String,
+    pub customer: Secret<String>,
+    pub source: Secret<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
@@ -407,7 +410,7 @@ pub enum StripeWallet {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeApplePay {
-    pub pk_token: String,
+    pub pk_token: Secret<String>,
     pub pk_token_instrument_name: String,
     pub pk_token_payment_network: String,
     pub pk_token_transaction_id: String,
@@ -418,13 +421,13 @@ pub struct GooglePayToken {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_type: StripePaymentMethodType,
     #[serde(rename = "payment_method_data[card][token]")]
-    pub token: String,
+    pub token: Secret<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplepayPayment {
     #[serde(rename = "payment_method_data[card][token]")]
-    pub token: String,
+    pub token: Secret<String>,
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_types: StripePaymentMethodType,
 }
@@ -1019,14 +1022,9 @@ fn create_stripe_payment_method(
         payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
             payments::WalletData::ApplePay(applepay_data) => Ok((
                 StripePaymentMethodData::Wallet(StripeWallet::ApplepayToken(StripeApplePay {
-                    pk_token: String::from_utf8(
-                        consts::BASE64_ENGINE
-                            .decode(&applepay_data.payment_data)
-                            .into_report()
-                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                    )
-                    .into_report()
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                    pk_token: applepay_data
+                        .get_applepay_decoded_payment_data()
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
                     pk_token_instrument_name: applepay_data.payment_method.pm_type.to_owned(),
                     pk_token_payment_network: applepay_data.payment_method.network.to_owned(),
                     pk_token_transaction_id: applepay_data.transaction_identifier.to_owned(),
@@ -1144,13 +1142,15 @@ impl TryFrom<&payments::GooglePayWalletData> for StripePaymentMethodData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(gpay_data: &payments::GooglePayWalletData) -> Result<Self, Self::Error> {
         Ok(Self::Wallet(StripeWallet::GooglepayToken(GooglePayToken {
-            token: gpay_data
-                .tokenization_data
-                .token
-                .as_bytes()
-                .parse_struct::<StripeGpayToken>("StripeGpayToken")
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?
-                .id,
+            token: Secret::new(
+                gpay_data
+                    .tokenization_data
+                    .token
+                    .as_bytes()
+                    .parse_struct::<StripeGpayToken>("StripeGpayToken")
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?
+                    .id,
+            ),
             payment_type: StripePaymentMethodType::Card,
         })))
     }
@@ -1216,7 +1216,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         mandate_options: None,
                         network_transaction_id: None,
                         mit_exemption: Some(MitExemption {
-                            network_transaction_id,
+                            network_transaction_id: Secret::new(network_transaction_id),
                         }),
                     });
                     (None, None, None, StripeBillingAddress::default())
@@ -1243,11 +1243,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
         payment_data = match item.request.payment_method_data {
             payments::PaymentMethodData::Wallet(payments::WalletData::ApplePay(_)) => Some(
                 StripePaymentMethodData::Wallet(StripeWallet::ApplepayPayment(ApplepayPayment {
-                    token: item
-                        .payment_method_token
-                        .to_owned()
-                        .get_required_value("payment_token")
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                    token: Secret::new(
+                        item.payment_method_token
+                            .to_owned()
+                            .get_required_value("payment_token")
+                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                    ),
                     payment_method_types: StripePaymentMethodType::Card,
                 })),
             ),
@@ -1299,10 +1300,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             billing: billing_address,
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
             payment_data,
-            mandate,
+            mandate: mandate.map(Secret::new),
             payment_method_options,
             payment_method,
-            customer: item.connector_customer.to_owned(),
+            customer: item.connector_customer.to_owned().map(Secret::new),
             setup_mandate_details,
             off_session: item.request.off_session,
             setup_future_usage: item.request.setup_future_usage,
@@ -1335,7 +1336,7 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
             off_session: item.request.off_session,
             usage: item.request.setup_future_usage,
             payment_method_options: None,
-            customer: item.connector_customer.to_owned(),
+            customer: item.connector_customer.to_owned().map(Secret::new),
         })
     }
 }
@@ -1362,7 +1363,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for CustomerRequest {
             description: item.request.description.to_owned(),
             email: item.request.email.to_owned(),
             phone: item.request.phone.to_owned(),
-            name: item.request.name.to_owned(),
+            name: item.request.name.to_owned().map(Secret::new),
             source: item.request.preprocessing_id.to_owned(),
         })
     }
@@ -1774,7 +1775,7 @@ impl ForeignFrom<Option<LatestAttempt>> for Option<String> {
                     StripePaymentMethodOptions::Card {
                         network_transaction_id,
                         ..
-                    } => network_transaction_id,
+                    } => network_transaction_id.map(|network_id| network_id.expose()),
                     _ => None,
                 }),
             _ => None,
@@ -2059,7 +2060,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
 pub enum StripePaymentMethodOptions {
     Card {
         mandate_options: Option<StripeMandateOptions>,
-        network_transaction_id: Option<String>,
+        network_transaction_id: Option<Secret<String>>,
         mit_exemption: Option<MitExemption>, // To be used for MIT mandate txns
     },
     Klarna {},
@@ -2087,7 +2088,7 @@ pub enum StripePaymentMethodOptions {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct MitExemption {
-    pub network_transaction_id: String,
+    pub network_transaction_id: Secret<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
@@ -2182,20 +2183,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ChargesRequest {
         Ok(Self {
             amount: value.request.amount.to_string(),
             currency: value.request.currency.to_string(),
-            customer: value
-                .connector_customer
-                .to_owned()
-                .get_required_value("customer_id")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "customer_id",
-                })?,
-            source: value
-                .preprocessing_id
-                .to_owned()
-                .get_required_value("source")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "source",
-                })?,
+            customer: Secret::new(value.get_connector_customer_id()?),
+            source: Secret::new(value.get_preprocessing_id()?),
         })
     }
 }
@@ -2506,14 +2495,9 @@ impl
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 payments::WalletData::ApplePay(data) => {
                     let wallet_info = StripeWallet::ApplepayToken(StripeApplePay {
-                        pk_token: String::from_utf8(
-                            consts::BASE64_ENGINE
-                                .decode(data.payment_data)
-                                .into_report()
-                                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                        )
-                        .into_report()
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                        pk_token: data
+                            .get_applepay_decoded_payment_data()
+                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
                         pk_token_instrument_name: data.payment_method.pm_type,
                         pk_token_payment_network: data.payment_method.network,
                         pk_token_transaction_id: data.transaction_identifier,

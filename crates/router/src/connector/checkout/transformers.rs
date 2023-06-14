@@ -1,5 +1,6 @@
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -73,7 +74,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
 
 #[derive(Debug, Eq, PartialEq, Deserialize)]
 pub struct CheckoutTokenResponse {
-    token: String,
+    token: pii::Secret<String>,
 }
 
 impl<F, T>
@@ -86,7 +87,7 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
-                token: item.response.token,
+                token: item.response.token.expose(),
             }),
             ..item.data
         })
