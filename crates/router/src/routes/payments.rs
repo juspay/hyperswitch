@@ -490,7 +490,7 @@ pub async fn payments_redirect_response(
         resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
         merchant_id: Some(merchant_id.clone()),
         force_sync: true,
-        json_payload: json_payload.map(|s| s.0),
+        json_payload: json_payload.map(|payload| payload.0),
         param: Some(param_string.to_string()),
         connector: Some(connector),
         creds_identifier: None,
