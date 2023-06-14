@@ -235,6 +235,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ReceiverDetails,
         api_models::payments::AchTransfer,
         api_models::payments::ApplePayRedirectData,
+        api_models::payments::ApplePayThirdPartySdkData,
         api_models::payments::SepaBankTransferInstructions,
         api_models::payments::BacsBankTransferInstructions,
         api_models::payments::RedirectResponse,
