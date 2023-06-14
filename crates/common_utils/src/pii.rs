@@ -3,7 +3,6 @@
 use std::{convert::AsRef, fmt, ops, str::FromStr};
 
 use diesel::{
-    backend,
     backend::Backend,
     deserialize,
     deserialize::FromSql,
@@ -12,9 +11,10 @@ use diesel::{
     sql_types, AsExpression,
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::{Secret, Strategy, WithType};
+use masking::{ExposeInterface, Secret, Strategy, WithType};
 
 use crate::{
+    crypto::Encryptable,
     errors::{self, ValidationError},
     validation::validate_email,
 };
@@ -108,6 +108,18 @@ where
 #[serde(try_from = "String")]
 pub struct Email(Secret<String, EmailStrategy>);
 
+impl From<Encryptable<Secret<String, EmailStrategy>>> for Email {
+    fn from(item: Encryptable<Secret<String, EmailStrategy>>) -> Self {
+        Self(item.into_inner())
+    }
+}
+
+impl ExposeInterface<Secret<String, EmailStrategy>> for Email {
+    fn expose(self) -> Secret<String, EmailStrategy> {
+        self.0
+    }
+}
+
 impl TryFrom<String> for Email {
     type Error = error_stack::Report<errors::ParsingError>;
 
@@ -153,7 +165,7 @@ where
     DB: Backend,
     String: FromSql<sql_types::Text, DB>,
 {
-    fn from_sql(bytes: backend::RawValue<'_, DB>) -> deserialize::Result<Self> {
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
         let val = String::from_sql(bytes)?;
         Ok(Self::from_str(val.as_str())?)
     }

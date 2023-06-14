@@ -56,6 +56,7 @@ pub mod headers {
     pub const TOKEN: &str = "token";
     pub const X_API_KEY: &str = "X-API-KEY";
     pub const X_API_VERSION: &str = "X-ApiVersion";
+    pub const X_FORWARDED_FOR: &str = "X-Forwarded-For";
     pub const X_MERCHANT_ID: &str = "X-Merchant-Id";
     pub const X_LOGIN: &str = "X-Login";
     pub const X_TRANS_KEY: &str = "X-Trans-Key";
@@ -63,6 +64,7 @@ pub mod headers {
     pub const X_CC_VERSION: &str = "X-CC-Version";
     pub const X_ACCEPT_VERSION: &str = "X-Accept-Version";
     pub const X_DATE: &str = "X-Date";
+    pub const X_WEBHOOK_SIGNATURE: &str = "X-Webhook-Signature-512";
 }
 
 pub mod pii {

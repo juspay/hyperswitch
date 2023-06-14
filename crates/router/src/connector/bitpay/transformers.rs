@@ -154,7 +154,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BitpayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.amount,
+            amount: item.request.refund_amount,
         })
     }
 }
@@ -222,12 +222,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct BitpayErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub error: String,
+    pub code: Option<String>,
+    pub message: Option<String>,
 }
 
 fn get_crypto_specific_payment_data(
@@ -284,4 +283,6 @@ pub enum WebhookEventType {
     Refunded,
     #[serde(rename = "invoice_manuallyNotified")]
     Resent,
+    #[serde(other)]
+    Unknown,
 }

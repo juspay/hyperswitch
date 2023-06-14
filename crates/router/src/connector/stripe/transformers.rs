@@ -566,17 +566,27 @@ pub enum StripeBankNames {
     Boz,
 }
 
-impl TryFrom<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
-    type Error = errors::ConnectorError;
-    fn try_from(value: WebhookEventStatus) -> Result<Self, Self::Error> {
-        Ok(match value {
+impl From<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
+    fn from(value: WebhookEventStatus) -> Self {
+        match value {
             WebhookEventStatus::WarningNeedsResponse => Self::DisputeOpened,
             WebhookEventStatus::WarningClosed => Self::DisputeCancelled,
             WebhookEventStatus::WarningUnderReview => Self::DisputeChallenged,
             WebhookEventStatus::Won => Self::DisputeWon,
             WebhookEventStatus::Lost => Self::DisputeLost,
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
-        })
+            WebhookEventStatus::NeedsResponse
+            | WebhookEventStatus::UnderReview
+            | WebhookEventStatus::ChargeRefunded
+            | WebhookEventStatus::Succeeded
+            | WebhookEventStatus::RequiresPaymentMethod
+            | WebhookEventStatus::RequiresConfirmation
+            | WebhookEventStatus::RequiresAction
+            | WebhookEventStatus::Processing
+            | WebhookEventStatus::RequiresCapture
+            | WebhookEventStatus::Canceled
+            | WebhookEventStatus::Chargeable
+            | WebhookEventStatus::Unknown => Self::EventNotSupported,
+        }
     }
 }
 
@@ -1244,22 +1254,31 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             _ => payment_data,
         };
 
-        let setup_mandate_details =
-            item.request
-                .setup_mandate_details
-                .as_ref()
-                .and_then(|mandate_details| {
-                    mandate_details
-                        .customer_acceptance
-                        .as_ref()?
-                        .online
-                        .as_ref()
-                        .map(|online_details| StripeMandateRequest {
+        let setup_mandate_details = item
+            .request
+            .setup_mandate_details
+            .as_ref()
+            .and_then(|mandate_details| {
+                mandate_details
+                    .customer_acceptance
+                    .as_ref()?
+                    .online
+                    .as_ref()
+                    .map(|online_details| {
+                        Ok::<_, error_stack::Report<errors::ConnectorError>>(StripeMandateRequest {
                             mandate_type: StripeMandateType::Online,
-                            ip_address: online_details.ip_address.to_owned(),
+                            ip_address: online_details
+                                .ip_address
+                                .clone()
+                                .get_required_value("ip_address")
+                                .change_context(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "ip_address",
+                                })?,
                             user_agent: online_details.user_agent.to_owned(),
                         })
-                });
+                    })
+            })
+            .transpose()?;
 
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
@@ -1399,11 +1418,11 @@ pub struct PaymentIntentResponse {
     pub id: String,
     pub object: String,
     pub amount: i64,
-    pub amount_received: i64,
-    pub amount_capturable: i64,
+    pub amount_received: Option<i64>,
+    pub amount_capturable: Option<i64>,
     pub currency: String,
     pub status: StripePaymentStatus,
-    pub client_secret: Secret<String>,
+    pub client_secret: Option<Secret<String>>,
     pub created: i32,
     pub customer: Option<String>,
     pub payment_method: Option<String>,
@@ -1519,7 +1538,7 @@ impl From<SetupIntentResponse> for PaymentIntentResponse {
             id: value.id,
             object: value.object,
             status: value.status,
-            client_secret: value.client_secret,
+            client_secret: Some(value.client_secret),
             customer: value.customer,
             description: None,
             statement_descriptor: value.statement_descriptor,
@@ -1603,6 +1622,9 @@ impl<F, T>
         // Or we identify the mandate txns before hand and always call SetupIntent in case of mandate payment call
         let network_txn_id = Option::foreign_from(item.response.latest_attempt);
 
+        let connector_metadata =
+            get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
+
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             // client_secret: Some(item.response.client_secret.clone().as_str()),
@@ -1613,10 +1635,10 @@ impl<F, T>
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data,
                 mandate_reference,
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id,
             }),
-            amount_captured: Some(item.response.amount_received),
+            amount_captured: item.response.amount_received,
             ..item.data
         })
     }
@@ -1704,7 +1726,7 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status.to_owned()),
             response,
-            amount_captured: Some(item.response.amount_received),
+            amount_captured: item.response.amount_received,
             ..item.data
         })
     }
@@ -2295,9 +2317,43 @@ pub struct WebhookEvent {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct WebhookEventTypeBody {
+    #[serde(rename = "type")]
+    pub event_type: WebhookEventType,
+    #[serde(rename = "data")]
+    pub event_data: WebhookStatusData,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct WebhookEventData {
     #[serde(rename = "object")]
     pub event_object: WebhookEventObjectData,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WebhookStatusData {
+    #[serde(rename = "object")]
+    pub event_object: WebhookStatusObjectData,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WebhookStatusObjectData {
+    pub status: Option<WebhookEventStatus>,
+    pub payment_method_details: Option<WebhookPaymentMethodDetails>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WebhookPaymentMethodType {
+    AchCreditTransfer,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WebhookPaymentMethodDetails {
+    #[serde(rename = "type")]
+    pub payment_method: WebhookPaymentMethodType,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2371,6 +2427,8 @@ pub enum WebhookEventType {
     SourceTransactionCreated,
     #[serde(rename = "payment_intent.partially_funded")]
     PaymentIntentPartiallyFunded,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Serialize, strum::Display, Deserialize, PartialEq)]
@@ -2392,6 +2450,8 @@ pub enum WebhookEventStatus {
     RequiresCapture,
     Canceled,
     Chargeable,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]

@@ -9,12 +9,12 @@ use crate::{
         mandate, payment_methods, payments,
     },
     logger,
-    routes::AppState,
+    routes::{metrics, AppState},
     services,
     types::{
         self,
         api::{self, PaymentMethodCreateExt},
-        storage,
+        domain,
     },
     utils::OptionExt,
 };
@@ -23,8 +23,8 @@ pub async fn save_payment_method<F: Clone, FData>(
     state: &AppState,
     connector: &api::ConnectorData,
     resp: types::RouterData<F, FData, types::PaymentsResponseData>,
-    maybe_customer: &Option<storage::Customer>,
-    merchant_account: &storage::MerchantAccount,
+    maybe_customer: &Option<domain::Customer>,
+    merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<Option<String>>
 where
     FData: mandate::MandateBehaviour,
@@ -128,7 +128,7 @@ where
 
 pub async fn save_in_locker(
     state: &AppState,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     payment_method_request: api::PaymentMethodCreate,
 ) -> RouterResult<(api_models::payment_methods::PaymentMethodResponse, bool)> {
     payment_method_request.validate()?;
@@ -230,6 +230,21 @@ pub async fn add_payment_method_token<F: Clone, T: Clone>(
             )
             .await
             .map_err(|error| error.to_payment_failed_response())?;
+
+            metrics::CONNECTOR_PAYMENT_METHOD_TOKENIZATION.add(
+                &metrics::CONTEXT,
+                1,
+                &[
+                    metrics::request::add_attributes(
+                        "connector",
+                        connector.connector_name.to_string(),
+                    ),
+                    metrics::request::add_attributes(
+                        "payment_method",
+                        router_data.payment_method.to_string(),
+                    ),
+                ],
+            );
 
             let pm_token = match resp.response {
                 Ok(response) => match response {

@@ -1,15 +1,17 @@
 [package]
-name    = "common_enums"
+name = "common_enums"
+description = "Enums shared across the request/response types and database types"
 version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+edition.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+license.workspace = true
 
 [dependencies]
-serde  = { version = "1.0.160", features = [ "derive" ] }
-strum  = { version = "0.24.1", features = [ "derive" ] }
+diesel = { version = "2.1.0", features = ["postgres"] }
+serde = { version = "1.0.163", features = ["derive"] }
+strum = { version = "0.24.1", features = ["derive"] }
 utoipa = { version = "3.3.0", features = ["preserve_order"] }
-diesel = { version = "2.0.3", features = ["postgres"] }
 
 # First party crates
 router_derive = { version = "0.1.0", path = "../router_derive" }
