@@ -11,7 +11,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+        
+        self, AddressDetailsData, CardData, ApplePay, PaymentsAuthorizeRequestData, RouterData,
+    ,
     },
     consts,
     core::errors,
@@ -82,7 +84,7 @@ pub struct Card {
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapWallet {
     wallet_type: BluesnapWalletTypes,
-    encoded_payment_token: String,
+    encoded_payment_token: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -184,21 +186,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                     Ok((
                         PaymentMethodDetails::Wallet(BluesnapWallet {
                             wallet_type: BluesnapWalletTypes::GooglePay,
-                            encoded_payment_token: consts::BASE64_ENGINE.encode(gpay_object),
+                            encoded_payment_token: Secret::new(
+                                consts::BASE64_ENGINE.encode(gpay_object),
+                            ),
                         }),
                         None,
                     ))
                 }
                 api_models::payments::WalletData::ApplePay(payment_method_data) => {
-                    let apple_pay_payment_data = consts::BASE64_ENGINE
-                        .decode(payment_method_data.payment_data)
-                        .into_report()
-                        .change_context(errors::ConnectorError::ParsingFailed)?;
-
+                    let apple_pay_payment_data = payment_method_data
+                        .get_applepay_decoded_payment_data()
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                     let apple_pay_payment_data: ApplePayEncodedPaymentData = apple_pay_payment_data
-                        [..]
+                        .expose()[..]
+                        .as_bytes()
                         .parse_struct("ApplePayEncodedPaymentData")
-                        .change_context(errors::ConnectorError::ParsingFailed)?;
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
                     let billing = item
                         .address
@@ -251,7 +254,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                     Ok((
                         PaymentMethodDetails::Wallet(BluesnapWallet {
                             wallet_type: BluesnapWalletTypes::ApplePay,
-                            encoded_payment_token: consts::BASE64_ENGINE.encode(apple_pay_object),
+                            encoded_payment_token: Secret::new(
+                                consts::BASE64_ENGINE.encode(apple_pay_object),
+                            ),
                         }),
                         None,
                     ))
@@ -530,7 +535,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for BluesnapCustomerRequest {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapCustomerResponse {
-    vaulted_shopper_id: u64,
+    vaulted_shopper_id: Secret<u64>,
 }
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, BluesnapCustomerResponse, T, types::PaymentsResponseData>>
@@ -547,7 +552,7 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::ConnectorCustomerResponse {
-                connector_customer_id: item.response.vaulted_shopper_id.to_string(),
+                connector_customer_id: item.response.vaulted_shopper_id.expose().to_string(),
             }),
             ..item.data
         })
@@ -638,7 +643,7 @@ pub struct Refund {
 pub struct ProcessingInfoResponse {
     processing_status: BluesnapProcessingStatus,
     authorization_code: Option<String>,
-    network_transaction_id: Option<String>,
+    network_transaction_id: Option<Secret<String>>,
 }
 
 impl<F, T>
