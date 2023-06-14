@@ -45,6 +45,7 @@ pub struct StripeCard {
     pub exp_month: pii::Secret<String>,
     pub exp_year: pii::Secret<String>,
     pub cvc: pii::Secret<String>,
+    pub holder_name: Option<pii::Secret<String>>,
 }
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -84,7 +85,7 @@ impl From<StripeCard> for payments::Card {
             card_number: card.number,
             card_exp_month: card.exp_month,
             card_exp_year: card.exp_year,
-            card_holder_name: masking::Secret::new("stripe_cust".to_owned()),
+            card_holder_name: card.holder_name.unwrap_or("name".to_string().into()),
             card_cvc: card.cvc,
             card_issuer: None,
             card_network: None,
