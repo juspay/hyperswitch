@@ -145,6 +145,32 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(ErrorResponse::get_not_implemented())
     }
 
+    fn get_server_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let error_mssg = match res.status_code {
+            500 => "InternalServerError",
+            501 => "NotImplemented",
+            502 => "BadGateway",
+            503 => "ServiceUnavailable",
+            504 => "GatewayTimeout",
+            505 => "HttpVersionNotSupported",
+            506 => "VariantAlsoNegotiates",
+            507 => "InsufficientStorage",
+            508 => "LoopDetected",
+            510 => "NotExtended",
+            511 => "NetworkAuthenticationRequired",
+            _ => "UnknownError",
+        };
+        Ok(ErrorResponse {
+            code: res.status_code.to_string(),
+            message: error_mssg.to_string(),
+            reason: String::from_utf8(res.response.to_vec()).ok(),
+            status_code: res.status_code,
+        })
+    }
+
     fn get_certificate(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
@@ -278,7 +304,13 @@ where
                                             req.connector.clone(),
                                         )],
                                     );
-                                    let error = connector_integration.get_error_response(body)?;
+                                    let error = match body.status_code {
+                                        500..=511 => {
+                                            connector_integration.get_server_error_response(body)?
+                                        }
+                                        _ => connector_integration.get_error_response(body)?,
+                                    };
+
                                     router_data.response = Err(error);
 
                                     router_data

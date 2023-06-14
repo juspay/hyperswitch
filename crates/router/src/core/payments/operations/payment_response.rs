@@ -64,15 +64,19 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
         .await?;
 
         router_response.map(|_| ()).or_else(|error_response| {
-            fp_utils::when(!(200..300).contains(&error_response.status_code), || {
-                Err(errors::ApiErrorResponse::ExternalConnectorError {
-                    code: error_response.code,
-                    message: error_response.message,
-                    connector,
-                    status_code: error_response.status_code,
-                    reason: error_response.reason,
-                })
-            })
+            fp_utils::when(
+                !(200..300).contains(&error_response.status_code)
+                    && !(500..=511).contains(&error_response.status_code),
+                || {
+                    Err(errors::ApiErrorResponse::ExternalConnectorError {
+                        code: error_response.code,
+                        message: error_response.message,
+                        connector,
+                        status_code: error_response.status_code,
+                        reason: error_response.reason,
+                    })
+                },
+            )
         })?;
 
         Ok(payment_data)
@@ -295,9 +299,13 @@ async fn payment_response_update_tracker<F: Clone, T>(
         Err(err) => (
             Some(storage::PaymentAttemptUpdate::ErrorUpdate {
                 connector: None,
-                status: storage::enums::AttemptStatus::Failure,
+                status: match err.status_code {
+                    400..=499 => storage::enums::AttemptStatus::Failure,
+                    _ => storage::enums::AttemptStatus::Pending,
+                },
                 error_message: Some(Some(err.message)),
                 error_code: Some(Some(err.code)),
+                error_reason: Some(err.reason),
             }),
             Some(storage::ConnectorResponseUpdate::ErrorUpdate {
                 connector_name: Some(router_data.connector.clone()),
@@ -361,7 +369,8 @@ async fn payment_response_update_tracker<F: Clone, T>(
                     connector_metadata,
                     payment_token: None,
                     error_code: error_status.clone(),
-                    error_message: error_status,
+                    error_message: error_status.clone(),
+                    error_reason: error_status,
                 };
 
                 let connector_response_update = storage::ConnectorResponseUpdate::ResponseUpdate {
@@ -392,7 +401,8 @@ async fn payment_response_update_tracker<F: Clone, T>(
                         connector_transaction_id,
                         payment_method_id: Some(router_data.payment_method_id),
                         error_code: Some(reason.clone().map(|cd| cd.code)),
-                        error_message: Some(reason.map(|cd| cd.message)),
+                        error_message: Some(reason.clone().map(|cd| cd.message)),
+                        error_reason: Some(reason.map(|cd| cd.message)),
                     }),
                     None,
                 )
@@ -436,9 +446,12 @@ async fn payment_response_update_tracker<F: Clone, T>(
             None
         }
     });
-    let payment_intent_update = match router_data.response {
-        Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
-            status: enums::IntentStatus::Failed,
+    let payment_intent_update = match &router_data.response {
+        Err(err) => storage::PaymentIntentUpdate::PGStatusUpdate {
+            status: match err.status_code {
+                400..=499 => enums::IntentStatus::Failed,
+                _ => enums::IntentStatus::Processing,
+            },
         },
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
             status: router_data.status.foreign_into(),

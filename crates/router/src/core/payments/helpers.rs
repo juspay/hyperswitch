@@ -2069,6 +2069,7 @@ impl AttemptType {
             straight_through_algorithm: old_payment_attempt.straight_through_algorithm,
             mandate_details: old_payment_attempt.mandate_details,
             preprocessing_step_id: None,
+            error_reason: None,
         }
     }
 
