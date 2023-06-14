@@ -264,6 +264,7 @@ pub struct ConnectorCustomerData {
 #[derive(Debug, Clone)]
 pub struct PaymentMethodTokenizationData {
     pub payment_method_data: payments::PaymentMethodData,
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[derive(Debug, Clone)]

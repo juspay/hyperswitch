@@ -1,6 +1,7 @@
 use api_models::payments;
 use cards::CardNumber;
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
+// use error_stack::IntoReport;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use storage_models::enums;
@@ -13,6 +14,7 @@ use crate::{
     core::errors,
     services, types,
     types::storage::enums as storage_enums,
+    utils::OptionExt,
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -96,6 +98,10 @@ pub struct Address {
     pub city: String,
     pub region: Option<Secret<String>>,
     pub country: api_models::enums::CountryAlpha2,
+}
+
+pub struct MollieBrowserInfo {
+    language: String,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
@@ -183,7 +189,7 @@ pub struct MollieCardTokenRequest {
     card_number: CardNumber,
     card_cvv: Secret<String>,
     card_expiry_date: Secret<String>,
-    locale: Secret<String>,
+    locale: String,
     testmode: bool,
     profile_token: String,
 }
@@ -199,7 +205,13 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
                 let card_expiry_date =
                     ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned());
                 let card_cvv = ccard.card_cvc;
-                let locale = Secret::new("en_US".to_string());
+                // let locale = Secret::new("en_US".to_string());
+                let browser_info = get_browser_info(item)?;
+                let locale = browser_info
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "locale",
+                    })?
+                    .language;
                 let testmode = true;
                 let profile_token = auth.key1;
                 Ok(Self {
@@ -285,6 +297,30 @@ fn get_address_details(
         None => None,
     };
     Ok(address_details)
+}
+
+fn get_browser_info(
+    item: &types::TokenizationRouterData,
+) -> Result<Option<MollieBrowserInfo>, error_stack::Report<errors::ConnectorError>> {
+    if matches!(item.auth_type, enums::AuthenticationType::ThreeDs) {
+        item.request
+            .browser_info
+            .as_ref()
+            .map(|info| {
+                Ok(MollieBrowserInfo {
+                    language: info
+                        .language
+                        .clone()
+                        .get_required_value("language")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "language",
+                        })?,
+                })
+            })
+            .transpose()
+    } else {
+        Ok(None)
+    }
 }
 
 #[derive(Debug, Deserialize)]
