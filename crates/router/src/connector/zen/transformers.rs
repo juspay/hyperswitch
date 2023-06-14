@@ -725,10 +725,11 @@ pub enum ZenWebhookTxnType {
 
 #[derive(Debug, Deserialize)]
 pub struct ZenErrorResponse {
-    pub error: ZenErrorBody,
+    pub error: Option<ZenErrorBody>,
+    pub message: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ZenErrorBody {
     pub message: String,
     pub code: String,

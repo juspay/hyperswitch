@@ -12,6 +12,7 @@ use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     connector::utils as conn_utils,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -110,8 +111,18 @@ impl ConnectorCommon for Zen {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error.code,
-            message: response.error.message,
+            code: response
+                .error
+                .clone()
+                .map_or(consts::NO_ERROR_CODE.to_string(), |error| error.code),
+            message: response.error.map_or_else(
+                || {
+                    response
+                        .message
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string())
+                },
+                |error| error.message,
+            ),
             reason: None,
         })
     }
