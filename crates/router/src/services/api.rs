@@ -604,6 +604,7 @@ where
     T: Debug,
     U: auth::AuthInfo,
     A: AppStateInfo,
+    ApplicationResponse<Q>: Debug,
     CustomResult<ApplicationResponse<Q>, E>:
         ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
 {
@@ -620,7 +621,10 @@ where
         &flow,
     )
     .await
-    {
+    .map(|response| {
+        logger::info!(api_response =? response);
+        response
+    }) {
         Ok(ApplicationResponse::Json(response)) => match serde_json::to_string(&response) {
             Ok(res) => http_response_json(res),
             Err(_) => http_response_err(
