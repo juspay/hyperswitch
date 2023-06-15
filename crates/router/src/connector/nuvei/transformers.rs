@@ -1,7 +1,7 @@
 use api_models::payments;
 use common_utils::{
     crypto::{self, GenerateDigest},
-    date_time, fp_utils,
+    date_time, fp_utils, pii,
     pii::Email,
 };
 use error_stack::{IntoReport, ResultExt};
@@ -288,7 +288,7 @@ pub enum PlatformType {
 #[serde(rename_all = "camelCase")]
 pub struct BrowserDetails {
     pub accept_header: String,
-    pub ip: Option<std::net::IpAddr>,
+    pub ip: Secret<String, pii::IpAddress>,
     pub java_enabled: String,
     pub java_script_enabled: String,
     pub language: String,
@@ -761,7 +761,7 @@ fn get_card_info<F>(
             Some(ThreeD {
                 browser_details: Some(BrowserDetails {
                     accept_header: browser_info.get_accept_header()?,
-                    ip: Some(browser_info.get_ip_address()?),
+                    ip: browser_info.get_ip_address()?,
                     java_enabled: browser_info.get_java_enabled()?.to_string().to_uppercase(),
                     java_script_enabled: browser_info
                         .get_java_script_enabled()?
