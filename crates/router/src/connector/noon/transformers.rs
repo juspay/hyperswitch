@@ -9,6 +9,8 @@ use crate::{
     services,
     types::{self, api, storage::enums},
 };
+const GOOGLEPAY_API_VERSION_MINOR: u8 = 0;
+const GOOGLEPAY_API_VERSION: u8 = 2;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
@@ -74,10 +76,33 @@ pub struct NoonCard {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonApplePay {
+    payment_token: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonGooglePay {
+    api_version_minor: u8,
+    api_version: u8,
+    payment_method_data: api_models::payments::GooglePayWalletData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonPayPal {
+    return_url: String,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(tag = "type", content = "data")]
 pub enum NoonPaymentData {
     Card(NoonCard),
     Subscription(NoonSubscription),
+    ApplePay(NoonApplePay),
+    GooglePay(NoonGooglePay),
+    PayPal(NoonPayPal),
 }
 
 #[derive(Debug, Serialize)]
@@ -118,6 +143,28 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                         expiry_year: req_card.card_exp_year,
                         cvv: req_card.card_cvc,
                     })),
+                    api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                        api_models::payments::WalletData::GooglePay(google_pay_data) => {
+                            Ok(NoonPaymentData::GooglePay(NoonGooglePay {
+                                api_version_minor: GOOGLEPAY_API_VERSION_MINOR,
+                                api_version: GOOGLEPAY_API_VERSION,
+                                payment_method_data: google_pay_data,
+                            }))
+                        }
+                        api_models::payments::WalletData::ApplePay(apple_pay_data) => {
+                            Ok(NoonPaymentData::ApplePay(NoonApplePay {
+                                payment_token: apple_pay_data.payment_data,
+                            }))
+                        }
+                        api_models::payments::WalletData::PaypalRedirect(_) => {
+                            Ok(NoonPaymentData::PayPal(NoonPayPal {
+                                return_url: item.request.get_router_return_url()?,
+                            }))
+                        }
+                        _ => Err(errors::ConnectorError::NotImplemented(
+                            "Wallets".to_string(),
+                        )),
+                    },
                     _ => Err(errors::ConnectorError::NotImplemented(
                         "Payment methods".to_string(),
                     )),
