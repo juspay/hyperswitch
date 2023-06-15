@@ -16,10 +16,8 @@ use uuid::Uuid;
 use crate::{
     collect_missing_value_keys,
     connector::{
-        self,
         utils::{ApplePay, RouterData, PaymentsPreProcessingData},
     },
-    consts,
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
