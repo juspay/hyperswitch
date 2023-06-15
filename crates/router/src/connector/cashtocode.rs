@@ -19,8 +19,8 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        storage::{self},
         ErrorResponse, Response,
-        storage::{self}
     },
     utils::{self, ByteSliceExt, BytesExt},
 };
@@ -45,31 +45,32 @@ fn get_auth_cashtocode(
     payment_method_type: &Option<storage::enums::PaymentMethodType>,
     auth_type: &types::ConnectorAuthType,
 ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-
-            match payment_method_type.clone().ok_or_else(conn_utils::missing_field_err("payment_method_type")) {
-                Ok(reward_type) =>
-                match reward_type {
-                    storage::enums::PaymentMethodType::Classic => match auth_type {
-                    types::ConnectorAuthType::BodyKey { api_key, key1: _ } => Ok(vec![(
-                        headers::AUTHORIZATION.to_string(),
-                        format!("Basic {}", api_key).into_masked(),
-                    )]),
-                    _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-                    },
-                    storage::enums::PaymentMethodType::Evoucher => match auth_type {
-                    types::ConnectorAuthType::BodyKey { api_key: _, key1 } => Ok(vec![(
-                        headers::AUTHORIZATION.to_string(),
-                        format!("Basic {}", key1.to_owned()).into_masked(),
-                    )]),
-                    _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-                },
-                _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
-                    message: reward_type.to_string(),
-                    connector: "cashtocode",
-                    payment_experience: "Try with a different payment method".to_string(),
-                })),
+    match payment_method_type
+        .clone()
+        .ok_or_else(conn_utils::missing_field_err("payment_method_type"))
+    {
+        Ok(reward_type) => match reward_type {
+            storage::enums::PaymentMethodType::Classic => match auth_type {
+                types::ConnectorAuthType::BodyKey { api_key, key1: _ } => Ok(vec![(
+                    headers::AUTHORIZATION.to_string(),
+                    format!("Basic {}", api_key).into_masked(),
+                )]),
+                _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
             },
-                Err(_) => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            storage::enums::PaymentMethodType::Evoucher => match auth_type {
+                types::ConnectorAuthType::BodyKey { api_key: _, key1 } => Ok(vec![(
+                    headers::AUTHORIZATION.to_string(),
+                    format!("Basic {}", key1.to_owned()).into_masked(),
+                )]),
+                _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            },
+            _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                message: reward_type.to_string(),
+                connector: "cashtocode",
+                payment_experience: "Try with a different payment method".to_string(),
+            })),
+        },
+        Err(_) => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
     }
 }
 
@@ -255,7 +256,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Payments Sync".to_string(),
             connector: "Cashtocode".to_string(),
-        }.into())
+        }
+        .into())
     }
 
     fn handle_response(
@@ -284,13 +286,18 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 {
     fn build_request(
         &self,
-        _req: &types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>,
+        _req: &types::RouterData<
+            api::Capture,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Capture".to_string(),
             connector: "Cashtocode".to_string(),
-        }.into())
+        }
+        .into())
     }
 }
 
@@ -305,7 +312,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Payments Cancel".to_string(),
             connector: "Cashtocode".to_string(),
-        }.into())
+        }
+        .into())
     }
 }
 
@@ -423,13 +431,18 @@ impl ConnectorIntegration<api::refunds::Execute, types::RefundsData, types::Refu
 {
     fn build_request(
         &self,
-        _req: &types::RouterData<api::refunds::Execute, types::RefundsData, types::RefundsResponseData>,
+        _req: &types::RouterData<
+            api::refunds::Execute,
+            types::RefundsData,
+            types::RefundsResponseData,
+        >,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Refunds".to_string(),
             connector: "Cashtocode".to_string(),
-        }.into())
+        }
+        .into())
     }
 }
 
@@ -438,12 +451,17 @@ impl ConnectorIntegration<api::refunds::RSync, types::RefundsData, types::Refund
 {
     fn build_request(
         &self,
-        _req: &types::RouterData<api::refunds::RSync, types::RefundsData, types::RefundsResponseData>,
+        _req: &types::RouterData<
+            api::refunds::RSync,
+            types::RefundsData,
+            types::RefundsResponseData,
+        >,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Refund Sync".to_string(),
             connector: "Cashtocode".to_string(),
-        }.into())
+        }
+        .into())
     }
 }

@@ -108,19 +108,19 @@ async fn should_fetch_pay_url_classic() {
 
 async fn should_fetch_pay_url_evoucher() {
     let authorize_response = CONNECTOR
-    .make_payment(
-        CashtocodeTest::get_payment_authorize_data(
-            Some(enums::PaymentMethodType::Evoucher),
-            api_models::payments::PaymentMethodData::Reward(api_models::payments::RewardData {
-                mid: "befb46ee".to_owned(),
-            }),
-        ),
-        CashtocodeTest::get_payment_info(),
-    )
-    .await
-    .unwrap();
-assert_eq!(
-    authorize_response.status,
-    enums::AttemptStatus::AuthenticationPending
-);
+        .make_payment(
+            CashtocodeTest::get_payment_authorize_data(
+                Some(enums::PaymentMethodType::Evoucher),
+                api_models::payments::PaymentMethodData::Reward(api_models::payments::RewardData {
+                    mid: "befb46ee".to_owned(),
+                }),
+            ),
+            CashtocodeTest::get_payment_info(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        authorize_response.status,
+        enums::AttemptStatus::AuthenticationPending
+    );
 }
