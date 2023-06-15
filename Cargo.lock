@@ -430,6 +430,18 @@ dependencies = [
 [[package]]
 name = "async-bb8-diesel"
 version = "0.1.0"
+source = "git+https://github.com/juspay/async-bb8-diesel?rev=9a71d142726dbc33f41c1fd935ddaa79841c7be5#9a71d142726dbc33f41c1fd935ddaa79841c7be5"
+dependencies = [
+ "async-trait",
+ "bb8",
+ "diesel",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "async-bb8-diesel"
+version = "0.1.0"
 source = "git+https://github.com/oxidecomputer/async-bb8-diesel?rev=be3d9bce50051d8c0e0c06078e8066cc27db3001#be3d9bce50051d8c0e0c06078e8066cc27db3001"
 dependencies = [
  "async-trait",
@@ -677,6 +689,39 @@ dependencies = [
  "tokio-stream",
  "tower",
  "tracing",
+]
+
+[[package]]
+name = "aws-sdk-s3"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "392b9811ca489747ac84349790e49deaa1f16631949e7dd4156000251c260eae"
+dependencies = [
+ "aws-credential-types",
+ "aws-endpoint",
+ "aws-http",
+ "aws-sig-auth",
+ "aws-sigv4",
+ "aws-smithy-async",
+ "aws-smithy-checksums",
+ "aws-smithy-client",
+ "aws-smithy-eventstream",
+ "aws-smithy-http",
+ "aws-smithy-http-tower",
+ "aws-smithy-json",
+ "aws-smithy-types",
+ "aws-smithy-xml",
+ "aws-types",
+ "bytes",
+ "http",
+ "http-body",
+ "once_cell",
+ "percent-encoding",
+ "regex",
+ "tokio-stream",
+ "tower",
+ "tracing",
+ "url",
 ]
 
 [[package]]
@@ -1724,7 +1769,7 @@ checksum = "0688c2a7f92e427f44895cd63841bff7b29f8d7a1648b9e7e07a4a365b2e1257"
 name = "drainer"
 version = "0.1.0"
 dependencies = [
- "async-bb8-diesel",
+ "async-bb8-diesel 0.1.0 (git+https://github.com/oxidecomputer/async-bb8-diesel?rev=be3d9bce50051d8c0e0c06078e8066cc27db3001)",
  "bb8",
  "clap",
  "common_utils",
@@ -3716,11 +3761,11 @@ dependencies = [
  "actix-rt",
  "actix-web",
  "api_models",
- "async-bb8-diesel",
+ "async-bb8-diesel 0.1.0 (git+https://github.com/oxidecomputer/async-bb8-diesel?rev=be3d9bce50051d8c0e0c06078e8066cc27db3001)",
  "async-trait",
  "awc",
  "aws-config",
- "aws-sdk-s3",
+ "aws-sdk-s3 0.28.0",
  "base64 0.21.2",
  "bb8",
  "blake3",
@@ -3989,10 +4034,10 @@ dependencies = [
  "actix-rt",
  "actix-web",
  "api_models",
- "async-bb8-diesel",
+ "async-bb8-diesel 0.1.0 (git+https://github.com/juspay/async-bb8-diesel?rev=9a71d142726dbc33f41c1fd935ddaa79841c7be5)",
  "async-trait",
  "aws-config",
- "aws-sdk-s3",
+ "aws-sdk-s3 0.25.1",
  "cards",
  "clap",
  "common_utils",
@@ -4020,7 +4065,7 @@ dependencies = [
  "strum",
  "thiserror",
  "time 0.3.21",
- "tokio 1.28.2",
+ "tokio",
  "uuid",
 ]
 
@@ -4373,7 +4418,7 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 name = "storage_models"
 version = "0.1.0"
 dependencies = [
- "async-bb8-diesel",
+ "async-bb8-diesel 0.1.0 (git+https://github.com/oxidecomputer/async-bb8-diesel?rev=be3d9bce50051d8c0e0c06078e8066cc27db3001)",
  "common_enums",
  "common_utils",
  "diesel",
