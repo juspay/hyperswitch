@@ -172,7 +172,7 @@ pub async fn list_customer_payment_method_api(
         state.get_ref(),
         &req,
         customer_id.as_ref(),
-        |state, auth, req| cards::list_customer_payment_method(state, auth.merchant_account, req),
+        |state, auth, req| cards::list_customer_payment_method(state, auth.merchant_account,auth.key_store,req),
         &auth::ApiKeyAuth,
     )
     .await

@@ -139,7 +139,12 @@ pub async fn list_customer_payment_method_api(
         &req,
         json_payload.into_inner(),
         |state, auth, _| {
-            cards::list_customer_payment_method(state, auth.merchant_account, &customer_id)
+            cards::list_customer_payment_method(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                &customer_id,
+            )
         },
         &*auth_type,
     )
