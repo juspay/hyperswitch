@@ -21,6 +21,7 @@ use self::request::{ContentType, HeaderExt, RequestBuilderExt};
 pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
     configs::settings::Connectors,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -190,8 +191,23 @@ where
             connector_integration.handle_response(req, response)
         }
         payments::CallConnectorAction::Avoid => Ok(router_data),
-        payments::CallConnectorAction::StatusUpdate(status) => {
+        payments::CallConnectorAction::StatusUpdate {
+            status,
+            error_code,
+            error_message,
+        } => {
             router_data.status = status;
+            let error_response = if error_code.is_some() | error_message.is_some() {
+                Some(ErrorResponse {
+                    code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    status_code: 200, // This status code is ignored in redirection response it will override with 302 status code.
+                    reason: None,
+                })
+            } else {
+                None
+            };
+            router_data.response = error_response.map(Err).unwrap_or(router_data.response);
             Ok(router_data)
         }
         payments::CallConnectorAction::Trigger => {
@@ -588,6 +604,7 @@ where
     T: Debug,
     U: auth::AuthInfo,
     A: AppStateInfo,
+    ApplicationResponse<Q>: Debug,
     CustomResult<ApplicationResponse<Q>, E>:
         ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
 {
@@ -604,7 +621,10 @@ where
         &flow,
     )
     .await
-    {
+    .map(|response| {
+        logger::info!(api_response =? response);
+        response
+    }) {
         Ok(ApplicationResponse::Json(response)) => match serde_json::to_string(&response) {
             Ok(res) => http_response_json(res),
             Err(_) => http_response_err(

@@ -225,7 +225,7 @@ pub struct PaymentsAuthorizeData {
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
     pub browser_info: Option<BrowserInformation>,
-    pub order_details: Option<api_models::payments::OrderDetails>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
     pub order_category: Option<String>,
     pub session_token: Option<String>,
     pub enrolled_for_3ds: bool,
@@ -322,7 +322,7 @@ pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
     pub country: Option<api::enums::CountryAlpha2>,
-    pub order_details: Option<api_models::payments::OrderDetails>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
 }
 
 #[derive(Debug, Clone)]
@@ -375,7 +375,6 @@ pub enum PaymentsResponseData {
     },
     SessionResponse {
         session_token: api::SessionToken,
-        response_id: Option<String>,
     },
     SessionTokenResponse {
         session_token: String,
@@ -443,18 +442,18 @@ pub struct RefundsData {
     pub connector_metadata: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct BrowserInformation {
-    pub color_depth: u8,
-    pub java_enabled: bool,
-    pub java_script_enabled: bool,
-    pub language: String,
-    pub screen_height: u32,
-    pub screen_width: u32,
-    pub time_zone: i32,
+    pub color_depth: Option<u8>,
+    pub java_enabled: Option<bool>,
+    pub java_script_enabled: Option<bool>,
+    pub language: Option<String>,
+    pub screen_height: Option<u32>,
+    pub screen_width: Option<u32>,
+    pub time_zone: Option<i32>,
     pub ip_address: Option<std::net::IpAddr>,
-    pub accept_header: String,
-    pub user_agent: String,
+    pub accept_header: Option<String>,
+    pub user_agent: Option<String>,
 }
 
 #[derive(Debug, Clone)]

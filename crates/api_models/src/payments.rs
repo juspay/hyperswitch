@@ -186,6 +186,14 @@ pub struct PaymentsRequest {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     pub metadata: Option<Metadata>,
 
+    /// Information about the product , quantity and amount for connectors. (e.g. Klarna)
+    #[schema(value_type = Option<Vec<OrderDetailsWithAmount>>, example = r#"[{
+        "product_name": "gillete creme",
+        "quantity": 15,
+        "amount" : 900
+    }]"#)]
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+
     /// It's a token used for client side verification.
     #[schema(example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
     pub client_secret: Option<String>,
@@ -432,7 +440,7 @@ pub enum AcceptanceType {
 pub struct OnlineMandate {
     /// Ip address of the customer machine from which the mandate was created
     #[schema(value_type = String, example = "123.32.25.123")]
-    pub ip_address: Secret<String, pii::IpAddress>,
+    pub ip_address: Option<Secret<String, pii::IpAddress>>,
     /// The user-agent of the customer's browser
     pub user_agent: String,
 }
@@ -804,6 +812,8 @@ pub enum WalletData {
     AliPay(AliPayRedirection),
     /// The wallet data for Apple pay
     ApplePay(ApplePayWalletData),
+    /// Wallet data for apple pay redirect flow
+    ApplePayRedirect(Box<ApplePayRedirectData>),
     /// The wallet data for Google pay
     GooglePay(GooglePayWalletData),
     MbWay(Box<MbWayRedirection>),
@@ -830,6 +840,9 @@ pub struct GooglePayWalletData {
     /// The tokenization data of Google pay
     pub tokenization_data: GpayTokenizationData,
 }
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ApplePayRedirectData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct WeChatPayRedirection {}
@@ -1270,6 +1283,14 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<Object>)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
+    /// Information about the product , quantity and amount for connectors. (e.g. Klarna)
+    #[schema(value_type = Option<Vec<OrderDetailsWithAmount>>, example = r#"[{
+        "product_name": "gillete creme",
+        "quantity": 15,
+        "amount" : 900
+    }]"#)]
+    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+
     /// description: The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
     pub email: crypto::OptionalEncryptableEmail,
@@ -1569,6 +1590,18 @@ pub struct PaymentsRetrieveRequest {
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct OrderDetailsWithAmount {
+    /// Name of the product that is being purchased
+    #[schema(max_length = 255, example = "shirt")]
+    pub product_name: String,
+    /// The quantity of the product to be purchased
+    #[schema(example = 1)]
+    pub quantity: u16,
+    /// the amount per quantity of product
+    pub amount: i64,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct OrderDetails {
     /// Name of the product that is being purchased
     #[schema(max_length = 255, example = "shirt")]
@@ -1620,8 +1653,6 @@ pub struct PaymentsSessionRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
-    /// Identifier for the delayed session response
-    pub delayed_session_token: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1709,6 +1740,12 @@ pub struct ApplepaySessionRequest {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ConnectorMetadata {
+    pub apple_pay: Option<ApplePayMetadata>,
+    pub google_pay: Option<GpayMetaData>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApplepaySessionTokenData {
     #[serde(rename = "apple_pay")]
     pub data: ApplePayMetadata,
@@ -1785,47 +1822,13 @@ pub struct ApplepaySessionTokenResponse {
     /// Session object for Apple Pay
     pub session_token_data: ApplePaySessionResponse,
     /// Payment request object for Apple Pay
-    pub payment_request_data: Option<ApplePayPaymentRequest>,
-    /// The session token is w.r.t this connector
+    pub payment_request_data: ApplePayPaymentRequest,
     pub connector: String,
-    /// Identifier for the delayed session response
-    pub delayed_session_token: bool,
-    /// The next action for the sdk (ex: calling confirm or sync call)
-    pub sdk_next_action: SdkNextAction,
-}
-
-#[derive(Debug, serde::Serialize, Clone, ToSchema)]
-pub struct SdkNextAction {
-    /// The type of next action
-    pub next_action: NextActionCall,
-}
-
-#[derive(Debug, serde::Serialize, Clone, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum NextActionCall {
-    /// The next action call is confirm
-    Confirm,
-    /// The next action call is sync
-    Sync,
-    /// The next action call is session
-    SessionToken,
-}
-
-#[derive(Debug, Clone, serde::Serialize, ToSchema)]
-#[serde(untagged)]
-pub enum ApplePaySessionResponse {
-    ///  We get this session response, when third party sdk is involved
-    ThirdPartySdk(ThirdPartySdkSessionResponse),
-    ///  We get this session response, when there is no involvement of third party sdk
-    /// This is the common response most of the times
-    NoThirdPartySdk(Option<NoThirdPartySdkSessionResponse>),
-    /// This is for the empty session response
-    NoSessionResponse,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
 #[serde(rename_all(deserialize = "camelCase"))]
-pub struct NoThirdPartySdkSessionResponse {
+pub struct ApplePaySessionResponse {
     /// Timestamp at which session is requested
     pub epoch_timestamp: u64,
     /// Timestamp at which session expires
@@ -1850,21 +1853,6 @@ pub struct NoThirdPartySdkSessionResponse {
     pub psp_id: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, ToSchema)]
-pub struct ThirdPartySdkSessionResponse {
-    pub secrets: SecretInfoToInitiateSdk,
-}
-
-#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
-pub struct SecretInfoToInitiateSdk {
-    // Authorization secrets used by client to initiate sdk
-    #[schema(value_type = String)]
-    pub display: Secret<String>,
-    // Authorization secrets used by client for payment
-    #[schema(value_type = String)]
-    pub payment: Secret<String>,
-}
-
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
 pub struct ApplePayPaymentRequest {
     /// The code for country
@@ -1878,7 +1866,7 @@ pub struct ApplePayPaymentRequest {
     pub merchant_capabilities: Vec<String>,
     /// The list of supported networks
     pub supported_networks: Vec<String>,
-    pub merchant_identifier: Option<String>,
+    pub merchant_identifier: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
@@ -1887,7 +1875,7 @@ pub struct AmountInfo {
     pub label: String,
     /// A value that indicates whether the line item(Ex: total, tax, discount, or grand total) is final or pending.
     #[serde(rename = "type")]
-    pub total_type: Option<String>,
+    pub total_type: String,
     /// The total amount for the payment
     pub amount: String,
 }
