@@ -3,7 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use common_utils::ext_traits::ByteSliceExt;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use transformers as shift4;
 
 use super::utils::RefundsRequestData;
@@ -737,9 +737,25 @@ impl api::IncomingWebhook for Shift4 {
             .parse_struct("Shift4WebhookObjectId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.id),
-        ))
+        if shift4::is_transaction_event(&details.event_type) {
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.id),
+            ))
+        } else if shift4::is_refund_event(&details.event_type) {
+            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(
+                    details
+                        .data
+                        .refunds
+                        .and_then(|refund| {
+                            refund.first().map(|refund_object| refund_object.id.clone())
+                        })
+                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                ),
+            ))
+        } else {
+            Err(errors::ConnectorError::WebhookReferenceIdNotFound).into_report()
+        }
     }
 
     fn get_webhook_event_type(
@@ -750,12 +766,7 @@ impl api::IncomingWebhook for Shift4 {
             .body
             .parse_struct("Shift4WebhookObjectEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        Ok(match details.event_type {
-            shift4::Shift4WebhookEvent::ChargeSucceeded => {
-                api::IncomingWebhookEvent::PaymentIntentSuccess
-            }
-            shift4::Shift4WebhookEvent::Unknown => api::IncomingWebhookEvent::EventNotSupported,
-        })
+        Ok(api::IncomingWebhookEvent::from(details.event_type))
     }
 
     fn get_webhook_resource_object(
