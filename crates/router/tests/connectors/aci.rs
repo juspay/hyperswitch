@@ -53,6 +53,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             capture_method: None,
             browser_info: None,
             order_details: None,
+            order_category: None,
             email: None,
             session_token: None,
             enrolled_for_3ds: false,
@@ -97,7 +98,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         description: Some("This is a test".to_string()),
         return_url: None,
         request: types::RefundsData {
-            amount: 1000,
+            payment_amount: 1000,
             currency: enums::Currency::USD,
 
             refund_id: uuid::Uuid::new_v4().to_string(),

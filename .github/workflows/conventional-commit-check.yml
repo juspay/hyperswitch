@@ -45,19 +45,9 @@ jobs:
         with:
           toolchain: stable
 
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: baptiste0928/cargo-install@v2.0.0
         with:
-          # We can use a single cache entry for all runs of this check, as only cocogitto needs to be cached
-          shared-key: "pr_title_check"
-          # We don't build any crates in this repository, no need to cache target directories
-          cache-targets: "false"
-          # Save cache even if commit message verification fails.
-          # Only failure not considered is failures in installing cocogitto itself.
-          cache-on-failure: "true"
-
-      - name: Install cocogitto
-        shell: bash
-        run: cargo install cocogitto
+          crate: cocogitto
 
       - name: Verify PR title follows conventional commit standards
         id: pr_title_check
