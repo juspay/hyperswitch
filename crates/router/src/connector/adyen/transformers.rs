@@ -946,18 +946,32 @@ fn get_address_info(address: Option<&api_models::payments::Address>) -> Option<A
 }
 
 fn get_line_items(item: &types::PaymentsAuthorizeRouterData) -> Vec<LineItem> {
-    let order_details = item.request.order_details.as_ref();
-    let line_item = LineItem {
-        amount_including_tax: Some(item.request.amount),
-        amount_excluding_tax: Some(item.request.amount),
-        description: order_details.map(|details| details.product_name.clone()),
-        // We support only one product details in payment request as of now, therefore hard coded the id.
-        // If we begin to support multiple product details in future then this logic should be made to create ID dynamically
-        id: Some(String::from("Items #1")),
-        tax_amount: None,
-        quantity: Some(order_details.map_or(1, |details| details.quantity)),
-    };
-    vec![line_item]
+    let order_details = item.request.order_details.clone();
+    match order_details {
+        Some(od) => od
+            .iter()
+            .enumerate()
+            .map(|(i, data)| LineItem {
+                amount_including_tax: Some(data.amount),
+                amount_excluding_tax: Some(data.amount),
+                description: Some(data.product_name.clone()),
+                id: Some(format!("Items #{i}")),
+                tax_amount: None,
+                quantity: Some(data.quantity),
+            })
+            .collect(),
+        None => {
+            let line_item = LineItem {
+                amount_including_tax: Some(item.request.amount),
+                amount_excluding_tax: Some(item.request.amount),
+                description: None,
+                id: Some(String::from("Items #1")),
+                tax_amount: None,
+                quantity: Some(1),
+            };
+            vec![line_item]
+        }
+    }
 }
 
 fn get_telephone_number(item: &types::PaymentsAuthorizeRouterData) -> Option<Secret<String>> {
@@ -1107,20 +1121,20 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 };
                 Ok(AdyenPaymentMethod::AdyenPaypal(Box::new(wallet)))
             }
-            api_models::payments::WalletData::AliPay(_) => {
+            api_models::payments::WalletData::AliPayRedirect(_) => {
                 let alipay_data = AliPayData {
                     payment_type: PaymentType::Alipay,
                 };
                 Ok(AdyenPaymentMethod::AliPay(Box::new(alipay_data)))
             }
-            api_models::payments::WalletData::MbWay(data) => {
+            api_models::payments::WalletData::MbWayRedirect(data) => {
                 let mbway_data = MbwayData {
                     payment_type: PaymentType::Mbway,
                     telephone_number: data.telephone_number.clone(),
                 };
                 Ok(AdyenPaymentMethod::Mbway(Box::new(mbway_data)))
             }
-            api_models::payments::WalletData::MobilePay(_) => {
+            api_models::payments::WalletData::MobilePayRedirect(_) => {
                 let data = MobilePayData {
                     payment_type: PaymentType::MobilePay,
                 };
@@ -1157,12 +1171,12 @@ impl<'a> TryFrom<&api::PayLaterData> for AdyenPaymentMethod<'a> {
                     payment_type: PaymentType::Afterpaytouch,
                 })))
             }
-            api_models::payments::PayLaterData::PayBright { .. } => {
+            api_models::payments::PayLaterData::PayBrightRedirect { .. } => {
                 Ok(AdyenPaymentMethod::PayBright(Box::new(PayBrightData {
                     payment_type: PaymentType::PayBright,
                 })))
             }
-            api_models::payments::PayLaterData::Walley { .. } => {
+            api_models::payments::PayLaterData::WalleyRedirect { .. } => {
                 Ok(AdyenPaymentMethod::Walley(Box::new(WalleyData {
                     payment_type: PaymentType::Walley,
                 })))
