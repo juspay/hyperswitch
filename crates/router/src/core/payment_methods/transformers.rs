@@ -241,11 +241,7 @@ pub async fn mk_add_card_request_hs(
     customer_id: &str,
     merchant_id: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let merchant_customer_id = if cfg!(feature = "sandbox") {
-        format!("{customer_id}::{merchant_id}")
-    } else {
-        customer_id.to_owned()
-    };
+    let merchant_customer_id = customer_id.to_owned();
     let card = Card {
         card_number: card.card_number.to_owned(),
         name_on_card: card.card_holder_name.to_owned(),
@@ -280,7 +276,7 @@ pub async fn mk_add_card_request_hs(
     let mut url = locker.host.to_owned();
     url.push_str("/cards/add");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/json");
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.set_body(body.to_string());
     Ok(request)
 }
@@ -359,7 +355,7 @@ pub fn mk_add_card_request(
     locker_id: &str,
     merchant_id: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let customer_id = if cfg!(feature = "sandbox") {
+    let customer_id = if cfg!(feature = "release") {
         format!("{customer_id}::{merchant_id}")
     } else {
         customer_id.to_owned()
@@ -382,7 +378,10 @@ pub fn mk_add_card_request(
     let mut url = locker.host.to_owned();
     url.push_str("/card/addCard");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/x-www-form-urlencoded");
+    request.add_header(
+        headers::CONTENT_TYPE,
+        "application/x-www-form-urlencoded".into(),
+    );
     request.set_body(body);
     Ok(request)
 }
@@ -395,11 +394,7 @@ pub async fn mk_get_card_request_hs(
     merchant_id: &str,
     card_reference: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let merchant_customer_id = if cfg!(feature = "sandbox") {
-        format!("{customer_id}::{merchant_id}")
-    } else {
-        customer_id.to_owned()
-    };
+    let merchant_customer_id = customer_id.to_owned();
     let card_req_body = CardReqBody {
         merchant_id,
         merchant_customer_id,
@@ -425,7 +420,7 @@ pub async fn mk_get_card_request_hs(
     let mut url = locker.host.to_owned();
     url.push_str("/cards/retrieve");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/json");
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.set_body(body.to_string());
     Ok(request)
 }
@@ -445,7 +440,10 @@ pub fn mk_get_card_request<'a>(
     let mut url = locker.host.to_owned();
     url.push_str("/card/getCard");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/x-www-form-urlencoded");
+    request.add_header(
+        headers::CONTENT_TYPE,
+        "application/x-www-form-urlencoded".into(),
+    );
     request.set_body(body);
     Ok(request)
 }
@@ -476,11 +474,7 @@ pub async fn mk_delete_card_request_hs(
     merchant_id: &str,
     card_reference: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let merchant_customer_id = if cfg!(feature = "sandbox") {
-        format!("{customer_id}::{merchant_id}")
-    } else {
-        customer_id.to_owned()
-    };
+    let merchant_customer_id = customer_id.to_owned();
     let card_req_body = CardReqBody {
         merchant_id,
         merchant_customer_id,
@@ -506,7 +500,7 @@ pub async fn mk_delete_card_request_hs(
     let mut url = locker.host.to_owned();
     url.push_str("/cards/delete");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/json");
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.set_body(body.to_string());
     Ok(request)
 }
@@ -526,7 +520,10 @@ pub fn mk_delete_card_request<'a>(
     url.push_str("/card/deleteCard");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_default_headers();
-    request.add_header(headers::CONTENT_TYPE, "application/x-www-form-urlencoded");
+    request.add_header(
+        headers::CONTENT_TYPE,
+        "application/x-www-form-urlencoded".into(),
+    );
 
     request.set_body(body);
     Ok(request)
@@ -574,7 +571,7 @@ pub fn mk_crud_locker_request(
     url.push_str(path);
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_default_headers();
-    request.add_header(headers::CONTENT_TYPE, "application/json");
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.set_body(body.to_string());
     Ok(request)
 }

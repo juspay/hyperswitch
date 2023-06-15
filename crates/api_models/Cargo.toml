@@ -1,37 +1,35 @@
 [package]
 name = "api_models"
+description = "Request/response models for the `router` crate"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+license.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = []
-errors = [
-    "dep:actix-web",
-    "dep:reqwest",
-]
+errors = ["dep:actix-web", "dep:reqwest"]
 multiple_mca = []
 dummy_connector = []
 detailed_errors = []
 
 [dependencies]
 actix-web = { version = "4.3.1", optional = true }
-error-stack = "0.3.1"
 frunk = "0.4.1"
 frunk_core = "0.4.1"
 mime = "0.3.17"
-reqwest = { version = "0.11.16", optional = true }
-serde = { version = "1.0.160", features = ["derive"] }
+reqwest = { version = "0.11.18", optional = true }
+serde = { version = "1.0.163", features = ["derive"] }
 serde_json = "1.0.96"
 strum = { version = "0.24.1", features = ["derive"] }
-time = { version = "0.3.20", features = ["serde", "serde-well-known", "std"] }
-url = { version = "2.3.1", features = ["serde"] }
+time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
+url = { version = "2.4.0", features = ["serde"] }
 utoipa = { version = "3.3.0", features = ["preserve_order"] }
 
-
 # First party crates
+cards = { version = "0.1.0", path = "../cards" }
+common_enums = { path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
-common_enums = {path = "../common_enums"}
-cards = { version = "0.1.0", path = "../cards" }

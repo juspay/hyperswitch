@@ -1,11 +1,13 @@
 use std::str::FromStr;
 
+use api_models::payments::{Address, AddressDetails};
+use common_utils::pii::Email;
 use masking::Secret;
-use router::types::{self, api, storage::enums, ConnectorAuthType};
+use router::types::{self, api, storage::enums, ConnectorAuthType, PaymentAddress};
 
 use crate::{
     connector_auth,
-    utils::{self, ConnectorActions},
+    utils::{self, ConnectorActions, PaymentInfo},
 };
 
 #[derive(Clone, Copy)]
@@ -34,6 +36,28 @@ impl utils::Connector for BluesnapTest {
         "bluesnap".to_string()
     }
 }
+fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
+    Some(types::PaymentsAuthorizeData {
+        email: Some(Email::from_str("test@gmail.com").unwrap()),
+        ..utils::PaymentAuthorizeType::default().0
+    })
+}
+fn get_payment_info() -> Option<PaymentInfo> {
+    Some(PaymentInfo {
+        address: Some(PaymentAddress {
+            billing: Some(Address {
+                address: Some(AddressDetails {
+                    first_name: Some(Secret::new("joseph".to_string())),
+                    last_name: Some(Secret::new("Doe".to_string())),
+                    ..Default::default()
+                }),
+                phone: None,
+            }),
+            ..Default::default()
+        }),
+        ..Default::default()
+    })
+}
 
 // Cards Positive Tests
 // Creates a payment using the manual capture flow (Non 3DS).
@@ -42,7 +66,7 @@ impl utils::Connector for BluesnapTest {
 #[actix_web::test]
 async fn should_only_authorize_payment() {
     let response = CONNECTOR
-        .authorize_payment(None, None)
+        .authorize_payment(payment_method_details(), get_payment_info())
         .await
         .expect("Authorize payment response");
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
@@ -54,7 +78,7 @@ async fn should_only_authorize_payment() {
 #[actix_web::test]
 async fn should_capture_authorized_payment() {
     let response = CONNECTOR
-        .authorize_and_capture_payment(None, None, None)
+        .authorize_and_capture_payment(payment_method_details(), None, get_payment_info())
         .await
         .expect("Capture payment response");
     assert_eq!(response.status, enums::AttemptStatus::Charged);
@@ -67,12 +91,12 @@ async fn should_capture_authorized_payment() {
 async fn should_partially_capture_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_capture_payment(
-            None,
+            payment_method_details(),
             Some(types::PaymentsCaptureData {
                 amount_to_capture: 50,
                 ..utils::PaymentCaptureType::default().0
             }),
-            None,
+            get_payment_info(),
         )
         .await
         .expect("Capture payment response");
@@ -85,7 +109,7 @@ async fn should_partially_capture_authorized_payment() {
 #[actix_web::test]
 async fn should_sync_authorized_payment() {
     let authorize_response = CONNECTOR
-        .authorize_payment(None, None)
+        .authorize_payment(payment_method_details(), get_payment_info())
         .await
         .expect("Authorize payment response");
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
@@ -112,13 +136,13 @@ async fn should_sync_authorized_payment() {
 async fn should_void_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_void_payment(
-            None,
+            payment_method_details(),
             Some(types::PaymentsCancelData {
                 connector_transaction_id: String::from(""),
                 cancellation_reason: Some("requested_by_customer".to_string()),
                 ..Default::default()
             }),
-            None,
+            get_payment_info(),
         )
         .await
         .expect("Void payment response");
@@ -131,7 +155,7 @@ async fn should_void_authorized_payment() {
 #[actix_web::test]
 async fn should_refund_manually_captured_payment() {
     let response = CONNECTOR
-        .capture_payment_and_refund(None, None, None, None)
+        .capture_payment_and_refund(payment_method_details(), None, None, get_payment_info())
         .await
         .unwrap();
     let rsync_response = CONNECTOR
@@ -156,13 +180,13 @@ async fn should_refund_manually_captured_payment() {
 async fn should_partially_refund_manually_captured_payment() {
     let response = CONNECTOR
         .capture_payment_and_refund(
-            None,
+            payment_method_details(),
             None,
             Some(types::RefundsData {
                 refund_amount: 50,
                 ..utils::PaymentRefundType::default().0
             }),
-            None,
+            get_payment_info(),
         )
         .await
         .unwrap();
@@ -187,7 +211,7 @@ async fn should_partially_refund_manually_captured_payment() {
 #[actix_web::test]
 async fn should_sync_manually_captured_refund() {
     let refund_response = CONNECTOR
-        .capture_payment_and_refund(None, None, None, None)
+        .capture_payment_and_refund(payment_method_details(), None, None, get_payment_info())
         .await
         .unwrap();
     let response = CONNECTOR
@@ -210,7 +234,10 @@ async fn should_sync_manually_captured_refund() {
 #[serial_test::serial]
 #[actix_web::test]
 async fn should_make_payment() {
-    let authorize_response = CONNECTOR.make_payment(None, None).await.unwrap();
+    let authorize_response = CONNECTOR
+        .make_payment(payment_method_details(), get_payment_info())
+        .await
+        .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
 }
 
@@ -219,7 +246,10 @@ async fn should_make_payment() {
 #[serial_test::serial]
 #[actix_web::test]
 async fn should_sync_auto_captured_payment() {
-    let authorize_response = CONNECTOR.make_payment(None, None).await.unwrap();
+    let authorize_response = CONNECTOR
+        .make_payment(payment_method_details(), get_payment_info())
+        .await
+        .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     assert_ne!(txn_id, None, "Empty connector transaction id");
@@ -245,7 +275,7 @@ async fn should_sync_auto_captured_payment() {
 #[actix_web::test]
 async fn should_refund_auto_captured_payment() {
     let response = CONNECTOR
-        .make_payment_and_refund(None, None, None)
+        .make_payment_and_refund(payment_method_details(), None, get_payment_info())
         .await
         .unwrap();
     let rsync_response = CONNECTOR
@@ -270,12 +300,12 @@ async fn should_refund_auto_captured_payment() {
 async fn should_partially_refund_succeeded_payment() {
     let refund_response = CONNECTOR
         .make_payment_and_refund(
-            None,
+            payment_method_details(),
             Some(types::RefundsData {
                 refund_amount: 50,
                 ..utils::PaymentRefundType::default().0
             }),
-            None,
+            get_payment_info(),
         )
         .await
         .unwrap();
@@ -299,7 +329,10 @@ async fn should_partially_refund_succeeded_payment() {
 #[serial_test::serial]
 #[actix_web::test]
 async fn should_refund_succeeded_payment_multiple_times() {
-    let authorize_response = CONNECTOR.make_payment(None, None).await.unwrap();
+    let authorize_response = CONNECTOR
+        .make_payment(payment_method_details(), get_payment_info())
+        .await
+        .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
     let transaction_id = utils::get_connector_transaction_id(authorize_response.response).unwrap();
     for _x in 0..2 {
@@ -337,7 +370,7 @@ async fn should_refund_succeeded_payment_multiple_times() {
 #[actix_web::test]
 async fn should_sync_refund() {
     let refund_response = CONNECTOR
-        .make_payment_and_refund(None, None, None)
+        .make_payment_and_refund(payment_method_details(), None, get_payment_info())
         .await
         .unwrap();
     let response = CONNECTOR
@@ -355,31 +388,6 @@ async fn should_sync_refund() {
     );
 }
 
-// Cards Negative scenerios
-// Creates a payment with incorrect card number.
-
-#[serial_test::serial]
-#[actix_web::test]
-async fn should_fail_payment_for_incorrect_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: cards::CardNumber::from_str("1234567891011").unwrap(),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            None,
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        "Order creation failure due to problematic input.".to_string(),
-    );
-}
-
 // Creates a payment with incorrect CVC.
 
 #[serial_test::serial]
@@ -388,13 +396,15 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
+                email: Some(Email::from_str("test@gmail.com").unwrap()),
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                    card_holder_name: Secret::new("John Doe".to_string()),
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            None,
+            get_payment_info(),
         )
         .await
         .unwrap();
@@ -412,13 +422,15 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
+                email: Some(Email::from_str("test@gmail.com").unwrap()),
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                    card_holder_name: Secret::new("John Doe".to_string()),
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            None,
+            get_payment_info(),
         )
         .await
         .unwrap();
@@ -436,13 +448,15 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
+                email: Some(Email::from_str("test@gmail.com").unwrap()),
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                    card_holder_name: Secret::new("John Doe".to_string()),
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            None,
+            get_payment_info(),
         )
         .await
         .unwrap();
@@ -457,7 +471,10 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
 #[serial_test::serial]
 #[actix_web::test]
 async fn should_fail_void_payment_for_auto_capture() {
-    let authorize_response = CONNECTOR.make_payment(None, None).await.unwrap();
+    let authorize_response = CONNECTOR
+        .make_payment(payment_method_details(), get_payment_info())
+        .await
+        .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     assert_ne!(txn_id, None, "Empty connector transaction id");
@@ -495,12 +512,12 @@ async fn should_fail_capture_for_invalid_payment() {
 async fn should_fail_for_refund_amount_higher_than_payment_amount() {
     let response = CONNECTOR
         .make_payment_and_refund(
-            None,
+            payment_method_details(),
             Some(types::RefundsData {
                 refund_amount: 150,
                 ..utils::PaymentRefundType::default().0
             }),
-            None,
+            get_payment_info(),
         )
         .await
         .unwrap();

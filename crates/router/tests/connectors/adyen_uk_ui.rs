@@ -7,13 +7,13 @@ struct AdyenSeleniumTest;
 
 impl SeleniumTest for AdyenSeleniumTest {
     fn get_connector_name(&self) -> String {
-        "adyen".to_string()
+        "adyen_uk".to_string()
     }
 }
 
 async fn should_make_adyen_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
-    let pub_key = conn.get_configs().adyen.unwrap().key1;
+    let pub_key = conn.get_configs().adyen_uk.unwrap().key1;
     conn.make_gpay_payment(c,
         &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid={pub_key}&amount=70.00&country=US&currency=USD"),
         vec![
@@ -24,7 +24,7 @@ async fn should_make_adyen_gpay_payment(c: WebDriver) -> Result<(), WebDriverErr
 
 async fn should_make_adyen_gpay_mandate_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
-    let pub_key = conn.get_configs().adyen.unwrap().key1;
+    let pub_key = conn.get_configs().adyen_uk.unwrap().key1;
     conn.make_gpay_payment(c,
         &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid={pub_key}&amount=70.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=7000&mandate_data[mandate_type][multi_use][currency]=USD"),
         vec![
@@ -42,7 +42,7 @@ async fn should_make_adyen_gpay_zero_dollar_mandate_payment(
     c: WebDriver,
 ) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
-    let pub_key = conn.get_configs().adyen.unwrap().key1;
+    let pub_key = conn.get_configs().adyen_uk.unwrap().key1;
     conn.make_gpay_payment(c,
         &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid={pub_key}&amount=0.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD"),
         vec![

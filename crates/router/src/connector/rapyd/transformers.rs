@@ -257,7 +257,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RapydRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             payment: item.request.connector_transaction_id.to_string(),
-            amount: Some(item.request.amount),
+            amount: Some(item.request.refund_amount),
             currency: Some(item.request.currency),
         })
     }
@@ -463,6 +463,8 @@ pub enum RapydWebhookObjectEventType {
     RefundCompleted,
     PaymentRefundRejected,
     PaymentRefundFailed,
+    #[serde(other)]
+    Unknown,
 }
 
 impl TryFrom<RapydWebhookObjectEventType> for api::IncomingWebhookEvent {
@@ -472,7 +474,10 @@ impl TryFrom<RapydWebhookObjectEventType> for api::IncomingWebhookEvent {
             RapydWebhookObjectEventType::PaymentCompleted => Ok(Self::PaymentIntentSuccess),
             RapydWebhookObjectEventType::PaymentCaptured => Ok(Self::PaymentIntentSuccess),
             RapydWebhookObjectEventType::PaymentFailed => Ok(Self::PaymentIntentFailure),
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+            RapydWebhookObjectEventType::Unknown
+            | RapydWebhookObjectEventType::RefundCompleted
+            | RapydWebhookObjectEventType::PaymentRefundRejected
+            | RapydWebhookObjectEventType::PaymentRefundFailed => Ok(Self::EventNotSupported),
         }
     }
 }

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use api_models::payments;
 use common_utils::{crypto::Encryptable, date_time, ext_traits::StringExt, pii as secret};
 use error_stack::{IntoReport, ResultExt};
@@ -43,6 +45,7 @@ pub struct StripeCard {
     pub exp_month: pii::Secret<String>,
     pub exp_year: pii::Secret<String>,
     pub cvc: pii::Secret<String>,
+    pub holder_name: Option<pii::Secret<String>>,
 }
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -82,7 +85,7 @@ impl From<StripeCard> for payments::Card {
             card_number: card.number,
             card_exp_month: card.exp_month,
             card_exp_year: card.exp_year,
-            card_holder_name: masking::Secret::new("stripe_cust".to_owned()),
+            card_holder_name: card.holder_name.unwrap_or("name".to_string().into()),
             card_cvc: card.cvc,
             card_issuer: None,
             card_network: None,
@@ -125,7 +128,7 @@ impl From<Shipping> for payments::Address {
 pub struct StripePaymentIntentRequest {
     pub id: Option<String>,
     pub amount: Option<i64>, //amount in cents, hence passed as integer
-    pub connector: Option<Vec<api_enums::Connector>>,
+    pub connector: Option<Vec<api_enums::RoutableConnectors>>,
     pub currency: Option<String>,
     #[serde(rename = "amount_to_capture")]
     pub amount_capturable: Option<i64>,
@@ -146,6 +149,8 @@ pub struct StripePaymentIntentRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     pub mandate_id: Option<String>,
     pub off_session: Option<bool>,
+    pub receipt_ipaddress: Option<String>,
+    pub user_agent: Option<String>,
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
@@ -169,10 +174,32 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             }
             None => (None, None),
         };
+
+        let routable_connector: Option<api_enums::RoutableConnectors> =
+            item.connector.and_then(|v| v.into_iter().next());
+
+        let routing = routable_connector
+            .map(crate::types::api::RoutingAlgorithm::Single)
+            .map(|r| {
+                serde_json::to_value(r)
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("converting to routing failed")
+            })
+            .transpose()?;
+
+        let ip_address = item
+            .receipt_ipaddress
+            .map(|ip| std::net::IpAddr::from_str(ip.as_str()))
+            .transpose()
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "receipt_ipaddress".to_string(),
+                expected_format: "127.0.0.1".to_string(),
+            })?;
         let request = Ok(Self {
             payment_id: item.id.map(payments::PaymentIdType::PaymentIntentId),
             amount: item.amount.map(|amount| amount.into()),
-            connector: item.connector,
             currency: item
                 .currency
                 .as_ref()
@@ -215,6 +242,17 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             setup_future_usage: item.setup_future_usage,
             mandate_id: item.mandate_id,
             off_session: item.off_session,
+            routing,
+            browser_info: Some(
+                serde_json::to_value(crate::types::BrowserInformation {
+                    ip_address,
+                    user_agent: item.user_agent,
+                    ..Default::default()
+                })
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("convert to browser info failed")?,
+            ),
             ..Self::default()
         });
         request
@@ -578,7 +616,7 @@ impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments
                 acceptance_type: payments::AcceptanceType::Online,
                 accepted_at: mandate.accepted_at,
                 online: Some(payments::OnlineMandate {
-                    ip_address: mandate.ip_address.unwrap_or_default(),
+                    ip_address: mandate.ip_address,
                     user_agent: mandate.user_agent.unwrap_or_default(),
                 }),
             }),
