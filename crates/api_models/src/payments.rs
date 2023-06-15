@@ -186,6 +186,14 @@ pub struct PaymentsRequest {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     pub metadata: Option<Metadata>,
 
+    /// Information about the product , quantity and amount for connectors. (e.g. Klarna)
+    #[schema(value_type = Option<Vec<OrderDetailsWithAmount>>, example = r#"[{
+        "product_name": "gillete creme",
+        "quantity": 15,
+        "amount" : 900
+    }]"#)]
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+
     /// It's a token used for client side verification.
     #[schema(example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
     pub client_secret: Option<String>,
@@ -432,7 +440,7 @@ pub enum AcceptanceType {
 pub struct OnlineMandate {
     /// Ip address of the customer machine from which the mandate was created
     #[schema(value_type = String, example = "123.32.25.123")]
-    pub ip_address: Secret<String, pii::IpAddress>,
+    pub ip_address: Option<Secret<String, pii::IpAddress>>,
     /// The user-agent of the customer's browser
     pub user_agent: String,
 }
@@ -496,8 +504,8 @@ pub enum PayLaterData {
         #[schema(value_type = String)]
         billing_name: Secret<String>,
     },
-    PayBright {},
-    Walley {},
+    PayBrightRedirect {},
+    WalleyRedirect {},
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
@@ -801,16 +809,16 @@ pub struct BankDebitBilling {
 #[serde(rename_all = "snake_case")]
 pub enum WalletData {
     /// The wallet data for Ali Pay redirect
-    AliPay(AliPayRedirection),
+    AliPayRedirect(AliPayRedirection),
     /// The wallet data for Apple pay
     ApplePay(ApplePayWalletData),
     /// Wallet data for apple pay redirect flow
     ApplePayRedirect(Box<ApplePayRedirectData>),
     /// The wallet data for Google pay
     GooglePay(GooglePayWalletData),
-    MbWay(Box<MbWayRedirection>),
+    MbWayRedirect(Box<MbWayRedirection>),
     /// The wallet data for MobilePay redirect
-    MobilePay(Box<MobilePayRedirection>),
+    MobilePayRedirect(Box<MobilePayRedirection>),
     /// This is for paypal redirection
     PaypalRedirect(PaypalRedirection),
     /// The wallet data for Paypal
@@ -1275,6 +1283,14 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<Object>)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
+    /// Information about the product , quantity and amount for connectors. (e.g. Klarna)
+    #[schema(value_type = Option<Vec<OrderDetailsWithAmount>>, example = r#"[{
+        "product_name": "gillete creme",
+        "quantity": 15,
+        "amount" : 900
+    }]"#)]
+    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+
     /// description: The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
     pub email: crypto::OptionalEncryptableEmail,
@@ -1574,6 +1590,18 @@ pub struct PaymentsRetrieveRequest {
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct OrderDetailsWithAmount {
+    /// Name of the product that is being purchased
+    #[schema(max_length = 255, example = "shirt")]
+    pub product_name: String,
+    /// The quantity of the product to be purchased
+    #[schema(example = 1)]
+    pub quantity: u16,
+    /// the amount per quantity of product
+    pub amount: i64,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct OrderDetails {
     /// Name of the product that is being purchased
     #[schema(max_length = 255, example = "shirt")]
@@ -1709,6 +1737,12 @@ pub struct ApplepaySessionRequest {
     pub display_name: String,
     pub initiative: String,
     pub initiative_context: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ConnectorMetadata {
+    pub apple_pay: Option<ApplePayMetadata>,
+    pub google_pay: Option<GpayMetaData>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
