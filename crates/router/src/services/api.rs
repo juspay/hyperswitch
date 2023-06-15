@@ -9,7 +9,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::{body, HttpRequest, HttpResponse, Responder};
+use actix_web::{body, HttpRequest, HttpResponse, Responder, ResponseError};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
@@ -21,6 +21,7 @@ use self::request::{ContentType, HeaderExt, RequestBuilderExt};
 pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
     configs::settings::Connectors,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -53,7 +54,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         &self,
         _req: &types::RouterData<T, Req, Resp>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
 
@@ -190,8 +191,23 @@ where
             connector_integration.handle_response(req, response)
         }
         payments::CallConnectorAction::Avoid => Ok(router_data),
-        payments::CallConnectorAction::StatusUpdate(status) => {
+        payments::CallConnectorAction::StatusUpdate {
+            status,
+            error_code,
+            error_message,
+        } => {
             router_data.status = status;
+            let error_response = if error_code.is_some() | error_message.is_some() {
+                Some(ErrorResponse {
+                    code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    status_code: 200, // This status code is ignored in redirection response it will override with 302 status code.
+                    reason: None,
+                })
+            } else {
+                None
+            };
+            router_data.response = error_response.map(Err).unwrap_or(router_data.response);
             Ok(router_data)
         }
         payments::CallConnectorAction::Trigger => {
@@ -528,6 +544,7 @@ pub enum AuthFlow {
 
 #[instrument(skip(request, payload, state, func, api_auth))]
 pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
+    flow: &'a impl router_env::types::FlowMetric,
     state: &'b A,
     request: &'a HttpRequest,
     payload: T,
@@ -536,22 +553,40 @@ pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
     F: Fn(&'b A, U, T) -> Fut,
+    'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
     A: AppStateInfo,
+    U: auth::AuthInfo,
     CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
     CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
+    OErr: ResponseError + Sync + Send + 'static,
 {
     let auth_out = api_auth
         .authenticate_and_fetch(request.headers(), state)
         .await
         .switch()?;
-    func(state, auth_out, payload).await.switch()
+    let metric_merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
+
+    let output = func(state, auth_out, payload).await.switch();
+
+    let status_code = match output.as_ref() {
+        Ok(res) => metrics::request::track_response_status_code(res),
+        Err(err) => err.current_context().status_code().as_u16().into(),
+    };
+
+    metrics::request::status_code_metrics(
+        status_code,
+        flow.to_string(),
+        metric_merchant_id.to_string(),
+    );
+
+    output
 }
 
 #[instrument(
-    skip(request, payload, state, func, api_auth),
+    skip(request, state, func, api_auth, payload),
     fields(request_method, request_url_path)
 )]
 pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut, E>(
@@ -567,7 +602,9 @@ where
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
+    U: auth::AuthInfo,
     A: AppStateInfo,
+    ApplicationResponse<Q>: Debug,
     CustomResult<ApplicationResponse<Q>, E>:
         ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
 {
@@ -577,13 +614,17 @@ where
     tracing::Span::current().record("request_url_path", url_path);
 
     let start_instant = Instant::now();
-    logger::info!(tag = ?Tag::BeginRequest);
+    logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
+
     let res = match metrics::request::record_request_time_metric(
-        server_wrap_util(state, request, payload, func, api_auth),
-        flow,
+        server_wrap_util(&flow, state, request, payload, func, api_auth),
+        &flow,
     )
     .await
-    {
+    .map(|response| {
+        logger::info!(api_response =? response);
+        response
+    }) {
         Ok(ApplicationResponse::Json(response)) => match serde_json::to_string(&response) {
             Ok(res) => http_response_json(res),
             Err(_) => http_response_err(
@@ -636,7 +677,7 @@ where
 
 pub fn log_and_return_error_response<T>(error: Report<T>) -> HttpResponse
 where
-    T: actix_web::ResponseError + error_stack::Context + Clone,
+    T: error_stack::Context + Clone + ResponseError,
     Report<T>: EmbedError,
 {
     logger::error!(?error);

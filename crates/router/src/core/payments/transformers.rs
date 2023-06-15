@@ -1,7 +1,9 @@
 use std::{fmt::Debug, marker::PhantomData};
 
+use api_models::payments::OrderDetailsWithAmount;
 use common_utils::fp_utils;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
+use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use storage_models::ephemeral_key;
 
@@ -13,10 +15,10 @@ use crate::{
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
     },
-    routes::AppState,
+    routes::{metrics, AppState},
     services::{self, RedirectForm},
     types::{
-        self, api,
+        self, api, domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto},
     },
@@ -28,8 +30,8 @@ pub async fn construct_payment_router_data<'a, F, T>(
     state: &'a AppState,
     payment_data: PaymentData<F>,
     connector_id: &str,
-    merchant_account: &storage::MerchantAccount,
-    customer: &Option<storage::Customer>,
+    merchant_account: &domain::MerchantAccount,
+    customer: &Option<domain::Customer>,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
@@ -133,7 +135,7 @@ where
     fn generate_response(
         req: Option<Req>,
         data: D,
-        customer: Option<storage::Customer>,
+        customer: Option<domain::Customer>,
         auth_flow: services::AuthFlow,
         server: &Server,
         operation: Op,
@@ -148,7 +150,7 @@ where
     fn generate_response(
         req: Option<Req>,
         payment_data: PaymentData<F>,
-        customer: Option<storage::Customer>,
+        customer: Option<domain::Customer>,
         auth_flow: services::AuthFlow,
         server: &Server,
         operation: Op,
@@ -165,7 +167,7 @@ where
             payment_data.address,
             server,
             payment_data.connector_response.authentication_data,
-            operation,
+            &operation,
             payment_data.ephemeral_key,
         )
     }
@@ -180,7 +182,7 @@ where
     fn generate_response(
         _req: Option<Req>,
         payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
         _server: &Server,
         _operation: Op,
@@ -206,7 +208,7 @@ where
     fn generate_response(
         _req: Option<Req>,
         data: PaymentData<F>,
-        customer: Option<storage::Customer>,
+        customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
         _server: &Server,
         _operation: Op,
@@ -221,7 +223,7 @@ where
                 .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
             name: customer
                 .as_ref()
-                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned().into())),
+                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned())),
             phone: customer
                 .as_ref()
                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
@@ -251,12 +253,12 @@ pub fn payments_to_payments_response<R, Op>(
     refunds: Vec<storage::Refund>,
     disputes: Vec<storage::Dispute>,
     payment_method_data: Option<api::PaymentMethodData>,
-    customer: Option<storage::Customer>,
+    customer: Option<domain::Customer>,
     auth_flow: services::AuthFlow,
     address: PaymentAddress,
     server: &Server,
     redirection_data: Option<serde_json::Value>,
-    operation: Op,
+    operation: &Op,
     ephemeral_key_option: Option<ephemeral_key::EphemeralKey>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
@@ -287,8 +289,19 @@ where
                 .collect(),
         )
     };
+    let merchant_id = payment_attempt.merchant_id.to_owned();
+    let payment_method_type = payment_attempt
+        .payment_method_type
+        .as_ref()
+        .map(ToString::to_string)
+        .unwrap_or("".to_owned());
+    let payment_method = payment_attempt
+        .payment_method
+        .as_ref()
+        .map(ToString::to_string)
+        .unwrap_or("".to_owned());
 
-    Ok(match payment_request {
+    let output = Ok(match payment_request {
         Some(_request) => {
             if payments::is_start_pay(&operation) && redirection_data.is_some() {
                 let redirection_data = redirection_data.get_required_value("redirection_data")?;
@@ -309,20 +322,19 @@ where
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                     || bank_transfer_next_steps.is_some()
                 {
-                    let next_action_type = if bank_transfer_next_steps.is_some() {
-                        api::NextActionType::DisplayBankTransferInformation
-                    } else {
-                        api::NextActionType::RedirectToUrl
-                    };
-                    next_action_response = Some(api::NextAction {
-                        next_action_type,
-                        redirect_to_url: Some(helpers::create_startpay_url(
-                            server,
-                            &payment_attempt,
-                            &payment_intent,
-                        )),
-                        bank_transfer_steps_and_charges_details: bank_transfer_next_steps,
-                    });
+                    next_action_response = bank_transfer_next_steps
+                        .map(|bank_transfer| {
+                            api_models::payments::NextActionData::DisplayBankTransferInformation {
+                                bank_transfer_steps_and_charges_details: bank_transfer,
+                            }
+                        })
+                        .or(Some(api_models::payments::NextActionData::RedirectToUrl {
+                            redirect_to_url: helpers::create_startpay_url(
+                                server,
+                                &payment_attempt,
+                                &payment_intent,
+                            ),
+                        }));
                 };
 
                 let mut response: api::PaymentsResponse = Default::default();
@@ -349,13 +361,15 @@ where
                     })
                     .transpose()
                     .unwrap_or_default();
+                let amount_captured = payment_intent.amount_captured.unwrap_or_default();
+                let amount_capturable = Some(payment_attempt.amount - amount_captured);
                 services::ApplicationResponse::Json(
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
                         .set_merchant_id(Some(payment_attempt.merchant_id))
                         .set_status(payment_intent.status.foreign_into())
                         .set_amount(payment_attempt.amount)
-                        .set_amount_capturable(None)
+                        .set_amount_capturable(amount_capturable)
                         .set_amount_received(payment_intent.amount_captured)
                         .set_connector(routed_through)
                         .set_client_secret(payment_intent.client_secret.map(masking::Secret::new))
@@ -370,7 +384,7 @@ where
                         .set_name(
                             customer
                                 .as_ref()
-                                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned().into())),
+                                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned())),
                         )
                         .set_phone(
                             customer
@@ -427,6 +441,7 @@ where
                                 .map(ForeignInto::foreign_into),
                         )
                         .set_metadata(payment_intent.metadata)
+                        .set_order_details(payment_intent.order_details)
                         .set_connector_label(connector_label)
                         .set_business_country(payment_intent.business_country)
                         .set_business_label(payment_intent.business_label)
@@ -468,7 +483,7 @@ where
                 .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
             name: customer
                 .as_ref()
-                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned().into())),
+                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned())),
             phone: customer
                 .as_ref()
                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
@@ -478,9 +493,23 @@ where
             cancellation_reason: payment_attempt.cancellation_reason,
             payment_token: payment_attempt.payment_token,
             metadata: payment_intent.metadata,
+            order_details: payment_intent.order_details,
             ..Default::default()
         }),
-    })
+    });
+
+    metrics::PAYMENT_OPS_COUNT.add(
+        &metrics::CONTEXT,
+        1,
+        &[
+            metrics::request::add_attributes("operation", format!("{:?}", operation)),
+            metrics::request::add_attributes("merchant", merchant_id),
+            metrics::request::add_attributes("payment_method_type", payment_method_type),
+            metrics::request::add_attributes("payment_method", payment_method),
+        ],
+    );
+
+    output
 }
 
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
@@ -498,6 +527,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             currency: pi.currency.map(|c| c.to_string()).unwrap_or_default(),
             description: pi.description,
             metadata: pi.metadata,
+            order_details: pi.order_details,
             customer_id: pi.customer_id,
             connector: pa.connector,
             payment_method: pa.payment_method.map(ForeignInto::foreign_into),
@@ -520,11 +550,11 @@ impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralK
 
 pub fn bank_transfer_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
-) -> RouterResult<Option<api_models::payments::NextStepsRequirements>> {
+) -> RouterResult<Option<api_models::payments::BankTransferNextStepsData>> {
     let bank_transfer_next_step = if let Some(storage_models::enums::PaymentMethod::BankTransfer) =
         payment_attempt.payment_method
     {
-        let bank_transfer_next_steps: Option<api_models::payments::NextStepsRequirements> =
+        let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
             payment_attempt
                 .connector_metadata
                 .map(|metadata| {
@@ -541,6 +571,17 @@ pub fn bank_transfer_next_steps_check(
     Ok(bank_transfer_next_step)
 }
 
+pub fn change_order_details_to_new_type(
+    order_amount: i64,
+    order_details: api_models::payments::OrderDetails,
+) -> Option<Vec<OrderDetailsWithAmount>> {
+    Some(vec![OrderDetailsWithAmount {
+        product_name: order_details.product_name,
+        quantity: order_details.quantity,
+        amount: order_amount,
+    }])
+}
+
 #[derive(Clone)]
 pub struct PaymentAdditionalData<'a, F>
 where
@@ -555,7 +596,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
-        let payment_data = additional_data.payment_data;
+        let payment_data = additional_data.payment_data.clone();
         let router_base_url = &additional_data.router_base_url;
         let connector_name = &additional_data.connector_name;
         let attempt = &payment_data.payment_attempt;
@@ -570,19 +611,24 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
             .payment_intent
-            .meta_data
+            .metadata
+            .as_ref()
             .map(|metadata_value| {
                 metadata_value
-                    .parse_value("meta_data")
+                    .clone()
+                    .parse_value("metadata")
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "meta_data",
+                        field_name: "metadata",
                     })
-                    .attach_printable("unable to parse meta_data")
+                    .attach_printable("unable to parse metadata")
             })
             .transpose()
             .unwrap_or_default();
-
-        let order_details = parsed_metadata.and_then(|data| data.order_details);
+        let order_category = parsed_metadata
+            .as_ref()
+            .and_then(|data| data.order_category.clone());
+        let order_details =
+            fetch_order_details(additional_data.clone(), parsed_metadata, &payment_data)?;
         let complete_authorize_url = Some(helpers::create_complete_authorize_url(
             router_base_url,
             attempt,
@@ -624,6 +670,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             email: payment_data.email,
             payment_experience: payment_data.payment_attempt.payment_experience,
             order_details,
+            order_category,
             session_token: None,
             enrolled_for_3ds: true,
             related_transaction_id: None,
@@ -738,22 +785,25 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
-        let payment_data = additional_data.payment_data;
+        let payment_data = additional_data.payment_data.clone();
         let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
             .payment_intent
-            .meta_data
+            .metadata
+            .as_ref()
             .map(|metadata_value| {
                 metadata_value
-                    .parse_value("meta_data")
+                    .clone()
+                    .parse_value("metadata")
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "meta_data",
+                        field_name: "metadata",
                     })
-                    .attach_printable("unable to parse meta_data")
+                    .attach_printable("unable to parse metadata")
             })
             .transpose()
             .unwrap_or_default();
 
-        let order_details = parsed_metadata.and_then(|data| data.order_details);
+        let order_details =
+            fetch_order_details(additional_data.clone(), parsed_metadata, &payment_data)?;
 
         Ok(Self {
             amount: payment_data.amount.into(),
@@ -813,13 +863,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 field_name: "browser_info",
             })?;
 
-        let json_payload = payment_data
-            .connector_response
-            .encoded_data
-            .map(|s| serde_json::from_str::<serde_json::Value>(&s))
-            .transpose()
-            .into_report()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let redirect_response = payment_data.redirect_response.map(|redirect| {
+            types::CompleteAuthorizeRedirectResponse {
+                params: redirect.param,
+                payload: redirect.json_payload,
+            }
+        });
+
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
@@ -834,7 +884,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             email: payment_data.email,
             payment_method_data: payment_data.payment_method_data,
             connector_transaction_id: payment_data.connector_response.connector_transaction_id,
-            payload: json_payload,
+            redirect_response,
             connector_meta: payment_data.payment_attempt.connector_metadata,
         })
     }
@@ -850,4 +900,39 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             currency: Some(payment_data.currency),
         })
     }
+}
+
+pub fn fetch_order_details<F: Clone>(
+    additional_data: PaymentAdditionalData<'_, F>,
+    parsed_metadata: Option<api_models::payments::Metadata>,
+    payment_data: &PaymentData<F>,
+) -> RouterResult<Option<Vec<OrderDetailsWithAmount>>> {
+    let order_details_metadata_parsed = parsed_metadata.and_then(|data| data.order_details);
+    let order_details_outside_metadata_parsed =
+        match payment_data.payment_intent.order_details.clone() {
+            Some(order_details_outside_metadata_value) => {
+                let parsed_value = order_details_outside_metadata_value
+                    .iter()
+                    .map(|data| {
+                        data.peek()
+                            .to_owned()
+                            .parse_value("OrderDetailsWithAmount")
+                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "OrderDetailsWithAmount",
+                            })
+                            .attach_printable("unable to parse OrderDetailsWithAmount")
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Some(parsed_value)
+            }
+            None => None,
+        };
+    let order_details = match order_details_metadata_parsed {
+        Some(odm) => change_order_details_to_new_type(
+            additional_data.clone().payment_data.payment_intent.amount,
+            odm,
+        ),
+        None => order_details_outside_metadata_parsed,
+    };
+    Ok(order_details)
 }
