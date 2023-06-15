@@ -155,46 +155,6 @@ async fn create_applepay_session_token(
         .connectors_with_delayed_session_response;
 
     let connector_name = connector.connector_name;
-    let applepay_metadata = get_applepay_metadata(router_data.connector_meta_data.clone())?;
-
-    let amount_info = payment_types::AmountInfo {
-        label: applepay_metadata.data.payment_request_data.label,
-        total_type: Some("final".to_string()),
-        amount: connector::utils::to_currency_base_unit(
-            router_data.request.amount,
-            router_data.request.currency,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to convert currency to base unit")?,
-    };
-
-    let applepay_payment_request = payment_types::ApplePayPaymentRequest {
-        country_code: router_data
-            .request
-            .country
-            .to_owned()
-            .get_required_value("country_code")
-            .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "country_code",
-            })?,
-        currency_code: router_data.request.currency.to_string(),
-        total: amount_info,
-        merchant_capabilities: applepay_metadata
-            .data
-            .payment_request_data
-            .merchant_capabilities,
-        supported_networks: applepay_metadata
-            .data
-            .payment_request_data
-            .supported_networks,
-        merchant_identifier: Some(
-            applepay_metadata
-                .data
-                .session_token_data
-                .merchant_identifier,
-        ),
-    };
-
     let delayed_response = connectors_with_delayed_response.contains(&connector_name);
 
     if delayed_response {
@@ -209,6 +169,47 @@ async fn create_applepay_session_token(
             payment_types::NextActionCall::Confirm,
         )
     } else {
+        let applepay_metadata = get_applepay_metadata(router_data.connector_meta_data.clone())?;
+
+        let amount_info = payment_types::AmountInfo {
+            label: applepay_metadata.data.payment_request_data.label,
+            total_type: Some("final".to_string()),
+            amount: connector::utils::to_currency_base_unit(
+                router_data.request.amount,
+                router_data.request.currency,
+            )
+            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Failed to convert currency to base unit".to_string(),
+            })?,
+        };
+
+        let applepay_payment_request = payment_types::ApplePayPaymentRequest {
+            country_code: router_data
+                .request
+                .country
+                .to_owned()
+                .get_required_value("country_code")
+                .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "country_code",
+                })?,
+            currency_code: router_data.request.currency.to_string(),
+            total: amount_info,
+            merchant_capabilities: applepay_metadata
+                .data
+                .payment_request_data
+                .merchant_capabilities,
+            supported_networks: applepay_metadata
+                .data
+                .payment_request_data
+                .supported_networks,
+            merchant_identifier: Some(
+                applepay_metadata
+                    .data
+                    .session_token_data
+                    .merchant_identifier,
+            ),
+        };
+
         let applepay_session_request = mk_applepay_session_request(state, router_data)?;
         let response = services::call_connector_api(state, applepay_session_request).await;
 
