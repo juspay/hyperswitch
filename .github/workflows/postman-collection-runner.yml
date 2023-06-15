@@ -20,8 +20,8 @@ jobs:
       fail-fast: false
       matrix:
         connector:
-          - stripe
           - adyen
+          - stripe
 
     steps:
       - name: Checkout repository
@@ -35,6 +35,10 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
         shell: bash
         run: ./scripts/decrypt_connector_auth.sh
+
+      - name: Set connector auth file path in env
+        shell: bash
+        run: echo "CONNECTOR_CONFIG_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
 
       - name: Run Tests
         env:
