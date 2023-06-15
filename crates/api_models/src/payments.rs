@@ -50,8 +50,8 @@ pub struct CustomerDetails {
     /// The identifier for the customer.
     pub id: String,
 
-    /// The customer's email address
-    #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
+    /// The customer's name
+    #[schema(max_length = 255, value_type = Option<String>, example = "John Doe")]
     pub name: Option<Secret<String>>,
 
     /// The customer's email address
@@ -333,27 +333,6 @@ pub struct VerifyRequest {
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
-}
-
-impl From<PaymentsRequest> for VerifyRequest {
-    fn from(item: PaymentsRequest) -> Self {
-        Self {
-            client_secret: item.client_secret,
-            merchant_id: item.merchant_id,
-            customer_id: item.customer_id, //TODO: take from customer object
-            email: item.email,
-            name: item.name,
-            phone: item.phone,
-            phone_country_code: item.phone_country_code,
-            payment_method: item.payment_method,
-            payment_method_data: item.payment_method_data,
-            payment_token: item.payment_token,
-            mandate_data: item.mandate_data,
-            setup_future_usage: item.setup_future_usage,
-            off_session: item.off_session,
-            merchant_connector_details: item.merchant_connector_details,
-        }
-    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
