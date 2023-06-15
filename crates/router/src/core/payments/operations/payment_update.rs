@@ -1,7 +1,10 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
+use common_utils::{
+    ext_traits::{AsyncExt, Encode, ValueExt},
+    fp_utils,
+};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -528,6 +531,19 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
         {
             Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
         }
+
+        fp_utils::when(
+            request.customer.is_some()
+                && (request.customer_id.is_some()
+                    || request.name.is_some()
+                    || request.email.is_some()
+                    || request.phone.is_some()
+                    || request.phone_country_code.is_some()),
+            || {
+                Err(errors::ApiErrorResponse::PreconditionFailed { message: "The fields `name`, 'customer_id`, `email`, `phone`, `phone_country_code` will be deprecated soon, please use the `customer` field".to_string() })
+            },
+        )?;
+
         let given_payment_id = match &request.payment_id {
             Some(id_type) => Some(
                 id_type
