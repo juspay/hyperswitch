@@ -405,7 +405,16 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
         let business_label = Some(payment_data.payment_intent.business_label.clone());
         let business_country = Some(payment_data.payment_intent.business_country);
-
+        let description = payment_data.payment_intent.description.clone();
+        let statement_descriptor_name = payment_data
+            .payment_intent
+            .statement_descriptor_name
+            .clone();
+        let statement_descriptor_suffix = payment_data
+            .payment_intent
+            .statement_descriptor_suffix
+            .clone();
+        let client_secret = payment_data.payment_intent.client_secret.clone();
         payment_data.payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
@@ -420,6 +429,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     return_url,
                     business_country,
                     business_label,
+                    description,
+                    statement_descriptor_name,
+                    statement_descriptor_suffix,
+                    client_secret,
                 },
                 storage_scheme,
             )
