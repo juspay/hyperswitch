@@ -1,8 +1,6 @@
-use std::net::IpAddr;
-
 use api_models::payments::{ApplePayRedirectData, Card, GooglePayWalletData};
 use cards::CardNumber;
-use common_utils::{ext_traits::ValueExt, pii::Email};
+use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use ring::digest;
@@ -82,8 +80,8 @@ pub enum ZenPaymentChannels {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenCustomerDetails {
-    email: Email,
-    ip: IpAddr,
+    email: pii::Email,
+    ip: Secret<String, pii::IpAddress>,
 }
 
 #[derive(Debug, Serialize)]
@@ -93,7 +91,7 @@ pub struct ZenPaymentData {
     #[serde(rename = "type")]
     payment_type: ZenPaymentTypes,
     #[serde(skip_serializing_if = "Option::is_none")]
-    token: Option<String>,
+    token: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     card: Option<ZenCardDetails>,
     descriptor: String,
@@ -196,7 +194,9 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &GooglePayWalletData)> for Ze
             browser_details,
             //Connector Specific for wallet
             payment_type: ZenPaymentTypes::ExternalPaymentToken,
-            token: Some(gpay_pay_redirect_data.tokenization_data.token.clone()),
+            token: Some(Secret::new(
+                gpay_pay_redirect_data.tokenization_data.token.clone(),
+            )),
             card: None,
             descriptor: item.get_description()?.chars().take(24).collect(),
             return_verify_url: item.request.router_return_url.clone(),
@@ -323,7 +323,7 @@ fn get_signature_data(checkout_request: &CheckoutRequest) -> String {
 
 fn get_customer(
     item: &types::PaymentsAuthorizeRouterData,
-    ip: IpAddr,
+    ip: Secret<String, pii::IpAddress>,
 ) -> Result<ZenCustomerDetails, error_stack::Report<errors::ConnectorError>> {
     Ok(ZenCustomerDetails {
         email: item.request.get_email()?,
@@ -333,15 +333,18 @@ fn get_customer(
 
 fn get_item_object(
     item: &types::PaymentsAuthorizeRouterData,
-    amount: String,
+    _amount: String,
 ) -> Result<Vec<ZenItemObject>, error_stack::Report<errors::ConnectorError>> {
     let order_details = item.request.get_order_details()?;
-    Ok(vec![ZenItemObject {
-        name: order_details.product_name,
-        price: amount.clone(),
-        quantity: 1,
-        line_amount_total: amount,
-    }])
+    Ok(order_details
+        .iter()
+        .map(|data| ZenItemObject {
+            name: data.product_name.clone(),
+            quantity: data.quantity,
+            price: data.amount.to_string(),
+            line_amount_total: (i64::from(data.quantity) * data.amount).to_string(),
+        })
+        .collect())
 }
 
 fn get_browser_details(
@@ -690,10 +693,11 @@ pub enum ZenWebhookTxnType {
 
 #[derive(Debug, Deserialize)]
 pub struct ZenErrorResponse {
-    pub error: ZenErrorBody,
+    pub error: Option<ZenErrorBody>,
+    pub message: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ZenErrorBody {
     pub message: String,
     pub code: String,
