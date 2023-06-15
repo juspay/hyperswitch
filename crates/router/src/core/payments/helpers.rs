@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use ::cards as Card;
 use base64::Engine;
 use common_utils::{
-    ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
+    ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
     fp_utils, generate_id, pii,
 };
 // TODO : Evaluate all the helper functions ()
@@ -1002,7 +1002,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
             None => None,
             Some(customer_id) => db
                 .find_customer_optional_by_customer_id_merchant_id(customer_id, merchant_id)
-                .await?
+                .await? // if customer_id is present in payment_intent but not found in customer table then shouldn't an error be thrown ?
                 .map(Ok),
         },
     };
@@ -1753,6 +1753,7 @@ mod tests {
             active_attempt_id: "nopes".to_string(),
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
+            order_details: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -1792,6 +1793,7 @@ mod tests {
             active_attempt_id: "nopes".to_string(),
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
+            order_details: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -1831,6 +1833,7 @@ mod tests {
             active_attempt_id: "nopes".to_string(),
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
+            order_details: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2136,6 +2139,7 @@ impl AttemptType {
             straight_through_algorithm: old_payment_attempt.straight_through_algorithm,
             mandate_details: old_payment_attempt.mandate_details,
             preprocessing_step_id: None,
+            error_reason: None,
         }
     }
 
@@ -2210,4 +2214,106 @@ impl AttemptType {
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
         }
     }
+}
+
+pub fn validate_and_add_order_details_to_payment_intent(
+    payment_intent: &mut storage::payment_intent::PaymentIntent,
+    request: &api::PaymentsRequest,
+) -> RouterResult<()> {
+    let parsed_metadata_db: Option<api_models::payments::Metadata> = payment_intent
+        .metadata
+        .as_ref()
+        .map(|metadata_value| {
+            metadata_value
+                .peek()
+                .clone()
+                .parse_value("metadata")
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "metadata",
+                })
+                .attach_printable("unable to parse metadata")
+        })
+        .transpose()?;
+    let order_details_metadata_db = parsed_metadata_db
+        .as_ref()
+        .and_then(|meta| meta.order_details.to_owned());
+    let order_details_outside_metadata_db = payment_intent.order_details.as_ref();
+    let order_details_outside_metadata_req = request.order_details.as_ref();
+    let order_details_metadata_req = request
+        .metadata
+        .as_ref()
+        .and_then(|meta| meta.order_details.to_owned());
+
+    if order_details_metadata_db
+        .as_ref()
+        .zip(order_details_outside_metadata_db.as_ref())
+        .is_some()
+    {
+        Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payment intent in db".to_string() })?
+    }
+    let order_details_outside = match order_details_outside_metadata_req {
+        Some(order) => match order_details_metadata_db {
+            Some(_) => Err(errors::ApiErrorResponse::NotSupported {
+                message: "order_details previously present inside of metadata".to_string(),
+            })?,
+            None => Some(order),
+        },
+        None => match order_details_metadata_req {
+            Some(_order) => match order_details_outside_metadata_db {
+                Some(_) => Err(errors::ApiErrorResponse::NotSupported {
+                    message: "order_details previously present outside of metadata".to_string(),
+                })?,
+                None => None,
+            },
+            None => None,
+        },
+    };
+    add_order_details_and_metadata_to_payment_intent(
+        payment_intent,
+        request,
+        parsed_metadata_db,
+        &order_details_outside.map(|data| data.to_owned()),
+    )
+}
+
+pub fn add_order_details_and_metadata_to_payment_intent(
+    mut payment_intent: &mut storage::payment_intent::PaymentIntent,
+    request: &api::PaymentsRequest,
+    parsed_metadata_db: Option<api_models::payments::Metadata>,
+    order_details_outside: &Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+) -> RouterResult<()> {
+    let metadata_with_order_details = match request.metadata.as_ref() {
+        Some(meta) => {
+            let transformed_metadata = match parsed_metadata_db {
+                Some(meta_db) => api_models::payments::Metadata {
+                    order_details: meta.order_details.to_owned(),
+                    ..meta_db
+                },
+                None => meta.to_owned(),
+            };
+            let transformed_metadata_value =
+                Encode::<api_models::payments::Metadata>::encode_to_value(&transformed_metadata)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Encoding Metadata to value failed")?;
+            Some(masking::Secret::new(transformed_metadata_value))
+        }
+        None => None,
+    };
+    if let Some(order_details_outside_struct) = order_details_outside {
+        let order_details_outside_value = order_details_outside_struct
+            .iter()
+            .map(|order| {
+                Encode::<api_models::payments::OrderDetailsWithAmount>::encode_to_value(order)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .map(masking::Secret::new)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        payment_intent.order_details = Some(order_details_outside_value);
+    };
+
+    if metadata_with_order_details.is_some() {
+        payment_intent.metadata = metadata_with_order_details;
+    }
+
+    Ok(())
 }
