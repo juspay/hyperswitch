@@ -1,6 +1,8 @@
 name: Postman Collection API test
 
 on:
+  pull_request:
+
   schedule:
     # Run workflow at 6 AM and 6 PM IST
     - cron: "30 0,12 * * *"
@@ -14,26 +16,44 @@ jobs:
     name: Run Postman Collection on integ env
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        connector:
+          - stripe
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      #  Not installing the newman since it's already included in the Ubuntu image.
-      #- name: Install Newman
-      #  run: npm install -g newman
+      - name: Install JQ
+        run: sudo apt install -y jq
+      
+      - name: Decrypt connector auth file
+        env:
+          CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
+        shell: bash
+        run: ./scripts/decrypt_connector_auth.sh
 
-      # - name: Install portman
-      #   run: npm install -g @apideck/portman
+      - name: Set connector auth file path in env
+        shell: bash
+        run: echo "CONNECTOR_CONFIG_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
 
-      # - name: Generate postman collection
-      #   run: portman --cliOptionsFile postman/portman-cli.json
+      - name: Run Tests
+        env:
+          ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
+          BASE_URL: ${{ secrets.BASE_URL }}
+          MERCHANT_ID: ${{ secrets.MERCHANT_ID }}
+          CONNECTOR_CONFIG_PATH: ${{ env.CONNECTOR_CONFIG_PATH}}
+        shell: bash
+        run: ./scripts/postman_test_automation.sh ${{ matrix.connector }}
 
-  run_api_test_stripe:
-    name: Run Postman Collection
-    runs-on: ubuntu-latest
-    needs: api_tests
-    steps:
-      - name: Run Newman
-        run:
-          newman run postman/hyperswitch.postman_collection.json --env-var admin_api_key=${{ secrets.INTEG_ADMIN_API_KEY }} --env-var baseUrl=${{ secrets.INTEG_BASE_URL }} --env-var connector_api_key=${{ secrets.STRIPE_API_KEY }}
-          --env-var gateway_merchant_id=${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }} --env-var certificate=${{ secrets.STRIPE_GPAY_CERTIFICATE }} --env-var certificate_keys=${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
+  # run_api_test_stripe:
+  #   name: Run Postman Collection
+  #   runs-on: ubuntu-latest
+  #   needs: api_tests
+  #   steps:
+  #     - name: Run Newman
+  #       run:
+  #         newman run postman/hyperswitch.postman_collection.json --env-var admin_api_key=${{ secrets.INTEG_ADMIN_API_KEY }} --env-var baseUrl=${{ secrets.INTEG_BASE_URL }} --env-var connector_api_key=${{ secrets.STRIPE_API_KEY }}
+  #         --env-var gateway_merchant_id=${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }} --env-var certificate=${{ secrets.STRIPE_GPAY_CERTIFICATE }} --env-var certificate_keys=${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}

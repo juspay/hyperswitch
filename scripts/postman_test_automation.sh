@@ -1,9 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 
 # [ DECLARATIONS ] -----------------------------------------------------------------------
 # TOML_FILE=$HOME/target/test/connector_auth.toml
-TOML_FILE=crates/router/tests/connectors/auth.toml
-CONFIGS=configs.ini
+KEY_TYPE=""
 # COLLECTION=""
 
 ADMIN_API_KEY=""
@@ -65,27 +64,39 @@ tmp_path_collection_generation() {
 }
 
 get_api_keys() {
-  local input=$1
-  result=$(awk -v name="$input" -F ' // ' 'BEGIN{ flag=0 } /^\[.*\]/{ if ($1 == "["name"]") { flag=1 } else { flag=0 } } flag==1 && /^[^#]/ { print $0 }' "$TOML_FILE")
+    local input=$1
+    result=$(awk -v name="$input" -F ' // ' 'BEGIN{ flag=0 } /^\[.*\]/{ if ($1 == "["name"]") { flag=1 } else { flag=0 } } flag==1 && /^[^#]/ { print $0 }' "$CONNECTOR_CONFIG_PATH")
 
-  API_KEY=$(echo "$result" | awk -F ' = ' '$1 == "api_key" { print $2 }')
-  KEY1=$(echo "$result" | awk -F ' = ' '$1 == "key1" { print $2 }')
-  API_SECRET=$(echo "$result" | awk -F ' = ' '$1 == "api_secret" { print $2 }')
-}
+    API_KEY=$(echo "$result" | awk -F ' = ' '$1 == "api_key" { print $2 }')
+    KEY1=$(echo "$result" | awk -F ' = ' '$1 == "key1" { print $2 }')
+    API_SECRET=$(echo "$result" | awk -F ' = ' '$1 == "api_secret" { print $2 }')
 
-get_gh_secrets() {
-  input=$CONFIGS
-  ADMIN_API_KEY=$(awk 'NR==1 {print $0}' "$input")
-  BASE_URL=$(awk 'NR==2 {print $0}' "$input")
-  MERCHANT_ID=$(awk 'NR==3 {print $0}' "$input")
+    if [[ -n "$API_KEY" && -z "$KEY1" && -z "$API_SECRET" ]]; then
+        KEY_TYPE="HeaderKey"
+    elif [[ -n "$API_KEY" && -n "$KEY1" && -z "$API_SECRET" ]]; then
+        KEY_TYPE="BodyKey"
+    elif [[ -n "$API_KEY" && -n "$KEY1" && -n "$API_SECRET" ]]; then
+        KEY_TYPE="SignatureKey"
+    else
+        KEY_TYPE="Invalid"
+    fi
+
+
 }
 
 # [ MAIN ] -----------------------------------------------------------------------
 CONNECTOR_NAME=$1
 COLLECTOR_PATH="$(tmp_path_collection_generation $CONNECTOR_NAME)"
+
 get_api_keys "$CONNECTOR_NAME" > /dev/null
-get_gh_secrets > /dev/null
-echo "run" $COLLECTOR_PATH "--env-var admin_api_key=" $ADMIN_API_KEY "--env-var baseUrl=" $BASE_URL "--env-var connector_api_key=" $API_KEY "--env-var connector_api_secret=" $API_SECRET "--env-var connector_key1=" $KEY1 "--env-var gateway_merchant_id=" $MERCHANT_ID
+
+if [[ "$KEY_TYPE" == "HeaderKey" ]]; then
+    newman run $COLLECTOR_PATH --env-var admin_api_key=$ADMIN_API_KEY --env-var baseUrl=$BASE_URL --env-var connector_api_key=$API_KEY --env-var gateway_merchant_id=$MERCHANT_ID
+elif [[ "$KEY_TYPE" == "BodyKey" ]]; then
+    newman run $COLLECTOR_PATH --env-var admin_api_key=$ADMIN_API_KEY --env-var baseUrl=$BASE_URL --env-var connector_api_key=$API_KEY --env-var connector_key1=$KEY1 --env-var gateway_merchant_id=$MERCHANT_ID
+elif [[ "$KEY_TYPE" == "SignatureKey" ]]; then
+    newman run $COLLECTOR_PATH --env-var admin_api_key=$ADMIN_API_KEY --env-var baseUrl=$BASE_URL --env-var connector_api_key=$API_KEY --env-var connector_api_secret=$API_SECRET --env-var connector_key1=$KEY1 --env-var gateway_merchant_id=$MERCHANT_ID
+fi
 
 # for i in "${!CONNECTOR_NAME[@]}"; do
 #     x_val=$(get_api_keys "${CONNECTOR_NAME[$i]}")
