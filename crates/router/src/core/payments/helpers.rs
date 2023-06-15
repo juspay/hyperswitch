@@ -486,12 +486,12 @@ pub fn validate_card_data(
         )?;
 
         let card_expiration = Card::CardExpiration { month, year };
-        let expiry = card_expiration.is_expired().change_context(
+        let is_expired = card_expiration.is_expired().change_context(
             errors::ApiErrorResponse::PreconditionFailed {
                 message: "Invalid card data".to_string(),
             },
         )?;
-        if expiry {
+        if is_expired {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Card Expired".to_string()
             }))?
