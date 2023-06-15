@@ -1,6 +1,5 @@
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
-use error_stack::ResultExt;
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -8,7 +7,8 @@ use time::PrimitiveDateTime;
 
 use crate::{
     connector::utils::{
-        self, CardData, MandateReferenceData, PaymentsAuthorizeRequestData, RouterData,
+        self, BrowserInformationData, CardData, MandateReferenceData, PaymentsAuthorizeRequestData,
+        RouterData,
     },
     consts,
     core::errors,
@@ -20,7 +20,6 @@ use crate::{
         storage::enums as storage_enums,
         transformers::ForeignFrom,
     },
-    utils::OptionExt,
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -849,57 +848,14 @@ fn get_browser_info(
     {
         let info = item.request.get_browser_info()?;
         Ok(Some(AdyenBrowserInfo {
-            accept_header: info
-                .accept_header
-                .clone()
-                .get_required_value("accept_header")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "accept_header",
-                })?,
-            language: info
-                .language
-                .clone()
-                .get_required_value("language")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "language",
-                })?,
-            screen_height: info
-                .screen_height
-                .get_required_value("screen_height")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "screen_height",
-                })?,
-            screen_width: info
-                .screen_width
-                .get_required_value("screen_width")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "screen_width",
-                })?,
-            color_depth: info
-                .color_depth
-                .get_required_value("color_depth")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "color_depth",
-                })?,
-            user_agent: info
-                .user_agent
-                .clone()
-                .get_required_value("user_agent")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "user_agent",
-                })?,
-            time_zone_offset: info
-                .time_zone
-                .get_required_value("time_zone_offset")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "time_zone_offset",
-                })?,
-            java_enabled: info
-                .java_enabled
-                .get_required_value("java_enabled")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "java_enabled",
-                })?,
+            accept_header: info.get_accept_header()?,
+            language: info.get_language()?,
+            screen_height: info.get_screen_height()?,
+            screen_width: info.get_screen_width()?,
+            color_depth: info.get_color_depth()?,
+            user_agent: info.get_user_agent()?,
+            time_zone_offset: info.get_time_zone()?,
+            java_enabled: info.get_java_enabled()?,
         }))
     } else {
         Ok(None)
