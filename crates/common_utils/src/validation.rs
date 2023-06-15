@@ -98,7 +98,7 @@ mod tests {
     #[test_case("+41 79 123 45 67" ; "Swiss valid phone number")]
     #[test_case("+66 81 234 5678" ; "Thailand valid phone number")]
     fn test_validate_phone_number(phone_number: &str) {
-        validate_phone_number(phone_number).unwrap();
+        assert!(validate_phone_number(phone_number).is_ok());
     }
 
     #[test_case("0745323456" ; "Romanian invalid phone number")]
