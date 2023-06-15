@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# [ DECLARATIONS ] -----------------------------------------------------------------------
-# TOML_FILE=$HOME/target/test/connector_auth.toml
+# [ DECLARATIONS ]
 KEY_TYPE=""
 # COLLECTION=""
 
@@ -13,46 +12,31 @@ API_KEY=""
 API_SECRET=""
 KEY1=""
 
+# Unused as of now, will be useful once we start using this properly
 CERTIFICATE=$4
 CERTIFICATE_KEY=$5
 
-# Hard code as of now
+# Hard coded for now, this will be replaced by the below function in the coming days
 COLLECTION_NAME="{
-    \"stripe\":\"/postman/stripe.postman_collection.json\",
-    \"adyen\":\"/postman/adyen.postman_collection.json\"
+    \"stripe\":\"postman/stripe.postman_collection.json\",
+    \"adyen\":\"postman/adyen.postman_collection.json\"
 }"
 
 # [COMMENTING OUT FOR NOW - WILL BE USED LATER ONCE NOMENCLATURE IS DECIDED]
-# CONNECTOR_NAME=(
-#     "aci"
-#     "adyen"
-#     "authorizedotnet"
-#     "checkout"
-#     "cybersource"
-#     "shift4"
-#     "worldpay"
-#     "payu"
-#     "globalpay"
-#     "stripe"
-# )
+# [USAGE: Give the connector name below, put up the postman collection with the name as `<connector_name>.postman_collection.json`]
+# [ FUNCTIONS ]
+path_collection_generation() {
+    COLLECTION_ENTRY="\"$CONNECTOR_NAME\":\"postman/$CONNECTOR_NAME.postman_collection.json\""
+    
+    if [ -z "$COLLECTION" ]; then
+        COLLECTION="{ $COLLECTION_ENTRY"
+    else
+        COLLECTION="$COLLECTION, $COLLECTION_ENTRY"
+    fi
 
-# [ FUNCTIONS ] -----------------------------------------------------------------------
-# path_collection_generation() {
-#     for index in "${!CONNECTOR_NAME[@]}"; do
-#         key="${CONNECTOR_NAME[$index]}"
-#         COLLECTION_ENTRY="\"$key\":\"$key.postman_collection.json\""
-        
-#         if [ -z "$COLLECTION" ]; then
-#             COLLECTION="{ $COLLECTION_ENTRY"
-#         else
-#             COLLECTION="$COLLECTION, $COLLECTION_ENTRY"
-#         fi
-#     done
-
-#     COLLECTION="$COLLECTION }"
-
-#     echo $COLLECTION
-# }
+    COLLECTION="$COLLECTION }"
+    echo $COLLECTION
+}
 
 # COLLECTION_PATH=$(path_collection_generation)
 # echo $COLLECTION_PATH | jq --arg v "$1" ".[$v]"
@@ -84,11 +68,12 @@ get_api_keys() {
 
 }
 
-# [ MAIN ] -----------------------------------------------------------------------
+# [ MAIN ]
 CONNECTOR_NAME=$1
 COLLECTOR_PATH="$(tmp_path_collection_generation $CONNECTOR_NAME)"
 
 get_api_keys "$CONNECTOR_NAME" > /dev/null
+path_collection_generation
 
 if [[ "$KEY_TYPE" == "HeaderKey" ]]; then
     newman run $COLLECTOR_PATH --env-var admin_api_key=$ADMIN_API_KEY --env-var baseUrl=$BASE_URL --env-var connector_api_key=$API_KEY --env-var gateway_merchant_id=$MERCHANT_ID
