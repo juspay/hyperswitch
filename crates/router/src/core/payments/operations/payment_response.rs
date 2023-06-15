@@ -284,7 +284,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     }
 }
 
-async fn payment_response_update_tracker<F: Clone, T>(
+async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     db: &dyn StorageInterface,
     _payment_id: &api::PaymentIdType,
     mut payment_data: PaymentData<F>,
@@ -428,10 +428,11 @@ async fn payment_response_update_tracker<F: Clone, T>(
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
         None => payment_data.connector_response,
     };
+    let amount = router_data.request.get_capture_amount();
 
     let amount_captured = router_data.amount_captured.or_else(|| {
         if router_data.status == enums::AttemptStatus::Charged {
-            Some(payment_data.payment_intent.amount)
+            amount
         } else {
             None
         }
