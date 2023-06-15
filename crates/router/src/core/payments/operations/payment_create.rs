@@ -74,12 +74,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )
             .await?;
 
+        let customer_details = helpers::get_customer_details_from_request(request);
+
         let shipping_address = helpers::get_address_for_payment_request(
             db,
             request.shipping.as_ref(),
             None,
             merchant_id,
-            &request.customer_id,
+            customer_details.customer_id.as_ref(),
         )
         .await?;
 
@@ -88,7 +90,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             request.billing.as_ref(),
             None,
             merchant_id,
-            &request.customer_id,
+            customer_details.customer_id.as_ref(),
         )
         .await?;
 
@@ -256,13 +258,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 ephemeral_key,
                 redirect_response: None,
             },
-            Some(CustomerDetails {
-                customer_id: request.customer_id.clone(),
-                name: request.name.clone(),
-                email: request.email.clone(),
-                phone: request.phone.clone(),
-                phone_country_code: request.phone_country_code.clone(),
-            }),
+            Some(customer_details),
         ))
     }
 }

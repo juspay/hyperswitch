@@ -96,7 +96,7 @@ pub async fn get_address_for_payment_request(
     req_address: Option<&api::Address>,
     address_id: Option<&str>,
     merchant_id: &str,
-    customer_id: &Option<String>,
+    customer_id: Option<&String>,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     let key = types::get_merchant_enc_key(db, merchant_id.to_string())
         .await
@@ -460,7 +460,7 @@ fn validate_new_mandate_request(
     is_confirm_operation: bool,
 ) -> RouterResult<()> {
     // We need not check for customer_id in the confirm request if it is already passed
-    //in create request
+    // in create request
 
     fp_utils::when(!is_confirm_operation && req.customer_id.is_none(), || {
         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -808,6 +808,30 @@ pub async fn get_customer_from_details<F: Clone>(
             Ok(customer)
         }
     }
+}
+
+/// Get the customer details from customer field if present
+/// or from the individual fields in `PaymentsRequest`
+pub fn get_customer_details_from_request(
+    request: &api_models::payments::PaymentsRequest,
+) -> CustomerDetails {
+    request
+        .customer
+        .as_ref()
+        .map(|customer_details| CustomerDetails {
+            customer_id: Some(customer_details.id.clone()),
+            name: customer_details.name.clone(),
+            email: customer_details.email.clone(),
+            phone: customer_details.phone.clone(),
+            phone_country_code: customer_details.phone_country_code.clone(),
+        })
+        .unwrap_or(CustomerDetails {
+            customer_id: request.customer_id.clone(),
+            name: request.name.clone(),
+            email: request.email.clone(),
+            phone: request.phone.clone(),
+            phone_country_code: request.phone_country_code.clone(),
+        })
 }
 
 pub async fn get_connector_default(
