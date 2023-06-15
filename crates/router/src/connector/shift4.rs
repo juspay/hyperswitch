@@ -178,37 +178,36 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         router_data: &mut types::PaymentsAuthorizeRouterData,
         app_state: &routes::AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
-        match router_data.auth_type {
-            storage_models::enums::AuthenticationType::ThreeDs => {
-                let integ: Box<
-                    &(dyn ConnectorIntegration<
-                        api::InitPayment,
-                        types::PaymentsAuthorizeData,
-                        types::PaymentsResponseData,
-                    > + Send
-                          + Sync
-                          + 'static),
-                > = Box::new(&Self);
-                let init_data = &types::PaymentsInitRouterData::from((
-                    &router_data.to_owned(),
-                    router_data.request.clone(),
-                ));
-                let init_resp = services::execute_connector_processing_step(
-                    app_state,
-                    integ,
-                    init_data,
-                    payments::CallConnectorAction::Trigger,
-                )
-                .await?;
-                if init_resp.request.enrolled_for_3ds {
-                    router_data.response = init_resp.response;
-                    router_data.status = init_resp.status;
-                } else {
-                    router_data.request.enrolled_for_3ds = false;
-                }
+        if router_data.auth_type == storage_models::enums::AuthenticationType::ThreeDs
+            && router_data.payment_method == storage_models::enums::PaymentMethod::Card
+        {
+            let integ: Box<
+                &(dyn ConnectorIntegration<
+                    api::InitPayment,
+                    types::PaymentsAuthorizeData,
+                    types::PaymentsResponseData,
+                > + Send
+                      + Sync
+                      + 'static),
+            > = Box::new(&Self);
+            let init_data = &types::PaymentsInitRouterData::from((
+                &router_data.to_owned(),
+                router_data.request.clone(),
+            ));
+            let init_resp = services::execute_connector_processing_step(
+                app_state,
+                integ,
+                init_data,
+                payments::CallConnectorAction::Trigger,
+            )
+            .await?;
+            if init_resp.request.enrolled_for_3ds {
+                router_data.response = init_resp.response;
+                router_data.status = init_resp.status;
+            } else {
+                router_data.request.enrolled_for_3ds = false;
             }
-            storage_models::enums::AuthenticationType::NoThreeDs => (),
-        };
+        }
         Ok(())
     }
 
