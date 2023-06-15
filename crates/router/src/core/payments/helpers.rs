@@ -935,7 +935,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
             None => None,
             Some(customer_id) => db
                 .find_customer_optional_by_customer_id_merchant_id(customer_id, merchant_id)
-                .await?
+                .await? // if customer_id is present in payment_intent but not found in customer table then shouldn't an error be thrown ?
                 .map(Ok),
         },
     };
