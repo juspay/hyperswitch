@@ -2,11 +2,8 @@ name: Postman Collection Api test
 
 on:
   schedule:
-      - cron: "0 6,18 * * *"
-  
-
-env:
-  TZ: 'Asia/Kolkata' 
+    # Run workflow at 6 AM and 6 PM IST
+    - cron: "30 0,12 * * *"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
