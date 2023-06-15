@@ -21,6 +21,7 @@ jobs:
       matrix:
         connector:
           - stripe
+          - adyen
 
     steps:
       - name: Checkout repository
