@@ -231,7 +231,7 @@ fn get_card_request_data(
             cvv: ccard.card_cvc.clone(),
             expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
             cardholder: ccard.card_holder_name.clone(),
-            reference: item.attempt_id.clone(),
+            reference: item.payment_id.clone(),
             redirect_url: return_url,
             billing_city: params.billing_city,
             billing_country: params.billing_country,
