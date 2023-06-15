@@ -20,10 +20,7 @@ pub enum StripeErrorCode {
     InvalidRequestUrl,
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "parameter_missing", message = "Missing required param: {field_name}.")]
-    ParameterMissing {
-        field_name: &'static str,
-        param: &'static str,
-    },
+    ParameterMissing { field_name: String, param: String },
 
     #[error(
         error_type = StripeErrorType::InvalidRequestError, code = "parameter_unknown",
@@ -42,6 +39,9 @@ pub enum StripeErrorCode {
 
     #[error(error_type = StripeErrorType::ApiError, code = "payment_intent_payment_attempt_failed", message = "Capture attempt failed while processing with connector.")]
     PaymentIntentPaymentAttemptFailed { data: Option<serde_json::Value> },
+
+    #[error(error_type = StripeErrorType::ApiError, code = "dispute_failure", message = "Dispute failed while processing with connector. Retry operation.")]
+    DisputeFailed { data: Option<serde_json::Value> },
 
     #[error(error_type = StripeErrorType::CardError, code = "expired_card", message = "Card Expired. Please use another card")]
     ExpiredCard,
@@ -201,6 +201,8 @@ pub enum StripeErrorCode {
     FileNotAvailable,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "There was an issue with processing webhooks")]
     WebhookProcessingError,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "payment_method_unactivated", message = "The operation cannot be performed as the payment method used has not been activated. Activate the payment method in the Dashboard, then try again.")]
+    PaymentMethodUnactivated,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -301,7 +303,6 @@ pub enum StripeErrorCode {
         PaymentMethodMicrodepositVerificationTimeout,
         PaymentMethodProviderDecline,
         PaymentMethodProviderTimeout,
-        PaymentMethodUnactivated,
         PaymentMethodUnexpectedState,
         PaymentMethodUnsupportedType,
         PayoutsNotAllowed,
@@ -373,8 +374,15 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::InvalidCardIinLength => Self::InvalidRequestUrl,
             errors::ApiErrorResponse::MissingRequiredField { field_name } => {
                 Self::ParameterMissing {
-                    field_name,
-                    param: field_name,
+                    field_name: field_name.to_string(),
+                    param: field_name.to_string(),
+                }
+            }
+            errors::ApiErrorResponse::MissingRequiredFields { field_names } => {
+                // Instead of creating a new error variant in StripeErrorCode for MissingRequiredFields, converted vec<&str> to String
+                Self::ParameterMissing {
+                    field_name: field_names.clone().join(", "),
+                    param: field_names.clone().join(", "),
                 }
             }
             // parameter unknown, invalid request error // actually if we type wrong values in address we get this error. Stripe throws parameter unknown. I don't know if stripe is validating email and stuff
@@ -400,6 +408,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::PaymentCaptureFailed { data } => {
                 Self::PaymentIntentPaymentAttemptFailed { data }
             }
+            errors::ApiErrorResponse::DisputeFailed { data } => Self::DisputeFailed { data },
             errors::ApiErrorResponse::InvalidCardData { data } => Self::InvalidCardType, // Maybe it is better to de generalize this router error
             errors::ApiErrorResponse::CardExpired { data } => Self::ExpiredCard,
             errors::ApiErrorResponse::RefundNotPossible { connector } => Self::RefundFailed,
@@ -458,8 +467,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::PreconditionFailed { message }
             }
             errors::ApiErrorResponse::InvalidDataValue { field_name } => Self::ParameterMissing {
-                field_name,
-                param: field_name,
+                field_name: field_name.to_string(),
+                param: field_name.to_string(),
             },
             errors::ApiErrorResponse::MaximumRefundCount => Self::MaximumRefundCount,
             errors::ApiErrorResponse::PaymentNotSucceeded => Self::PaymentFailed,
@@ -503,7 +512,11 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::WebhookBadRequest
             | errors::ApiErrorResponse::WebhookResourceNotFound
             | errors::ApiErrorResponse::WebhookProcessingFailure
-            | errors::ApiErrorResponse::WebhookAuthenticationFailed => Self::WebhookProcessingError,
+            | errors::ApiErrorResponse::WebhookAuthenticationFailed
+            | errors::ApiErrorResponse::WebhookUnprocessableEntity => Self::WebhookProcessingError,
+            errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration => {
+                Self::PaymentMethodUnactivated
+            }
         }
     }
 }
@@ -539,6 +552,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::DuplicatePaymentMethod
             | Self::PaymentFailed
             | Self::VerificationFailed { .. }
+            | Self::DisputeFailed { .. }
             | Self::MaximumRefundCount
             | Self::PaymentIntentInvalidParameter { .. }
             | Self::SerdeQsError { .. }
@@ -559,7 +573,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::MissingFilePurpose
             | Self::MissingDisputeId
             | Self::FileNotFound
-            | Self::FileNotAvailable => StatusCode::BAD_REQUEST,
+            | Self::FileNotAvailable
+            | Self::PaymentMethodUnactivated => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::InternalServerError
             | Self::MandateActive

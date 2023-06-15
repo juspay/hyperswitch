@@ -9,7 +9,7 @@ pub mod transformers;
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
 use api_models::payments::Metadata;
-use common_utils::pii::Email;
+use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
@@ -122,7 +122,6 @@ where
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
-        &payment_data.payment_attempt.connector.clone(),
         &customer,
         &merchant_account,
         &mut payment_data,
@@ -365,6 +364,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                     json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
                 }),
                 allowed_payment_method_types: None,
+                order_category: None,
             }),
             ..Default::default()
         };
@@ -639,7 +639,6 @@ where
 
 pub async fn call_create_connector_customer_if_required<F, Req>(
     state: &AppState,
-    connector_name: &Option<String>,
     customer: &Option<domain::Customer>,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<F>,
@@ -658,17 +657,32 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, Req>,
 {
+    let connector_name = payment_data.payment_attempt.connector.clone();
+
     match connector_name {
         Some(connector_name) => {
             let connector = api::ConnectorData::get_connector_by_name(
                 &state.conf.connectors,
-                connector_name,
+                &connector_name,
                 api::GetToken::Connector,
             )?;
-            let (is_eligible, connector_customer_id, connector_customer_map) =
-                customers::should_call_connector_create_customer(state, &connector, customer)?;
 
-            if is_eligible {
+            let connector_label = helpers::get_connector_label(
+                payment_data.payment_intent.business_country,
+                &payment_data.payment_intent.business_label,
+                payment_data.payment_attempt.business_sub_label.as_ref(),
+                &connector_name,
+            );
+
+            let (should_call_connector, existing_connector_customer_id) =
+                customers::should_call_connector_create_customer(
+                    state,
+                    &connector,
+                    customer,
+                    &connector_label,
+                );
+
+            if should_call_connector {
                 // Create customer at connector and update the customer table to store this data
                 let router_data = payment_data
                     .construct_router_data(
@@ -679,15 +693,23 @@ where
                     )
                     .await?;
 
-                let (connector_customer, customer_update) = router_data
-                    .create_connector_customer(state, &connector, connector_customer_map)
+                let connector_customer_id = router_data
+                    .create_connector_customer(state, &connector)
                     .await?;
 
-                payment_data.connector_customer_id = connector_customer;
+                let customer_update = customers::update_connector_customer_in_customers(
+                    &connector_label,
+                    customer.as_ref(),
+                    &connector_customer_id,
+                )
+                .await;
+
+                payment_data.connector_customer_id = connector_customer_id;
                 Ok(customer_update)
             } else {
                 // Customer already created in previous calls use the same value, no need to update
-                payment_data.connector_customer_id = connector_customer_id;
+                payment_data.connector_customer_id =
+                    existing_connector_customer_id.map(ToOwned::to_owned);
                 Ok(None)
             }
         }
@@ -915,7 +937,11 @@ where
 pub enum CallConnectorAction {
     Trigger,
     Avoid,
-    StatusUpdate(storage_enums::AttemptStatus),
+    StatusUpdate {
+        status: storage_enums::AttemptStatus,
+        error_code: Option<String>,
+        error_message: Option<String>,
+    },
     HandleResponse(Vec<u8>),
 }
 
@@ -936,6 +962,7 @@ where
     pub connector_response: storage::ConnectorResponse,
     pub amount: api::Amount,
     pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_connector: Option<String>,
     pub currency: storage_enums::Currency,
     pub setup_mandate: Option<api::MandateData>,
     pub address: PaymentAddress,
@@ -947,7 +974,7 @@ where
     pub disputes: Vec<storage::Dispute>,
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<Secret<String>>,
-    pub email: Option<Email>,
+    pub email: Option<pii::Email>,
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
@@ -959,7 +986,7 @@ where
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
     pub name: Option<Secret<String, masking::WithType>>,
-    pub email: Option<Email>,
+    pub email: Option<pii::Email>,
     pub phone: Option<Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
 }

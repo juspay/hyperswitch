@@ -45,7 +45,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
         helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-        let mandate_type = helpers::validate_mandate(request)?;
+        let mandate_type =
+            helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
         let validation_id = core_utils::get_or_generate_id("validation_id", &None, "val")?;
 
         Ok((
@@ -165,6 +166,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 amount: api::Amount::Zero,
                 email: None,
                 mandate_id: None,
+                mandate_connector: None,
                 setup_mandate: request.mandate_data.clone(),
                 token: request.payment_token.clone(),
                 connector_response,

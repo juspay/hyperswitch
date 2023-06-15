@@ -186,6 +186,14 @@ pub struct PaymentsRequest {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     pub metadata: Option<Metadata>,
 
+    /// Information about the product , quantity and amount for connectors. (e.g. Klarna)
+    #[schema(value_type = Option<Vec<OrderDetailsWithAmount>>, example = r#"[{
+        "product_name": "gillete creme",
+        "quantity": 15,
+        "amount" : 900
+    }]"#)]
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+
     /// It's a token used for client side verification.
     #[schema(example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
     pub client_secret: Option<String>,
@@ -432,7 +440,7 @@ pub enum AcceptanceType {
 pub struct OnlineMandate {
     /// Ip address of the customer machine from which the mandate was created
     #[schema(value_type = String, example = "123.32.25.123")]
-    pub ip_address: Secret<String, pii::IpAddress>,
+    pub ip_address: Option<Secret<String, pii::IpAddress>>,
     /// The user-agent of the customer's browser
     pub user_agent: String,
 }
@@ -726,14 +734,20 @@ pub enum BankRedirectData {
     },
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AchBillingDetails {
+    /// The Email ID for ACH billing
+    #[schema(value_type = String, example = "example@me.com")]
     pub email: Email,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SepaAndBacsBillingDetails {
+    /// The Email ID for SEPA and BACS billing
+    #[schema(value_type = String, example = "example@me.com")]
     pub email: Email,
+    /// The billing name for SEPA and BACS billing
+    #[schema(value_type = String, example = "Jane Doe")]
     pub name: Secret<String>,
 }
 
@@ -762,13 +776,19 @@ pub struct BankRedirectBilling {
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferData {
     AchBankTransfer {
+        /// The billing details for ACH Bank Transfer
         billing_details: AchBillingDetails,
     },
     SepaBankTransfer {
+        /// The billing details for SEPA
         billing_details: SepaAndBacsBillingDetails,
+
+        /// The two-letter ISO country code for SEPA and BACS
+        #[schema(value_type = CountryAlpha2, example = "US")]
         country: api_enums::CountryAlpha2,
     },
     BacsBankTransfer {
+        /// The billing details for SEPA
         billing_details: SepaAndBacsBillingDetails,
     },
 }
@@ -792,6 +812,8 @@ pub enum WalletData {
     AliPay(AliPayRedirection),
     /// The wallet data for Apple pay
     ApplePay(ApplePayWalletData),
+    /// Wallet data for apple pay redirect flow
+    ApplePayRedirect(Box<ApplePayRedirectData>),
     /// The wallet data for Google pay
     GooglePay(GooglePayWalletData),
     MbWay(Box<MbWayRedirection>),
@@ -818,6 +840,9 @@ pub struct GooglePayWalletData {
     /// The tokenization data of Google pay
     pub tokenization_data: GpayTokenizationData,
 }
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ApplePayRedirectData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct WeChatPayRedirection {}
@@ -1082,48 +1107,65 @@ pub enum NextActionData {
     },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct BankTransferNextStepsData {
+    /// The instructions for performing a bank transfer
     #[serde(flatten)]
     pub bank_transfer_instructions: BankTransferInstructions,
+    /// The details received by the receiver
     pub receiver: ReceiverDetails,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferInstructions {
+    /// The credit transfer for ACH transactions
     AchCreditTransfer(Box<AchTransfer>),
+    /// The instructions for SEPA bank transactions
     SepaBankInstructions(Box<SepaBankTransferInstructions>),
+    /// The instructions for BACS bank transactions
     BacsBankInstructions(Box<BacsBankTransferInstructions>),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SepaBankTransferInstructions {
+    #[schema(value_type = String, example = "Jane Doe")]
     pub account_holder_name: Secret<String>,
+    #[schema(value_type = String, example = "1024419982")]
     pub bic: Secret<String>,
     pub country: String,
+    #[schema(value_type = String, example = "123456789")]
     pub iban: Secret<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct BacsBankTransferInstructions {
+    #[schema(value_type = String, example = "Jane Doe")]
     pub account_holder_name: Secret<String>,
+    #[schema(value_type = String, example = "10244123908")]
     pub account_number: Secret<String>,
+    #[schema(value_type = String, example = "012")]
     pub sort_code: Secret<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AchTransfer {
+    #[schema(value_type = String, example = "122385736258")]
     pub account_number: Secret<String>,
     pub bank_name: String,
+    #[schema(value_type = String, example = "012")]
     pub routing_number: Secret<String>,
+    #[schema(value_type = String, example = "234")]
     pub swift_code: Secret<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ReceiverDetails {
+    /// The amount received by receiver
     amount_received: i64,
+    /// The amount charged by ACH
     amount_charged: Option<i64>,
+    /// The amount remaining to be sent via ACH
     amount_remaining: Option<i64>,
 }
 
@@ -1241,6 +1283,14 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<Object>)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
+    /// Information about the product , quantity and amount for connectors. (e.g. Klarna)
+    #[schema(value_type = Option<Vec<OrderDetailsWithAmount>>, example = r#"[{
+        "product_name": "gillete creme",
+        "quantity": 15,
+        "amount" : 900
+    }]"#)]
+    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+
     /// description: The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
     pub email: crypto::OptionalEncryptableEmail,
@@ -1296,7 +1346,7 @@ pub struct PaymentsResponse {
     pub connector_label: Option<String>,
 
     /// The business country of merchant for this payment
-    #[schema(value_type = CountryAlpha2)]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     pub business_country: api_enums::CountryAlpha2,
 
     /// The business label of merchant for this payment
@@ -1540,6 +1590,18 @@ pub struct PaymentsRetrieveRequest {
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct OrderDetailsWithAmount {
+    /// Name of the product that is being purchased
+    #[schema(max_length = 255, example = "shirt")]
+    pub product_name: String,
+    /// The quantity of the product to be purchased
+    #[schema(example = 1)]
+    pub quantity: u16,
+    /// the amount per quantity of product
+    pub amount: i64,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct OrderDetails {
     /// Name of the product that is being purchased
     #[schema(max_length = 255, example = "shirt")]
@@ -1559,8 +1621,11 @@ pub struct Metadata {
     #[schema(value_type = Object, example = r#"{ "city": "NY", "unit": "245" }"#)]
     #[serde(flatten)]
     pub data: pii::SecretSerdeValue,
+    /// Information about the order category that merchant wants to specify at connector level. (e.g. In Noon Payments it can take values like "pay", "food", or any other custom string set by the merchant in Noon's Dashboard)
+    pub order_category: Option<String>,
 
     /// Redirection response coming in request as metadata field only for redirection scenarios
+    #[schema(value_type = Option<RedirectResponse>)]
     pub redirect_response: Option<RedirectResponse>,
 
     /// Allowed payment method types for a payment intent
@@ -1570,6 +1635,7 @@ pub struct Metadata {
 
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct RedirectResponse {
+    #[schema(value_type = Option<String>)]
     pub param: Option<Secret<String>>,
     #[schema(value_type = Option<Object>)]
     pub json_payload: Option<pii::SecretSerdeValue>,
@@ -1671,6 +1737,12 @@ pub struct ApplepaySessionRequest {
     pub display_name: String,
     pub initiative: String,
     pub initiative_context: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ConnectorMetadata {
+    pub apple_pay: Option<ApplePayMetadata>,
+    pub google_pay: Option<GpayMetaData>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
