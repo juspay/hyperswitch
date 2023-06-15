@@ -2,7 +2,7 @@ name: Postman Collection Api test
 
 on:
   schedule:
-      - cron: "15 0 * * *"
+      - cron: "0 6,18 * * *"
   
 
 env:
@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v3
       
       - name: Install Newman
         run: npm install -g newman
@@ -31,7 +31,7 @@ jobs:
       #   run: portman --cliOptionsFile postman/portman-cli.json
 
   run_api_test_stripe:
-    name: Run Postman Collection on integ env
+    name: Run Postman Collection
     runs-on: ubuntu-latest
     needs: init_api_tests
     steps:
