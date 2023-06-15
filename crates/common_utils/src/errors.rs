@@ -29,7 +29,7 @@ pub enum ParsingError {
     /// Failed to parse email
     #[error("Failed to parse email")]
     EmailParsingError,
-    /// Failed to parse email
+    /// Failed to parse phone number
     #[error("Failed to parse phone number")]
     PhoneNumberParsingError,
 }
