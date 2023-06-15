@@ -114,18 +114,14 @@ impl MandateInterface for MockDb {
         merchant_id: &str,
         mandate_id: &str,
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
-        match self
-            .mandates
+        self.mandates
             .lock()
             .await
             .iter()
             .find(|mandate| mandate.merchant_id == merchant_id && mandate.mandate_id == mandate_id)
-        {
-            Some(mandate) => Ok(mandate.clone()),
-            None => {
-                Err(errors::StorageError::ValueNotFound("mandate not found".to_string()).into())
-            }
-        }
+            .map(|mandate| mandate.clone())
+            .ok_or_else(|| errors::StorageError::ValueNotFound("mandate not found".to_string()))
+            .map_err(|err| err.into())
     }
 
     async fn find_mandate_by_merchant_id_customer_id(
@@ -214,7 +210,10 @@ impl MandateInterface for MockDb {
 
         let mandates: Vec<storage::Mandate> = if let Some(limit) = mandate_constraints.limit {
             #[allow(clippy::as_conversions)]
-            mandates_iter.take(limit as usize).cloned().collect()
+            mandates_iter
+                .take((if limit < 0 { 0 } else { limit }) as usize)
+                .cloned()
+                .collect()
         } else {
             mandates_iter.cloned().collect()
         };
