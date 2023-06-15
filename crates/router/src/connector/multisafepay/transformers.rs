@@ -31,6 +31,7 @@ pub enum Gateway {
     Visa,
     Klarna,
     Googlepay,
+    Paypal,
 }
 
 #[serde_with::skip_serializing_none]
@@ -222,14 +223,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let payment_type = match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref _ccard) => Type::Direct,
-            api::PaymentMethodData::Wallet(api::WalletData::GooglePay(_)) => Type::Direct,
+            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                api::WalletData::GooglePay(_) => Type::Direct,
+                api::WalletData::PaypalRedirect(_) => Type::Redirect,
+                _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()))?
+            }
             api::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
             _ => Type::Redirect,
         };
 
         let gateway = match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref ccard) => Gateway::try_from(ccard.get_card_issuer()?)?,
-            api::PaymentMethodData::Wallet(api::WalletData::GooglePay(_)) => Gateway::Googlepay,
+            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                api::WalletData::GooglePay(_) => Gateway::Googlepay,
+                api::WalletData::PaypalRedirect(_) => Gateway::Paypal,
+                _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()))?
+            }
             api::PaymentMethodData::PayLater(
                 api_models::payments::PayLaterData::KlarnaRedirect {
                     billing_email: _,
@@ -291,7 +300,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
         };
 
         let gateway_info = match item.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => GatewayInfo {
+            api::PaymentMethodData::Card(ref ccard) => Some(GatewayInfo {
                 card_number: Some(ccard.card_number.clone()),
                 card_expiry_date: Some(
                     (format!(
@@ -309,9 +318,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                 term_url: None,
                 email: None,
                 payment_token: None,
-            },
-            api::PaymentMethodData::Wallet(api::WalletData::GooglePay(ref google_pay)) => {
-                GatewayInfo {
+            }),
+            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                api::WalletData::GooglePay(ref google_pay) => Some(GatewayInfo {
                     card_number: None,
                     card_holder_name: None,
                     card_expiry_date: None,
@@ -321,9 +330,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                     term_url: None,
                     email: None,
                     payment_token: Some(google_pay.tokenization_data.token.clone()),
-                }
+            }),
+            api::WalletData::PaypalRedirect(_) => None, 
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()))?
             }
-            api::PaymentMethodData::PayLater(ref paylater) => GatewayInfo {
+            api::PaymentMethodData::PayLater(ref paylater) => Some(GatewayInfo {
                 card_number: None,
                 card_expiry_date: None,
                 card_cvc: None,
@@ -341,7 +352,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                     ))?,
                 }),
                 payment_token: None,
-            },
+            }),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method".to_string(),
             ))?,
@@ -357,7 +368,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             payment_options: Some(payment_options),
             customer: Some(customer),
             delivery: Some(delivery),
-            gateway_info: Some(gateway_info),
+            gateway_info: gateway_info,
             checkout_options: None,
             shopping_cart: None,
             capture: None,
