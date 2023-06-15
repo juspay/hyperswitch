@@ -429,6 +429,7 @@ diesel::table! {
         straight_through_algorithm -> Nullable<Jsonb>,
         preprocessing_step_id -> Nullable<Varchar>,
         mandate_details -> Nullable<Jsonb>,
+        error_reason -> Nullable<Text>,
     }
 }
 
