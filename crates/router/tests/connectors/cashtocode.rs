@@ -36,6 +36,7 @@ static CONNECTOR: CashtocodeTest = CashtocodeTest {};
 
 impl CashtocodeTest {
     fn get_payment_authorize_data(
+        payment_method_type: Option<PaymentMethodType>,
         payment_method_data: types::api::PaymentMethodData,
     ) -> Option<types::PaymentsAuthorizeData> {
         Some(types::PaymentsAuthorizeData {
@@ -55,7 +56,7 @@ impl CashtocodeTest {
             order_category: None,
             email: None,
             payment_experience: None,
-            payment_method_type: None,
+            payment_method_type,
             session_token: None,
             enrolled_for_3ds: false,
             related_transaction_id: None,
@@ -86,12 +87,12 @@ impl CashtocodeTest {
 
 //fetch payurl for payment's create
 #[actix_web::test]
-async fn should_fetch_pay_url() {
+async fn should_fetch_pay_url_classic() {
     let authorize_response = CONNECTOR
         .make_payment(
             CashtocodeTest::get_payment_authorize_data(
+                Some(enums::PaymentMethodType::Classic),
                 api_models::payments::PaymentMethodData::Reward(api_models::payments::RewardData {
-                    reward_type: api_models::payments::RewardType::Classic,
                     mid: "1bc20b0a".to_owned(),
                 }),
             ),
@@ -103,4 +104,23 @@ async fn should_fetch_pay_url() {
         authorize_response.status,
         enums::AttemptStatus::AuthenticationPending
     );
+}
+
+async fn should_fetch_pay_url_evoucher() {
+    let authorize_response = CONNECTOR
+    .make_payment(
+        CashtocodeTest::get_payment_authorize_data(
+            Some(enums::PaymentMethodType::Evoucher),
+            api_models::payments::PaymentMethodData::Reward(api_models::payments::RewardData {
+                mid: "befb46ee".to_owned(),
+            }),
+        ),
+        CashtocodeTest::get_payment_info(),
+    )
+    .await
+    .unwrap();
+assert_eq!(
+    authorize_response.status,
+    enums::AttemptStatus::AuthenticationPending
+);
 }

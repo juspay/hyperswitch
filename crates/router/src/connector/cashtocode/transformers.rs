@@ -9,8 +9,7 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsRequest {
     amount: i64,
@@ -83,8 +82,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
 pub struct CashtocodeAuthType {
     pub(super) api_key: String,
 }
@@ -102,7 +99,7 @@ impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
 }
 // PaymentsResponse
 //TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CashtocodePaymentStatus {
     Succeeded,
@@ -121,7 +118,7 @@ impl From<CashtocodePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CashtocodeErrors {
     pub message: String,
     pub path: String,
@@ -129,7 +126,7 @@ pub struct CashtocodeErrors {
     pub event_type: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsResponse {
     pub pay_url: String,
@@ -207,14 +204,14 @@ impl<F, T>
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct CashtocodeErrorResponse {
     pub error: String,
     pub error_description: String,
     pub errors: Option<Vec<CashtocodeErrors>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodeIncomingWebhook {
     pub amount: i64,
@@ -225,7 +222,7 @@ pub struct CashtocodeIncomingWebhook {
     pub transaction_id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodeObjectId {
     pub transaction_id: String,

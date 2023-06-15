@@ -20,6 +20,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
+        storage::{self}
     },
     utils::{self, ByteSliceExt, BytesExt},
 };
@@ -41,29 +42,34 @@ impl api::RefundExecute for Cashtocode {}
 impl api::RefundSync for Cashtocode {}
 
 fn get_auth_cashtocode(
-    payment_method_data: &api::payments::PaymentMethodData,
+    payment_method_type: &Option<storage::enums::PaymentMethodType>,
     auth_type: &types::ConnectorAuthType,
 ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-    match payment_method_data {
-        api_models::payments::PaymentMethodData::Reward(reward_data) => {
-            match reward_data.reward_type {
-                api_models::payments::RewardType::Classic => match auth_type {
+
+            match payment_method_type.clone().ok_or_else(conn_utils::missing_field_err("payment_method_type")) {
+                Ok(reward_type) =>
+                match reward_type {
+                    storage::enums::PaymentMethodType::Classic => match auth_type {
                     types::ConnectorAuthType::BodyKey { api_key, key1: _ } => Ok(vec![(
                         headers::AUTHORIZATION.to_string(),
                         format!("Basic {}", api_key).into_masked(),
                     )]),
                     _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-                },
-                api_models::payments::RewardType::Evoucher => match auth_type {
+                    },
+                    storage::enums::PaymentMethodType::Evoucher => match auth_type {
                     types::ConnectorAuthType::BodyKey { api_key: _, key1 } => Ok(vec![(
                         headers::AUTHORIZATION.to_string(),
                         format!("Basic {}", key1.to_owned()).into_masked(),
                     )]),
                     _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
                 },
-            }
-        }
-        _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+                _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                    message: reward_type.to_string(),
+                    connector: "cashtocode",
+                    payment_experience: "Try with a different payment method".to_string(),
+                })),
+            },
+                Err(_) => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
     }
 }
 
@@ -155,7 +161,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .into(),
         )];
         let auth_differentiator =
-            get_auth_cashtocode(&req.request.payment_method_data, &req.connector_auth_type);
+            get_auth_cashtocode(&req.request.payment_method_type, &req.connector_auth_type);
 
         let mut api_key = match auth_differentiator {
             Ok(auth_type) => auth_type,
@@ -241,32 +247,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Cashtocode
 {
-    fn get_headers(
-        &self,
-        _req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_headers method".to_string()).into())
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
     fn build_request(
         &self,
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(None)
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Payments Sync".to_string(),
+            connector: "Cashtocode".to_string(),
+        }.into())
     }
 
     fn handle_response(
@@ -293,11 +282,31 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
     for Cashtocode
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Capture".to_string(),
+            connector: "Cashtocode".to_string(),
+        }.into())
+    }
 }
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Cashtocode
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Payments Cancel".to_string(),
+            connector: "Cashtocode".to_string(),
+        }.into())
+    }
 }
 
 #[async_trait::async_trait]
@@ -317,12 +326,16 @@ impl api::IncomingWebhook for Cashtocode {
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let key = format!("wh_mer_sec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .get_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-
-        Ok(secret)
+        let secret = match db.find_config_by_key(&key).await {
+            Ok(config) => Some(config),
+            Err(e) => {
+                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
+                None
+            }
+        };
+        Ok(secret
+            .map(|conf| conf.config.into_bytes())
+            .unwrap_or_default())
     }
 
     async fn verify_webhook_source(
@@ -381,10 +394,10 @@ impl api::IncomingWebhook for Cashtocode {
         let webhook: transformers::CashtocodeIncomingWebhook = request
             .body
             .parse_struct("CashtocodeIncomingWebhook")
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let res_json =
             utils::Encode::<transformers::CashtocodeIncomingWebhook>::encode_to_value(&webhook)
-                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         Ok(res_json)
     }
@@ -395,17 +408,12 @@ impl api::IncomingWebhook for Cashtocode {
     ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
     {
         let status = "EXECUTED".to_string();
-        let id = self
-            .get_webhook_object_reference_id(request)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let txn_id = match id {
-            api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(connector_txn_id),
-            ) => connector_txn_id,
-            _ => return Err(errors::ConnectorError::MissingConnectorTransactionID).into_report(),
-        };
+        let obj: transformers::CashtocodeObjectId = request
+            .body
+            .parse_struct("CashtocodeObjectId")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         let response: serde_json::Value =
-            serde_json::json!({ "status": status, "transactionId" : txn_id});
+            serde_json::json!({ "status": status, "transactionId" : obj.transaction_id});
         Ok(services::api::ApplicationResponse::Json(response))
     }
 }
@@ -413,9 +421,29 @@ impl api::IncomingWebhook for Cashtocode {
 impl ConnectorIntegration<api::refunds::Execute, types::RefundsData, types::RefundsResponseData>
     for Cashtocode
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<api::refunds::Execute, types::RefundsData, types::RefundsResponseData>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Refunds".to_string(),
+            connector: "Cashtocode".to_string(),
+        }.into())
+    }
 }
 
 impl ConnectorIntegration<api::refunds::RSync, types::RefundsData, types::RefundsResponseData>
     for Cashtocode
 {
+    fn build_request(
+        &self,
+        _req: &types::RouterData<api::refunds::RSync, types::RefundsData, types::RefundsResponseData>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Refund Sync".to_string(),
+            connector: "Cashtocode".to_string(),
+        }.into())
+    }
 }

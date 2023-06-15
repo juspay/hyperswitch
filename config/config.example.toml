@@ -195,7 +195,6 @@ cards = [
     "authorizedotnet",
     "coinbase",
     "braintree",
-    "cashtocode",
     "checkout",
     "cybersource",
     "globalpay",

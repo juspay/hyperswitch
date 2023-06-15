@@ -63,7 +63,6 @@ cards = [
     "bitpay",
     "bluesnap",
     "braintree",
-    "cashtocode",
     "checkout",
     "coinbase",
     "cybersource",

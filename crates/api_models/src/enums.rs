@@ -670,7 +670,6 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
-    Cashtocode,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "dummyconnector1")]
     #[strum(serialize = "dummyconnector1")]
@@ -691,6 +690,7 @@ pub enum RoutableConnectors {
     Bambora,
     Bluesnap,
     Braintree,
+    Cashtocode,
     Checkout,
     Coinbase,
     Cybersource,

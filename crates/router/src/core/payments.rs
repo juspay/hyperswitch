@@ -933,7 +933,7 @@ where
     Ok(payment_data_and_tokenization_action)
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum CallConnectorAction {
     Trigger,
     Avoid,
