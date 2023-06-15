@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::payments::BankRedirectData;
-use common_utils::{errors::CustomResult, pii::Email};
+use common_utils::{errors::CustomResult, pii};
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use reqwest::Url;
@@ -131,9 +131,9 @@ pub struct PaymentRequestCards {
     #[serde(rename = "billing[postcode]")]
     pub billing_postcode: Secret<String>,
     #[serde(rename = "customer[email]")]
-    pub customer_email: Email,
+    pub customer_email: pii::Email,
     #[serde(rename = "customer[ipAddress]")]
-    pub customer_ip_address: std::net::IpAddr,
+    pub customer_ip_address: Secret<String, pii::IpAddress>,
     #[serde(rename = "browser[acceptHeader]")]
     pub browser_accept_header: String,
     #[serde(rename = "browser[language]")]
@@ -885,7 +885,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = format!(
             "{:.2}",
-            utils::to_currency_base_unit(item.request.amount, item.request.currency)?
+            utils::to_currency_base_unit(item.request.refund_amount, item.request.currency)?
                 .parse::<f64>()
                 .into_report()
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?
@@ -1169,6 +1169,12 @@ pub struct TrustpayErrorResponse {
     pub status: i64,
     pub description: Option<String>,
     pub errors: Vec<Errors>,
+}
+
+#[derive(Deserialize)]
+pub struct TrustPayTransactionStatusErrorResponse {
+    pub status: i64,
+    pub payment_description: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

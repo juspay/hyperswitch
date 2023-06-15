@@ -36,6 +36,8 @@ pub struct PaymentIntent {
     pub active_attempt_id: String,
     pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
+    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
+    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
 }
 
 #[derive(
@@ -78,6 +80,8 @@ pub struct PaymentIntentNew {
     pub active_attempt_id: String,
     pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
+    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
+    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -120,6 +124,8 @@ pub enum PaymentIntentUpdate {
         statement_descriptor_name: Option<String>,
         statement_descriptor_suffix: Option<String>,
         client_secret: Option<String>,
+        order_details: Option<Vec<pii::SecretSerdeValue>>,
+        metadata: Option<pii::SecretSerdeValue>,
     },
     PaymentAttemptUpdate {
         active_attempt_id: String,
@@ -153,6 +159,8 @@ pub struct PaymentIntentUpdateInternal {
     pub description: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
+    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
 }
 
 impl PaymentIntentUpdate {
@@ -180,6 +188,7 @@ impl PaymentIntentUpdate {
                 .shipping_address_id
                 .or(source.shipping_address_id),
             modified_at: common_utils::date_time::now(),
+            order_details: internal_update.order_details.or(source.order_details),
             ..source
         }
     }
@@ -202,6 +211,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 description,
                 statement_descriptor_name,
                 statement_descriptor_suffix,
+                order_details,
+                metadata,
                 ..
             } => Self {
                 amount: Some(amount),
@@ -219,6 +230,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 description,
                 statement_descriptor_name,
                 statement_descriptor_suffix,
+                order_details,
+                metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate { metadata } => Self {

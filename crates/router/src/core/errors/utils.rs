@@ -50,6 +50,8 @@ pub trait ConnectorErrorExt {
     fn to_payment_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
     #[track_caller]
     fn to_verify_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
+    #[track_caller]
+    fn to_dispute_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
 }
 
 impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
@@ -148,6 +150,36 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
             }
         };
         self.change_context(data)
+    }
+
+    fn to_dispute_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse> {
+        let error = match self.current_context() {
+            errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
+                let response_str = std::str::from_utf8(bytes);
+                let data = match response_str {
+                    Ok(s) => serde_json::from_str(s)
+                        .map_err(
+                            |error| logger::error!(%error,"Failed to convert response to JSON"),
+                        )
+                        .ok(),
+                    Err(error) => {
+                        logger::error!(%error,"Failed to convert response to UTF8 string");
+                        None
+                    }
+                };
+                errors::ApiErrorResponse::DisputeFailed { data }
+            }
+            errors::ConnectorError::MissingRequiredField { field_name } => {
+                errors::ApiErrorResponse::MissingRequiredField { field_name }
+            }
+            errors::ConnectorError::MissingRequiredFields { field_names } => {
+                errors::ApiErrorResponse::MissingRequiredFields {
+                    field_names: field_names.to_vec(),
+                }
+            }
+            _ => errors::ApiErrorResponse::InternalServerError,
+        };
+        self.change_context(error)
     }
 }
 

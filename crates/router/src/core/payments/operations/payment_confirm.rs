@@ -70,6 +70,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             "confirm",
         )?;
 
+        let _ = helpers::validate_and_add_order_details_to_payment_intent(
+            &mut payment_intent,
+            request,
+        )?;
+
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
@@ -415,6 +420,9 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .statement_descriptor_suffix
             .clone();
         let client_secret = payment_data.payment_intent.client_secret.clone();
+        let order_details = payment_data.payment_intent.order_details.clone();
+        let metadata = payment_data.payment_intent.metadata.clone();
+
         payment_data.payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
@@ -433,6 +441,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     statement_descriptor_name,
                     statement_descriptor_suffix,
                     client_secret,
+                    order_details,
+                    metadata,
                 },
                 storage_scheme,
             )
@@ -464,6 +474,18 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
+        let order_details_inside_metadata = request
+            .metadata
+            .as_ref()
+            .and_then(|meta| meta.order_details.to_owned());
+        if request
+            .order_details
+            .as_ref()
+            .zip(order_details_inside_metadata)
+            .is_some()
+        {
+            Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
+        }
         let given_payment_id = match &request.payment_id {
             Some(id_type) => Some(
                 id_type
