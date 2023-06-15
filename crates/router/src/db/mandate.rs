@@ -119,7 +119,7 @@ impl MandateInterface for MockDb {
             .await
             .iter()
             .find(|mandate| mandate.merchant_id == merchant_id && mandate.mandate_id == mandate_id)
-            .map(|mandate| mandate.clone())
+            .cloned()
             .ok_or_else(|| errors::StorageError::ValueNotFound("mandate not found".to_string()))
             .map_err(|err| err.into())
     }
