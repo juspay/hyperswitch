@@ -21,7 +21,7 @@ pub struct ConnectorAuthentication {
     pub dummyconnector: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,
     pub forte: Option<MultiAuthKey>,
-    pub globalpay: Option<HeaderKey>,
+    pub globalpay: Option<BodyKey>,
     pub iatapay: Option<SignatureKey>,
     pub mollie: Option<HeaderKey>,
     pub multisafepay: Option<HeaderKey>,
