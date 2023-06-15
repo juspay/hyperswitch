@@ -397,7 +397,7 @@ impl<T: Clone, S: masking::Strategy<T>> Encryptable<masking::Secret<T, S>> {
 
 impl<T: Clone> Encryptable<T> {
     ///
-    /// Get the inner data while consumping self
+    /// Get the inner data while consuming self
     ///
     #[inline]
     pub fn into_inner(self) -> T {
@@ -405,7 +405,7 @@ impl<T: Clone> Encryptable<T> {
     }
 
     ///
-    /// Get the inner data while consumping self
+    /// Get the reference to inner value
     ///
     #[inline]
     pub fn get_inner(&self) -> &T {
