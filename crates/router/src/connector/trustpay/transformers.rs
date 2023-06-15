@@ -885,7 +885,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = format!(
             "{:.2}",
-            utils::to_currency_base_unit(item.request.amount, item.request.currency)?
+            utils::to_currency_base_unit(item.request.refund_amount, item.request.currency)?
                 .parse::<f64>()
                 .into_report()
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?

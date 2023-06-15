@@ -1121,20 +1121,20 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 };
                 Ok(AdyenPaymentMethod::AdyenPaypal(Box::new(wallet)))
             }
-            api_models::payments::WalletData::AliPay(_) => {
+            api_models::payments::WalletData::AliPayRedirect(_) => {
                 let alipay_data = AliPayData {
                     payment_type: PaymentType::Alipay,
                 };
                 Ok(AdyenPaymentMethod::AliPay(Box::new(alipay_data)))
             }
-            api_models::payments::WalletData::MbWay(data) => {
+            api_models::payments::WalletData::MbWayRedirect(data) => {
                 let mbway_data = MbwayData {
                     payment_type: PaymentType::Mbway,
                     telephone_number: data.telephone_number.clone(),
                 };
                 Ok(AdyenPaymentMethod::Mbway(Box::new(mbway_data)))
             }
-            api_models::payments::WalletData::MobilePay(_) => {
+            api_models::payments::WalletData::MobilePayRedirect(_) => {
                 let data = MobilePayData {
                     payment_type: PaymentType::MobilePay,
                 };
@@ -1171,12 +1171,12 @@ impl<'a> TryFrom<&api::PayLaterData> for AdyenPaymentMethod<'a> {
                     payment_type: PaymentType::Afterpaytouch,
                 })))
             }
-            api_models::payments::PayLaterData::PayBright { .. } => {
+            api_models::payments::PayLaterData::PayBrightRedirect { .. } => {
                 Ok(AdyenPaymentMethod::PayBright(Box::new(PayBrightData {
                     payment_type: PaymentType::PayBright,
                 })))
             }
-            api_models::payments::PayLaterData::Walley { .. } => {
+            api_models::payments::PayLaterData::WalleyRedirect { .. } => {
                 Ok(AdyenPaymentMethod::Walley(Box::new(WalleyData {
                     payment_type: PaymentType::Walley,
                 })))
