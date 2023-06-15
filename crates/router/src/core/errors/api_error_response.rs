@@ -97,6 +97,8 @@ pub enum ApiErrorResponse {
         status_code: u16,
         reason: Option<String>,
     },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_22", message = "Access forbidden. Not authorized to access this resource")]
+    AccessForbidden,
     #[error(error_type = ErrorType::ProcessingError, code = "CE_01", message = "Payment failed during authorization with connector. Retry payment")]
     PaymentAuthorizationFailed { data: Option<serde_json::Value> },
     #[error(error_type = ErrorType::ProcessingError, code = "CE_02", message = "Payment failed during authentication with connector. Retry payment")]
@@ -243,6 +245,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
             }
+            Self::AccessForbidden => StatusCode::FORBIDDEN, // 403
             Self::InvalidRequestUrl | Self::WebhookResourceNotFound => StatusCode::NOT_FOUND, // 404
             Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED,                        // 405
             Self::MissingRequiredField { .. }
@@ -422,6 +425,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 reason,
                 status_code,
             } => AER::ConnectorError(ApiError::new("CE", 0, format!("{code}: {message}"), Some(Extra {connector: Some(connector.clone()), reason: reason.clone(), ..Default::default()})), StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)),
+            Self::AccessForbidden => AER::ForbiddenCommonResource(ApiError::new("IR", 22, "Access forbidden. Not authorized to access this resource", None)),
             Self::PaymentAuthorizationFailed { data } => {
                 AER::BadRequest(ApiError::new("CE", 1, "Payment failed during authorization with connector. Retry payment", Some(Extra { data: data.clone(), ..Default::default()})))
             }
