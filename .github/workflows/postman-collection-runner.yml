@@ -1,4 +1,4 @@
-name: Postman Collection Api test 
+name: Postman Collection API test
 
 on:
   schedule:
@@ -17,14 +17,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      
+
       #  Not installing the newman since it's already included in the Ubuntu image.
       #- name: Install Newman
       #  run: npm install -g newman
-      
+
       # - name: Install portman
       #   run: npm install -g @apideck/portman
-      
+
       # - name: Generate postman collection
       #   run: portman --cliOptionsFile postman/portman-cli.json
 
@@ -34,6 +34,6 @@ jobs:
     needs: api_tests
     steps:
       - name: Run Newman
-        run: newman run postman/hyperswitch.postman_collection.json --env-var admin_api_key=${{ secrets.INTEG_ADMIN_API_KEY }} --env-var baseUrl=${{ secrets.INTEG_BASE_URL }} --env-var connector_api_key=${{ secrets.STRIPE_API_KEY }} 
-             --env-var gateway_merchant_id=${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }} --env-var certificate=${{ secrets.STRIPE_GPAY_CERTIFICATE }} --env-var certificate_keys=${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
-            
+        run:
+          newman run postman/hyperswitch.postman_collection.json --env-var admin_api_key=${{ secrets.INTEG_ADMIN_API_KEY }} --env-var baseUrl=${{ secrets.INTEG_BASE_URL }} --env-var connector_api_key=${{ secrets.STRIPE_API_KEY }}
+          --env-var gateway_merchant_id=${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }} --env-var certificate=${{ secrets.STRIPE_GPAY_CERTIFICATE }} --env-var certificate_keys=${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
