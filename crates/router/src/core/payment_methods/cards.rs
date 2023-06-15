@@ -262,12 +262,6 @@ pub async fn add_card_hs(
     let db = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
 
-    let _ = merchant_account
-        .locker_id
-        .to_owned()
-        .get_required_value("locker_id")
-        .change_context(errors::VaultError::SaveCardFailed)?;
-
     let request =
         payment_methods::mk_add_card_request_hs(jwekey, locker, &card, &customer_id, merchant_id)
             .await?;
@@ -1568,6 +1562,10 @@ pub async fn list_customer_payment_method(
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
 
+    db.find_customer_by_customer_id_merchant_id(customer_id, &merchant_account.merchant_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_list(
             customer_id,
@@ -1576,11 +1574,6 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
     //let mca = query::find_mca_by_merchant_id(conn, &merchant_account.merchant_id)?;
-    if resp.is_empty() {
-        return Err(error_stack::report!(
-            errors::ApiErrorResponse::PaymentMethodNotFound
-        ));
-    }
     let mut customer_pms = Vec::new();
     for pm in resp.into_iter() {
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");

@@ -19,7 +19,7 @@
 - [ ] This PR modifies the database schema
 - [ ] This PR modifies application configuration/environment variables
 
-<!-- 
+<!--
 Provide links to the files with corresponding changes.
 
 Following are the paths where you can find config files:
