@@ -148,7 +148,7 @@ pub enum ApiErrorResponse {
     MandateUpdateFailed,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "API Key does not exist in our records")]
     ApiKeyNotFound,
-    #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Unable to find the mandate in our records.")]
+    #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Invalid mandate id passed from connector")]
     MandateSerializationFailed,
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Unable to parse the mandate identifier passed from connector")]
     MandateDeserializationFailed,
