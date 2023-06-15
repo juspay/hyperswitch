@@ -1,0 +1,1 @@
+ALTER TABLE payment_intent DROP COLUMN order_details;
