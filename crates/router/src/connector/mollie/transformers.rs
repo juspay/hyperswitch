@@ -113,11 +113,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
         };
         let description = item.get_description()?;
         let redirect_url = item.request.get_return_url()?;
-        let card_token = item.payment_method_token.clone().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "cardtoken",
-            },
-        )?;
+        let card_token = item.get_payment_method_token()?;
         let payment_method_data = match item.request.capture_method.unwrap_or_default() {
             enums::CaptureMethod::Automatic => match &item.request.payment_method_data {
                 api_models::payments::PaymentMethodData::Card(_) => Ok(
