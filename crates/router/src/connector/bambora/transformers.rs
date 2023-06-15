@@ -10,6 +10,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, storage::enums},
+    utils::OptionExt,
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -55,24 +56,77 @@ pub struct BamboraPaymentsRequest {
     card: BamboraCard,
 }
 
-fn get_browser_info(item: &types::PaymentsAuthorizeRouterData) -> Option<BamboraBrowserInfo> {
+fn get_browser_info(
+    item: &types::PaymentsAuthorizeRouterData,
+) -> Result<Option<BamboraBrowserInfo>, error_stack::Report<errors::ConnectorError>> {
     if matches!(item.auth_type, enums::AuthenticationType::ThreeDs) {
         item.request
             .browser_info
             .as_ref()
-            .map(|info| BamboraBrowserInfo {
-                accept_header: info.accept_header.clone(),
-                java_enabled: info.java_enabled,
-                language: info.language.clone(),
-                color_depth: info.color_depth,
-                screen_height: info.screen_height,
-                screen_width: info.screen_width,
-                time_zone: info.time_zone,
-                user_agent: info.user_agent.clone(),
-                javascript_enabled: info.java_script_enabled,
+            .map(|info| {
+                Ok(BamboraBrowserInfo {
+                    accept_header: info
+                        .accept_header
+                        .clone()
+                        .get_required_value("accept_header")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "accept_header",
+                        })?,
+                    java_enabled: info
+                        .java_enabled
+                        .get_required_value("java_enabled")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "java_enabled",
+                        })?,
+                    language: info
+                        .language
+                        .clone()
+                        .get_required_value("language")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "language",
+                        })?,
+                    screen_height: info
+                        .screen_height
+                        .get_required_value("screen_height")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "screen_height",
+                        })?,
+                    screen_width: info
+                        .screen_width
+                        .get_required_value("screen_width")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "screen_width",
+                        })?,
+                    color_depth: info
+                        .color_depth
+                        .get_required_value("color_depth")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "color_depth",
+                        })?,
+                    user_agent: info
+                        .user_agent
+                        .clone()
+                        .get_required_value("user_agent")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "user_agent",
+                        })?,
+                    time_zone: info
+                        .time_zone
+                        .get_required_value("time_zone")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "time_zone",
+                        })?,
+                    javascript_enabled: info
+                        .java_script_enabled
+                        .get_required_value("javascript_enabled")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "javascript_enabled",
+                        })?,
+                })
             })
+            .transpose()
     } else {
-        None
+        Ok(None)
     }
 }
 
@@ -80,10 +134,11 @@ impl TryFrom<&types::CompleteAuthorizeData> for BamboraThreedsContinueRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &types::CompleteAuthorizeData) -> Result<Self, Self::Error> {
         let card_response: CardResponse = value
-            .payload
-            .clone()
+            .redirect_response
+            .as_ref()
+            .and_then(|f| f.payload.to_owned())
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "payload",
+                field_name: "redirect_response.payload",
             })?
             .parse_value("CardResponse")
             .change_context(errors::ConnectorError::ParsingFailed)?;
@@ -103,7 +158,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                 let three_ds = match item.auth_type {
                     enums::AuthenticationType::ThreeDs => Some(ThreeDSecure {
                         enabled: true,
-                        browser: get_browser_info(item),
+                        browser: get_browser_info(item)?,
                         version: Some(2),
                         auth_required: Some(true),
                     }),

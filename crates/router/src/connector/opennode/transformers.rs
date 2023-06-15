@@ -56,6 +56,8 @@ pub enum OpennodePaymentStatus {
     Processing,
     Underpaid,
     Refunded,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<OpennodePaymentStatus> for enums::AttemptStatus {
@@ -209,12 +211,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct OpennodeErrorResponse {
-    pub status_code: u16,
-    pub code: String,
     pub message: String,
-    pub reason: Option<String>,
 }
 
 fn get_crypto_specific_payment_data(
@@ -225,7 +224,7 @@ fn get_crypto_specific_payment_data(
     let description = item.get_description()?;
     let auto_settle = true;
     let success_url = item.get_return_url()?;
-    let callback_url = item.request.get_router_return_url()?;
+    let callback_url = item.request.get_webhook_url()?;
 
     Ok(OpennodePaymentsRequest {
         amount,

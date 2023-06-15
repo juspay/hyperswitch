@@ -405,7 +405,7 @@ pub struct ResultCode {
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct ErrorParameters {
     pub(super) name: String,
-    pub(super) value: String,
+    pub(super) value: Option<String>,
     pub(super) message: String,
 }
 

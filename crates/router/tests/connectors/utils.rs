@@ -508,6 +508,7 @@ impl Default for PaymentAuthorizeType {
             setup_mandate_details: None,
             browser_info: Some(BrowserInfoType::default().0),
             order_details: None,
+            order_category: None,
             email: None,
             session_token: None,
             enrolled_for_3ds: false,
@@ -548,15 +549,15 @@ impl Default for PaymentCancelType {
 impl Default for BrowserInfoType {
     fn default() -> Self {
         let data = types::BrowserInformation {
-            user_agent: "".to_string(),
-            accept_header: "".to_string(),
-            language: "nl-NL".to_string(),
-            color_depth: 24,
-            screen_height: 723,
-            screen_width: 1536,
-            time_zone: 0,
-            java_enabled: true,
-            java_script_enabled: true,
+            user_agent: Some("".to_string()),
+            accept_header: Some("".to_string()),
+            language: Some("nl-NL".to_string()),
+            color_depth: Some(24),
+            screen_height: Some(723),
+            screen_width: Some(1536),
+            time_zone: Some(0),
+            java_enabled: Some(true),
+            java_script_enabled: Some(true),
             ip_address: Some("127.0.0.1".parse().unwrap()),
         };
         Self(data)

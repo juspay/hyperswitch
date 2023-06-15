@@ -9,7 +9,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage},
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -20,8 +20,8 @@ impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::Pay
         &self,
         state: &AppState,
         connector_id: &str,
-        merchant_account: &storage::MerchantAccount,
-        customer: &Option<storage::Customer>,
+        merchant_account: &domain::MerchantAccount,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<types::VerifyRouterData> {
         transformers::construct_payment_router_data::<api::Verify, types::VerifyRequestData>(
             state,
@@ -40,9 +40,9 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<storage::Customer>,
+        customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self> {
         self.decide_flow(
             state,
@@ -59,7 +59,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
@@ -84,14 +84,12 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
-    ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)> {
+    ) -> RouterResult<Option<String>> {
         customers::create_connector_customer(
             state,
             connector,
             self,
             types::ConnectorCustomerData::try_from(self.request.to_owned())?,
-            connector_customer_map,
         )
         .await
     }
@@ -115,10 +113,10 @@ impl types::VerifyRouterData {
         &'b self,
         state: &'a AppState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<storage::Customer>,
+        maybe_customer: &Option<domain::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {

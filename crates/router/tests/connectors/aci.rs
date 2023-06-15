@@ -53,6 +53,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             capture_method: None,
             browser_info: None,
             order_details: None,
+            order_category: None,
             email: None,
             session_token: None,
             enrolled_for_3ds: false,
