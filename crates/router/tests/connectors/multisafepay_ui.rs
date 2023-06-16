@@ -16,9 +16,7 @@ async fn should_make_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!(
-                "https://hs-payments-test.netlify.app/saved/153".to_string()
-            ))),
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/153"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css("button[class='btn btn-default']"))),
             Event::Assert(Assert::IsPresent("succeeded")),
