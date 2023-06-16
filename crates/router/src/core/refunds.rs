@@ -191,7 +191,7 @@ pub async fn trigger_refund_to_gateway(
             payments::CallConnectorAction::Trigger,
         )
         .await
-        .map_err(|error| error.to_refund_failed_response())?
+        .to_refund_failed_response()?
     } else {
         router_data
     };
@@ -410,7 +410,7 @@ pub async fn sync_refund_with_gateway(
             payments::CallConnectorAction::Trigger,
         )
         .await
-        .map_err(|error| error.to_refund_failed_response())?
+        .to_refund_failed_response()?
     } else {
         router_data
     };
