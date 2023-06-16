@@ -154,8 +154,8 @@ impl ForeignFrom<(bool, AdyenStatus)> for storage_enums::AttemptStatus {
             AdyenStatus::AuthenticationNotRequired => Self::Pending,
             AdyenStatus::Authorised => match is_manual_capture {
                 true => Self::Authorized,
-                // Final outcome of the payment can be confirmed only through webhooks
-                false => Self::Pending,
+                // In case of Automatic capture Authorized is the final status of the payment
+                false => Self::Charged,
             },
             AdyenStatus::Cancelled => Self::Voided,
             AdyenStatus::ChallengeShopper | AdyenStatus::RedirectShopper => {
