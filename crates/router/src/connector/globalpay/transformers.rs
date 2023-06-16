@@ -12,7 +12,7 @@ use super::{
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData, RouterData, WalletData},
+    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData, WalletData},
     consts,
     core::errors,
     services::{self, RedirectForm},
@@ -340,7 +340,7 @@ fn get_payment_method_data(
         api::PaymentMethodData::Card(ccard) => Ok(PaymentMethodData::Card(requests::Card {
             number: ccard.card_number.clone(),
             expiry_month: ccard.card_exp_month.clone(),
-            expiry_year: ccard.card_exp_year.clone(),
+            expiry_year: ccard.get_card_expiry_year_2_digit(),
             cvv: ccard.card_cvc.clone(),
             account_type: None,
             authcode: None,

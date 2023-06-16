@@ -307,7 +307,16 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        let response: trustpay::TrustPayTransactionStatusErrorResponse = res
+            .response
+            .parse_struct("trustpay transaction status ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.status.to_string(),
+            message: response.payment_description,
+            reason: None,
+        })
     }
 
     fn handle_response(
@@ -802,9 +811,11 @@ impl services::ConnectorRedirectResponse for Trustpay {
         Ok(query.status.map_or(
             payments::CallConnectorAction::Trigger,
             |status| match status.as_str() {
-                "SuccessOk" => payments::CallConnectorAction::StatusUpdate(
-                    storage_models::enums::AttemptStatus::Charged,
-                ),
+                "SuccessOk" => payments::CallConnectorAction::StatusUpdate {
+                    status: storage_models::enums::AttemptStatus::Charged,
+                    error_code: None,
+                    error_message: None,
+                },
                 _ => payments::CallConnectorAction::Trigger,
             },
         ))

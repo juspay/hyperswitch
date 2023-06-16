@@ -174,6 +174,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::BankRedirectBilling,
         api_models::payments::BankRedirectBilling,
         api_models::payments::OrderDetails,
+        api_models::payments::OrderDetailsWithAmount,
         api_models::payments::NextActionType,
         api_models::payments::Metadata,
         api_models::payments::WalletData,

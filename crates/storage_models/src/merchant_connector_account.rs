@@ -1,5 +1,8 @@
+use std::fmt::Debug;
+
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use masking::Secret;
 
 use crate::{encryption::Encryption, enums as storage_enums, schema::merchant_connector_account};
 
@@ -29,7 +32,7 @@ pub struct MerchantConnectorAccount {
     pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
     pub business_sub_label: Option<String>,
-    pub frm_configs: Option<masking::Secret<serde_json::Value>>,
+    pub frm_configs: Option<Secret<serde_json::Value>>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
 }
@@ -50,7 +53,7 @@ pub struct MerchantConnectorAccountNew {
     pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
     pub business_sub_label: Option<String>,
-    pub frm_configs: Option<masking::Secret<serde_json::Value>>,
+    pub frm_configs: Option<Secret<serde_json::Value>>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
 }
@@ -67,6 +70,31 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub merchant_connector_id: Option<String>,
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub frm_configs: Option<masking::Secret<serde_json::Value>>,
+    pub frm_configs: Option<Secret<serde_json::Value>>,
     pub modified_at: Option<time::PrimitiveDateTime>,
+}
+
+impl MerchantConnectorAccountUpdateInternal {
+    pub fn create_merchant_connector_account(
+        self,
+        source: MerchantConnectorAccount,
+    ) -> MerchantConnectorAccount {
+        MerchantConnectorAccount {
+            merchant_id: self.merchant_id.unwrap_or(source.merchant_id),
+            connector_type: self.connector_type.unwrap_or(source.connector_type),
+            connector_account_details: self
+                .connector_account_details
+                .unwrap_or(source.connector_account_details),
+            test_mode: self.test_mode,
+            disabled: self.disabled,
+            merchant_connector_id: self
+                .merchant_connector_id
+                .unwrap_or(source.merchant_connector_id),
+            payment_methods_enabled: self.payment_methods_enabled,
+            frm_configs: self.frm_configs,
+            modified_at: self.modified_at.unwrap_or(source.modified_at),
+
+            ..source
+        }
+    }
 }
