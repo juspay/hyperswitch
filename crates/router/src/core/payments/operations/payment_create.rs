@@ -420,7 +420,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
         }
 
-        helpers::validate_customer_details_in_request(&request)?;
+        helpers::validate_customer_details_in_request(request)?;
 
         let given_payment_id = match &request.payment_id {
             Some(id_type) => Some(
