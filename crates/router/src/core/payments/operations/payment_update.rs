@@ -585,10 +585,6 @@ impl PaymentUpdate {
         payment_attempt.amount_to_capture = request
             .amount_to_capture
             .or(payment_attempt.amount_to_capture);
-
-        payment_attempt.payment_experience = request
-            .payment_experience
-            .map(|experience| experience.foreign_into());
     }
     fn populate_payment_intent_with_request(
         payment_intent: &mut storage::PaymentIntent,
