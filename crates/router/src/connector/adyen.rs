@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
+use ring::hmac;
 use router_env::{instrument, tracing};
 use storage_models::enums as storage_enums;
 
@@ -785,12 +786,7 @@ impl api::IncomingWebhook for Adyen {
 
         let base64_signature = notif_item.additional_data.hmac_signature;
 
-        let signature = consts::BASE64_ENGINE
-            .decode(base64_signature.as_bytes())
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-        Ok(signature)
+        Ok(base64_signature.as_bytes().to_vec())
     }
 
     fn get_webhook_source_verification_message(
@@ -833,6 +829,33 @@ impl api::IncomingWebhook for Adyen {
         Ok(secret
             .map(|conf| conf.config.into_bytes())
             .unwrap_or_default())
+    }
+
+    async fn verify_webhook_source(
+        &self,
+        db: &dyn StorageInterface,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let signature = self
+            .get_webhook_source_verification_signature(request)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let secret = self
+            .get_webhook_source_verification_merchant_secret(db, merchant_id)
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let message = self
+            .get_webhook_source_verification_message(request, merchant_id, &secret)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let raw_key = hex::decode(secret)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+
+        let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &raw_key);
+        let signed_messaged = hmac::sign(&signing_key, &message);
+        let payload_sign = consts::BASE64_ENGINE.encode(signed_messaged.as_ref());
+        Ok(payload_sign.as_bytes().eq(&signature))
     }
 
     fn get_webhook_object_reference_id(

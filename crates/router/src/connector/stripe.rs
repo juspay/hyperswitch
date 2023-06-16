@@ -479,8 +479,9 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        router_env::logger::info!(connector_request=?req);
-        let stripe_req = utils::Encode::<stripe::CaptureRequest>::convert_and_url_encode(req)
+        let connector_request = stripe::CaptureRequest::try_from(req)?;
+        router_env::logger::info!(?connector_request);
+        let stripe_req = utils::Encode::<stripe::CaptureRequest>::url_encode(&connector_request)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
@@ -866,8 +867,9 @@ impl
         &self,
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        router_env::logger::info!(connector_request=?req);
-        let stripe_req = utils::Encode::<stripe::CancelRequest>::convert_and_url_encode(req)
+        let connector_request = stripe::CancelRequest::try_from(req)?;
+        router_env::logger::info!(?connector_request);
+        let stripe_req = utils::Encode::<stripe::CancelRequest>::url_encode(&connector_request)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
@@ -1095,8 +1097,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        router_env::logger::info!(connector_request=?req);
-        let stripe_req = utils::Encode::<stripe::RefundRequest>::convert_and_url_encode(req)
+        let connector_request = stripe::RefundRequest::try_from(req)?;
+        router_env::logger::info!(?connector_request);
+        let stripe_req = utils::Encode::<stripe::RefundRequest>::url_encode(&connector_request)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }

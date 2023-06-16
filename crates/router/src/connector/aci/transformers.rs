@@ -158,14 +158,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
             })),
             api::PaymentMethodData::PayLater(_) => PaymentDetails::Klarna,
             api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
-                api_models::payments::WalletData::MbWay(data) => {
+                api_models::payments::WalletData::MbWayRedirect(data) => {
                     PaymentDetails::Wallet(Box::new(WalletPMData {
                         payment_brand: PaymentBrand::Mbway,
                         account_id: Some(data.telephone_number.clone()),
                         shopper_result_url: item.request.router_return_url.clone(),
                     }))
                 }
-                api_models::payments::WalletData::AliPay { .. } => {
+                api_models::payments::WalletData::AliPayRedirect { .. } => {
                     PaymentDetails::Wallet(Box::new(WalletPMData {
                         payment_brand: PaymentBrand::AliPay,
                         account_id: None,
