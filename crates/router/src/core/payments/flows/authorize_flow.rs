@@ -165,7 +165,8 @@ impl types::PaymentsAuthorizeRouterData {
                         call_connector_action,
                     )
                     .await
-                    .map_err(|error| error.to_payment_failed_response())?;
+                    .to_payment_failed_response()?;
+
                     let pm_id = tokenization::save_payment_method(
                         state,
                         connector,
