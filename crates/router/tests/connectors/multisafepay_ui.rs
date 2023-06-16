@@ -17,7 +17,7 @@ async fn should_make_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
         c,
         vec![
             Event::Trigger(Trigger::Goto(&format!(
-                "https://hs-payments-test.netlify.app/saved/153"
+                "https://hs-payments-test.netlify.app/saved/153".to_string()
             ))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css("button[class='btn btn-default']"))),
