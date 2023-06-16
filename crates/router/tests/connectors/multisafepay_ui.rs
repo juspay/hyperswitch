@@ -13,13 +13,18 @@ impl SeleniumTest for MultisafepaySeleniumTest {
 
 async fn should_make_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = MultisafepaySeleniumTest {};
-    conn.make_redirection_payment(c, vec![
-            Event::Trigger(Trigger::Goto(&format!("https://hs-payments-test.netlify.app/saved/153"))),
+    conn.make_redirection_payment(
+        c,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!(
+                "https://hs-payments-test.netlify.app/saved/153"
+            ))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css("button[class='btn btn-default']"))),
             Event::Assert(Assert::IsPresent("succeeded")),
-
-    ]).await?;
+        ],
+    )
+    .await?;
     Ok(())
 }
 
