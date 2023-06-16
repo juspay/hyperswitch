@@ -1,5 +1,3 @@
-use std::net::IpAddr;
-
 use api_models::payments::Card;
 use cards::CardNumber;
 use common_utils::{ext_traits::ValueExt, pii};
@@ -237,7 +235,7 @@ impl
             .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let applepay_session_data = session
-            .checkout_session
+            .apple_pay
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         let terminal_uuid = applepay_session_data
             .terminal_uuid

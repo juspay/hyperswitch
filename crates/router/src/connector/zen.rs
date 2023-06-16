@@ -204,7 +204,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         router_env::logger::info!(connector_request=?req_obj);
         let zen_req = utils::Encode::<zen::ZenPaymentsRequest>::encode_to_string_of_json(&req_obj)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("ggggg {:?}", zen_req);
         Ok(Some(zen_req))
     }
 
