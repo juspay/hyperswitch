@@ -1,6 +1,10 @@
 name: Postman Collection API test
 
 on:
+  merge_group:
+    types:
+      - checks_requested
+
   schedule:
     # Run workflow at 6 AM and 6 PM IST
     - cron: "30 0,12 * * *"
@@ -41,5 +45,10 @@ jobs:
           BASE_URL: ${{ secrets.INTEG_BASE_URL }}
           MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
           CONNECTOR_CONFIG_PATH: ${{ env.CONNECTOR_CONFIG_PATH }}
+
+          # Stripe specific env variables, will be replaced by connector_auth.toml
+          GATEWAY_MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
+          GPAY_CERTIFICATE: ${{ secrets.STRIPE_GPAY_CERTIFICATE }}
+          GPAY_CERTIFICATE_KEYS: ${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
         shell: bash
         run: ./scripts/postman_test_automation.sh ${{ matrix.connector }}
