@@ -307,7 +307,16 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        let response: trustpay::TrustPayTransactionStatusErrorResponse = res
+            .response
+            .parse_struct("trustpay transaction status ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.status.to_string(),
+            message: response.payment_description,
+            reason: None,
+        })
     }
 
     fn handle_response(
