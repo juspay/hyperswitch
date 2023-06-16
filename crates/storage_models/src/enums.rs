@@ -80,8 +80,8 @@ pub enum AttemptStatus {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticationType {
-    #[default]
     ThreeDs,
+    #[default]
     NoThreeDs,
 }
 
@@ -243,6 +243,7 @@ pub enum Currency {
     PKR,
     PLN,
     QAR,
+    RON,
     RUB,
     SAR,
     SCR,
@@ -254,6 +255,7 @@ pub enum Currency {
     SVC,
     SZL,
     THB,
+    TRY,
     TTD,
     TWD,
     TZS,
