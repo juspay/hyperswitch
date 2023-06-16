@@ -111,6 +111,8 @@ pub enum ApiErrorResponse {
     RefundFailed { data: Option<serde_json::Value> },
     #[error(error_type = ErrorType::ProcessingError, code = "CE_07", message = "Verification failed while processing with connector. Retry operation")]
     VerificationFailed { data: Option<serde_json::Value> },
+    #[error(error_type = ErrorType::ProcessingError, code = "CE_08", message = "Dispute operation failed while processing with connector. Retry operation")]
+    DisputeFailed { data: Option<serde_json::Value> },
 
     #[error(error_type = ErrorType::ServerNotAvailable, code = "HE_00", message = "Something went wrong")]
     InternalServerError,
@@ -262,6 +264,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::VerificationFailed { .. }
             | Self::PaymentUnexpectedState { .. }
             | Self::MandateValidationFailed { .. }
+            | Self::DisputeFailed { .. }
             | Self::RefundAmountExceedsPaymentAmount
             | Self::MaximumRefundCount
             | Self::IncorrectPaymentMethodConfiguration
@@ -427,6 +430,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::PaymentCaptureFailed { data } => {
                 AER::BadRequest(ApiError::new("CE", 3, "Capture attempt failed while processing with connector", Some(Extra { data: data.clone(), ..Default::default()})))
+            }
+            Self::DisputeFailed { data } => {
+                AER::BadRequest(ApiError::new("CE", 1, "Dispute operation failed while processing with connector. Retry operation", Some(Extra { data: data.clone(), ..Default::default()})))
             }
             Self::InvalidCardData { data } => AER::BadRequest(ApiError::new("CE", 4, "The card data is invalid", Some(Extra { data: data.clone(), ..Default::default()}))),
             Self::CardExpired { data } => AER::BadRequest(ApiError::new("CE", 5, "The card has expired", Some(Extra { data: data.clone(), ..Default::default()}))),

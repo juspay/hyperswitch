@@ -8,10 +8,10 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use actix_web::ResponseError;
 use api_models::payments::Metadata;
-use common_utils::pii::Email;
+use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
+use futures::future::join_all;
 use masking::Secret;
 use router_env::{instrument, tracing};
 use storage_models::ephemeral_key;
@@ -26,13 +26,15 @@ use self::{
     helpers::authenticate_client_secret,
     operations::{payment_complete_authorize, BoxedOperation, Operation},
 };
+use super::errors::StorageErrorExt;
 use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
     core::{
-        errors::{self, CustomResult, RouterResponse, RouterResult, StorageErrorExt},
+        errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::vault,
     },
     db::StorageInterface,
+    logger,
     routes::{metrics, AppState},
     scheduler::utils as pt_utils,
     services::{self, api::Authenticate},
@@ -103,7 +105,7 @@ where
             validate_result.merchant_id,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
     let connector = get_connector_choice(
@@ -176,7 +178,7 @@ where
             }
 
             api::ConnectorCallType::Multiple(connectors) => {
-                get_session_tokens_and_persist_if_required(
+                call_multiple_connectors_service(
                     state,
                     &merchant_account,
                     connectors,
@@ -563,7 +565,7 @@ where
     router_data_res
 }
 
-pub async fn get_session_tokens_and_persist_if_required<F, Op, Req>(
+pub async fn call_multiple_connectors_service<F, Op, Req>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     connectors: Vec<api::SessionConnectorData>,
@@ -595,52 +597,36 @@ where
             .construct_router_data(state, connector_id, merchant_account, customer)
             .await?;
 
-        let res = router_data
-            .decide_flows(
-                state,
-                &session_connector_data.connector,
-                customer,
-                CallConnectorAction::Trigger,
-                merchant_account,
-            )
-            .await;
+        let res = router_data.decide_flows(
+            state,
+            &session_connector_data.connector,
+            customer,
+            CallConnectorAction::Trigger,
+            merchant_account,
+        );
 
-        let router_res = match res {
-            Ok(router_result) => Ok(router_result),
-            Err(error) => {
-                let err = error.current_context();
-                Err(errors::ApiErrorResponse::ExternalConnectorError {
-                    code: err.error_code(),
-                    message: err.error_message(),
-                    connector: connector_id.to_string(),
-                    status_code: err.status_code().into(),
-                    reason: None,
-                })
-            }
-        }?;
-
-        join_handlers.push(router_res.response.clone());
-
-        if connector_id == "trustpay" && payment_data.delayed_session_token.unwrap_or(false) {
-            //Fix: Add post update tracker for payment_session operation
-            let response_id = router_res.response.ok().and_then(|res| match res {
-                types::PaymentsResponseData::SessionResponse { response_id, .. } => response_id,
-                _ => None,
-            });
-
-            update_connector_txn_id_in_payment_attempt(
-                state,
-                merchant_account,
-                &payment_data,
-                response_id,
-            )
-            .await?;
-        };
+        join_handlers.push(res);
     }
 
-    for connector_res in join_handlers.into_iter().flatten() {
-        if let types::PaymentsResponseData::SessionResponse { session_token, .. } = connector_res {
-            payment_data.sessions_token.push(session_token);
+    let result = join_all(join_handlers).await;
+
+    for (connector_res, session_connector) in result.into_iter().zip(connectors) {
+        let connector_name = session_connector.connector.connector_name.to_string();
+        match connector_res {
+            Ok(connector_response) => {
+                if let Ok(types::PaymentsResponseData::SessionResponse { session_token }) =
+                    connector_response.response
+                {
+                    payment_data.sessions_token.push(session_token);
+                }
+            }
+            Err(connector_error) => {
+                logger::error!(
+                    "sessions_connector_error {} {:?}",
+                    connector_name,
+                    connector_error
+                );
+            }
         }
     }
 
@@ -650,31 +636,6 @@ where
     tracing::info!(duration = format!("Duration taken: {}", call_connectors_duration.as_millis()));
 
     Ok(payment_data)
-}
-
-pub async fn update_connector_txn_id_in_payment_attempt<F>(
-    state: &AppState,
-    merchant_account: &domain::MerchantAccount,
-    payment_data: &PaymentData<F>,
-    response_id: Option<String>,
-) -> RouterResult<()>
-where
-    F: Clone,
-{
-    let payment_attempt_update = storage::PaymentAttemptUpdate::SessionUpdate {
-        connector_transaction_id: response_id,
-    };
-
-    let db = &*state.store;
-    db.update_payment_attempt_with_attempt_id(
-        payment_data.payment_attempt.to_owned(),
-        payment_attempt_update,
-        merchant_account.storage_scheme,
-    )
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-    Ok(())
 }
 
 pub async fn call_create_connector_customer_if_required<F, Req>(
@@ -977,7 +938,11 @@ where
 pub enum CallConnectorAction {
     Trigger,
     Avoid,
-    StatusUpdate(storage_enums::AttemptStatus),
+    StatusUpdate {
+        status: storage_enums::AttemptStatus,
+        error_code: Option<String>,
+        error_message: Option<String>,
+    },
     HandleResponse(Vec<u8>),
 }
 
@@ -998,6 +963,7 @@ where
     pub connector_response: storage::ConnectorResponse,
     pub amount: api::Amount,
     pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_connector: Option<String>,
     pub currency: storage_enums::Currency,
     pub setup_mandate: Option<api::MandateData>,
     pub address: PaymentAddress,
@@ -1009,20 +975,19 @@ where
     pub disputes: Vec<storage::Dispute>,
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<Secret<String>>,
-    pub email: Option<Email>,
+    pub email: Option<pii::Email>,
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
-    pub delayed_session_token: Option<bool>,
 }
 
 #[derive(Debug, Default)]
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
     pub name: Option<Secret<String, masking::WithType>>,
-    pub email: Option<Email>,
+    pub email: Option<pii::Email>,
     pub phone: Option<Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
 }
