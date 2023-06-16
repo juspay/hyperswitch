@@ -139,7 +139,8 @@ pub struct ZenItemObject {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SessionObject {
-    pub checkout_session: Option<WalletSessionData>,
+    pub apple_pay: Option<WalletSessionData>,
+    pub google_pay: Option<WalletSessionData>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -278,22 +279,30 @@ impl
         let session: SessionObject = connector_meta
             .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let session_data = session
-            .checkout_session
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let (specified_payment_channel, session_data) = match wallet_data {
+            api_models::payments::WalletData::ApplePay(_) => (
+                ZenPaymentChannels::PclApplepay,
+                session
+                    .apple_pay
+                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+            ),
+            api_models::payments::WalletData::GooglePay(_) => (
+                ZenPaymentChannels::PclGooglepay,
+                session
+                    .google_pay
+                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+            ),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "payment method".to_string(),
+            ))?,
+        };
         let terminal_uuid = session_data
             .terminal_uuid
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         let mut checkout_request = CheckoutRequest {
             merchant_transaction_id: item.attempt_id.clone(),
-            specified_payment_channel: match wallet_data {
-                api_models::payments::WalletData::ApplePay(_) => ZenPaymentChannels::PclApplepay,
-                api_models::payments::WalletData::GooglePay(_) => ZenPaymentChannels::PclGooglepay,
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "payment method".to_string(),
-                ))?,
-            },
+            specified_payment_channel,
             currency: item.request.currency,
             custom_ipn_url: item.request.get_webhook_url()?,
             items: get_item_object(item, amount.clone())?,
