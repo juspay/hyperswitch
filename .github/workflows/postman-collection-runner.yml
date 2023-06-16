@@ -1,9 +1,7 @@
 name: Postman Collection API test
 
 on:
-  merge_group:
-    types:
-      - checks_requested
+  workflow_dispatch:
 
   schedule:
     # Run workflow at 6 AM and 6 PM IST

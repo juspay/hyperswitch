@@ -42,13 +42,6 @@ API_KEY=""
 API_SECRET=""
 KEY1=""
 
-# Currently, these variables are set in the Github Secrets
-# It is recommended that we use `connector_auth.toml` file instead
-# Along with `API_KEY`s for the respective connectors, we should add below data as well.
-GATEWAY_MERCHANT_ID=""
-GPAY_CERTIFICATE=""
-GPAY_CERTIFICATE_KEYS=""
-
 # Function call
 get_api_keys "${CONNECTOR_NAME}"
 COLLECTION_PATH=$(path_generation "${CONNECTOR_NAME}")
@@ -56,13 +49,39 @@ COLLECTION_PATH=$(path_generation "${CONNECTOR_NAME}")
 # Run Newman collection
 case "$KEY_TYPE" in
     "HeaderKey" )
-        newman run "${COLLECTION_PATH}" --env-var "admin_api_key=${ADMIN_API_KEY}" --env-var "baseUrl=${BASE_URL}" --env-var "connector_api_key=${API_KEY}" --env-var "gateway_merchant_id=${GATEWAY_MERCHANT_ID}" --env-var "certificate=${GPAY_CERTIFICATE}" --env-var "certificate_keys=${GPAY_CERTIFICATE_KEYS}"
+        args=(
+            --env-var "admin_api_key=${ADMIN_API_KEY}"
+            --env-var "baseUrl=${BASE_URL}"
+            --env-var "connector_api_key=${API_KEY}"
+        )
+        [[ -n "$GATEWAY_MERCHANT_ID" ]] && args+=("--env-var" "gateway_merchant_id=${GATEWAY_MERCHANT_ID}")
+        [[ -n "$GPAY_CERTIFICATE" ]] && args+=("--env-var" "certificate=${GPAY_CERTIFICATE}")
+        [[ -n "$GPAY_CERTIFICATE_KEYS" ]] && args+=("--env-var" "certificate_keys=${GPAY_CERTIFICATE_KEYS}")
+        newman run "${COLLECTION_PATH}" "${args[@]}"
         ;;
     "BodyKey" )
-        newman run "${COLLECTION_PATH}" --env-var "admin_api_key=${ADMIN_API_KEY}" --env-var "baseUrl=${BASE_URL}" --env-var "connector_api_key=${API_KEY}" --env-var "connector_key1=${KEY1}" --env-var "gateway_merchant_id=${GATEWAY_MERCHANT_ID}" --env-var "certificate=${GPAY_CERTIFICATE}" --env-var "certificate_keys=${GPAY_CERTIFICATE_KEYS}"
+        args=(
+            --env-var "admin_api_key=${ADMIN_API_KEY}"
+            --env-var "baseUrl=${BASE_URL}"
+            --env-var "connector_api_key=${API_KEY}"
+            --env-var "connector_key1=${KEY1}"
+        )
+        [[ -n "$GATEWAY_MERCHANT_ID" ]] && args+=("--env-var" "gateway_merchant_id=${GATEWAY_MERCHANT_ID}")
+        [[ -n "$GPAY_CERTIFICATE" ]] && args+=("--env-var" "certificate=${GPAY_CERTIFICATE}")
+        [[ -n "$GPAY_CERTIFICATE_KEYS" ]] && args+=("--env-var" "certificate_keys=${GPAY_CERTIFICATE_KEYS}")
+        newman run "${COLLECTION_PATH}" "${args[@]}"
         ;;
     "SignatureKey" )
-        newman run "${COLLECTION_PATH}" --env-var "admin_api_key=${ADMIN_API_KEY}" --env-var "baseUrl=${BASE_URL}" --env-var "connector_api_key=${API_KEY}" --env-var "connector_api_secret=${API_SECRET}" --env-var "connector_key1=${KEY1}" --env-var "gateway_merchant_id=${GATEWAY_MERCHANT_ID}" --env-var "certificate=${GPAY_CERTIFICATE}" --env-var "certificate_keys=${GPAY_CERTIFICATE_KEYS}"
+        args=(
+            --env-var "admin_api_key=${ADMIN_API_KEY}"
+            --env-var "baseUrl=${BASE_URL}"
+            --env-var "connector_api_key=${API_KEY}"
+            --env-var "connector_api_secret=${API_SECRET}"
+            --env-var "connector_key1=${KEY1}"
+        )
+        [[ -n "$GATEWAY_MERCHANT_ID" ]] && args+=("--env-var" "gateway_merchant_id=${GATEWAY_MERCHANT_ID}")
+        [[ -n "$GPAY_CERTIFICATE" ]] && args+=("--env-var" "certificate=${GPAY_CERTIFICATE}")
+        [[ -n "$GPAY_CERTIFICATE_KEYS" ]] && args+=("--env-var" "certificate_keys=${GPAY_CERTIFICATE_KEYS}")
+        newman run "${COLLECTION_PATH}" "${args[@]}"
         ;;
 esac
-
