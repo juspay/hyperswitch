@@ -1,29 +1,27 @@
-#!/bin/bash
+#! /usr/bin/env bash
+set -euo pipefail
 
-# [ DECLARATIONS ]
-KEY_TYPE=""
-
-API_KEY=""
-API_SECRET=""
-KEY1=""
-
-# Unused as of now, will be useful once we start using this properly
-CERTIFICATE=$4
-CERTIFICATE_KEY=$5
-
+# Just by the name of the connector, this function generates the name of the collection
+# Example: CONNECTOR_NAME="stripe" -> OUTPUT: postman/stripe.postman_collection.json
 path_generation() {
-    local NAME=$1
-    local COLLECTION_NAME=$"{\"$NAME\":\"postman/$NAME.postman_collection.json\"}"
-    echo $COLLECTION_NAME | jq --arg v "$NAME" '.[$v]'  | tr -d '"'
+    local name="${1}"
+    local collection_name="postman/$name.postman_collection.json"
+    echo "$collection_name"
 }
 
+# This function gets the api keys from the connector_auth.toml file
+# Also determines the type of key (HeaderKey, BodyKey, SignatureKey) for the connector
 get_api_keys() {
-    local INPUT=$1
-    RESULT=$(awk -v name="$INPUT" -F ' // ' 'BEGIN{ flag=0 } /^\[.*\]/{ if ($1 == "["name"]") { flag=1 } else { flag=0 } } flag==1 && /^[^#]/ { print $0 }' "$CONNECTOR_CONFIG_PATH")
+    local input="${1}"
+    # We get $CONNECTOR_CONFIG_PATH from the GITHUB_ENV
+    result=$(awk -v name="$input" -F ' // ' 'BEGIN{ flag=0 } /^\[.*\]/{ if ($1 == "["name"]") { flag=1 } else { flag=0 } } flag==1 && /^[^#]/ { print $0 }' "$CONNECTOR_CONFIG_PATH")
+    # OUTPUT of result for `<connector_name>` that has `HeaderKey`:
+    # [<connector_name>]
+    # api_key = "HeadKey of <connector_name>"
 
-    API_KEY=$(echo "$RESULT" | awk -F ' = ' '$1 == "api_key" { print $2 }')
-    KEY1=$(echo "$RESULT" | awk -F ' = ' '$1 == "key1" { print $2 }')
-    API_SECRET=$(echo "$RESULT" | awk -F ' = ' '$1 == "api_secret" { print $2 }')
+    API_KEY=$(echo "$result" | awk -F ' = ' '$1 == "api_key" { print $2 }')
+    KEY1=$(echo "$result" | awk -F ' = ' '$1 == "key1" { print $2 }')
+    API_SECRET=$(echo "$result" | awk -F ' = ' '$1 == "api_secret" { print $2 }')
 
     if [[ -n "$API_KEY" && -z "$KEY1" && -z "$API_SECRET" ]]; then
         KEY_TYPE="HeaderKey"
@@ -37,15 +35,27 @@ get_api_keys() {
 }
 
 # [ MAIN ]
-CONNECTOR_NAME=$1
+CONNECTOR_NAME="${1}"
+KEY_TYPE=""
 
-get_api_keys "$CONNECTOR_NAME" > /dev/null
-COLLECTION_PATH=$(path_generation $CONNECTOR_NAME)
+API_KEY=""
+API_SECRET=""
+KEY1=""
 
-if [[ "$KEY_TYPE" == "HeaderKey" ]]; then
-    newman run $COLLECTION_PATH --env-var admin_api_key=$ADMIN_API_KEY --env-var baseUrl=$BASE_URL --env-var connector_api_key=$API_KEY
-elif [[ "$KEY_TYPE" == "BodyKey" ]]; then
-    newman run $COLLECTION_PATH --env-var admin_api_key=$ADMIN_API_KEY --env-var baseUrl=$BASE_URL --env-var connector_api_key=$API_KEY --env-var connector_key1=$KEY1
-elif [[ "$KEY_TYPE" == "SignatureKey" ]]; then
-    newman run $COLLECTION_PATH --env-var admin_api_key=$ADMIN_API_KEY --env-var baseUrl=$BASE_URL --env-var connector_api_key=$API_KEY --env-var connector_api_secret=$API_SECRET --env-var connector_key1=$KEY1
-fi
+# Function call
+get_api_keys "$CONNECTOR_NAME"
+COLLECTION_PATH=$(path_generation "$CONNECTOR_NAME")
+
+# Run Newman collection
+case "$KEY_TYPE" in
+    "HeaderKey" )
+        newman run "$COLLECTION_PATH" --env-var "admin_api_key=$ADMIN_API_KEY" --env-var "baseUrl=$BASE_URL" --env-var "connector_api_key=$API_KEY"
+        ;;
+    "BodyKey" )
+        newman run "$COLLECTION_PATH" --env-var "admin_api_key=$ADMIN_API_KEY" --env-var "baseUrl=$BASE_URL" --env-var "connector_api_key=$API_KEY" --env-var "connector_key1=$KEY1"
+        ;;
+    "SignatureKey" )
+        newman run "$COLLECTION_PATH" --env-var "admin_api_key=$ADMIN_API_KEY" --env-var "baseUrl=$BASE_URL" --env-var "connector_api_key=$API_KEY" --env-var "connector_api_secret=$API_SECRET" --env-var "connector_key1=$KEY1"
+        ;;
+esac
+

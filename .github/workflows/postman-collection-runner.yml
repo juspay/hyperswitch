@@ -1,8 +1,6 @@
 name: Postman Collection API test
 
 on:
-  pull_request:
-
   schedule:
     # Run workflow at 6 AM and 6 PM IST
     - cron: "30 0,12 * * *"
@@ -26,9 +24,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      - name: Install JQ
-        run: sudo apt install -y jq
       
       - name: Decrypt connector auth file
         env:
