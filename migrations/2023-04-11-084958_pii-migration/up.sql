@@ -1,5 +1,5 @@
 -- Your SQL goes here
-ALTER TABLE merchant_connector_account 
+ALTER TABLE merchant_connector_account
     ALTER COLUMN connector_account_details TYPE bytea
     USING convert_to(connector_account_details::text, 'UTF8');
 

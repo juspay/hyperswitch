@@ -12,7 +12,7 @@ use crate::{
     configs::settings,
     core::{
         api_keys,
-        errors::{self, RouterResult},
+        errors::{self, utils::StorageErrorExt, RouterResult},
     },
     db::StorageInterface,
     routes::app::AppStateInfo,
@@ -122,13 +122,7 @@ where
             .store()
             .find_merchant_account_by_merchant_id(&stored_api_key.merchant_id)
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(errors::ApiErrorResponse::Unauthorized)
-                } else {
-                    e.change_context(errors::ApiErrorResponse::InternalServerError)
-                }
-            })
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
     }
 }
 

@@ -326,7 +326,7 @@ All notable changes to HyperSwitch will be documented here.
 * **bank_redirects:**  modify api contract for sofort (#880) (fc2e4514)
   *  add template code for connector forte (#854) (7a581a6)
   *  add template code for connector nexinets (#852) (dee5f61)
-  
+
 ### Bug Fixes
 
 * **connector:**  [coinbase] make metadata as option parameter (#887) (f5728955)
@@ -335,7 +335,7 @@ All notable changes to HyperSwitch will be documented here.
 
 ### Enhancement
 
-* **payments:**  make TokenizationAction clonable (#895) 
+* **payments:**  make TokenizationAction clonable (#895)
 
 ### Integration
 

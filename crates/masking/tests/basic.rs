@@ -41,7 +41,7 @@ fn basic() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     };
 
     // clone
-
+    #[allow(clippy::redundant_clone)] // We are asserting that the cloned value is equal
     let composite2 = composite.clone();
     assert_eq!(composite, composite2);
 
@@ -134,7 +134,7 @@ fn for_string() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     };
 
     // clone
-
+    #[allow(clippy::redundant_clone)] // We are asserting that the cloned value is equal
     let composite2 = composite.clone();
     assert_eq!(composite, composite2);
 

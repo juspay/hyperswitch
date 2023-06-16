@@ -111,6 +111,8 @@ pub enum ApiErrorResponse {
     RefundFailed { data: Option<serde_json::Value> },
     #[error(error_type = ErrorType::ProcessingError, code = "CE_07", message = "Verification failed while processing with connector. Retry operation")]
     VerificationFailed { data: Option<serde_json::Value> },
+    #[error(error_type = ErrorType::ProcessingError, code = "CE_08", message = "Dispute operation failed while processing with connector. Retry operation")]
+    DisputeFailed { data: Option<serde_json::Value> },
 
     #[error(error_type = ErrorType::ServerNotAvailable, code = "HE_00", message = "Something went wrong")]
     InternalServerError,
@@ -194,6 +196,10 @@ pub enum ApiErrorResponse {
     WebhookBadRequest,
     #[error(error_type = ErrorType::RouterError, code = "WE_03", message = "There was some issue processing the webhook")]
     WebhookProcessingFailure,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "required payment method is not configured or configured incorrectly for all configured connectors")]
+    IncorrectPaymentMethodConfiguration,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "WE_05", message = "Unable to process the webhook body")]
+    WebhookUnprocessableEntity,
 }
 
 #[derive(Clone)]
@@ -247,9 +253,6 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::InvalidDataFormat { .. } | Self::InvalidRequestData { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
             } // 422
-            Self::RefundAmountExceedsPaymentAmount => StatusCode::BAD_REQUEST,                // 400
-            Self::MaximumRefundCount => StatusCode::BAD_REQUEST,                              // 400
-            Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST,                       // 400
 
             Self::PaymentAuthorizationFailed { .. }
             | Self::PaymentAuthenticationFailed { .. }
@@ -260,7 +263,12 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::RefundNotPossible { .. }
             | Self::VerificationFailed { .. }
             | Self::PaymentUnexpectedState { .. }
-            | Self::MandateValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
+            | Self::MandateValidationFailed { .. }
+            | Self::DisputeFailed { .. }
+            | Self::RefundAmountExceedsPaymentAmount
+            | Self::MaximumRefundCount
+            | Self::IncorrectPaymentMethodConfiguration
+            | Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST, // 400
 
             Self::MandateUpdateFailed
             | Self::InternalServerError
@@ -304,6 +312,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE, // 503
             Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,          // 400
             Self::NotImplemented { .. } => StatusCode::NOT_IMPLEMENTED,    // 501
+            Self::WebhookUnprocessableEntity => StatusCode::UNPROCESSABLE_ENTITY,
         }
     }
 
@@ -422,6 +431,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::PaymentCaptureFailed { data } => {
                 AER::BadRequest(ApiError::new("CE", 3, "Capture attempt failed while processing with connector", Some(Extra { data: data.clone(), ..Default::default()})))
             }
+            Self::DisputeFailed { data } => {
+                AER::BadRequest(ApiError::new("CE", 1, "Dispute operation failed while processing with connector. Retry operation", Some(Extra { data: data.clone(), ..Default::default()})))
+            }
             Self::InvalidCardData { data } => AER::BadRequest(ApiError::new("CE", 4, "The card data is invalid", Some(Extra { data: data.clone(), ..Default::default()}))),
             Self::CardExpired { data } => AER::BadRequest(ApiError::new("CE", 5, "The card has expired", Some(Extra { data: data.clone(), ..Default::default()}))),
             Self::RefundFailed { data } => AER::BadRequest(ApiError::new("CE", 6, "Refund failed while processing with connector. Retry refund", Some(Extra { data: data.clone(), ..Default::default()}))),
@@ -537,6 +549,12 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::WebhookProcessingFailure => {
                 AER::InternalServerError(ApiError::new("WE", 3, "There was an issue processing the webhook", None))
+            },
+            Self::IncorrectPaymentMethodConfiguration => {
+                AER::BadRequest(ApiError::new("HE", 4, "No eligible connector was found for the current payment method configuration", None))
+            }
+            Self::WebhookUnprocessableEntity => {
+                AER::Unprocessable(ApiError::new("WE", 5, "There was an issue processing the webhook body", None))
             }
         }
     }
