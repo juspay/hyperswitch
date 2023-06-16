@@ -123,7 +123,6 @@ pub enum PaymentIntentUpdate {
         description: Option<String>,
         statement_descriptor_name: Option<String>,
         statement_descriptor_suffix: Option<String>,
-        client_secret: Option<String>,
         order_details: Option<Vec<pii::SecretSerdeValue>>,
         metadata: Option<pii::SecretSerdeValue>,
     },

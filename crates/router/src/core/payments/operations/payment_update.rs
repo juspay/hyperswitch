@@ -146,7 +146,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
 
         //moved all payment_intent updates from request into this function
-        Self::update_payment_intent_with_request(&mut payment_intent, request);
+        Self::populate_payment_intent_with_request(&mut payment_intent, request);
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
@@ -237,7 +237,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         };
 
         //moved all payment_attempt updates from request into this function
-        Self::update_payment_attempt_with_request(&mut payment_attempt, request);
+        Self::populate_payment_attempt_with_request(&mut payment_attempt, request);
 
         let creds_identifier = request
             .merchant_connector_details
@@ -465,7 +465,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .payment_intent
             .statement_descriptor_suffix
             .clone();
-        let client_secret = payment_data.payment_intent.client_secret.clone();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
 
@@ -486,7 +485,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     description,
                     statement_descriptor_name,
                     statement_descriptor_suffix,
-                    client_secret,
                     order_details,
                     metadata,
                 },
@@ -569,7 +567,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
 }
 
 impl PaymentUpdate {
-    fn update_payment_attempt_with_request(
+    fn populate_payment_attempt_with_request(
         payment_attempt: &mut storage::PaymentAttempt,
         request: &api::PaymentsRequest,
     ) {
@@ -592,7 +590,7 @@ impl PaymentUpdate {
             .payment_experience
             .map(|experience| experience.foreign_into());
     }
-    fn update_payment_intent_with_request(
+    fn populate_payment_intent_with_request(
         payment_intent: &mut storage::PaymentIntent,
         request: &api::PaymentsRequest,
     ) {

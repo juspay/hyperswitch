@@ -419,7 +419,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .payment_intent
             .statement_descriptor_suffix
             .clone();
-        let client_secret = payment_data.payment_intent.client_secret.clone();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
 
@@ -440,7 +439,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     description,
                     statement_descriptor_name,
                     statement_descriptor_suffix,
-                    client_secret,
                     order_details,
                     metadata,
                 },
