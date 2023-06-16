@@ -1,4 +1,4 @@
-use api_models::payments::{ApplePayRedirectData, Card, GooglePayWalletData};
+use api_models::payments::Card;
 use cards::CardNumber;
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
@@ -116,7 +116,6 @@ pub struct ZenBrowserDetails {
 #[serde(rename_all = "snake_case")]
 pub enum ZenPaymentTypes {
     Onetime,
-    ExternalPaymentToken,
 }
 
 #[derive(Debug, Serialize)]
@@ -138,11 +137,12 @@ pub struct ZenItemObject {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SessionObject {
-    pub apple_pay: Option<ApplePaySessionData>,
+    pub apple_pay: Option<WalletSessionData>,
+    pub google_pay: Option<WalletSessionData>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ApplePaySessionData {
+pub struct WalletSessionData {
     pub terminal_uuid: Option<String>,
     pub pay_wall_secret: Option<String>,
 }
@@ -181,6 +181,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &Card)> for ZenPaymentsReques
     }
 }
 
+/*
 impl TryFrom<(&types::PaymentsAuthorizeRouterData, &GooglePayWalletData)> for ZenPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -213,7 +214,8 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &GooglePayWalletData)> for Ze
         })))
     }
 }
-
+*/
+/*
 impl
     TryFrom<(
         &types::PaymentsAuthorizeRouterData,
@@ -257,10 +259,67 @@ impl
         Ok(Self::CheckoutRequest(Box::new(checkout_request)))
     }
 }
+*/
+
+impl
+    TryFrom<(
+        &types::PaymentsAuthorizeRouterData,
+        &api_models::payments::WalletData,
+    )> for ZenPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, wallet_data): (
+            &types::PaymentsAuthorizeRouterData,
+            &api_models::payments::WalletData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::to_currency_base_unit(item.request.amount, item.request.currency)?;
+        let connector_meta = item.get_connector_meta()?;
+        let session: SessionObject = connector_meta
+            .parse_value("SessionObject")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let (specified_payment_channel, session_data) = match wallet_data {
+            api_models::payments::WalletData::ApplePayRedirect(_) => (
+                ZenPaymentChannels::PclApplepay,
+                session
+                    .apple_pay
+                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+            ),
+            api_models::payments::WalletData::GooglePayRedirect(_) => (
+                ZenPaymentChannels::PclGooglepay,
+                session
+                    .google_pay
+                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+            ),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "payment method".to_string(),
+            ))?,
+        };
+        let terminal_uuid = session_data
+            .terminal_uuid
+            .clone()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let mut checkout_request = CheckoutRequest {
+            merchant_transaction_id: item.attempt_id.clone(),
+            specified_payment_channel,
+            currency: item.request.currency,
+            custom_ipn_url: item.request.get_webhook_url()?,
+            items: get_item_object(item, amount.clone())?,
+            amount,
+            terminal_uuid: Secret::new(terminal_uuid),
+            signature: None,
+            url_redirect: item.request.get_return_url()?,
+        };
+        checkout_request.signature =
+            Some(get_checkout_signature(&checkout_request, &session_data)?);
+        Ok(Self::CheckoutRequest(Box::new(checkout_request)))
+    }
+}
 
 fn get_checkout_signature(
     checkout_request: &CheckoutRequest,
-    session: &ApplePaySessionData,
+    session: &WalletSessionData,
 ) -> Result<Secret<String>, error_stack::Report<errors::ConnectorError>> {
     let pay_wall_secret = session
         .pay_wall_secret
@@ -426,17 +485,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match &item.request.payment_method_data {
             api_models::payments::PaymentMethodData::Card(card) => Self::try_from((item, card)),
-            api_models::payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::ApplePayRedirect(apple_pay_redirect_data) => {
-                    Self::try_from((item, apple_pay_redirect_data))
-                }
-                api_models::payments::WalletData::GooglePay(gpay_redirect_data) => {
-                    Self::try_from((item, gpay_redirect_data))
-                }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "payment method".to_string(),
-                ))?,
-            },
+            api_models::payments::PaymentMethodData::Wallet(wallet_data) => {
+                Self::try_from((item, wallet_data))
+            }
             _ => Err(errors::ConnectorError::NotImplemented(
                 "payment method".to_string(),
             ))?,
