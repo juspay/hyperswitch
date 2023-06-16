@@ -36,7 +36,7 @@ static CONNECTOR: CashtocodeTest = CashtocodeTest {};
 
 impl CashtocodeTest {
     fn get_payment_authorize_data(
-        payment_method_type: Option<PaymentMethodType>,
+        payment_method_type: Option<enums::PaymentMethodType>,
         payment_method_data: types::api::PaymentMethodData,
     ) -> Option<types::PaymentsAuthorizeData> {
         Some(types::PaymentsAuthorizeData {
@@ -106,6 +106,7 @@ async fn should_fetch_pay_url_classic() {
     );
 }
 
+#[actix_web::test]
 async fn should_fetch_pay_url_evoucher() {
     let authorize_response = CONNECTOR
         .make_payment(
