@@ -361,13 +361,15 @@ where
                     })
                     .transpose()
                     .unwrap_or_default();
+                let amount_captured = payment_intent.amount_captured.unwrap_or_default();
+                let amount_capturable = Some(payment_attempt.amount - amount_captured);
                 services::ApplicationResponse::Json(
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
                         .set_merchant_id(Some(payment_attempt.merchant_id))
                         .set_status(payment_intent.status.foreign_into())
                         .set_amount(payment_attempt.amount)
-                        .set_amount_capturable(None)
+                        .set_amount_capturable(amount_capturable)
                         .set_amount_received(payment_intent.amount_captured)
                         .set_connector(routed_through)
                         .set_client_secret(payment_intent.client_secret.map(masking::Secret::new))
@@ -404,7 +406,7 @@ where
                             auth_flow == services::AuthFlow::Merchant,
                         )
                         .set_payment_token(payment_attempt.payment_token)
-                        .set_error_message(payment_attempt.error_message)
+                        .set_error_message(payment_attempt.error_reason)
                         .set_error_code(payment_attempt.error_code)
                         .set_shipping(address.shipping)
                         .set_billing(address.billing)

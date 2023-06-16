@@ -515,8 +515,8 @@ pub enum PayLaterData {
         #[schema(value_type = String)]
         billing_name: Secret<String>,
     },
-    PayBright {},
-    Walley {},
+    PayBrightRedirect {},
+    WalleyRedirect {},
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
@@ -820,16 +820,18 @@ pub struct BankDebitBilling {
 #[serde(rename_all = "snake_case")]
 pub enum WalletData {
     /// The wallet data for Ali Pay redirect
-    AliPay(AliPayRedirection),
+    AliPayRedirect(AliPayRedirection),
     /// The wallet data for Apple pay
     ApplePay(ApplePayWalletData),
     /// Wallet data for apple pay redirect flow
     ApplePayRedirect(Box<ApplePayRedirectData>),
     /// The wallet data for Google pay
     GooglePay(GooglePayWalletData),
-    MbWay(Box<MbWayRedirection>),
+    /// Wallet data for google pay redirect flow
+    GooglePayRedirect(Box<GooglePayRedirectData>),
+    MbWayRedirect(Box<MbWayRedirection>),
     /// The wallet data for MobilePay redirect
-    MobilePay(Box<MobilePayRedirection>),
+    MobilePayRedirect(Box<MobilePayRedirection>),
     /// This is for paypal redirection
     PaypalRedirect(PaypalRedirection),
     /// The wallet data for Paypal
@@ -854,6 +856,9 @@ pub struct GooglePayWalletData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ApplePayRedirectData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GooglePayRedirectData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct WeChatPayRedirection {}

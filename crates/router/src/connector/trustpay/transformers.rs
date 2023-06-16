@@ -231,7 +231,7 @@ fn get_card_request_data(
             cvv: ccard.card_cvc.clone(),
             expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
             cardholder: ccard.card_holder_name.clone(),
-            reference: item.attempt_id.clone(),
+            reference: item.payment_id.clone(),
             redirect_url: return_url,
             billing_city: params.billing_city,
             billing_country: params.billing_country,
@@ -885,7 +885,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = format!(
             "{:.2}",
-            utils::to_currency_base_unit(item.request.amount, item.request.currency)?
+            utils::to_currency_base_unit(item.request.refund_amount, item.request.currency)?
                 .parse::<f64>()
                 .into_report()
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?
@@ -1169,6 +1169,12 @@ pub struct TrustpayErrorResponse {
     pub status: i64,
     pub description: Option<String>,
     pub errors: Vec<Errors>,
+}
+
+#[derive(Deserialize)]
+pub struct TrustPayTransactionStatusErrorResponse {
+    pub status: i64,
+    pub payment_description: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

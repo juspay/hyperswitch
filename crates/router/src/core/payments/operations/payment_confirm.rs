@@ -378,7 +378,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .attach_printable("Failed to encode additional pm data")?;
 
         let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
-
+        let authentication_type = payment_data.payment_attempt.authentication_type;
         payment_data.payment_attempt = db
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
@@ -387,7 +387,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     currency: payment_data.currency,
                     status: attempt_status,
                     payment_method,
-                    authentication_type: None,
+                    authentication_type,
                     browser_info,
                     connector,
                     payment_token,
