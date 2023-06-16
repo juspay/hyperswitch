@@ -48,7 +48,7 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
         payments::CallConnectorAction::Trigger,
     )
     .await
-    .map_err(|error| error.to_payment_failed_response())?;
+    .to_payment_failed_response()?;
 
     metrics::CONNECTOR_CUSTOMER_CREATE.add(
         &metrics::CONTEXT,
