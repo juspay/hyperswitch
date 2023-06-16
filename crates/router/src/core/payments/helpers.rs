@@ -810,28 +810,107 @@ pub async fn get_customer_from_details<F: Clone>(
     }
 }
 
+// Checks if the inner values of two options are not equal and throws appropriate error
+fn validate_options_for_inequality<T: PartialEq>(
+    first_option: Option<&T>,
+    second_option: Option<&T>,
+    field_name: &str,
+) -> Result<(), errors::ApiErrorResponse> {
+    fp_utils::when(
+        first_option
+            .zip(second_option)
+            .map(|(value1, value2)| value1 != value2)
+            .unwrap_or(false),
+        || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: format!("The field name `{field_name}` sent in both places is ambiguous"),
+            })
+        },
+    )
+}
+
+// Checks if the customer details are passed in both places
+// If so, raise an error
+pub fn validate_customer_details_in_request(
+    request: &api_models::payments::PaymentsRequest,
+) -> Result<(), errors::ApiErrorResponse> {
+    if let Some(customer_details) = request.customer.as_ref() {
+        validate_options_for_inequality(
+            request.customer_id.as_ref(),
+            Some(&customer_details.id),
+            "customer_id",
+        )?;
+
+        validate_options_for_inequality(
+            request.email.as_ref(),
+            customer_details.email.as_ref(),
+            "email",
+        )?;
+
+        validate_options_for_inequality(
+            request.name.as_ref(),
+            customer_details.name.as_ref(),
+            "name",
+        )?;
+
+        validate_options_for_inequality(
+            request.phone.as_ref(),
+            customer_details.phone.as_ref(),
+            "phone",
+        )?;
+
+        validate_options_for_inequality(
+            request.phone_country_code.as_ref(),
+            customer_details.phone_country_code.as_ref(),
+            "phone_country_code",
+        )?;
+    }
+
+    Ok(())
+}
+
 /// Get the customer details from customer field if present
 /// or from the individual fields in `PaymentsRequest`
 pub fn get_customer_details_from_request(
     request: &api_models::payments::PaymentsRequest,
 ) -> CustomerDetails {
-    request
+    let customer_id = request
         .customer
         .as_ref()
-        .map(|customer_details| CustomerDetails {
-            customer_id: Some(customer_details.id.clone()),
-            name: customer_details.name.clone(),
-            email: customer_details.email.clone(),
-            phone: customer_details.phone.clone(),
-            phone_country_code: customer_details.phone_country_code.clone(),
-        })
-        .unwrap_or(CustomerDetails {
-            customer_id: request.customer_id.clone(),
-            name: request.name.clone(),
-            email: request.email.clone(),
-            phone: request.phone.clone(),
-            phone_country_code: request.phone_country_code.clone(),
-        })
+        .map(|customer_details| customer_details.id.clone())
+        .or(request.customer_id.clone());
+
+    let customer_name = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.name.clone())
+        .or(request.name.clone());
+
+    let customer_email = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.email.clone())
+        .or(request.email.clone());
+
+    let customer_phone = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.phone.clone())
+        .or(request.phone.clone());
+
+    let customer_phone_code = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.phone_country_code.clone())
+        .or(request.phone_country_code.clone());
+
+    CustomerDetails {
+        customer_id,
+        name: customer_name,
+        email: customer_email,
+        phone: customer_phone,
+        phone_country_code: customer_phone_code,
+    }
 }
 
 pub async fn get_connector_default(
