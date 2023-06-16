@@ -226,8 +226,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 api::WalletData::GooglePay(_) => Type::Direct,
                 api::WalletData::PaypalRedirect(_) => Type::Redirect,
-                _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()))?
-            }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Payment method".to_string(),
+                ))?,
+            },
             api::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
             _ => Type::Redirect,
         };
@@ -237,8 +239,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 api::WalletData::GooglePay(_) => Gateway::Googlepay,
                 api::WalletData::PaypalRedirect(_) => Gateway::Paypal,
-                _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()))?
-            }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Payment method".to_string(),
+                ))?,
+            },
             api::PaymentMethodData::PayLater(
                 api_models::payments::PayLaterData::KlarnaRedirect {
                     billing_email: _,
@@ -332,10 +336,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                     term_url: None,
                     email: None,
                     payment_token: Some(google_pay.tokenization_data.token.clone()),
-            }),
-            api::WalletData::PaypalRedirect(_) => None, 
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()))?
-            }
+                }),
+                api::WalletData::PaypalRedirect(_) => None,
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Payment method".to_string(),
+                ))?,
+            },
             api::PaymentMethodData::PayLater(ref paylater) => Some(GatewayInfo {
                 card_number: None,
                 card_expiry_date: None,
@@ -370,7 +376,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             payment_options: Some(payment_options),
             customer: Some(customer),
             delivery: Some(delivery),
-            gateway_info: gateway_info,
+            gateway_info,
             checkout_options: None,
             shopping_cart: None,
             capture: None,
