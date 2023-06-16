@@ -406,7 +406,7 @@ where
                             auth_flow == services::AuthFlow::Merchant,
                         )
                         .set_payment_token(payment_attempt.payment_token)
-                        .set_error_message(payment_attempt.error_message)
+                        .set_error_message(payment_attempt.error_reason)
                         .set_error_code(payment_attempt.error_code)
                         .set_shipping(address.shipping)
                         .set_billing(address.billing)

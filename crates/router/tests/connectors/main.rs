@@ -26,6 +26,7 @@ mod globalpay;
 mod iatapay;
 mod mollie;
 mod multisafepay;
+mod multisafepay_ui;
 mod nexinets;
 mod nmi;
 mod noon;
