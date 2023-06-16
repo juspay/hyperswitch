@@ -3948,6 +3948,9 @@
           }
         }
       },
+      "GooglePayRedirectData": {
+        "type": "object"
+      },
       "GooglePayWalletData": {
         "type": "object",
         "required": [
@@ -7924,6 +7927,17 @@
             "properties": {
               "google_pay": {
                 "$ref": "#/components/schemas/GooglePayWalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "google_pay_redirect"
+            ],
+            "properties": {
+              "apple_pay_redirect": {
+                "$ref": "#/components/schemas/GooglePayRedirectData"
               }
             }
           },

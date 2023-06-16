@@ -280,13 +280,13 @@ impl
             .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let (specified_payment_channel, session_data) = match wallet_data {
-            api_models::payments::WalletData::ApplePay(_) => (
+            api_models::payments::WalletData::ApplePayRedirect(_) => (
                 ZenPaymentChannels::PclApplepay,
                 session
                     .apple_pay
                     .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
             ),
-            api_models::payments::WalletData::GooglePay(_) => (
+            api_models::payments::WalletData::GooglePayRedirect(_) => (
                 ZenPaymentChannels::PclGooglepay,
                 session
                     .google_pay
