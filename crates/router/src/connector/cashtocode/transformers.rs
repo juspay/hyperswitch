@@ -97,8 +97,7 @@ impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CashtocodePaymentStatus {
@@ -118,7 +117,7 @@ impl From<CashtocodePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct CashtocodeErrors {
     pub message: String,
     pub path: String,
@@ -126,7 +125,7 @@ pub struct CashtocodeErrors {
     pub event_type: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsResponse {
     pub pay_url: String,
@@ -204,7 +203,7 @@ impl<F, T>
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct CashtocodeErrorResponse {
     pub error: String,
     pub error_description: String,
@@ -222,7 +221,7 @@ pub struct CashtocodeIncomingWebhook {
     pub transaction_id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodeObjectId {
     pub transaction_id: String,

@@ -910,12 +910,6 @@ pub struct CardResponse {
     exp_year: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum RewardType {
-    Classic,
-    Evoucher,
-}
-
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct RewardData {
