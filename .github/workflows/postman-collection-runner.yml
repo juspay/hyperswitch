@@ -6,6 +6,7 @@ on:
   schedule:
     # Run workflow at 6 AM and 6 PM IST
     - cron: "30 0,12 * * *"
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
