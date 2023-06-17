@@ -40,19 +40,37 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<domain::Customer>,
+        maybe_customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
     ) -> RouterResult<Self> {
-        self.decide_flow(
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::Verify,
+            types::VerifyRequestData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+        let resp = services::execute_connector_processing_step(
             state,
-            connector,
-            customer,
-            Some(true),
+            connector_integration,
+            &self,
             call_connector_action,
-            merchant_account,
+            connector_request,
         )
         .await
+        .to_verify_failed_response()?;
+
+        let pm_id = tokenization::save_payment_method(
+            state,
+            connector,
+            resp.to_owned(),
+            maybe_customer,
+            merchant_account,
+        )
+        .await?;
+
+        mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await
     }
 
     async fn add_access_token<'a>(
@@ -131,6 +149,7 @@ impl types::VerifyRouterData {
                     connector_integration,
                     self,
                     call_connector_action,
+                    None,
                 )
                 .await
                 .to_verify_failed_response()?;

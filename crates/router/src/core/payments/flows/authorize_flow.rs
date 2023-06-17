@@ -51,24 +51,40 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         mut self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<domain::Customer>,
+        maybe_customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
     ) -> RouterResult<Self> {
-        let resp = self
-            .decide_flow(
-                state,
-                connector,
-                customer,
-                Some(true),
-                call_connector_action,
-                merchant_account,
-            )
-            .await;
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::Authorize,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+
+        let resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &self,
+            call_connector_action,
+            connector_request,
+        )
+        .await
+        .to_payment_failed_response()?;
 
         metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
-        resp
+        let pm_id = tokenization::save_payment_method(
+            state,
+            connector,
+            resp.to_owned(),
+            maybe_customer,
+            merchant_account,
+        )
+        .await?;
+
+        Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
     }
 
     async fn add_access_token<'a>(
@@ -117,26 +133,22 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         )
         .await
     }
-}
 
-impl types::PaymentsAuthorizeRouterData {
-    pub async fn decide_flow<'a, 'b>(
-        &'b mut self,
-        state: &'a AppState,
+    async fn build_flow_specific_connector_request(
+        &mut self,
+        state: &AppState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<domain::Customer>,
-        confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &domain::MerchantAccount,
-    ) -> RouterResult<Self> {
-        match confirm {
-            Some(true) => {
+    ) -> RouterResult<Option<services::Request>> {
+        match call_connector_action {
+            payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,
                     api::Authorize,
                     types::PaymentsAuthorizeData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
+
                 connector_integration
                     .execute_pretasks(self, state)
                     .await
@@ -155,36 +167,24 @@ impl types::PaymentsAuthorizeRouterData {
                 );
 
                 logger::debug!(completed_pre_tasks=?true);
+
                 if self.should_proceed_with_authorize() {
                     self.decide_authentication_type();
                     logger::debug!(auth_type=?self.auth_type);
-                    let resp = services::execute_connector_processing_step(
-                        state,
-                        connector_integration,
-                        self,
-                        call_connector_action,
-                    )
-                    .await
-                    .to_payment_failed_response()?;
 
-                    let pm_id = tokenization::save_payment_method(
-                        state,
-                        connector,
-                        resp.to_owned(),
-                        maybe_customer,
-                        merchant_account,
-                    )
-                    .await?;
-
-                    Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
+                    connector_integration
+                        .build_request(self, &state.conf.connectors)
+                        .to_payment_failed_response()
                 } else {
-                    Ok(self.clone())
+                    Ok(None)
                 }
             }
-            _ => Ok(self.clone()),
+            _ => Ok(None),
         }
     }
+}
 
+impl types::PaymentsAuthorizeRouterData {
     fn decide_authentication_type(&mut self) {
         if self.auth_type == storage_models::enums::AuthenticationType::ThreeDs
             && !self.request.enrolled_for_3ds
@@ -264,6 +264,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             connector_integration,
             &preprocessing_router_data,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await
         .to_payment_failed_response()?;

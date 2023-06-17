@@ -41,9 +41,10 @@ impl Feature<api::Void, types::PaymentsCancelData>
         self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<domain::Customer>,
+        _customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
         _merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
     ) -> RouterResult<Self> {
         metrics::PAYMENT_CANCEL_COUNT.add(
             &metrics::CONTEXT,
@@ -53,14 +54,25 @@ impl Feature<api::Void, types::PaymentsCancelData>
                 connector.connector_name.to_string(),
             )],
         );
-        self.decide_flow(
+
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::Void,
+            types::PaymentsCancelData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+
+        let resp = services::execute_connector_processing_step(
             state,
-            connector,
-            customer,
-            Some(true),
+            connector_integration,
+            &self,
             call_connector_action,
+            connector_request,
         )
         .await
+        .to_payment_failed_response()?;
+
+        Ok(resp)
     }
 
     async fn add_access_token<'a>(
@@ -70,34 +82,5 @@ impl Feature<api::Void, types::PaymentsCancelData>
         merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
-    }
-}
-
-impl types::PaymentsCancelRouterData {
-    #[allow(clippy::too_many_arguments)]
-    pub async fn decide_flow<'a, 'b>(
-        &'b self,
-        state: &AppState,
-        connector: &api::ConnectorData,
-        _maybe_customer: &Option<domain::Customer>,
-        _confirm: Option<bool>,
-        call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<Self> {
-        let connector_integration: services::BoxedConnectorIntegration<
-            '_,
-            api::Void,
-            types::PaymentsCancelData,
-            types::PaymentsResponseData,
-        > = connector.connector.get_connector_integration();
-        let resp = services::execute_connector_processing_step(
-            state,
-            connector_integration,
-            self,
-            call_connector_action,
-        )
-        .await
-        .to_payment_failed_response()?;
-
-        Ok(resp)
     }
 }

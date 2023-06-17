@@ -49,6 +49,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
         _merchant_account: &domain::MerchantAccount,
+        _connector_request: Option<services::Request>,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             &metrics::CONTEXT,
@@ -304,6 +305,7 @@ impl types::PaymentsSessionRouterData {
                     connector_integration,
                     self,
                     call_connector_action,
+                    None,
                 )
                 .await
                 .to_payment_failed_response()?;
