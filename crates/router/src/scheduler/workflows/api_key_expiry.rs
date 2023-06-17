@@ -13,7 +13,6 @@ use crate::{
     utils::OptionExt,
 };
 
-#[allow(clippy::unwrap_used)]
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow for ApiKeyExpiryWorkflow {
     async fn execute_workflow<'a>(
@@ -40,8 +39,19 @@ impl ProcessTrackerWorkflow for ApiKeyExpiryWorkflow {
 
         let retry_count = process.retry_count;
 
-        let expires_in = tracking_data.expiry_reminder_days[usize::try_from(retry_count)
-            .map_err(|_| errors::ProcessTrackerError::TypeConversionError)?];
+        let expires_in = tracking_data
+            .expiry_reminder_days
+            .get(
+                usize::try_from(retry_count)
+                    .map_err(|_| errors::ProcessTrackerError::TypeConversionError)?,
+            )
+            .ok_or(errors::ProcessTrackerError::EApiErrorResponse(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "index",
+                }
+                .into(),
+            ))?;
+
         state
             .email_client
             .send_email(
@@ -68,11 +78,21 @@ Team Hyperswitch"),
         }
         // If tasks are remaining that has to be scheduled
         else {
-            let expiry_reminder_day =
-                tracking_data.expiry_reminder_days[usize::try_from(retry_count + 1)
-                    .map_err(|_| errors::ProcessTrackerError::TypeConversionError)?];
+            let expiry_reminder_day = tracking_data
+                .expiry_reminder_days
+                .get(
+                    usize::try_from(retry_count + 1)
+                        .map_err(|_| errors::ProcessTrackerError::TypeConversionError)?,
+                )
+                .ok_or(errors::ProcessTrackerError::EApiErrorResponse(
+                    errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "index",
+                    }
+                    .into(),
+                ))?;
+
             let updated_schedule_time = tracking_data.api_key_expiry.map(|api_key_expiry| {
-                api_key_expiry.saturating_sub(time::Duration::days(i64::from(expiry_reminder_day)))
+                api_key_expiry.saturating_sub(time::Duration::days(i64::from(*expiry_reminder_day)))
             });
             let updated_process_tracker_data = storage::ProcessTrackerUpdate::Update {
                 name: None,
@@ -83,7 +103,7 @@ Team Hyperswitch"),
                 status: Some(storage_enums::ProcessTrackerStatus::New),
                 updated_at: Some(common_utils::date_time::now()),
             };
-            let task_ids = vec![task_id.clone()];
+            let task_ids = vec![task_id];
             db.process_tracker_update_process_status_by_ids(task_ids, updated_process_tracker_data)
                 .await?;
         }

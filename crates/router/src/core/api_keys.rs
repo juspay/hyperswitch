@@ -5,10 +5,7 @@ use external_services::kms;
 use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
 #[cfg(feature = "email")]
-use storage_models::{
-    api_keys::ApiKey,
-    enums::{self as storage_enums},
-};
+use storage_models::{api_keys::ApiKey, enums as storage_enums};
 
 #[cfg(feature = "email")]
 use crate::types::storage::enums;
@@ -22,6 +19,13 @@ use crate::{
     types::{api, storage, transformers::ForeignInto},
     utils,
 };
+
+#[cfg(feature = "email")]
+const API_KEY_EXPIRY_TAG: &str = "API_KEY";
+#[cfg(feature = "email")]
+const API_KEY_EXPIRY_NAME: &str = "API_KEY_EXPIRY";
+#[cfg(feature = "email")]
+const API_KEY_EXPIRY_RUNNER: &str = "API_KEY_EXPIRY_WORKFLOW";
 
 static HASH_KEY: tokio::sync::OnceCell<StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> =
     tokio::sync::OnceCell::const_new();
@@ -207,14 +211,19 @@ pub async fn add_api_key_expiry_task(
             format!("unable to serialize API key expiry tracker: {api_key_expiry_tracker:?}")
         })?;
 
-    let schedule_time = api_key.expires_at.map(|expires_at| {
-        expires_at.saturating_sub(time::Duration::days(i64::from(expiry_reminder_days[0])))
-    });
+    let schedule_time = expiry_reminder_days
+        .first()
+        .and_then(|expiry_reminder_day| {
+            api_key.expires_at.map(|expires_at| {
+                expires_at.saturating_sub(time::Duration::days(i64::from(*expiry_reminder_day)))
+            })
+        });
+
     let process_tracker_entry = storage::ProcessTrackerNew {
         id: generate_task_id_for_api_key_expiry_workflow(api_key.key_id.as_str()),
-        name: Some(String::from("API_KEY_EXPIRY")),
-        tag: vec![String::from("API_KEY")],
-        runner: Some(String::from("API_KEY_EXPIRY_WORKFLOW")),
+        name: Some(String::from(API_KEY_EXPIRY_NAME)),
+        tag: vec![String::from(API_KEY_EXPIRY_TAG)],
+        runner: Some(String::from(API_KEY_EXPIRY_RUNNER)),
         // Retry count specifies, number of times the current process (email) has been retried.
         // It also acts as an index of expiry_reminder_days vector
         retry_count: 0,
@@ -347,9 +356,14 @@ pub async fn update_api_key_expiry_task(
     let task_id = generate_task_id_for_api_key_expiry_workflow(api_key.key_id.as_str());
 
     let task_ids = vec![task_id.clone()];
-    let schedule_time = api_key.expires_at.map(|expires_at| {
-        expires_at.saturating_sub(time::Duration::days(i64::from(expiry_reminder_days[0])))
-    });
+
+    let schedule_time = expiry_reminder_days
+        .first()
+        .and_then(|expiry_reminder_day| {
+            api_key.expires_at.map(|expires_at| {
+                expires_at.saturating_sub(time::Duration::days(i64::from(*expiry_reminder_day)))
+            })
+        });
 
     let updated_tracking_data = &storage::ApiKeyExpiryWorkflow {
         key_id: api_key.key_id.clone(),
@@ -436,10 +450,8 @@ pub async fn revoke_api_key_expiry_task(
     store: &dyn StorageInterface,
     key_id: &str,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let mut task_ids = Vec::new();
-
     let task_id = generate_task_id_for_api_key_expiry_workflow(key_id);
-    task_ids.push(task_id);
+    let task_ids = vec![task_id];
     let updated_process_tracker_data = storage::ProcessTrackerUpdate::StatusUpdate {
         status: storage_enums::ProcessTrackerStatus::Finish,
         business_status: Some("Revoked".to_string()),
@@ -475,10 +487,7 @@ pub async fn list_api_keys(
 
 #[cfg(feature = "email")]
 fn generate_task_id_for_api_key_expiry_workflow(key_id: &str) -> String {
-    let runner = "API_KEY_EXPIRY_WORKFLOW";
-    let task = "API_KEY_EXPIRY";
-
-    format!("{}_{}_{}", runner, task, key_id)
+    format!("{API_KEY_EXPIRY_RUNNER}_{API_KEY_EXPIRY_NAME}_{key_id}")
 }
 
 impl From<&str> for PlaintextApiKey {
