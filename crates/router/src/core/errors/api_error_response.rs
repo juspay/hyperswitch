@@ -89,6 +89,8 @@ pub enum ApiErrorResponse {
     FlowNotSupported { flow: String, connector: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_21", message = "Missing required params")]
     MissingRequiredFields { field_names: Vec<&'static str> },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_22", message = "Access forbidden. Not authorized to access this resource")]
+    AccessForbidden,
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
         code: String,
@@ -243,8 +245,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
             }
+            Self::AccessForbidden => StatusCode::FORBIDDEN, // 403
             Self::InvalidRequestUrl | Self::WebhookResourceNotFound => StatusCode::NOT_FOUND, // 404
-            Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED,                        // 405
+            Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
             Self::MissingRequiredField { .. }
             | Self::MissingRequiredFields { .. }
             | Self::InvalidDataValue { .. }
@@ -415,6 +418,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::MissingRequiredFields { field_names } => AER::BadRequest(
                 ApiError::new("IR", 21, "Missing required params".to_string(), Some(Extra {data: Some(serde_json::json!(field_names)), ..Default::default() })),
             ),
+            Self::AccessForbidden => AER::ForbiddenCommonResource(ApiError::new("IR", 22, "Access forbidden. Not authorized to access this resource", None)),
             Self::ExternalConnectorError {
                 code,
                 message,
