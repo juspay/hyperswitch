@@ -133,7 +133,7 @@ impl types::VerifyRouterData {
                     call_connector_action,
                 )
                 .await
-                .map_err(|err| err.to_verify_failed_response())?;
+                .to_verify_failed_response()?;
 
                 let pm_id = tokenization::save_payment_method(
                     state,
