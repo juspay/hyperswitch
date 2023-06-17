@@ -18,7 +18,7 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        api, domain,
+        self, api, domain,
         storage::{self, enums},
         transformers::{ForeignInto, ForeignTryInto},
     },
@@ -564,10 +564,12 @@ pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
 
     let transformed_outgoing_webhook = W::from(webhook);
 
-    let transformed_outgoing_webhook_string =
-        Encode::<serde_json::Value>::encode_to_string_of_json(&transformed_outgoing_webhook)
-            .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
-            .attach_printable("There was an issue when encoding the outgoing webhook body")?;
+    let transformed_outgoing_webhook_string = types::RequestBody::log_and_get_request_body(
+        &transformed_outgoing_webhook,
+        Encode::<serde_json::Value>::encode_to_string_of_json,
+    )
+    .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
+    .attach_printable("There was an issue when encoding the outgoing webhook body")?;
 
     let mut header = vec![(
         reqwest::header::CONTENT_TYPE.to_string(),

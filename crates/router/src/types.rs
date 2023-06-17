@@ -803,3 +803,27 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
         }
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct RequestBody(Secret<String>);
+
+impl RequestBody {
+    pub fn log_and_get_request_body<T, F>(
+        body: T,
+        encoder: F,
+    ) -> errors::CustomResult<RequestBody, errors::ParsingError>
+    where
+        F: FnOnce(T) -> errors::CustomResult<String, errors::ParsingError>,
+        T: std::fmt::Debug,
+    {
+        router_env::logger::info!(connector_request=?body);
+        Ok(RequestBody(Secret::new(encoder(body)?)))
+    }
+}
+
+impl std::ops::Deref for RequestBody {
+    type Target = Secret<String>;
+    fn deref(&self) -> &Secret<String> {
+        &self.0
+    }
+}
