@@ -129,18 +129,6 @@ where
     )
     .await?;
 
-    // let (operation, mut payment_data) = operation
-    //     .to_update_tracker()?
-    //     .update_trackers(
-    //         &*state.store,
-    //         &validate_result.payment_id,
-    //         payment_data,
-    //         customer.clone(),
-    //         validate_result.storage_scheme,
-    //         updated_customer,
-    //     )
-    //     .await?;
-
     if let Some(connector_details) = connector {
         if should_add_task_to_process_tracker(&payment_data) {
             operation
@@ -504,7 +492,9 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     connector: api::ConnectorData,
-    operation: &(dyn operations::UpdateTracker<F, PaymentData<F>, ApiRequest> + Send + Sync),
+    update_tracker_operation: &(dyn operations::UpdateTracker<F, PaymentData<F>, ApiRequest>
+          + Send
+          + Sync),
     payment_data: &PaymentData<F>,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
@@ -512,7 +502,6 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     updated_customer: Option<storage::CustomerUpdate>,
 ) -> RouterResult<types::RouterData<F, RouterDReq, types::PaymentsResponseData>>
 where
-    // Op: operations::UpdateTracker<F, PaymentData<F>, ApiRequest> + Send + Sync,
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
 
@@ -523,7 +512,6 @@ where
     // To construct connector flow specific api
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, types::PaymentsResponseData>,
-    // Op: Operation<F, ApiRequest>,
 {
     let stime_connector = Instant::now();
 
@@ -563,7 +551,7 @@ where
             .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
             .await?;
 
-        operation
+        update_tracker_operation
             .update_trackers(
                 &*state.store,
                 payment_data.clone(),
