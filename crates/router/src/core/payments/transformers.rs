@@ -343,7 +343,7 @@ where
                 if third_party_sdk_session_next_action(&payment_attempt, operation) {
                     next_action_response = Some(
                         api_models::payments::NextActionData::ThirdPartySdkSessionToken {
-                            session_token: session_tokens.iter().nth(0).cloned(),
+                            session_token: session_tokens.get(0).cloned(),
                         },
                     )
                 }
