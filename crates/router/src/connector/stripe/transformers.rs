@@ -2167,8 +2167,11 @@ impl<F, T>
         };
         Ok(Self {
             response: Ok(types::PaymentsResponseData::PreProcessingResponse {
-                pre_processing_id: item.response.id,
+                pre_processing_id: types::PreprocessingResponseId::PreProcessingId(
+                    item.response.id,
+                ),
                 connector_metadata: Some(connector_metadata),
+                session_token: None,
             }),
             status,
             ..item.data

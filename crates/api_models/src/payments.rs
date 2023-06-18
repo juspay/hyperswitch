@@ -829,6 +829,8 @@ pub enum WalletData {
     ApplePay(ApplePayWalletData),
     /// Wallet data for apple pay redirect flow
     ApplePayRedirect(Box<ApplePayRedirectData>),
+    /// Wallet data for apple pay third party sdk flow
+    ApplePayThirdPartySdk(Box<ApplePayThirdPartySdkData>),
     /// The wallet data for Google pay
     GooglePay(GooglePayWalletData),
     /// Wallet data for google pay redirect flow
@@ -863,6 +865,9 @@ pub struct ApplePayRedirectData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GooglePayRedirectData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ApplePayThirdPartySdkData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct WeChatPayRedirection {}
@@ -1125,6 +1130,8 @@ pub enum NextActionData {
     DisplayBankTransferInformation {
         bank_transfer_steps_and_charges_details: BankTransferNextStepsData,
     },
+    /// contains third party sdk session token response
+    ThirdPartySdkSessionToken { session_token: Option<SessionToken> },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1679,7 +1686,7 @@ pub struct PaymentsSessionRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayAllowedMethodsParameters {
     /// The list of allowed auth methods (ex: 3DS, No3DS, PAN_ONLY etc)
     pub allowed_auth_methods: Vec<String>,
@@ -1687,7 +1694,7 @@ pub struct GpayAllowedMethodsParameters {
     pub allowed_card_networks: Vec<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayTokenParameters {
     /// The name of the connector
     pub gateway: String,
@@ -1703,7 +1710,7 @@ pub struct GpayTokenParameters {
     pub stripe_publishable_key: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayTokenizationSpecification {
     /// The token specification type(ex: PAYMENT_GATEWAY)
     #[serde(rename = "type")]
@@ -1712,7 +1719,7 @@ pub struct GpayTokenizationSpecification {
     pub parameters: GpayTokenParameters,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayAllowedPaymentMethods {
     /// The type of payment method
     #[serde(rename = "type")]
@@ -1723,7 +1730,7 @@ pub struct GpayAllowedPaymentMethods {
     pub tokenization_specification: GpayTokenizationSpecification,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayTransactionInfo {
     /// The country code
     #[schema(value_type = CountryAlpha2, example = "US")]
@@ -1736,7 +1743,7 @@ pub struct GpayTransactionInfo {
     pub total_price: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayMerchantInfo {
     /// The name of the merchant
     pub merchant_name: String,
@@ -1802,7 +1809,7 @@ pub struct SessionTokenInfo {
     pub initiative_context: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(tag = "wallet_name")]
 #[serde(rename_all = "snake_case")]
 pub enum SessionToken {
@@ -1814,9 +1821,11 @@ pub enum SessionToken {
     Paypal(Box<PaypalSessionTokenResponse>),
     /// The session response structure for Apple Pay
     ApplePay(Box<ApplepaySessionTokenResponse>),
+    /// Whenever there is no session token response or an error in session response
+    NoSessionTokenReceived,
 }
 
-#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub struct GpaySessionTokenResponse {
     /// The merchant info
@@ -1828,7 +1837,7 @@ pub struct GpaySessionTokenResponse {
     pub connector: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub struct KlarnaSessionTokenResponse {
     /// The session token for Klarna
@@ -1837,26 +1846,58 @@ pub struct KlarnaSessionTokenResponse {
     pub session_id: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub struct PaypalSessionTokenResponse {
     /// The session token for PayPal
     pub session_token: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub struct ApplepaySessionTokenResponse {
     /// Session object for Apple Pay
     pub session_token_data: ApplePaySessionResponse,
     /// Payment request object for Apple Pay
-    pub payment_request_data: ApplePayPaymentRequest,
+    pub payment_request_data: Option<ApplePayPaymentRequest>,
+    /// The session token is w.r.t this connector
     pub connector: String,
+    /// Identifier for the delayed session response
+    pub delayed_session_token: bool,
+    /// The next action for the sdk (ex: calling confirm or sync call)
+    pub sdk_next_action: SdkNextAction,
 }
 
-#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+#[derive(Debug, Eq, PartialEq, serde::Serialize, Clone, ToSchema)]
+pub struct SdkNextAction {
+    /// The type of next action
+    pub next_action: NextActionCall,
+}
+
+#[derive(Debug, Eq, PartialEq, serde::Serialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum NextActionCall {
+    /// The next action call is confirm
+    Confirm,
+    /// The next action call is sync
+    Sync,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(untagged)]
+pub enum ApplePaySessionResponse {
+    ///  We get this session response, when third party sdk is involved
+    ThirdPartySdk(ThirdPartySdkSessionResponse),
+    ///  We get this session response, when there is no involvement of third party sdk
+    /// This is the common response most of the times
+    NoThirdPartySdk(NoThirdPartySdkSessionResponse),
+    /// This is for the empty session response
+    NoSessionResponse,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
 #[serde(rename_all(deserialize = "camelCase"))]
-pub struct ApplePaySessionResponse {
+pub struct NoThirdPartySdkSessionResponse {
     /// Timestamp at which session is requested
     pub epoch_timestamp: u64,
     /// Timestamp at which session expires
@@ -1881,7 +1922,22 @@ pub struct ApplePaySessionResponse {
     pub psp_id: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct ThirdPartySdkSessionResponse {
+    pub secrets: SecretInfoToInitiateSdk,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct SecretInfoToInitiateSdk {
+    // Authorization secrets used by client to initiate sdk
+    #[schema(value_type = String)]
+    pub display: Secret<String>,
+    // Authorization secrets used by client for payment
+    #[schema(value_type = String)]
+    pub payment: Secret<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
 pub struct ApplePayPaymentRequest {
     /// The code for country
     #[schema(value_type = CountryAlpha2, example = "US")]
@@ -1894,16 +1950,16 @@ pub struct ApplePayPaymentRequest {
     pub merchant_capabilities: Vec<String>,
     /// The list of supported networks
     pub supported_networks: Vec<String>,
-    pub merchant_identifier: String,
+    pub merchant_identifier: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
 pub struct AmountInfo {
     /// The label must be the name of the merchant.
     pub label: String,
     /// A value that indicates whether the line item(Ex: total, tax, discount, or grand total) is final or pending.
     #[serde(rename = "type")]
-    pub total_type: String,
+    pub total_type: Option<String>,
     /// The total amount for the payment
     pub amount: String,
 }

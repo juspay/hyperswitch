@@ -156,7 +156,7 @@ where
                     &merchant_account,
                     connector,
                     &operation,
-                    &payment_data,
+                    &mut payment_data,
                     &customer,
                     call_connector_action,
                     tokenization_action,
@@ -399,6 +399,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                     .and_then(|next_action_data| match next_action_data {
                         api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
                         api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
+                        api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
@@ -489,7 +490,7 @@ pub async fn call_connector_service<F, Op, Req>(
     merchant_account: &domain::MerchantAccount,
     connector: api::ConnectorData,
     _operation: &Op,
-    payment_data: &PaymentData<F>,
+    payment_data: &mut PaymentData<F>,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
     tokenization_action: TokenizationAction,
@@ -542,6 +543,14 @@ where
     )
     .await?;
 
+    if let Ok(types::PaymentsResponseData::PreProcessingResponse {
+        session_token: Some(session_token),
+        ..
+    }) = router_data.response.to_owned()
+    {
+        payment_data.sessions_token.push(session_token);
+    };
+
     let router_data_res = if should_continue_payment {
         router_data
             .decide_flows(
@@ -590,7 +599,6 @@ where
 
     for session_connector_data in connectors.iter() {
         let connector_id = session_connector_data.connector.connector.id();
-
         let router_data = payment_data
             .construct_router_data(state, connector_id, merchant_account, customer)
             .await?;
@@ -612,10 +620,17 @@ where
         let connector_name = session_connector.connector.connector_name.to_string();
         match connector_res {
             Ok(connector_response) => {
-                if let Ok(types::PaymentsResponseData::SessionResponse { session_token }) =
+                if let Ok(types::PaymentsResponseData::SessionResponse { session_token, .. }) =
                     connector_response.response
                 {
-                    payment_data.sessions_token.push(session_token);
+                    // If session token is NoSessionTokenReceived, it is not pushed into the sessions_token as there is no response or there can be some error
+                    // In case of error, that error is already logged
+                    if !matches!(
+                        session_token,
+                        api_models::payments::SessionToken::NoSessionTokenReceived,
+                    ) {
+                        payment_data.sessions_token.push(session_token);
+                    }
                 }
             }
             Err(connector_error) => {
@@ -716,17 +731,17 @@ where
     }
 }
 
-async fn complete_preprocessing_steps_if_required<F, Req, Res>(
+async fn complete_preprocessing_steps_if_required<F, Req>(
     state: &AppState,
     connector: &api::ConnectorData,
     payment_data: &PaymentData<F>,
-    router_data: types::RouterData<F, Req, Res>,
+    router_data: types::RouterData<F, Req, types::PaymentsResponseData>,
     should_continue_payment: bool,
-) -> RouterResult<(types::RouterData<F, Req, Res>, bool)>
+) -> RouterResult<(types::RouterData<F, Req, types::PaymentsResponseData>, bool)>
 where
     F: Send + Clone + Sync,
     Req: Send + Sync,
-    types::RouterData<F, Req, Res>: Feature<F, Req> + Send,
+    types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req> + Send,
     dyn api::Connector: services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,
 {
     //TODO: For ACH transfers, if preprocessing_step is not required for connectors encountered in future, add the check
@@ -744,6 +759,16 @@ where
             }
             _ => (router_data, should_continue_payment),
         },
+        Some(api_models::payments::PaymentMethodData::Wallet(_)) => {
+            if connector.connector_name.to_string() == *"trustpay" {
+                (
+                    router_data.preprocessing_steps(state, connector).await?,
+                    false,
+                )
+            } else {
+                (router_data, should_continue_payment)
+            }
+        }
         _ => (router_data, should_continue_payment),
     };
 
@@ -869,7 +894,6 @@ where
                 .payment_method
                 .get_required_value("payment_method")?;
             let payment_method_type = &payment_data.payment_attempt.payment_method_type;
-
             let is_connector_tokenization_enabled =
                 is_payment_method_tokenization_enabled_for_connector(
                     state,
