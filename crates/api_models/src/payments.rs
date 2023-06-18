@@ -1127,7 +1127,7 @@ pub enum NextActionData {
         bank_transfer_steps_and_charges_details: BankTransferNextStepsData,
     },
     /// contains third party sdk session token response
-    ThirdPartySdkSessionToken { session_token: SessionToken },
+    ThirdPartySdkSessionToken { session_token: Option<SessionToken> },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

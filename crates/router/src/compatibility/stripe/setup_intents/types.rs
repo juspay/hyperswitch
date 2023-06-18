@@ -318,7 +318,7 @@ pub enum StripeNextAction {
         bank_transfer_steps_and_charges_details: payments::BankTransferNextStepsData,
     },
     ThirdPartySdkSessionToken {
-        session_token: payments::SessionToken,
+        session_token: Option<payments::SessionToken>,
     },
 }
 
