@@ -1,4 +1,4 @@
-use std::{collections::HashMap, num::NonZeroI64};
+use std::num::NonZeroI64;
 
 use cards::CardNumber;
 use common_utils::{
@@ -281,6 +281,10 @@ pub struct PaymentsRequest {
     /// If enabled payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted.
     #[serde(default)]
     pub manual_retry: bool,
+
+    /// Any user defined fields can be passed here.
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub udf: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
@@ -1377,6 +1381,10 @@ pub struct PaymentsResponse {
 
     /// ephemeral_key for the customer_id mentioned
     pub ephemeral_key: Option<EphemeralKeyCreateResponse>,
+
+    /// Any user defined fields can be passed here.
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub udf: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
@@ -1636,12 +1644,7 @@ pub struct OrderDetails {
 pub struct Metadata {
     /// Information about the product and quantity for specific connectors. (e.g. Klarna)
     pub order_details: Option<OrderDetails>,
-    /// Information used for routing
-    pub routing_parameters: Option<HashMap<String, String>>,
-    /// Any other metadata that is to be provided
-    #[schema(value_type = Object, example = r#"{ "city": "NY", "unit": "245" }"#)]
-    #[serde(flatten)]
-    pub data: pii::SecretSerdeValue,
+
     /// Information about the order category that merchant wants to specify at connector level. (e.g. In Noon Payments it can take values like "pay", "food", or any other custom string set by the merchant in Noon's Dashboard)
     pub order_category: Option<String>,
 

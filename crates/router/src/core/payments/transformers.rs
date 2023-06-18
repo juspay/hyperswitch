@@ -451,6 +451,7 @@ where
                                 .and_then(|metadata| metadata.allowed_payment_method_types),
                         )
                         .set_ephemeral_key(ephemeral_key_option.map(ForeignFrom::foreign_from))
+                        .set_udf(payment_intent.udf)
                         .to_owned(),
                 )
             }
@@ -494,6 +495,7 @@ where
             payment_token: payment_attempt.payment_token,
             metadata: payment_intent.metadata,
             order_details: payment_intent.order_details,
+            udf: payment_intent.udf,
             ..Default::default()
         }),
     });
