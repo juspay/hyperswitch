@@ -82,7 +82,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )
             .await?;
 
-        //is this really needed? payment_intent is already fetched at line 55
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
             .await
@@ -145,7 +144,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
 
-        //moved all payment_intent updates from request into this function
         Self::populate_payment_intent_with_request(&mut payment_intent, request);
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
@@ -236,7 +234,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             None => storage_enums::IntentStatus::RequiresPaymentMethod,
         };
 
-        //moved all payment_attempt updates from request into this function
         Self::populate_payment_attempt_with_request(&mut payment_attempt, request);
 
         let creds_identifier = request
@@ -599,23 +596,24 @@ impl PaymentUpdate {
             .business_label
             .clone()
             .unwrap_or(payment_intent.business_label.clone());
-        payment_intent.description = request
+        request
             .description
             .clone()
-            .or_else(|| payment_intent.description.clone());
-        payment_intent.statement_descriptor_name = request
+            .map(|i| payment_intent.description.replace(i));
+
+        request
             .statement_descriptor_name
             .clone()
-            .or_else(|| payment_intent.statement_descriptor_name.clone());
+            .map(|i| payment_intent.statement_descriptor_name.replace(i));
 
-        payment_intent.statement_descriptor_suffix = request
+        request
             .statement_descriptor_suffix
             .clone()
-            .or_else(|| payment_intent.statement_descriptor_suffix.clone());
+            .map(|i| payment_intent.statement_descriptor_suffix.replace(i));
 
-        payment_intent.client_secret = request
+        request
             .client_secret
             .clone()
-            .or_else(|| payment_intent.client_secret.clone());
+            .map(|i| payment_intent.client_secret.replace(i));
     }
 }
