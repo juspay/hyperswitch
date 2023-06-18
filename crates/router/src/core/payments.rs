@@ -523,7 +523,7 @@ where
         .add_access_token(state, &connector, merchant_account)
         .await?;
 
-    let mut should_continute_further = access_token::update_router_data_with_access_token_result(
+    let mut should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
@@ -537,23 +537,23 @@ where
         router_data.payment_method_token = Some(payment_method_token);
     };
 
-    (router_data, should_continute_further) = complete_preprocessing_steps_if_required(
+    (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
         state,
         &connector,
         payment_data,
         router_data,
-        should_continute_further,
+        should_continue_further,
     )
     .await?;
 
-    let router_data_res = if should_continute_further {
+    let router_data_res = if should_continue_further {
         // Check if the actual flow specific request can be built with available data
         let request = router_data
             .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
             .await?;
 
-        // Update the payment trakers just before calling the connector
-        // Since the reqeuest is already built in the previous step,
+        // Update the payment trackers just before calling the connector
+        // Since the request is already built in the previous step,
         // there should be no error in request construction from hyperswitch end
         update_tracker_operation
             .update_trackers(
