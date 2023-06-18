@@ -11,7 +11,7 @@ use crate::{
     logger,
     routes::{metrics, AppState},
     services,
-    types::{self, api, storage},
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -26,8 +26,8 @@ impl
         &self,
         state: &AppState,
         connector_id: &str,
-        merchant_account: &storage::MerchantAccount,
-        customer: &Option<storage::Customer>,
+        merchant_account: &domain::MerchantAccount,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -51,9 +51,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         mut self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<storage::Customer>,
+        customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self> {
         let resp = self
             .decide_flow(
@@ -75,7 +75,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
@@ -108,14 +108,12 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
-    ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)> {
+    ) -> RouterResult<Option<String>> {
         customers::create_connector_customer(
             state,
             connector,
             self,
             types::ConnectorCustomerData::try_from(self)?,
-            connector_customer_map,
         )
         .await
     }
@@ -126,10 +124,10 @@ impl types::PaymentsAuthorizeRouterData {
         &'b mut self,
         state: &'a AppState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<storage::Customer>,
+        maybe_customer: &Option<domain::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {
@@ -142,7 +140,20 @@ impl types::PaymentsAuthorizeRouterData {
                 connector_integration
                     .execute_pretasks(self, state)
                     .await
-                    .map_err(|error| error.to_payment_failed_response())?;
+                    .to_payment_failed_response()?;
+
+                metrics::EXECUTE_PRETASK_COUNT.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[
+                        metrics::request::add_attributes(
+                            "connector",
+                            connector.connector_name.to_string(),
+                        ),
+                        metrics::request::add_attributes("flow", format!("{:?}", api::Authorize)),
+                    ],
+                );
+
                 logger::debug!(completed_pre_tasks=?true);
                 if self.should_proceed_with_authorize() {
                     self.decide_authentication_type();
@@ -154,7 +165,7 @@ impl types::PaymentsAuthorizeRouterData {
                         call_connector_action,
                     )
                     .await
-                    .map_err(|error| error.to_payment_failed_response())?;
+                    .to_payment_failed_response()?;
 
                     let pm_id = tokenization::save_payment_method(
                         state,
@@ -255,7 +266,28 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             payments::CallConnectorAction::Trigger,
         )
         .await
-        .map_err(|error| error.to_payment_failed_response())?;
+        .to_payment_failed_response()?;
+
+        metrics::PREPROCESSING_STEPS_COUNT.add(
+            &metrics::CONTEXT,
+            1,
+            &[
+                metrics::request::add_attributes("connector", connector.connector_name.to_string()),
+                metrics::request::add_attributes(
+                    "payment_method",
+                    router_data.payment_method.to_string(),
+                ),
+                metrics::request::add_attributes(
+                    "payment_method_type",
+                    router_data
+                        .request
+                        .payment_method_type
+                        .as_ref()
+                        .map(|inner| inner.to_string())
+                        .unwrap_or("null".to_string()),
+                ),
+            ],
+        );
 
         let authorize_router_data =
             payments::helpers::router_data_type_conversion::<_, F, _, _, _, _>(

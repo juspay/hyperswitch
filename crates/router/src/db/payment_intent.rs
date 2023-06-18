@@ -95,7 +95,7 @@ mod storage {
                         business_country: new.business_country,
                         business_label: new.business_label.clone(),
                         active_attempt_id: new.active_attempt_id.to_owned(),
-                        meta_data: new.meta_data.clone(),
+                        order_details: new.order_details.clone(),
                     };
 
                     match self
@@ -354,7 +354,7 @@ impl PaymentIntentInterface for MockDb {
             business_country: new.business_country,
             business_label: new.business_label,
             active_attempt_id: new.active_attempt_id.to_owned(),
-            meta_data: new.meta_data,
+            order_details: new.order_details,
         };
         payment_intents.push(payment_intent.clone());
         Ok(payment_intent)

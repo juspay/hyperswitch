@@ -80,8 +80,8 @@ pub enum AttemptStatus {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticationType {
-    #[default]
     ThreeDs,
+    #[default]
     NoThreeDs,
 }
 
@@ -243,6 +243,7 @@ pub enum Currency {
     PKR,
     PLN,
     QAR,
+    RON,
     RUB,
     SAR,
     SCR,
@@ -254,6 +255,7 @@ pub enum Currency {
     SVC,
     SZL,
     THB,
+    TRY,
     TTD,
     TWD,
     TZS,
@@ -598,7 +600,7 @@ impl<DB: Backend> FromSql<Jsonb, DB> for MandateDataType
 where
     serde_json::Value: FromSql<Jsonb, DB>,
 {
-    fn from_sql(bytes: diesel::backend::RawValue<'_, DB>) -> diesel::deserialize::Result<Self> {
+    fn from_sql(bytes: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
         let value = <serde_json::Value as FromSql<Jsonb, DB>>::from_sql(bytes)?;
         Ok(serde_json::from_value(value)?)
     }

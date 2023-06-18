@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -14,12 +14,11 @@ use crate::{
         payments::{self, helpers, operations, PaymentData},
     },
     db::StorageInterface,
-    logger,
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
+        domain,
         storage::{self, enums as storage_enums},
-        transformers::ForeignInto,
     },
     utils::OptionExt,
 };
@@ -39,7 +38,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsSessionRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
@@ -88,7 +87,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             None,
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
         )
         .await?;
 
@@ -97,7 +96,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             None,
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
         )
         .await?;
 
@@ -154,11 +153,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 amount,
                 email: None,
                 mandate_id: None,
+                mandate_connector: None,
                 token: None,
                 setup_mandate: None,
                 address: payments::PaymentAddress {
-                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
+                    shipping: shipping_address.as_ref().map(|a| a.into()),
+                    billing: billing_address.as_ref().map(|a| a.into()),
                 },
                 confirm: None,
                 payment_method_data: None,
@@ -172,6 +172,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 pm_token: None,
                 connector_customer_id: None,
                 ephemeral_key: None,
+                redirect_response: None,
             },
             Some(customer_details),
         ))
@@ -186,7 +187,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
         db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(
@@ -197,20 +198,16 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
         F: 'b + Send,
     {
         let metadata = payment_data.payment_intent.metadata.clone();
-        let meta_data = payment_data.payment_intent.meta_data.clone();
-        payment_data.payment_intent = match (metadata, meta_data) {
-            (Some(metadata), Some(meta_data)) => db
+        payment_data.payment_intent = match metadata {
+            Some(metadata) => db
                 .update_payment_intent(
                     payment_data.payment_intent,
-                    storage::PaymentIntentUpdate::MetadataUpdate {
-                        metadata,
-                        meta_data,
-                    },
+                    storage::PaymentIntentUpdate::MetadataUpdate { metadata },
                     storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
-            _ => payment_data.payment_intent,
+            None => payment_data.payment_intent,
         };
 
         Ok((Box::new(self), payment_data))
@@ -222,7 +219,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsSessionRequest,
-        merchant_account: &'a storage::MerchantAccount,
+        merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         operations::ValidateResult<'a>,
@@ -258,7 +255,7 @@ where
     ) -> errors::CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsSessionRequest>,
-            Option<storage::Customer>,
+            Option<domain::Customer>,
         ),
         errors::StorageError,
     > {
@@ -297,7 +294,7 @@ where
     /// or from separate implementation ( for googlepay - from metadata and applepay - from metadata and call connector)
     async fn get_connector<'a>(
         &'a self,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsSessionRequest,
         payment_intent: &storage::payment_intent::PaymentIntent,
@@ -334,9 +331,12 @@ where
                             .parse_value::<PaymentMethodsEnabled>("payment_methods_enabled")
                     })
                     .filter_map(|parsed_payment_method_result| {
-                        let error = parsed_payment_method_result.as_ref().err();
-                        logger::error!(session_token_parsing_error=?error);
-                        parsed_payment_method_result.ok()
+                        parsed_payment_method_result
+                            .map_err(|err| {
+                                logger::error!(session_token_parsing_error=?err);
+                                err
+                            })
+                            .ok()
                     })
                     .flat_map(|parsed_payment_methods_enabled| {
                         parsed_payment_methods_enabled
@@ -377,22 +377,21 @@ where
         for (connector, payment_method_type, business_sub_label) in
             connector_and_supporting_payment_method_type
         {
-            let connector_type = get_connector_type_for_session_token(
-                payment_method_type,
-                request,
-                connector.to_owned(),
-            );
-            match api::ConnectorData::get_connector_by_name(connectors, &connector, connector_type)
-            {
-                Ok(connector_data) => session_connector_data.push(api::SessionConnectorData {
+            if let Ok(connector_data) = api::ConnectorData::get_connector_by_name(
+                connectors,
+                &connector,
+                api::GetToken::from(payment_method_type),
+            )
+            .map_err(|err| {
+                logger::error!(session_token_error=?err);
+                err
+            }) {
+                session_connector_data.push(api::SessionConnectorData {
                     payment_method_type,
                     connector: connector_data,
                     business_sub_label,
-                }),
-                Err(error) => {
-                    logger::error!(session_token_error=?error)
-                }
-            }
+                })
+            };
         }
 
         Ok(api::ConnectorChoice::SessionMultiple(

@@ -2,10 +2,10 @@
 name = "masking"
 description = "Personal Identifiable Information protection. Wrapper types and traits for secret management which help ensure they aren't accidentally copied, logged, or otherwise exposed (as much as possible), and also ensure secrets are securely wiped from memory when dropped."
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.65"
+edition.workspace = true
+rust-version.workspace = true
 readme = "README.md"
-license = "Apache-2.0"
+license.workspace = true
 
 [features]
 default = ["alloc", "serde", "diesel"]
@@ -17,7 +17,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 bytes = { version = "1", optional = true }
-diesel = { version = "2.0.3", features = ["postgres", "serde_json", "time"], optional = true }
+diesel = { version = "2.1.0", features = ["postgres", "serde_json", "time"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = "1.0.96"
 subtle = "=2.4.1"

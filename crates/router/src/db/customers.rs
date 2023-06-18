@@ -1,4 +1,6 @@
-use error_stack::IntoReport;
+use common_utils::ext_traits::AsyncExt;
+use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 
 use super::{MockDb, Store};
 use crate::{
@@ -7,11 +9,20 @@ use crate::{
         customers::REDACTED,
         errors::{self, CustomResult},
     },
-    types::storage,
+    types::{
+        domain::{
+            self,
+            behaviour::{Conversion, ReverseConversion},
+        },
+        storage,
+    },
 };
 
 #[async_trait::async_trait]
-pub trait CustomerInterface {
+pub trait CustomerInterface
+where
+    domain::Customer: Conversion<DstType = storage::Customer, NewDstType = storage::CustomerNew>,
+{
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
         customer_id: &str,
@@ -22,25 +33,25 @@ pub trait CustomerInterface {
         &self,
         customer_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Option<storage::Customer>, errors::StorageError>;
+    ) -> CustomResult<Option<domain::Customer>, errors::StorageError>;
 
     async fn update_customer_by_customer_id_merchant_id(
         &self,
         customer_id: String,
         merchant_id: String,
         customer: storage::CustomerUpdate,
-    ) -> CustomResult<storage::Customer, errors::StorageError>;
+    ) -> CustomResult<domain::Customer, errors::StorageError>;
 
     async fn find_customer_by_customer_id_merchant_id(
         &self,
         customer_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<storage::Customer, errors::StorageError>;
+    ) -> CustomResult<domain::Customer, errors::StorageError>;
 
     async fn insert_customer(
         &self,
-        customer_data: storage::CustomerNew,
-    ) -> CustomResult<storage::Customer, errors::StorageError>;
+        customer_data: domain::Customer,
+    ) -> CustomResult<domain::Customer, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -49,21 +60,31 @@ impl CustomerInterface for Store {
         &self,
         customer_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Option<storage::Customer>, errors::StorageError> {
+    ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let maybe_customer = storage::Customer::find_optional_by_customer_id_merchant_id(
-            &conn,
-            customer_id,
-            merchant_id,
-        )
-        .await
-        .map_err(Into::into)
-        .into_report()?;
+        let maybe_customer: Option<domain::Customer> =
+            storage::Customer::find_optional_by_customer_id_merchant_id(
+                &conn,
+                customer_id,
+                merchant_id,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()?
+            .async_map(|c| async {
+                c.convert(self, merchant_id)
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            })
+            .await
+            .transpose()?;
         maybe_customer.map_or(Ok(None), |customer| {
             // in the future, once #![feature(is_some_and)] is stable, we can make this more concise:
             // `if customer.name.is_some_and(|ref name| name == REDACTED) ...`
             match customer.name {
-                Some(ref name) if name == REDACTED => Err(errors::StorageError::CustomerRedacted)?,
+                Some(ref name) if name.peek() == REDACTED => {
+                    Err(errors::StorageError::CustomerRedacted)?
+                }
                 _ => Ok(Some(customer)),
             }
         })
@@ -74,46 +95,72 @@ impl CustomerInterface for Store {
         customer_id: String,
         merchant_id: String,
         customer: storage::CustomerUpdate,
-    ) -> CustomResult<storage::Customer, errors::StorageError> {
+    ) -> CustomResult<domain::Customer, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::Customer::update_by_customer_id_merchant_id(
             &conn,
             customer_id,
             merchant_id,
-            customer,
+            customer.into(),
         )
         .await
         .map_err(Into::into)
         .into_report()
+        .async_and_then(|c| async {
+            let merchant_id = c.merchant_id.clone();
+            c.convert(self, &merchant_id)
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        })
+        .await
     }
 
     async fn find_customer_by_customer_id_merchant_id(
         &self,
         customer_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<storage::Customer, errors::StorageError> {
+    ) -> CustomResult<domain::Customer, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let customer =
+        let customer: domain::Customer =
             storage::Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
                 .await
                 .map_err(Into::into)
-                .into_report()?;
+                .into_report()
+                .async_and_then(|c| async {
+                    let merchant_id = c.merchant_id.clone();
+                    c.convert(self, &merchant_id)
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                })
+                .await?;
         match customer.name {
-            Some(ref name) if name == REDACTED => Err(errors::StorageError::CustomerRedacted)?,
+            Some(ref name) if name.peek() == REDACTED => {
+                Err(errors::StorageError::CustomerRedacted)?
+            }
             _ => Ok(customer),
         }
     }
 
     async fn insert_customer(
         &self,
-        customer_data: storage::CustomerNew,
-    ) -> CustomResult<storage::Customer, errors::StorageError> {
+        customer_data: domain::Customer,
+    ) -> CustomResult<domain::Customer, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         customer_data
+            .construct_new()
+            .await
+            .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
             .await
             .map_err(Into::into)
             .into_report()
+            .async_and_then(|c| async {
+                let merchant_id = c.merchant_id.clone();
+                c.convert(self, &merchant_id)
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            })
+            .await
     }
 
     async fn delete_customer_by_customer_id_merchant_id(
@@ -136,15 +183,23 @@ impl CustomerInterface for MockDb {
         &self,
         customer_id: &str,
         merchant_id: &str,
-    ) -> CustomResult<Option<storage::Customer>, errors::StorageError> {
+    ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
         let customers = self.customers.lock().await;
-
-        Ok(customers
+        let customer = customers
             .iter()
             .find(|customer| {
                 customer.customer_id == customer_id && customer.merchant_id == merchant_id
             })
-            .cloned())
+            .cloned();
+        customer
+            .async_map(|c| async {
+                let merchant_id = c.merchant_id.clone();
+                c.convert(self, &merchant_id)
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            })
+            .await
+            .transpose()
     }
 
     async fn update_customer_by_customer_id_merchant_id(
@@ -152,7 +207,7 @@ impl CustomerInterface for MockDb {
         _customer_id: String,
         _merchant_id: String,
         _customer: storage::CustomerUpdate,
-    ) -> CustomResult<storage::Customer, errors::StorageError> {
+    ) -> CustomResult<domain::Customer, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
@@ -161,7 +216,7 @@ impl CustomerInterface for MockDb {
         &self,
         _customer_id: &str,
         _merchant_id: &str,
-    ) -> CustomResult<storage::Customer, errors::StorageError> {
+    ) -> CustomResult<domain::Customer, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
@@ -169,26 +224,21 @@ impl CustomerInterface for MockDb {
     #[allow(clippy::panic)]
     async fn insert_customer(
         &self,
-        customer_data: storage::CustomerNew,
-    ) -> CustomResult<storage::Customer, errors::StorageError> {
+        customer_data: domain::Customer,
+    ) -> CustomResult<domain::Customer, errors::StorageError> {
         let mut customers = self.customers.lock().await;
-        let customer = storage::Customer {
-            #[allow(clippy::as_conversions)]
-            id: customers.len() as i32,
-            customer_id: customer_data.customer_id,
-            merchant_id: customer_data.merchant_id,
-            name: customer_data.name,
-            email: customer_data.email,
-            phone: customer_data.phone,
-            phone_country_code: customer_data.phone_country_code,
-            description: customer_data.description,
-            created_at: common_utils::date_time::now(),
-            metadata: customer_data.metadata,
-            connector_customer: customer_data.connector_customer,
-            modified_at: common_utils::date_time::now(),
-        };
+
+        let customer = Conversion::convert(customer_data)
+            .await
+            .change_context(errors::StorageError::EncryptionError)?;
+
+        let merchant_id = customer.merchant_id.clone();
         customers.push(customer.clone());
-        Ok(customer)
+
+        customer
+            .convert(self, &merchant_id)
+            .await
+            .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn delete_customer_by_customer_id_merchant_id(
