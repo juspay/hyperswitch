@@ -547,10 +547,14 @@ where
     .await?;
 
     let router_data_res = if should_continute_further {
+        // Check if the actual flow specific request can be built with available data
         let request = router_data
             .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
             .await?;
 
+        // Update the payment trakers just before calling the connector
+        // Since the reqeuest is already built in the previous step,
+        // there should be no error in request construction from hyperswitch end
         update_tracker_operation
             .update_trackers(
                 &*state.store,

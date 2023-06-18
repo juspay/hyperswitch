@@ -204,12 +204,6 @@ impl types::PaymentsAuthorizeRouterData {
     }
 }
 
-pub enum Action {
-    Update,
-    Insert,
-    Skip,
-}
-
 impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_amount(&self) -> i64 {
         self.amount

@@ -91,4 +91,27 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
+
+    async fn build_flow_specific_connector_request(
+        &mut self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        call_connector_action: payments::CallConnectorAction,
+    ) -> RouterResult<Option<services::Request>> {
+        match call_connector_action {
+            payments::CallConnectorAction::Trigger => {
+                let connector_integration: services::BoxedConnectorIntegration<
+                    '_,
+                    api::CompleteAuthorize,
+                    types::CompleteAuthorizeData,
+                    types::PaymentsResponseData,
+                > = connector.connector.get_connector_integration();
+
+                connector_integration
+                    .build_request(self, &state.conf.connectors)
+                    .to_payment_failed_response()
+            }
+            _ => Ok(None),
+        }
+    }
 }
