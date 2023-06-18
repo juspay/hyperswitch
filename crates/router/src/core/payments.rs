@@ -184,7 +184,7 @@ where
                 .await
         }
     } else {
-        operation
+        (_, payment_data) = operation
             .to_update_tracker()?
             .update_trackers(
                 &*state.store,

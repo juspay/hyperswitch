@@ -62,7 +62,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                 enums::IntentStatus::Processing,
                 enums::IntentStatus::RequiresMerchantAction,
             ],
-            "cancelled",
+            "cancel",
         )?;
 
         let mut payment_attempt = db
