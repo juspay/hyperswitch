@@ -407,10 +407,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let payment_method_type = payment_data.payment_attempt.payment_method_type.clone();
         let payment_experience = payment_data.payment_attempt.payment_experience.clone();
-
+        let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
+        let capture_method = payment_data.payment_attempt.capture_method;
         payment_data.payment_attempt = db
             .update_payment_attempt_with_attempt_id(
-                payment_data.payment_attempt.clone(),
+                payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::Update {
                     amount: payment_data.amount.into(),
                     currency: payment_data.currency,
@@ -422,7 +423,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     payment_experience,
                     payment_method_type,
                     business_sub_label,
-                    amount_to_capture: payment_data.payment_attempt.amount_to_capture,
+                    amount_to_capture,
+                    capture_method,
                 },
                 storage_scheme,
             )
@@ -568,26 +570,35 @@ impl PaymentUpdate {
         payment_attempt: &mut storage::PaymentAttempt,
         request: &api::PaymentsRequest,
     ) {
-        payment_attempt.business_sub_label = request
+        request
             .business_sub_label
             .clone()
-            .or(payment_attempt.business_sub_label.clone());
-        payment_attempt.payment_method_type = request
-            .payment_method_type
-            .map(|pmt| pmt.foreign_into())
-            .or(payment_attempt.payment_method_type.clone());
-        payment_attempt.payment_experience = request
-            .payment_experience
-            .map(|experience| experience.foreign_into());
+            .map(|bsl| payment_attempt.business_sub_label.replace(bsl));
+        request.payment_method_type.map(|pmt| {
+            payment_attempt
+                .payment_method_type
+                .replace(pmt.foreign_into())
+        });
+        request.payment_experience.map(|experience| {
+            payment_attempt
+                .payment_experience
+                .replace(experience.foreign_into())
+        });
         payment_attempt.amount_to_capture = request
             .amount_to_capture
             .or(payment_attempt.amount_to_capture);
+        request
+            .capture_method
+            .map(|i| payment_attempt.capture_method.replace(i.foreign_into()));
     }
     fn populate_payment_intent_with_request(
         payment_intent: &mut storage::PaymentIntent,
         request: &api::PaymentsRequest,
     ) {
-        payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
+        request
+            .return_url
+            .clone()
+            .map(|i| payment_intent.return_url.replace(i.to_string()));
 
         payment_intent.business_country = request
             .business_country

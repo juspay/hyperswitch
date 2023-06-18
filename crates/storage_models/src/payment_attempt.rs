@@ -114,6 +114,7 @@ pub enum PaymentAttemptUpdate {
         payment_experience: Option<storage_enums::PaymentExperience>,
         business_sub_label: Option<String>,
         amount_to_capture: Option<i64>,
+        capture_method: Option<storage_enums::CaptureMethod>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -209,6 +210,7 @@ pub struct PaymentAttemptUpdateInternal {
     straight_through_algorithm: Option<serde_json::Value>,
     preprocessing_step_id: Option<String>,
     error_reason: Option<Option<String>>,
+    capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 impl PaymentAttemptUpdate {
@@ -256,6 +258,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_experience,
                 business_sub_label,
                 amount_to_capture,
+                capture_method,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -270,6 +273,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_experience,
                 business_sub_label,
                 amount_to_capture,
+                capture_method,
                 ..Default::default()
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
