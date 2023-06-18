@@ -63,28 +63,34 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
 
-        let resp = services::execute_connector_processing_step(
-            state,
-            connector_integration,
-            &self,
-            call_connector_action,
-            connector_request,
-        )
-        .await
-        .to_payment_failed_response()?;
+        if self.should_proceed_with_authorize() {
+            self.decide_authentication_type();
+            logger::debug!(auth_type=?self.auth_type);
+            let resp = services::execute_connector_processing_step(
+                state,
+                connector_integration,
+                &self,
+                call_connector_action,
+                connector_request,
+            )
+            .await
+            .to_payment_failed_response()?;
 
-        metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+            metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
-        let pm_id = tokenization::save_payment_method(
-            state,
-            connector,
-            resp.to_owned(),
-            maybe_customer,
-            merchant_account,
-        )
-        .await?;
+            let pm_id = tokenization::save_payment_method(
+                state,
+                connector,
+                resp.to_owned(),
+                maybe_customer,
+                merchant_account,
+            )
+            .await?;
 
-        Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
+            Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
+        } else {
+            Ok(self.clone())
+        }
     }
 
     async fn add_access_token<'a>(

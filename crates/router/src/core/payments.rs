@@ -143,7 +143,7 @@ where
                     state,
                     &merchant_account,
                     connector,
-                    operation.to_update_tracker()?,
+                    &operation,
                     &payment_data,
                     &customer,
                     call_connector_action,
@@ -492,9 +492,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     connector: api::ConnectorData,
-    update_tracker_operation: &(dyn operations::UpdateTracker<F, PaymentData<F>, ApiRequest>
-          + Send
-          + Sync),
+    operation: &BoxedOperation<'_, F, ApiRequest>,
     payment_data: &PaymentData<F>,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
@@ -555,7 +553,8 @@ where
         // Update the payment trackers just before calling the connector
         // Since the request is already built in the previous step,
         // there should be no error in request construction from hyperswitch end
-        update_tracker_operation
+        operation
+            .to_update_tracker()?
             .update_trackers(
                 &*state.store,
                 payment_data.clone(),
