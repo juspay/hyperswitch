@@ -180,6 +180,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_id: Option<Option<String>>,
         connector_metadata: Option<serde_json::Value>,
         preprocessing_step_id: Option<String>,
+        connector_transaction_id: Option<String>,
     },
 }
 
@@ -402,12 +403,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_id,
                 connector_metadata,
                 preprocessing_step_id,
+                connector_transaction_id,
             } => Self {
                 status: Some(status),
                 payment_method_id,
                 modified_at: Some(common_utils::date_time::now()),
                 connector_metadata,
                 preprocessing_step_id,
+                connector_transaction_id,
                 ..Default::default()
             },
         }

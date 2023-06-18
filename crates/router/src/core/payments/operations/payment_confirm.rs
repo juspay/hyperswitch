@@ -122,6 +122,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 field_name: "browser_info",
             })?;
 
+        let customer_details = helpers::get_customer_details_from_request(request);
+
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         helpers::validate_pm_or_token_given(
@@ -159,7 +161,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             &payment_intent
                 .customer_id
                 .clone()
-                .or_else(|| request.customer_id.clone()),
+                .or_else(|| customer_details.customer_id.clone()),
         )?;
 
         let shipping_address = helpers::get_address_for_payment_request(
@@ -167,7 +169,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             request.shipping.as_ref(),
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent
+                .customer_id
+                .as_ref()
+                .or(customer_details.customer_id.as_ref()),
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
@@ -175,7 +180,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             request.billing.as_ref(),
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent
+                .customer_id
+                .as_ref()
+                .or(customer_details.customer_id.as_ref()),
         )
         .await?;
 
@@ -190,6 +198,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .as_ref()
             .map(|a| a.to_string())
             .or(payment_intent.return_url);
+        payment_intent.udf = request.udf.clone().or(payment_intent.udf);
 
         payment_attempt.business_sub_label = request
             .business_sub_label
@@ -255,13 +264,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 ephemeral_key: None,
                 redirect_response: None,
             },
-            Some(CustomerDetails {
-                customer_id: request.customer_id.clone(),
-                name: request.name.clone(),
-                email: request.email.clone(),
-                phone: request.phone.clone(),
-                phone_country_code: request.phone_country_code.clone(),
-            }),
+            Some(customer_details),
         ))
     }
 }
@@ -376,7 +379,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .attach_printable("Failed to encode additional pm data")?;
 
         let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
-
+        let authentication_type = payment_data.payment_attempt.authentication_type;
         payment_data.payment_attempt = db
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
@@ -385,7 +388,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     currency: payment_data.currency,
                     status: attempt_status,
                     payment_method,
-                    authentication_type: None,
+                    authentication_type,
                     browser_info,
                     connector,
                     payment_token,
@@ -419,7 +422,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .take();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-
+        let udf = payment_data.payment_intent.udf.clone();
         payment_data.payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
@@ -439,6 +442,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     statement_descriptor_suffix,
                     order_details,
                     metadata,
+                    udf,
                 },
                 storage_scheme,
             )
@@ -482,6 +486,9 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
         {
             Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
         }
+
+        helpers::validate_customer_details_in_request(request)?;
+
         let given_payment_id = match &request.payment_id {
             Some(id_type) => Some(
                 id_type
