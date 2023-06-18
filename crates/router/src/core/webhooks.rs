@@ -575,7 +575,7 @@ pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
     )];
 
     if let Some(signature) = outgoing_webhooks_signature {
-        header.push((headers::X_WEBHOOK_SIGNATURE.to_string(), signature))
+        header.push((headers::X_WEBHOOK_SIGNATURE.to_string(), signature.into()))
     }
 
     let request = services::RequestBuilder::new()
@@ -629,7 +629,9 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
         connector_name,
         api::GetToken::Connector,
     )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+        message: "invalid connnector name received".to_string(),
+    })
     .attach_printable("Failed construction of ConnectorData")?;
 
     let connector = connector.connector;
@@ -654,7 +656,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
 
     let event_type = connector
         .get_webhook_event_type(&request_details)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .switch()
         .attach_printable("Could not find event type in incoming webhook body")?;
 
     let process_webhook_further = utils::lookup_webhook_event(
@@ -679,7 +681,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
             .await
             .switch()
             .attach_printable("There was an issue in incoming webhook source verification")?;
-
+        logger::info!(source_verified=?source_verified);
         let object_ref_id = connector
             .get_webhook_object_reference_id(&request_details)
             .switch()

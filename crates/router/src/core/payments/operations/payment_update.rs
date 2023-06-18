@@ -23,6 +23,7 @@ use crate::{
     },
     utils::OptionExt,
 };
+
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(ops = "all", flow = "authorize")]
 pub struct PaymentUpdate;
@@ -72,7 +73,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             "update",
         )?;
 
-        let (token, payment_method_type, setup_mandate) =
+        let (token, payment_method_type, setup_mandate, mandate_connector) =
             helpers::get_token_pm_type_mandate_details(
                 state,
                 request,
@@ -86,6 +87,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        let _ = helpers::validate_and_add_order_details_to_payment_intent(
+            &mut payment_intent,
+            request,
+        )?;
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
@@ -102,6 +107,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         };
 
         payment_attempt.payment_method = payment_method_type.or(payment_attempt.payment_method);
+        let customer_details = helpers::get_customer_details_from_request(request);
 
         let amount = request
             .amount
@@ -115,7 +121,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 &payment_intent
                     .customer_id
                     .clone()
-                    .or_else(|| request.customer_id.clone()),
+                    .or_else(|| customer_details.customer_id.clone()),
             )?;
         }
 
@@ -124,7 +130,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             request.shipping.as_ref(),
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent
+                .customer_id
+                .as_ref()
+                .or(customer_details.customer_id.as_ref()),
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
@@ -132,14 +141,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             request.billing.as_ref(),
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent
+                .customer_id
+                .as_ref()
+                .or(customer_details.customer_id.as_ref()),
         )
         .await?;
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
         payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
-
+        payment_intent.udf = request.udf.clone().or(payment_intent.udf);
         payment_intent.business_country = request
             .business_country
             .unwrap_or(payment_intent.business_country);
@@ -287,6 +299,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 amount,
                 email: request.email.clone(),
                 mandate_id,
+                mandate_connector,
                 token,
                 setup_mandate,
                 address: PaymentAddress {
@@ -307,13 +320,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 ephemeral_key: None,
                 redirect_response: None,
             },
-            Some(CustomerDetails {
-                customer_id: request.customer_id.clone(),
-                name: request.name.clone(),
-                email: request.email.clone(),
-                phone: request.phone.clone(),
-                phone_country_code: request.phone_country_code.clone(),
-            }),
+            Some(customer_details),
         ))
     }
 }
@@ -465,7 +472,9 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
         let business_label = Some(payment_data.payment_intent.business_label.clone());
         let business_country = Some(payment_data.payment_intent.business_country);
-
+        let order_details = payment_data.payment_intent.order_details.clone();
+        let metadata = payment_data.payment_intent.metadata.clone();
+        let udf = payment_data.payment_intent.udf.clone();
         payment_data.payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
@@ -480,6 +489,9 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     return_url,
                     business_country,
                     business_label,
+                    order_details,
+                    metadata,
+                    udf,
                 },
                 storage_scheme,
             )
@@ -505,6 +517,21 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
+        let order_details_inside_metadata = request
+            .metadata
+            .as_ref()
+            .and_then(|meta| meta.order_details.to_owned());
+        if request
+            .order_details
+            .as_ref()
+            .zip(order_details_inside_metadata)
+            .is_some()
+        {
+            Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
+        }
+
+        helpers::validate_customer_details_in_request(request)?;
+
         let given_payment_id = match &request.payment_id {
             Some(id_type) => Some(
                 id_type

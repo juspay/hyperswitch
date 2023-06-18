@@ -9,7 +9,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, domain, storage},
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -84,14 +84,12 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
-    ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)> {
+    ) -> RouterResult<Option<String>> {
         customers::create_connector_customer(
             state,
             connector,
             self,
             types::ConnectorCustomerData::try_from(self.request.to_owned())?,
-            connector_customer_map,
         )
         .await
     }
@@ -135,7 +133,7 @@ impl types::VerifyRouterData {
                     call_connector_action,
                 )
                 .await
-                .map_err(|err| err.to_verify_failed_response())?;
+                .to_verify_failed_response()?;
 
                 let pm_id = tokenization::save_payment_method(
                     state,

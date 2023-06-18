@@ -11,7 +11,7 @@ use crate::{
     logger,
     routes::{metrics, AppState},
     services,
-    types::{self, api, domain, storage},
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -108,14 +108,12 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
-    ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)> {
+    ) -> RouterResult<Option<String>> {
         customers::create_connector_customer(
             state,
             connector,
             self,
             types::ConnectorCustomerData::try_from(self)?,
-            connector_customer_map,
         )
         .await
     }
@@ -142,7 +140,7 @@ impl types::PaymentsAuthorizeRouterData {
                 connector_integration
                     .execute_pretasks(self, state)
                     .await
-                    .map_err(|error| error.to_payment_failed_response())?;
+                    .to_payment_failed_response()?;
 
                 metrics::EXECUTE_PRETASK_COUNT.add(
                     &metrics::CONTEXT,
@@ -167,7 +165,7 @@ impl types::PaymentsAuthorizeRouterData {
                         call_connector_action,
                     )
                     .await
-                    .map_err(|error| error.to_payment_failed_response())?;
+                    .to_payment_failed_response()?;
 
                     let pm_id = tokenization::save_payment_method(
                         state,
@@ -268,7 +266,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             payments::CallConnectorAction::Trigger,
         )
         .await
-        .map_err(|error| error.to_payment_failed_response())?;
+        .to_payment_failed_response()?;
 
         metrics::PREPROCESSING_STEPS_COUNT.add(
             &metrics::CONTEXT,
@@ -339,6 +337,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
         Ok(Self {
             email: data.email,
             currency: Some(data.currency),
+            amount: Some(data.amount),
         })
     }
 }
