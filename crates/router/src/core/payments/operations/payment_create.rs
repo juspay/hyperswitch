@@ -524,6 +524,10 @@ impl PaymentCreate {
             payment_experience: request.payment_experience.map(ForeignInto::foreign_into),
             payment_method_type: request.payment_method_type.map(ForeignInto::foreign_into),
             payment_method_data: additional_pm_data,
+            amount_to_capture: request.amount_to_capture,
+            payment_token: request.payment_token.clone(),
+            mandate_id: request.mandate_id.clone(),
+            business_sub_label: request.business_sub_label.clone(),
             mandate_details: request
                 .mandate_data
                 .as_ref()
