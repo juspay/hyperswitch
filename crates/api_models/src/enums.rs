@@ -61,9 +61,9 @@ pub enum AttemptStatus {
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticationType {
     /// If the card is enrolled for 3DS authentication, the 3DS based authentication will be activated. The liability of chargeback shift to the issuer
-    #[default]
     ThreeDs,
     /// 3DS based authentication will not be activated. The liability of chargeback stays with the merchant.
+    #[default]
     NoThreeDs,
 }
 
@@ -230,6 +230,7 @@ pub enum Currency {
     PKR,
     PLN,
     QAR,
+    RON,
     RUB,
     SAR,
     SCR,
@@ -241,6 +242,7 @@ pub enum Currency {
     SVC,
     SZL,
     THB,
+    TRY,
     TTD,
     TWD,
     TZS,

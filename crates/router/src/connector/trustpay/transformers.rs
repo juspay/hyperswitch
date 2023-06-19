@@ -16,7 +16,6 @@ use crate::{
     core::errors,
     services,
     types::{self, api, storage::enums, BrowserInformation},
-    utils::OptionExt,
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -231,7 +230,7 @@ fn get_card_request_data(
             cvv: ccard.card_cvc.clone(),
             expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
             cardholder: ccard.card_holder_name.clone(),
-            reference: item.attempt_id.clone(),
+            reference: item.payment_id.clone(),
             redirect_url: return_url,
             billing_city: params.billing_city,
             billing_country: params.billing_country,
@@ -239,69 +238,15 @@ fn get_card_request_data(
             billing_postcode: params.billing_postcode,
             customer_email: email,
             customer_ip_address,
-            browser_accept_header: browser_info
-                .accept_header
-                .clone()
-                .get_required_value("accept_header")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "accept_header",
-                })?,
-            browser_language: browser_info
-                .language
-                .clone()
-                .get_required_value("language")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "language",
-                })?,
-            browser_screen_height: browser_info
-                .screen_height
-                .get_required_value("screen_height")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "screen_height",
-                })?
-                .to_string(),
-            browser_screen_width: browser_info
-                .screen_width
-                .get_required_value("screen_width")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "screen_width",
-                })?
-                .to_string(),
-            browser_timezone: browser_info
-                .time_zone
-                .get_required_value("time_zone_offset")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "time_zone_offset",
-                })?
-                .to_string(),
-            browser_user_agent: browser_info
-                .user_agent
-                .clone()
-                .get_required_value("user_agent")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "user_agent",
-                })?,
-            browser_java_enabled: browser_info
-                .java_enabled
-                .get_required_value("java_enabled")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "java_enabled",
-                })?
-                .to_string(),
-            browser_java_script_enabled: browser_info
-                .java_script_enabled
-                .get_required_value("java_script_enabled")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "java_script_enabled",
-                })?
-                .to_string(),
-            browser_screen_color_depth: browser_info
-                .color_depth
-                .get_required_value("color_depth")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "color_depth",
-                })?
-                .to_string(),
+            browser_accept_header: browser_info.get_accept_header()?,
+            browser_language: browser_info.get_language()?,
+            browser_screen_height: browser_info.get_screen_height()?.to_string(),
+            browser_screen_width: browser_info.get_screen_width()?.to_string(),
+            browser_timezone: browser_info.get_time_zone()?.to_string(),
+            browser_user_agent: browser_info.get_user_agent()?,
+            browser_java_enabled: browser_info.get_java_enabled()?.to_string(),
+            browser_java_script_enabled: browser_info.get_java_script_enabled()?.to_string(),
+            browser_screen_color_depth: browser_info.get_color_depth()?.to_string(),
             browser_challenge_window: "1".to_string(),
             payment_action: None,
             payment_type: "Plain".to_string(),

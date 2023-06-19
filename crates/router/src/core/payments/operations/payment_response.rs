@@ -300,8 +300,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             Some(storage::PaymentAttemptUpdate::ErrorUpdate {
                 connector: None,
                 status: match err.status_code {
-                    400..=499 => storage::enums::AttemptStatus::Failure,
-                    _ => storage::enums::AttemptStatus::Pending,
+                    500..=511 => storage::enums::AttemptStatus::Pending,
+                    _ => storage::enums::AttemptStatus::Failure,
                 },
                 error_message: Some(Some(err.message)),
                 error_code: Some(Some(err.code)),
@@ -450,8 +450,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     let payment_intent_update = match &router_data.response {
         Err(err) => storage::PaymentIntentUpdate::PGStatusUpdate {
             status: match err.status_code {
-                400..=499 => enums::IntentStatus::Failed,
-                _ => enums::IntentStatus::Processing,
+                500..=511 => enums::IntentStatus::Processing,
+                _ => enums::IntentStatus::Failed,
             },
         },
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {

@@ -112,6 +112,7 @@ pub struct MockDb {
     events: Arc<Mutex<Vec<storage::Event>>>,
     disputes: Arc<Mutex<Vec<storage::Dispute>>>,
     lockers: Arc<Mutex<Vec<storage::LockerMockUp>>>,
+    mandates: Arc<Mutex<Vec<storage::Mandate>>>,
 }
 
 impl MockDb {
@@ -132,6 +133,7 @@ impl MockDb {
             events: Default::default(),
             disputes: Default::default(),
             lockers: Default::default(),
+            mandates: Default::default(),
         }
     }
 }
