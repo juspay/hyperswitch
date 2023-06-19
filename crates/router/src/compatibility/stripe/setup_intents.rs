@@ -3,7 +3,7 @@ pub mod types;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing, Flow};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
@@ -13,7 +13,7 @@ use crate::{
     types::api as api_types,
 };
 
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
 pub async fn setup_intents_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -34,6 +34,8 @@ pub async fn setup_intents_create(
             Err(err) => return api::log_and_return_error_response(err),
         };
 
+    let flow = Flow::PaymentsCreate;
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -44,6 +46,7 @@ pub async fn setup_intents_create(
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
     >(
+        flow,
         state.get_ref(),
         &req,
         create_payment_req,
@@ -62,7 +65,7 @@ pub async fn setup_intents_create(
     .await
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieve))]
 pub async fn setup_intents_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -82,6 +85,8 @@ pub async fn setup_intents_retrieve(
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
 
+    let flow = Flow::PaymentsRetrieve;
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -92,6 +97,7 @@ pub async fn setup_intents_retrieve(
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
     >(
+        flow,
         state.get_ref(),
         &req,
         payload,
@@ -110,7 +116,7 @@ pub async fn setup_intents_retrieve(
     .await
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
 pub async fn setup_intents_update(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -141,6 +147,8 @@ pub async fn setup_intents_update(
             Err(err) => return api::log_and_return_error_response(err),
         };
 
+    let flow = Flow::PaymentsUpdate;
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -151,6 +159,7 @@ pub async fn setup_intents_update(
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
     >(
+        flow,
         state.get_ref(),
         &req,
         payload,
@@ -169,7 +178,7 @@ pub async fn setup_intents_update(
     .await
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
 pub async fn setup_intents_confirm(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -201,6 +210,8 @@ pub async fn setup_intents_confirm(
             Err(err) => return api::log_and_return_error_response(err),
         };
 
+    let flow = Flow::PaymentsConfirm;
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -211,6 +222,7 @@ pub async fn setup_intents_confirm(
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
     >(
+        flow,
         state.get_ref(),
         &req,
         payload,

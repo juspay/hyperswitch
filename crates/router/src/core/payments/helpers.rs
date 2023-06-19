@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use base64::Engine;
 use common_utils::{
-    ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
+    ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
     fp_utils, generate_id, pii,
 };
 // TODO : Evaluate all the helper functions ()
@@ -36,7 +36,7 @@ use crate::{
             self,
             types::{self, AsyncLift},
         },
-        storage::{self, enums as storage_enums, ephemeral_key},
+        storage::{self, enums as storage_enums, ephemeral_key, CustomerUpdate::Update},
         transformers::ForeignInto,
         ErrorResponse, RouterData,
     },
@@ -96,7 +96,7 @@ pub async fn get_address_for_payment_request(
     req_address: Option<&api::Address>,
     address_id: Option<&str>,
     merchant_id: &str,
-    customer_id: &Option<String>,
+    customer_id: Option<&String>,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     let key = types::get_merchant_enc_key(db, merchant_id.to_string())
         .await
@@ -179,7 +179,7 @@ pub async fn get_address_for_payment_request(
                 }
                 None => {
                     // generate a new address here
-                    let customer_id = customer_id.as_deref().get_required_value("customer_id")?;
+                    let customer_id = customer_id.get_required_value("customer_id")?;
 
                     let address_details = address.address.clone().unwrap_or_default();
                     Some(
@@ -460,7 +460,7 @@ fn validate_new_mandate_request(
     is_confirm_operation: bool,
 ) -> RouterResult<()> {
     // We need not check for customer_id in the confirm request if it is already passed
-    //in create request
+    // in create request
 
     fp_utils::when(!is_confirm_operation && req.customer_id.is_none(), || {
         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -810,6 +810,109 @@ pub async fn get_customer_from_details<F: Clone>(
     }
 }
 
+// Checks if the inner values of two options are not equal and throws appropriate error
+fn validate_options_for_inequality<T: PartialEq>(
+    first_option: Option<&T>,
+    second_option: Option<&T>,
+    field_name: &str,
+) -> Result<(), errors::ApiErrorResponse> {
+    fp_utils::when(
+        first_option
+            .zip(second_option)
+            .map(|(value1, value2)| value1 != value2)
+            .unwrap_or(false),
+        || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: format!("The field name `{field_name}` sent in both places is ambiguous"),
+            })
+        },
+    )
+}
+
+// Checks if the customer details are passed in both places
+// If so, raise an error
+pub fn validate_customer_details_in_request(
+    request: &api_models::payments::PaymentsRequest,
+) -> Result<(), errors::ApiErrorResponse> {
+    if let Some(customer_details) = request.customer.as_ref() {
+        validate_options_for_inequality(
+            request.customer_id.as_ref(),
+            Some(&customer_details.id),
+            "customer_id",
+        )?;
+
+        validate_options_for_inequality(
+            request.email.as_ref(),
+            customer_details.email.as_ref(),
+            "email",
+        )?;
+
+        validate_options_for_inequality(
+            request.name.as_ref(),
+            customer_details.name.as_ref(),
+            "name",
+        )?;
+
+        validate_options_for_inequality(
+            request.phone.as_ref(),
+            customer_details.phone.as_ref(),
+            "phone",
+        )?;
+
+        validate_options_for_inequality(
+            request.phone_country_code.as_ref(),
+            customer_details.phone_country_code.as_ref(),
+            "phone_country_code",
+        )?;
+    }
+
+    Ok(())
+}
+
+/// Get the customer details from customer field if present
+/// or from the individual fields in `PaymentsRequest`
+pub fn get_customer_details_from_request(
+    request: &api_models::payments::PaymentsRequest,
+) -> CustomerDetails {
+    let customer_id = request
+        .customer
+        .as_ref()
+        .map(|customer_details| customer_details.id.clone())
+        .or(request.customer_id.clone());
+
+    let customer_name = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.name.clone())
+        .or(request.name.clone());
+
+    let customer_email = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.email.clone())
+        .or(request.email.clone());
+
+    let customer_phone = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.phone.clone())
+        .or(request.phone.clone());
+
+    let customer_phone_code = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.phone_country_code.clone())
+        .or(request.phone_country_code.clone());
+
+    CustomerDetails {
+        customer_id,
+        name: customer_name,
+        email: customer_email,
+        phone: customer_phone,
+        phone_country_code: customer_phone_code,
+    }
+}
+
 pub async fn get_connector_default(
     _state: &AppState,
     request_connector: Option<serde_json::Value>,
@@ -828,11 +931,11 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     req: Option<CustomerDetails>,
     merchant_id: &str,
 ) -> CustomResult<(BoxedOperation<'a, F, R>, Option<domain::Customer>), errors::StorageError> {
-    let req = req
+    let request_customer_details = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
 
-    let customer_id = req
+    let customer_id = request_customer_details
         .customer_id
         .or(payment_data.payment_intent.customer_id.clone());
 
@@ -841,31 +944,80 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
             let customer_data = db
                 .find_customer_optional_by_customer_id_merchant_id(&customer_id, merchant_id)
                 .await?;
+
             Some(match customer_data {
-                Some(c) => Ok(c),
+                Some(c) => {
+                    // Update the customer data if new data is passed in the request
+                    if request_customer_details.email.is_some()
+                        | request_customer_details.name.is_some()
+                        | request_customer_details.phone.is_some()
+                        | request_customer_details.phone_country_code.is_some()
+                    {
+                        let key = types::get_merchant_enc_key(db, merchant_id.to_string()).await?;
+                        let customer_update = async {
+                            Ok(Update {
+                                name: request_customer_details
+                                    .name
+                                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                                    .await?,
+                                email: request_customer_details
+                                    .email
+                                    .clone()
+                                    .async_lift(|inner| {
+                                        types::encrypt_optional(
+                                            inner.map(|inner| inner.expose()),
+                                            &key,
+                                        )
+                                    })
+                                    .await?,
+                                phone: request_customer_details
+                                    .phone
+                                    .clone()
+                                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                                    .await?,
+                                phone_country_code: request_customer_details.phone_country_code,
+                                description: None,
+                                connector_customer: None,
+                                metadata: None,
+                            })
+                        }
+                        .await
+                        .change_context(errors::StorageError::SerializationFailed)
+                        .attach_printable("Failed while encrypting Customer while Update")?;
+
+                        db.update_customer_by_customer_id_merchant_id(
+                            customer_id,
+                            merchant_id.to_string(),
+                            customer_update,
+                        )
+                        .await
+                    } else {
+                        Ok(c)
+                    }
+                }
                 None => {
                     let key = types::get_merchant_enc_key(db, merchant_id.to_string()).await?;
                     let new_customer = async {
                         Ok(domain::Customer {
                             customer_id: customer_id.to_string(),
                             merchant_id: merchant_id.to_string(),
-                            name: req
+                            name: request_customer_details
                                 .name
                                 .async_lift(|inner| types::encrypt_optional(inner, &key))
                                 .await?,
-                            email: req
+                            email: request_customer_details
                                 .email
                                 .clone()
                                 .async_lift(|inner| {
                                     types::encrypt_optional(inner.map(|inner| inner.expose()), &key)
                                 })
                                 .await?,
-                            phone: req
+                            phone: request_customer_details
                                 .phone
                                 .clone()
                                 .async_lift(|inner| types::encrypt_optional(inner, &key))
                                 .await?,
-                            phone_country_code: req.phone_country_code.clone(),
+                            phone_country_code: request_customer_details.phone_country_code.clone(),
                             description: None,
                             created_at: common_utils::date_time::now(),
                             id: None,
@@ -886,7 +1038,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
             None => None,
             Some(customer_id) => db
                 .find_customer_optional_by_customer_id_merchant_id(customer_id, merchant_id)
-                .await?
+                .await? // if customer_id is present in payment_intent but not found in customer table then shouldn't an error be thrown ?
                 .map(Ok),
         },
     };
@@ -1637,6 +1789,8 @@ mod tests {
             active_attempt_id: "nopes".to_string(),
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
+            order_details: None,
+            udf: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -1676,6 +1830,8 @@ mod tests {
             active_attempt_id: "nopes".to_string(),
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
+            order_details: None,
+            udf: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -1715,6 +1871,8 @@ mod tests {
             active_attempt_id: "nopes".to_string(),
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
+            order_details: None,
+            udf: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2023,6 +2181,7 @@ impl AttemptType {
             straight_through_algorithm: old_payment_attempt.straight_through_algorithm,
             mandate_details: old_payment_attempt.mandate_details,
             preprocessing_step_id: None,
+            error_reason: None,
         }
     }
 
@@ -2097,4 +2256,106 @@ impl AttemptType {
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
         }
     }
+}
+
+pub fn validate_and_add_order_details_to_payment_intent(
+    payment_intent: &mut storage::payment_intent::PaymentIntent,
+    request: &api::PaymentsRequest,
+) -> RouterResult<()> {
+    let parsed_metadata_db: Option<api_models::payments::Metadata> = payment_intent
+        .metadata
+        .as_ref()
+        .map(|metadata_value| {
+            metadata_value
+                .peek()
+                .clone()
+                .parse_value("metadata")
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "metadata",
+                })
+                .attach_printable("unable to parse metadata")
+        })
+        .transpose()?;
+    let order_details_metadata_db = parsed_metadata_db
+        .as_ref()
+        .and_then(|meta| meta.order_details.to_owned());
+    let order_details_outside_metadata_db = payment_intent.order_details.as_ref();
+    let order_details_outside_metadata_req = request.order_details.as_ref();
+    let order_details_metadata_req = request
+        .metadata
+        .as_ref()
+        .and_then(|meta| meta.order_details.to_owned());
+
+    if order_details_metadata_db
+        .as_ref()
+        .zip(order_details_outside_metadata_db.as_ref())
+        .is_some()
+    {
+        Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payment intent in db".to_string() })?
+    }
+    let order_details_outside = match order_details_outside_metadata_req {
+        Some(order) => match order_details_metadata_db {
+            Some(_) => Err(errors::ApiErrorResponse::NotSupported {
+                message: "order_details previously present inside of metadata".to_string(),
+            })?,
+            None => Some(order),
+        },
+        None => match order_details_metadata_req {
+            Some(_order) => match order_details_outside_metadata_db {
+                Some(_) => Err(errors::ApiErrorResponse::NotSupported {
+                    message: "order_details previously present outside of metadata".to_string(),
+                })?,
+                None => None,
+            },
+            None => None,
+        },
+    };
+    add_order_details_and_metadata_to_payment_intent(
+        payment_intent,
+        request,
+        parsed_metadata_db,
+        &order_details_outside.map(|data| data.to_owned()),
+    )
+}
+
+pub fn add_order_details_and_metadata_to_payment_intent(
+    mut payment_intent: &mut storage::payment_intent::PaymentIntent,
+    request: &api::PaymentsRequest,
+    parsed_metadata_db: Option<api_models::payments::Metadata>,
+    order_details_outside: &Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+) -> RouterResult<()> {
+    let metadata_with_order_details = match request.metadata.as_ref() {
+        Some(meta) => {
+            let transformed_metadata = match parsed_metadata_db {
+                Some(meta_db) => api_models::payments::Metadata {
+                    order_details: meta.order_details.to_owned(),
+                    ..meta_db
+                },
+                None => meta.to_owned(),
+            };
+            let transformed_metadata_value =
+                Encode::<api_models::payments::Metadata>::encode_to_value(&transformed_metadata)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Encoding Metadata to value failed")?;
+            Some(masking::Secret::new(transformed_metadata_value))
+        }
+        None => None,
+    };
+    if let Some(order_details_outside_struct) = order_details_outside {
+        let order_details_outside_value = order_details_outside_struct
+            .iter()
+            .map(|order| {
+                Encode::<api_models::payments::OrderDetailsWithAmount>::encode_to_value(order)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .map(masking::Secret::new)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        payment_intent.order_details = Some(order_details_outside_value);
+    };
+
+    if metadata_with_order_details.is_some() {
+        payment_intent.metadata = metadata_with_order_details;
+    }
+
+    Ok(())
 }
