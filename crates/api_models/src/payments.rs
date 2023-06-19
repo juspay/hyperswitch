@@ -1713,8 +1713,12 @@ pub struct ApplepaySessionRequest {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorMetadata {
-    pub apple_pay: Option<ApplePayMetadata>,
-    pub google_pay: Option<GpayMetaData>,
+    pub apple_pay: Option<ApplepayConnectorMetadataRequest>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ApplepayConnectorMetadataRequest {
+    pub session_token_data: Option<SessionTokenInfo>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

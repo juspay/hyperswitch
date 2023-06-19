@@ -1171,6 +1171,12 @@ pub struct TrustpayErrorResponse {
     pub errors: Vec<Errors>,
 }
 
+#[derive(Deserialize)]
+pub struct TrustPayTransactionStatusErrorResponse {
+    pub status: i64,
+    pub payment_description: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum CreditDebitIndicator {
