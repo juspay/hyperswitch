@@ -552,6 +552,7 @@ where
     };
 
     let connector_request = if should_continue_further {
+        // Check if the actual flow specific request can be built with available data
         router_data
             .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
             .await?
@@ -578,7 +579,6 @@ where
     router_data.status = payment_data.payment_attempt.status;
 
     let router_data_res = if should_continue_further {
-        // Check if the actual flow specific request can be built with available data
         router_data
             .decide_flows(
                 state,
