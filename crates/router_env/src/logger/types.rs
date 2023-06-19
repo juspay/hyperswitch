@@ -189,8 +189,6 @@ pub enum Flow {
     AttachDisputeEvidence,
     /// Retrieve Dispute Evidence flow
     RetrieveDisputeEvidence,
-    /// Request to compatibility layer
-    CompatibilityLayerRequest,
 }
 
 ///

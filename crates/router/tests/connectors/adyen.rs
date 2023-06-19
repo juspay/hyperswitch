@@ -257,7 +257,7 @@ async fn should_make_payment() {
         )
         .await
         .unwrap();
-    assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
+    assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
 }
 
 // Refunds a payment using the automatic capture flow (Non 3DS).
