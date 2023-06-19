@@ -551,26 +551,30 @@ where
         payment_data.sessions_token.push(session_token);
     };
 
+    let connector_request = if should_continue_further {
+        router_data
+            .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
+            .await?
+    } else {
+        None
+    };
+
+    // Update the payment trackers just before calling the connector
+    // Since the request is already built in the previous step,
+    // there should be no error in request construction from hyperswitch end
+    operation
+        .to_update_tracker()?
+        .update_trackers(
+            &*state.store,
+            payment_data.clone(),
+            customer.clone(),
+            merchant_account.storage_scheme,
+            updated_customer,
+        )
+        .await?;
+
     let router_data_res = if should_continue_further {
         // Check if the actual flow specific request can be built with available data
-        let request = router_data
-            .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
-            .await?;
-
-        // Update the payment trackers just before calling the connector
-        // Since the request is already built in the previous step,
-        // there should be no error in request construction from hyperswitch end
-        operation
-            .to_update_tracker()?
-            .update_trackers(
-                &*state.store,
-                payment_data.clone(),
-                customer.clone(),
-                merchant_account.storage_scheme,
-                updated_customer,
-            )
-            .await?;
-
         router_data
             .decide_flows(
                 state,
@@ -578,7 +582,7 @@ where
                 customer,
                 call_connector_action,
                 merchant_account,
-                request,
+                connector_request,
             )
             .await
     } else {
