@@ -12,7 +12,7 @@ use crate::{
     configs::settings,
     core::{
         api_keys,
-        errors::{self, RouterResult},
+        errors::{self, utils::StorageErrorExt, RouterResult},
     },
     db::StorageInterface,
     routes::app::AppStateInfo,
@@ -122,13 +122,7 @@ where
             .store()
             .find_merchant_account_by_merchant_id(&stored_api_key.merchant_id)
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(errors::ApiErrorResponse::Unauthorized)
-                } else {
-                    e.change_context(errors::ApiErrorResponse::InternalServerError)
-                }
-            })
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
     }
 }
 
@@ -247,7 +241,7 @@ where
 }
 
 #[derive(Debug)]
-pub struct JWTAuth;
+pub(crate) struct JWTAuth;
 
 #[derive(serde::Deserialize)]
 struct JwtAuthPayloadFetchUnit {
@@ -319,19 +313,6 @@ impl ClientSecretFetch for api_models::cards_info::CardsInfoRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
-}
-
-pub fn jwt_auth_or<'a, T: AuthInfo, A: AppStateInfo>(
-    default_auth: &'a dyn AuthenticateAndFetch<T, A>,
-    headers: &HeaderMap,
-) -> Box<&'a dyn AuthenticateAndFetch<T, A>>
-where
-    JWTAuth: AuthenticateAndFetch<T, A>,
-{
-    if is_jwt_auth(headers) {
-        return Box::new(&JWTAuth);
-    }
-    Box::new(default_auth)
 }
 
 pub fn get_auth_type_and_flow<A: AppStateInfo + Sync>(
