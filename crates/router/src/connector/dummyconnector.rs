@@ -173,14 +173,14 @@ impl<const T: u8>
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = dummyconnector::DummyConnectorPaymentsRequest::try_from(req)?;
-        let dummyconnector_req =
-            utils::Encode::<dummyconnector::DummyConnectorPaymentsRequest>::encode_to_string_of_json(
-                &req_obj,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = dummyconnector::DummyConnectorPaymentsRequest::try_from(req)?;
+        let dummmy_payments_request = types::RequestBody::log_and_get_request_body(
+                &connector_request,
+                utils::Encode::<dummyconnector::DummyConnectorPaymentsRequest>::encode_to_string_of_json,
             )
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(dummyconnector_req))
+        Ok(Some(dummmy_payments_request))
     }
 
     fn build_request(
@@ -332,7 +332,7 @@ impl<const T: u8>
     fn get_request_body(
         &self,
         _req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
@@ -414,14 +414,14 @@ impl<const T: u8> ConnectorIntegration<api::Execute, types::RefundsData, types::
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = dummyconnector::DummyConnectorRefundRequest::try_from(req)?;
-        let dummyconnector_req =
-            utils::Encode::<dummyconnector::DummyConnectorRefundRequest>::encode_to_string_of_json(
-                &req_obj,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(dummyconnector_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = dummyconnector::DummyConnectorRefundRequest::try_from(req)?;
+        let dummmy_refund_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<dummyconnector::DummyConnectorRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(dummmy_refund_request))
     }
 
     fn build_request(
