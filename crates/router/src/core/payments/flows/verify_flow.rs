@@ -67,6 +67,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
             resp.to_owned(),
             maybe_customer,
             merchant_account,
+            self.request.payment_method_type.clone(),
         )
         .await?;
 
