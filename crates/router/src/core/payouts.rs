@@ -680,9 +680,10 @@ pub async fn cancel_payout(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
-    .map_err(|error| error.to_payout_failed_response())?;
+    .to_payout_failed_response()?;
 
     // 4. Process data returned by the connector
     let db = &*state.store;
