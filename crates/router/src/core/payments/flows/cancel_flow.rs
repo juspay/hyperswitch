@@ -96,7 +96,7 @@ impl types::PaymentsCancelRouterData {
             call_connector_action,
         )
         .await
-        .map_err(|error| error.to_payment_failed_response())?;
+        .to_payment_failed_response()?;
 
         Ok(resp)
     }
