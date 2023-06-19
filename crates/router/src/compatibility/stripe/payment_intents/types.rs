@@ -4,6 +4,7 @@ use api_models::payments;
 use common_utils::{crypto::Encryptable, date_time, ext_traits::StringExt, pii as secret};
 use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::{
     compatibility::stripe::refunds::types as stripe_refunds,
@@ -144,7 +145,7 @@ impl From<Shipping> for payments::Address {
     }
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, ToSchema)]
 pub struct StripePaymentIntentRequest {
     pub id: Option<String>,
     pub amount: Option<i64>, //amount in cents, hence passed as integer
@@ -163,7 +164,8 @@ pub struct StripePaymentIntentRequest {
     pub shipping: Option<Shipping>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    pub metadata: Option<api_models::payments::Metadata>,
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: Option<secret::SecretSerdeValue>,
     pub client_secret: Option<pii::Secret<String>>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
@@ -255,7 +257,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 .and_then(|pmd| pmd.billing_details.map(payments::Address::from)),
             statement_descriptor_name: item.statement_descriptor,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
-            metadata: item.metadata,
+            udf: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
             authentication_type,
             mandate_data: mandate_options,
@@ -437,7 +439,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             statement_descriptor_suffix: resp.statement_descriptor_suffix,
             next_action: into_stripe_next_action(resp.next_action, resp.return_url),
             cancellation_reason: resp.cancellation_reason,
-            metadata: resp.metadata,
+            metadata: resp.udf,
             charges: Charges::new(),
             last_payment_error: resp.error_code.map(|code| LastPaymentError {
                 charge: None,
