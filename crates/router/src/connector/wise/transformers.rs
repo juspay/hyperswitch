@@ -79,9 +79,16 @@ pub struct WiseRecipientCreateRequest {
 #[serde(rename_all = "snake_case")]
 #[allow(dead_code)]
 pub enum RecipientType {
+    Aba,
     Iban,
     SortCode,
     SwiftCode,
+}
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum AccountType {
+    Checking,
 }
 
 #[cfg(feature = "payouts")]
@@ -89,6 +96,7 @@ pub enum RecipientType {
 #[serde(rename_all = "camelCase")]
 pub struct WiseBankDetails {
     legal_type: LegalType,
+    account_type: Option<AccountType>,
     address: WiseAddressDetails,
     post_code: Option<String>,
     nationality: Option<String>,
@@ -319,7 +327,8 @@ fn get_payout_bank_details(
             legal_type: LegalType::foreign_from(entity_type),
             address: wise_address_details,
             account_number: Some(b.bank_account_number.to_owned()),
-            routing_number: Some(b.bank_routing_number),
+            abartn: Some(b.bank_routing_number),
+            account_type: Some(AccountType::Checking),
             ..WiseBankDetails::default()
         }),
         PayoutMethodData::Bank(payouts::BankPayout::Bacs(b)) => Ok(WiseBankDetails {
@@ -594,6 +603,7 @@ impl TryFrom<PayoutMethodData> for RecipientType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(payout_method_type: PayoutMethodData) -> Result<Self, Self::Error> {
         match payout_method_type {
+            PayoutMethodData::Bank(api_models::payouts::Bank::Ach(_)) => Ok(Self::Aba),
             PayoutMethodData::Bank(api_models::payouts::Bank::Bacs(_)) => Ok(Self::SortCode),
             PayoutMethodData::Bank(api_models::payouts::Bank::Sepa(_)) => Ok(Self::Iban),
             _ => Err(errors::ConnectorError::NotSupported {
