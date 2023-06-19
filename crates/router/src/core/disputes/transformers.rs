@@ -7,7 +7,7 @@ use crate::{
     routes::AppState,
     types::{
         api::{self, DisputeEvidence},
-        storage,
+        domain,
         transformers::ForeignFrom,
         SubmitEvidenceRequestData,
     },
@@ -15,7 +15,7 @@ use crate::{
 
 pub async fn get_evidence_request_data(
     state: &AppState,
-    merchant_account: &storage_models::merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     evidence_request: api_models::disputes::SubmitEvidenceRequest,
     dispute: &storage_models::dispute::Dispute,
 ) -> CustomResult<SubmitEvidenceRequestData, errors::ApiErrorResponse> {
@@ -193,7 +193,7 @@ pub fn update_dispute_evidence(
 
 pub async fn get_dispute_evidence_block(
     state: &AppState,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     evidence_type: EvidenceType,
     file_id: String,
 ) -> CustomResult<api_models::disputes::DisputeEvidenceBlock, errors::ApiErrorResponse> {
@@ -213,7 +213,7 @@ pub async fn get_dispute_evidence_block(
 
 pub async fn get_dispute_evidence_vec(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     dispute_evidence: DisputeEvidence,
 ) -> CustomResult<Vec<api_models::disputes::DisputeEvidenceBlock>, errors::ApiErrorResponse> {
     let mut dispute_evidence_blocks: Vec<api_models::disputes::DisputeEvidenceBlock> = vec![];

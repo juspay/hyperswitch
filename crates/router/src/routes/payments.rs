@@ -1,3 +1,5 @@
+pub mod helpers;
+
 use actix_web::{web, Responder};
 use error_stack::report;
 use router_env::{instrument, tracing, Flow};
@@ -9,7 +11,10 @@ use crate::{
         payments::{self, PaymentRedirectFlow},
     },
     services::{api, authentication as auth},
-    types::api::{self as api_types, enums as api_enums, payments as payment_types},
+    types::{
+        api::{self as api_types, enums as api_enums, payments as payment_types},
+        domain,
+    },
 };
 
 /// Payments - Create
@@ -318,6 +323,10 @@ pub async fn payments_confirm(
         return http_not_implemented();
     };
 
+    if let Err(err) = helpers::populate_ip_into_browser_info(&req, &mut payload) {
+        return api::log_and_return_error_response(err);
+    }
+
     let payment_id = path.into_inner();
     payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));
     payload.confirm = Some(true);
@@ -470,6 +479,7 @@ pub async fn payments_connector_session(
 pub async fn payments_redirect_response(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
+    json_payload: Option<web::Form<serde_json::Value>>,
     path: web::Path<(String, String, String)>,
 ) -> impl Responder {
     let flow = Flow::PaymentsRedirect;
@@ -480,7 +490,7 @@ pub async fn payments_redirect_response(
         resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
         merchant_id: Some(merchant_id.clone()),
         force_sync: true,
-        json_payload: None,
+        json_payload: json_payload.map(|payload| payload.0),
         param: Some(param_string.to_string()),
         connector: Some(connector),
         creds_identifier: None,
@@ -694,7 +704,7 @@ pub async fn payments_list(
 async fn authorize_verify_select<Op>(
     operation: Op,
     state: &app::AppState,
-    merchant_account: storage_models::merchant_account::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: api_models::payments::PaymentsRequest,
     auth_flow: api::AuthFlow,
 ) -> app::core::errors::RouterResponse<api_models::payments::PaymentsResponse>

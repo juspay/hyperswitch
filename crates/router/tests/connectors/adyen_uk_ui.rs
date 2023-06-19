@@ -5,29 +5,35 @@ use crate::{selenium::*, tester};
 
 struct AdyenSeleniumTest;
 
-impl SeleniumTest for AdyenSeleniumTest {}
+impl SeleniumTest for AdyenSeleniumTest {
+    fn get_connector_name(&self) -> String {
+        "adyen_uk".to_string()
+    }
+}
 
 async fn should_make_adyen_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
+    let pub_key = conn.get_configs().adyen_uk.unwrap().key1;
     conn.make_gpay_payment(c,
-        &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid=JuspayDEECOM&amount=70.00&country=US&currency=USD"),
+        &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid={pub_key}&amount=70.00&country=US&currency=USD"),
         vec![
-        Event::Assert(Assert::IsPresent("succeeded")),
+        Event::Assert(Assert::IsPresent("processing")),
     ]).await?;
     Ok(())
 }
 
 async fn should_make_adyen_gpay_mandate_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
+    let pub_key = conn.get_configs().adyen_uk.unwrap().key1;
     conn.make_gpay_payment(c,
-        &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid=JuspayDEECOM&amount=70.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=7000&mandate_data[mandate_type][multi_use][currency]=USD"),
+        &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid={pub_key}&amount=70.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=7000&mandate_data[mandate_type][multi_use][currency]=USD"),
         vec![
-        Event::Assert(Assert::IsPresent("succeeded")),
+        Event::Assert(Assert::IsPresent("processing")),
         Event::Assert(Assert::IsPresent("Mandate ID")),
         Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
-        Event::Trigger(Trigger::Click(By::Id("pm-mandate-btn"))),
+        Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
         Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
-        Event::Assert(Assert::IsPresent("succeeded")),
+        Event::Assert(Assert::IsPresent("processing")),
     ]).await?;
     Ok(())
 }
@@ -36,15 +42,16 @@ async fn should_make_adyen_gpay_zero_dollar_mandate_payment(
     c: WebDriver,
 ) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
+    let pub_key = conn.get_configs().adyen_uk.unwrap().key1;
     conn.make_gpay_payment(c,
-        &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid=JuspayDEECOM&amount=0.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD"),
+        &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid={pub_key}&amount=0.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD"),
         vec![
-        Event::Assert(Assert::IsPresent("succeeded")),
+        Event::Assert(Assert::IsPresent("processing")),
         Event::Assert(Assert::IsPresent("Mandate ID")),
         Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
-        Event::Trigger(Trigger::Click(By::Id("pm-mandate-btn"))),
+        Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
         Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
-        Event::Assert(Assert::IsPresent("succeeded")),
+        Event::Assert(Assert::IsPresent("processing")),
     ]).await?;
     Ok(())
 }
@@ -67,12 +74,12 @@ async fn should_make_adyen_klarna_mandate_payment(c: WebDriver) -> Result<(), We
             ]
             ),
             Event::Trigger(Trigger::SwitchTab(Position::Prev)),
-            Event::Assert(Assert::IsPresent("succeeded")),
+            Event::Assert(Assert::IsPresent("processing")),
             Event::Assert(Assert::IsPresent("Mandate ID")),
             Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
-            Event::Trigger(Trigger::Click(By::Id("pm-mandate-btn"))),
+            Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
             Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
-            Event::Assert(Assert::IsPresent("succeeded")),
+            Event::Assert(Assert::IsPresent("processing")),
     ]).await?;
     Ok(())
 }

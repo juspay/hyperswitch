@@ -1,16 +1,16 @@
+use std::fmt::Debug;
+
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::Secret;
 
-use crate::{enums as storage_enums, schema::merchant_connector_account};
+use crate::{encryption::Encryption, enums as storage_enums, schema::merchant_connector_account};
 
 #[derive(
     Clone,
     Debug,
-    Eq,
     serde::Serialize,
     serde::Deserialize,
-    PartialEq,
     Identifiable,
     Queryable,
     router_derive::DebugAsDisplay,
@@ -20,7 +20,7 @@ pub struct MerchantConnectorAccount {
     pub id: i32,
     pub merchant_id: String,
     pub connector_name: String,
-    pub connector_account_details: serde_json::Value,
+    pub connector_account_details: Encryption,
     pub test_mode: Option<bool>,
     pub disabled: Option<bool>,
     pub merchant_connector_id: String,
@@ -43,7 +43,7 @@ pub struct MerchantConnectorAccountNew {
     pub merchant_id: Option<String>,
     pub connector_type: Option<storage_enums::ConnectorType>,
     pub connector_name: Option<String>,
-    pub connector_account_details: Option<Secret<serde_json::Value>>,
+    pub connector_account_details: Option<Encryption>,
     pub test_mode: Option<bool>,
     pub disabled: Option<bool>,
     pub merchant_connector_id: String,
@@ -58,60 +58,43 @@ pub struct MerchantConnectorAccountNew {
     pub modified_at: time::PrimitiveDateTime,
 }
 
-#[derive(Debug)]
-pub enum MerchantConnectorAccountUpdate {
-    Update {
-        merchant_id: Option<String>,
-        connector_type: Option<storage_enums::ConnectorType>,
-        connector_account_details: Option<Secret<serde_json::Value>>,
-        test_mode: Option<bool>,
-        disabled: Option<bool>,
-        merchant_connector_id: Option<String>,
-        payment_methods_enabled: Option<Vec<serde_json::Value>>,
-        metadata: Option<pii::SecretSerdeValue>,
-        frm_configs: Option<Secret<serde_json::Value>>,
-    },
-}
-#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_connector_account)]
 pub struct MerchantConnectorAccountUpdateInternal {
-    merchant_id: Option<String>,
-    connector_type: Option<storage_enums::ConnectorType>,
-    connector_account_details: Option<Secret<serde_json::Value>>,
-    test_mode: Option<bool>,
-    disabled: Option<bool>,
-    merchant_connector_id: Option<String>,
-    payment_methods_enabled: Option<Vec<serde_json::Value>>,
-    metadata: Option<pii::SecretSerdeValue>,
-    frm_configs: Option<Secret<serde_json::Value>>,
-    modified_at: time::PrimitiveDateTime,
+    pub merchant_id: Option<String>,
+    pub connector_type: Option<storage_enums::ConnectorType>,
+    pub connector_name: Option<String>,
+    pub connector_account_details: Option<Encryption>,
+    pub test_mode: Option<bool>,
+    pub disabled: Option<bool>,
+    pub merchant_connector_id: Option<String>,
+    pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub frm_configs: Option<Secret<serde_json::Value>>,
+    pub modified_at: Option<time::PrimitiveDateTime>,
 }
 
-impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInternal {
-    fn from(merchant_connector_account_update: MerchantConnectorAccountUpdate) -> Self {
-        match merchant_connector_account_update {
-            MerchantConnectorAccountUpdate::Update {
-                merchant_id,
-                connector_type,
-                connector_account_details,
-                test_mode,
-                disabled,
-                merchant_connector_id,
-                payment_methods_enabled,
-                metadata,
-                frm_configs,
-            } => Self {
-                merchant_id,
-                connector_type,
-                connector_account_details,
-                test_mode,
-                disabled,
-                merchant_connector_id,
-                payment_methods_enabled,
-                metadata,
-                frm_configs,
-                modified_at: common_utils::date_time::now(),
-            },
+impl MerchantConnectorAccountUpdateInternal {
+    pub fn create_merchant_connector_account(
+        self,
+        source: MerchantConnectorAccount,
+    ) -> MerchantConnectorAccount {
+        MerchantConnectorAccount {
+            merchant_id: self.merchant_id.unwrap_or(source.merchant_id),
+            connector_type: self.connector_type.unwrap_or(source.connector_type),
+            connector_account_details: self
+                .connector_account_details
+                .unwrap_or(source.connector_account_details),
+            test_mode: self.test_mode,
+            disabled: self.disabled,
+            merchant_connector_id: self
+                .merchant_connector_id
+                .unwrap_or(source.merchant_connector_id),
+            payment_methods_enabled: self.payment_methods_enabled,
+            frm_configs: self.frm_configs,
+            modified_at: self.modified_at.unwrap_or(source.modified_at),
+
+            ..source
         }
     }
 }

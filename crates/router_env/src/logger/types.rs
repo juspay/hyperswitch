@@ -189,7 +189,7 @@ pub enum Flow {
 ///
 /// Trait for providing generic behaviour to flow metric
 ///
-pub trait FlowMetric: ToString + std::fmt::Debug {}
+pub trait FlowMetric: ToString + std::fmt::Debug + Clone {}
 impl FlowMetric for Flow {}
 
 /// Category of log event.
