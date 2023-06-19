@@ -729,13 +729,14 @@ where
 
 #[instrument(skip_all)]
 pub(crate) async fn get_payment_method_create_request(
-    payment_method: Option<&api::PaymentMethodData>,
-    payment_method_type: Option<storage_enums::PaymentMethod>,
+    payment_method_data: Option<&api::PaymentMethodData>,
+    payment_method: Option<storage_enums::PaymentMethod>,
+    payment_method_type: Option<storage_enums::PaymentMethodType>,
     customer: &domain::Customer,
 ) -> RouterResult<api::PaymentMethodCreate> {
-    match payment_method {
-        Some(pm_data) => match payment_method_type {
-            Some(payment_method_type) => match pm_data {
+    match payment_method_data {
+        Some(pm_data) => match payment_method {
+            Some(payment_method) => match pm_data {
                 api::PaymentMethodData::Card(card) => {
                     let card_detail = api::CardDetail {
                         card_number: card.card_number.clone(),
@@ -745,8 +746,8 @@ pub(crate) async fn get_payment_method_create_request(
                     };
                     let customer_id = customer.customer_id.clone();
                     let payment_method_request = api::PaymentMethodCreate {
-                        payment_method: payment_method_type.foreign_into(),
-                        payment_method_type: None,
+                        payment_method: payment_method.foreign_into(),
+                        payment_method_type: payment_method_type.map(ForeignInto::foreign_into),
                         payment_method_issuer: card.card_issuer.clone(),
                         payment_method_issuer_code: None,
                         card: Some(card_detail),
@@ -761,8 +762,8 @@ pub(crate) async fn get_payment_method_create_request(
                 }
                 _ => {
                     let payment_method_request = api::PaymentMethodCreate {
-                        payment_method: payment_method_type.foreign_into(),
-                        payment_method_type: None,
+                        payment_method: payment_method.foreign_into(),
+                        payment_method_type: payment_method_type.map(ForeignInto::foreign_into),
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
                         card: None,
