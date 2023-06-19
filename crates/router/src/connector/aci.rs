@@ -254,10 +254,14 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         // encode only for for urlencoded things.
-        let aci_req = utils::Encode::<aci::AciPaymentsRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let aci_req = types::RequestBody::log_and_get_request_body(
+            req,
+            utils::Encode::<aci::AciPaymentsRequest>::convert_and_url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
         Ok(Some(aci_req))
     }
 
@@ -365,9 +369,12 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let aci_req = utils::Encode::<aci::AciCancelRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let aci_req = types::RequestBody::log_and_get_request_body(
+            req,
+            utils::Encode::<aci::AciCancelRequest>::convert_and_url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(aci_req))
     }
     fn build_request(
@@ -470,9 +477,12 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let body = utils::Encode::<aci::AciRefundRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let body = types::RequestBody::log_and_get_request_body(
+            req,
+            utils::Encode::<aci::AciRefundRequest>::convert_and_url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(body))
     }
 

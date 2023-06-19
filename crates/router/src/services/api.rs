@@ -186,6 +186,9 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     }
 }
 
+/// Handle the flow by interacting with connector module
+/// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
+/// In other cases, It will be created if required, even if it is not passed
 #[instrument(skip_all)]
 pub async fn execute_connector_processing_step<
     'b,
@@ -198,6 +201,7 @@ pub async fn execute_connector_processing_step<
     connector_integration: BoxedConnectorIntegration<'a, T, Req, Resp>,
     req: &'b types::RouterData<T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
+    connector_request: Option<Request>,
 ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
 where
     T: Clone + Debug,
@@ -252,7 +256,8 @@ where
                     ),
                 ],
             );
-            match connector_integration
+
+            let connector_request = connector_request.or(connector_integration
                 .build_request(req, &state.conf.connectors)
                 .map_err(|error| {
                     if matches!(
@@ -260,7 +265,7 @@ where
                         &errors::ConnectorError::RequestEncodingFailed
                             | &errors::ConnectorError::RequestEncodingFailedWithReason(_)
                     ) {
-                        metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
+                        metrics::REQUEST_BUILD_FAILURE.add(
                             &metrics::CONTEXT,
                             1,
                             &[metrics::request::add_attributes(
@@ -270,7 +275,9 @@ where
                         )
                     }
                     error
-                })? {
+                })?);
+
+            match connector_request {
                 Some(request) => {
                     logger::debug!(connector_request=?request);
                     let response = call_connector_api(state, request).await;
