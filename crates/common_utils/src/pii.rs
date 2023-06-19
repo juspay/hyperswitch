@@ -16,7 +16,7 @@ use masking::{ExposeInterface, Secret, Strategy, WithType};
 use crate::{
     crypto::Encryptable,
     errors::{self, ValidationError},
-    validation::validate_email,
+    validation::{validate_email, validate_phone_number},
 };
 
 /// A string constant representing a redacted or masked value.
@@ -24,6 +24,96 @@ pub const REDACTED: &str = "Redacted";
 
 /// Type alias for serde_json value which has Secret Information
 pub type SecretSerdeValue = Secret<serde_json::Value>;
+
+/// Strategy for masking a PhoneNumber
+#[derive(Debug)]
+pub struct PhoneNumberStrategy;
+
+/// Phone Number
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(try_from = "String")]
+pub struct PhoneNumber(Secret<String, PhoneNumberStrategy>);
+
+impl<T> Strategy<T> for PhoneNumberStrategy
+where
+    T: AsRef<str> + std::fmt::Debug,
+{
+    fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let val_str: &str = val.as_ref();
+
+        // masks everything but the last 4 digits
+        write!(
+            f,
+            "{}{}",
+            "*".repeat(val_str.len() - 4),
+            &val_str[val_str.len() - 4..]
+        )
+    }
+}
+
+impl FromStr for PhoneNumber {
+    type Err = error_stack::Report<ValidationError>;
+    fn from_str(phone_number: &str) -> Result<Self, Self::Err> {
+        validate_phone_number(phone_number)?;
+        let secret = Secret::<String, PhoneNumberStrategy>::new(phone_number.to_string());
+        Ok(Self(secret))
+    }
+}
+
+impl TryFrom<String> for PhoneNumber {
+    type Error = error_stack::Report<errors::ParsingError>;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::from_str(&value).change_context(errors::ParsingError::PhoneNumberParsingError)
+    }
+}
+
+impl ops::Deref for PhoneNumber {
+    type Target = Secret<String, PhoneNumberStrategy>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl ops::DerefMut for PhoneNumber {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<DB> Queryable<diesel::sql_types::Text, DB> for PhoneNumber
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for PhoneNumber
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self::from_str(val.as_str())?)
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for PhoneNumber
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
 
 /*
 /// Phone number
@@ -324,6 +414,12 @@ mod pii_masking_strategy_tests {
     fn test_invalid_client_secret_masking() {
         let secret: Secret<String, IpAddress> =
             Secret::new("pay_uszFB2QGe9MmLY65ojhT_secret".to_string());
+        assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
+    }
+
+    #[test]
+    fn test_valid_phone_number_default_masking() {
+        let secret: Secret<String> = Secret::new("+40712345678".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
     }
 }

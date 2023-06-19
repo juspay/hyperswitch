@@ -483,6 +483,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             integ,
             authorize_data,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await?;
         router_data.session_token = resp.session_token;
@@ -510,6 +511,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                         integ,
                         init_data,
                         payments::CallConnectorAction::Trigger,
+                        None,
                     )
                     .await?;
                     match init_resp.response {
@@ -957,9 +959,11 @@ impl services::ConnectorRedirectResponse for Nuvei {
                             .switch()?;
                     match acs_response.trans_status {
                         None | Some(nuvei::LiabilityShift::Failed) => {
-                            Ok(payments::CallConnectorAction::StatusUpdate(
-                                enums::AttemptStatus::AuthenticationFailed,
-                            ))
+                            Ok(payments::CallConnectorAction::StatusUpdate {
+                                status: enums::AttemptStatus::AuthenticationFailed,
+                                error_code: None,
+                                error_message: None,
+                            })
                         }
                         _ => Ok(payments::CallConnectorAction::Trigger),
                     }
