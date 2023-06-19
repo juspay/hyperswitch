@@ -323,7 +323,7 @@ pub struct Shift4WebhookObjectEventType {
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(clippy::enum_variant_names)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Shift4WebhookEvent {
     ChargeSucceeded,
     ChargeFailed,
