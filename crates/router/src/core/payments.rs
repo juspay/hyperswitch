@@ -562,7 +562,7 @@ where
     // Update the payment trackers just before calling the connector
     // Since the request is already built in the previous step,
     // there should be no error in request construction from hyperswitch end
-    operation
+    (_, *payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
             &*state.store,
@@ -572,6 +572,10 @@ where
             updated_customer,
         )
         .await?;
+
+    // The status of payment_attempt and intent will be updated in the previous step
+    // This field will be used by the connector
+    router_data.status = payment_data.payment_attempt.status;
 
     let router_data_res = if should_continue_further {
         // Check if the actual flow specific request can be built with available data
