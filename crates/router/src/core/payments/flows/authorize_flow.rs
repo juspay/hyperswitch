@@ -338,6 +338,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
         Ok(Self {
             email: data.email,
             currency: Some(data.currency),
+            amount: Some(data.amount),
         })
     }
 }

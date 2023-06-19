@@ -315,13 +315,28 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             types::PaymentsResponseData::PreProcessingResponse {
                 pre_processing_id,
                 connector_metadata,
+                ..
             } => {
+                let connector_transaction_id = match pre_processing_id.to_owned() {
+                    types::PreprocessingResponseId::PreProcessingId(_) => None,
+                    types::PreprocessingResponseId::ConnectorTransactionId(connector_txn_id) => {
+                        Some(connector_txn_id)
+                    }
+                };
+                let preprocessing_step_id = match pre_processing_id {
+                    types::PreprocessingResponseId::PreProcessingId(pre_processing_id) => {
+                        Some(pre_processing_id)
+                    }
+                    types::PreprocessingResponseId::ConnectorTransactionId(_) => None,
+                };
                 let payment_attempt_update = storage::PaymentAttemptUpdate::PreprocessingUpdate {
                     status: router_data.status,
                     payment_method_id: Some(router_data.payment_method_id),
                     connector_metadata,
-                    preprocessing_step_id: Some(pre_processing_id),
+                    preprocessing_step_id,
+                    connector_transaction_id,
                 };
+
                 (Some(payment_attempt_update), None)
             }
             types::PaymentsResponseData::TransactionResponse {

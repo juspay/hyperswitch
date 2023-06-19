@@ -151,7 +151,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
         payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
-
+        payment_intent.udf = request.udf.clone().or(payment_intent.udf);
         payment_intent.business_country = request
             .business_country
             .unwrap_or(payment_intent.business_country);
@@ -473,7 +473,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let business_country = Some(payment_data.payment_intent.business_country);
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-
+        let udf = payment_data.payment_intent.udf.clone();
         payment_data.payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
@@ -490,6 +490,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     business_label,
                     order_details,
                     metadata,
+                    udf,
                 },
                 storage_scheme,
             )

@@ -38,6 +38,7 @@ pub struct PaymentIntent {
     pub business_label: String,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    pub udf: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(
@@ -82,6 +83,7 @@ pub struct PaymentIntentNew {
     pub business_label: String,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    pub udf: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -122,6 +124,7 @@ pub enum PaymentIntentUpdate {
         business_label: Option<String>,
         order_details: Option<Vec<pii::SecretSerdeValue>>,
         metadata: Option<pii::SecretSerdeValue>,
+        udf: Option<pii::SecretSerdeValue>,
     },
     PaymentAttemptUpdate {
         active_attempt_id: String,
@@ -154,6 +157,7 @@ pub struct PaymentIntentUpdateInternal {
     pub business_label: Option<String>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    pub udf: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentIntentUpdate {
@@ -203,6 +207,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 business_label,
                 order_details,
                 metadata,
+                udf,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -218,6 +223,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 business_label,
                 order_details,
                 metadata,
+                udf,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate { metadata } => Self {
