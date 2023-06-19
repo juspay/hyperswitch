@@ -12,7 +12,7 @@ use crate::{
     types::api::customers as customer_types,
 };
 
-#[instrument(skip_all, , fields(flow = ?Flow::CustomersCreate))]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
 pub async fn customer_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,

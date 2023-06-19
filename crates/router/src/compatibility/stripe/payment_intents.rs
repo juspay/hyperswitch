@@ -13,7 +13,7 @@ use crate::{
     types::api::{self as api_types},
 };
 
-#[instrument(skip_all, , fields(flow = ?Flow::PaymentsCreate))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
 pub async fn payment_intents_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
