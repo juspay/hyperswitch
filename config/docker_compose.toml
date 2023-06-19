@@ -148,6 +148,9 @@ cards = [
     "zen",
 ]
 
+[delayed_session_response]
+connectors_with_delayed_session_response = "trustpay"
+
 
 [scheduler]
 stream = "SCHEDULER_STREAM"

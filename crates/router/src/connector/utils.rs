@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use api_models::payments::{self, OrderDetails};
+use api_models::payments::{self, OrderDetailsWithAmount};
 use base64::Engine;
 use common_utils::{
     date_time,
     errors::ReportSwitchExt,
-    pii::{self, Email},
+    pii::{self, Email, IpAddress},
 };
 use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
@@ -64,6 +64,7 @@ pub trait RouterData {
     fn get_payment_method_token(&self) -> Result<String, Error>;
     fn get_customer_id(&self) -> Result<String, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
+    fn get_preprocessing_id(&self) -> Result<String, Error>;
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -157,6 +158,11 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .to_owned()
             .ok_or_else(missing_field_err("connector_customer_id"))
     }
+    fn get_preprocessing_id(&self) -> Result<String, Error> {
+        self.preprocessing_id
+            .to_owned()
+            .ok_or_else(missing_field_err("preprocessing_id"))
+    }
 }
 
 pub trait PaymentsPreProcessingData {
@@ -173,7 +179,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
-    fn get_order_details(&self) -> Result<OrderDetails, Error>;
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
@@ -200,7 +206,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
-    fn get_order_details(&self) -> Result<OrderDetails, Error> {
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
         self.order_details
             .clone()
             .ok_or_else(missing_field_err("order_details"))
@@ -243,7 +249,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn get_router_return_url(&self) -> Result<String, Error> {
         self.router_return_url
             .clone()
-            .ok_or_else(missing_field_err("webhook_url"))
+            .ok_or_else(missing_field_err("return_url"))
     }
     fn is_wallet(&self) -> bool {
         matches!(self.payment_method_data, api::PaymentMethodData::Wallet(_))
@@ -257,12 +263,63 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
 }
 
 pub trait BrowserInformationData {
-    fn get_ip_address(&self) -> Result<std::net::IpAddr, Error>;
+    fn get_accept_header(&self) -> Result<String, Error>;
+    fn get_language(&self) -> Result<String, Error>;
+    fn get_screen_height(&self) -> Result<u32, Error>;
+    fn get_screen_width(&self) -> Result<u32, Error>;
+    fn get_color_depth(&self) -> Result<u8, Error>;
+    fn get_user_agent(&self) -> Result<String, Error>;
+    fn get_time_zone(&self) -> Result<i32, Error>;
+    fn get_java_enabled(&self) -> Result<bool, Error>;
+    fn get_java_script_enabled(&self) -> Result<bool, Error>;
+    fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error>;
 }
 
 impl BrowserInformationData for types::BrowserInformation {
-    fn get_ip_address(&self) -> Result<std::net::IpAddr, Error> {
-        self.ip_address.ok_or_else(missing_field_err("ip_address"))
+    fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error> {
+        let ip_address = self
+            .ip_address
+            .ok_or_else(missing_field_err("browser_info.ip_address"))?;
+        Ok(Secret::new(ip_address.to_string()))
+    }
+    fn get_accept_header(&self) -> Result<String, Error> {
+        self.accept_header
+            .clone()
+            .ok_or_else(missing_field_err("browser_info.accept_header"))
+    }
+    fn get_language(&self) -> Result<String, Error> {
+        self.language
+            .clone()
+            .ok_or_else(missing_field_err("browser_info.language"))
+    }
+    fn get_screen_height(&self) -> Result<u32, Error> {
+        self.screen_height
+            .ok_or_else(missing_field_err("browser_info.screen_height"))
+    }
+    fn get_screen_width(&self) -> Result<u32, Error> {
+        self.screen_width
+            .ok_or_else(missing_field_err("browser_info.screen_width"))
+    }
+    fn get_color_depth(&self) -> Result<u8, Error> {
+        self.color_depth
+            .ok_or_else(missing_field_err("browser_info.color_depth"))
+    }
+    fn get_user_agent(&self) -> Result<String, Error> {
+        self.user_agent
+            .clone()
+            .ok_or_else(missing_field_err("browser_info.user_agent"))
+    }
+    fn get_time_zone(&self) -> Result<i32, Error> {
+        self.time_zone
+            .ok_or_else(missing_field_err("browser_info.time_zone"))
+    }
+    fn get_java_enabled(&self) -> Result<bool, Error> {
+        self.java_enabled
+            .ok_or_else(missing_field_err("browser_info.java_enabled"))
+    }
+    fn get_java_script_enabled(&self) -> Result<bool, Error> {
+        self.java_script_enabled
+            .ok_or_else(missing_field_err("browser_info.java_script_enabled"))
     }
 }
 
@@ -367,7 +424,7 @@ pub struct GooglePayPaymentMethodInfo {
 pub struct GpayTokenizationData {
     #[serde(rename = "type")]
     pub token_type: String,
-    pub token: String,
+    pub token: Secret<String>,
 }
 
 impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
@@ -381,7 +438,7 @@ impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
             },
             tokenization_data: GpayTokenizationData {
                 token_type: data.tokenization_data.token_type,
-                token: data.tokenization_data.token,
+                token: Secret::new(data.tokenization_data.token),
             },
         }
     }
@@ -487,18 +544,18 @@ fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
     ))
 }
 pub trait WalletData {
-    fn get_wallet_token(&self) -> Result<String, Error>;
+    fn get_wallet_token(&self) -> Result<Secret<String>, Error>;
     fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
 }
 
 impl WalletData for api::WalletData {
-    fn get_wallet_token(&self) -> Result<String, Error> {
+    fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
         match self {
-            Self::GooglePay(data) => Ok(data.tokenization_data.token.clone()),
+            Self::GooglePay(data) => Ok(Secret::new(data.tokenization_data.token.clone())),
             Self::ApplePay(data) => Ok(data.get_applepay_decoded_payment_data()?),
-            Self::PaypalSdk(data) => Ok(data.token.clone()),
+            Self::PaypalSdk(data) => Ok(Secret::new(data.token.clone())),
             _ => Err(errors::ConnectorError::InvalidWallet.into()),
         }
     }
@@ -506,26 +563,28 @@ impl WalletData for api::WalletData {
     where
         T: serde::de::DeserializeOwned,
     {
-        serde_json::from_str::<T>(&self.get_wallet_token()?)
+        serde_json::from_str::<T>(self.get_wallet_token()?.peek())
             .into_report()
             .change_context(errors::ConnectorError::InvalidWalletToken)
     }
 }
 
 pub trait ApplePay {
-    fn get_applepay_decoded_payment_data(&self) -> Result<String, Error>;
+    fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error>;
 }
 
 impl ApplePay for payments::ApplePayWalletData {
-    fn get_applepay_decoded_payment_data(&self) -> Result<String, Error> {
-        let token = String::from_utf8(
-            consts::BASE64_ENGINE
-                .decode(&self.payment_data)
-                .into_report()
-                .change_context(errors::ConnectorError::InvalidWalletToken)?,
-        )
-        .into_report()
-        .change_context(errors::ConnectorError::InvalidWalletToken)?;
+    fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error> {
+        let token = Secret::new(
+            String::from_utf8(
+                consts::BASE64_ENGINE
+                    .decode(&self.payment_data)
+                    .into_report()
+                    .change_context(errors::ConnectorError::InvalidWalletToken)?,
+            )
+            .into_report()
+            .change_context(errors::ConnectorError::InvalidWalletToken)?,
+        );
         Ok(token)
     }
 }
