@@ -367,7 +367,7 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     merchant_key_store (merchant_id) {
-        #[max_length = 255]
+        #[max_length = 64]
         merchant_id -> Varchar,
         key -> Bytea,
         created_at -> Timestamp,
