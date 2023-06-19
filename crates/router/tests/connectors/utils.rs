@@ -496,6 +496,7 @@ pub trait ConnectorActions: Connector {
             connector_integration,
             &request,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await?;
         Ok(res.response.unwrap())
@@ -530,6 +531,7 @@ pub trait ConnectorActions: Connector {
             connector_integration,
             &request,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await?;
         Ok(res.response.unwrap())
@@ -564,6 +566,7 @@ pub trait ConnectorActions: Connector {
             connector_integration,
             &request,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await?;
         Ok(res.response.unwrap())
@@ -598,6 +601,7 @@ pub trait ConnectorActions: Connector {
             connector_integration,
             &request,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await?;
         Ok(res.response.unwrap())
@@ -676,6 +680,7 @@ pub trait ConnectorActions: Connector {
             connector_integration,
             &request,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await?;
         Ok(res.response.unwrap())
