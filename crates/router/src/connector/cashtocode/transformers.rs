@@ -102,7 +102,6 @@ impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
 #[serde(rename_all = "lowercase")]
 pub enum CashtocodePaymentStatus {
     Succeeded,
-    Failed,
     #[default]
     Processing,
 }
@@ -111,8 +110,7 @@ impl From<CashtocodePaymentStatus> for enums::AttemptStatus {
     fn from(item: CashtocodePaymentStatus) -> Self {
         match item {
             CashtocodePaymentStatus::Succeeded => Self::Charged,
-            CashtocodePaymentStatus::Failed => Self::Failure,
-            CashtocodePaymentStatus::Processing => Self::Authorizing,
+            CashtocodePaymentStatus::Processing => Self::AuthenticationPending,
         }
     }
 }

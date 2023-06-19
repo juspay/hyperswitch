@@ -91,7 +91,7 @@ async fn should_fetch_pay_url_classic() {
     let authorize_response = CONNECTOR
         .make_payment(
             CashtocodeTest::get_payment_authorize_data(
-                Some(enums::PaymentMethodType::Classic),
+                Some(enums::PaymentMethodType::ClassicReward),
                 api_models::payments::PaymentMethodData::Reward(api_models::payments::RewardData {
                     mid: "1bc20b0a".to_owned(),
                 }),

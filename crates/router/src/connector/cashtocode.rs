@@ -50,7 +50,7 @@ fn get_auth_cashtocode(
         .ok_or_else(conn_utils::missing_field_err("payment_method_type"))
     {
         Ok(reward_type) => match reward_type {
-            storage::enums::PaymentMethodType::Classic => match auth_type {
+            storage::enums::PaymentMethodType::ClassicReward => match auth_type {
                 types::ConnectorAuthType::BodyKey { api_key, key1: _ } => Ok(vec![(
                     headers::AUTHORIZATION.to_string(),
                     format!("Basic {}", api_key).into_masked(),
@@ -234,7 +234,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -270,7 +269,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -333,7 +331,7 @@ impl api::IncomingWebhook for Cashtocode {
         db: &dyn StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("wh_mer_sec_verification_{}_{}", self.id(), merchant_id);
+        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
         let secret = match db.find_config_by_key(&key).await {
             Ok(config) => Some(config),
             Err(e) => {
@@ -367,11 +365,7 @@ impl api::IncomingWebhook for Cashtocode {
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert secret to UTF-8")?;
-        let mut success = false;
-        if signature_auth == secret_auth {
-            success = true;
-        }
-        Ok(success)
+        Ok(signature_auth == secret_auth)
     }
 
     fn get_webhook_object_reference_id(
