@@ -477,6 +477,7 @@ diesel::table! {
         #[max_length = 64]
         business_label -> Varchar,
         order_details -> Nullable<Array<Nullable<Jsonb>>>,
+        udf -> Nullable<Jsonb>,
     }
 }
 
