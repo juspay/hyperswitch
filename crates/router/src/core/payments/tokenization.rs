@@ -230,6 +230,7 @@ pub async fn add_payment_method_token<F: Clone, T: Clone>(
                 connector_integration,
                 &pm_token_router_data,
                 payments::CallConnectorAction::Trigger,
+                None,
             )
             .await
             .to_payment_failed_response()?;
