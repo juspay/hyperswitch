@@ -8,7 +8,9 @@ use opentelemetry::{
         export::metrics::aggregation::cumulative_temporality_selector,
         metrics::{controllers::BasicController, selectors::simple},
         propagation::TraceContextPropagator,
-        trace, Resource,
+        trace,
+        trace::BatchConfig,
+        Resource,
     },
     KeyValue,
 };
@@ -145,11 +147,16 @@ fn setup_tracing_pipeline(
     if config.use_xray_generator {
         trace_config = trace_config.with_id_generator(trace::XrayIdGenerator::default());
     }
+
+    // Change the default export interval from 5 seconds to 1 second
+    let batch_config = BatchConfig::default().with_scheduled_delay(Duration::from_millis(1000));
+
     let traces_layer_result = opentelemetry_otlp::new_pipeline()
         .tracing()
         .with_exporter(get_opentelemetry_exporter(config))
+        .with_batch_config(batch_config)
         .with_trace_config(trace_config)
-        .install_simple()
+        .install_batch(opentelemetry::runtime::TokioCurrentThread)
         .map(|tracer| tracing_opentelemetry::layer().with_tracer(tracer));
 
     if config.ignore_errors {
