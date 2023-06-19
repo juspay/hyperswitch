@@ -148,6 +148,7 @@ async fn payments_create_success() {
         connector_integration,
         &request,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
     .unwrap();
@@ -193,6 +194,7 @@ async fn payments_create_failure() {
             connector_integration,
             &request,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await
         .is_err();
@@ -225,6 +227,7 @@ async fn refund_for_successful_payments() {
         connector_integration,
         &request,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
     .unwrap();
@@ -250,6 +253,7 @@ async fn refund_for_successful_payments() {
         connector_integration,
         &refund_request,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
     .unwrap();
@@ -285,6 +289,7 @@ async fn refunds_create_failure() {
         connector_integration,
         &request,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
     .is_err();

@@ -189,6 +189,7 @@ pub async fn trigger_refund_to_gateway(
             connector_integration,
             &router_data,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await
         .to_refund_failed_response()?
@@ -408,6 +409,7 @@ pub async fn sync_refund_with_gateway(
             connector_integration,
             &router_data,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await
         .to_refund_failed_response()?

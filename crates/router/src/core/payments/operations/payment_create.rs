@@ -328,7 +328,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -344,6 +343,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             },
             IntentStatus::RequiresConfirmation => {
                 if let Some(true) = payment_data.confirm {
+                    //TODO: do this later, request validation should happen before
                     Some(IntentStatus::Processing)
                 } else {
                     None
