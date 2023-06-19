@@ -489,9 +489,10 @@ pub async fn check_payout_eligibility(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
-    .map_err(|error| error.to_payout_failed_response())?;
+    .to_payout_failed_response()?;
 
     // 4. Process data returned by the connector
     let db = &*state.store;
@@ -584,9 +585,10 @@ pub async fn create_payout(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
-    .map_err(|error| error.to_payout_failed_response())?;
+    .to_payout_failed_response()?;
 
     // 4. Process data returned by the connector
     let db = &*state.store;
@@ -766,9 +768,10 @@ pub async fn fulfill_payout(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
-    .map_err(|error| error.to_payout_failed_response())?;
+    .to_payout_failed_response()?;
 
     // 4. Process data returned by the connector
     let db = &*state.store;
@@ -946,7 +949,7 @@ pub async fn payout_create_db_entries(
         req.billing.as_ref(),
         None,
         merchant_id,
-        &Some(customer_id.to_owned()),
+        Some(&customer_id.to_owned()),
     )
     .await?;
     let address_id = billing_address.to_owned().map_or(
@@ -1059,7 +1062,7 @@ pub async fn make_payout_data(
         None,
         Some(&payouts.address_id.to_owned()),
         merchant_id,
-        &Some(payouts.customer_id.to_owned()),
+        Some(&payouts.customer_id.to_owned()),
     )
     .await?;
 
