@@ -4,7 +4,6 @@ use api_models::payments;
 use common_utils::{crypto::Encryptable, date_time, ext_traits::StringExt, pii as secret};
 use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 use crate::{
     compatibility::stripe::refunds::types as stripe_refunds,
@@ -145,7 +144,7 @@ impl From<Shipping> for payments::Address {
     }
 }
 
-#[derive(Deserialize, Clone, ToSchema)]
+#[derive(Deserialize, Clone)]
 pub struct StripePaymentIntentRequest {
     pub id: Option<String>,
     pub amount: Option<i64>, //amount in cents, hence passed as integer
@@ -164,7 +163,6 @@ pub struct StripePaymentIntentRequest {
     pub shipping: Option<Shipping>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<secret::SecretSerdeValue>,
     pub client_secret: Option<pii::Secret<String>>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
