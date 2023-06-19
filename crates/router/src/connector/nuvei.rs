@@ -483,6 +483,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             integ,
             authorize_data,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await?;
         router_data.session_token = resp.session_token;
@@ -510,6 +511,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                         integ,
                         init_data,
                         payments::CallConnectorAction::Trigger,
+                        None,
                     )
                     .await?;
                     match init_resp.response {

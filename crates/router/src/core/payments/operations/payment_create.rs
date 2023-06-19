@@ -74,12 +74,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )
             .await?;
 
+        let customer_details = helpers::get_customer_details_from_request(request);
+
         let shipping_address = helpers::get_address_for_payment_request(
             db,
             request.shipping.as_ref(),
             None,
             merchant_id,
-            &request.customer_id,
+            customer_details.customer_id.as_ref(),
         )
         .await?;
 
@@ -88,7 +90,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             request.billing.as_ref(),
             None,
             merchant_id,
-            &request.customer_id,
+            customer_details.customer_id.as_ref(),
         )
         .await?;
 
@@ -256,13 +258,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 ephemeral_key,
                 redirect_response: None,
             },
-            Some(CustomerDetails {
-                customer_id: request.customer_id.clone(),
-                name: request.name.clone(),
-                email: request.email.clone(),
-                phone: request.phone.clone(),
-                phone_country_code: request.phone_country_code.clone(),
-            }),
+            Some(customer_details),
         ))
     }
 }
@@ -332,7 +328,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -348,6 +343,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             },
             IntentStatus::RequiresConfirmation => {
                 if let Some(true) = payment_data.confirm {
+                    //TODO: do this later, request validation should happen before
                     Some(IntentStatus::Processing)
                 } else {
                     None
@@ -423,6 +419,9 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         {
             Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
         }
+
+        helpers::validate_customer_details_in_request(request)?;
+
         let given_payment_id = match &request.payment_id {
             Some(id_type) => Some(
                 id_type
@@ -525,6 +524,10 @@ impl PaymentCreate {
             payment_experience: request.payment_experience.map(ForeignInto::foreign_into),
             payment_method_type: request.payment_method_type.map(ForeignInto::foreign_into),
             payment_method_data: additional_pm_data,
+            amount_to_capture: request.amount_to_capture,
+            payment_token: request.payment_token.clone(),
+            mandate_id: request.mandate_id.clone(),
+            business_sub_label: request.business_sub_label.clone(),
             mandate_details: request
                 .mandate_data
                 .as_ref()
@@ -618,6 +621,7 @@ impl PaymentCreate {
             business_label,
             active_attempt_id,
             order_details: order_details_outside_value,
+            udf: request.udf.clone(),
             ..storage::PaymentIntentNew::default()
         })
     }
