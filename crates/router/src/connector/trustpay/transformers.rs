@@ -16,6 +16,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, storage::enums, BrowserInformation},
+    utils::OptionExt,
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -474,7 +475,7 @@ pub struct PaymentsResponseCards {
     pub status: i64,
     pub description: Option<String>,
     pub instance_id: String,
-    pub payment_status: String,
+    pub payment_status: Option<String>,
     pub payment_description: Option<String>,
     pub redirect_url: Option<Url>,
     pub redirect_params: Option<HashMap<String, String>>,
@@ -553,8 +554,13 @@ fn handle_cards_response(
     ),
     errors::ConnectorError,
 > {
+    // By default, payment status is pending(000.200.000 status code)
     let (status, msg) = get_transaction_status(
-        response.payment_status.as_str(),
+        response
+            .payment_status
+            .to_owned()
+            .unwrap_or("000.200.000".to_string())
+            .as_str(),
         response.redirect_url.clone(),
     )?;
     let form_fields = response.redirect_params.unwrap_or_default();
@@ -567,7 +573,9 @@ fn handle_cards_response(
         });
     let error = if msg.is_some() {
         Some(types::ErrorResponse {
-            code: response.payment_status,
+            code: response
+                .payment_status
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: msg.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
@@ -798,6 +806,164 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, t
                 }),
                 ..item.data
             }),
+        }
+    }
+}
+
+#[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustpayCreateIntentRequest {
+    pub amount: String,
+    pub currency: String,
+    // If true, Apple Pay will be initialized
+    pub init_apple_pay: Option<bool>,
+}
+
+impl TryFrom<&types::PaymentsSessionRouterData> for TrustpayCreateIntentRequest {
+    type Error = Error;
+    fn try_from(item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: item.request.amount.to_string(),
+            currency: item.request.currency.to_string(),
+            init_apple_pay: Some(true),
+        })
+    }
+}
+
+impl TryFrom<&types::PaymentsPreProcessingRouterData> for TrustpayCreateIntentRequest {
+    type Error = Error;
+    fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: item
+                .request
+                .amount
+                .get_required_value("amount")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "amount",
+                })?
+                .to_string(),
+            currency: item
+                .request
+                .currency
+                .get_required_value("currency")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?
+                .to_string(),
+            init_apple_pay: Some(true),
+        })
+    }
+}
+
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustpayCreateIntentResponse {
+    // TrustPay's authorization secrets used by client
+    pub secrets: SdkSecretInfo,
+    // 	Data object to be used for Apple Pay
+    pub apple_init_result_data: TrustpayApplePayResponse,
+    // Unique operation/transaction identifier
+    pub instance_id: String,
+}
+
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SdkSecretInfo {
+    pub display: Secret<String>,
+    pub payment: Secret<String>,
+}
+
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustpayApplePayResponse {
+    pub country_code: api_models::enums::CountryAlpha2,
+    pub currency_code: String,
+    pub supported_networks: Vec<String>,
+    pub merchant_capabilities: Vec<String>,
+    pub total: ApplePayTotalInfo,
+}
+
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayTotalInfo {
+    pub label: String,
+    pub amount: String,
+}
+
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<F, TrustpayCreateIntentResponse, T, types::PaymentsResponseData>,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = Error;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            TrustpayCreateIntentResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::PreProcessingResponse {
+                connector_metadata: None,
+                pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(
+                    response.instance_id,
+                ),
+                session_token: Some(types::api::SessionToken::ApplePay(Box::new(
+                    api_models::payments::ApplepaySessionTokenResponse {
+                        session_token_data:
+                            api_models::payments::ApplePaySessionResponse::ThirdPartySdk(
+                                api_models::payments::ThirdPartySdkSessionResponse {
+                                    secrets: response.secrets.into(),
+                                },
+                            ),
+                        payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
+                            country_code: response.apple_init_result_data.country_code,
+                            currency_code: response.apple_init_result_data.currency_code.clone(),
+                            supported_networks: response
+                                .apple_init_result_data
+                                .supported_networks
+                                .clone(),
+                            merchant_capabilities: response
+                                .apple_init_result_data
+                                .merchant_capabilities
+                                .clone(),
+                            total: response.apple_init_result_data.total.into(),
+                            merchant_identifier: None,
+                        }),
+                        connector: "trustpay".to_string(),
+                        delayed_session_token: true,
+                        sdk_next_action: {
+                            api_models::payments::SdkNextAction {
+                                next_action: api_models::payments::NextActionCall::Sync,
+                            }
+                        },
+                    },
+                ))),
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl From<SdkSecretInfo> for api_models::payments::SecretInfoToInitiateSdk {
+    fn from(value: SdkSecretInfo) -> Self {
+        Self {
+            display: value.display,
+            payment: value.payment,
+        }
+    }
+}
+
+impl From<ApplePayTotalInfo> for api_models::payments::AmountInfo {
+    fn from(value: ApplePayTotalInfo) -> Self {
+        Self {
+            label: value.label,
+            amount: value.amount,
+            total_type: None,
         }
     }
 }

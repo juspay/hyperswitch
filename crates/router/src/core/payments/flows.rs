@@ -647,7 +647,6 @@ default_imp_for_pre_processing_steps!(
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
-    connector::Trustpay,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen

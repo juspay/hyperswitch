@@ -150,20 +150,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
-        payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
 
-        payment_intent.business_country = request
-            .business_country
-            .unwrap_or(payment_intent.business_country);
-        payment_intent.business_label = request
-            .business_label
-            .clone()
-            .unwrap_or(payment_intent.business_label);
-
-        payment_attempt.business_sub_label = request
-            .business_sub_label
-            .clone()
-            .or(payment_attempt.business_sub_label);
+        Self::populate_payment_intent_with_request(&mut payment_intent, request);
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
@@ -253,14 +241,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             None => storage_enums::IntentStatus::RequiresPaymentMethod,
         };
 
-        payment_attempt.payment_method_type = request
-            .payment_method_type
-            .map(|pmt| pmt.foreign_into())
-            .or(payment_attempt.payment_method_type);
-
-        payment_attempt.payment_experience = request
-            .payment_experience
-            .map(|experience| experience.foreign_into());
+        Self::populate_payment_attempt_with_request(&mut payment_attempt, request);
 
         let creds_identifier = request
             .merchant_connector_details
@@ -428,6 +409,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let payment_method_type = payment_data.payment_attempt.payment_method_type.clone();
         let payment_experience = payment_data.payment_attempt.payment_experience.clone();
+        let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
+        let capture_method = payment_data.payment_attempt.capture_method;
         payment_data.payment_attempt = db
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
@@ -442,6 +425,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     payment_experience,
                     payment_method_type,
                     business_sub_label,
+                    amount_to_capture,
+                    capture_method,
                 },
                 storage_scheme,
             )
@@ -472,9 +457,18 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
         let business_label = Some(payment_data.payment_intent.business_label.clone());
         let business_country = Some(payment_data.payment_intent.business_country);
+        let description = payment_data.payment_intent.description.clone();
+        let statement_descriptor_name = payment_data
+            .payment_intent
+            .statement_descriptor_name
+            .clone();
+        let statement_descriptor_suffix = payment_data
+            .payment_intent
+            .statement_descriptor_suffix
+            .clone();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-
+        let udf = payment_data.payment_intent.udf.clone();
         payment_data.payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
@@ -489,8 +483,12 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     return_url,
                     business_country,
                     business_label,
+                    description,
+                    statement_descriptor_name,
+                    statement_descriptor_suffix,
                     order_details,
                     metadata,
+                    udf,
                 },
                 storage_scheme,
             )
@@ -570,5 +568,74 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
                 storage_scheme: merchant_account.storage_scheme,
             },
         ))
+    }
+}
+
+impl PaymentUpdate {
+    fn populate_payment_attempt_with_request(
+        payment_attempt: &mut storage::PaymentAttempt,
+        request: &api::PaymentsRequest,
+    ) {
+        request
+            .business_sub_label
+            .clone()
+            .map(|bsl| payment_attempt.business_sub_label.replace(bsl));
+        request.payment_method_type.map(|pmt| {
+            payment_attempt
+                .payment_method_type
+                .replace(pmt.foreign_into())
+        });
+        request.payment_experience.map(|experience| {
+            payment_attempt
+                .payment_experience
+                .replace(experience.foreign_into())
+        });
+        payment_attempt.amount_to_capture = request
+            .amount_to_capture
+            .or(payment_attempt.amount_to_capture);
+        request
+            .capture_method
+            .map(|i| payment_attempt.capture_method.replace(i.foreign_into()));
+    }
+    fn populate_payment_intent_with_request(
+        payment_intent: &mut storage::PaymentIntent,
+        request: &api::PaymentsRequest,
+    ) {
+        request
+            .return_url
+            .clone()
+            .map(|i| payment_intent.return_url.replace(i.to_string()));
+
+        payment_intent.business_country = request
+            .business_country
+            .unwrap_or(payment_intent.business_country);
+        payment_intent.business_label = request
+            .business_label
+            .clone()
+            .unwrap_or(payment_intent.business_label.clone());
+        request
+            .description
+            .clone()
+            .map(|i| payment_intent.description.replace(i));
+
+        request
+            .statement_descriptor_name
+            .clone()
+            .map(|i| payment_intent.statement_descriptor_name.replace(i));
+
+        request
+            .statement_descriptor_suffix
+            .clone()
+            .map(|i| payment_intent.statement_descriptor_suffix.replace(i));
+
+        request
+            .client_secret
+            .clone()
+            .map(|i| payment_intent.client_secret.replace(i));
+
+        request
+            .udf
+            .clone()
+            .map(|udf| payment_intent.udf.replace(udf));
     }
 }
