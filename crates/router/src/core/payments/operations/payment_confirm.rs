@@ -196,6 +196,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .as_ref()
             .map(|a| a.to_string())
             .or(payment_intent.return_url);
+        payment_intent.udf = request.udf.clone().or(payment_intent.udf);
 
         payment_attempt.business_sub_label = request
             .business_sub_label
@@ -406,13 +407,20 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         );
 
         let customer_id = customer.clone().map(|c| c.customer_id);
-        let return_url = payment_data.payment_intent.return_url.clone();
+        let return_url = payment_data.payment_intent.return_url.take();
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
         let business_label = Some(payment_data.payment_intent.business_label.clone());
         let business_country = Some(payment_data.payment_intent.business_country);
+        let description = payment_data.payment_intent.description.take();
+        let statement_descriptor_name =
+            payment_data.payment_intent.statement_descriptor_name.take();
+        let statement_descriptor_suffix = payment_data
+            .payment_intent
+            .statement_descriptor_suffix
+            .take();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-
+        let udf = payment_data.payment_intent.udf.clone();
         payment_data.payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
@@ -427,8 +435,12 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     return_url,
                     business_country,
                     business_label,
+                    description,
+                    statement_descriptor_name,
+                    statement_descriptor_suffix,
                     order_details,
                     metadata,
+                    udf,
                 },
                 storage_scheme,
             )

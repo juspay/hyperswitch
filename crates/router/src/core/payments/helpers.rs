@@ -1803,6 +1803,7 @@ mod tests {
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
             order_details: None,
+            udf: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -1843,6 +1844,7 @@ mod tests {
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
             order_details: None,
+            udf: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -1883,6 +1885,7 @@ mod tests {
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
             order_details: None,
+            udf: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
