@@ -386,6 +386,7 @@ impl services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::Pay
             quote_connector_integration,
             quote_router_data,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await?;
         if let Ok(resp) = quote_router_resp.response {
