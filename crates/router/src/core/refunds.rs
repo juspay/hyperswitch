@@ -56,7 +56,6 @@ pub async fn refund_create_core(
 
     // Amount is not passed in request refer from payment intent.
     amount = req.amount.unwrap_or(
-        // if amount is not sent in request shouldn't we take amount_captured - amount_refunded till now ?
         payment_intent
             .amount_captured
             .ok_or(errors::ApiErrorResponse::InternalServerError) // The status is checked previously so this case will never happen, if it happens then it is internal server error
@@ -144,11 +143,9 @@ pub async fn trigger_refund_to_gateway(
     )?;
 
     let currency = payment_attempt.currency.ok_or_else(|| {
-        report!(errors::ApiErrorResponse::MissingRequiredField {
-            // at this point if there is no currency shouldn't this be internal server error.
-            field_name: "currency"
-        })
-        .attach_printable("Transaction in invalid")
+        report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+            "Transaction in invalid. Missing field \"currency\" in payment_attempt.",
+        )
     })?;
 
     validator::validate_for_valid_refunds(payment_attempt, connector.connector_name)?;
@@ -219,7 +216,7 @@ pub async fn trigger_refund_to_gateway(
                 refund_status: response.refund_status,
                 sent_to_gateway: true,
                 refund_error_message: None,
-                refund_arn: "".to_string(), // what is refund_arn
+                refund_arn: "".to_string(),
             }
         }
     };
@@ -535,15 +532,14 @@ pub async fn validate_and_create_refund(
     })? {
         Some(refund) => refund,
         None => {
-            let connecter_transaction_id = match &payment_attempt.connector_transaction_id {
-                Some(id) => id,
-                None => "", // shouldn't this throw error
-            };
-
+            let connecter_transaction_id = payment_attempt.clone().connector_transaction_id.ok_or_else(|| {
+                report!(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Transaction in invalid. Missing field \"connector_transaction_id\" in payment_attempt.")
+            })?;
             all_refunds = db
                 .find_refund_by_merchant_id_connector_transaction_id(
                     &merchant_account.merchant_id,
-                    connecter_transaction_id,
+                    &connecter_transaction_id,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -576,7 +572,7 @@ pub async fn validate_and_create_refund(
             let connector = payment_attempt
                 .connector
                 .clone()
-                .ok_or(errors::ApiErrorResponse::InternalServerError) // makes sense
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .into_report()
                 .attach_printable("No connector populated in payment attempt")?;
 
@@ -698,7 +694,7 @@ pub async fn schedule_refund_execution(
     let refund_process = db
         .find_process_by_id(&task_id)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError) // came here from create flow, why searching in process tracker if it was never inserted before + if process trackers is disabled this will give 500.
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to find the process id")?;
 
     let result = match refund.refund_status {
@@ -733,7 +729,6 @@ pub async fn schedule_refund_execution(
                     //[#300]: return refund status response
                     match refund_type {
                         api_models::refunds::RefundType::Scheduled => {
-                            // came here from create flow, if it is (false, Some()), then why sync task added. What will it sync with.
                             add_refund_sync_task(db, &refund, runner)
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -934,7 +929,7 @@ pub async fn add_refund_sync_task(
         .attach_printable_lazy(|| format!("unable to convert into value {:?}", &refund))?;
     let task = "SYNC_REFUND";
     let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{}_{}_{}", runner, task, refund.id), // shouldn't merchant id also be added here.
+        id: format!("{}_{}_{}", runner, task, refund.id),
         name: Some(String::from(task)),
         tag: vec![String::from("REFUND")],
         runner: Some(String::from(runner)),
@@ -952,7 +947,7 @@ pub async fn add_refund_sync_task(
     let response = db
         .insert_process(process_tracker_entry)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError) // should this be internal server error.
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while inserting task in process_tracker: refund_id: {}",
@@ -975,7 +970,7 @@ pub async fn add_refund_execute_task(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| format!("unable to convert into value {:?}", &refund))?;
     let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{}_{}_{}", runner, task, refund.id), // shouldn't merchant_id be added here.
+        id: format!("{}_{}_{}", runner, task, refund.id),
         name: Some(String::from(task)),
         tag: vec![String::from("REFUND")],
         runner: Some(String::from(runner)),
