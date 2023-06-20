@@ -135,7 +135,6 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
-    connector::Payme,
     connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
@@ -155,6 +154,7 @@ default_imp_for_complete_authorize!(
     connector::Noon,
     connector::Opennode,
     connector::Payeezy,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Stripe,
@@ -192,7 +192,6 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
-    connector::Payme,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -218,6 +217,7 @@ default_imp_for_create_customer!(
     connector::Opennode,
     connector::Payeezy,
     connector::Paypal,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
@@ -257,7 +257,6 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
-    connector::Payme,
     connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
@@ -275,6 +274,7 @@ default_imp_for_connector_redirect_response!(
     connector::Nmi,
     connector::Opennode,
     connector::Payeezy,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
@@ -294,7 +294,6 @@ macro_rules! default_imp_for_connector_request_id{
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
-    connector::Payme,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -319,6 +318,7 @@ default_imp_for_connector_request_id!(
     connector::Nuvei,
     connector::Opennode,
     connector::Payeezy,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
@@ -360,7 +360,6 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
-    connector::Payme,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -385,6 +384,7 @@ default_imp_for_accept_dispute!(
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
@@ -446,7 +446,6 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
-    connector::Payme,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -471,6 +470,7 @@ default_imp_for_file_upload!(
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
@@ -509,7 +509,6 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
-    connector::Payme,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -534,6 +533,7 @@ default_imp_for_submit_evidence!(
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
@@ -572,7 +572,6 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
-    connector::Payme,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -597,6 +596,7 @@ default_imp_for_defend_dispute!(
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Stripe,
@@ -636,7 +636,6 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
-    connector::Payme,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -663,6 +662,7 @@ default_imp_for_pre_processing_steps!(
     connector::Opennode,
     connector::Payeezy,
     connector::Paypal,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
