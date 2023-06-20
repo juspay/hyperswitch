@@ -569,6 +569,7 @@ pub enum StripeBankNames {
     Boz,
 }
 
+// This is used only for Disputes
 impl From<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
     fn from(value: WebhookEventStatus) -> Self {
         match value {
@@ -588,6 +589,7 @@ impl From<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
             | WebhookEventStatus::RequiresCapture
             | WebhookEventStatus::Canceled
             | WebhookEventStatus::Chargeable
+            | WebhookEventStatus::Failed
             | WebhookEventStatus::Unknown => Self::EventNotSupported,
         }
     }
@@ -2369,6 +2371,7 @@ pub enum WebhookEventObjectType {
     Dispute,
     Charge,
     Source,
+    Refund,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2397,12 +2400,14 @@ pub enum WebhookEventType {
     ChargePending,
     #[serde(rename = "charge.captured")]
     ChargeCaptured,
+    #[serde(rename = "charge.refund.updated")]
+    ChargeRefundUpdated,
     #[serde(rename = "charge.succeeded")]
     ChargeSucceeded,
     #[serde(rename = "charge.updated")]
     ChargeUpdated,
     #[serde(rename = "charge.refunded")]
-    ChanrgeRefunded,
+    ChargeRefunded,
     #[serde(rename = "payment_intent.canceled")]
     PaymentIntentCanceled,
     #[serde(rename = "payment_intent.created")]
@@ -2442,6 +2447,7 @@ pub enum WebhookEventStatus {
     RequiresCapture,
     Canceled,
     Chargeable,
+    Failed,
     #[serde(other)]
     Unknown,
 }
