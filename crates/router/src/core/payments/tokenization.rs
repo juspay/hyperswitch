@@ -230,9 +230,10 @@ pub async fn add_payment_method_token<F: Clone, T: Clone>(
                 connector_integration,
                 &pm_token_router_data,
                 payments::CallConnectorAction::Trigger,
+                None,
             )
             .await
-            .map_err(|error| error.to_payment_failed_response())?;
+            .to_payment_failed_response()?;
 
             metrics::CONNECTOR_PAYMENT_METHOD_TOKENIZATION.add(
                 &metrics::CONTEXT,
