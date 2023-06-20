@@ -395,15 +395,20 @@ fn get_item_object(
     _amount: String,
 ) -> Result<Vec<ZenItemObject>, error_stack::Report<errors::ConnectorError>> {
     let order_details = item.request.get_order_details()?;
-    Ok(order_details
+
+    order_details
         .iter()
-        .map(|data| ZenItemObject {
-            name: data.product_name.clone(),
-            quantity: data.quantity,
-            price: data.amount.to_string(),
-            line_amount_total: (i64::from(data.quantity) * data.amount).to_string(),
+        .map(|data| {
+            Ok(ZenItemObject {
+                name: data.product_name.clone(),
+                quantity: data.quantity,
+                price: utils::to_currency_base_unit(data.amount, item.request.currency)?,
+                line_amount_total: (f64::from(data.quantity)
+                    * utils::to_currency_base_unit_asf64(data.amount, item.request.currency)?)
+                .to_string(),
+            })
         })
-        .collect())
+        .collect::<Result<_, _>>()
 }
 
 fn get_browser_details(
@@ -433,49 +438,14 @@ fn get_browser_details(
     .to_string();
 
     Ok(ZenBrowserDetails {
-        color_depth: browser_info
-            .color_depth
-            .get_required_value("color_depth")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "color_depth",
-            })?
-            .to_string(),
-        java_enabled: browser_info
-            .java_enabled
-            .get_required_value("java_enabled")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "java_enabled",
-            })?,
-        lang: browser_info
-            .language
-            .clone()
-            .get_required_value("language")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "language",
-            })?,
+        color_depth: browser_info.get_color_depth()?.to_string(),
+        java_enabled: browser_info.get_java_enabled()?,
+        lang: browser_info.get_language()?,
         screen_height: screen_height.to_string(),
         screen_width: screen_width.to_string(),
-        timezone: browser_info
-            .time_zone
-            .get_required_value("time_zone")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "time_zone",
-            })?
-            .to_string(),
-        accept_header: browser_info
-            .accept_header
-            .clone()
-            .get_required_value("accept_header")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "accept_header",
-            })?,
-        user_agent: browser_info
-            .user_agent
-            .clone()
-            .get_required_value("user_agent")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "user_agent",
-            })?,
+        timezone: browser_info.get_time_zone()?.to_string(),
+        accept_header: browser_info.get_accept_header()?,
+        user_agent: browser_info.get_user_agent()?,
         window_size,
     })
 }
