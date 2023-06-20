@@ -405,7 +405,7 @@ fn validate_certificate_in_mca_metadata(
     connector_metadata: Secret<serde_json::Value>,
 ) -> RouterResult<()> {
     let parsed_connector_metadata = connector_metadata
-        .parse_value::<api_models::payments::ConnectorMetadata>("ApplepaySessionTokenData")
+        .parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
         .change_context(errors::ParsingError::StructParseFailure("Metadata"))
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "metadata".to_string(),
@@ -414,17 +414,22 @@ fn validate_certificate_in_mca_metadata(
 
     parsed_connector_metadata
         .apple_pay
-        .map(|applepay_metadata| {
-            let api_models::payments::SessionTokenInfo {
-                certificate,
-                certificate_keys,
-                ..
-            } = applepay_metadata.session_token_data;
-            helpers::create_identity_from_certificate_and_key(certificate, certificate_keys)
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "certificate/certificate key",
+        .and_then(|applepay_metadata| {
+            applepay_metadata
+                .session_token_data
+                .map(|session_token_data| {
+                    let api_models::payments::SessionTokenInfo {
+                        certificate,
+                        certificate_keys,
+                        ..
+                    } = session_token_data;
+
+                    helpers::create_identity_from_certificate_and_key(certificate, certificate_keys)
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "certificate/certificate key",
+                        })
+                        .map(|_identity_result| ())
                 })
-                .map(|_identity_result| ())
         })
         .transpose()?;
 

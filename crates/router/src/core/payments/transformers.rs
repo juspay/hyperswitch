@@ -171,6 +171,7 @@ where
             payment_data.connector_response.authentication_data,
             &operation,
             payment_data.ephemeral_key,
+            payment_data.sessions_token,
         )
     }
 }
@@ -262,6 +263,7 @@ pub fn payments_to_payments_response<R, Op>(
     redirection_data: Option<serde_json::Value>,
     operation: &Op,
     ephemeral_key_option: Option<ephemeral_key::EphemeralKey>,
+    session_tokens: Vec<api::SessionToken>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
@@ -338,6 +340,15 @@ where
                             ),
                         }));
                 };
+
+                // next action check for third party sdk session (for ex: Apple pay through trustpay has third party sdk session response)
+                if third_party_sdk_session_next_action(&payment_attempt, operation) {
+                    next_action_response = Some(
+                        api_models::payments::NextActionData::ThirdPartySdkSessionToken {
+                            session_token: session_tokens.get(0).cloned(),
+                        },
+                    )
+                }
 
                 let mut response: api::PaymentsResponse = Default::default();
                 let routed_through = payment_attempt.connector.clone();
@@ -453,6 +464,7 @@ where
                                 .and_then(|metadata| metadata.allowed_payment_method_types),
                         )
                         .set_ephemeral_key(ephemeral_key_option.map(ForeignFrom::foreign_from))
+                        .set_udf(payment_intent.udf)
                         .to_owned(),
                 )
             }
@@ -496,6 +508,7 @@ where
             payment_token: payment_attempt.payment_token,
             metadata: payment_intent.metadata,
             order_details: payment_intent.order_details,
+            udf: payment_intent.udf,
             ..Default::default()
         }),
     });
@@ -512,6 +525,34 @@ where
     );
 
     output
+}
+
+pub fn third_party_sdk_session_next_action<Op>(
+    payment_attempt: &storage::PaymentAttempt,
+    operation: &Op,
+) -> bool
+where
+    Op: Debug,
+{
+    // If the operation is confirm, we will send session token response in next action
+    if format!("{operation:?}").eq("PaymentConfirm") {
+        payment_attempt
+            .connector
+            .as_ref()
+            .map(|connector| matches!(connector.as_str(), "trustpay"))
+            .and_then(|is_connector_supports_third_party_sdk| {
+                if is_connector_supports_third_party_sdk {
+                    payment_attempt
+                        .payment_method
+                        .map(|pm| matches!(pm, storage_models::enums::PaymentMethod::Wallet))
+                } else {
+                    Some(false)
+                }
+            })
+            .unwrap_or(false)
+    } else {
+        false
+    }
 }
 
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
@@ -846,6 +887,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             router_return_url,
             email: payment_data.email,
             return_url: payment_data.payment_intent.return_url,
+            payment_method_type: attempt.payment_method_type.clone(),
         })
     }
 }
@@ -900,6 +942,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
         Ok(Self {
             email: payment_data.email,
             currency: Some(payment_data.currency),
+            amount: Some(payment_data.amount.into()),
         })
     }
 }

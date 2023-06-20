@@ -129,9 +129,10 @@ pub async fn accept_dispute(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
-    .map_err(|error| error.to_dispute_failed_response())
+    .to_dispute_failed_response()
     .attach_printable("Failed while calling accept dispute connector api")?;
     let accept_dispute_response =
         response
@@ -244,9 +245,10 @@ pub async fn submit_evidence(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
-    .map_err(|error| error.to_payment_failed_response())
+    .to_dispute_failed_response()
     .attach_printable("Failed while calling submit evidence connector api")?;
     let submit_evidence_response =
         response
@@ -281,9 +283,10 @@ pub async fn submit_evidence(
                 connector_integration_defend_dispute,
                 &defend_dispute_router_data,
                 payments::CallConnectorAction::Trigger,
+                None,
             )
             .await
-            .map_err(|error| error.to_payment_failed_response())
+            .to_dispute_failed_response()
             .attach_printable("Failed while calling defend dispute connector api")?;
             let defend_dispute_response = defend_response.response.map_err(|err| {
                 errors::ApiErrorResponse::ExternalConnectorError {
