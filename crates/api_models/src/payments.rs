@@ -621,10 +621,10 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
             },
             PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
                 BankRedirectData::Eps { bank_name, .. } => Self::BankRedirect {
-                    bank_name: Some(bank_name.to_owned()),
+                    bank_name: bank_name.to_owned(),
                 },
                 BankRedirectData::Ideal { bank_name, .. } => Self::BankRedirect {
-                    bank_name: Some(bank_name.to_owned()),
+                    bank_name: bank_name.to_owned(),
                 },
                 _ => Self::BankRedirect { bank_name: None },
             },
@@ -670,7 +670,7 @@ pub enum BankRedirectData {
 
         /// The hyperswitch bank code for eps
         #[schema(value_type = BankNames, example = "triodos_bank")]
-        bank_name: api_enums::BankNames,
+        bank_name: Option<api_enums::BankNames>,
     },
     Giropay {
         /// The billing details for bank redirection
@@ -691,7 +691,7 @@ pub enum BankRedirectData {
 
         /// The hyperswitch bank code for ideal
         #[schema(value_type = BankNames, example = "abn_amro")]
-        bank_name: api_enums::BankNames,
+        bank_name: Option<api_enums::BankNames>,
     },
     Interac {
         /// The country for bank payment
