@@ -77,6 +77,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let (
             token,
+            payment_method,
             payment_method_type,
             setup_mandate,
             recurring_mandate_payment_data,
@@ -113,7 +114,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             None => payment_attempt.currency.get_required_value("currency")?,
         };
 
-        payment_attempt.payment_method = payment_method_type.or(payment_attempt.payment_method);
+        payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
+        payment_attempt.payment_method_type =
+            payment_method_type.or(payment_attempt.payment_method_type);
         let customer_details = helpers::get_customer_details_from_request(request);
 
         let amount = request

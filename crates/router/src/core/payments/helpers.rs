@@ -272,6 +272,7 @@ pub async fn get_token_pm_type_mandate_details(
 ) -> RouterResult<(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
+    Option<storage_enums::PaymentMethodType>,
     Option<api::MandateData>,
     Option<payments::RecurringMandatePaymentData>,
     Option<String>,
@@ -285,17 +286,25 @@ pub async fn get_token_pm_type_mandate_details(
             Ok((
                 request.payment_token.to_owned(),
                 request.payment_method.map(ForeignInto::foreign_into),
+                request.payment_method_type.map(ForeignInto::foreign_into),
                 Some(setup_mandate),
                 None,
                 None,
             ))
         }
         Some(api::MandateTxnType::RecurringMandateTxn) => {
-            let (token_, payment_method_type_, recurring_mandate_payment_data, mandate_connector) =
-                get_token_for_recurring_mandate(state, request, merchant_account).await?;
+            let (
+                token_,
+                payment_method_,
+                recurring_mandate_payment_data,
+                payment_method_type_,
+                mandate_connector,
+            ) = get_token_for_recurring_mandate(state, request, merchant_account).await?;
             Ok((
                 token_,
-                payment_method_type_,
+                payment_method_,
+                payment_method_type_
+                    .or_else(|| request.payment_method_type.map(ForeignInto::foreign_into)),
                 None,
                 recurring_mandate_payment_data,
                 mandate_connector,
@@ -304,6 +313,7 @@ pub async fn get_token_pm_type_mandate_details(
         None => Ok((
             request.payment_token.to_owned(),
             request.payment_method.map(ForeignInto::foreign_into),
+            request.payment_method_type.map(ForeignInto::foreign_into),
             request.mandate_data.clone(),
             None,
             None,
@@ -319,6 +329,7 @@ pub async fn get_token_for_recurring_mandate(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
     Option<payments::RecurringMandatePaymentData>,
+    Option<storage_enums::PaymentMethodType>,
     Option<String>,
 )> {
     let db = &*state.store;
@@ -382,6 +393,7 @@ pub async fn get_token_for_recurring_mandate(
             Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
             }),
+            payment_method.payment_method_type,
             Some(mandate.connector),
         ))
     } else {
@@ -391,6 +403,7 @@ pub async fn get_token_for_recurring_mandate(
             Some(payments::RecurringMandatePaymentData {
                 payment_method_type,
             }),
+            payment_method.payment_method_type,
             Some(mandate.connector),
         ))
     }
