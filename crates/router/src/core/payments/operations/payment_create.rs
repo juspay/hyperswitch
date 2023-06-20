@@ -464,7 +464,11 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
                 request.shipping.is_some(),
                 request.billing.is_some(),
                 request.setup_future_usage.is_some(),
-                &request.customer_id,
+                &request
+                    .customer
+                    .clone()
+                    .map(|customer| customer.id)
+                    .or(request.customer_id.clone()),
             )?;
         }
 
