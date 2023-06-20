@@ -450,6 +450,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             expected_format: "amount_to_capture lesser than amount".to_string(),
         })?;
 
+        helpers::validate_card_data(request.payment_method_data.clone())?;
+
         helpers::validate_payment_method_fields_present(request)?;
 
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
@@ -470,7 +472,11 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
                 request.shipping.is_some(),
                 request.billing.is_some(),
                 request.setup_future_usage.is_some(),
-                &request.customer_id,
+                &request
+                    .customer
+                    .clone()
+                    .map(|customer| customer.id)
+                    .or(request.customer_id.clone()),
             )?;
         }
 

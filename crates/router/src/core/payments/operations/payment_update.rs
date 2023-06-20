@@ -63,6 +63,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .map(ForeignInto::foreign_into)
             .or(payment_intent.setup_future_usage);
 
+        helpers::validate_card_data(request.payment_method_data.clone())?;
+
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
             &[

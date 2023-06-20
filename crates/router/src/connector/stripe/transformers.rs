@@ -219,15 +219,15 @@ pub struct ChargesResponse {
 pub enum StripeBankName {
     Eps {
         #[serde(rename = "payment_method_data[eps][bank]")]
-        bank_name: StripeBankNames,
+        bank_name: Option<StripeBankNames>,
     },
     Ideal {
         #[serde(rename = "payment_method_data[ideal][bank]")]
-        ideal_bank_name: StripeBankNames,
+        ideal_bank_name: Option<StripeBankNames>,
     },
     Przelewy24 {
         #[serde(rename = "payment_method_data[p24][bank]")]
-        bank_name: StripeBankNames,
+        bank_name: Option<StripeBankNames>,
     },
 }
 
@@ -251,23 +251,25 @@ fn get_bank_name(
             StripePaymentMethodType::Eps,
             api_models::payments::BankRedirectData::Eps { ref bank_name, .. },
         ) => Ok(Some(StripeBankName::Eps {
-            bank_name: StripeBankNames::try_from(bank_name)?,
+            bank_name: bank_name
+                .map(|bank_name| StripeBankNames::try_from(&bank_name))
+                .transpose()?,
         })),
         (
             StripePaymentMethodType::Ideal,
             api_models::payments::BankRedirectData::Ideal { bank_name, .. },
         ) => Ok(Some(StripeBankName::Ideal {
-            ideal_bank_name: StripeBankNames::try_from(bank_name)?,
+            ideal_bank_name: bank_name
+                .map(|bank_name| StripeBankNames::try_from(&bank_name))
+                .transpose()?,
         })),
         (
             StripePaymentMethodType::Przelewy24,
             api_models::payments::BankRedirectData::Przelewy24 { bank_name, .. },
         ) => Ok(Some(StripeBankName::Przelewy24 {
-            bank_name: StripeBankNames::try_from(&bank_name.ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "bank_name",
-                },
-            )?)?,
+            bank_name: bank_name
+                .map(|bank_name| StripeBankNames::try_from(&bank_name))
+                .transpose()?,
         })),
         (
             StripePaymentMethodType::Sofort
@@ -874,6 +876,7 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
                 billing_details, ..
             } => Ok(Self {
                 name: billing_details.billing_name.clone(),
+                email: billing_details.email.clone(),
                 ..Self::default()
             }),
             payments::BankRedirectData::Przelewy24 {
@@ -892,6 +895,20 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
                     })?
                     .billing_name
                     .clone(),
+                email: billing_details
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "bancontact_card.email",
+                    })?
+                    .email
+                    .clone(),
+                ..Self::default()
+            }),
+            payments::BankRedirectData::Sofort {
+                billing_details, ..
+            } => Ok(Self {
+                name: billing_details.billing_name.clone(),
+                email: billing_details.email.clone(),
                 ..Self::default()
             }),
             _ => Ok(Self::default()),
@@ -1429,6 +1446,16 @@ fn get_payment_method_type_for_saved_payment_method_payment(
     let stripe_payment_method_type = match item.recurring_mandate_payment_data.clone() {
         Some(recurring_payment_method_data) => {
             match recurring_payment_method_data.payment_method_type {
+                Some(enums::PaymentMethodType::Eps)
+                | Some(enums::PaymentMethodType::Giropay)
+                | Some(enums::PaymentMethodType::Przelewy24) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "Eps, Giropay, Przelewy24 Recurring payments ".into(),
+                        connector: "Stripe",
+                        payment_experience: "Recurring Payments".into(),
+                    }
+                    .into())
+                }
                 Some(payment_method_type) => StripePaymentMethodType::try_from(payment_method_type),
                 None => Err(errors::ConnectorError::NoPaymentMethodType.into()),
             }
@@ -1442,15 +1469,6 @@ fn get_payment_method_type_for_saved_payment_method_payment(
         StripePaymentMethodType::Ideal
         | StripePaymentMethodType::Bancontact
         | StripePaymentMethodType::Sofort => Ok(StripePaymentMethodType::Sepa),
-
-        StripePaymentMethodType::Eps
-        | StripePaymentMethodType::Giropay
-        | StripePaymentMethodType::Przelewy24 => Err(errors::ConnectorError::NotSupported {
-            message: "Eps, Giropay, Przelewy24 Recurring payments ".into(),
-            connector: "Stripe",
-            payment_experience: "Recurring Payments".into(),
-        }
-        .into()),
         _ => Ok(stripe_payment_method_type),
     }
 }
@@ -1677,6 +1695,45 @@ impl Deref for PaymentIntentSyncResponse {
     fn deref(&self) -> &Self::Target {
         &self.payment_intent_fields
     }
+}
+
+#[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum StripePaymentMethodDetailsResponse {
+    //only ideal, sofort and bancontact is supported by stripe for recurring payment in bank redirect
+    Ideal {
+        ideal: StripeBankRedirectDetails,
+    },
+    Sofort {
+        sofort: StripeBankRedirectDetails,
+    },
+    Bancontact {
+        bancontact: StripeBankRedirectDetails,
+    },
+
+    //other payment method types supported by stripe. To avoid deserialization error.
+    Blik,
+    Eps,
+    Fpx,
+    Giropay,
+    #[serde(rename = "p24")]
+    Przelewy24,
+    Card,
+    Klarna,
+    Affirm,
+    AfterpayClearpay,
+    ApplePay,
+    #[serde(rename = "us_bank_account")]
+    Ach,
+    #[serde(rename = "sepa_debit")]
+    Sepa,
+    #[serde(rename = "au_becs_debit")]
+    Becs,
+    #[serde(rename = "bacs_debit")]
+    Bacs,
+    #[serde(rename = "wechat_pay")]
+    Wechatpay,
+    Alipay,
 }
 
 #[derive(Deserialize)]

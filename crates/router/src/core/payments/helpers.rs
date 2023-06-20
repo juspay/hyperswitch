@@ -450,6 +450,72 @@ pub fn validate_request_amount_and_amount_to_capture(
     }
 }
 
+#[instrument(skip_all)]
+pub fn validate_card_data(
+    payment_method_data: Option<api::PaymentMethodData>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if let Some(api::PaymentMethodData::Card(card)) = payment_method_data {
+        let cvc = card.card_cvc.peek().to_string();
+        if cvc.len() < 3 || cvc.len() > 4 {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid card_cvc length".to_string()
+            }))?
+        }
+        let card_cvc = cvc.parse::<u16>().into_report().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "card_cvc",
+            },
+        )?;
+        ::cards::CardSecurityCode::try_from(card_cvc).change_context(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid Card CVC".to_string(),
+            },
+        )?;
+
+        let exp_month = card
+            .card_exp_month
+            .peek()
+            .to_string()
+            .parse::<u8>()
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "card_exp_month",
+            })?;
+        let month = ::cards::CardExpirationMonth::try_from(exp_month).change_context(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid Expiry Month".to_string(),
+            },
+        )?;
+        let mut year_str = card.card_exp_year.peek().to_string();
+        if year_str.len() == 2 {
+            year_str = format!("20{}", year_str);
+        }
+        let exp_year = year_str.parse::<u16>().into_report().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "card_exp_year",
+            },
+        )?;
+        let year = ::cards::CardExpirationYear::try_from(exp_year).change_context(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid Expiry Year".to_string(),
+            },
+        )?;
+
+        let card_expiration = ::cards::CardExpiration { month, year };
+        let is_expired = card_expiration.is_expired().change_context(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid card data".to_string(),
+            },
+        )?;
+        if is_expired {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Card Expired".to_string()
+            }))?
+        }
+    }
+    Ok(())
+}
+
 pub fn validate_mandate(
     req: impl Into<api::MandateValidationFields>,
     is_confirm_operation: bool,
