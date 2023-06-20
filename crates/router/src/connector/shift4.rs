@@ -201,6 +201,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 integ,
                 init_data,
                 payments::CallConnectorAction::Trigger,
+                None,
             )
             .await?;
             if init_resp.request.enrolled_for_3ds {
