@@ -1,0 +1,53 @@
+name: Postman Collection API test
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    # Run workflow at 6 AM and 6 PM IST
+    - cron: "30 0,12 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api_tests:
+    name: Run Postman Collection on integ env
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        connector:
+          - adyen
+          - stripe
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Decrypt connector auth file
+        env:
+          CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
+        shell: bash
+        run: ./scripts/decrypt_connector_auth.sh
+
+      - name: Set connector auth file path in env
+        shell: bash
+        run: echo "CONNECTOR_CONFIG_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
+
+      - name: Run Tests
+        env:
+          ADMIN_API_KEY: ${{ secrets.INTEG_ADMIN_API_KEY }}
+          BASE_URL: ${{ secrets.INTEG_BASE_URL }}
+          MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
+          CONNECTOR_CONFIG_PATH: ${{ env.CONNECTOR_CONFIG_PATH }}
+
+          # Stripe specific env variables, will be replaced by connector_auth.toml
+          GATEWAY_MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
+          GPAY_CERTIFICATE: ${{ secrets.STRIPE_GPAY_CERTIFICATE }}
+          GPAY_CERTIFICATE_KEYS: ${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
+        shell: bash
+        run: ./scripts/postman_test_automation.sh ${{ matrix.connector }}

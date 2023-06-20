@@ -103,9 +103,9 @@ impl ConnectorCommon for Coinbase {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error.error_type,
+            message: response.error.message,
+            reason: response.error.code,
         })
     }
 }
