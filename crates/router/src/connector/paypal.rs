@@ -229,8 +229,11 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
-        let auth_id = format!("{}:{}", auth.key1.expose(), auth.api_key.expose());
-        let auth_val = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_id));
+        let auth_id = auth
+            .key1
+            .zip(auth.api_key)
+            .map(|(key1, api_key)| format!("{}:{}", key1, api_key));
+        let auth_val = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_id.expose()));
 
         Ok(vec![
             (

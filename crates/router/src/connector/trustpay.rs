@@ -5,7 +5,6 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
 use transformers as trustpay;
 
 use super::utils::collect_and_sort_values_by_removing_signature;
@@ -173,14 +172,15 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = trustpay::TrustpayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_value = format!(
-            "Basic {}",
-            consts::BASE64_ENGINE.encode(format!(
-                "{}:{}",
-                auth.project_id.expose(),
-                auth.secret_key.expose()
-            ))
-        );
+        let auth_value = auth
+            .project_id
+            .zip(auth.secret_key)
+            .map(|(project_id, secret_key)| {
+                format!(
+                    "Basic {}",
+                    consts::BASE64_ENGINE.encode(format!("{}:{}", project_id, secret_key))
+                )
+            });
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),

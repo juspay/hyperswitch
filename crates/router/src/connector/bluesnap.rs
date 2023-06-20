@@ -79,14 +79,13 @@ impl ConnectorCommon for Bluesnap {
         let auth: bluesnap::BluesnapAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let encoded_api_key = consts::BASE64_ENGINE.encode(format!(
-            "{}:{}",
-            auth.key1.expose(),
-            auth.api_key.expose()
-        ));
+        let encoded_api_key = auth
+            .key1
+            .zip(auth.api_key)
+            .map(|(key1, api_key)| consts::BASE64_ENGINE.encode(format!("{}:{}", key1, api_key)));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Basic {encoded_api_key}").into_masked(),
+            format!("Basic {}", encoded_api_key.expose()).into_masked(),
         )])
     }
 
