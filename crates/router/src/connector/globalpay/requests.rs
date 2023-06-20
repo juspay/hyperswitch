@@ -351,7 +351,7 @@ pub struct Card {
 pub struct DigitalWallet {
     /// Identifies who provides the digital wallet for the Payer.
     pub provider: Option<DigitalWalletProvider>,
-    /// A token that represents, or is the payment method, stored with  the digital wallet.    
+    /// A token that represents, or is the payment method, stored with  the digital wallet.
     pub payment_token: Option<serde_json::Value>,
 }
 
