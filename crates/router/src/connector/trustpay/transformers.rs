@@ -16,6 +16,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, storage::enums, BrowserInformation},
+    utils::OptionExt,
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -371,6 +372,7 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         ),
         "800.100.168" => (true, "Transaction declined (restricted card)"),
         "800.100.170" => (true, "Transaction declined (transaction not permitted)"),
+        "800.100.172" => (true, "Transaction declined (account blocked)"),
         "800.100.190" => (true, "Transaction declined (invalid configuration data)"),
         "800.120.100" => (true, "Rejected by throttling"),
         "800.300.401" => (true, "Bin blacklisted"),
@@ -474,7 +476,7 @@ pub struct PaymentsResponseCards {
     pub status: i64,
     pub description: Option<String>,
     pub instance_id: String,
-    pub payment_status: String,
+    pub payment_status: Option<String>,
     pub payment_description: Option<String>,
     pub redirect_url: Option<Url>,
     pub redirect_params: Option<HashMap<String, String>>,
@@ -553,8 +555,13 @@ fn handle_cards_response(
     ),
     errors::ConnectorError,
 > {
+    // By default, payment status is pending(000.200.000 status code)
     let (status, msg) = get_transaction_status(
-        response.payment_status.as_str(),
+        response
+            .payment_status
+            .to_owned()
+            .unwrap_or("000.200.000".to_string())
+            .as_str(),
         response.redirect_url.clone(),
     )?;
     let form_fields = response.redirect_params.unwrap_or_default();
@@ -567,9 +574,13 @@ fn handle_cards_response(
         });
     let error = if msg.is_some() {
         Some(types::ErrorResponse {
-            code: response.payment_status,
-            message: msg.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            code: response
+                .payment_status
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: msg
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: msg,
             status_code,
         })
     } else {
@@ -629,8 +640,9 @@ fn handle_bank_redirects_error_response(
         message: response
             .payment_result_info
             .additional_info
+            .clone()
             .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-        reason: None,
+        reason: response.payment_result_info.additional_info,
         status_code,
     });
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
@@ -665,8 +677,9 @@ fn handle_bank_redirects_sync_response(
             message: reason_info
                 .reason
                 .reject_reason
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: reason_info.reason.reject_reason,
             status_code,
         })
     } else {
@@ -792,12 +805,171 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, t
                         .response
                         .result_info
                         .additional_info
+                        .clone()
                         .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: None,
+                    reason: item.response.result_info.additional_info,
                     status_code: item.http_code,
                 }),
                 ..item.data
             }),
+        }
+    }
+}
+
+#[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustpayCreateIntentRequest {
+    pub amount: String,
+    pub currency: String,
+    // If true, Apple Pay will be initialized
+    pub init_apple_pay: Option<bool>,
+}
+
+impl TryFrom<&types::PaymentsSessionRouterData> for TrustpayCreateIntentRequest {
+    type Error = Error;
+    fn try_from(item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: item.request.amount.to_string(),
+            currency: item.request.currency.to_string(),
+            init_apple_pay: Some(true),
+        })
+    }
+}
+
+impl TryFrom<&types::PaymentsPreProcessingRouterData> for TrustpayCreateIntentRequest {
+    type Error = Error;
+    fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: item
+                .request
+                .amount
+                .get_required_value("amount")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "amount",
+                })?
+                .to_string(),
+            currency: item
+                .request
+                .currency
+                .get_required_value("currency")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?
+                .to_string(),
+            init_apple_pay: Some(true),
+        })
+    }
+}
+
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustpayCreateIntentResponse {
+    // TrustPay's authorization secrets used by client
+    pub secrets: SdkSecretInfo,
+    // 	Data object to be used for Apple Pay
+    pub apple_init_result_data: TrustpayApplePayResponse,
+    // Unique operation/transaction identifier
+    pub instance_id: String,
+}
+
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SdkSecretInfo {
+    pub display: Secret<String>,
+    pub payment: Secret<String>,
+}
+
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustpayApplePayResponse {
+    pub country_code: api_models::enums::CountryAlpha2,
+    pub currency_code: String,
+    pub supported_networks: Vec<String>,
+    pub merchant_capabilities: Vec<String>,
+    pub total: ApplePayTotalInfo,
+}
+
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayTotalInfo {
+    pub label: String,
+    pub amount: String,
+}
+
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<F, TrustpayCreateIntentResponse, T, types::PaymentsResponseData>,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = Error;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            TrustpayCreateIntentResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::PreProcessingResponse {
+                connector_metadata: None,
+                pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(
+                    response.instance_id,
+                ),
+                session_token: Some(types::api::SessionToken::ApplePay(Box::new(
+                    api_models::payments::ApplepaySessionTokenResponse {
+                        session_token_data:
+                            api_models::payments::ApplePaySessionResponse::ThirdPartySdk(
+                                api_models::payments::ThirdPartySdkSessionResponse {
+                                    secrets: response.secrets.into(),
+                                },
+                            ),
+                        payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
+                            country_code: response.apple_init_result_data.country_code,
+                            currency_code: response.apple_init_result_data.currency_code.clone(),
+                            supported_networks: response
+                                .apple_init_result_data
+                                .supported_networks
+                                .clone(),
+                            merchant_capabilities: response
+                                .apple_init_result_data
+                                .merchant_capabilities
+                                .clone(),
+                            total: response.apple_init_result_data.total.into(),
+                            merchant_identifier: None,
+                        }),
+                        connector: "trustpay".to_string(),
+                        delayed_session_token: true,
+                        sdk_next_action: {
+                            api_models::payments::SdkNextAction {
+                                next_action: api_models::payments::NextActionCall::Sync,
+                            }
+                        },
+                    },
+                ))),
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl From<SdkSecretInfo> for api_models::payments::SecretInfoToInitiateSdk {
+    fn from(value: SdkSecretInfo) -> Self {
+        Self {
+            display: value.display,
+            payment: value.payment,
+        }
+    }
+}
+
+impl From<ApplePayTotalInfo> for api_models::payments::AmountInfo {
+    fn from(value: ApplePayTotalInfo) -> Self {
+        Self {
+            label: value.label,
+            amount: value.amount,
+            total_type: None,
         }
     }
 }
@@ -902,8 +1074,10 @@ fn handle_cards_refund_response(
     let error = if msg.is_some() {
         Some(types::ErrorResponse {
             code: response.payment_status,
-            message: msg.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            message: msg
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: msg,
             status_code,
         })
     } else {
@@ -940,7 +1114,7 @@ fn handle_bank_redirects_refund_response(
         Some(types::ErrorResponse {
             code: response.result_info.result_code.to_string(),
             message: msg.unwrap_or(consts::NO_ERROR_MESSAGE).to_owned(),
-            reason: None,
+            reason: msg.map(|message| message.to_string()),
             status_code,
         })
     } else {
@@ -968,8 +1142,9 @@ fn handle_bank_redirects_refund_sync_response(
             message: reason_info
                 .reason
                 .reject_reason
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: reason_info.reason.reject_reason,
             status_code,
         })
     } else {
@@ -991,8 +1166,9 @@ fn handle_bank_redirects_refund_sync_error_response(
         message: response
             .payment_result_info
             .additional_info
+            .clone()
             .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_owned()),
-        reason: None,
+        reason: response.payment_result_info.additional_info,
         status_code,
     });
     //unreachable case as we are sending error as Some()

@@ -216,15 +216,15 @@ pub struct ChargesResponse {
 pub enum StripeBankName {
     Eps {
         #[serde(rename = "payment_method_data[eps][bank]")]
-        bank_name: StripeBankNames,
+        bank_name: Option<StripeBankNames>,
     },
     Ideal {
         #[serde(rename = "payment_method_data[ideal][bank]")]
-        ideal_bank_name: StripeBankNames,
+        ideal_bank_name: Option<StripeBankNames>,
     },
     Przelewy24 {
         #[serde(rename = "payment_method_data[p24][bank]")]
-        bank_name: StripeBankNames,
+        bank_name: Option<StripeBankNames>,
     },
 }
 
@@ -248,23 +248,25 @@ fn get_bank_name(
             StripePaymentMethodType::Eps,
             api_models::payments::BankRedirectData::Eps { ref bank_name, .. },
         ) => Ok(Some(StripeBankName::Eps {
-            bank_name: StripeBankNames::try_from(bank_name)?,
+            bank_name: bank_name
+                .map(|bank_name| StripeBankNames::try_from(&bank_name))
+                .transpose()?,
         })),
         (
             StripePaymentMethodType::Ideal,
             api_models::payments::BankRedirectData::Ideal { bank_name, .. },
         ) => Ok(Some(StripeBankName::Ideal {
-            ideal_bank_name: StripeBankNames::try_from(bank_name)?,
+            ideal_bank_name: bank_name
+                .map(|bank_name| StripeBankNames::try_from(&bank_name))
+                .transpose()?,
         })),
         (
             StripePaymentMethodType::Przelewy24,
             api_models::payments::BankRedirectData::Przelewy24 { bank_name, .. },
         ) => Ok(Some(StripeBankName::Przelewy24 {
-            bank_name: StripeBankNames::try_from(&bank_name.ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "bank_name",
-                },
-            )?)?,
+            bank_name: bank_name
+                .map(|bank_name| StripeBankNames::try_from(&bank_name))
+                .transpose()?,
         })),
         (
             StripePaymentMethodType::Sofort
@@ -2167,8 +2169,11 @@ impl<F, T>
         };
         Ok(Self {
             response: Ok(types::PaymentsResponseData::PreProcessingResponse {
-                pre_processing_id: item.response.id,
+                pre_processing_id: types::PreprocessingResponseId::PreProcessingId(
+                    item.response.id,
+                ),
                 connector_metadata: Some(connector_metadata),
+                session_token: None,
             }),
             status,
             ..item.data

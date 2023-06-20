@@ -433,6 +433,72 @@ pub fn validate_request_amount_and_amount_to_capture(
     }
 }
 
+#[instrument(skip_all)]
+pub fn validate_card_data(
+    payment_method_data: Option<api::PaymentMethodData>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if let Some(api::PaymentMethodData::Card(card)) = payment_method_data {
+        let cvc = card.card_cvc.peek().to_string();
+        if cvc.len() < 3 || cvc.len() > 4 {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid card_cvc length".to_string()
+            }))?
+        }
+        let card_cvc = cvc.parse::<u16>().into_report().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "card_cvc",
+            },
+        )?;
+        ::cards::CardSecurityCode::try_from(card_cvc).change_context(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid Card CVC".to_string(),
+            },
+        )?;
+
+        let exp_month = card
+            .card_exp_month
+            .peek()
+            .to_string()
+            .parse::<u8>()
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "card_exp_month",
+            })?;
+        let month = ::cards::CardExpirationMonth::try_from(exp_month).change_context(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid Expiry Month".to_string(),
+            },
+        )?;
+        let mut year_str = card.card_exp_year.peek().to_string();
+        if year_str.len() == 2 {
+            year_str = format!("20{}", year_str);
+        }
+        let exp_year = year_str.parse::<u16>().into_report().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "card_exp_year",
+            },
+        )?;
+        let year = ::cards::CardExpirationYear::try_from(exp_year).change_context(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid Expiry Year".to_string(),
+            },
+        )?;
+
+        let card_expiration = ::cards::CardExpiration { month, year };
+        let is_expired = card_expiration.is_expired().change_context(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid card data".to_string(),
+            },
+        )?;
+        if is_expired {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Card Expired".to_string()
+            }))?
+        }
+    }
+    Ok(())
+}
+
 pub fn validate_mandate(
     req: impl Into<api::MandateValidationFields>,
     is_confirm_operation: bool,
@@ -729,13 +795,14 @@ where
 
 #[instrument(skip_all)]
 pub(crate) async fn get_payment_method_create_request(
-    payment_method: Option<&api::PaymentMethodData>,
-    payment_method_type: Option<storage_enums::PaymentMethod>,
+    payment_method_data: Option<&api::PaymentMethodData>,
+    payment_method: Option<storage_enums::PaymentMethod>,
+    payment_method_type: Option<storage_enums::PaymentMethodType>,
     customer: &domain::Customer,
 ) -> RouterResult<api::PaymentMethodCreate> {
-    match payment_method {
-        Some(pm_data) => match payment_method_type {
-            Some(payment_method_type) => match pm_data {
+    match payment_method_data {
+        Some(pm_data) => match payment_method {
+            Some(payment_method) => match pm_data {
                 api::PaymentMethodData::Card(card) => {
                     let card_detail = api::CardDetail {
                         card_number: card.card_number.clone(),
@@ -745,8 +812,8 @@ pub(crate) async fn get_payment_method_create_request(
                     };
                     let customer_id = customer.customer_id.clone();
                     let payment_method_request = api::PaymentMethodCreate {
-                        payment_method: payment_method_type.foreign_into(),
-                        payment_method_type: None,
+                        payment_method: payment_method.foreign_into(),
+                        payment_method_type: payment_method_type.map(ForeignInto::foreign_into),
                         payment_method_issuer: card.card_issuer.clone(),
                         payment_method_issuer_code: None,
                         card: Some(card_detail),
@@ -761,8 +828,8 @@ pub(crate) async fn get_payment_method_create_request(
                 }
                 _ => {
                     let payment_method_request = api::PaymentMethodCreate {
-                        payment_method: payment_method_type.foreign_into(),
-                        payment_method_type: None,
+                        payment_method: payment_method.foreign_into(),
+                        payment_method_type: payment_method_type.map(ForeignInto::foreign_into),
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
                         card: None,
@@ -1790,6 +1857,7 @@ mod tests {
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
             order_details: None,
+            udf: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -1830,6 +1898,7 @@ mod tests {
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
             order_details: None,
+            udf: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -1870,6 +1939,7 @@ mod tests {
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
             order_details: None,
+            udf: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
