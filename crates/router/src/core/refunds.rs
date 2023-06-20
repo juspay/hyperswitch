@@ -58,7 +58,7 @@ pub async fn refund_create_core(
     amount = req.amount.unwrap_or(
         payment_intent
             .amount_captured
-            .ok_or(errors::ApiErrorResponse::InternalServerError) // The status is checked previously so this case will never happen, if it happens then it is internal server error
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
             .into_report()
             .attach_printable("amount captured is none in a successful payment")?,
     );
@@ -296,7 +296,7 @@ pub async fn refund_retrieve_core(
             merchant_account.storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?; // If intent is found and attempt not found shouldn't it be internal server error.
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
     let creds_identifier = request
         .merchant_connector_details
@@ -560,7 +560,7 @@ pub async fn validate_and_create_refund(
                 ),
             })?;
 
-            validator::validate_refund_amount(payment_attempt.amount, &all_refunds, refund_amount) // previously if amount is not in request amount_captured is taken. 
+            validator::validate_refund_amount(payment_attempt.amount, &all_refunds, refund_amount)
                 .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
             validator::validate_maximum_refund_against_payment_attempt(
