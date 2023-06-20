@@ -272,6 +272,7 @@ pub async fn get_token_pm_type_mandate_details(
 ) -> RouterResult<(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
+    Option<storage_enums::PaymentMethodType>,
     Option<api::MandateData>,
     Option<String>,
 )> {
@@ -284,18 +285,27 @@ pub async fn get_token_pm_type_mandate_details(
             Ok((
                 request.payment_token.to_owned(),
                 request.payment_method.map(ForeignInto::foreign_into),
+                request.payment_method_type.map(ForeignInto::foreign_into),
                 Some(setup_mandate),
                 None,
             ))
         }
         Some(api::MandateTxnType::RecurringMandateTxn) => {
-            let (token_, payment_method_type_, mandate_connector) =
+            let (token_, payment_method_, payment_method_type_, mandate_connector) =
                 get_token_for_recurring_mandate(state, request, merchant_account).await?;
-            Ok((token_, payment_method_type_, None, mandate_connector))
+            Ok((
+                token_,
+                payment_method_,
+                payment_method_type_
+                    .or_else(|| request.payment_method_type.map(ForeignInto::foreign_into)),
+                None,
+                mandate_connector,
+            ))
         }
         None => Ok((
             request.payment_token.to_owned(),
             request.payment_method.map(ForeignInto::foreign_into),
+            request.payment_method_type.map(ForeignInto::foreign_into),
             request.mandate_data.clone(),
             None,
         )),
@@ -309,6 +319,7 @@ pub async fn get_token_for_recurring_mandate(
 ) -> RouterResult<(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
+    Option<storage_enums::PaymentMethodType>,
     Option<String>,
 )> {
     let db = &*state.store;
@@ -368,12 +379,14 @@ pub async fn get_token_for_recurring_mandate(
         Ok((
             Some(token),
             Some(payment_method.payment_method),
+            payment_method.payment_method_type,
             Some(mandate.connector),
         ))
     } else {
         Ok((
             None,
             Some(payment_method.payment_method),
+            payment_method.payment_method_type,
             Some(mandate.connector),
         ))
     }
