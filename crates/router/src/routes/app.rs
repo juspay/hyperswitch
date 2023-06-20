@@ -44,7 +44,7 @@ pub trait AppStateInfo {
     fn flow_name(&self) -> String;
     fn store(&self) -> Box<dyn StorageInterface>;
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Box<dyn EmailClient>;
+    fn email_client(&self) -> Option<Box<dyn EmailClient>>;
 }
 
 impl AppStateInfo for AppState {
@@ -58,8 +58,8 @@ impl AppStateInfo for AppState {
         self.store.to_owned()
     }
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Box<dyn EmailClient> {
-        self.email_client.to_owned()
+    fn email_client(&self) -> Option<Box<dyn EmailClient>> {
+        Some(self.email_client.to_owned())
     }
 }
 
