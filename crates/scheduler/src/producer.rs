@@ -1,26 +1,25 @@
 use std::sync::Arc;
 
+use common_utils::errors::CustomResult;
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
+use storage_models::enums::ProcessTrackerStatus;
 use time::Duration;
 use tokio::sync::mpsc;
 
-use crate::{utils::*, scheduler::Storable, flow::SchedulerFlow, settings::SchedulerSettings};
+use crate::errors;
+use crate::scheduler::SchedulerInterface;
+use crate::{utils::*, flow::SchedulerFlow, settings::SchedulerSettings};
 
 use super::metrics;
-use router::{
-    core::errors::{self, CustomResult},
-    db::StorageInterface,
-    logger::{self, debug, error, warn},
-    types::storage::{self, enums::ProcessTrackerStatus},
-};
+use super::env::logger::{self, debug, error, warn};
 
 #[instrument(skip_all)]
 pub async fn start_producer<T>(
     state: &T,
     scheduler_settings: Arc<SchedulerSettings>,
     (tx, mut rx): (mpsc::Sender<()>, mpsc::Receiver<()>),
-) -> CustomResult<(), errors::ProcessTrackerError>  where T : Storable + Send + Sync + Clone{
+) -> CustomResult<(), errors::ProcessTrackerError>  where T : SchedulerInterface + Send + Sync + Clone{
     use rand::Rng;
     let timeout = rand::thread_rng().gen_range(0..=scheduler_settings.loop_interval);
     tokio::time::sleep(std::time::Duration::from_millis(timeout)).await;
@@ -79,9 +78,9 @@ pub async fn start_producer<T>(
 pub async fn run_producer_flow<T>(
     state: &T,
     settings: &SchedulerSettings,
-) -> CustomResult<(), errors::ProcessTrackerError>  where T : Storable + Send + Sync + Clone {
+) -> CustomResult<(), errors::ProcessTrackerError>  where T : SchedulerInterface + Send + Sync + Clone {
     lock_acquire_release::<_, _, _>(state, settings, move || async {
-        let tasks = fetch_producer_tasks(&*state.get_store(), settings).await?;
+        let tasks = fetch_producer_tasks(&*state, settings).await?;
         debug!("Producer count of tasks {}", tasks.len());
 
         // [#268]: Allow task based segregation of tasks
@@ -97,7 +96,7 @@ pub async fn run_producer_flow<T>(
 
 #[instrument(skip_all)]
 pub async fn fetch_producer_tasks(
-    db: &dyn StorageInterface,
+    db: &dyn SchedulerInterface,
     conf: &SchedulerSettings,
 ) -> CustomResult<Vec<storage::ProcessTracker>, errors::ProcessTrackerError> {
     let upper = conf.producer.upper_fetch_limit;

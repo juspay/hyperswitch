@@ -1,36 +1,45 @@
 use std::sync::Arc;
 
+use common_utils::errors::CustomResult;
+use storage_models::services::{Store, MockDb};
 use tokio::sync::mpsc;
 
 use crate::{
     consumer::{
         consumer::{self},
-        workflows,
+        workflows::{self},
     },
-    producer, flow::SchedulerFlow, settings::SchedulerSettings,
+    producer, flow::SchedulerFlow, settings::SchedulerSettings, errors, db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
 };
-use router::{
-    core::errors::{self, CustomResult},
-    db::StorageInterface,
-    logger::error, routes::AppState
-};
+use super::env::logger::error;
 
-pub trait Storable {
-    fn get_store(&self) -> Box<dyn StorageInterface>;
+
+pub trait AsSchedulerInterface {
+    fn as_scheduler(&self) -> &dyn SchedulerInterface;
 }
 
-impl Storable for AppState {
-    fn get_store(&self) -> Box<dyn StorageInterface> {
-        self.clone().store
+impl<T: SchedulerInterface> AsSchedulerInterface for T {
+    fn as_scheduler(&self) -> &dyn SchedulerInterface {
+        self
     }
 }
 
-pub async fn start_process_tracker<T: Storable + Send + Sync + Clone + 'static>(
+#[async_trait::async_trait]
+pub trait SchedulerInterface: ProcessTrackerInterface + QueueInterface + AsSchedulerInterface {}
+
+#[async_trait::async_trait]
+impl SchedulerInterface for Store {}
+
+#[async_trait::async_trait]
+impl SchedulerInterface for MockDb {}
+
+pub async fn start_process_tracker<T: SchedulerInterface + Send + Sync + Clone + 'static>(
     state: &T,
     scheduler_flow: SchedulerFlow,
     scheduler_settings: Arc<SchedulerSettings>,
     channel: (mpsc::Sender<()>, mpsc::Receiver<()>),
-) -> CustomResult<(), errors::ProcessTrackerError> where workflows::PaymentsSyncWorkflow: workflows::ProcessTrackerWorkflow<T> {
+    runner_from_task: workflows::WorkflowSelectorFn<T>
+) -> CustomResult<(), errors::ProcessTrackerError> {
     match scheduler_flow {
         SchedulerFlow::Producer => {
             producer::start_producer(state, scheduler_settings, channel).await?
@@ -39,7 +48,7 @@ pub async fn start_process_tracker<T: Storable + Send + Sync + Clone + 'static>(
             consumer::start_consumer(
                 state,
                 scheduler_settings,
-                workflows::runner_from_task::<T>,
+                runner_from_task,
                 channel,
             )
             .await?

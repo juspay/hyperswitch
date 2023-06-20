@@ -3,8 +3,12 @@ use std::sync::Arc;
 
 use router::{
     configs::settings::{CmdLineConf, Settings},
-    core::errors::{self, CustomResult},
-    logger, routes, scheduler,
+    core::errors::{CustomResult},
+    logger, routes, workflows,
+};
+use scheduler::{
+    errors as sch_errors,
+    consumer::workflows::ProcessTrackerWorkflow
 };
 use tokio::sync::{mpsc, oneshot};
 
@@ -38,6 +42,24 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
     Ok(())
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, EnumString)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum PTRunner {
+    PaymentsSyncWorkflow,
+}
+
+pub fn runner_from_task(
+    task: &storage::ProcessTracker,
+) -> Result<Option<Box<dyn ProcessTrackerWorkflow<routes::AppState>>>, sch_errors::ProcessTrackerError> {
+    let runner = task.runner.clone().get_required_value("runner")?;
+    let runner: Option<PTRunner> = runner.parse_enum("PTRunner").ok();
+    Ok(match runner {
+        Some(PTRunner::PaymentsSyncWorkflow) => Some(Box::new(workflows::payment_sync::PaymentsSyncWorkflow)),
+        None => None,
+    })
+}
+
 async fn start_scheduler(
     state: &routes::AppState,
     channel: (mpsc::Sender<()>, mpsc::Receiver<()>),
@@ -55,5 +77,20 @@ async fn start_scheduler(
         .scheduler
         .clone()
         .ok_or(errors::ProcessTrackerError::ConfigurationError)?;
-    scheduler::start_process_tracker(state, flow, Arc::new(scheduler_settings), channel).await
+    scheduler::start_process_tracker(state, flow, Arc::new(scheduler_settings), channel, runner_from_task).await
+}
+
+#[cfg(test)]
+mod workflow_tests {
+    #![allow(clippy::unwrap_used)]
+    use common_utils::ext_traits::StringExt;
+
+    use super::PTRunner;
+
+    #[test]
+    fn test_enum_to_string() {
+        let string_format = "PAYMENTS_SYNC_WORKFLOW".to_string();
+        let enum_format: PTRunner = string_format.parse_enum("PTRunner").unwrap();
+        assert_eq!(enum_format, PTRunner::PaymentsSyncWorkflow)
+    }
 }

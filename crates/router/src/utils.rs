@@ -3,7 +3,9 @@ pub mod db_utils;
 pub mod ext_traits;
 
 #[cfg(feature = "kv_store")]
-pub mod storage_partitioning;
+pub use storage_models::utils as storage;
+
+pub use self::{storage::*};
 
 pub use common_utils::{
     crypto,

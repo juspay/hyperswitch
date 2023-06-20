@@ -40,6 +40,9 @@ pub struct PaymentIntent {
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
 }
 
+#[cfg(feature = "kv_store")]
+impl crate::utils::storage_partitioning::KvStorePartition for PaymentIntent {}
+
 #[derive(
     Clone,
     Debug,

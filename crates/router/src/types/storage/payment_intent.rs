@@ -12,9 +12,6 @@ pub use storage_models::{
 
 use crate::{connection::PgPooledConn, core::errors::CustomResult, types::api};
 
-#[cfg(feature = "kv_store")]
-impl crate::utils::storage_partitioning::KvStorePartition for PaymentIntent {}
-
 #[async_trait::async_trait]
 pub trait PaymentIntentDbExt: Sized {
     async fn filter_by_constraints(

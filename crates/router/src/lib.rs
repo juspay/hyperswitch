@@ -14,7 +14,7 @@ pub mod db;
 pub mod env;
 pub(crate) mod macros;
 pub mod routes;
-pub mod scheduler;
+pub mod workflows;
 
 pub mod middleware;
 #[cfg(feature = "openapi")]

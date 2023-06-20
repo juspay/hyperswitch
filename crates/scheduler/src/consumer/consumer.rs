@@ -5,23 +5,20 @@ use std::{
     sync::{self, atomic},
 };
 
-use common_utils::signals::get_allowed_signals;
+use common_utils::{signals::get_allowed_signals, errors::CustomResult};
 use error_stack::{IntoReport, ResultExt};
 use futures::future;
 use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::{instrument, tracing};
+use storage_models::enums;
 use time::PrimitiveDateTime;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
 use super::workflows::{self, ProcessTrackerWorkflow};
-use crate::{metrics, scheduler::Storable, utils as pt_utils, settings::SchedulerSettings};
-use router::{
-    core::errors::{self, CustomResult},
-    db::StorageInterface,
-    logger,
-    types::storage::{self, enums, ProcessTrackerExt},
-};
+use crate::{metrics, utils as pt_utils, settings::SchedulerSettings, errors, db::process_tracker::{ProcessTrackerInterface, ProcessTrackerExt}, SchedulerInterface};
+use super::super::env::logger;
+pub use storage_models::{process_tracker as storage, self};
 
 // Valid consumer business statuses
 pub fn valid_business_statuses() -> Vec<&'static str> {
@@ -29,7 +26,7 @@ pub fn valid_business_statuses() -> Vec<&'static str> {
 }
 
 #[instrument(skip_all)]
-pub async fn start_consumer<T : Storable + Send + Sync + Clone + 'static>(
+pub async fn start_consumer<T : SchedulerInterface + Send + Sync + Clone + 'static>(
     state: &T,
     settings: sync::Arc<SchedulerSettings>,
     workflow_selector: workflows::WorkflowSelectorFn<T>,
@@ -104,20 +101,19 @@ pub async fn start_consumer<T : Storable + Send + Sync + Clone + 'static>(
 }
 
 #[instrument(skip_all)]
-pub async fn consumer_operations<T: Storable + Send + Sync + Clone + 'static>(
+pub async fn consumer_operations<T: Send + Sync + Clone + 'static>(
     state: &T,
     settings: &SchedulerSettings,
     workflow_selector: workflows::WorkflowSelectorFn<T>,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
-    T: Storable + Send + Sync + Clone + 'static,
+    T: SchedulerInterface + Send + Sync + Clone + 'static,
 {
     let stream_name = settings.stream.clone();
     let group_name = settings.consumer.consumer_group.clone();
     let consumer_name = format!("consumer_{}", Uuid::new_v4());
 
     let group_created = &mut state
-        .get_store()
         .consumer_group_create(&stream_name, &group_name, &RedisEntryId::AfterLastID)
         .await;
     if group_created.is_err() {
@@ -125,7 +121,6 @@ where
     }
 
     let mut tasks = state
-        .get_store()
         .fetch_consumer_tasks(&stream_name, &group_name, &consumer_name)
         .await?;
 
@@ -153,7 +148,7 @@ where
 
 #[instrument(skip(db, redis_conn))]
 pub async fn fetch_consumer_tasks(
-    db: &dyn StorageInterface,
+    db: &dyn ProcessTrackerInterface,
     redis_conn: &RedisConnectionPool,
     stream_name: &str,
     group_name: &str,
@@ -200,18 +195,18 @@ pub async fn start_workflow<T>(
     _pickup_time: PrimitiveDateTime,
     runner: Box<dyn ProcessTrackerWorkflow<T>>,
 ) where
-    T: Storable + Send + Sync + Clone + 'static,
+    T: SchedulerInterface + Send + Sync + Clone + 'static,
 {
     tracing::Span::current().record("workflow_id", Uuid::new_v4().to_string());
     run_executor(&state, process, runner).await
 }
 
-pub async fn run_executor<T: Storable + Send + Sync + Clone + 'static>(
+pub async fn run_executor<T: Send + Sync + Clone + 'static>(
     state: &T,
     process: storage::ProcessTracker,
     operation: Box<dyn ProcessTrackerWorkflow<T>>,
 ) where
-    T: Storable + Send + Sync + Clone + 'static,
+    T: SchedulerInterface + Send + Sync + Clone + 'static,
 {
     let output = operation.execute_workflow(state, process.clone()).await;
     match output {
@@ -221,7 +216,7 @@ pub async fn run_executor<T: Storable + Send + Sync + Clone + 'static>(
             Err(error) => {
                 logger::error!(%error, "Failed while handling error");
                 let status = process
-                    .finish_with_status(&*state.get_store(), "GLOBAL_FAILURE".to_string())
+                    .finish_with_status(&*state, "GLOBAL_FAILURE".to_string())
                     .await;
                 if let Err(err) = status {
                     logger::error!(%err, "Failed while performing database operation: GLOBAL_FAILURE");
@@ -233,17 +228,13 @@ pub async fn run_executor<T: Storable + Send + Sync + Clone + 'static>(
 }
 
 #[instrument(skip_all)]
-pub async fn consumer_error_handler<T, E: fmt::Display + fmt::Debug>(
-    state: &T,
+pub async fn consumer_error_handler(
+    db: &dyn SchedulerInterface,
     process: storage::ProcessTracker,
-    error: E,
-) -> CustomResult<(), errors::ProcessTrackerError>
-where
-    T: Storable + Send + Sync,
-{
+    error: errors::ProcessTrackerError,
+) -> CustomResult<(), errors::ProcessTrackerError> {
     logger::error!(pt.name = ?process.name, pt.id = %process.id, ?error, "ERROR: Failed while executing workflow");
 
-    let db: &dyn StorageInterface = &*state.get_store();
     db.process_tracker_update_process_status_by_ids(
         vec![process.id],
         storage::ProcessTrackerUpdate::StatusUpdate {
@@ -257,7 +248,7 @@ where
 }
 
 pub async fn create_task(
-    db: &dyn StorageInterface,
+    db: &dyn ProcessTrackerInterface,
     process_tracker_entry: storage::ProcessTrackerNew,
 ) -> CustomResult<(), errors::StorageError> {
     db.insert_process(process_tracker_entry).await?;

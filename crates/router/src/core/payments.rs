@@ -14,6 +14,7 @@ use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
 use router_env::{instrument, tracing};
+use scheduler::{errors  as sch_errors, utils as pt_utils};
 use storage_models::ephemeral_key;
 use time;
 
@@ -35,7 +36,6 @@ use crate::{
     db::StorageInterface,
     logger,
     routes::{metrics, AppState},
-    scheduler::utils as pt_utils,
     services::{self, api::Authenticate},
     types::{
         self, api, domain,
@@ -1130,7 +1130,7 @@ pub async fn add_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
-) -> Result<(), errors::ProcessTrackerError> {
+) -> Result<(), sch_errors::ProcessTrackerError> {
     let tracking_data = api::PaymentsRetrieveRequest {
         force_sync: true,
         merchant_id: Some(payment_attempt.merchant_id.clone()),

@@ -28,7 +28,6 @@ use crate::{
     },
     db::StorageInterface,
     routes::{metrics, AppState},
-    scheduler::{metrics as scheduler_metrics, workflows::payment_sync},
     services,
     types::{
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
@@ -44,7 +43,7 @@ use crate::{
         self,
         crypto::{self, SignMessage},
         OptionExt,
-    },
+    }, workflows::payment_sync,
 };
 
 pub fn create_identity_from_certificate_and_key(
@@ -705,7 +704,7 @@ where
 
         match schedule_time {
             Some(stime) => {
-                scheduler_metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                // scheduler_metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
                 super::add_process_sync_task(&*state.store, payment_attempt, stime)
                     .await
                     .into_report()

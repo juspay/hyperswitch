@@ -16,9 +16,9 @@ use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::configs::kms;
 use crate::{
     configs::settings,
-    db::{MockDb, StorageImpl, StorageInterface},
+    db::{StorageImpl, StorageInterface},
     routes::cards_info::card_iin_info,
-    services::Store,
+    services::{Store, MockDb},
 };
 
 #[derive(Clone)]

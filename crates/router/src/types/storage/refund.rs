@@ -9,9 +9,6 @@ use storage_models::{errors, schema::refund::dsl};
 
 use crate::{connection::PgPooledConn, logger};
 
-#[cfg(feature = "kv_store")]
-impl crate::utils::storage_partitioning::KvStorePartition for Refund {}
-
 #[async_trait::async_trait]
 pub trait RefundDbExt: Sized {
     async fn filter_by_constraints(

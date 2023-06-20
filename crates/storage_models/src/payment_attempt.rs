@@ -51,6 +51,9 @@ pub struct PaymentAttempt {
     pub mandate_details: Option<storage_enums::MandateDataType>,
 }
 
+#[cfg(feature = "kv_store")]
+impl crate::utils::storage_partitioning::KvStorePartition for PaymentAttempt {}
+
 #[derive(
     Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]

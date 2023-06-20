@@ -3,6 +3,7 @@ pub mod validator;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
+use scheduler::{utils as process_tracker_utils, consumer::types::process_data};
 
 use crate::{
     consts,
@@ -13,7 +14,6 @@ use crate::{
     },
     db, logger,
     routes::{metrics, AppState},
-    scheduler::{process_data, utils as process_tracker_utils, workflows::payment_sync},
     services,
     types::{
         self,
@@ -22,7 +22,7 @@ use crate::{
         storage::{self, enums, ProcessTrackerExt},
         transformers::{ForeignFrom, ForeignInto},
     },
-    utils::{self, OptionExt},
+    utils::{self, OptionExt}, workflows::payment_sync,
 };
 // ********************************************** REFUND EXECUTE **********************************************
 
@@ -754,7 +754,7 @@ pub async fn schedule_refund_execution(
 pub async fn sync_refund_with_gateway_workflow(
     state: &AppState,
     refund_tracker: &storage::ProcessTracker,
-) -> Result<(), errors::ProcessTrackerError> {
+) -> error_stack::Result<(), errors::ApiErrorResponse> {
     let refund_core =
         serde_json::from_value::<storage::RefundCoreWorkflow>(refund_tracker.tracking_data.clone())
             .into_report()
@@ -769,7 +769,7 @@ pub async fn sync_refund_with_gateway_workflow(
     let merchant_account = state
         .store
         .find_merchant_account_by_merchant_id(&refund_core.merchant_id)
-        .await?;
+        .await.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let response = refund_retrieve_core(
         state,
@@ -791,7 +791,7 @@ pub async fn sync_refund_with_gateway_workflow(
             let id = refund_tracker.id.clone();
             refund_tracker
                 .clone()
-                .finish_with_status(&*state.store, format!("COMPLETED_BY_PT_{id}"))
+                .finish_with_status(&*state.store.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
                 .await?
         }
         _ => {
@@ -829,7 +829,7 @@ pub async fn trigger_refund_execute_workflow(
     let refund_core =
         serde_json::from_value::<storage::RefundCoreWorkflow>(refund_tracker.tracking_data.clone())
             .into_report()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(errors::ApiErrorResponse::InternalServerError.to_process_tracker_error())
             .attach_printable_lazy(|| {
                 format!(
                     "unable to convert into refund_core {:?}",
@@ -897,7 +897,7 @@ pub async fn trigger_refund_execute_workflow(
             let id = refund_tracker.id.clone();
             refund_tracker
                 .clone()
-                .finish_with_status(db, format!("COMPLETED_BY_PT_{id}"))
+                .finish_with_status(db.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
                 .await?;
         }
     };
@@ -1036,9 +1036,9 @@ pub async fn retry_refund_sync_task(
         get_refund_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count).await?;
 
     match schedule_time {
-        Some(s_time) => pt.retry(db, s_time).await,
+        Some(s_time) => pt.retry(db.as_scheduler(), s_time).await,
         None => {
-            pt.finish_with_status(db, "RETRIES_EXCEEDED".to_string())
+            pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
                 .await
         }
     }

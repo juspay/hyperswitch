@@ -38,6 +38,9 @@ pub struct Refund {
     pub refund_error_code: Option<String>,
 }
 
+#[cfg(feature = "kv_store")]
+impl crate::utils::storage_partitioning::KvStorePartition for Refund {}
+
 #[derive(
     Clone,
     Debug,

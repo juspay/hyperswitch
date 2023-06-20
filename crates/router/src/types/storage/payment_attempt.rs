@@ -8,9 +8,6 @@ pub struct RoutingData {
     pub algorithm: Option<api_models::admin::StraightThroughAlgorithm>,
 }
 
-#[cfg(feature = "kv_store")]
-impl crate::utils::storage_partitioning::KvStorePartition for PaymentAttempt {}
-
 #[cfg(test)]
 #[cfg(feature = "dummy_connector")]
 mod tests {
