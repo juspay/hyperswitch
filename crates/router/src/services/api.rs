@@ -1,5 +1,5 @@
 mod client;
-pub(crate) mod request;
+pub mod request;
 
 use std::{
     collections::HashMap,

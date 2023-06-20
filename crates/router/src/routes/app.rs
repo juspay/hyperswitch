@@ -27,7 +27,7 @@ pub struct AppState {
     pub store: Box<dyn StorageInterface>,
     pub conf: settings::Settings,
     #[cfg(feature = "email")]
-    pub email_client: Box<dyn EmailClient>,
+    pub email_client: Option<Box<dyn EmailClient>>,
     #[cfg(feature = "kms")]
     pub kms_secrets: settings::ActiveKmsSecrets,
 }
@@ -52,7 +52,7 @@ impl AppStateInfo for AppState {
     }
     #[cfg(feature = "email")]
     fn email_client(&self) -> Option<Box<dyn EmailClient>> {
-        Some(self.email_client.to_owned())
+        self.email_client.to_owned()
     }
 }
 
@@ -89,7 +89,7 @@ impl AppState {
             store,
             conf,
             #[cfg(feature = "email")]
-            email_client,
+            email_client: Some(email_client),
             #[cfg(feature = "kms")]
             kms_secrets,
         }
