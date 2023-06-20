@@ -165,11 +165,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = shift4::Shift4PaymentsRequest::try_from(req)?;
-        let req =
-            utils::Encode::<shift4::Shift4PaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<shift4::Shift4PaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(req))
     }
 
@@ -450,11 +452,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsInitRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = shift4::Shift4PaymentsRequest::try_from(req)?;
-        let req =
-            utils::Encode::<shift4::Shift4PaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<shift4::Shift4PaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(req))
     }
 
@@ -530,11 +534,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsCompleteAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = shift4::Shift4PaymentsRequest::try_from(req)?;
-        let req =
-            utils::Encode::<shift4::Shift4PaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<shift4::Shift4PaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(req))
     }
 
@@ -608,9 +614,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let shift4_req = utils::Encode::<shift4::Shift4RefundRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = shift4::Shift4RefundRequest::try_from(req)?;
+        let shift4_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<shift4::Shift4RefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(shift4_req))
     }
 

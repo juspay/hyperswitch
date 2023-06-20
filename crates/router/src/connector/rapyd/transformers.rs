@@ -46,15 +46,15 @@ pub struct PaymentFields {
 
 #[derive(Default, Debug, Serialize)]
 pub struct Address {
-    name: String,
-    line_1: String,
-    line_2: Option<String>,
-    line_3: Option<String>,
-    city: Option<String>,
-    state: Option<String>,
-    country: Option<String>,
-    zip: Option<String>,
-    phone_number: Option<String>,
+    name: Secret<String>,
+    line_1: Secret<String>,
+    line_2: Option<Secret<String>>,
+    line_3: Option<Secret<String>>,
+    city: Option<Secret<String>>,
+    state: Option<Secret<String>>,
+    country: Option<Secret<String>>,
+    zip: Option<Secret<String>>,
+    phone_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
