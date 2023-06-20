@@ -372,6 +372,7 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         ),
         "800.100.168" => (true, "Transaction declined (restricted card)"),
         "800.100.170" => (true, "Transaction declined (transaction not permitted)"),
+        "800.100.172" => (true, "Transaction declined (account blocked)"),
         "800.100.190" => (true, "Transaction declined (invalid configuration data)"),
         "800.120.100" => (true, "Rejected by throttling"),
         "800.300.401" => (true, "Bin blacklisted"),
