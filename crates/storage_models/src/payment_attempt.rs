@@ -49,6 +49,7 @@ pub struct PaymentAttempt {
     pub preprocessing_step_id: Option<String>,
     // providing a location to store mandate details intermediately for transaction
     pub mandate_details: Option<storage_enums::MandateDataType>,
+    pub error_reason: Option<String>,
 }
 
 #[derive(
@@ -96,6 +97,7 @@ pub struct PaymentAttemptNew {
     pub straight_through_algorithm: Option<serde_json::Value>,
     pub preprocessing_step_id: Option<String>,
     pub mandate_details: Option<storage_enums::MandateDataType>,
+    pub error_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,6 +113,8 @@ pub enum PaymentAttemptUpdate {
         payment_method_type: Option<storage_enums::PaymentMethodType>,
         payment_experience: Option<storage_enums::PaymentExperience>,
         business_sub_label: Option<String>,
+        amount_to_capture: Option<i64>,
+        capture_method: Option<storage_enums::CaptureMethod>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
@@ -150,6 +154,7 @@ pub enum PaymentAttemptUpdate {
         payment_token: Option<String>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
+        error_reason: Option<Option<String>>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -158,9 +163,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_id: Option<Option<String>>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
-    },
-    SessionUpdate {
-        connector_transaction_id: Option<String>,
+        error_reason: Option<Option<String>>,
     },
     StatusUpdate {
         status: storage_enums::AttemptStatus,
@@ -170,12 +173,14 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
+        error_reason: Option<Option<String>>,
     },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
         payment_method_id: Option<Option<String>>,
         connector_metadata: Option<serde_json::Value>,
         preprocessing_step_id: Option<String>,
+        connector_transaction_id: Option<String>,
     },
 }
 
@@ -186,6 +191,7 @@ pub struct PaymentAttemptUpdateInternal {
     currency: Option<storage_enums::Currency>,
     status: Option<storage_enums::AttemptStatus>,
     connector_transaction_id: Option<String>,
+    amount_to_capture: Option<i64>,
     connector: Option<String>,
     authentication_type: Option<storage_enums::AuthenticationType>,
     payment_method: Option<storage_enums::PaymentMethod>,
@@ -204,6 +210,8 @@ pub struct PaymentAttemptUpdateInternal {
     business_sub_label: Option<String>,
     straight_through_algorithm: Option<serde_json::Value>,
     preprocessing_step_id: Option<String>,
+    error_reason: Option<Option<String>>,
+    capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 impl PaymentAttemptUpdate {
@@ -250,6 +258,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_type,
                 payment_experience,
                 business_sub_label,
+                amount_to_capture,
+                capture_method,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -263,6 +273,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_type,
                 payment_experience,
                 business_sub_label,
+                amount_to_capture,
+                capture_method,
                 ..Default::default()
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
@@ -322,6 +334,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_token,
                 error_code,
                 error_message,
+                error_reason,
             } => Self {
                 status: Some(status),
                 connector,
@@ -334,6 +347,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 payment_token,
+                error_reason,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {
@@ -341,12 +355,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 status,
                 error_code,
                 error_message,
+                error_reason,
             } => Self {
                 connector,
                 status: Some(status),
                 error_message,
                 error_code,
                 modified_at: Some(common_utils::date_time::now()),
+                error_reason,
                 ..Default::default()
             },
             PaymentAttemptUpdate::StatusUpdate { status } => Self {
@@ -370,6 +386,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_id,
                 error_code,
                 error_message,
+                error_reason,
             } => Self {
                 status: Some(status),
                 connector,
@@ -378,6 +395,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 modified_at: Some(common_utils::date_time::now()),
                 error_code,
                 error_message,
+                error_reason,
                 ..Default::default()
             },
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -385,17 +403,13 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_id,
                 connector_metadata,
                 preprocessing_step_id,
+                connector_transaction_id,
             } => Self {
                 status: Some(status),
                 payment_method_id,
                 modified_at: Some(common_utils::date_time::now()),
                 connector_metadata,
                 preprocessing_step_id,
-                ..Default::default()
-            },
-            PaymentAttemptUpdate::SessionUpdate {
-                connector_transaction_id,
-            } => Self {
                 connector_transaction_id,
                 ..Default::default()
             },

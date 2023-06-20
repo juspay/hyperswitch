@@ -48,12 +48,15 @@ impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
                 purchase_currency: request.currency,
                 order_amount: request.amount,
                 locale: "en-US".to_string(),
-                order_lines: vec![OrderLines {
-                    name: order_details.product_name,
-                    quantity: order_details.quantity,
-                    unit_price: request.amount,
-                    total_amount: request.amount,
-                }],
+                order_lines: order_details
+                    .iter()
+                    .map(|data| OrderLines {
+                        name: data.product_name.clone(),
+                        quantity: data.quantity,
+                        unit_price: data.amount,
+                        total_amount: i64::from(data.quantity) * (data.amount),
+                    })
+                    .collect(),
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "product_name",
@@ -78,7 +81,6 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
                         session_id: response.session_id.clone(),
                     },
                 )),
-                response_id: None,
             }),
             ..item.data
         })
@@ -94,12 +96,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for KlarnaPaymentsRequest {
                 purchase_country: "US".to_string(),
                 purchase_currency: request.currency,
                 order_amount: request.amount,
-                order_lines: vec![OrderLines {
-                    name: order_details.product_name,
-                    quantity: order_details.quantity,
-                    unit_price: request.amount,
-                    total_amount: request.amount,
-                }],
+                order_lines: order_details
+                    .iter()
+                    .map(|data| OrderLines {
+                        name: data.product_name.clone(),
+                        quantity: data.quantity,
+                        unit_price: data.amount,
+                        total_amount: i64::from(data.quantity) * (data.amount),
+                    })
+                    .collect(),
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "product_name"

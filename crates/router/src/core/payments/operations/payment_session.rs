@@ -87,7 +87,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             None,
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
         )
         .await?;
 
@@ -96,7 +96,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             None,
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
         )
         .await?;
 
@@ -153,6 +153,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 amount,
                 email: None,
                 mandate_id: None,
+                mandate_connector: None,
                 token: None,
                 setup_mandate: None,
                 address: payments::PaymentAddress {
@@ -172,7 +173,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 connector_customer_id: None,
                 ephemeral_key: None,
                 redirect_response: None,
-                delayed_session_token: request.delayed_session_token,
             },
             Some(customer_details),
         ))
@@ -185,7 +185,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -428,14 +427,8 @@ pub fn get_connector_type_for_session_token(
 
 pub fn is_apple_pay_get_token_connector(
     connector: &str,
-    request: &api::PaymentsSessionRequest,
+    _request: &api::PaymentsSessionRequest,
 ) -> bool {
-    match connector {
-        "bluesnap" => true,
-        "trustpay" => request
-            .delayed_session_token
-            .and_then(|delay| delay.then_some(true))
-            .is_some(),
-        _ => false,
-    }
+    // Add connectors here, which all are required to hit connector for session call
+    matches!(connector, "bluesnap")
 }

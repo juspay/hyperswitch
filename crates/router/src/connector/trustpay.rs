@@ -307,7 +307,16 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        let response: trustpay::TrustPayTransactionStatusErrorResponse = res
+            .response
+            .parse_struct("trustpay transaction status ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.status.to_string(),
+            message: response.payment_description,
+            reason: None,
+        })
     }
 
     fn handle_response(
@@ -334,19 +343,23 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 {
 }
 
-impl api::PaymentSession for Trustpay {}
+impl api::PaymentsPreProcessing for Trustpay {}
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Trustpay
+impl
+    ConnectorIntegration<
+        api::PreProcessing,
+        types::PaymentsPreProcessingData,
+        types::PaymentsResponseData,
+    > for Trustpay
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsSessionRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsSessionType::get_content_type(self)
+            types::PaymentsPreProcessingType::get_content_type(self)
                 .to_string()
                 .into(),
         )];
@@ -361,7 +374,7 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSessionRouterData,
+        _req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "api/v1/intent"))
@@ -369,7 +382,7 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsSessionRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let create_intent_req = trustpay::TrustpayCreateIntentRequest::try_from(req)?;
         let trustpay_req =
@@ -380,18 +393,22 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
 
     fn build_request(
         &self,
-        req: &types::PaymentsSessionRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let req = Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .attach_default_headers()
-                .headers(types::PaymentsSessionType::get_headers(
+                .headers(types::PaymentsPreProcessingType::get_headers(
                     self, req, connectors,
                 )?)
-                .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
-                .body(types::PaymentsSessionType::get_request_body(self, req)?)
+                .url(&types::PaymentsPreProcessingType::get_url(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsPreProcessingType::get_request_body(
+                    self, req,
+                )?)
                 .build(),
         );
         Ok(req)
@@ -399,9 +416,9 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
 
     fn handle_response(
         &self,
-        data: &types::PaymentsSessionRouterData,
+        data: &types::PaymentsPreProcessingRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
         let response: trustpay::TrustpayCreateIntentResponse = res
             .response
             .parse_struct("TrustpayCreateIntentResponse")
@@ -420,6 +437,13 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
+}
+
+impl api::PaymentSession for Trustpay {}
+
+impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+    for Trustpay
+{
 }
 
 impl api::PaymentAuthorize for Trustpay {}
@@ -883,9 +907,11 @@ impl services::ConnectorRedirectResponse for Trustpay {
         Ok(query.status.map_or(
             payments::CallConnectorAction::Trigger,
             |status| match status.as_str() {
-                "SuccessOk" => payments::CallConnectorAction::StatusUpdate(
-                    storage_models::enums::AttemptStatus::Charged,
-                ),
+                "SuccessOk" => payments::CallConnectorAction::StatusUpdate {
+                    status: storage_models::enums::AttemptStatus::Charged,
+                    error_code: None,
+                    error_message: None,
+                },
                 _ => payments::CallConnectorAction::Trigger,
             },
         ))

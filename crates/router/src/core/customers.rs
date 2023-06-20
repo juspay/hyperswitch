@@ -5,7 +5,6 @@ use common_utils::{
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
-use storage_models::errors as storage_errors;
 
 use crate::{
     consts,
@@ -225,13 +224,15 @@ pub async fn delete_customer(
                 .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
             }
         }
-        Err(error) => match error.current_context() {
-            errors::StorageError::DatabaseError(err) => match err.current_context() {
-                storage_errors::DatabaseError::NotFound => Ok(()),
-                _ => Err(errors::ApiErrorResponse::InternalServerError),
-            },
-            _ => Err(errors::ApiErrorResponse::InternalServerError),
-        }?,
+        Err(error) => {
+            if error.current_context().is_db_not_found() {
+                Ok(())
+            } else {
+                Err(error)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("failed find_payment_method_by_customer_id_merchant_id_list")
+            }?
+        }
     };
 
     let key = types::get_merchant_enc_key(&**db, merchant_account.merchant_id.clone())
@@ -266,13 +267,15 @@ pub async fn delete_customer(
         .await
     {
         Ok(_) => Ok(()),
-        Err(error) => match error.current_context() {
-            errors::StorageError::DatabaseError(err) => match err.current_context() {
-                storage_errors::DatabaseError::NotFound => Ok(()),
-                _ => Err(errors::ApiErrorResponse::InternalServerError),
-            },
-            _ => Err(errors::ApiErrorResponse::InternalServerError),
-        },
+        Err(error) => {
+            if error.current_context().is_db_not_found() {
+                Ok(())
+            } else {
+                Err(error)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("failed update_address_by_merchant_id_customer_id")
+            }
+        }
     }?;
 
     let updated_customer = storage::CustomerUpdate::Update {

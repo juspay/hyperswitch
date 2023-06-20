@@ -49,6 +49,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
         _merchant_account: &domain::MerchantAccount,
+        _connector_request: Option<services::Request>,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             &metrics::CONTEXT,
@@ -155,66 +156,68 @@ async fn create_applepay_session_token(
         .connectors_with_delayed_session_response;
 
     let connector_name = connector.connector_name;
-    let applepay_metadata = get_applepay_metadata(router_data.connector_meta_data.clone())?;
-
-    let amount_info = payment_types::AmountInfo {
-        label: applepay_metadata.data.payment_request_data.label,
-        total_type: Some("final".to_string()),
-        amount: connector::utils::to_currency_base_unit(
-            router_data.request.amount,
-            router_data.request.currency,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to convert currency to base unit")?,
-    };
-
-    let applepay_payment_request = payment_types::ApplePayPaymentRequest {
-        country_code: router_data
-            .request
-            .country
-            .to_owned()
-            .get_required_value("country_code")
-            .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "country_code",
-            })?,
-        currency_code: router_data.request.currency.to_string(),
-        total: amount_info,
-        merchant_capabilities: applepay_metadata
-            .data
-            .payment_request_data
-            .merchant_capabilities,
-        supported_networks: applepay_metadata
-            .data
-            .payment_request_data
-            .supported_networks,
-        merchant_identifier: Some(
-            applepay_metadata
-                .data
-                .session_token_data
-                .merchant_identifier,
-        ),
-    };
-
     let delayed_response = connectors_with_delayed_response.contains(&connector_name);
 
     if delayed_response {
         let delayed_response_apple_pay_session =
-            payment_types::ApplePaySessionResponse::NoSessionResponse;
+            Some(payment_types::ApplePaySessionResponse::NoSessionResponse);
         create_apple_pay_session_response(
             router_data,
             delayed_response_apple_pay_session,
             None, // Apple pay payment request will be none for delayed session response
             connector_name.to_string(),
             delayed_response,
-            payment_types::NextActionCall::SessionToken,
-            None, //Response Id will be none for delayed session response
+            payment_types::NextActionCall::Confirm,
         )
     } else {
+        let applepay_metadata = get_applepay_metadata(router_data.connector_meta_data.clone())?;
+
+        let amount_info = payment_types::AmountInfo {
+            label: applepay_metadata.data.payment_request_data.label,
+            total_type: Some("final".to_string()),
+            amount: connector::utils::to_currency_base_unit(
+                router_data.request.amount,
+                router_data.request.currency,
+            )
+            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Failed to convert currency to base unit".to_string(),
+            })?,
+        };
+
+        let applepay_payment_request = payment_types::ApplePayPaymentRequest {
+            country_code: router_data
+                .request
+                .country
+                .to_owned()
+                .get_required_value("country_code")
+                .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "country_code",
+                })?,
+            currency_code: router_data.request.currency.to_string(),
+            total: amount_info,
+            merchant_capabilities: applepay_metadata
+                .data
+                .payment_request_data
+                .merchant_capabilities,
+            supported_networks: applepay_metadata
+                .data
+                .payment_request_data
+                .supported_networks,
+            merchant_identifier: Some(
+                applepay_metadata
+                    .data
+                    .session_token_data
+                    .merchant_identifier,
+            ),
+        };
+
         let applepay_session_request = mk_applepay_session_request(state, router_data)?;
         let response = services::call_connector_api(state, applepay_session_request).await;
+
+        // logging the error if present in session call response
         log_session_response_if_error(&response);
 
-        let session_response = response
+        let apple_pay_session_response = response
             .ok()
             .and_then(|apple_pay_res| {
                 apple_pay_res
@@ -223,48 +226,62 @@ async fn create_applepay_session_token(
                             payment_types::NoThirdPartySdkSessionResponse,
                             Report<common_utils::errors::ParsingError>,
                         > = res.response.parse_struct("NoThirdPartySdkSessionResponse");
+
+                        // logging the parsing failed error
+                        if let Err(error) = response.as_ref() {
+                            logger::error!(?error);
+                        };
+
                         response.ok()
                     })
                     .ok()
             })
             .flatten();
 
+        let session_response =
+            apple_pay_session_response.map(payment_types::ApplePaySessionResponse::NoThirdPartySdk);
+
         create_apple_pay_session_response(
             router_data,
-            payment_types::ApplePaySessionResponse::NoThirdPartySdk(session_response),
+            session_response,
             Some(applepay_payment_request),
             connector_name.to_string(),
             delayed_response,
             payment_types::NextActionCall::Confirm,
-            None, // Response Id will be none for No third party sdk response
         )
     }
 }
 
 fn create_apple_pay_session_response(
     router_data: &types::PaymentsSessionRouterData,
-    session_response: payment_types::ApplePaySessionResponse,
+    session_response: Option<payment_types::ApplePaySessionResponse>,
     apple_pay_payment_request: Option<payment_types::ApplePayPaymentRequest>,
     connector_name: String,
     delayed_response: bool,
     next_action: payment_types::NextActionCall,
-    response_id: Option<String>,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
-    Ok(types::PaymentsSessionRouterData {
-        response: Ok(types::PaymentsResponseData::SessionResponse {
-            session_token: payment_types::SessionToken::ApplePay(Box::new(
-                payment_types::ApplepaySessionTokenResponse {
-                    session_token_data: session_response,
-                    payment_request_data: apple_pay_payment_request,
-                    connector: connector_name,
-                    delayed_session_token: delayed_response,
-                    sdk_next_action: { payment_types::SdkNextAction { next_action } },
-                },
-            )),
-            response_id,
+    match session_response {
+        Some(response) => Ok(types::PaymentsSessionRouterData {
+            response: Ok(types::PaymentsResponseData::SessionResponse {
+                session_token: payment_types::SessionToken::ApplePay(Box::new(
+                    payment_types::ApplepaySessionTokenResponse {
+                        session_token_data: response,
+                        payment_request_data: apple_pay_payment_request,
+                        connector: connector_name,
+                        delayed_session_token: delayed_response,
+                        sdk_next_action: { payment_types::SdkNextAction { next_action } },
+                    },
+                )),
+            }),
+            ..router_data.clone()
         }),
-        ..router_data.clone()
-    })
+        None => Ok(types::PaymentsSessionRouterData {
+            response: Ok(types::PaymentsResponseData::SessionResponse {
+                session_token: payment_types::SessionToken::NoSessionTokenReceived,
+            }),
+            ..router_data.clone()
+        }),
+    }
 }
 
 fn create_gpay_session_token(
@@ -310,7 +327,6 @@ fn create_gpay_session_token(
                     connector: connector.connector_name.to_string(),
                 },
             )),
-            response_id: None,
         }),
         ..router_data.clone()
     };
@@ -356,9 +372,10 @@ impl types::PaymentsSessionRouterData {
                     connector_integration,
                     self,
                     call_connector_action,
+                    None,
                 )
                 .await
-                .map_err(|error| error.to_payment_failed_response())?;
+                .to_payment_failed_response()?;
 
                 Ok(resp)
             }
