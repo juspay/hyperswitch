@@ -1448,12 +1448,14 @@ fn get_payment_method_type_for_saved_payment_method_payment(
             match recurring_payment_method_data.payment_method_type {
                 Some(enums::PaymentMethodType::Eps)
                 | Some(enums::PaymentMethodType::Giropay)
-                | Some(enums::PaymentMethodType::Przelewy24) => Err(errors::ConnectorError::NotSupported {
-                    message: "Eps, Giropay, Przelewy24 Recurring payments ".into(),
-                    connector: "Stripe",
-                    payment_experience: "Recurring Payments".into(),
+                | Some(enums::PaymentMethodType::Przelewy24) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "Eps, Giropay, Przelewy24 Recurring payments ".into(),
+                        connector: "Stripe",
+                        payment_experience: "Recurring Payments".into(),
+                    }
+                    .into())
                 }
-                .into()),
                 Some(payment_method_type) => StripePaymentMethodType::try_from(payment_method_type),
                 None => Err(errors::ConnectorError::NoPaymentMethodType.into()),
             }
