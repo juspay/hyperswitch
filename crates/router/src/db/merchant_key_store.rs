@@ -1,6 +1,7 @@
 use error_stack::{IntoReport, ResultExt};
 
-use super::MasterKeyInterface;
+#[cfg(feature = "accounts_cache")]
+use crate::cache::ACCOUNTS_CACHE;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -41,7 +42,7 @@ impl MerchantKeyStoreInterface for Store {
             .await
             .map_err(Into::into)
             .into_report()?
-            .convert(self, &merchant_id, self.get_migration_timestamp())
+            .convert(self, &merchant_id)
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -49,17 +50,40 @@ impl MerchantKeyStoreInterface for Store {
         &self,
         merchant_id: &str,
     ) -> CustomResult<merchant_key_store::MerchantKeyStore, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage_models::merchant_key_store::MerchantKeyStore::find_by_merchant_id(
-            &conn,
-            merchant_id,
-        )
-        .await
-        .map_err(Into::into)
-        .into_report()?
-        .convert(self, merchant_id, self.get_migration_timestamp())
-        .await
-        .change_context(errors::StorageError::DecryptionError)
+        let fetch_func = || async {
+            let conn = connection::pg_connection_read(self).await?;
+
+            storage_models::merchant_key_store::MerchantKeyStore::find_by_merchant_id(
+                &conn,
+                merchant_id,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
+        };
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            fetch_func()
+                .await?
+                .convert(self, merchant_id)
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            let key_store_cache_key = format!("merchant_key_store_{}", merchant_id);
+            super::cache::get_or_populate_in_memory(
+                self,
+                &key_store_cache_key,
+                fetch_func,
+                &ACCOUNTS_CACHE,
+            )
+            .await?
+            .convert(self, merchant_id)
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+        }
     }
 }
 

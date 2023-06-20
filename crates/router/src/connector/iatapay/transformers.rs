@@ -135,6 +135,8 @@ pub enum IatapayPaymentStatus {
     Locked,
     #[serde(rename = "UNEXPECTED SETTLED")]
     UnexpectedSettled,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<IatapayPaymentStatus> for enums::AttemptStatus {

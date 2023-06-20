@@ -687,4 +687,6 @@ pub enum WebhookEvent {
     RejectedCapture,
     #[serde(rename = "payment.paid")]
     Paid,
+    #[serde(other)]
+    Unknown,
 }

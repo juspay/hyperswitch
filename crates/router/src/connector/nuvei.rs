@@ -919,7 +919,9 @@ impl api::IncomingWebhook for Nuvei {
             nuvei::NuveiWebhookStatus::Declined => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
             }
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
+            nuvei::NuveiWebhookStatus::Unknown
+            | nuvei::NuveiWebhookStatus::Pending
+            | nuvei::NuveiWebhookStatus::Update => Ok(api::IncomingWebhookEvent::EventNotSupported),
         }
     }
 
@@ -955,9 +957,11 @@ impl services::ConnectorRedirectResponse for Nuvei {
                             .switch()?;
                     match acs_response.trans_status {
                         None | Some(nuvei::LiabilityShift::Failed) => {
-                            Ok(payments::CallConnectorAction::StatusUpdate(
-                                enums::AttemptStatus::AuthenticationFailed,
-                            ))
+                            Ok(payments::CallConnectorAction::StatusUpdate {
+                                status: enums::AttemptStatus::AuthenticationFailed,
+                                error_code: None,
+                                error_message: None,
+                            })
                         }
                         _ => Ok(payments::CallConnectorAction::Trigger),
                     }

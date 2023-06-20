@@ -95,6 +95,7 @@ impl ConnectorCommon for Bluesnap {
             .response
             .parse_struct("BluesnapErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
 
         let response_error_message = match response {
             bluesnap::BluesnapErrors::PaymentError(error_res) => error_res.message.first().map_or(
@@ -179,6 +180,7 @@ impl
         req: &types::ConnectorCustomerRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_request = bluesnap::BluesnapCustomerRequest::try_from(req)?;
+        router_env::logger::info!(?connector_request);
         let bluesnap_req =
             utils::Encode::<bluesnap::BluesnapCustomerRequest>::encode_to_string_of_json(
                 &connector_request,
@@ -219,6 +221,7 @@ impl
             .response
             .parse_struct("BluesnapCustomerResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -269,6 +272,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = bluesnap::BluesnapVoidRequest::try_from(req)?;
+        router_env::logger::info!(?connector_req);
         let bluesnap_req =
             utils::Encode::<bluesnap::BluesnapVoidRequest>::encode_to_string_of_json(
                 &connector_req,
@@ -301,6 +305,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .response
             .parse_struct("BluesnapPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -389,6 +394,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .response
             .parse_struct("BluesnapPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -432,6 +438,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = bluesnap::BluesnapCaptureRequest::try_from(req)?;
+        router_env::logger::info!(?connector_req);
         let bluesnap_req =
             utils::Encode::<bluesnap::BluesnapCaptureRequest>::encode_to_string_of_json(
                 &connector_req,
@@ -466,6 +473,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .response
             .parse_struct("Bluesnap BluesnapPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -528,6 +536,7 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
         req: &types::PaymentsSessionRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = bluesnap::BluesnapCreateWalletToken::try_from(req)?;
+        router_env::logger::info!(?connector_req);
         let bluesnap_req =
             utils::Encode::<bluesnap::BluesnapCreateWalletToken>::encode_to_string_of_json(
                 &connector_req,
@@ -563,6 +572,7 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
             .response
             .parse_struct("BluesnapWalletTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -620,6 +630,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = bluesnap::BluesnapPaymentsRequest::try_from(req)?;
+        router_env::logger::info!(?connector_req);
         let bluesnap_req =
             utils::Encode::<bluesnap::BluesnapPaymentsRequest>::encode_to_string_of_json(
                 &connector_req,
@@ -680,6 +691,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                     .response
                     .parse_struct("BluesnapPaymentsResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                router_env::logger::info!(connector_response=?response);
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),
@@ -731,6 +743,7 @@ impl
         req: &types::PaymentsCompleteAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = bluesnap::BluesnapPaymentsRequest::try_from(req)?;
+        router_env::logger::info!(?connector_req);
         let bluesnap_req =
             utils::Encode::<bluesnap::BluesnapPaymentsRequest>::encode_to_string_of_json(
                 &connector_req,
@@ -768,6 +781,7 @@ impl
             .response
             .parse_struct("BluesnapPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -821,6 +835,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = bluesnap::BluesnapRefundRequest::try_from(req)?;
+        router_env::logger::info!(?connector_req);
         let bluesnap_req =
             utils::Encode::<bluesnap::BluesnapRefundRequest>::encode_to_string_of_json(
                 &connector_req,
@@ -855,6 +870,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .response
             .parse_struct("bluesnap RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -922,6 +938,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .response
             .parse_struct("bluesnap BluesnapPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1043,10 +1060,17 @@ impl api::IncomingWebhook for Bluesnap {
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        Ok(match details.transaction_type.as_str() {
-            "DECLINE" | "CC_CHARGE_FAILED" => api::IncomingWebhookEvent::PaymentIntentFailure,
-            "CHARGE" => api::IncomingWebhookEvent::PaymentIntentSuccess,
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+        Ok(match details.transaction_type {
+            bluesnap::BluesnapWebhookEvents::Decline
+            | bluesnap::BluesnapWebhookEvents::CcChargeFailed => {
+                api::IncomingWebhookEvent::PaymentIntentFailure
+            }
+            bluesnap::BluesnapWebhookEvents::Charge => {
+                api::IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            bluesnap::BluesnapWebhookEvents::Unknown => {
+                api::IncomingWebhookEvent::EventNotSupported
+            }
         })
     }
 
@@ -1057,7 +1081,7 @@ impl api::IncomingWebhook for Bluesnap {
         let details: bluesnap::BluesnapWebhookObjectResource =
             serde_urlencoded::from_bytes(request.body)
                 .into_report()
-                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         let res_json =
             utils::Encode::<transformers::BluesnapWebhookObjectResource>::encode_to_value(&details)
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
@@ -1087,9 +1111,15 @@ impl services::ConnectorRedirectResponse for Bluesnap {
 
         match redirection_result.status.as_str() {
             "Success" => Ok(payments::CallConnectorAction::Trigger),
-            _ => Ok(payments::CallConnectorAction::StatusUpdate(
-                enums::AttemptStatus::AuthenticationFailed,
-            )),
+            _ => Ok(payments::CallConnectorAction::StatusUpdate {
+                status: enums::AttemptStatus::AuthenticationFailed,
+                error_code: redirection_result.code,
+                error_message: redirection_result
+                    .info
+                    .as_ref()
+                    .and_then(|info| info.errors.as_ref().and_then(|error| error.first()))
+                    .cloned(),
+            }),
         }
     }
 }
