@@ -270,6 +270,7 @@ pub struct PaymentMethodTokenizationData {
 pub struct PaymentsPreProcessingData {
     pub email: Option<Email>,
     pub currency: Option<storage_enums::Currency>,
+    pub amount: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -338,6 +339,7 @@ pub struct VerifyRequestData {
     pub router_return_url: Option<String>,
     pub email: Option<Email>,
     pub return_url: Option<String>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Clone)]
@@ -425,9 +427,16 @@ pub enum PaymentsResponseData {
         related_transaction_id: Option<String>,
     },
     PreProcessingResponse {
-        pre_processing_id: String,
+        pre_processing_id: PreprocessingResponseId,
         connector_metadata: Option<serde_json::Value>,
+        session_token: Option<api::SessionToken>,
     },
+}
+
+#[derive(Debug, Clone)]
+pub enum PreprocessingResponseId {
+    PreProcessingId(String),
+    ConnectorTransactionId(String),
 }
 
 #[derive(Debug, Clone, Default)]
