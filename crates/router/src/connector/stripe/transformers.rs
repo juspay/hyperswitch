@@ -1457,12 +1457,20 @@ fn get_payment_method_type_for_saved_payment_method_payment(
                     .into())
                 }
                 Some(payment_method_type) => StripePaymentMethodType::try_from(payment_method_type),
-                None => Err(errors::ConnectorError::NoPaymentMethodType.into()),
+                None => Err(errors::ConnectorError::NotSupported {
+                    message: "payment_method_type for Recurring payments unavailable ".into(),
+                    connector: "Stripe",
+                    payment_experience: "Recurring Payments".into(),
+                }
+                .into()),
             }
         }
-        None => Err::<_, error_stack::Report<errors::ConnectorError>>(
-            errors::ConnectorError::NoPaymentMethodType.into(),
-        ),
+        None => Err(errors::ConnectorError::NotSupported {
+            message: "payment_method_type for Recurring payments unavailable ".into(),
+            connector: "Stripe",
+            payment_experience: "Recurring Payments".into(),
+        }
+        .into()),
     }?;
     match stripe_payment_method_type {
         //Stripe converts Ideal, Bancontact & Sofort Bank redirect methods to Sepa direct debit and attaches to the customer for future usage
