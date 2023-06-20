@@ -122,6 +122,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 field_name: "browser_info",
             })?;
 
+        helpers::validate_card_data(request.payment_method_data.clone())?;
+
         let customer_details = helpers::get_customer_details_from_request(request);
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
