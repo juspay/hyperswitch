@@ -11,7 +11,7 @@ impl SeleniumTest for GlobalpaySeleniumTest {
     }
 }
 
-async fn should_make_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_gpay_payment(driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = GlobalpaySeleniumTest {};
     let pub_key = conn
         .get_configs()
@@ -19,7 +19,7 @@ async fn should_make_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
         .unwrap()
         .globalpay_gateway_merchant_id
         .unwrap();
-    conn.make_gpay_payment(c,
+    conn.make_gpay_payment(driver,
         &format!("{CHEKOUT_BASE_URL}/gpay?amount=10.00&country=US&currency=USD&gatewayname=globalpayments&gatewaymerchantid={pub_key}"),
         vec![
         Event::Assert(Assert::IsPresent("succeeded")),
@@ -27,10 +27,10 @@ async fn should_make_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
     Ok(())
 }
 
-async fn should_make_globalpay_paypal_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_globalpay_paypal_payment(driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = GlobalpaySeleniumTest {};
     conn.make_paypal_payment(
-        c,
+        driver,
         &format!("{CHEKOUT_BASE_URL}/paypal-redirect?amount=12.00&country=US&currency=EUR"),
         vec![
             Event::Assert(Assert::IsPresent("Google")),
@@ -44,10 +44,10 @@ async fn should_make_globalpay_paypal_payment(c: WebDriver) -> Result<(), WebDri
     Ok(())
 }
 
-async fn should_make_globalpay_ideal_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_globalpay_ideal_payment(driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = GlobalpaySeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/53"))),
             Event::Assert(Assert::IsPresent("Home")),
@@ -71,10 +71,10 @@ async fn should_make_globalpay_ideal_payment(c: WebDriver) -> Result<(), WebDriv
     Ok(())
 }
 
-async fn should_make_globalpay_giropay_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_globalpay_giropay_payment(driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = GlobalpaySeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/59"))),
             Event::Assert(Assert::IsPresent("Home")),
@@ -98,10 +98,10 @@ async fn should_make_globalpay_giropay_payment(c: WebDriver) -> Result<(), WebDr
     Ok(())
 }
 
-async fn should_make_globalpay_eps_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_globalpay_eps_payment(driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = GlobalpaySeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/50"))),
             Event::Assert(Assert::IsPresent("Home")),
@@ -125,10 +125,10 @@ async fn should_make_globalpay_eps_payment(c: WebDriver) -> Result<(), WebDriver
     Ok(())
 }
 
-async fn should_make_globalpay_sofort_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_globalpay_sofort_payment(driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = GlobalpaySeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/63"))),
             Event::Assert(Assert::IsPresent("Home")),
