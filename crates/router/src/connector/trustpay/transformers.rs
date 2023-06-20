@@ -577,8 +577,10 @@ fn handle_cards_response(
             code: response
                 .payment_status
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: msg.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            message: msg
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: msg,
             status_code,
         })
     } else {
@@ -638,8 +640,9 @@ fn handle_bank_redirects_error_response(
         message: response
             .payment_result_info
             .additional_info
+            .clone()
             .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-        reason: None,
+        reason: response.payment_result_info.additional_info,
         status_code,
     });
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
@@ -674,8 +677,9 @@ fn handle_bank_redirects_sync_response(
             message: reason_info
                 .reason
                 .reject_reason
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: reason_info.reason.reject_reason,
             status_code,
         })
     } else {
@@ -801,8 +805,9 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, t
                         .response
                         .result_info
                         .additional_info
+                        .clone()
                         .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: None,
+                    reason: item.response.result_info.additional_info,
                     status_code: item.http_code,
                 }),
                 ..item.data
@@ -1069,8 +1074,10 @@ fn handle_cards_refund_response(
     let error = if msg.is_some() {
         Some(types::ErrorResponse {
             code: response.payment_status,
-            message: msg.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            message: msg
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: msg,
             status_code,
         })
     } else {
@@ -1107,7 +1114,7 @@ fn handle_bank_redirects_refund_response(
         Some(types::ErrorResponse {
             code: response.result_info.result_code.to_string(),
             message: msg.unwrap_or(consts::NO_ERROR_MESSAGE).to_owned(),
-            reason: None,
+            reason: msg.map(|message| message.to_string()),
             status_code,
         })
     } else {
@@ -1135,8 +1142,9 @@ fn handle_bank_redirects_refund_sync_response(
             message: reason_info
                 .reason
                 .reject_reason
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: reason_info.reason.reject_reason,
             status_code,
         })
     } else {
@@ -1158,8 +1166,9 @@ fn handle_bank_redirects_refund_sync_error_response(
         message: response
             .payment_result_info
             .additional_info
+            .clone()
             .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_owned()),
-        reason: None,
+        reason: response.payment_result_info.additional_info,
         status_code,
     });
     //unreachable case as we are sending error as Some()
