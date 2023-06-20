@@ -1667,22 +1667,9 @@ pub struct PaymentIntentSyncResponse {
 #[derive(Deserialize, Clone, Debug)]
 pub struct StripeCharge {
     pub id: String,
-    pub payment_method_details: Option<StripeBankRedirectPaymentMethodDetails>,
+    pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
 }
-#[derive(Deserialize, Clone, Debug)]
-#[serde(rename_all = "snake_case", tag = "type")]
-pub enum StripeBankRedirectPaymentMethodDetails {
-    //only bank redirect payment methods that support recurring payments in stripe (ideal, sofort, bancontact)
-    Ideal {
-        ideal: StripeBankRedirectDetails,
-    },
-    Sofort {
-        sofort: StripeBankRedirectDetails,
-    },
-    Bancontact {
-        bancontact: StripeBankRedirectDetails,
-    },
-}
+
 #[derive(Deserialize, Clone, Debug)]
 pub struct StripeBankRedirectDetails {
     #[serde(rename = "generated_sepa_debit")]
@@ -1926,16 +1913,16 @@ impl<F, T>
                 item.response.payment_method_options.clone(),
                 match item.response.latest_charge.clone() {
                     Some(charge) => match charge.payment_method_details {
-                        Some(StripeBankRedirectPaymentMethodDetails::Bancontact { bancontact }) => {
+                        Some(StripePaymentMethodDetailsResponse::Bancontact { bancontact }) => {
                             bancontact.attached_payment_method.unwrap_or(pm)
                         }
-                        Some(StripeBankRedirectPaymentMethodDetails::Ideal { ideal }) => {
+                        Some(StripePaymentMethodDetailsResponse::Ideal { ideal }) => {
                             ideal.attached_payment_method.unwrap_or(pm)
                         }
-                        Some(StripeBankRedirectPaymentMethodDetails::Sofort { sofort }) => {
+                        Some(StripePaymentMethodDetailsResponse::Sofort { sofort }) => {
                             sofort.attached_payment_method.unwrap_or(pm)
                         }
-                        None => pm,
+                        _ => pm,
                     },
                     None => pm,
                 },
