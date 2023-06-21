@@ -634,8 +634,19 @@ pub async fn refund_list(
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
     let limit = validator::validate_refund_list(req.limit)?;
+
     let refund_list = db
         .filter_refund_by_constraints(
+            &merchant_account.merchant_id,
+            &req,
+            merchant_account.storage_scheme,
+            limit,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::RefundNotFound)?;
+
+    let filter_list = db
+        .filter_refund_by_meta_constraints(
             &merchant_account.merchant_id,
             &req,
             merchant_account.storage_scheme,
@@ -648,10 +659,12 @@ pub async fn refund_list(
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect();
+
     Ok(services::ApplicationResponse::Json(
         api_models::refunds::RefundListResponse {
             size: data.len(),
             data,
+            filter: filter_list,
         },
     ))
 }

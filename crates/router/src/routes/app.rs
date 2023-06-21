@@ -243,7 +243,11 @@ impl Refunds {
 
         #[cfg(feature = "olap")]
         {
-            route = route.service(web::resource("/list").route(web::get().to(refunds_list)));
+            route = route.service(
+                web::resource("/list")
+                    .route(web::get().to(refunds_list))
+                    .route(web::post().to(refunds_list_with_filters)),
+            );
         }
         #[cfg(feature = "oltp")]
         {

@@ -1,9 +1,12 @@
-use common_utils::{custom_serde, pii};
+use common_utils::pii;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{admin, enums};
+use crate::{
+    admin,
+    enums::{self, Currency},
+};
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -132,29 +135,20 @@ pub struct RefundListRequest {
     pub payment_id: Option<String>,
     /// Limit on the number of objects to return
     pub limit: Option<i64>,
-    /// The time at which refund is created
-    #[serde(default, with = "custom_serde::iso8601::option")]
-    pub created: Option<PrimitiveDateTime>,
-    /// Time less than the refund created time
-    #[serde(default, rename = "created.lt", with = "custom_serde::iso8601::option")]
-    pub created_lt: Option<PrimitiveDateTime>,
-    /// Time greater than the refund created time
-    #[serde(default, rename = "created.gt", with = "custom_serde::iso8601::option")]
-    pub created_gt: Option<PrimitiveDateTime>,
-    /// Time less than or equals to the refund created time
-    #[serde(
-        default,
-        rename = "created.lte",
-        with = "custom_serde::iso8601::option"
-    )]
-    pub created_lte: Option<PrimitiveDateTime>,
-    /// Time greater than or equals to the refund created time
-    #[serde(
-        default,
-        rename = "created.gte",
-        with = "custom_serde::iso8601::option"
-    )]
-    pub created_gte: Option<PrimitiveDateTime>,
+
+    pub time_range: Option<TimeRange>,
+    pub connector: Option<String>,
+    pub currency: Option<Currency>,
+    pub refund_status: Option<enums::RefundStatus>,
+}
+
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "camelCase")]
+pub struct TimeRange {
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub start_time: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub end_time: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
@@ -163,11 +157,30 @@ pub struct RefundListResponse {
     pub size: usize,
     /// The List of refund response object
     pub data: Vec<RefundResponse>,
+    // List of available filter
+    pub filter: RefundListMetaData,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+pub struct RefundListMetaData {
+    pub connector: Vec<String>,
+    pub currency: Vec<Currency>,
+    pub status: Vec<enums::RefundStatus>,
 }
 
 /// The status for refunds
 #[derive(
-    Debug, Eq, Clone, Copy, PartialEq, Default, Deserialize, Serialize, ToSchema, strum::Display,
+    Debug,
+    Eq,
+    Clone,
+    Copy,
+    PartialEq,
+    Default,
+    Deserialize,
+    Serialize,
+    ToSchema,
+    strum::Display,
+    strum::EnumIter,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum RefundStatus {

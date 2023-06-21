@@ -506,6 +506,8 @@ pub enum WalletIssuer {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    serde::Deserialize,
+    serde::Serialize,
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum RefundStatus {

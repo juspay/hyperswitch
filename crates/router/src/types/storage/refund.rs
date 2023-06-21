@@ -5,15 +5,26 @@ use error_stack::{IntoReport, ResultExt};
 pub use storage_models::refund::{
     Refund, RefundCoreWorkflow, RefundNew, RefundUpdate, RefundUpdateInternal,
 };
-use storage_models::{errors, schema::refund::dsl};
+use storage_models::{
+    enums::{Currency, RefundStatus},
+    errors,
+    schema::refund::dsl,
+};
 
-use crate::{connection::PgPooledConn, logger};
+use crate::{connection::PgPooledConn, logger, types::transformers::ForeignInto};
 
 #[cfg(feature = "kv_store")]
 impl crate::utils::storage_partitioning::KvStorePartition for Refund {}
 
 #[async_trait::async_trait]
 pub trait RefundDbExt: Sized {
+    async fn filter_by_meta_constraints(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        refund_list_details: &api_models::refunds::RefundListRequest,
+        limit: i64,
+    ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError>;
+
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -44,20 +55,26 @@ impl RefundDbExt for Refund {
             }
         };
 
-        if let Some(created) = refund_list_details.created {
-            filter = filter.filter(dsl::created_at.eq(created));
+        if let Some(time_range) = refund_list_details.time_range {
+            filter = filter.filter(dsl::created_at.ge(time_range.start_time));
+
+            if let Some(end_time) = time_range.end_time {
+                filter = filter.filter(dsl::created_at.le(end_time));
+            }
         }
-        if let Some(created_lt) = refund_list_details.created_lt {
-            filter = filter.filter(dsl::created_at.lt(created_lt));
+
+        if let Some(connector) = refund_list_details.clone().connector {
+            filter = filter.filter(dsl::connector.eq(connector));
         }
-        if let Some(created_gt) = refund_list_details.created_gt {
-            filter = filter.filter(dsl::created_at.gt(created_gt));
+
+        if let Some(filter_currency) = refund_list_details.currency {
+            let storage_curr: Currency = filter_currency.foreign_into();
+            filter = filter.filter(dsl::currency.eq(storage_curr));
         }
-        if let Some(created_lte) = refund_list_details.created_lte {
-            filter = filter.filter(dsl::created_at.le(created_lte));
-        }
-        if let Some(created_gte) = refund_list_details.created_gte {
-            filter = filter.filter(dsl::created_at.gt(created_gte));
+
+        if let Some(filter_refund_status) = refund_list_details.refund_status {
+            let storage_ref_status: RefundStatus = filter_refund_status.foreign_into();
+            filter = filter.filter(dsl::refund_status.eq(storage_ref_status));
         }
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
@@ -68,5 +85,74 @@ impl RefundDbExt for Refund {
             .into_report()
             .change_context(errors::DatabaseError::NotFound)
             .attach_printable_lazy(|| "Error filtering records by predicate")
+    }
+
+    async fn filter_by_meta_constraints(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        refund_list_details: &api_models::refunds::RefundListRequest,
+        limit: i64,
+    ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError> {
+        let start_time = refund_list_details
+            .time_range
+            .map(|t| t.start_time)
+            .unwrap_or(time::macros::datetime!(2022-06-20 00:00:00));
+        let end_time = refund_list_details
+            .time_range
+            .and_then(|t| t.end_time)
+            .unwrap_or_else(common_utils::date_time::now);
+
+        let filter = <Self as HasTable>::table()
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .order(dsl::modified_at.desc())
+            .limit(limit)
+            .filter(dsl::created_at.ge(start_time))
+            .filter(dsl::created_at.le(end_time));
+
+        let filter_connector: Vec<String> = filter
+            .clone()
+            .select(dsl::connector)
+            .distinct()
+            .order_by(dsl::connector.asc())
+            .get_results_async(conn)
+            .await
+            .into_report()
+            .change_context(errors::DatabaseError::NotFound)
+            .attach_printable_lazy(|| "Error filtering records by predicate")?;
+
+        let filter_currency: Vec<Currency> = filter
+            .clone()
+            .select(dsl::currency)
+            .distinct()
+            .order_by(dsl::currency.asc())
+            .get_results_async(conn)
+            .await
+            .into_report()
+            .change_context(errors::DatabaseError::NotFound)
+            .attach_printable_lazy(|| "Error filtering records by predicate")?;
+
+        let filter_status: Vec<RefundStatus> = filter
+            .select(dsl::refund_status)
+            .distinct()
+            .order_by(dsl::refund_status.asc())
+            .get_results_async(conn)
+            .await
+            .into_report()
+            .change_context(errors::DatabaseError::NotFound)
+            .attach_printable_lazy(|| "Error filtering records by predicate")?;
+
+        let meta = api_models::refunds::RefundListMetaData {
+            connector: filter_connector,
+            currency: filter_currency
+                .into_iter()
+                .map(|curr| curr.foreign_into())
+                .collect(),
+            status: filter_status
+                .into_iter()
+                .map(|curr| curr.foreign_into())
+                .collect(),
+        };
+
+        Ok(meta)
     }
 }

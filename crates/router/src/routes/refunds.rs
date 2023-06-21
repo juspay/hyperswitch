@@ -209,3 +209,23 @@ pub async fn refunds_list(
     )
     .await
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
+#[cfg(feature = "olap")]
+// #[post("/list")]
+pub async fn refunds_list_with_filters(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<api_models::refunds::RefundListRequest>,
+) -> HttpResponse {
+    let flow = Flow::RefundsList;
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload.into_inner(),
+        |state, merchant_account, req| refund_list(&*state.store, merchant_account, req),
+        &auth::ApiKeyAuth,
+    )
+    .await
+}
