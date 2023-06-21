@@ -8,7 +8,9 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData},
+    connector::utils::{
+        self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
+    },
     consts,
     core::{errors, payments::operations::Flow},
     services,
