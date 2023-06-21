@@ -130,7 +130,8 @@ where
                 &state.store().get_master_key().to_vec().into(),
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::Unauthorized)
+            .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
         let merchant = state
             .store()
@@ -223,7 +224,14 @@ where
                 &state.store().get_master_key().to_vec().into(),
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to fetch merchant key store for the merchant id")
+                }
+            })?;
 
         let merchant = state
             .store()
@@ -326,7 +334,8 @@ where
                 &state.store().get_master_key().to_vec().into(),
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
         let merchant = state
             .store()

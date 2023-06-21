@@ -200,7 +200,7 @@ pub async fn get_merchant_account(
             &db.get_master_key().to_vec().into(),
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_account = db
         .find_merchant_account_by_merchant_id(&req.merchant_id, &key_store)
@@ -225,7 +225,7 @@ pub async fn merchant_account_update(
             &db.get_master_key().to_vec().into(),
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     if &req.merchant_id != merchant_id {
         Err(report!(errors::ValidationError::IncorrectValueProvided {
@@ -444,7 +444,7 @@ pub async fn create_payment_connector(
     let key_store = store
         .get_merchant_key_store_by_merchant_id(merchant_id, &store.get_master_key().to_vec().into())
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     req.metadata
         .clone()
@@ -565,7 +565,7 @@ pub async fn retrieve_payment_connector(
             &store.get_master_key().to_vec().into(),
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let _merchant_account = store
         .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
@@ -596,7 +596,7 @@ pub async fn list_payment_connectors(
             &store.get_master_key().to_vec().into(),
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     // Validate merchant account
     store
@@ -631,7 +631,7 @@ pub async fn update_payment_connector(
     let key_store = db
         .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let _merchant_account = db
         .find_merchant_account_by_merchant_id(merchant_id, &key_store)
@@ -709,7 +709,7 @@ pub async fn delete_payment_connector(
     let key_store = db
         .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let _merchant_account = db
         .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
@@ -741,7 +741,7 @@ pub async fn kv_for_merchant(
     let key_store = db
         .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     // check if the merchant account exists
     let merchant_account = db
@@ -798,7 +798,7 @@ pub async fn check_merchant_account_kv_status(
     let key_store = db
         .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     // check if the merchant account exists
     let merchant_account = db
