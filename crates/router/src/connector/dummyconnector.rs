@@ -75,10 +75,10 @@ where
 impl<const T: u8> ConnectorCommon for DummyConnector<T> {
     fn id(&self) -> &'static str {
         match T {
-            1 => "dummyconnector1",
-            2 => "dummyconnector2",
-            3 => "dummyconnector3",
-            _ => "dummyconnector",
+            1 => "phonypay",
+            2 => "fauxpay",
+            3 => "pretendpay",
+            _ => "phonypay",
         }
     }
 
