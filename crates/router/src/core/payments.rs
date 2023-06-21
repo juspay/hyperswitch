@@ -143,7 +143,7 @@ where
                     state,
                     &merchant_account,
                     connector,
-                    operation,
+                    &operation,
                     &mut payment_data,
                     &customer,
                     call_connector_action,
@@ -491,7 +491,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     connector: api::ConnectorData,
-    operation: BoxedOperation<'_, F, ApiRequest>,
+    operation: &BoxedOperation<'_, F, ApiRequest>,
     payment_data: &mut PaymentData<F>,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
@@ -578,7 +578,9 @@ where
 
     let router_data_res = if should_continue_further {
         // The status of payment_attempt and intent will be updated in the previous step
-        // This field will be used by the connector
+        // update this in router_data.
+        // This is added because few connector integrations do not updte the status,
+        // and rely on previous status set in router_data
         router_data.status = payment_data.payment_attempt.status;
         router_data
             .decide_flows(
