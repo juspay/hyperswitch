@@ -55,7 +55,6 @@ impl super::behaviour::Conversion for Customer {
         item: Self::DstType,
         db: &dyn StorageInterface,
         merchant_id: &str,
-        migration_timestamp: i64,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
@@ -66,12 +65,8 @@ impl super::behaviour::Conversion for Customer {
                 message: "Failed while getting key from key store".to_string(),
             })?;
         async {
-            let modified_at = item.modified_at.assume_utc().unix_timestamp();
-
-            let inner_decrypt =
-                |inner| types::decrypt(inner, &key, modified_at, migration_timestamp);
-            let inner_decrypt_email =
-                |inner| types::decrypt(inner, &key, modified_at, migration_timestamp);
+            let inner_decrypt = |inner| types::decrypt(inner, &key);
+            let inner_decrypt_email = |inner| types::decrypt(inner, &key);
             Ok(Self {
                 id: Some(item.id),
                 customer_id: item.customer_id,

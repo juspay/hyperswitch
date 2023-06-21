@@ -319,7 +319,7 @@ pub trait ConnectorActions: Connector {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::RefundsData {
-                amount: 1000,
+                payment_amount: 1000,
                 currency: enums::Currency::USD,
                 refund_id: uuid::Uuid::new_v4().to_string(),
                 connector_transaction_id: "".to_string(),
@@ -442,6 +442,7 @@ async fn call_connector<
         integration,
         &request,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
 }
@@ -508,6 +509,7 @@ impl Default for PaymentAuthorizeType {
             setup_mandate_details: None,
             browser_info: Some(BrowserInfoType::default().0),
             order_details: None,
+            order_category: None,
             email: None,
             session_token: None,
             enrolled_for_3ds: false,
@@ -548,15 +550,15 @@ impl Default for PaymentCancelType {
 impl Default for BrowserInfoType {
     fn default() -> Self {
         let data = types::BrowserInformation {
-            user_agent: "".to_string(),
-            accept_header: "".to_string(),
-            language: "nl-NL".to_string(),
-            color_depth: 24,
-            screen_height: 723,
-            screen_width: 1536,
-            time_zone: 0,
-            java_enabled: true,
-            java_script_enabled: true,
+            user_agent: Some("".to_string()),
+            accept_header: Some("".to_string()),
+            language: Some("nl-NL".to_string()),
+            color_depth: Some(24),
+            screen_height: Some(723),
+            screen_width: Some(1536),
+            time_zone: Some(0),
+            java_enabled: Some(true),
+            java_script_enabled: Some(true),
             ip_address: Some("127.0.0.1".parse().unwrap()),
         };
         Self(data)
@@ -581,7 +583,7 @@ impl Default for PaymentSyncType {
 impl Default for PaymentRefundType {
     fn default() -> Self {
         let data = types::RefundsData {
-            amount: 100,
+            payment_amount: 100,
             currency: enums::Currency::USD,
             refund_id: uuid::Uuid::new_v4().to_string(),
             connector_transaction_id: String::new(),

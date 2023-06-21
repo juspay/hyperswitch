@@ -1,6 +1,5 @@
-FROM rust:slim as builder
+FROM rust:slim-bookworm as builder
 
-ARG RUN_ENV=sandbox
 ARG EXTRA_FEATURES=""
 
 RUN apt-get update \
@@ -33,11 +32,11 @@ ENV RUST_BACKTRACE="short"
 ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
 
 COPY . .
-RUN cargo build --release --features ${RUN_ENV} ${EXTRA_FEATURES}
+RUN cargo build --release --features release ${EXTRA_FEATURES}
 
 
 
-FROM debian
+FROM debian:bookworm-slim
 
 # Placing config and binary executable in different directories
 ARG CONFIG_DIR=/local/config
