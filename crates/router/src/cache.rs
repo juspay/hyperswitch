@@ -117,6 +117,10 @@ impl Cache {
         let val = self.get(key)?;
         (*val).as_any().downcast_ref::<T>().cloned()
     }
+
+    pub async fn remove(&self, key: &str) {
+        self.invalidate(key).await;
+    }
 }
 
 #[cfg(test)]
@@ -131,17 +135,27 @@ mod cache_tests {
     }
 
     #[tokio::test]
-    async fn eviction_on_time_test() {
-        let cache = Cache::new(2, 2, None);
+    async fn eviction_on_size_test() {
+        let cache = Cache::new(2, 2, Some(0));
         cache.push("key".to_string(), "val".to_string()).await;
-        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
         assert_eq!(cache.get_val::<String>("key"), None);
     }
 
     #[tokio::test]
-    async fn eviction_on_size_test() {
-        let cache = Cache::new(2, 2, Some(0));
+    async fn invalidate_cache_for_key() {
+        let cache = Cache::new(1800, 1800, None);
         cache.push("key".to_string(), "val".to_string()).await;
+
+        cache.remove("key").await;
+
+        assert_eq!(cache.get_val::<String>("key"), None);
+    }
+
+    #[tokio::test]
+    async fn eviction_on_time_test() {
+        let cache = Cache::new(2, 2, None);
+        cache.push("key".to_string(), "val".to_string()).await;
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
         assert_eq!(cache.get_val::<String>("key"), None);
     }
 }

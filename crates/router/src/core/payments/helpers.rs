@@ -272,6 +272,7 @@ pub async fn get_token_pm_type_mandate_details(
 ) -> RouterResult<(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
+    Option<storage_enums::PaymentMethodType>,
     Option<api::MandateData>,
     Option<String>,
 )> {
@@ -284,18 +285,27 @@ pub async fn get_token_pm_type_mandate_details(
             Ok((
                 request.payment_token.to_owned(),
                 request.payment_method.map(ForeignInto::foreign_into),
+                request.payment_method_type.map(ForeignInto::foreign_into),
                 Some(setup_mandate),
                 None,
             ))
         }
         Some(api::MandateTxnType::RecurringMandateTxn) => {
-            let (token_, payment_method_type_, mandate_connector) =
+            let (token_, payment_method_, payment_method_type_, mandate_connector) =
                 get_token_for_recurring_mandate(state, request, merchant_account).await?;
-            Ok((token_, payment_method_type_, None, mandate_connector))
+            Ok((
+                token_,
+                payment_method_,
+                payment_method_type_
+                    .or_else(|| request.payment_method_type.map(ForeignInto::foreign_into)),
+                None,
+                mandate_connector,
+            ))
         }
         None => Ok((
             request.payment_token.to_owned(),
             request.payment_method.map(ForeignInto::foreign_into),
+            request.payment_method_type.map(ForeignInto::foreign_into),
             request.mandate_data.clone(),
             None,
         )),
@@ -309,6 +319,7 @@ pub async fn get_token_for_recurring_mandate(
 ) -> RouterResult<(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
+    Option<storage_enums::PaymentMethodType>,
     Option<String>,
 )> {
     let db = &*state.store;
@@ -368,12 +379,14 @@ pub async fn get_token_for_recurring_mandate(
         Ok((
             Some(token),
             Some(payment_method.payment_method),
+            payment_method.payment_method_type,
             Some(mandate.connector),
         ))
     } else {
         Ok((
             None,
             Some(payment_method.payment_method),
+            payment_method.payment_method_type,
             Some(mandate.connector),
         ))
     }
@@ -431,6 +444,72 @@ pub fn validate_request_amount_and_amount_to_capture(
             }
         }
     }
+}
+
+#[instrument(skip_all)]
+pub fn validate_card_data(
+    payment_method_data: Option<api::PaymentMethodData>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if let Some(api::PaymentMethodData::Card(card)) = payment_method_data {
+        let cvc = card.card_cvc.peek().to_string();
+        if cvc.len() < 3 || cvc.len() > 4 {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid card_cvc length".to_string()
+            }))?
+        }
+        let card_cvc = cvc.parse::<u16>().into_report().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "card_cvc",
+            },
+        )?;
+        ::cards::CardSecurityCode::try_from(card_cvc).change_context(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid Card CVC".to_string(),
+            },
+        )?;
+
+        let exp_month = card
+            .card_exp_month
+            .peek()
+            .to_string()
+            .parse::<u8>()
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "card_exp_month",
+            })?;
+        let month = ::cards::CardExpirationMonth::try_from(exp_month).change_context(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid Expiry Month".to_string(),
+            },
+        )?;
+        let mut year_str = card.card_exp_year.peek().to_string();
+        if year_str.len() == 2 {
+            year_str = format!("20{}", year_str);
+        }
+        let exp_year = year_str.parse::<u16>().into_report().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "card_exp_year",
+            },
+        )?;
+        let year = ::cards::CardExpirationYear::try_from(exp_year).change_context(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid Expiry Year".to_string(),
+            },
+        )?;
+
+        let card_expiration = ::cards::CardExpiration { month, year };
+        let is_expired = card_expiration.is_expired().change_context(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid card data".to_string(),
+            },
+        )?;
+        if is_expired {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Card Expired".to_string()
+            }))?
+        }
+    }
+    Ok(())
 }
 
 pub fn validate_mandate(
@@ -1665,7 +1744,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
 ) -> error_stack::Result<Option<storage::PaymentIntent>, errors::ApiErrorResponse> {
     client_secret
         .async_map(|cs| async move {
-            let payment_id = get_payment_id_from_client_secret(&cs);
+            let payment_id = get_payment_id_from_client_secret(&cs)?;
 
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
@@ -1769,8 +1848,12 @@ pub fn get_business_details(
 }
 
 #[inline]
-pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> String {
-    cs.split('_').take(2).collect::<Vec<&str>>().join("_")
+pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String> {
+    let (payment_id, _) = cs
+        .rsplit_once("_secret_")
+        .ok_or(errors::ApiErrorResponse::ClientSecretInvalid)
+        .into_report()?;
+    Ok(payment_id.to_string())
 }
 
 #[cfg(test)]
@@ -2373,4 +2456,29 @@ pub fn add_order_details_and_metadata_to_payment_intent(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    #![allow(clippy::unwrap_used)]
+    #[test]
+    fn test_client_secret_parse() {
+        let client_secret1 = "pay_3TgelAms4RQec8xSStjF_secret_fc34taHLw1ekPgNh92qr";
+        let client_secret2 = "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_fc34taHLw1ekPgNh92qr";
+        let client_secret3 =
+            "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret__secret_fc34taHLw1ekPgNh92qr";
+
+        assert_eq!(
+            "pay_3TgelAms4RQec8xSStjF",
+            super::get_payment_id_from_client_secret(client_secret1).unwrap()
+        );
+        assert_eq!(
+            "pay_3Tgel__Ams4RQ_secret_ec8xSStjF",
+            super::get_payment_id_from_client_secret(client_secret2).unwrap()
+        );
+        assert_eq!(
+            "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_",
+            super::get_payment_id_from_client_secret(client_secret3).unwrap()
+        );
+    }
 }
