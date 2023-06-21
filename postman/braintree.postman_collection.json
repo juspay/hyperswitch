@@ -350,7 +350,7 @@
 								}
 							]
 						},
-						"description": "To update an existng merchant account. Helpful in updating merchant details such as email, contact deteails, or other configuration details like webhook, routing algorithm etc"
+						"description": "To update an existing merchant account. Helpful in updating merchant details such as email, contact deteails, or other configuration details like webhook, routing algorithm etc"
 					},
 					"response": []
 				}
@@ -1102,7 +1102,7 @@
 								}
 							]
 						},
-						"description": "To update an existng Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc"
+						"description": "To update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc"
 					},
 					"response": []
 				},
@@ -1858,7 +1858,7 @@
 								"refunds"
 							]
 						},
-						"description": "To create a refund againt an already processed payment"
+						"description": "To create a refund against an already processed payment"
 					},
 					"response": []
 				},
@@ -2659,7 +2659,7 @@
 								}
 							]
 						},
-						"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+						"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 					},
 					"response": []
 				},
@@ -3152,7 +3152,7 @@
 								"refunds"
 							]
 						},
-						"description": "To create a refund againt an already processed payment"
+						"description": "To create a refund against an already processed payment"
 					},
 					"response": []
 				},
@@ -3637,7 +3637,7 @@
 								}
 							]
 						},
-						"description": "To update an existng a payment method attached to a customer object. This API is useful for use cases such as updating the card number for expired cards, to prevent discontinuity in recurring payments"
+						"description": "To update an existing a payment method attached to a customer object. This API is useful for use cases such as updating the card number for expired cards, to prevent discontinuity in recurring payments"
 					},
 					"response": []
 				},
@@ -4578,7 +4578,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -4882,7 +4882,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -5905,7 +5905,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								}
