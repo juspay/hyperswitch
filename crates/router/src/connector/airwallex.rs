@@ -349,9 +349,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = airwallex::AirwallexPaymentsRequest::try_from(req)?;
         let airwallex_req = types::RequestBody::log_and_get_request_body(
-            req,
-            utils::Encode::<airwallex::AirwallexPaymentsRequest>::convert_and_encode,
+            &connector_req,
+            utils::Encode::<airwallex::AirwallexPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(airwallex_req))
@@ -789,9 +790,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = airwallex::AirwallexRefundRequest::try_from(req)?;
         let airwallex_req = types::RequestBody::log_and_get_request_body(
-            req,
-            utils::Encode::<airwallex::AirwallexRefundRequest>::convert_and_encode,
+            &connector_req,
+            utils::Encode::<airwallex::AirwallexRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(airwallex_req))

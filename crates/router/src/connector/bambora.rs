@@ -322,9 +322,10 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = bambora::BamboraPaymentsCaptureRequest::try_from(req)?;
         let bambora_req = types::RequestBody::log_and_get_request_body(
-            req,
-            utils::Encode::<bambora::BamboraPaymentsCaptureRequest>::convert_and_encode,
+            &connector_req,
+            utils::Encode::<bambora::BamboraPaymentsCaptureRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bambora_req))
@@ -511,9 +512,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = bambora::BamboraRefundRequest::try_from(req)?;
         let bambora_req = types::RequestBody::log_and_get_request_body(
-            req,
-            utils::Encode::<bambora::BamboraRefundRequest>::convert_and_encode,
+            &connector_req,
+            utils::Encode::<bambora::BamboraRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bambora_req))
