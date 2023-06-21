@@ -118,7 +118,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         state: &AppState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<Option<services::Request>> {
+    ) -> RouterResult<(Option<services::Request>, bool)> {
         match call_connector_action {
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedConnectorIntegration<
@@ -128,11 +128,14 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
 
-                connector_integration
-                    .build_request(self, &state.conf.connectors)
-                    .to_payment_failed_response()
+                Ok((
+                    connector_integration
+                        .build_request(self, &state.conf.connectors)
+                        .to_payment_failed_response()?,
+                    true,
+                ))
             }
-            _ => Ok(None),
+            _ => Ok((None, true)),
         }
     }
 }

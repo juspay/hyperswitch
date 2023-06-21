@@ -551,13 +551,15 @@ where
         payment_data.sessions_token.push(session_token);
     };
 
-    let connector_request = if should_continue_further {
+    // In case of authorize flow, pre-task and post-tasks are being called in build request
+    // if we do not want to proceed further, then the function will return Ok(None, false)
+    let (connector_request, should_continue_further) = if should_continue_further {
         // Check if the actual flow specific request can be built with available data
         router_data
             .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
             .await?
     } else {
-        None
+        (None, false)
     };
 
     // Update the payment trackers just before calling the connector
