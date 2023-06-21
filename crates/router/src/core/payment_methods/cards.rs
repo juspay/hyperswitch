@@ -1246,6 +1246,7 @@ fn filter_pm_based_on_config<'a>(
     config
         .0
         .get(connector)
+        .or_else(|| config.0.get("default"))
         .and_then(|inner| match payment_method_type {
             api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
                 card_network_filter(country, currency, card_network, inner);
