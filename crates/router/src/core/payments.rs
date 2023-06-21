@@ -579,7 +579,7 @@ where
     let router_data_res = if should_continue_further {
         // The status of payment_attempt and intent will be updated in the previous step
         // update this in router_data.
-        // This is added because few connector integrations do not updte the status,
+        // This is added because few connector integrations do not update the status,
         // and rely on previous status set in router_data
         router_data.status = payment_data.payment_attempt.status;
         router_data
