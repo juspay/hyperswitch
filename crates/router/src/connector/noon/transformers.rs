@@ -7,7 +7,7 @@ use crate::{
     },
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, ErrorResponse},
 };
 
 // These needs to be accepted from SDK, need to be done after 1.0.0 stability as API contract will change
@@ -280,6 +280,8 @@ pub struct NoonSubscriptionResponse {
 pub struct NoonPaymentsOrderResponse {
     status: NoonPaymentStatus,
     id: u64,
+    error_code: u64,
+    error_message: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -326,15 +328,23 @@ impl<F, T>
                 });
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.result.order.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.result.order.id.to_string(),
-                ),
-                redirection_data,
-                mandate_reference,
-                connector_metadata: None,
-                network_txn_id: None,
-            }),
+            response: match item.response.result.order.error_message {
+                Some(error_message) => Err(ErrorResponse {
+                    code: item.response.result.order.error_code.to_string(),
+                    message: error_message.clone(),
+                    reason: Some(error_message),
+                    status_code: item.http_code,
+                }),
+                _ => Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.result.order.id.to_string(),
+                    ),
+                    redirection_data,
+                    mandate_reference,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                }),
+            },
             ..item.data
         })
     }
