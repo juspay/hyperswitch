@@ -103,7 +103,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .map(ForeignInto::foreign_into)
             .or(payment_intent.setup_future_usage);
 
-        let (token, payment_method, setup_mandate, mandate_connector) =
+        let (token, payment_method, payment_method_type, setup_mandate, mandate_connector) =
             helpers::get_token_pm_type_mandate_details(
                 state,
                 request,
@@ -122,6 +122,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 field_name: "browser_info",
             })?;
 
+        helpers::validate_card_data(request.payment_method_data.clone())?;
+
         let customer_details = helpers::get_customer_details_from_request(request);
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
@@ -136,10 +138,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
-        payment_attempt.payment_method_type = request
-            .payment_method_type
-            .map(|pmt| pmt.foreign_into())
-            .or(payment_attempt.payment_method_type);
+        payment_attempt.payment_method_type =
+            payment_method_type.or(payment_attempt.payment_method_type);
 
         payment_attempt.payment_experience = request
             .payment_experience
@@ -343,7 +343,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,

@@ -113,7 +113,7 @@ impl ConnectorCommon for Trustpay {
             status_code: res.status_code,
             code: response.status.to_string(),
             message: format!("{:?}", response.errors.first().unwrap_or(&default_error)),
-            reason: None,
+            reason: Some(format!("{:?}", response.errors)),
         })
     }
 }
@@ -242,8 +242,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.result_info.result_code.to_string(),
-            message: response.result_info.additional_info.unwrap_or_default(),
-            reason: None,
+            message: response
+                .result_info
+                .additional_info
+                .clone()
+                .unwrap_or_default(),
+            reason: response.result_info.additional_info,
         })
     }
 }
@@ -314,8 +318,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.status.to_string(),
-            message: response.payment_description,
-            reason: None,
+            message: response.payment_description.clone(),
+            reason: Some(response.payment_description),
         })
     }
 

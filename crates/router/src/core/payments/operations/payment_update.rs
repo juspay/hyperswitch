@@ -63,6 +63,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .map(ForeignInto::foreign_into)
             .or(payment_intent.setup_future_usage);
 
+        helpers::validate_card_data(request.payment_method_data.clone())?;
+
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
             &[
@@ -73,7 +75,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             "update",
         )?;
 
-        let (token, payment_method_type, setup_mandate, mandate_connector) =
+        let (token, payment_method, payment_method_type, setup_mandate, mandate_connector) =
             helpers::get_token_pm_type_mandate_details(
                 state,
                 request,
@@ -106,7 +108,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             None => payment_attempt.currency.get_required_value("currency")?,
         };
 
-        payment_attempt.payment_method = payment_method_type.or(payment_attempt.payment_method);
+        payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
+        payment_attempt.payment_method_type =
+            payment_method_type.or(payment_attempt.payment_method_type);
         let customer_details = helpers::get_customer_details_from_request(request);
 
         let amount = request
@@ -371,7 +375,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,

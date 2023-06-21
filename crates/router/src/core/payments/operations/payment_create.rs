@@ -65,7 +65,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let (token, payment_method_type, setup_mandate, mandate_connector) =
+        let (token, payment_method, payment_method_type, setup_mandate, mandate_connector) =
             helpers::get_token_pm_type_mandate_details(
                 state,
                 request,
@@ -111,6 +111,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     &payment_id,
                     merchant_id,
                     money,
+                    payment_method,
                     payment_method_type,
                     request,
                     browser_info,
@@ -328,7 +329,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -344,6 +344,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             },
             IntentStatus::RequiresConfirmation => {
                 if let Some(true) = payment_data.confirm {
+                    //TODO: do this later, request validation should happen before
                     Some(IntentStatus::Processing)
                 } else {
                     None
@@ -444,6 +445,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             expected_format: "amount_to_capture lesser than amount".to_string(),
         })?;
 
+        helpers::validate_card_data(request.payment_method_data.clone())?;
+
         helpers::validate_payment_method_fields_present(request)?;
 
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
@@ -464,7 +467,11 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
                 request.shipping.is_some(),
                 request.billing.is_some(),
                 request.setup_future_usage.is_some(),
-                &request.customer_id,
+                &request
+                    .customer
+                    .clone()
+                    .map(|customer| customer.id)
+                    .or(request.customer_id.clone()),
             )?;
         }
 
@@ -487,6 +494,7 @@ impl PaymentCreate {
         merchant_id: &str,
         money: (api::Amount, enums::Currency),
         payment_method: Option<enums::PaymentMethod>,
+        payment_method_type: Option<enums::PaymentMethodType>,
         request: &api::PaymentsRequest,
         browser_info: Option<serde_json::Value>,
     ) -> RouterResult<storage::PaymentAttemptNew> {
@@ -522,7 +530,7 @@ impl PaymentCreate {
             authentication_type: request.authentication_type.map(ForeignInto::foreign_into),
             browser_info,
             payment_experience: request.payment_experience.map(ForeignInto::foreign_into),
-            payment_method_type: request.payment_method_type.map(ForeignInto::foreign_into),
+            payment_method_type,
             payment_method_data: additional_pm_data,
             amount_to_capture: request.amount_to_capture,
             payment_token: request.payment_token.clone(),

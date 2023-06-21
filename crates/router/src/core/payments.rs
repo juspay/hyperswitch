@@ -129,18 +129,6 @@ where
     )
     .await?;
 
-    let (operation, mut payment_data) = operation
-        .to_update_tracker()?
-        .update_trackers(
-            &*state.store,
-            &validate_result.payment_id,
-            payment_data,
-            customer.clone(),
-            validate_result.storage_scheme,
-            updated_customer,
-        )
-        .await?;
-
     if let Some(connector_details) = connector {
         if should_add_task_to_process_tracker(&payment_data) {
             operation
@@ -160,6 +148,7 @@ where
                     &customer,
                     call_connector_action,
                     tokenization_action,
+                    updated_customer,
                 )
                 .await?;
 
@@ -189,11 +178,24 @@ where
                 .await?
             }
         };
+
         if should_delete_pm_from_locker(payment_data.payment_intent.status) {
             vault::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token)
                 .await
         }
+    } else {
+        (_, payment_data) = operation
+            .to_update_tracker()?
+            .update_trackers(
+                &*state.store,
+                payment_data.clone(),
+                customer.clone(),
+                validate_result.storage_scheme,
+                updated_customer,
+            )
+            .await?;
     }
+
     Ok((payment_data, req, customer))
 }
 
@@ -485,30 +487,28 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn call_connector_service<F, Op, Req>(
+pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     connector: api::ConnectorData,
-    _operation: &Op,
+    operation: &BoxedOperation<'_, F, ApiRequest>,
     payment_data: &mut PaymentData<F>,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
     tokenization_action: TokenizationAction,
-) -> RouterResult<types::RouterData<F, Req, types::PaymentsResponseData>>
+    updated_customer: Option<storage::CustomerUpdate>,
+) -> RouterResult<types::RouterData<F, RouterDReq, types::PaymentsResponseData>>
 where
-    Op: Debug + Sync,
     F: Send + Clone + Sync,
-    Req: Send + Sync,
+    RouterDReq: Send + Sync,
 
     // To create connector flow specific interface data
-    PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
-    types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req> + Send,
+    PaymentData<F>: ConstructFlowSpecificData<F, RouterDReq, types::PaymentsResponseData>,
+    types::RouterData<F, RouterDReq, types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
 
     // To construct connector flow specific api
-    dyn api::Connector: services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,
-
-    // To perform router related operation for PaymentResponse
-    PaymentResponse: Operation<F, Req>,
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, RouterDReq, types::PaymentsResponseData>,
 {
     let stime_connector = Instant::now();
 
@@ -520,7 +520,7 @@ where
         .add_access_token(state, &connector, merchant_account)
         .await?;
 
-    let mut should_continue_payment = access_token::update_router_data_with_access_token_result(
+    let mut should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
@@ -534,12 +534,12 @@ where
         router_data.payment_method_token = Some(payment_method_token);
     };
 
-    (router_data, should_continue_payment) = complete_preprocessing_steps_if_required(
+    (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
         state,
         &connector,
         payment_data,
         router_data,
-        should_continue_payment,
+        should_continue_further,
     )
     .await?;
 
@@ -551,7 +551,34 @@ where
         payment_data.sessions_token.push(session_token);
     };
 
-    let router_data_res = if should_continue_payment {
+    let connector_request = if should_continue_further {
+        // Check if the actual flow specific request can be built with available data
+        router_data
+            .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
+            .await?
+    } else {
+        None
+    };
+
+    // Update the payment trackers just before calling the connector
+    // Since the request is already built in the previous step,
+    // there should be no error in request construction from hyperswitch end
+    (_, *payment_data) = operation
+        .to_update_tracker()?
+        .update_trackers(
+            &*state.store,
+            payment_data.clone(),
+            customer.clone(),
+            merchant_account.storage_scheme,
+            updated_customer,
+        )
+        .await?;
+
+    // The status of payment_attempt and intent will be updated in the previous step
+    // This field will be used by the connector
+    router_data.status = payment_data.payment_attempt.status;
+
+    let router_data_res = if should_continue_further {
         router_data
             .decide_flows(
                 state,
@@ -559,6 +586,7 @@ where
                 customer,
                 call_connector_action,
                 merchant_account,
+                connector_request,
             )
             .await
     } else {
@@ -609,6 +637,7 @@ where
             customer,
             CallConnectorAction::Trigger,
             merchant_account,
+            None,
         );
 
         join_handlers.push(res);

@@ -549,7 +549,7 @@ impl<F>
                         email: item.request.get_email()?,
                         country: item.get_billing_country()?,
                     }),
-                    Some(NuveiBIC::try_from(bank_name)?),
+                    bank_name.map(NuveiBIC::try_from).transpose()?,
                 )
             }
             _ => Err(errors::ConnectorError::NotSupported {

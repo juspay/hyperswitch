@@ -339,6 +339,7 @@ pub struct VerifyRequestData {
     pub router_return_url: Option<String>,
     pub email: Option<Email>,
     pub return_url: Option<String>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Clone)]
