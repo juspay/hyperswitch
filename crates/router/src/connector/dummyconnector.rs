@@ -9,7 +9,10 @@ use transformers as dummyconnector;
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments::operations::Flow,
+    },
     headers,
     services::{
         self,
@@ -50,14 +53,14 @@ impl<const T: u8>
     // Not Implemented (R)
 }
 
-impl<const T: u8, Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+impl<const T: u8, F: Flow, Request, Response> ConnectorCommonExt<F, Request, Response>
     for DummyConnector<T>
 where
-    Self: ConnectorIntegration<Flow, Request, Response>,
+    Self: ConnectorIntegration<F, Request, Response>,
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
+        req: &types::RouterData<F, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(

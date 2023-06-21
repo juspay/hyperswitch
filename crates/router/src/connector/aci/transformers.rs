@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use super::result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
 use crate::{
     connector::utils,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     services,
     types::{self, api, storage::enums},
 };
@@ -410,7 +410,7 @@ pub struct ErrorParameters {
     pub(super) message: String,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, AciPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -467,7 +467,7 @@ pub struct AciRefundRequest {
     pub entity_id: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for AciRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for AciRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount =
@@ -532,7 +532,7 @@ pub struct AciRefundResponse {
     pub(super) result: ResultCode,
 }
 
-impl<F> TryFrom<types::RefundsResponseRouterData<F, AciRefundResponse>>
+impl<F: Flow> TryFrom<types::RefundsResponseRouterData<F, AciRefundResponse>>
     for types::RefundsRouterData<F>
 {
     type Error = error_stack::Report<errors::ConnectorError>;

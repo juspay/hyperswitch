@@ -6,7 +6,11 @@ pub mod operations;
 pub mod tokenization;
 pub mod transformers;
 
-use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
+use std::{
+    fmt::{Debug, Display},
+    ops::Deref,
+    time::Instant,
+};
 
 use api_models::payments::Metadata;
 use common_utils::pii;
@@ -24,7 +28,7 @@ pub use self::operations::{
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
     helpers::authenticate_client_secret,
-    operations::{payment_complete_authorize, BoxedOperation, Operation},
+    operations::{payment_complete_authorize, BoxedOperation, Flow, Operation},
 };
 use super::errors::StorageErrorExt;
 use crate::{
@@ -54,7 +58,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<(PaymentData<F>, Req, Option<domain::Customer>)>
 where
-    F: Send + Clone + Sync,
+    F: Flow + Sync,
     Req: Authenticate,
     Op: Operation<F, Req> + Send + Sync,
 
@@ -209,7 +213,7 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone + Sync,
+    F: Flow + Sync,
     FData: Send + Sync,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug + Authenticate,
@@ -244,8 +248,8 @@ where
     )
 }
 
-fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
-    format!("{operation:?}").eq("PaymentStart")
+fn is_start_pay<Op: Display>(operation: &Op) -> bool {
+    operation.to_string().eq("PaymentStart")
 }
 
 #[derive(Clone, Debug)]
@@ -499,7 +503,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     updated_customer: Option<storage::CustomerUpdate>,
 ) -> RouterResult<types::RouterData<F, RouterDReq, types::PaymentsResponseData>>
 where
-    F: Send + Clone + Sync,
+    F: Flow,
     RouterDReq: Send + Sync,
 
     // To create connector flow specific interface data
@@ -609,8 +613,8 @@ pub async fn call_multiple_connectors_service<F, Op, Req>(
     customer: &Option<domain::Customer>,
 ) -> RouterResult<PaymentData<F>>
 where
-    Op: Debug,
-    F: Send + Clone,
+    Op: Display,
+    F: Flow + Sync,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
@@ -687,7 +691,7 @@ pub async fn call_create_connector_customer_if_required<F, Req>(
     payment_data: &mut PaymentData<F>,
 ) -> RouterResult<Option<storage::CustomerUpdate>>
 where
-    F: Send + Clone + Sync,
+    F: Flow,
     Req: Send + Sync,
 
     // To create connector flow specific interface data
@@ -760,7 +764,7 @@ where
     }
 }
 
-async fn complete_preprocessing_steps_if_required<F, Req>(
+async fn complete_preprocessing_steps_if_required<F: Flow, Req>(
     state: &AppState,
     connector: &api::ConnectorData,
     payment_data: &PaymentData<F>,
@@ -768,7 +772,6 @@ async fn complete_preprocessing_steps_if_required<F, Req>(
     should_continue_payment: bool,
 ) -> RouterResult<(types::RouterData<F, Req, types::PaymentsResponseData>, bool)>
 where
-    F: Send + Clone + Sync,
     Req: Send + Sync,
     types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req> + Send,
     dyn api::Connector: services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,
@@ -901,7 +904,7 @@ pub async fn get_connector_tokenization_action<F, Req>(
     validate_result: &operations::ValidateResult<'_>,
 ) -> RouterResult<(PaymentData<F>, TokenizationAction)>
 where
-    F: Send + Clone,
+    F: Flow,
 {
     let connector = payment_data.payment_attempt.connector.to_owned();
 
@@ -1006,9 +1009,9 @@ pub struct PaymentAddress {
 #[derive(Clone)]
 pub struct PaymentData<F>
 where
-    F: Clone,
+    F: Flow,
 {
-    pub flow: PhantomData<F>,
+    pub flow: F,
     pub payment_intent: storage::PaymentIntent,
     pub payment_attempt: storage::PaymentAttempt,
     pub connector_response: storage::ConnectorResponse,
@@ -1049,7 +1052,7 @@ pub fn if_not_create_change_operation<'a, Op, F>(
     current: &'a Op,
 ) -> BoxedOperation<'_, F, api::PaymentsRequest>
 where
-    F: Send + Clone,
+    F: Flow,
     Op: Operation<F, api::PaymentsRequest> + Send + Sync,
     &'a Op: Operation<F, api::PaymentsRequest>,
 {
@@ -1065,7 +1068,7 @@ where
     }
 }
 
-pub fn is_confirm<'a, F: Clone + Send, R, Op>(
+pub fn is_confirm<'a, F: Flow, R, Op>(
     operation: &'a Op,
     confirm: Option<bool>,
 ) -> BoxedOperation<'_, F, R>
@@ -1082,11 +1085,11 @@ where
     }
 }
 
-pub fn should_call_connector<Op: Debug, F: Clone>(
+pub fn should_call_connector<Op: Display, F: Flow>(
     operation: &Op,
     payment_data: &PaymentData<F>,
 ) -> bool {
-    match format!("{operation:?}").as_str() {
+    match operation.to_string().as_str() {
         "PaymentConfirm" => true,
         "PaymentStart" => {
             !matches!(
@@ -1130,8 +1133,8 @@ pub fn should_delete_pm_from_locker(status: storage_enums::IntentStatus) -> bool
     )
 }
 
-pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
-    matches!(format!("{operation:?}").as_str(), "PaymentConfirm")
+pub fn is_operation_confirm<Op: Display>(operation: &Op) -> bool {
+    matches!(operation.to_string().as_str(), "PaymentConfirm")
 }
 
 #[cfg(feature = "olap")]
@@ -1215,7 +1218,7 @@ pub fn update_straight_through_routing<F>(
     request_straight_through: serde_json::Value,
 ) -> CustomResult<(), errors::ParsingError>
 where
-    F: Send + Clone,
+    F: Flow,
 {
     let _: api::RoutingAlgorithm = request_straight_through
         .clone()
@@ -1235,7 +1238,7 @@ pub async fn get_connector_choice<F, Req>(
     payment_data: &mut PaymentData<F>,
 ) -> RouterResult<Option<api::ConnectorCallType>>
 where
-    F: Send + Clone,
+    F: Flow,
 {
     let connector_choice = operation
         .to_domain()?
@@ -1278,7 +1281,7 @@ pub fn connector_selection<F>(
     request_straight_through: Option<serde_json::Value>,
 ) -> RouterResult<api::ConnectorCallType>
 where
-    F: Send + Clone,
+    F: Flow,
 {
     if let Some(ref connector_name) = payment_data.payment_attempt.connector {
         let connector_data = api::ConnectorData::get_connector_by_name(
@@ -1411,7 +1414,7 @@ pub fn decide_connector(
     Ok(api::ConnectorCallType::Single(connector_data))
 }
 
-pub fn should_add_task_to_process_tracker<F: Clone>(payment_data: &PaymentData<F>) -> bool {
+pub fn should_add_task_to_process_tracker<F: Flow>(payment_data: &PaymentData<F>) -> bool {
     let connector = payment_data.payment_attempt.connector.as_deref();
 
     !matches!(

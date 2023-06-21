@@ -15,7 +15,10 @@ use serde::Serializer;
 
 use crate::{
     consts,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments::operations,
+    },
     pii::PeekInterface,
     types::{self, api, PaymentsCancelData, ResponseId},
     utils::{self, OptionExt, ValueExt},
@@ -47,35 +50,15 @@ impl AccessTokenRequestInfo for types::RefreshTokenRouterData {
     }
 }
 
-pub trait RouterData {
-    fn get_billing(&self) -> Result<&api::Address, Error>;
-    fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error>;
-    fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
-    fn get_description(&self) -> Result<String, Error>;
-    fn get_return_url(&self) -> Result<String, Error>;
-    fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
-    fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error>;
-    fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error>;
-    fn get_session_token(&self) -> Result<String, Error>;
-    fn to_connector_meta<T>(&self) -> Result<T, Error>
-    where
-        T: serde::de::DeserializeOwned;
-    fn is_three_ds(&self) -> bool;
-    fn get_payment_method_token(&self) -> Result<String, Error>;
-    fn get_customer_id(&self) -> Result<String, Error>;
-    fn get_connector_customer_id(&self) -> Result<String, Error>;
-    fn get_preprocessing_id(&self) -> Result<String, Error>;
-}
-
-impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
-    fn get_billing(&self) -> Result<&api::Address, Error> {
+impl<Flow: operations::Flow, Request, Response> types::RouterData<Flow, Request, Response> {
+    pub fn get_billing(&self) -> Result<&api::Address, Error> {
         self.address
             .billing
             .as_ref()
             .ok_or_else(missing_field_err("billing"))
     }
 
-    fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error> {
+    pub fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error> {
         self.address
             .billing
             .as_ref()
@@ -84,43 +67,43 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .ok_or_else(missing_field_err("billing.address.country"))
     }
 
-    fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error> {
+    pub fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error> {
         self.address
             .billing
             .as_ref()
             .and_then(|a| a.phone.as_ref())
             .ok_or_else(missing_field_err("billing.phone"))
     }
-    fn get_description(&self) -> Result<String, Error> {
+    pub fn get_description(&self) -> Result<String, Error> {
         self.description
             .clone()
             .ok_or_else(missing_field_err("description"))
     }
-    fn get_return_url(&self) -> Result<String, Error> {
+    pub fn get_return_url(&self) -> Result<String, Error> {
         self.return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
     }
-    fn get_billing_address(&self) -> Result<&api::AddressDetails, Error> {
+    pub fn get_billing_address(&self) -> Result<&api::AddressDetails, Error> {
         self.address
             .billing
             .as_ref()
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("billing.address"))
     }
-    fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error> {
+    pub fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error> {
         self.connector_meta_data
             .clone()
             .ok_or_else(missing_field_err("connector_meta_data"))
     }
 
-    fn get_session_token(&self) -> Result<String, Error> {
+    pub fn get_session_token(&self) -> Result<String, Error> {
         self.session_token
             .clone()
             .ok_or_else(missing_field_err("session_token"))
     }
 
-    fn to_connector_meta<T>(&self) -> Result<T, Error>
+    pub fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned,
     {
@@ -129,36 +112,36 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .change_context(errors::ConnectorError::NoConnectorMetaData)
     }
 
-    fn is_three_ds(&self) -> bool {
+    pub fn is_three_ds(&self) -> bool {
         matches!(
             self.auth_type,
             storage_models::enums::AuthenticationType::ThreeDs
         )
     }
 
-    fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error> {
+    pub fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error> {
         self.address
             .shipping
             .as_ref()
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("shipping.address"))
     }
-    fn get_payment_method_token(&self) -> Result<String, Error> {
+    pub fn get_payment_method_token(&self) -> Result<String, Error> {
         self.payment_method_token
             .clone()
             .ok_or_else(missing_field_err("payment_method_token"))
     }
-    fn get_customer_id(&self) -> Result<String, Error> {
+    pub fn get_customer_id(&self) -> Result<String, Error> {
         self.customer_id
             .to_owned()
             .ok_or_else(missing_field_err("customer_id"))
     }
-    fn get_connector_customer_id(&self) -> Result<String, Error> {
+    pub fn get_connector_customer_id(&self) -> Result<String, Error> {
         self.connector_customer
             .to_owned()
             .ok_or_else(missing_field_err("connector_customer_id"))
     }
-    fn get_preprocessing_id(&self) -> Result<String, Error> {
+    pub fn get_preprocessing_id(&self) -> Result<String, Error> {
         self.preprocessing_id
             .to_owned()
             .ok_or_else(missing_field_err("preprocessing_id"))

@@ -11,7 +11,10 @@ use crate::{
     configs::settings,
     connector::utils as conn_utils,
     consts,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments::operations::Flow,
+    },
     db::StorageInterface,
     headers,
     services::{self, request, ConnectorIntegration},
@@ -25,13 +28,13 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Authorizedotnet;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Authorizedotnet
+impl<F: Flow, Request, Response> ConnectorCommonExt<F, Request, Response> for Authorizedotnet
 where
-    Self: ConnectorIntegration<Flow, Request, Response>,
+    Self: ConnectorIntegration<F, Request, Response>,
 {
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Request, Response>,
+        _req: &types::RouterData<F, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, services::request::Maskable<String>)>, errors::ConnectorError>
     {

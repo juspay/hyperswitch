@@ -1,11 +1,9 @@
-use std::marker::PhantomData;
-
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
-use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
+use super::{BoxedOperation, Domain, Flow, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
@@ -21,12 +19,12 @@ use crate::{
     utils::OptionExt,
 };
 
-#[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
+#[derive(Clone, Copy, router_derive::PaymentOperation, router_derive::ZDisplay)]
 #[operation(ops = "all", flow = "capture")]
 pub struct PaymentCapture;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
+impl<F: Flow> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
     for PaymentCapture
 {
     #[instrument(skip_all)]
@@ -133,7 +131,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         Ok((
             Box::new(self),
             payments::PaymentData {
-                flow: PhantomData,
+                flow: F::default(),
                 payment_intent,
                 payment_attempt,
                 currency,
@@ -167,7 +165,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
+impl<F: Flow> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
     for PaymentCapture
 {
     #[instrument(skip_all)]
@@ -189,7 +187,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest> for PaymentCapture {
+impl<F: Flow> ValidateRequest<F, api::PaymentsCaptureRequest> for PaymentCapture {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,

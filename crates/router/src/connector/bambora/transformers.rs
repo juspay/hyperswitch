@@ -7,7 +7,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use crate::{
     connector::utils::{BrowserInformationData, PaymentsAuthorizeRequestData},
     consts,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     services,
     types::{self, api, storage::enums},
 };
@@ -174,7 +174,7 @@ pub enum PaymentFlow {
 }
 
 // PaymentsResponse
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<(
         types::ResponseRouterData<F, BamboraResponse, T, types::PaymentsResponseData>,
         PaymentFlow,
@@ -427,7 +427,7 @@ pub struct BamboraRefundRequest {
     amount: i64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for BamboraRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for BamboraRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

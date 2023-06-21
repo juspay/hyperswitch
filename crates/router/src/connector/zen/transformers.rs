@@ -8,10 +8,11 @@ use serde::{Deserialize, Serialize};
 use strum::Display;
 
 use crate::{
-    connector::utils::{
-        self, BrowserInformationData, CardData, PaymentsAuthorizeRequestData, RouterData,
+    connector::utils::{self, BrowserInformationData, CardData, PaymentsAuthorizeRequestData},
+    core::{
+        errors::{self, CustomResult},
+        payments::operations::Flow,
     },
-    core::errors::{self, CustomResult},
     services::{self, Method},
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
     utils::OptionExt,
@@ -534,7 +535,7 @@ pub struct ZenMerchantActionData {
     redirect_url: url::Url,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, ZenPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -561,7 +562,7 @@ impl<F, T>
     }
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, ApiResponse, T, types::PaymentsResponseData>>
+impl<F: Flow, T> TryFrom<types::ResponseRouterData<F, ApiResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -593,7 +594,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ApiResponse, T, types::PaymentsR
     }
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, CheckoutResponse, T, types::PaymentsResponseData>>
+impl<F: Flow, T>
+    TryFrom<types::ResponseRouterData<F, CheckoutResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -627,7 +629,7 @@ pub struct ZenRefundRequest {
     merchant_transaction_id: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for ZenRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for ZenRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

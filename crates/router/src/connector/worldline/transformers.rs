@@ -6,7 +6,7 @@ use url::Url;
 
 use crate::{
     connector::utils::{self, CardData},
-    core::errors,
+    core::{errors, payments::operations::Flow},
     services,
     types::{
         self,
@@ -488,7 +488,7 @@ pub struct Payment {
     pub capture_method: enums::CaptureMethod,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsResponseData>>
+impl<F: Flow, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -531,7 +531,8 @@ pub struct RedirectData {
     pub redirect_url: Url,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::PaymentsResponseData>>
+impl<F: Flow, T>
+    TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -576,7 +577,7 @@ pub struct WorldlineRefundRequest {
     amount_of_money: AmountOfMoney,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for WorldlineRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for WorldlineRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

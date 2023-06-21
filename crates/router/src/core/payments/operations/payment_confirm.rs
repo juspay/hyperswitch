@@ -1,16 +1,14 @@
-use std::marker::PhantomData;
-
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::ResultExt;
-use router_derive::PaymentOperation;
+use router_derive::{PaymentOperation, ZDisplay};
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{self, helpers, operations, CustomerDetails, Flow, PaymentAddress, PaymentData},
         utils as core_utils,
     },
     db::StorageInterface,
@@ -25,12 +23,12 @@ use crate::{
     utils::{self, OptionExt},
 };
 
-#[derive(Debug, Clone, Copy, PaymentOperation)]
+#[derive(Clone, Copy, PaymentOperation, ZDisplay)]
 #[operation(ops = "all", flow = "authorize")]
 pub struct PaymentConfirm;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
+impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -236,7 +234,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         Ok((
             Box::new(self),
             PaymentData {
-                flow: PhantomData,
+                flow: F::default(),
                 payment_intent,
                 payment_attempt,
                 currency,
@@ -270,7 +268,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
+impl<F: Flow> Domain<F, api::PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -338,7 +336,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
+impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -463,7 +461,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfirm {
+impl<F: Flow> ValidateRequest<F, api::PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,

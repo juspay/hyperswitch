@@ -1,4 +1,4 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::fmt::Display;
 
 use api_models::payments::OrderDetailsWithAmount;
 use common_utils::fp_utils;
@@ -13,7 +13,7 @@ use crate::{
     connector::{Nexinets, Paypal},
     core::{
         errors::{self, RouterResponse, RouterResult},
-        payments::{self, helpers},
+        payments::{self, helpers, operations::Flow},
     },
     routes::{metrics, AppState},
     services::{self, RedirectForm},
@@ -36,7 +36,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
     types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
-    F: Clone,
+    F: Flow,
     error_stack::Report<errors::ApiErrorResponse>:
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
 {
@@ -95,7 +95,7 @@ where
     let customer_id = customer.to_owned().map(|customer| customer.customer_id);
 
     router_data = types::RouterData {
-        flow: PhantomData,
+        flow: F::default(),
         merchant_id: merchant_account.merchant_id.clone(),
         customer_id,
         connector: connector_id.to_owned(),
@@ -130,7 +130,6 @@ where
 pub trait ToResponse<Req, D, Op>
 where
     Self: Sized,
-    Op: Debug,
 {
     fn generate_response(
         req: Option<Req>,
@@ -142,11 +141,7 @@ where
     ) -> RouterResponse<Self>;
 }
 
-impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::PaymentsResponse
-where
-    F: Clone,
-    Op: Debug,
-{
+impl<F: Flow, Req, Op: Display> ToResponse<Req, PaymentData<F>, Op> for api::PaymentsResponse {
     fn generate_response(
         req: Option<Req>,
         payment_data: PaymentData<F>,
@@ -177,8 +172,7 @@ where
 impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::PaymentsSessionResponse
 where
     Self: From<Req>,
-    F: Clone,
-    Op: Debug,
+    F: Flow,
 {
     fn generate_response(
         _req: Option<Req>,
@@ -203,8 +197,7 @@ where
 impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::VerifyResponse
 where
     Self: From<Req>,
-    F: Clone,
-    Op: Debug,
+    F: Flow,
 {
     fn generate_response(
         _req: Option<Req>,
@@ -247,7 +240,7 @@ where
 // try to use router data here so that already validated things , we don't want to repeat the validations.
 // Add internal value not found and external value not found so that we can give 500 / Internal server error for internal value not found
 #[allow(clippy::too_many_arguments)]
-pub fn payments_to_payments_response<R, Op>(
+pub fn payments_to_payments_response<R, Op: Display>(
     payment_request: Option<R>,
     payment_attempt: storage::PaymentAttempt,
     payment_intent: storage::PaymentIntent,
@@ -264,7 +257,6 @@ pub fn payments_to_payments_response<R, Op>(
     session_tokens: Vec<api::SessionToken>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
-    Op: Debug,
 {
     let currency = payment_attempt
         .currency
@@ -515,7 +507,7 @@ where
         &metrics::CONTEXT,
         1,
         &[
-            metrics::request::add_attributes("operation", format!("{:?}", operation)),
+            metrics::request::add_attributes("operation", operation.to_string()),
             metrics::request::add_attributes("merchant", merchant_id),
             metrics::request::add_attributes("payment_method_type", payment_method_type),
             metrics::request::add_attributes("payment_method", payment_method),
@@ -525,15 +517,14 @@ where
     output
 }
 
-pub fn third_party_sdk_session_next_action<Op>(
+pub fn third_party_sdk_session_next_action<Op: Display>(
     payment_attempt: &storage::PaymentAttempt,
     operation: &Op,
 ) -> bool
 where
-    Op: Debug,
 {
     // If the operation is confirm, we will send session token response in next action
-    if format!("{operation:?}").eq("PaymentConfirm") {
+    if operation.to_string().eq("PaymentConfirm") {
         payment_attempt
             .connector
             .as_ref()
@@ -626,14 +617,14 @@ pub fn change_order_details_to_new_type(
 #[derive(Clone)]
 pub struct PaymentAdditionalData<'a, F>
 where
-    F: Clone,
+    F: Flow,
 {
     router_base_url: String,
     connector_name: String,
     payment_data: PaymentData<F>,
     state: &'a AppState,
 }
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthorizeData {
+impl<F: Flow> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
@@ -724,7 +715,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
     }
 }
 
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData {
+impl<F: Flow> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData {
     type Error = errors::ApiErrorResponse;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
@@ -772,7 +763,7 @@ impl api::ConnectorTransactionId for Nexinets {
     }
 }
 
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureData {
+impl<F: Flow> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
@@ -799,7 +790,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
     }
 }
 
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelData {
+impl<F: Flow> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
@@ -822,7 +813,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
     }
 }
 
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionData {
+impl<F: Flow> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
@@ -857,7 +848,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
     }
 }
 
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestData {
+impl<F: Flow> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
@@ -890,7 +881,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
     }
 }
 
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthorizeData {
+impl<F: Flow> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
@@ -932,7 +923,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
     }
 }
 
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProcessingData {
+impl<F: Flow> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProcessingData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
@@ -945,7 +936,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
     }
 }
 
-pub fn fetch_order_details<F: Clone>(
+pub fn fetch_order_details<F: Flow>(
     additional_data: PaymentAdditionalData<'_, F>,
     parsed_metadata: Option<api_models::payments::Metadata>,
     payment_data: &PaymentData<F>,

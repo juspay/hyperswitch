@@ -2,10 +2,8 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
-        self as conn_utils, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
-    },
-    core::errors,
+    connector::utils::{self as conn_utils, PaymentsAuthorizeRequestData, RefundsRequestData},
+    core::{errors, payments::operations::Flow},
     services,
     types::{self, api, storage::enums},
 };
@@ -301,7 +299,7 @@ pub struct NoonPaymentsResponse {
     result: NoonPaymentsResponseResult,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, NoonPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -402,7 +400,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NoonPaymentsCancelRequest {
     }
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for NoonPaymentsActionRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for NoonPaymentsActionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let order = NoonActionOrder {

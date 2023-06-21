@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod transformers;
 
 use std::fmt::Debug;
@@ -49,7 +50,8 @@ impl Nexinets {
     }
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Nexinets
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Nexinets
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

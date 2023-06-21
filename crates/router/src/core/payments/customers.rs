@@ -3,7 +3,7 @@ use router_env::{instrument, tracing};
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
-        payments,
+        payments::{self, operations::Flow},
     },
     logger,
     routes::{metrics, AppState},
@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
-pub async fn create_connector_customer<F: Clone, T: Clone>(
+pub async fn create_connector_customer<F: Flow, T: Clone>(
     state: &AppState,
     connector: &api::ConnectorData,
     router_data: &types::RouterData<F, T, types::PaymentsResponseData>,

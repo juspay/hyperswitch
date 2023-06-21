@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod transformers;
 
 use std::fmt::Debug;
@@ -74,7 +75,8 @@ impl Worldline {
     }
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Worldline
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Worldline
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

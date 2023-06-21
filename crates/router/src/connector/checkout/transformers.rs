@@ -6,8 +6,8 @@ use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    connector::utils::{RouterData, WalletData},
-    core::errors,
+    connector::utils::WalletData,
+    core::{errors, payments::operations::Flow},
     pii, services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
 };
@@ -77,7 +77,7 @@ pub struct CheckoutTokenResponse {
     token: pii::Secret<String>,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, CheckoutTokenResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -509,7 +509,7 @@ pub struct RefundRequest {
     reference: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = item.request.refund_amount;

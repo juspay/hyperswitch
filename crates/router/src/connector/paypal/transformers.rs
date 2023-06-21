@@ -8,7 +8,7 @@ use crate::{
         to_connector_meta, AccessTokenRequestInfo, AddressDetailsData, CardData,
         PaymentsAuthorizeRequestData,
     },
-    core::errors,
+    core::{errors, payments::operations::Flow},
     services,
     types::{self, api, storage::enums as storage_enums, transformers::ForeignFrom},
 };
@@ -188,7 +188,8 @@ pub struct PaypalAuthUpdateResponse {
     pub expires_in: i64,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, PaypalAuthUpdateResponse, T, types::AccessToken>>
+impl<F: Flow, T>
+    TryFrom<types::ResponseRouterData<F, PaypalAuthUpdateResponse, T, types::AccessToken>>
     for types::RouterData<F, T, types::AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -339,7 +340,7 @@ fn get_id_based_on_intent(
     .ok_or_else(|| errors::ConnectorError::MissingConnectorTransactionID.into())
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, PaypalOrdersResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -405,7 +406,7 @@ fn get_redirect_url(
     Ok(link)
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -441,7 +442,7 @@ impl<F, T>
     }
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<
         types::ResponseRouterData<F, PaypalPaymentsSyncResponse, T, types::PaymentsResponseData>,
     > for types::RouterData<F, T, types::PaymentsResponseData>
@@ -572,7 +573,7 @@ pub struct PaypalPaymentsCancelResponse {
     amount: Option<OrderAmount>,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<
         types::ResponseRouterData<F, PaypalPaymentsCancelResponse, T, types::PaymentsResponseData>,
     > for types::RouterData<F, T, types::PaymentsResponseData>
@@ -608,7 +609,7 @@ pub struct PaypalRefundRequest {
     pub amount: OrderAmount,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for PaypalRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for PaypalRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

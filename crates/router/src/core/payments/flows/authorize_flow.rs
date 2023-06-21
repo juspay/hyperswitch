@@ -6,7 +6,10 @@ use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
         mandate,
-        payments::{self, access_token, customers, tokenization, transformers, PaymentData},
+        payments::{
+            self, access_token, customers, operations::Flow, tokenization, transformers,
+            PaymentData,
+        },
     },
     logger,
     routes::{metrics, AppState},
@@ -233,7 +236,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     }
 }
 
-pub async fn authorize_preprocessing_steps<F: Clone>(
+pub async fn authorize_preprocessing_steps<F: Flow>(
     state: &AppState,
     router_data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     confirm: bool,
@@ -304,11 +307,11 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
     }
 }
 
-impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
+impl<F: Flow>
+    TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
     for types::ConnectorCustomerData
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-
     fn try_from(
         data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {

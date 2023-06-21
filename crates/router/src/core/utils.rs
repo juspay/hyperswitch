@@ -1,17 +1,15 @@
-use std::marker::PhantomData;
-
 use api_models::enums::{DisputeStage, DisputeStatus};
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
-use super::payments::{helpers, PaymentAddress};
+use super::payments::{helpers, operations::Flow, PaymentAddress};
 use crate::{
     consts,
     core::errors::{self, RouterResult},
     routes::AppState,
     types::{
-        self, domain,
+        self, api, domain,
         storage::{self, enums},
         ErrorResponse,
     },
@@ -20,7 +18,7 @@ use crate::{
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_refund_router_data<'a, F>(
+pub async fn construct_refund_router_data<'a, F: Flow>(
     state: &'a AppState,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
@@ -65,7 +63,7 @@ pub async fn construct_refund_router_data<'a, F>(
     ));
 
     let router_data = types::RouterData {
-        flow: PhantomData,
+        flow: F::default(),
         merchant_id: merchant_account.merchant_id.clone(),
         customer_id: payment_intent.customer_id.to_owned(),
         connector: connector_id.to_string(),
@@ -262,7 +260,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         .payment_method
         .get_required_value("payment_method_type")?;
     let router_data = types::RouterData {
-        flow: PhantomData,
+        flow: api::Accept::default(),
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
@@ -324,7 +322,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         .payment_method
         .get_required_value("payment_method_type")?;
     let router_data = types::RouterData {
-        flow: PhantomData,
+        flow: types::api::Evidence::default(),
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
@@ -379,7 +377,7 @@ pub async fn construct_upload_file_router_data<'a>(
         .payment_method
         .get_required_value("payment_method_type")?;
     let router_data = types::RouterData {
-        flow: PhantomData,
+        flow: types::api::Upload::default(),
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
@@ -443,7 +441,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         .payment_method
         .get_required_value("payment_method_type")?;
     let router_data = types::RouterData {
-        flow: PhantomData,
+        flow: types::api::Defend::default(),
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
@@ -499,7 +497,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let router_data = types::RouterData {
-        flow: PhantomData,
+        flow: types::api::Retrieve::default(),
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
         customer_id: None,

@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod transformers;
 
 use std::fmt::Debug;
@@ -10,9 +11,7 @@ use common_utils::{
 use error_stack::{IntoReport, ResultExt};
 use transformers as bluesnap;
 
-use super::utils::{
-    self as connector_utils, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
-};
+use super::utils::{self as connector_utils, PaymentsAuthorizeRequestData, RefundsRequestData};
 use crate::{
     configs::settings,
     connector::utils as conn_utils,
@@ -40,7 +39,8 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Bluesnap;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Bluesnap
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Bluesnap
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

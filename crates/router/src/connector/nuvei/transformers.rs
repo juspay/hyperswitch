@@ -12,10 +12,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{
         self, AddressDetailsData, BrowserInformationData, MandateData,
-        PaymentsAuthorizeRequestData, PaymentsCancelRequestData, RouterData,
+        PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
     },
     consts,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     services,
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
     utils::OptionExt,
@@ -404,7 +404,7 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRe
     }
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, NuveiSessionResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -492,7 +492,7 @@ impl TryFrom<api_models::enums::BankNames> for NuveiBIC {
     }
 }
 
-impl<F>
+impl<F: Flow>
     ForeignTryFrom<(
         AlternativePaymentMethodType,
         Option<payments::BankRedirectData>,
@@ -572,7 +572,7 @@ impl<F>
     }
 }
 
-fn get_pay_later_info<F>(
+fn get_pay_later_info<F: Flow>(
     payment_method_type: AlternativePaymentMethodType,
     item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
@@ -600,7 +600,7 @@ fn get_pay_later_info<F>(
     })
 }
 
-impl<F>
+impl<F: Flow>
     TryFrom<(
         &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         String,
@@ -702,7 +702,7 @@ impl<F>
     }
 }
 
-fn get_card_info<F>(
+fn get_card_info<F: Flow>(
     item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     card_details: &payments::Card,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
@@ -1167,7 +1167,7 @@ impl NuveiPaymentsGenericResponse for api::Void {}
 impl NuveiPaymentsGenericResponse for api::PSync {}
 impl NuveiPaymentsGenericResponse for api::Capture {}
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, NuveiPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 where

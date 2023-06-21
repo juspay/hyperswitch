@@ -13,7 +13,7 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult},
-        payments,
+        payments::{self, operations::Flow},
     },
     db::StorageInterface,
     headers,
@@ -56,13 +56,13 @@ impl
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Noon
+impl<F: Flow, Request, Response> ConnectorCommonExt<F, Request, Response> for Noon
 where
-    Self: ConnectorIntegration<Flow, Request, Response>,
+    Self: ConnectorIntegration<F, Request, Response>,
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
+        req: &types::RouterData<F, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(

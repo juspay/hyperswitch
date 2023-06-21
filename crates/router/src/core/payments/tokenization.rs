@@ -6,7 +6,8 @@ use super::helpers;
 use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
-        mandate, payment_methods, payments,
+        mandate, payment_methods,
+        payments::{self, operations::Flow},
     },
     logger,
     routes::{metrics, AppState},
@@ -20,7 +21,7 @@ use crate::{
     utils::OptionExt,
 };
 
-pub async fn save_payment_method<F: Clone, FData>(
+pub async fn save_payment_method<F: Flow, FData>(
     state: &AppState,
     connector: &api::ConnectorData,
     resp: types::RouterData<F, FData, types::PaymentsResponseData>,
@@ -194,7 +195,7 @@ pub fn create_payment_method_metadata(
     }))
 }
 
-pub async fn add_payment_method_token<F: Clone, T: Clone>(
+pub async fn add_payment_method_token<F: Flow, T: Clone>(
     state: &AppState,
     connector: &api::ConnectorData,
     tokenization_action: &payments::TokenizationAction,

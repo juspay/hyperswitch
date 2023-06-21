@@ -3,10 +3,8 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
-        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
-    },
-    core::errors,
+    connector::utils::{self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData},
+    core::{errors, payments::operations::Flow},
     types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
@@ -240,7 +238,7 @@ pub struct ForteMeta {
     pub auth_id: String,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -283,7 +281,7 @@ pub struct FortePaymentsSyncResponse {
     pub response: ResponseStatus,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, FortePaymentsSyncResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -421,7 +419,7 @@ pub struct ForteCancelResponse {
     pub response: CancelResponseStatus,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, ForteCancelResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -455,7 +453,7 @@ pub struct ForteRefundRequest {
     authorization_code: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let trn_id = item.request.connector_transaction_id.clone();

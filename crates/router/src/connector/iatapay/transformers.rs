@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
-    core::errors,
+    connector::utils::{PaymentsAuthorizeRequestData, RefundsRequestData},
+    core::{errors, payments::operations::Flow},
     services,
     types::{self, api, storage::enums},
 };
@@ -34,7 +34,8 @@ pub struct IatapayAuthUpdateResponse {
     pub jti: String,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, IatapayAuthUpdateResponse, T, types::AccessToken>>
+impl<F: Flow, T>
+    TryFrom<types::ResponseRouterData<F, IatapayAuthUpdateResponse, T, types::AccessToken>>
     for types::RouterData<F, T, types::AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -179,7 +180,7 @@ pub struct IatapayPaymentsResponse {
     pub failure_code: Option<String>,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -234,7 +235,7 @@ pub struct IatapayRefundRequest {
     pub notification_url: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for IatapayRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for IatapayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

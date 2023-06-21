@@ -12,7 +12,7 @@ use crate::{
         CardData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData, WalletData,
     },
     consts,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
 };
@@ -304,7 +304,7 @@ pub struct NexinetsPaymentsMetadata {
     pub psync_flow: NexinetsTransactionType,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<
         types::ResponseRouterData<
             F,
@@ -413,7 +413,7 @@ pub struct NexinetsPaymentResponse {
     pub transaction_type: NexinetsTransactionType,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, NexinetsPaymentResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -461,7 +461,7 @@ pub struct NexinetsRefundRequest {
     pub currency: enums::Currency,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for NexinetsRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for NexinetsRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

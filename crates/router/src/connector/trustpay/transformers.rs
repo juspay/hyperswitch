@@ -10,10 +10,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{
         self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
-        RouterData,
     },
     consts,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     services,
     types::{self, api, storage::enums, BrowserInformation},
     utils::OptionExt,
@@ -521,7 +520,7 @@ pub enum TrustpayPaymentsResponse {
     WebhookResponse(Box<WebhookPaymentInformation>),
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, TrustpayPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -783,7 +782,8 @@ pub struct TrustpayAccessTokenErrorResponse {
     pub result_info: ResultInfo,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, types::AccessToken>>
+impl<F: Flow, T>
+    TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, types::AccessToken>>
     for types::RouterData<F, T, types::AccessToken>
 {
     type Error = Error;
@@ -896,7 +896,7 @@ pub struct ApplePayTotalInfo {
     pub amount: String,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<
         types::ResponseRouterData<F, TrustpayCreateIntentResponse, T, types::PaymentsResponseData>,
     > for types::RouterData<F, T, types::PaymentsResponseData>
@@ -997,7 +997,7 @@ pub enum TrustpayRefundRequest {
     BankRedirectRefund(Box<TrustpayRefundRequestBankRedirect>),
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
     type Error = Error;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = format!(
@@ -1179,7 +1179,7 @@ fn handle_bank_redirects_refund_sync_error_response(
     (error, refund_response_data)
 }
 
-impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
+impl<F: Flow> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
     for types::RefundsRouterData<F>
 {
     type Error = Error;

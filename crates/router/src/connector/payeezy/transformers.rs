@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{self, CardData},
-    core::errors,
+    core::{errors, payments::operations::Flow},
     types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
@@ -319,7 +319,7 @@ pub struct PayeezyPaymentsMetadata {
     transaction_tag: String,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, PayeezyPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -400,7 +400,7 @@ pub struct PayeezyRefundRequest {
     currency_code: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for PayeezyRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for PayeezyRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let metadata: PayeezyPaymentsMetadata =

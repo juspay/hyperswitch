@@ -10,7 +10,10 @@ use self::bitpay::BitpayWebhookDetails;
 use crate::{
     configs::settings,
     consts,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments::operations::Flow,
+    },
     headers,
     services::{
         self,
@@ -51,13 +54,13 @@ impl
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Bitpay
+impl<F: Flow, Request, Response> ConnectorCommonExt<F, Request, Response> for Bitpay
 where
-    Self: ConnectorIntegration<Flow, Request, Response>,
+    Self: ConnectorIntegration<F, Request, Response>,
 {
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Request, Response>,
+        _req: &types::RouterData<F, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let header = vec![

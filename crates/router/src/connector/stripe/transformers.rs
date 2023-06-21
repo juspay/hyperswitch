@@ -15,11 +15,8 @@ use uuid::Uuid;
 
 use crate::{
     collect_missing_value_keys,
-    connector::{
-        self,
-        utils::{ApplePay, RouterData},
-    },
-    core::errors,
+    connector::{self, utils::ApplePay},
+    core::{errors, payments::operations::Flow},
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
     utils::{self, OptionExt},
@@ -1602,7 +1599,7 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
     }
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -1675,7 +1672,7 @@ pub fn get_connector_metadata(
     Ok(next_action_response)
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, PaymentIntentSyncResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -1735,7 +1732,7 @@ impl<F, T>
     }
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -1896,7 +1893,7 @@ pub struct RefundRequest {
     pub metadata_txn_uuid: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = item.request.refund_amount;
@@ -2145,7 +2142,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeAchSourceRequest
     }
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, StripeSourceResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -2194,7 +2191,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ChargesRequest {
     }
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::PaymentsResponseData>>
+impl<F: Flow, T>
+    TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -2221,7 +2219,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
     }
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, StripeTokenResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -2238,7 +2236,7 @@ impl<F, T>
     }
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, StripeCustomerResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
