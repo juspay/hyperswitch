@@ -134,7 +134,9 @@ where
             operation
                 .to_domain()?
                 .add_task_to_process_tracker(state, &payment_data.payment_attempt)
-                .await?;
+                .await
+                .map_err(|error| logger::error!(process_tracker_error=?error))
+                .ok();
         }
 
         payment_data = match connector_details {
