@@ -8,7 +8,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage},
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -23,8 +23,8 @@ impl
         &self,
         state: &AppState,
         connector_id: &str,
-        merchant_account: &storage::MerchantAccount,
-        customer: &Option<storage::Customer>,
+        merchant_account: &domain::MerchantAccount,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<
         types::RouterData<
             api::CompleteAuthorize,
@@ -58,38 +58,10 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         mut self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<storage::Customer>,
+        _customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<Self> {
-        self.decide_flow(
-            state,
-            connector,
-            customer,
-            Some(true),
-            call_connector_action,
-        )
-        .await
-    }
-
-    async fn add_access_token<'a>(
-        &self,
-        state: &AppState,
-        connector: &api::ConnectorData,
-        merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_account, self).await
-    }
-}
-
-impl types::PaymentsCompleteAuthorizeRouterData {
-    pub async fn decide_flow<'a, 'b>(
-        &'b mut self,
-        state: &'a AppState,
-        connector: &api::ConnectorData,
-        _maybe_customer: &Option<storage::Customer>,
-        _confirm: Option<bool>,
-        call_connector_action: payments::CallConnectorAction,
+        _merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -97,15 +69,49 @@ impl types::PaymentsCompleteAuthorizeRouterData {
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
+
         let resp = services::execute_connector_processing_step(
             state,
             connector_integration,
-            self,
+            &self,
             call_connector_action,
+            connector_request,
         )
         .await
-        .map_err(|error| error.to_payment_failed_response())?;
+        .to_payment_failed_response()?;
 
         Ok(resp)
+    }
+
+    async fn add_access_token<'a>(
+        &self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        merchant_account: &domain::MerchantAccount,
+    ) -> RouterResult<types::AddAccessTokenResult> {
+        access_token::add_access_token(state, connector, merchant_account, self).await
+    }
+
+    async fn build_flow_specific_connector_request(
+        &mut self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        call_connector_action: payments::CallConnectorAction,
+    ) -> RouterResult<Option<services::Request>> {
+        match call_connector_action {
+            payments::CallConnectorAction::Trigger => {
+                let connector_integration: services::BoxedConnectorIntegration<
+                    '_,
+                    api::CompleteAuthorize,
+                    types::CompleteAuthorizeData,
+                    types::PaymentsResponseData,
+                > = connector.connector.get_connector_integration();
+
+                connector_integration
+                    .build_request(self, &state.conf.connectors)
+                    .to_payment_failed_response()
+            }
+            _ => Ok(None),
+        }
     }
 }

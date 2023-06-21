@@ -323,17 +323,32 @@ pub struct Shift4WebhookObjectEventType {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Shift4WebhookEvent {
     ChargeSucceeded,
+    ChargeFailed,
+    ChargeUpdated,
+    ChargeCaptured,
+    ChargeRefunded,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Shift4WebhookObjectData {
     pub id: String,
+    pub refunds: Option<Vec<RefundIdObject>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RefundIdObject {
+    pub id: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Shift4WebhookObjectId {
+    #[serde(rename = "type")]
+    pub event_type: Shift4WebhookEvent,
     pub data: Shift4WebhookObjectData,
 }
 
@@ -601,4 +616,33 @@ pub struct ErrorResponse {
 pub struct ApiErrorResponse {
     pub code: Option<String>,
     pub message: String,
+}
+
+pub fn is_transaction_event(event: &Shift4WebhookEvent) -> bool {
+    matches!(
+        event,
+        Shift4WebhookEvent::ChargeCaptured
+            | Shift4WebhookEvent::ChargeFailed
+            | Shift4WebhookEvent::ChargeSucceeded
+            | Shift4WebhookEvent::ChargeUpdated
+    )
+}
+
+pub fn is_refund_event(event: &Shift4WebhookEvent) -> bool {
+    matches!(event, Shift4WebhookEvent::ChargeRefunded)
+}
+
+impl From<Shift4WebhookEvent> for api::IncomingWebhookEvent {
+    fn from(event: Shift4WebhookEvent) -> Self {
+        match event {
+            Shift4WebhookEvent::ChargeSucceeded | Shift4WebhookEvent::ChargeUpdated => {
+                //reference : https://dev.shift4.com/docs/api#event-types
+                Self::PaymentIntentProcessing
+            }
+            Shift4WebhookEvent::ChargeCaptured => Self::PaymentIntentSuccess,
+            Shift4WebhookEvent::ChargeFailed => Self::PaymentIntentFailure,
+            Shift4WebhookEvent::ChargeRefunded => Self::RefundSuccess,
+            Shift4WebhookEvent::Unknown => Self::EventNotSupported,
+        }
+    }
 }

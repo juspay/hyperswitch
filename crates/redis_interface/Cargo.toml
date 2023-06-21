@@ -2,23 +2,22 @@
 name = "redis_interface"
 description = "A user-friendly interface to Redis"
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.65"
+edition.workspace = true
+rust-version.workspace = true
 readme = "README.md"
-license = "Apache-2.0"
+license.workspace = true
 
 [dependencies]
-async-trait = "0.1.68"
 error-stack = "0.3.1"
-fred = { version = "6.0.0", features = ["metrics", "partial-tracing"] }
+fred = { version = "6.3.0", features = ["metrics", "partial-tracing","subscriber-client"] }
 futures = "0.3"
-serde = { version = "1.0.160", features = ["derive"] }
+serde = { version = "1.0.163", features = ["derive"] }
 thiserror = "1.0.40"
-tokio = "1.26.0"
+tokio = "1.28.2"
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext"] }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 
 [dev-dependencies]
-tokio = { version = "1.27.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread"] }

@@ -1,5 +1,6 @@
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -73,7 +74,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
 
 #[derive(Debug, Eq, PartialEq, Deserialize)]
 pub struct CheckoutTokenResponse {
-    token: String,
+    token: pii::Secret<String>,
 }
 
 impl<F, T>
@@ -86,7 +87,7 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
-                token: item.response.token,
+                token: item.response.token.expose(),
             }),
             ..item.data
         })
@@ -520,7 +521,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
     }
 }
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct RefundResponse {
     action_id: String,
     reference: String,
@@ -585,7 +586,7 @@ pub struct ErrorResponse {
     pub error_codes: Option<Vec<String>>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub enum ActionType {
     Authorization,
     Void,
@@ -597,7 +598,7 @@ pub enum ActionType {
     CardVerification,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct ActionResponse {
     #[serde(rename = "id")]
     pub action_id: String,
@@ -678,34 +679,59 @@ impl From<CheckoutRedirectResponseStatus> for enums::AttemptStatus {
     }
 }
 
-pub fn is_refund_event(event_code: &CheckoutTransactionType) -> bool {
+pub fn is_refund_event(event_code: &CheckoutWebhookEventType) -> bool {
     matches!(
         event_code,
-        CheckoutTransactionType::PaymentRefunded | CheckoutTransactionType::PaymentRefundDeclined
+        CheckoutWebhookEventType::PaymentRefunded | CheckoutWebhookEventType::PaymentRefundDeclined
     )
 }
 
-pub fn is_chargeback_event(event_code: &CheckoutTransactionType) -> bool {
+pub fn is_chargeback_event(event_code: &CheckoutWebhookEventType) -> bool {
     matches!(
         event_code,
-        CheckoutTransactionType::DisputeReceived
-            | CheckoutTransactionType::DisputeExpired
-            | CheckoutTransactionType::DisputeAccepted
-            | CheckoutTransactionType::DisputeCanceled
-            | CheckoutTransactionType::DisputeEvidenceSubmitted
-            | CheckoutTransactionType::DisputeEvidenceAcknowledgedByScheme
-            | CheckoutTransactionType::DisputeEvidenceRequired
-            | CheckoutTransactionType::DisputeArbitrationLost
-            | CheckoutTransactionType::DisputeArbitrationWon
-            | CheckoutTransactionType::DisputeWon
-            | CheckoutTransactionType::DisputeLost
+        CheckoutWebhookEventType::DisputeReceived
+            | CheckoutWebhookEventType::DisputeExpired
+            | CheckoutWebhookEventType::DisputeAccepted
+            | CheckoutWebhookEventType::DisputeCanceled
+            | CheckoutWebhookEventType::DisputeEvidenceSubmitted
+            | CheckoutWebhookEventType::DisputeEvidenceAcknowledgedByScheme
+            | CheckoutWebhookEventType::DisputeEvidenceRequired
+            | CheckoutWebhookEventType::DisputeArbitrationLost
+            | CheckoutWebhookEventType::DisputeArbitrationWon
+            | CheckoutWebhookEventType::DisputeWon
+            | CheckoutWebhookEventType::DisputeLost
     )
+}
+
+#[derive(Debug, Deserialize, strum::Display, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum CheckoutWebhookEventType {
+    AuthenticationStarted,
+    AuthenticationApproved,
+    PaymentApproved,
+    PaymentCaptured,
+    PaymentDeclined,
+    PaymentRefunded,
+    PaymentRefundDeclined,
+    DisputeReceived,
+    DisputeExpired,
+    DisputeAccepted,
+    DisputeCanceled,
+    DisputeEvidenceSubmitted,
+    DisputeEvidenceAcknowledgedByScheme,
+    DisputeEvidenceRequired,
+    DisputeArbitrationLost,
+    DisputeArbitrationWon,
+    DisputeWon,
+    DisputeLost,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct CheckoutWebhookEventTypeBody {
     #[serde(rename = "type")]
-    pub transaction_type: CheckoutTransactionType,
+    pub transaction_type: CheckoutWebhookEventType,
 }
 
 #[derive(Debug, Deserialize)]
@@ -720,7 +746,7 @@ pub struct CheckoutWebhookData {
 #[derive(Debug, Deserialize)]
 pub struct CheckoutWebhookBody {
     #[serde(rename = "type")]
-    pub transaction_type: CheckoutTransactionType,
+    pub transaction_type: CheckoutWebhookEventType,
     pub data: CheckoutWebhookData,
 }
 
@@ -768,29 +794,30 @@ pub enum CheckoutTransactionType {
     DisputeLost,
 }
 
-impl From<CheckoutTransactionType> for api::IncomingWebhookEvent {
-    fn from(transaction_type: CheckoutTransactionType) -> Self {
+impl From<CheckoutWebhookEventType> for api::IncomingWebhookEvent {
+    fn from(transaction_type: CheckoutWebhookEventType) -> Self {
         match transaction_type {
-            CheckoutTransactionType::AuthenticationStarted => Self::EventNotSupported,
-            CheckoutTransactionType::AuthenticationApproved => Self::EventNotSupported,
-            CheckoutTransactionType::PaymentApproved => Self::EventNotSupported,
-            CheckoutTransactionType::PaymentCaptured => Self::PaymentIntentSuccess,
-            CheckoutTransactionType::PaymentDeclined => Self::PaymentIntentFailure,
-            CheckoutTransactionType::PaymentRefunded => Self::RefundSuccess,
-            CheckoutTransactionType::PaymentRefundDeclined => Self::RefundFailure,
-            CheckoutTransactionType::DisputeReceived
-            | CheckoutTransactionType::DisputeEvidenceRequired => Self::DisputeOpened,
-            CheckoutTransactionType::DisputeExpired => Self::DisputeExpired,
-            CheckoutTransactionType::DisputeAccepted => Self::DisputeAccepted,
-            CheckoutTransactionType::DisputeCanceled => Self::DisputeCancelled,
-            CheckoutTransactionType::DisputeEvidenceSubmitted
-            | CheckoutTransactionType::DisputeEvidenceAcknowledgedByScheme => {
+            CheckoutWebhookEventType::AuthenticationStarted => Self::EventNotSupported,
+            CheckoutWebhookEventType::AuthenticationApproved => Self::EventNotSupported,
+            CheckoutWebhookEventType::PaymentApproved => Self::EventNotSupported,
+            CheckoutWebhookEventType::PaymentCaptured => Self::PaymentIntentSuccess,
+            CheckoutWebhookEventType::PaymentDeclined => Self::PaymentIntentFailure,
+            CheckoutWebhookEventType::PaymentRefunded => Self::RefundSuccess,
+            CheckoutWebhookEventType::PaymentRefundDeclined => Self::RefundFailure,
+            CheckoutWebhookEventType::DisputeReceived
+            | CheckoutWebhookEventType::DisputeEvidenceRequired => Self::DisputeOpened,
+            CheckoutWebhookEventType::DisputeExpired => Self::DisputeExpired,
+            CheckoutWebhookEventType::DisputeAccepted => Self::DisputeAccepted,
+            CheckoutWebhookEventType::DisputeCanceled => Self::DisputeCancelled,
+            CheckoutWebhookEventType::DisputeEvidenceSubmitted
+            | CheckoutWebhookEventType::DisputeEvidenceAcknowledgedByScheme => {
                 Self::DisputeChallenged
             }
-            CheckoutTransactionType::DisputeWon
-            | CheckoutTransactionType::DisputeArbitrationWon => Self::DisputeWon,
-            CheckoutTransactionType::DisputeLost
-            | CheckoutTransactionType::DisputeArbitrationLost => Self::DisputeLost,
+            CheckoutWebhookEventType::DisputeWon
+            | CheckoutWebhookEventType::DisputeArbitrationWon => Self::DisputeWon,
+            CheckoutWebhookEventType::DisputeLost
+            | CheckoutWebhookEventType::DisputeArbitrationLost => Self::DisputeLost,
+            CheckoutWebhookEventType::Unknown => Self::EventNotSupported,
         }
     }
 }
