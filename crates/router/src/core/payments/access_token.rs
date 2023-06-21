@@ -14,6 +14,10 @@ use crate::{
     types::{self, api as api_types, domain, transformers::ForeignInto},
 };
 
+/// After we get the access token, check if there was an error and if the flow should proceed further
+/// Returns bool
+/// true - Everything is well, continue with the flow
+/// false - There was an error, cannot proceed further
 pub fn update_router_data_with_access_token_result<F: Flow, Req, Res>(
     add_access_token_result: &types::AddAccessTokenResult,
     router_data: &mut types::RouterData<F, Req, Res>,
@@ -153,6 +157,7 @@ pub async fn refresh_connector_auth(
         connector_integration,
         router_data,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

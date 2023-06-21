@@ -5,7 +5,7 @@ use router_env::{instrument, tracing};
 pub mod transformers;
 
 use super::{
-    errors::{self, RouterResponse, StorageErrorExt},
+    errors::{self, ConnectorErrorExt, RouterResponse, StorageErrorExt},
     metrics,
 };
 use crate::{
@@ -127,9 +127,10 @@ pub async fn accept_dispute(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .to_dispute_failed_response()
     .attach_printable("Failed while calling accept dispute connector api")?;
     let accept_dispute_response =
         response
@@ -234,9 +235,10 @@ pub async fn submit_evidence(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .to_dispute_failed_response()
     .attach_printable("Failed while calling submit evidence connector api")?;
     let submit_evidence_response =
         response
@@ -270,9 +272,10 @@ pub async fn submit_evidence(
                 connector_integration_defend_dispute,
                 &defend_dispute_router_data,
                 payments::CallConnectorAction::Trigger,
+                None,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .to_dispute_failed_response()
             .attach_printable("Failed while calling defend dispute connector api")?;
             let defend_dispute_response = defend_response.response.map_err(|err| {
                 errors::ApiErrorResponse::ExternalConnectorError {
@@ -300,7 +303,9 @@ pub async fn submit_evidence(
     let updated_dispute = db
         .update_dispute(dispute.clone(), update_dispute)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
+            dispute_id: dispute_id.to_owned(),
+        })
         .attach_printable_lazy(|| {
             format!("Unable to update dispute with dispute_id: {dispute_id}")
         })?;
@@ -373,7 +378,9 @@ pub async fn attach_evidence(
     };
     db.update_dispute(dispute, update_dispute)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
+            dispute_id: dispute_id.to_owned(),
+        })
         .attach_printable_lazy(|| {
             format!("Unable to update dispute with dispute_id: {dispute_id}")
         })?;

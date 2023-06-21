@@ -103,6 +103,8 @@ impl ConnectorCommon for Checkout {
                 .parse_struct("ErrorResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
         };
+
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -176,6 +178,7 @@ impl
         req: &types::TokenizationRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = checkout::TokenRequest::try_from(req)?;
+        router_env::logger::info!(?connector_req);
         let checkout_req =
             utils::Encode::<checkout::TokenRequest>::encode_to_string_of_json(&connector_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -210,6 +213,7 @@ impl
             .response
             .parse_struct("CheckoutTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -274,6 +278,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = checkout::PaymentCaptureRequest::try_from(req)?;
+        router_env::logger::info!(?connector_req);
         let checkout_req =
             utils::Encode::<checkout::PaymentCaptureRequest>::encode_to_string_of_json(
                 &connector_req,
@@ -309,6 +314,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .response
             .parse_struct("CaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -383,6 +389,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .response
             .parse_struct("PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -423,6 +430,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = checkout::PaymentsRequest::try_from(req)?;
+        router_env::logger::info!(?connector_req);
         let checkout_req =
             utils::Encode::<checkout::PaymentsRequest>::encode_to_string_of_json(&connector_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -461,6 +469,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .response
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -505,6 +514,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = checkout::PaymentVoidRequest::try_from(req)?;
+        router_env::logger::info!(?connector_req);
         let checkout_req =
             utils::Encode::<checkout::PaymentVoidRequest>::encode_to_string_of_json(&connector_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -535,6 +545,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .response
             .parse_struct("PaymentVoidResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
         response.status = res.status_code;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -589,6 +600,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = checkout::RefundRequest::try_from(req)?;
+        router_env::logger::info!(?connector_req);
         let body =
             utils::Encode::<checkout::RefundRequest>::encode_to_string_of_json(&connector_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -621,6 +633,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .response
             .parse_struct("checkout::RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
         let response = checkout::CheckoutRefundResponse {
             response,
             status: res.status_code,
@@ -691,6 +704,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .response
             .parse_struct("checkout::CheckoutRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
 
         let response = response
             .iter()
@@ -887,6 +901,7 @@ impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::Uplo
             .response
             .parse_struct("Checkout FileUploadResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
         Ok(types::UploadFileRouterData {
             response: Ok(types::UploadFileResponse {
                 provider_file_id: response.file_id,
@@ -945,6 +960,7 @@ impl
         req: &types::SubmitEvidenceRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let checkout_req = checkout::Evidence::try_from(req)?;
+        router_env::logger::info!(?checkout_req);
         let checkout_req_string =
             utils::Encode::<checkout::Evidence>::encode_to_string_of_json(&checkout_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -1200,9 +1216,13 @@ impl services::ConnectorRedirectResponse for Checkout {
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let connector_action = query
             .status
-            .map(|checkout_status| {
-                payments::CallConnectorAction::StatusUpdate(checkout_status.into())
-            })
+            .map(
+                |checkout_status| payments::CallConnectorAction::StatusUpdate {
+                    status: storage_models::enums::AttemptStatus::from(checkout_status),
+                    error_code: None,
+                    error_message: None,
+                },
+            )
             .unwrap_or(payments::CallConnectorAction::Trigger);
         Ok(connector_action)
     }

@@ -138,7 +138,6 @@ pub trait UpdateTracker<F, D, Req>: Send {
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
-        payment_id: &api::PaymentIdType,
         payment_data: D,
         customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,

@@ -229,11 +229,17 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct CoinbaseErrorResponse {
-    pub code: String,
+#[derive(Debug, Deserialize)]
+pub struct CoinbaseErrorData {
+    #[serde(rename = "type")]
+    pub error_type: String,
     pub message: String,
-    pub reason: Option<String>,
+    pub code: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CoinbaseErrorResponse {
+    pub error: CoinbaseErrorData,
 }
 
 #[derive(Default, Debug, Deserialize, PartialEq)]
@@ -306,6 +312,8 @@ pub enum WebhookEventType {
     Failed,
     #[serde(rename = "charge:resolved")]
     Resolved,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]

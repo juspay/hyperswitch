@@ -1,3 +1,4 @@
+use api_models::payments::OrderDetailsWithAmount;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::{self, ResultExt};
@@ -29,7 +30,8 @@ use crate::{
     },
     utils::OptionExt,
 };
-#[derive(Clone, Copy, PaymentOperation, ZDisplay)]
+
+#[derive(Debug, Clone, Copy, PaymentOperation, ZDisplay)]
 #[operation(ops = "all", flow = "authorize")]
 pub struct PaymentCreate;
 
@@ -61,7 +63,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCre
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let (token, payment_method_type, setup_mandate) =
+        let (token, payment_method, payment_method_type, setup_mandate, mandate_connector) =
             helpers::get_token_pm_type_mandate_details(
                 state,
                 request,
@@ -70,12 +72,14 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCre
             )
             .await?;
 
+        let customer_details = helpers::get_customer_details_from_request(request);
+
         let shipping_address = helpers::get_address_for_payment_request(
             db,
             request.shipping.as_ref(),
             None,
             merchant_id,
-            &request.customer_id,
+            customer_details.customer_id.as_ref(),
         )
         .await?;
 
@@ -84,7 +88,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCre
             request.billing.as_ref(),
             None,
             merchant_id,
-            &request.customer_id,
+            customer_details.customer_id.as_ref(),
         )
         .await?;
 
@@ -105,6 +109,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCre
                     &payment_id,
                     merchant_id,
                     money,
+                    payment_method,
                     payment_method_type,
                     request,
                     browser_info,
@@ -231,6 +236,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCre
                 amount,
                 email: request.email.clone(),
                 mandate_id,
+                mandate_connector,
                 setup_mandate,
                 token,
                 address: PaymentAddress {
@@ -251,13 +257,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCre
                 ephemeral_key,
                 redirect_response: None,
             },
-            Some(CustomerDetails {
-                customer_id: request.customer_id.clone(),
-                name: request.name.clone(),
-                email: request.email.clone(),
-                phone: request.phone.clone(),
-                phone_country_code: request.phone_country_code.clone(),
-            }),
+            Some(customer_details),
         ))
     }
 }
@@ -327,7 +327,6 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Payment
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -343,6 +342,7 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Payment
             },
             IntentStatus::RequiresConfirmation => {
                 if let Some(true) = payment_data.confirm {
+                    //TODO: do this later, request validation should happen before
                     Some(IntentStatus::Processing)
                 } else {
                     None
@@ -406,6 +406,21 @@ impl<F: Flow> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate {
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
+        let order_details_inside_metadata = request
+            .metadata
+            .as_ref()
+            .and_then(|meta| meta.order_details.to_owned());
+        if request
+            .order_details
+            .as_ref()
+            .zip(order_details_inside_metadata)
+            .is_some()
+        {
+            Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
+        }
+
+        helpers::validate_customer_details_in_request(request)?;
+
         let given_payment_id = match &request.payment_id {
             Some(id_type) => Some(
                 id_type
@@ -428,6 +443,8 @@ impl<F: Flow> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate {
             expected_format: "amount_to_capture lesser than amount".to_string(),
         })?;
 
+        helpers::validate_card_data(request.payment_method_data.clone())?;
+
         helpers::validate_payment_method_fields_present(request)?;
 
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
@@ -448,7 +465,11 @@ impl<F: Flow> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate {
                 request.shipping.is_some(),
                 request.billing.is_some(),
                 request.setup_future_usage.is_some(),
-                &request.customer_id,
+                &request
+                    .customer
+                    .clone()
+                    .map(|customer| customer.id)
+                    .or(request.customer_id.clone()),
             )?;
         }
 
@@ -471,6 +492,7 @@ impl PaymentCreate {
         merchant_id: &str,
         money: (api::Amount, enums::Currency),
         payment_method: Option<enums::PaymentMethod>,
+        payment_method_type: Option<enums::PaymentMethodType>,
         request: &api::PaymentsRequest,
         browser_info: Option<serde_json::Value>,
     ) -> RouterResult<storage::PaymentAttemptNew> {
@@ -506,8 +528,12 @@ impl PaymentCreate {
             authentication_type: request.authentication_type.map(ForeignInto::foreign_into),
             browser_info,
             payment_experience: request.payment_experience.map(ForeignInto::foreign_into),
-            payment_method_type: request.payment_method_type.map(ForeignInto::foreign_into),
+            payment_method_type,
             payment_method_data: additional_pm_data,
+            amount_to_capture: request.amount_to_capture,
+            payment_token: request.payment_token.clone(),
+            mandate_id: request.mandate_id.clone(),
+            business_sub_label: request.business_sub_label.clone(),
             mandate_details: request
                 .mandate_data
                 .as_ref()
@@ -545,6 +571,32 @@ impl PaymentCreate {
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Encoding Metadata to value failed")?;
+        let order_details_metadata_req = request
+            .metadata
+            .as_ref()
+            .and_then(|meta| meta.order_details.to_owned());
+        if request
+            .order_details
+            .as_ref()
+            .zip(order_details_metadata_req)
+            .is_some()
+        {
+            Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
+        }
+        let order_details_outside_value = match request.order_details.as_ref() {
+            Some(od_value) => {
+                let order_details_outside_value_secret = od_value
+                    .iter()
+                    .map(|order| {
+                        Encode::<OrderDetailsWithAmount>::encode_to_value(order)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .map(masking::Secret::new)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Some(order_details_outside_value_secret)
+            }
+            None => None,
+        };
 
         let (business_country, business_label) = helpers::get_business_details(
             request.business_country,
@@ -574,6 +626,8 @@ impl PaymentCreate {
             business_country,
             business_label,
             active_attempt_id,
+            order_details: order_details_outside_value,
+            udf: request.udf.clone(),
             ..storage::PaymentIntentNew::default()
         })
     }

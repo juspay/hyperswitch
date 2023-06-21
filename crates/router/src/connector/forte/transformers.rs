@@ -461,7 +461,7 @@ impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
             utils::to_connector_meta(item.request.connector_metadata.clone())?;
         let auth_code = connector_auth_id.auth_id;
         let authorization_amount =
-            utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
+            utils::to_currency_base_unit_asf64(item.request.refund_amount, item.request.currency)?;
         Ok(Self {
             action: "reverse".to_string(),
             authorization_amount,

@@ -1,5 +1,6 @@
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -73,7 +74,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
 
 #[derive(Debug, Eq, PartialEq, Deserialize)]
 pub struct CheckoutTokenResponse {
-    token: String,
+    token: pii::Secret<String>,
 }
 
 impl<F: Flow, T>
@@ -86,7 +87,7 @@ impl<F: Flow, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
-                token: item.response.token,
+                token: item.response.token.expose(),
             }),
             ..item.data
         })
@@ -520,7 +521,7 @@ impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
     }
 }
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct RefundResponse {
     action_id: String,
     reference: String,
@@ -585,7 +586,7 @@ pub struct ErrorResponse {
     pub error_codes: Option<Vec<String>>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub enum ActionType {
     Authorization,
     Void,
@@ -597,7 +598,7 @@ pub enum ActionType {
     CardVerification,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct ActionResponse {
     #[serde(rename = "id")]
     pub action_id: String,

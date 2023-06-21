@@ -50,7 +50,7 @@ pub async fn construct_refund_router_data<'a, F: Flow>(
 
     let status = payment_attempt.status;
 
-    let (amount, currency) = money;
+    let (payment_amount, currency) = money;
 
     let payment_method_type = payment_attempt
         .payment_method
@@ -85,7 +85,7 @@ pub async fn construct_refund_router_data<'a, F: Flow>(
             connector_transaction_id: refund.connector_transaction_id.clone(),
             refund_amount: refund.refund_amount,
             currency,
-            amount,
+            payment_amount,
             webhook_url,
             connector_metadata: payment_attempt.connector_metadata.clone(),
             reason: refund.refund_reason.clone(),

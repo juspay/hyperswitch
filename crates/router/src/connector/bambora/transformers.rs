@@ -5,7 +5,7 @@ use masking::Secret;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
+    connector::utils::{BrowserInformationData, PaymentsAuthorizeRequestData},
     consts,
     core::{errors, payments::operations::Flow},
     services,
@@ -55,24 +55,29 @@ pub struct BamboraPaymentsRequest {
     card: BamboraCard,
 }
 
-fn get_browser_info(item: &types::PaymentsAuthorizeRouterData) -> Option<BamboraBrowserInfo> {
+fn get_browser_info(
+    item: &types::PaymentsAuthorizeRouterData,
+) -> Result<Option<BamboraBrowserInfo>, error_stack::Report<errors::ConnectorError>> {
     if matches!(item.auth_type, enums::AuthenticationType::ThreeDs) {
         item.request
             .browser_info
             .as_ref()
-            .map(|info| BamboraBrowserInfo {
-                accept_header: info.accept_header.clone(),
-                java_enabled: info.java_enabled,
-                language: info.language.clone(),
-                color_depth: info.color_depth,
-                screen_height: info.screen_height,
-                screen_width: info.screen_width,
-                time_zone: info.time_zone,
-                user_agent: info.user_agent.clone(),
-                javascript_enabled: info.java_script_enabled,
+            .map(|info| {
+                Ok(BamboraBrowserInfo {
+                    accept_header: info.get_accept_header()?,
+                    java_enabled: info.get_java_enabled()?,
+                    language: info.get_language()?,
+                    screen_height: info.get_screen_height()?,
+                    screen_width: info.get_screen_width()?,
+                    color_depth: info.get_color_depth()?,
+                    user_agent: info.get_user_agent()?,
+                    time_zone: info.get_time_zone()?,
+                    javascript_enabled: info.get_java_script_enabled()?,
+                })
             })
+            .transpose()
     } else {
-        None
+        Ok(None)
     }
 }
 
@@ -104,7 +109,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                 let three_ds = match item.auth_type {
                     enums::AuthenticationType::ThreeDs => Some(ThreeDSecure {
                         enabled: true,
-                        browser: get_browser_info(item),
+                        browser: get_browser_info(item)?,
                         version: Some(2),
                         auth_required: Some(true),
                     }),
@@ -426,7 +431,7 @@ impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for BamboraRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.amount,
+            amount: item.request.refund_amount,
         })
     }
 }

@@ -60,7 +60,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for Paym
                 enums::IntentStatus::Processing,
                 enums::IntentStatus::RequiresMerchantAction,
             ],
-            "cancelled",
+            "cancel",
         )?;
 
         let mut payment_attempt = db
@@ -78,7 +78,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for Paym
             None,
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
@@ -86,7 +86,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for Paym
             None,
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
         )
         .await?;
 
@@ -132,6 +132,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for Paym
                 amount,
                 email: None,
                 mandate_id: None,
+                mandate_connector: None,
                 setup_mandate: None,
                 token: None,
                 address: PaymentAddress {
@@ -163,7 +164,6 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for P
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,

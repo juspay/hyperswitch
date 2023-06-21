@@ -241,11 +241,7 @@ pub async fn mk_add_card_request_hs(
     customer_id: &str,
     merchant_id: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let merchant_customer_id = if cfg!(feature = "sandbox") {
-        format!("{customer_id}::{merchant_id}")
-    } else {
-        customer_id.to_owned()
-    };
+    let merchant_customer_id = customer_id.to_owned();
     let card = Card {
         card_number: card.card_number.to_owned(),
         name_on_card: card.card_holder_name.to_owned(),
@@ -359,7 +355,7 @@ pub fn mk_add_card_request(
     locker_id: &str,
     merchant_id: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let customer_id = if cfg!(feature = "sandbox") {
+    let customer_id = if cfg!(feature = "release") {
         format!("{customer_id}::{merchant_id}")
     } else {
         customer_id.to_owned()
@@ -398,11 +394,7 @@ pub async fn mk_get_card_request_hs(
     merchant_id: &str,
     card_reference: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let merchant_customer_id = if cfg!(feature = "sandbox") {
-        format!("{customer_id}::{merchant_id}")
-    } else {
-        customer_id.to_owned()
-    };
+    let merchant_customer_id = customer_id.to_owned();
     let card_req_body = CardReqBody {
         merchant_id,
         merchant_customer_id,
@@ -482,11 +474,7 @@ pub async fn mk_delete_card_request_hs(
     merchant_id: &str,
     card_reference: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let merchant_customer_id = if cfg!(feature = "sandbox") {
-        format!("{customer_id}::{merchant_id}")
-    } else {
-        customer_id.to_owned()
-    };
+    let merchant_customer_id = customer_id.to_owned();
     let card_req_body = CardReqBody {
         merchant_id,
         merchant_customer_id,

@@ -4,7 +4,7 @@ pub mod capture_flow;
 pub mod complete_authorize_flow;
 pub mod psync_flow;
 pub mod session_flow;
-pub mod verfiy_flow;
+pub mod verify_flow;
 
 use async_trait::async_trait;
 
@@ -40,6 +40,7 @@ pub trait Feature<F: Flow, T> {
         maybe_customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -89,6 +90,15 @@ pub trait Feature<F: Flow, T> {
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
+        Ok(None)
+    }
+
+    async fn build_flow_specific_connector_request(
+        &mut self,
+        _state: &AppState,
+        _connector: &api::ConnectorData,
+        _call_connector_action: payments::CallConnectorAction,
+    ) -> RouterResult<Option<services::Request>> {
         Ok(None)
     }
 }
@@ -643,7 +653,6 @@ default_imp_for_pre_processing_steps!(
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
-    connector::Trustpay,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen

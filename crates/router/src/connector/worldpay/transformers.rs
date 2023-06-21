@@ -171,7 +171,7 @@ impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for WorldpayRefundRequest {
         Ok(Self {
             reference: item.request.connector_transaction_id.clone(),
             value: PaymentValue {
-                amount: item.request.amount,
+                amount: item.request.refund_amount,
                 currency: item.request.currency.to_string(),
             },
         })

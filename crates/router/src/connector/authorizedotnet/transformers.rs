@@ -901,7 +901,7 @@ pub struct AuthorizedotnetWebhookPayload {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetWebhookEventType {
-    pub event_type: AuthorizedotnetWebhookEvent,
+    pub event_type: AuthorizedotnetIncomingWebhookEventType,
 }
 
 #[derive(Debug, Deserialize)]
@@ -919,16 +919,35 @@ pub enum AuthorizedotnetWebhookEvent {
     #[serde(rename = "net.authorize.payment.refund.created")]
     RefundCreated,
 }
+///Including Unknown to map unknown webhook events
+#[derive(Debug, Deserialize)]
+pub enum AuthorizedotnetIncomingWebhookEventType {
+    #[serde(rename = "net.authorize.payment.authorization.created")]
+    AuthorizationCreated,
+    #[serde(rename = "net.authorize.payment.priorAuthCapture.created")]
+    PriorAuthCapture,
+    #[serde(rename = "net.authorize.payment.authcapture.created")]
+    AuthCapCreated,
+    #[serde(rename = "net.authorize.payment.capture.created")]
+    CaptureCreated,
+    #[serde(rename = "net.authorize.payment.void.created")]
+    VoidCreated,
+    #[serde(rename = "net.authorize.payment.refund.created")]
+    RefundCreated,
+    #[serde(other)]
+    Unknown,
+}
 
-impl From<AuthorizedotnetWebhookEvent> for api::IncomingWebhookEvent {
-    fn from(event_type: AuthorizedotnetWebhookEvent) -> Self {
+impl From<AuthorizedotnetIncomingWebhookEventType> for api::IncomingWebhookEvent {
+    fn from(event_type: AuthorizedotnetIncomingWebhookEventType) -> Self {
         match event_type {
-            AuthorizedotnetWebhookEvent::AuthorizationCreated
-            | AuthorizedotnetWebhookEvent::PriorAuthCapture
-            | AuthorizedotnetWebhookEvent::AuthCapCreated
-            | AuthorizedotnetWebhookEvent::CaptureCreated
-            | AuthorizedotnetWebhookEvent::VoidCreated => Self::PaymentIntentSuccess,
-            AuthorizedotnetWebhookEvent::RefundCreated => Self::RefundSuccess,
+            AuthorizedotnetIncomingWebhookEventType::AuthorizationCreated
+            | AuthorizedotnetIncomingWebhookEventType::PriorAuthCapture
+            | AuthorizedotnetIncomingWebhookEventType::AuthCapCreated
+            | AuthorizedotnetIncomingWebhookEventType::CaptureCreated
+            | AuthorizedotnetIncomingWebhookEventType::VoidCreated => Self::PaymentIntentSuccess,
+            AuthorizedotnetIncomingWebhookEventType::RefundCreated => Self::RefundSuccess,
+            AuthorizedotnetIncomingWebhookEventType::Unknown => Self::EventNotSupported,
         }
     }
 }

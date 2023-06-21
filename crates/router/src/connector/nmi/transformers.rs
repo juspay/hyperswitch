@@ -510,8 +510,7 @@ impl From<NmiStatus> for enums::AttemptStatus {
             NmiStatus::Abandoned => Self::AuthenticationFailed,
             NmiStatus::Cancelled => Self::Voided,
             NmiStatus::Pending => Self::Authorized,
-            NmiStatus::Pendingsettlement => Self::Pending,
-            NmiStatus::Complete => Self::Charged,
+            NmiStatus::Pendingsettlement | NmiStatus::Complete => Self::Charged,
             NmiStatus::InProgress => Self::AuthenticationPending,
             NmiStatus::Failed | NmiStatus::Unknown => Self::Failure,
         }
@@ -633,10 +632,8 @@ impl From<NmiStatus> for enums::RefundStatus {
             | NmiStatus::Cancelled
             | NmiStatus::Failed
             | NmiStatus::Unknown => Self::Failure,
-            NmiStatus::Pendingsettlement | NmiStatus::Pending | NmiStatus::InProgress => {
-                Self::Pending
-            }
-            NmiStatus::Complete => Self::Success,
+            NmiStatus::Pending | NmiStatus::InProgress => Self::Pending,
+            NmiStatus::Pendingsettlement | NmiStatus::Complete => Self::Success,
         }
     }
 }
@@ -659,14 +656,11 @@ impl From<String> for NmiStatus {
 
 #[derive(Debug, Deserialize)]
 pub struct SyncTransactionResponse {
-    #[serde(rename = "transaction_id")]
     transaction_id: String,
-    #[serde(rename = "condition")]
     condition: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct SyncResponse {
-    #[serde(rename = "transaction")]
     transaction: SyncTransactionResponse,
 }
