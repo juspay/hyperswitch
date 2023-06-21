@@ -386,11 +386,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsPreProcessingRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let create_intent_req = trustpay::TrustpayCreateIntentRequest::try_from(req)?;
-        let trustpay_req =
-            utils::Encode::<trustpay::TrustpayCreateIntentRequest>::url_encode(&create_intent_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let trustpay_req = types::RequestBody::log_and_get_request_body(
+            &create_intent_req,
+            utils::Encode::<trustpay::TrustpayCreateIntentRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(trustpay_req))
     }
 

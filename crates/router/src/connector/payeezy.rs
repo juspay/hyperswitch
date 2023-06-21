@@ -41,8 +41,9 @@ where
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = payeezy::PayeezyAuthType::try_from(&req.connector_auth_type)?;
         let option_request_payload = self.get_request_body(req)?;
-        let request_payload =
-            option_request_payload.map_or("{}".to_string(), |payload| payload.expose());
+        let request_payload = option_request_payload.map_or("{}".to_string(), |payload| {
+            types::RequestBody::get_inner_value(payload).expose()
+        });
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .ok()

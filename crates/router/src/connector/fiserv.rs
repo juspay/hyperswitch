@@ -75,7 +75,7 @@ where
             .generate_authorization_signature(
                 auth,
                 &client_request_id,
-                fiserv_req.peek(),
+                types::RequestBody::get_inner_value(fiserv_req).peek(),
                 timestamp,
             )
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;

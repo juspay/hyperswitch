@@ -154,7 +154,9 @@ where
             .collect();
         let sha256 = self.generate_digest(
             cybersource_req
-                .map_or("{}".to_string(), |s| s.peek().to_owned())
+                .map_or("{}".to_string(), |s| {
+                    types::RequestBody::get_inner_value(s).peek().to_owned()
+                })
                 .as_bytes(),
         );
         let http_method = self.get_http_method();
@@ -360,7 +362,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         _req: &types::PaymentsSyncRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Ok(Some(
-            types::RequestBody::log_and_get_request_body("{}".to_string(), |str| Ok("{}".into()))
+            types::RequestBody::log_and_get_request_body("{}".to_string(), Ok)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         ))
     }
@@ -529,7 +531,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         _req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Ok(Some(
-            types::RequestBody::log_and_get_request_body("{}".to_string(), |str| Ok("{}".into()))
+            types::RequestBody::log_and_get_request_body("{}".to_string(), Ok)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         ))
     }

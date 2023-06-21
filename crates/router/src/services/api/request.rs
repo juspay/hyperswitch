@@ -215,7 +215,7 @@ impl RequestBuilder {
     }
 
     pub fn body(mut self, option_body: Option<types::RequestBody>) -> Self {
-        self.payload = option_body.map(|body| *body);
+        self.payload = option_body.map(types::RequestBody::get_inner_value);
         self
     }
 

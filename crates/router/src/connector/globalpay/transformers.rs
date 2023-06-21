@@ -114,7 +114,7 @@ impl TryFrom<&types::ConnectorAuthType> for GlobalpayAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                app_id: Secret::new(api_key.to_owned()),
+                app_id: Secret::new(key1.to_owned()),
                 key: api_key.to_string(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),

@@ -56,7 +56,7 @@ where
     {
         let dlocal_req = match self.get_request_body(req)? {
             Some(val) => val,
-            None => types::RequestBody::log_and_get_request_body("", |body| Ok("".to_string()))
+            None => types::RequestBody::log_and_get_request_body("", |body| Ok(body.to_string()))
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         };
 
@@ -65,7 +65,14 @@ where
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
-        let sign_req: String = format!("{}{}{}", auth.x_login, date, dlocal_req.peek().to_owned());
+        let sign_req: String = format!(
+            "{}{}{}",
+            auth.x_login,
+            date,
+            types::RequestBody::get_inner_value(dlocal_req)
+                .peek()
+                .to_owned()
+        );
         let authz = crypto::HmacSha256::sign_message(
             &crypto::HmacSha256,
             auth.secret.as_bytes(),
