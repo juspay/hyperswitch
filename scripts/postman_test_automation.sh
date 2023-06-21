@@ -49,30 +49,14 @@ KEY1=""
 get_api_keys "${CONNECTOR_NAME}"
 COLLECTION_PATH=$(path_generation "${CONNECTOR_NAME}")
 
-# Run Newman collection
-args=(
-    --env-var "admin_api_key=${ADMIN_API_KEY}"
-    --env-var "baseUrl=${BASE_URL}"
-    --env-var "connector_api_key=${API_KEY}"
-)
-
-case "$KEY_TYPE" in
-    "HeaderKey" )
-        ;;
-    "BodyKey" )
-        args+=("--env-var" "connector_key1=${KEY1}")
-        ;;
-    "SignatureKey" )
-        args+=("--env-var" "connector_api_secret=${API_SECRET}" "--env-var" "connector_key1=${KEY1}")
-        ;;
-    "MultiAuthKey" )
-        args+=("--env-var" "connector_api_secret=${API_SECRET}" "--env-var" "connector_key1=${KEY1}" "--env-var" "connector_key2=${KEY2}")
-        ;;
-esac
-
-[[ -n "$GATEWAY_MERCHANT_ID" ]] && args+=("--env-var" "gateway_merchant_id=${GATEWAY_MERCHANT_ID}")
-[[ -n "$GPAY_CERTIFICATE" ]] && args+=("--env-var" "certificate=${GPAY_CERTIFICATE}")
-[[ -n "$GPAY_CERTIFICATE_KEYS" ]] && args+=("--env-var" "certificate_keys=${GPAY_CERTIFICATE_KEYS}")
-
-newman "run" "${COLLECTION_PATH}" "${args[@]}"
-
+# Newman runner
+newman run "${COLLECTION_PATH}" \
+    --env-var "admin_api_key=${ADMIN_API_KEY}" \
+    --env-var "baseUrl=${BASE_URL}" \
+    --env-var "connector_api_key=${API_KEY}" \
+    $(if [[ "${KEY_TYPE}" == "BodyKey" ]]; then --env-var "connector_key1=${KEY1}"; fi) \
+    $(if [[ "${KEY_TYPE}" == "SignatureKey" ]]; then echo --env-var "connector_key1=${KEY1}" --env-var "connector_api_secret=${API_SECRET}"; fi) \
+    $(if [[ "${KEY_TYPE}" == "MultiAuthKey" ]]; then echo --env-var "connector_key1=${KEY1}" --env-var "connector_key2=${KEY2}" --env-var "connector_api_secret=${API_SECRET}"; fi) \
+    $(if [[ -n "${GATEWAY_MERCHANT_ID}" ]]; then echo --env-var "gateway_merchant_id=${GATEWAY_MERCHANT_ID}"; fi) \
+    $(if [[ -n "${GPAY_CERTIFICATE}" ]]; then echo --env-var "certificate=${GPAY_CERTIFICATE}"; fi) \
+    $(if [[ -n "${GPAY_CERTIFICATE_KEYS}" ]]; then echo --env-var "certificate_keys=${GPAY_CERTIFICATE_KEYS}"; fi)
