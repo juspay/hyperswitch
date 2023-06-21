@@ -143,7 +143,7 @@ where
                     state,
                     &merchant_account,
                     connector,
-                    &operation,
+                    operation,
                     &mut payment_data,
                     &customer,
                     call_connector_action,
@@ -491,7 +491,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     connector: api::ConnectorData,
-    operation: &BoxedOperation<'_, F, ApiRequest>,
+    operation: BoxedOperation<'_, F, ApiRequest>,
     payment_data: &mut PaymentData<F>,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
@@ -574,11 +574,10 @@ where
         )
         .await?;
 
-    // The status of payment_attempt and intent will be updated in the previous step
-    // This field will be used by the connector
-    router_data.status = payment_data.payment_attempt.status;
-
     let router_data_res = if should_continue_further {
+        // The status of payment_attempt and intent will be updated in the previous step
+        // This field will be used by the connector
+        router_data.status = payment_data.payment_attempt.status;
         router_data
             .decide_flows(
                 state,
