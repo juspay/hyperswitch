@@ -146,11 +146,8 @@ impl
         &self,
         _req: &types::PaymentsCompleteAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let globalpay_req = types::RequestBody::log_and_get_request_body(
-            &"{}".to_string(),
-            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let globalpay_req = types::RequestBody::log_and_get_request_body("{}".to_string(), Ok)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(globalpay_req))
     }
 

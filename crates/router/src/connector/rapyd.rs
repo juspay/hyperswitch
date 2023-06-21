@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{date_time, ext_traits::StringExt};
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
+use masking::ExposeInterface;
 use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
 use transformers as rapyd;
@@ -175,12 +175,11 @@ impl
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
-        let body = types::PaymentsAuthorizeType::get_request_body(self, req)?;
-        let req_body = body.ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let binding = types::RequestBody::get_inner_value(req_body);
-        let y = binding.peek();
+        let body = types::PaymentsAuthorizeType::get_request_body(self, req)?
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let req_body = types::RequestBody::get_inner_value(body).expose();
         let signature =
-            self.generate_signature(&auth, "post", "/v1/payments", y, &timestamp, &salt)?;
+            self.generate_signature(&auth, "post", "/v1/payments", &req_body, &timestamp, &salt)?;
         let headers = vec![
             ("access_key".to_string(), auth.access_key.into_masked()),
             ("salt".to_string(), salt.into_masked()),
@@ -480,11 +479,11 @@ impl
             "/v1/payments/{}/capture",
             req.request.connector_transaction_id
         );
-        let body = types::PaymentsCaptureType::get_request_body(self, req)?;
-        let req_body = body.ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let binding = types::RequestBody::get_inner_value(req_body);
-        let y = binding.peek();
-        let signature = self.generate_signature(&auth, "post", &url_path, y, &timestamp, &salt)?;
+        let body = types::PaymentsCaptureType::get_request_body(self, req)?
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let req_body = types::RequestBody::get_inner_value(body).expose();
+        let signature =
+            self.generate_signature(&auth, "post", &url_path, &req_body, &timestamp, &salt)?;
         let headers = vec![
             ("access_key".to_string(), auth.access_key.into_masked()),
             ("salt".to_string(), salt.into_masked()),
@@ -608,13 +607,12 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let timestamp = date_time::now_unix_timestamp();
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
-        let body = types::RefundExecuteType::get_request_body(self, req)?;
-        let req_body = body.ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let binding = types::RequestBody::get_inner_value(req_body);
-        let y = binding.peek();
+        let body = types::RefundExecuteType::get_request_body(self, req)?
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let req_body = types::RequestBody::get_inner_value(body).expose();
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
         let signature =
-            self.generate_signature(&auth, "post", "/v1/refunds", y, &timestamp, &salt)?;
+            self.generate_signature(&auth, "post", "/v1/refunds", &req_body, &timestamp, &salt)?;
         let headers = vec![
             ("access_key".to_string(), auth.access_key.into_masked()),
             ("salt".to_string(), salt.into_masked()),

@@ -56,7 +56,7 @@ where
     {
         let dlocal_req = match self.get_request_body(req)? {
             Some(val) => val,
-            None => types::RequestBody::log_and_get_request_body("", |body| Ok(body.to_string()))
+            None => types::RequestBody::log_and_get_request_body("".to_string(), Ok)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         };
 

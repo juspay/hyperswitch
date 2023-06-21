@@ -50,10 +50,10 @@ pub struct Address {
     line_1: Secret<String>,
     line_2: Option<Secret<String>>,
     line_3: Option<Secret<String>>,
-    city: Option<Secret<String>>,
+    city: Option<String>,
     state: Option<Secret<String>>,
-    country: Option<Secret<String>>,
-    zip: Option<Secret<String>>,
+    country: Option<String>,
+    zip: Option<String>,
     phone_number: Option<Secret<String>>,
 }
 
