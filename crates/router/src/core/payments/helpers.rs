@@ -1729,7 +1729,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
 ) -> error_stack::Result<Option<storage::PaymentIntent>, errors::ApiErrorResponse> {
     client_secret
         .async_map(|cs| async move {
-            let payment_id = get_payment_id_from_client_secret(&cs);
+            let payment_id = get_payment_id_from_client_secret(&cs)?;
 
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
@@ -1833,8 +1833,12 @@ pub fn get_business_details(
 }
 
 #[inline]
-pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> String {
-    cs.split('_').take(2).collect::<Vec<&str>>().join("_")
+pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String> {
+    let (payment_id, _) = cs
+        .rsplit_once("_secret_")
+        .ok_or(errors::ApiErrorResponse::ClientSecretInvalid)
+        .into_report()?;
+    Ok(payment_id.to_string())
 }
 
 #[cfg(test)]
@@ -2435,4 +2439,29 @@ pub fn add_order_details_and_metadata_to_payment_intent(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    #![allow(clippy::unwrap_used)]
+    #[test]
+    fn test_client_secret_parse() {
+        let client_secret1 = "pay_3TgelAms4RQec8xSStjF_secret_fc34taHLw1ekPgNh92qr";
+        let client_secret2 = "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_fc34taHLw1ekPgNh92qr";
+        let client_secret3 =
+            "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret__secret_fc34taHLw1ekPgNh92qr";
+
+        assert_eq!(
+            "pay_3TgelAms4RQec8xSStjF",
+            super::get_payment_id_from_client_secret(client_secret1).unwrap()
+        );
+        assert_eq!(
+            "pay_3Tgel__Ams4RQ_secret_ec8xSStjF",
+            super::get_payment_id_from_client_secret(client_secret2).unwrap()
+        );
+        assert_eq!(
+            "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_",
+            super::get_payment_id_from_client_secret(client_secret3).unwrap()
+        );
+    }
 }
