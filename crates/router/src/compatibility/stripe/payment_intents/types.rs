@@ -48,17 +48,25 @@ pub struct StripeCard {
     pub holder_name: Option<pii::Secret<String>>,
 }
 
+#[derive(Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeWallet {
+    ApplePay(payments::ApplePayWalletData),
+}
+
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodType {
     #[default]
     Card,
+    Wallet,
 }
 
 impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
     fn from(item: StripePaymentMethodType) -> Self {
         match item {
             StripePaymentMethodType::Card => Self::Card,
+            StripePaymentMethodType::Wallet => Self::Wallet,
         }
     }
 }
@@ -77,6 +85,7 @@ pub struct StripePaymentMethodData {
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodDetails {
     Card(StripeCard),
+    Wallet(StripeWallet),
 }
 
 impl From<StripeCard> for payments::Card {
@@ -93,10 +102,21 @@ impl From<StripeCard> for payments::Card {
     }
 }
 
+impl From<StripeWallet> for payments::WalletData {
+    fn from(wallet: StripeWallet) -> Self {
+        match wallet {
+            StripeWallet::ApplePay(data) => Self::ApplePay(data),
+        }
+    }
+}
+
 impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
     fn from(item: StripePaymentMethodDetails) -> Self {
         match item {
             StripePaymentMethodDetails::Card(card) => Self::Card(payments::Card::from(card)),
+            StripePaymentMethodDetails::Wallet(wallet) => {
+                Self::Wallet(payments::WalletData::from(wallet))
+            }
         }
     }
 }
@@ -143,12 +163,13 @@ pub struct StripePaymentIntentRequest {
     pub shipping: Option<Shipping>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    pub metadata: Option<api_models::payments::Metadata>,
+    pub metadata: Option<secret::SecretSerdeValue>,
     pub client_secret: Option<pii::Secret<String>>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     pub mandate_id: Option<String>,
     pub off_session: Option<bool>,
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub receipt_ipaddress: Option<String>,
     pub user_agent: Option<String>,
 }
@@ -234,7 +255,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 .and_then(|pmd| pmd.billing_details.map(payments::Address::from)),
             statement_descriptor_name: item.statement_descriptor,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
-            metadata: item.metadata,
+            udf: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
             authentication_type,
             mandate_data: mandate_options,
@@ -242,6 +263,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             setup_future_usage: item.setup_future_usage,
             mandate_id: item.mandate_id,
             off_session: item.off_session,
+            payment_method_type: item.payment_method_type,
             routing,
             browser_info: Some(
                 serde_json::to_value(crate::types::BrowserInformation {
@@ -415,7 +437,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             statement_descriptor_suffix: resp.statement_descriptor_suffix,
             next_action: into_stripe_next_action(resp.next_action, resp.return_url),
             cancellation_reason: resp.cancellation_reason,
-            metadata: resp.metadata,
+            metadata: resp.udf,
             charges: Charges::new(),
             last_payment_error: resp.error_code.map(|code| LastPaymentError {
                 charge: None,

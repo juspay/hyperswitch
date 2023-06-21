@@ -45,7 +45,7 @@ impl<
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted_data = crypt_algo.encode_message(key, masked_data.peek().as_bytes())?;
 
-        Ok(Self::new(masked_data, encrypted_data))
+        Ok(Self::new(masked_data, encrypted_data.into()))
     }
 
     #[instrument(skip_all)]
@@ -84,7 +84,7 @@ impl<
             .change_context(errors::CryptoError::DecodingFailed)?;
         let encrypted_data = crypt_algo.encode_message(key, &data)?;
 
-        Ok(Self::new(masked_data, encrypted_data))
+        Ok(Self::new(masked_data, encrypted_data.into()))
     }
 
     #[instrument(skip_all)]
@@ -118,7 +118,7 @@ impl<
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted_data = crypt_algo.encode_message(key, masked_data.peek())?;
 
-        Ok(Self::new(masked_data, encrypted_data))
+        Ok(Self::new(masked_data, encrypted_data.into()))
     }
 
     #[instrument(skip_all)]

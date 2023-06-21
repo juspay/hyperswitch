@@ -84,6 +84,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 resp.to_owned(),
                 maybe_customer,
                 merchant_account,
+                self.request.payment_method_type.clone(),
             )
             .await?;
 
