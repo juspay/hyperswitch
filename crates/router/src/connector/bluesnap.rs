@@ -178,14 +178,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::ConnectorCustomerRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_request = bluesnap::BluesnapCustomerRequest::try_from(req)?;
-        router_env::logger::info!(?connector_request);
-        let bluesnap_req =
-            utils::Encode::<bluesnap::BluesnapCustomerRequest>::encode_to_string_of_json(
-                &connector_request,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let bluesnap_req = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<bluesnap::BluesnapCustomerRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bluesnap_req))
     }
 
@@ -270,14 +269,13 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = bluesnap::BluesnapVoidRequest::try_from(req)?;
-        router_env::logger::info!(?connector_req);
-        let bluesnap_req =
-            utils::Encode::<bluesnap::BluesnapVoidRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let bluesnap_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<bluesnap::BluesnapVoidRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bluesnap_req))
     }
 
@@ -436,14 +434,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = bluesnap::BluesnapCaptureRequest::try_from(req)?;
-        router_env::logger::info!(?connector_req);
-        let bluesnap_req =
-            utils::Encode::<bluesnap::BluesnapCaptureRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let bluesnap_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<bluesnap::BluesnapCaptureRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bluesnap_req))
     }
 
@@ -534,14 +531,13 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsSessionRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = bluesnap::BluesnapCreateWalletToken::try_from(req)?;
-        router_env::logger::info!(?connector_req);
-        let bluesnap_req =
-            utils::Encode::<bluesnap::BluesnapCreateWalletToken>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let bluesnap_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<bluesnap::BluesnapCreateWalletToken>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bluesnap_req))
     }
 
@@ -628,14 +624,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = bluesnap::BluesnapPaymentsRequest::try_from(req)?;
-        router_env::logger::info!(?connector_req);
-        let bluesnap_req =
-            utils::Encode::<bluesnap::BluesnapPaymentsRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let bluesnap_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<bluesnap::BluesnapPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bluesnap_req))
     }
 
@@ -741,14 +736,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsCompleteAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = bluesnap::BluesnapPaymentsRequest::try_from(req)?;
-        router_env::logger::info!(?connector_req);
-        let bluesnap_req =
-            utils::Encode::<bluesnap::BluesnapPaymentsRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let bluesnap_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<bluesnap::BluesnapPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bluesnap_req))
     }
     fn build_request(
@@ -833,14 +827,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = bluesnap::BluesnapRefundRequest::try_from(req)?;
-        router_env::logger::info!(?connector_req);
-        let bluesnap_req =
-            utils::Encode::<bluesnap::BluesnapRefundRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let bluesnap_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<bluesnap::BluesnapRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bluesnap_req))
     }
 

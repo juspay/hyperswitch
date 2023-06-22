@@ -539,7 +539,7 @@ pub struct BankRedirectionPMData {
 pub struct BankRedirectionWithIssuer<'a> {
     #[serde(rename = "type")]
     payment_type: PaymentType,
-    issuer: &'a str,
+    issuer: Option<&'a str>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -609,7 +609,7 @@ pub struct AdyenGPay {
     #[serde(rename = "type")]
     payment_type: PaymentType,
     #[serde(rename = "googlePayToken")]
-    google_pay_token: String,
+    google_pay_token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -617,7 +617,7 @@ pub struct AdyenApplePay {
     #[serde(rename = "type")]
     payment_type: PaymentType,
     #[serde(rename = "applePayToken")]
-    apple_pay_token: String,
+    apple_pay_token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1054,14 +1054,14 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
             api_models::payments::WalletData::GooglePay(data) => {
                 let gpay_data = AdyenGPay {
                     payment_type: PaymentType::Googlepay,
-                    google_pay_token: data.tokenization_data.token.to_owned(),
+                    google_pay_token: Secret::new(data.tokenization_data.token.to_owned()),
                 };
                 Ok(AdyenPaymentMethod::Gpay(Box::new(gpay_data)))
             }
             api_models::payments::WalletData::ApplePay(data) => {
                 let apple_pay_data = AdyenApplePay {
                     payment_type: PaymentType::Applepay,
-                    apple_pay_token: data.payment_data.to_string(),
+                    apple_pay_token: Secret::new(data.payment_data.to_string()),
                 };
 
                 Ok(AdyenPaymentMethod::ApplePay(Box::new(apple_pay_data)))
@@ -1188,7 +1188,10 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             api_models::payments::BankRedirectData::Eps { bank_name, .. } => Ok(
                 AdyenPaymentMethod::Eps(Box::new(BankRedirectionWithIssuer {
                     payment_type: PaymentType::Eps,
-                    issuer: AdyenTestBankNames::try_from(bank_name)?.0,
+                    issuer: bank_name
+                        .map(|bank_name| AdyenTestBankNames::try_from(&bank_name))
+                        .transpose()?
+                        .map(|adyen_bank_name| adyen_bank_name.0),
                 })),
             ),
             api_models::payments::BankRedirectData::Giropay { .. } => Ok(
@@ -1199,7 +1202,10 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             api_models::payments::BankRedirectData::Ideal { bank_name, .. } => Ok(
                 AdyenPaymentMethod::Ideal(Box::new(BankRedirectionWithIssuer {
                     payment_type: PaymentType::Ideal,
-                    issuer: AdyenTestBankNames::try_from(bank_name)?.0,
+                    issuer: bank_name
+                        .map(|bank_name| AdyenTestBankNames::try_from(&bank_name))
+                        .transpose()?
+                        .map(|adyen_bank_name| adyen_bank_name.0),
                 })),
             ),
             api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { issuer } => {

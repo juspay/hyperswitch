@@ -26,6 +26,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         state: &AppState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 }
@@ -97,13 +98,14 @@ pub trait Feature<F, T> {
         Ok(None)
     }
 
+    /// Returns the connector request and a bool which specifies whether to proceed with further
     async fn build_flow_specific_connector_request(
         &mut self,
         _state: &AppState,
         _connector: &api::ConnectorData,
         _call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<Option<services::Request>> {
-        Ok(None)
+    ) -> RouterResult<(Option<services::Request>, bool)> {
+        Ok((None, true))
     }
 }
 
