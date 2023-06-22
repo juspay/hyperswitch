@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use api_models::payments;
-use common_utils::{date_time, ext_traits::StringExt};
+use common_utils::{date_time, ext_traits::StringExt, pii as secret};
 use error_stack::{IntoReport, ResultExt};
 use router_env::logger;
 use serde::{Deserialize, Serialize};
@@ -17,7 +17,7 @@ use crate::{
     types::{
         api::{self as api_types, admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignTryFrom},
-    },
+    }, utils::OptionExt,
 };
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -121,7 +121,6 @@ impl From<Shipping> for payments::Address {
 }
 
 #[derive(Default, PartialEq, Eq, Deserialize, Clone)]
-
 pub struct StripeSetupIntentRequest {
     pub confirm: Option<bool>,
     pub customer: Option<String>,
@@ -135,7 +134,7 @@ pub struct StripeSetupIntentRequest {
     pub billing_details: Option<StripeBillingDetails>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    pub metadata: Option<api_models::payments::Metadata>,
+    pub metadata: Option<secret::SecretSerdeValue>,
     pub client_secret: Option<pii::Secret<String>>,
     pub payment_method_options: Option<payment_intent::StripePaymentMethodOptions>,
     pub payment_method: Option<String>,
@@ -173,6 +172,13 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "receipt_ipaddress".to_string(),
                 expected_format: "127.0.0.1".to_string(),
+            })?;
+        let metadata_object = item
+            .metadata
+            .clone()
+            .parse_value("metadata")
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "metadata mapping failed",
             })?;
         let request = Ok(Self {
             amount: Some(api_types::Amount::Zero),
@@ -215,7 +221,8 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
                 .map(|b| payments::Address::from(b.to_owned())),
             statement_descriptor_name: item.statement_descriptor,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
-            metadata: item.metadata,
+            metadata: metadata_object,
+            udf:item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
             setup_future_usage: item.setup_future_usage,
             merchant_connector_details: item.merchant_connector_details,
