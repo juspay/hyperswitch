@@ -16,6 +16,7 @@ mod bluesnap;
 mod checkout;
 mod coinbase;
 mod connector_auth;
+mod cryptopay;
 mod cybersource;
 mod dlocal;
 #[cfg(feature = "dummy_connector")]

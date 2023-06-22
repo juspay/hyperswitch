@@ -593,6 +593,7 @@ pub enum Connector {
     Braintree,
     Checkout,
     Coinbase,
+    Cryptopay,
     Cybersource,
     Iatapay,
     #[cfg(feature = "dummy_connector")]
@@ -690,6 +691,7 @@ pub enum RoutableConnectors {
     Braintree,
     Checkout,
     Coinbase,
+    Cryptopay,
     Cybersource,
     Dlocal,
     Fiserv,

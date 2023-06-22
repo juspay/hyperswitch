@@ -126,3 +126,7 @@ pypl_email=""
 pypl_pass=""
 gmail_email=""
 gmail_pass=""
+
+[cryptopay]
+api_key = "api_key"
+key1 = "key1"

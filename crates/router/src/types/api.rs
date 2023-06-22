@@ -211,6 +211,7 @@ impl ConnectorData {
                 enums::Connector::Braintree => Ok(Box::new(&connector::Braintree)),
                 enums::Connector::Checkout => Ok(Box::new(&connector::Checkout)),
                 enums::Connector::Coinbase => Ok(Box::new(&connector::Coinbase)),
+                enums::Connector::Cryptopay => Ok(Box::new(&connector::Cryptopay)),
                 enums::Connector::Cybersource => Ok(Box::new(&connector::Cybersource)),
                 enums::Connector::Dlocal => Ok(Box::new(&connector::Dlocal)),
                 #[cfg(feature = "dummy_connector")]

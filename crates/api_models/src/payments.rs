@@ -768,7 +768,9 @@ pub struct SepaAndBacsBillingDetails {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct CryptoData {}
+pub struct CryptoData {
+    pub pay_currency: Option<String>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
