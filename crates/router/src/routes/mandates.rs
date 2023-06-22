@@ -41,7 +41,7 @@ pub async fn get_mandate(
         state.get_ref(),
         &req,
         mandate_id,
-        mandate::get_mandate,
+        |state, auth, req| mandate::get_mandate(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
     )
     .await
@@ -80,9 +80,7 @@ pub async fn revoke_mandate(
         state.get_ref(),
         &req,
         mandate_id,
-        |state, merchant_account, req| {
-            mandate::revoke_mandate(&*state.store, merchant_account, req)
-        },
+        |state, auth, req| mandate::revoke_mandate(&*state.store, auth.merchant_account, req),
         &auth::ApiKeyAuth,
     )
     .await
@@ -123,7 +121,7 @@ pub async fn retrieve_mandates_list(
         state.get_ref(),
         &req,
         payload,
-        mandate::retrieve_mandates_list,
+        |state, auth, req| mandate::retrieve_mandates_list(state, auth.merchant_account, req),
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await

@@ -765,6 +765,7 @@ pub fn get_banks(
 pub async fn list_payment_methods(
     state: &routes::AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     mut req: api::PaymentMethodListRequest,
 ) -> errors::RouterResponse<api::PaymentMethodListResponse> {
     let db = &*state.store;
@@ -780,7 +781,7 @@ pub async fn list_payment_methods(
     let address = payment_intent
         .as_ref()
         .async_map(|pi| async {
-            helpers::get_address_by_id(db, pi.shipping_address_id.clone()).await
+            helpers::get_address_by_id(db, pi.shipping_address_id.clone(), &key_store).await
         })
         .await
         .transpose()?
@@ -805,6 +806,7 @@ pub async fn list_payment_methods(
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             &merchant_account.merchant_id,
             false,
+            &key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -1246,6 +1248,7 @@ fn filter_pm_based_on_config<'a>(
     config
         .0
         .get(connector)
+        .or_else(|| config.0.get("default"))
         .and_then(|inner| match payment_method_type {
             api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
                 card_network_filter(country, currency, card_network, inner);
@@ -1558,9 +1561,18 @@ async fn filter_payment_mandate_based(
 pub async fn list_customer_payment_method(
     state: &routes::AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     customer_id: &str,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
+
+    db.find_customer_by_customer_id_merchant_id(
+        customer_id,
+        &merchant_account.merchant_id,
+        &key_store,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_list(
@@ -1570,11 +1582,6 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
     //let mca = query::find_mca_by_merchant_id(conn, &merchant_account.merchant_id)?;
-    if resp.is_empty() {
-        return Err(error_stack::report!(
-            errors::ApiErrorResponse::PaymentMethodNotFound
-        ));
-    }
     let mut customer_pms = Vec::new();
     for pm in resp.into_iter() {
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");

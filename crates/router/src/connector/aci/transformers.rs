@@ -158,14 +158,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
             })),
             api::PaymentMethodData::PayLater(_) => PaymentDetails::Klarna,
             api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
-                api_models::payments::WalletData::MbWay(data) => {
+                api_models::payments::WalletData::MbWayRedirect(data) => {
                     PaymentDetails::Wallet(Box::new(WalletPMData {
                         payment_brand: PaymentBrand::Mbway,
                         account_id: Some(data.telephone_number.clone()),
                         shopper_result_url: item.request.router_return_url.clone(),
                     }))
                 }
-                api_models::payments::WalletData::AliPay { .. } => {
+                api_models::payments::WalletData::AliPayRedirect { .. } => {
                     PaymentDetails::Wallet(Box::new(WalletPMData {
                         payment_brand: PaymentBrand::AliPay,
                         account_id: None,
@@ -212,7 +212,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                         PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
                             payment_brand: PaymentBrand::Ideal,
                             bank_account_country: Some(api_models::enums::CountryAlpha2::NL),
-                            bank_account_bank_name: Some(bank_name.to_string()),
+                            bank_account_bank_name: bank_name
+                                .map(|bank_name| bank_name.to_string()),
                             bank_account_bic: None,
                             bank_account_iban: None,
                             billing_country: None,
@@ -406,7 +407,7 @@ pub struct ResultCode {
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct ErrorParameters {
     pub(super) name: String,
-    pub(super) value: String,
+    pub(super) value: Option<String>,
     pub(super) message: String,
 }
 

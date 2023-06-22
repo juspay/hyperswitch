@@ -109,7 +109,7 @@ impl QueueInterface for Store {
     async fn release_pt_lock(&self, tag: &str, lock_key: &str) -> CustomResult<bool, RedisError> {
         let is_lock_released = self.redis_conn()?.delete_key(lock_key).await;
         Ok(match is_lock_released {
-            Ok(()) => true,
+            Ok(_del_reply) => true,
             Err(error) => {
                 logger::error!(error=%error.current_context(), %tag, "Error while releasing lock");
                 false

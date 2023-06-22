@@ -3,7 +3,7 @@ pub mod types;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing, Flow};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
@@ -13,7 +13,7 @@ use crate::{
     types::api::{self as api_types},
 };
 
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
 pub async fn payment_intents_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -33,6 +33,8 @@ pub async fn payment_intents_create(
         Err(err) => return api::log_and_return_error_response(err),
     };
 
+    let flow = Flow::PaymentsCreate;
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -43,13 +45,15 @@ pub async fn payment_intents_create(
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
     >(
+        flow,
         state.get_ref(),
         &req,
         create_payment_req,
-        |state, merchant_account, req| {
+        |state, auth, req| {
             payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentCreate,
                 req,
                 api::AuthFlow::Merchant,
@@ -61,7 +65,7 @@ pub async fn payment_intents_create(
     .await
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieve))]
 pub async fn payment_intents_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -81,6 +85,8 @@ pub async fn payment_intents_retrieve(
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
 
+    let flow = Flow::PaymentsRetrieve;
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -91,13 +97,15 @@ pub async fn payment_intents_retrieve(
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
     >(
+        flow,
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, payload| {
+        |state, auth, payload| {
             payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentStatus,
                 payload,
                 auth_flow,
@@ -109,7 +117,7 @@ pub async fn payment_intents_retrieve(
     .await
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieve))]
 pub async fn payment_intents_retrieve_with_gateway_creds(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -138,6 +146,8 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
 
+    let flow = Flow::PaymentsRetrieve;
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -148,13 +158,15 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
     >(
+        flow,
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, req| {
+        |state, auth, req| {
             payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentStatus,
                 req,
                 api::AuthFlow::Merchant,
@@ -166,7 +178,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
     .await
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
 pub async fn payment_intents_update(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -196,6 +208,8 @@ pub async fn payment_intents_update(
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
 
+    let flow = Flow::PaymentsUpdate;
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -206,13 +220,15 @@ pub async fn payment_intents_update(
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
     >(
+        flow,
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, req| {
+        |state, auth, req| {
             payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentUpdate,
                 req,
                 auth_flow,
@@ -224,7 +240,7 @@ pub async fn payment_intents_update(
     .await
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
 pub async fn payment_intents_confirm(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -256,6 +272,8 @@ pub async fn payment_intents_confirm(
             Err(err) => return api::log_and_return_error_response(err),
         };
 
+    let flow = Flow::PaymentsConfirm;
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -266,13 +284,15 @@ pub async fn payment_intents_confirm(
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
     >(
+        flow,
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, req| {
+        |state, auth, req| {
             payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentConfirm,
                 req,
                 auth_flow,
@@ -284,6 +304,7 @@ pub async fn payment_intents_confirm(
     .await
 }
 
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture))]
 pub async fn payment_intents_capture(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -305,6 +326,8 @@ pub async fn payment_intents_capture(
         ..stripe_payload
     };
 
+    let flow = Flow::PaymentsCapture;
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -315,13 +338,15 @@ pub async fn payment_intents_capture(
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
     >(
+        flow,
         state.get_ref(),
         &req,
         capture_payload,
-        |state, merchant_account, payload| {
+        |state, auth, payload| {
             payments::payments_core::<api_types::Capture, api_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentCapture,
                 payload,
                 api::AuthFlow::Merchant,
@@ -333,7 +358,7 @@ pub async fn payment_intents_capture(
     .await
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel))]
 pub async fn payment_intents_cancel(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -359,6 +384,8 @@ pub async fn payment_intents_cancel(
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
 
+    let flow = Flow::PaymentsCancel;
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -369,13 +396,15 @@ pub async fn payment_intents_cancel(
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
     >(
+        flow,
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, req| {
+        |state, auth, req| {
             payments::payments_core::<api_types::Void, api_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentCancel,
                 req,
                 auth_flow,
@@ -387,7 +416,7 @@ pub async fn payment_intents_cancel(
     .await
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
 pub async fn payment_intent_list(
     state: web::Data<routes::AppState>,
@@ -398,6 +427,9 @@ pub async fn payment_intent_list(
         Ok(p) => p,
         Err(err) => return api::log_and_return_error_response(err),
     };
+
+    let flow = Flow::PaymentsList;
+
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -408,12 +440,11 @@ pub async fn payment_intent_list(
         types::StripePaymentIntentListResponse,
         errors::StripeErrorCode,
     >(
+        flow,
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, req| {
-            payments::list_payments(&*state.store, merchant_account, req)
-        },
+        |state, auth, req| payments::list_payments(&*state.store, auth.merchant_account, req),
         &auth::ApiKeyAuth,
     )
     .await
