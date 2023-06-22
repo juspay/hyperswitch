@@ -370,12 +370,14 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let additional_pm_data = payment_data
             .payment_method_data
             .as_ref()
-            .map(api_models::payments::AdditionalPaymentData::from)
-            .as_ref()
-            .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encode additional pm data")?;
+            .async_map(|payment_method_data| async{
+                helpers::get_additional_payment_data(payment_method_data, db).await}).await
+                .transpose()?
+                .as_ref()
+                .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to encode additional pm data")?;
 
         let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
         let authentication_type = payment_data.payment_attempt.authentication_type;

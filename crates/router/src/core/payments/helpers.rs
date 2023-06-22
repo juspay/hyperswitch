@@ -2465,3 +2465,51 @@ mod test {
         );
     }
 }
+
+
+pub async fn get_additional_payment_data(
+    pm_data: &api_models::payments::PaymentMethodData,
+    db: &dyn StorageInterface,
+) -> RouterResult<api_models::payments::AdditionalPaymentData> {
+    match pm_data {
+        api_models::payments::PaymentMethodData::Card(card_data)  => {
+            if card_data.card_issuer.is_some() && card_data.card_network.is_some() {
+                let card_issuer = card_data.card_issuer.to_owned();
+            let card_network = card_data.card_network.as_ref().map(|card_network| card_network.to_string());
+
+                Ok(api_models::payments::AdditionalPaymentData::Card {
+                    card_issuer,
+                    card_network,
+                })
+            }
+            else {
+                let card_info = db
+                .get_card_info(&card_data.card_number.clone().get_card_isin())
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to retrieve card information")?
+                .ok_or(report!(errors::ApiErrorResponse::InvalidCardIin))?;
+
+                Ok(api_models::payments::AdditionalPaymentData::Card {
+                    card_issuer: card_info.card_issuer.to_owned(),
+                    card_network: card_info.card_network.as_ref().map(|card_network| card_network.to_string()),
+                })
+            }
+        }
+        api_models::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => Ok(match bank_redirect_data {
+            api_models::payments::BankRedirectData::Eps { bank_name, .. } => api_models::payments::AdditionalPaymentData::BankRedirect {
+                bank_name: bank_name.to_owned(),
+            },
+            api_models::payments::BankRedirectData::Ideal { bank_name, .. } => api_models::payments::AdditionalPaymentData::BankRedirect {
+                bank_name: bank_name.to_owned(),
+            },
+            _ => api_models::payments::AdditionalPaymentData::BankRedirect { bank_name: None },
+        }),
+        api_models::payments::PaymentMethodData::Wallet(_) => Ok(api_models::payments::AdditionalPaymentData::Wallet {}),
+        api_models::payments::PaymentMethodData::PayLater(_) => Ok(api_models::payments::AdditionalPaymentData::PayLater {}),
+        api_models::payments::PaymentMethodData::BankTransfer(_) => Ok(api_models::payments::AdditionalPaymentData::BankTransfer {}),
+        api_models::payments::PaymentMethodData::Crypto(_) => Ok(api_models::payments::AdditionalPaymentData::Crypto {}),
+        api_models::payments::PaymentMethodData::BankDebit(_) => Ok(api_models::payments::AdditionalPaymentData::BankDebit {}),
+        api_models::payments::PaymentMethodData::MandatePayment => Ok(api_models::payments::AdditionalPaymentData::MandatePayment {}),
+    }
+}

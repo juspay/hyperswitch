@@ -9,10 +9,8 @@ use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
-
 use crate::{
-    admin, disputes, enums as api_enums, ephemeral_key::EphemeralKeyCreateResponse, refunds,
-};
+    admin, disputes, enums as api_enums, ephemeral_key::EphemeralKeyCreateResponse, refunds};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -607,35 +605,6 @@ pub enum AdditionalPaymentData {
     Crypto {},
     BankDebit {},
     MandatePayment {},
-}
-
-impl From<&PaymentMethodData> for AdditionalPaymentData {
-    fn from(pm_data: &PaymentMethodData) -> Self {
-        match pm_data {
-            PaymentMethodData::Card(card_data) => Self::Card {
-                card_issuer: card_data.card_issuer.to_owned(),
-                card_network: card_data
-                    .card_network
-                    .as_ref()
-                    .map(|card_network| card_network.to_string()),
-            },
-            PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
-                BankRedirectData::Eps { bank_name, .. } => Self::BankRedirect {
-                    bank_name: bank_name.to_owned(),
-                },
-                BankRedirectData::Ideal { bank_name, .. } => Self::BankRedirect {
-                    bank_name: bank_name.to_owned(),
-                },
-                _ => Self::BankRedirect { bank_name: None },
-            },
-            PaymentMethodData::Wallet(_) => Self::Wallet {},
-            PaymentMethodData::PayLater(_) => Self::PayLater {},
-            PaymentMethodData::BankTransfer(_) => Self::BankTransfer {},
-            PaymentMethodData::Crypto(_) => Self::Crypto {},
-            PaymentMethodData::BankDebit(_) => Self::BankDebit {},
-            PaymentMethodData::MandatePayment => Self::MandatePayment {},
-        }
-    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
