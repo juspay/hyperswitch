@@ -950,6 +950,7 @@ impl<F, T>
                     },
                 ))),
             }),
+            status: storage_models::enums::AttemptStatus::Pending,
             ..item.data
         })
     }
