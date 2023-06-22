@@ -8,7 +8,10 @@ use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
-use crate::{enums as api_enums, payment_methods};
+use crate::{
+    enums::{self as api_enums, CardNetwork, Connector, PaymentMethod, PaymentMethodType},
+    payment_methods,
+};
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -445,16 +448,29 @@ pub struct MerchantConnectorCreate {
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
     /// contains the frm configs for the merchant connector
-    #[schema(example = json!([
-        {
-            "frm_enabled_pms" : ["card"],
-            "frm_enabled_pm_types" : ["credit"],
-            "frm_enabled_gateways" : ["stripe"],
-            "frm_action": "cancel_txn",
-            "frm_preferred_flow_type" : "pre"
-        }
-    ]))]
-    pub frm_configs: Option<FrmConfigs>,
+    #[schema(example = json!([{
+        "connector": "stripe",
+        "payment_methods": [{
+            "payment_method": "card",
+            "payment_method_types": [{
+                    "payment_method_type": "credit",
+                    "card_networks": [
+                        "Visa"
+                    ],
+                    "flow": "pre",
+                    "action": "cancel_txn"
+                },
+                {
+                    "payment_method_type": "debit",
+                    "card_networks": [
+                        "Visa"
+                    ],
+                    "flow": "pre"
+                }
+            ]
+        }]
+    }]))]
+    pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// Business Country of the connector
     #[cfg(feature = "multiple_mca")]
@@ -552,16 +568,29 @@ pub struct MerchantConnectorResponse {
     pub business_sub_label: Option<String>,
 
     /// contains the frm configs for the merchant connector
-    #[schema(example = json!([
-        {
-            "frm_enabled_pms" : ["card"],
-            "frm_enabled_pm_types" : ["credit"],
-            "frm_enabled_gateways" : ["stripe"],
-            "frm_action": "cancel_txn",
-            "frm_preferred_flow_type" : "pre"
-        }
-    ]))]
-    pub frm_configs: Option<FrmConfigs>,
+    #[schema(example = json!([{
+        "connector": "stripe",
+        "payment_methods": [{
+            "payment_method": "card",
+            "payment_method_types": [{
+                    "payment_method_type": "credit",
+                    "card_networks": [
+                        "Visa"
+                    ],
+                    "flow": "pre",
+                    "action": "cancel_txn"
+                },
+                {
+                    "payment_method_type": "debit",
+                    "card_networks": [
+                        "Visa"
+                    ],
+                    "flow": "pre"
+                }
+            ]
+        }]
+    }]))]
+    pub frm_configs: Option<Vec<FrmConfigs>>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -621,31 +650,55 @@ pub struct MerchantConnectorUpdate {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// contains the frm configs for the merchant connector
-    #[schema(example = json!([
-        {
-            "frm_enabled_pms" : ["card"],
-            "frm_enabled_pm_types" : ["credit"],
-            "frm_enabled_gateways" : ["stripe"],
-            "frm_action": "cancel_txn",
-            "frm_preferred_flow_type" : "pre"
-        }
-    ]))]
-    pub frm_configs: Option<FrmConfigs>,
+    #[schema(example = json!([{
+        "connector": "stripe",
+        "payment_methods": [{
+            "payment_method": "card",
+            "payment_method_types": [{
+                    "payment_method_type": "credit",
+                    "card_networks": [
+                        "Visa"
+                    ],
+                    "flow": "pre",
+                    "action": "cancel_txn"
+                },
+                {
+                    "payment_method_type": "debit",
+                    "card_networks": [
+                        "Visa"
+                    ],
+                    "flow": "pre"
+                }
+            ]
+        }]
+    }]))]
+    pub frm_configs: Option<Vec<FrmConfigs>>,
 }
 
 ///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FrmConfigs {
-    pub frm_enabled_pms: Option<Vec<String>>,
-    pub frm_enabled_pm_types: Option<Vec<String>>,
-    pub frm_enabled_gateways: Option<Vec<String>>,
-    /// What should be the action if FRM declines the txn (autorefund/cancel txn/manual review)
-    #[schema(value_type = FrmAction)]
-    pub frm_action: api_enums::FrmAction,
-    /// Whether to make a call to the FRM before or after the payment
-    #[schema(value_type = FrmPreferredFlowTypes)]
-    pub frm_preferred_flow_type: api_enums::FrmPreferredFlowTypes,
+    pub gateway: Option<Connector>,
+    pub payment_methods: Vec<FrmPaymentMethod>,
+}
+
+///Details of FrmPaymentMethod are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FrmPaymentMethod {
+    pub payment_method: Option<PaymentMethod>,
+    pub payment_method_types: Vec<FrmPaymentMethodType>,
+}
+
+///Details of FrmPaymentMethodType are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FrmPaymentMethodType {
+    pub payment_method_types: Option<Vec<PaymentMethodType>>,
+    pub card_networks: Option<Vec<CardNetwork>>,
+    pub flow: api_enums::FrmPreferredFlowTypes,
+    pub action: api_enums::FrmAction,
 }
 /// Details of all the payment methods enabled for the connector for the given merchant account
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -653,7 +706,7 @@ pub struct FrmConfigs {
 pub struct PaymentMethodsEnabled {
     /// Type of payment method.
     #[schema(value_type = PaymentMethod,example = "card")]
-    pub payment_method: api_enums::PaymentMethod,
+    pub payment_method: PaymentMethod,
 
     /// Subtype of payment method
     #[schema(value_type = Option<Vec<PaymentMethodType>>,example = json!(["credit"]))]

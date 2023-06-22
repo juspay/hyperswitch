@@ -356,7 +356,7 @@ diesel::table! {
         business_label -> Varchar,
         #[max_length = 64]
         business_sub_label -> Nullable<Varchar>,
-        frm_configs -> Nullable<Jsonb>,
+        frm_configs -> Nullable<Array<Nullable<Jsonb>>>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
     }
