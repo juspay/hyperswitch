@@ -21,8 +21,6 @@ services:
       - ./config:/etc/promtail
       - /var/run/docker.sock:/var/run/docker.sock
     command: -config.file=/etc/promtail/promtail.yaml
-    profiles:
-      - monitoring
     networks:
       - router_net
 
@@ -33,8 +31,6 @@ services:
     command: -config.file=/etc/loki/loki.yaml
     networks:
       - router_net
-    profiles:
-      - monitoring
     volumes:
       - ./config:/etc/loki
 
@@ -43,8 +39,6 @@ services:
     command: --config=/etc/otel-collector.yaml
     networks:
       - router_net
-    profiles:
-      - monitoring
     volumes:
       - ./config/otel-collector.yaml:/etc/otel-collector.yaml
     ports:
@@ -58,8 +52,6 @@ services:
       - "3000:3000"
     networks:
       - router_net
-    profiles:
-      - monitoring
     restart: unless-stopped
     environment:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
@@ -252,8 +244,6 @@ services:
     image: prom/prometheus:latest
     networks:
       - router_net
-    profiles:
-      - monitoring
     volumes:
       - ./config/prometheus.yaml:/etc/prometheus/prometheus.yml
     expose:
@@ -267,8 +257,6 @@ services:
       - ./config/tempo-largespan.yaml:/etc/tempo.yaml
     networks:
       - router_net
-    profiles:
-      - monitoring
     expose:
       - "3200" # tempo
       - "4317" # otlp grpc
@@ -297,10 +285,9 @@ services:
 #      logs: "promtail"
 
   mock-stripe:
-    image: lsampras/mock_nginx:v2
-    profiles:
-      - mock
+    image: ashokkj/stripe-mock:latest
     ports:
-      - "8000:8080"
+      - "12111:12111" #http port
+      - "12112:12112" #https port - self signed cert
     restart: unless-stopped
 
