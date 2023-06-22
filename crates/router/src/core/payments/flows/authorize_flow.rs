@@ -343,6 +343,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             email: data.email,
             currency: Some(data.currency),
             amount: Some(data.amount),
+            payment_method_type: data.payment_method_type,
         })
     }
 }

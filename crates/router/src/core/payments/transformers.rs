@@ -941,6 +941,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             email: payment_data.email,
             currency: Some(payment_data.currency),
             amount: Some(payment_data.amount.into()),
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
         })
     }
 }
