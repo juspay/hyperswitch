@@ -234,7 +234,7 @@ pub struct Card {
 #[serde(rename_all = "camelCase")]
 pub struct ExternalToken {
     pub external_token_provider: ExternalTokenProvider,
-    pub mobile_token: String,
+    pub mobile_token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -434,15 +434,23 @@ impl TryFrom<payments::GooglePayWalletData> for NuveiPaymentsRequest {
         Ok(Self {
             payment_option: PaymentOption {
                 card: Some(Card {
-                    external_token: Some(ExternalToken {
-                        external_token_provider: ExternalTokenProvider::GooglePay,
-                        mobile_token: common_utils::ext_traits::Encode::<
-                            payments::GooglePayWalletData,
-                        >::encode_to_string_of_json(
-                            &utils::GooglePayWalletData::from(gpay_data)
-                        )
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                    }),
+                    external_token:
+                        Some(
+                            ExternalToken {
+                                external_token_provider: ExternalTokenProvider::GooglePay,
+                                mobile_token:
+                                    Secret::new(
+                                        common_utils::ext_traits::Encode::<
+                                            payments::GooglePayWalletData,
+                                        >::encode_to_string_of_json(
+                                            &utils::GooglePayWalletData::from(gpay_data),
+                                        )
+                                        .change_context(
+                                            errors::ConnectorError::RequestEncodingFailed,
+                                        )?,
+                                    ),
+                            },
+                        ),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -458,7 +466,7 @@ impl From<payments::ApplePayWalletData> for NuveiPaymentsRequest {
                 card: Some(Card {
                     external_token: Some(ExternalToken {
                         external_token_provider: ExternalTokenProvider::ApplePay,
-                        mobile_token: apple_pay_data.payment_data,
+                        mobile_token: Secret::new(apple_pay_data.payment_data),
                     }),
                     ..Default::default()
                 }),
