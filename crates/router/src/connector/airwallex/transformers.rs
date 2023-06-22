@@ -427,6 +427,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for AirwallexRefundRequest {
 // Type definition for Refund Response
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RefundStatus {
     Succeeded,
     Failed,
@@ -448,7 +449,7 @@ impl From<RefundStatus> for enums::RefundStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     //A unique number that tags a credit or debit card transaction when it goes from the merchant's bank through to the cardholder's bank.
-    acquirer_reference_number: String,
+    acquirer_reference_number: Option<String>,
     amount: f32,
     //Unique identifier for the Refund
     id: String,
@@ -561,6 +562,8 @@ pub enum AirwallexWebhookEventType {
     DisputeLost,
     #[serde(rename = "dispute.dispute_reversed")]
     DisputeReversed,
+    #[serde(other)]
+    Unknown,
 }
 
 pub fn is_transaction_event(event_code: &AirwallexWebhookEventType) -> bool {
@@ -650,7 +653,27 @@ impl TryFrom<AirwallexWebhookEventType> for api_models::webhooks::IncomingWebhoo
                 Self::DisputeWon
             }
             AirwallexWebhookEventType::DisputeLost => Self::DisputeLost,
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
+            AirwallexWebhookEventType::Unknown
+            | AirwallexWebhookEventType::PaymentIntentCreated
+            | AirwallexWebhookEventType::PaymentIntentRequiresPaymentMethod
+            | AirwallexWebhookEventType::PaymentIntentCancelled
+            | AirwallexWebhookEventType::PaymentIntentSucceeded
+            | AirwallexWebhookEventType::PaymentIntentRequiresCapture
+            | AirwallexWebhookEventType::PaymentIntentRequiresCustomerAction
+            | AirwallexWebhookEventType::PaymentAttemptAuthorizationFailed
+            | AirwallexWebhookEventType::PaymentAttemptCaptureRequested
+            | AirwallexWebhookEventType::PaymentAttemptCaptureFailed
+            | AirwallexWebhookEventType::PaymentAttemptAuthenticationRedirected
+            | AirwallexWebhookEventType::PaymentAttemptAuthenticationFailed
+            | AirwallexWebhookEventType::PaymentAttemptCancelled
+            | AirwallexWebhookEventType::PaymentAttemptExpired
+            | AirwallexWebhookEventType::PaymentAttemptRiskDeclined
+            | AirwallexWebhookEventType::PaymentAttemptSettled
+            | AirwallexWebhookEventType::PaymentAttemptPaid
+            | AirwallexWebhookEventType::RefundReceived
+            | AirwallexWebhookEventType::RefundAccepted
+            | AirwallexWebhookEventType::DisputeRfiRespondedByMerchant
+            | AirwallexWebhookEventType::DisputeReceivedByMerchant => Self::EventNotSupported,
         })
     }
 }

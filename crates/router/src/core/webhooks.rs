@@ -575,7 +575,7 @@ pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
     )];
 
     if let Some(signature) = outgoing_webhooks_signature {
-        header.push((headers::X_WEBHOOK_SIGNATURE.to_string(), signature))
+        header.push((headers::X_WEBHOOK_SIGNATURE.to_string(), signature.into()))
     }
 
     let request = services::RequestBuilder::new()
@@ -681,7 +681,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
             .await
             .switch()
             .attach_printable("There was an issue in incoming webhook source verification")?;
-
+        logger::info!(source_verified=?source_verified);
         let object_ref_id = connector
             .get_webhook_object_reference_id(&request_details)
             .switch()
