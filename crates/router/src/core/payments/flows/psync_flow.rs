@@ -81,8 +81,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         state: &AppState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<Option<services::Request>> {
-        match call_connector_action {
+    ) -> RouterResult<(Option<services::Request>, bool)> {
+        let request = match call_connector_action {
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,
@@ -93,9 +93,11 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 
                 connector_integration
                     .build_request(self, &state.conf.connectors)
-                    .to_payment_failed_response()
+                    .to_payment_failed_response()?
             }
-            _ => Ok(None),
-        }
+            _ => None,
+        };
+
+        Ok((request, true))
     }
 }
