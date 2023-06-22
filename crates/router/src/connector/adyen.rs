@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
+use ring::hmac;
 use router_env::{instrument, tracing};
 use storage_models::enums as storage_enums;
 
@@ -115,14 +116,16 @@ impl
     fn get_request_body(
         &self,
         req: &types::VerifyRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let authorize_req = types::PaymentsAuthorizeRouterData::from((
             req,
             types::PaymentsAuthorizeData::from(req),
         ));
         let connector_req = adyen::AdyenPaymentRequest::try_from(&authorize_req)?;
-        let adyen_req = utils::Encode::<adyen::AdyenPaymentRequest<'_>>::encode_to_string_of_json(
+
+        let adyen_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
+            utils::Encode::<adyen::AdyenPaymentRequest<'_>>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(adyen_req))
@@ -237,11 +240,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = adyen::AdyenCaptureRequest::try_from(req)?;
-        let adyen_req =
-            utils::Encode::<adyen::AdyenCaptureRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let adyen_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<adyen::AdyenCaptureRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(adyen_req))
     }
     fn build_request(
@@ -320,7 +325,7 @@ impl
     fn get_request_body(
         &self,
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         // Adyen doesn't support PSync flow. We use PSync flow to fetch payment details,
         // specifically the redirect URL that takes the user to their Payment page. In non-redirection flows,
         // we rely on webhooks to obtain the payment status since there is no encoded data available.
@@ -362,8 +367,9 @@ impl
             },
         };
 
-        let adyen_request = utils::Encode::<adyen::AdyenRedirectRequest>::encode_to_string_of_json(
+        let adyen_request = types::RequestBody::log_and_get_request_body(
             &redirection_request,
+            utils::Encode::<adyen::AdyenRedirectRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
@@ -479,10 +485,12 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = adyen::AdyenPaymentRequest::try_from(req)?;
-        let adyen_req = utils::Encode::<adyen::AdyenPaymentRequest<'_>>::encode_to_string_of_json(
+
+        let adyen_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
+            utils::Encode::<adyen::AdyenPaymentRequest<'_>>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(adyen_req))
@@ -586,11 +594,14 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = adyen::AdyenCancelRequest::try_from(req)?;
-        let adyen_req =
-            utils::Encode::<adyen::AdyenCancelRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let adyen_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<adyen::AdyenCancelRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(adyen_req))
     }
     fn build_request(
@@ -683,11 +694,14 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = adyen::AdyenRefundRequest::try_from(req)?;
-        let adyen_req =
-            utils::Encode::<adyen::AdyenRefundRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let adyen_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<adyen::AdyenRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(adyen_req))
     }
 
@@ -785,12 +799,7 @@ impl api::IncomingWebhook for Adyen {
 
         let base64_signature = notif_item.additional_data.hmac_signature;
 
-        let signature = consts::BASE64_ENGINE
-            .decode(base64_signature.as_bytes())
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-        Ok(signature)
+        Ok(base64_signature.as_bytes().to_vec())
     }
 
     fn get_webhook_source_verification_message(
@@ -833,6 +842,33 @@ impl api::IncomingWebhook for Adyen {
         Ok(secret
             .map(|conf| conf.config.into_bytes())
             .unwrap_or_default())
+    }
+
+    async fn verify_webhook_source(
+        &self,
+        db: &dyn StorageInterface,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let signature = self
+            .get_webhook_source_verification_signature(request)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let secret = self
+            .get_webhook_source_verification_merchant_secret(db, merchant_id)
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let message = self
+            .get_webhook_source_verification_message(request, merchant_id, &secret)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let raw_key = hex::decode(secret)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+
+        let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &raw_key);
+        let signed_messaged = hmac::sign(&signing_key, &message);
+        let payload_sign = consts::BASE64_ENGINE.encode(signed_messaged.as_ref());
+        Ok(payload_sign.as_bytes().eq(&signature))
     }
 
     fn get_webhook_object_reference_id(

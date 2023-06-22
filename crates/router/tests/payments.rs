@@ -277,9 +277,18 @@ async fn payments_create_core() {
     let tx: oneshot::Sender<()> = oneshot::channel().0;
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
 
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            "juspay_merchant",
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .unwrap();
+
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id("juspay_merchant")
+        .find_merchant_account_by_merchant_id("juspay_merchant", &key_store)
         .await
         .unwrap();
 
@@ -344,6 +353,7 @@ async fn payments_create_core() {
         payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
             &state,
             merchant_account,
+            key_store,
             payments::PaymentCreate,
             req,
             services::AuthFlow::Merchant,
@@ -428,9 +438,18 @@ async fn payments_create_core_adyen_no_redirect() {
     let merchant_id = "arunraj".to_string();
     let payment_id = "pay_mbabizu24mvu3mela5njyhpit10".to_string();
 
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            "juspay_merchant",
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .unwrap();
+
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id("juspay_merchant")
+        .find_merchant_account_by_merchant_id("juspay_merchant", &key_store)
         .await
         .unwrap();
 
@@ -490,6 +509,7 @@ async fn payments_create_core_adyen_no_redirect() {
         payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
             &state,
             merchant_account,
+            key_store,
             payments::PaymentCreate,
             req,
             services::AuthFlow::Merchant,

@@ -41,7 +41,7 @@ pub async fn retrieve_dispute(
         state.get_ref(),
         &req,
         dispute_id,
-        disputes::retrieve_dispute,
+        |state, auth, req| disputes::retrieve_dispute(state, auth.merchant_account, req),
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await
@@ -84,7 +84,7 @@ pub async fn retrieve_disputes_list(
         state.get_ref(),
         &req,
         payload,
-        disputes::retrieve_disputes_list,
+        |state, auth, req| disputes::retrieve_disputes_list(state, auth.merchant_account, req),
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await
@@ -120,7 +120,9 @@ pub async fn accept_dispute(
         state.get_ref(),
         &req,
         dispute_id,
-        disputes::accept_dispute,
+        |state, auth, req| {
+            disputes::accept_dispute(state, auth.merchant_account, auth.key_store, req)
+        },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await
@@ -151,7 +153,9 @@ pub async fn submit_dispute_evidence(
         state.get_ref(),
         &req,
         json_payload.into_inner(),
-        disputes::submit_evidence,
+        |state, auth, req| {
+            disputes::submit_evidence(state, auth.merchant_account, auth.key_store, req)
+        },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await
@@ -190,7 +194,9 @@ pub async fn attach_dispute_evidence(
         state.get_ref(),
         &req,
         attach_evidence_request,
-        disputes::attach_evidence,
+        |state, auth, req| {
+            disputes::attach_evidence(state, auth.merchant_account, auth.key_store, req)
+        },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await
@@ -226,7 +232,7 @@ pub async fn retrieve_dispute_evidence(
         state.get_ref(),
         &req,
         dispute_id,
-        disputes::retrieve_dispute_evidence,
+        |state, auth, req| disputes::retrieve_dispute_evidence(state, auth.merchant_account, req),
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await
