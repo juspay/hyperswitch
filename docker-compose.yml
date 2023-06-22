@@ -28,7 +28,7 @@ services:
 
   loki:
     image: grafana/loki:latest
-    ports:
+    expose:
       - "3100"
     command: -config.file=/etc/loki/loki.yaml
     networks:
@@ -47,7 +47,7 @@ services:
       - monitoring
     volumes:
       - ./config/otel-collector.yaml:/etc/otel-collector.yaml
-    ports:
+    expose:
       - "4317"
       - "8888"
       - "8889"
@@ -71,7 +71,7 @@ services:
 
   pg:
     image: postgres:14.5
-    ports:
+    expose:
       - "5432"
     networks:
       - router_net
@@ -81,6 +81,8 @@ services:
       - POSTGRES_USER=db_user
       - POSTGRES_PASSWORD=db_pass
       - POSTGRES_DB=hyperswitch_db
+    healthcheck:
+      test: pg_isready
 
   migration_runner:
     image: rust:1.70
@@ -92,19 +94,17 @@ services:
       - ./:/app
 
   hyperswitch-server:
-    image: rust:1.70
-    command: cargo run -- -f ./config/docker_compose.toml
-    working_dir: /app
+    image: hyperswitch:latest
+    build:
+      context: .
+      target: hyperswitch-router
+      dockerfile: Dockerfile-localdev
+      args:
+        - FEATURES=default
     ports:
       - "8080:8080"
     networks:
       - router_net
-    volumes:
-      - ./:/app
-      - cargo_cache:/cargo_cache
-      - cargo_build_cache:/cargo_build_cache
-    environment:
-      - CARGO_TARGET_DIR=/cargo_build_cache
     labels:
       logs: "promtail"
     healthcheck:
@@ -113,6 +113,13 @@ services:
       retries: 3
       start_period: 20s
       timeout: 10s
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+      redis-init:
+        condition: service_completed_successfully
 
   hyperswitch-producer:
     image: rust:1.70
@@ -175,9 +182,14 @@ services:
       - redis
     networks:
       - router_net
-    ports:
+    expose:
       - "6379"
       - "16379"
+    healthcheck:
+      test: redis-cli ping
+      interval: 1s
+      timeout: 3s
+      retries: 5
 
   redis-init:
     image: redis:7
@@ -235,7 +247,7 @@ services:
       - monitoring
     volumes:
       - ./config/prometheus.yaml:/etc/prometheus/prometheus.yml
-    ports:
+    expose:
       - "9090"
     restart: unless-stopped
 
@@ -248,7 +260,7 @@ services:
       - router_net
     profiles:
       - monitoring
-    ports:
+    expose:
       - "3200" # tempo
       - "4317" # otlp grpc
     restart: unless-stopped

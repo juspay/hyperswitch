@@ -1,0 +1,92 @@
+#
+# syntax=docker/dockerfile:1
+FROM rust:bullseye AS rust-builder
+
+ARG FEATURES="release"
+ARG EXTRA_FEATURES=""
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq-dev libssl-dev pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+
+FROM rust-builder AS hyperswitch-builder
+# Copying codebase from current dir to /router dir
+# and creating a fresh build
+WORKDIR /router
+
+# Disable incremental compilation.
+#
+# Incremental compilation is useful as part of an edit-build-test-edit cycle,
+# as it lets the compiler avoid recompiling code that hasn't changed. However,
+# on CI, we're not making small edits; we're almost always building the entire
+# project from scratch. Thus, incremental compilation on CI actually
+# introduces *additional* overhead to support making future builds
+# faster...but no future builds will ever occur in any given CI environment.
+#
+
+# See https://matklad.github.io/2021/09/04/fast-rust-builds.html#ci-workflow
+# for details.
+# ENV CARGO_INCREMENTAL=0
+# with docker build cache, incremental builds may be useful
+ENV CARGO_INCREMENTAL=1
+ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
+ENV CARGO_PROFILE_RELEASE_LTO=thin
+
+# Allow more retries for network requests in cargo (downloading crates) and
+# rustup (installing toolchains). This should help to reduce flaky CI failures
+# from transient network timeouts or other issues.
+ENV CARGO_NET_RETRY=10
+ENV RUSTUP_MAX_RETRIES=10
+# Don't emit giant backtraces in the CI logs.
+ENV RUST_BACKTRACE="short"
+# Use cargo's sparse index protocol
+# ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
+
+RUN mkdir -p /router/release/
+
+COPY --link . .
+
+RUN --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/router/target \
+    cargo build --release --features ${FEATURES} ${EXTRA_FEATURES} \
+    && cp /router/target/release/router /router/release/router \
+    && cp /router/target/release/scheduler /router/release/scheduler
+
+FROM debian:bullseye AS hyperswitch-runner
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates tzdata libpq-dev curl procps \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM hyperswitch-runner AS hyperswitch-router
+# Placing config and binary executable in different directories
+ARG CONFIG_DIR=/local/config
+ARG BIN_DIR=/local/bin
+
+# args for deciding the executable to export. three binaries:
+# 1. BINARY=router - for main application
+# 2. BINARY=scheduler, SCHEDULER_FLOW=consumer - part of process tracker
+# 3. BINARY=scheduler, SCHEDULER_FLOW=producer - part of process tracker
+ARG BINARY=router
+ARG SCHEDULER_FLOW=consumer
+
+EXPOSE 8080
+
+ENV TZ=Etc/UTC \
+    RUN_ENV=${RUN_ENV} \
+    CONFIG_DIR=${CONFIG_DIR} \
+    SCHEDULER_FLOW=${SCHEDULER_FLOW} \
+    BINARY=${BINARY}
+
+RUN mkdir -p ${BIN_DIR}
+
+COPY --from=hyperswitch-builder /router/release/${BINARY} ${BIN_DIR}/${BINARY}
+
+COPY  /config/docker_compose.toml ${CONFIG_DIR}/docker_compose.toml
+
+ENV BIN=${BIN_DIR}/${BINARY}
+ENV CONFIG=${CONFIG_DIR}/docker_compose.toml
+
+CMD ["${BIN}", "-f", "$CONFIG"]

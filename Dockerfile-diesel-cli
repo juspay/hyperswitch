@@ -1,0 +1,28 @@
+#
+# syntax=docker/dockerfile:1
+
+FROM rust:bullseye AS rust-builder
+
+ARG POSTGRES_USER
+ARG POSTGRES_PASSWORD
+ARG POSTGRES_DB
+ARG POSTGRES_HOST
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq-dev libssl-dev pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+
+COPY --link . .
+
+RUN --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/router/target \
+    cargo install diesel_cli --no-default-features --features "postgres"
+
+ENV DB_USER=${POSTGRES_USER}
+ENV DB_PASS=${POSTGRES_PASSWORD}
+ENV DB_NAME=${POSTGRES_DB}
+ENV DB_HOST=${POSTGRES_HOST}
+
+CMD diesel migration --database-url postgres://${DB_USER}:${DB_PASS}@${DB_HOST}/${DB_NAME} run

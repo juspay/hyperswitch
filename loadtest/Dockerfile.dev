@@ -1,0 +1,13 @@
+FROM rust:1.69 AS builder
+
+WORKDIR /app
+ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
+RUN cargo install diesel_cli 
+COPY . .
+RUN cargo build --bin router
+
+FROM rust:1.69 AS runtime
+WORKDIR /app
+COPY --from=builder /app/migrations migrations
+COPY --from=builder /app/target/debug/router router
+COPY --from=builder /usr/local/cargo/bin/diesel diesel
