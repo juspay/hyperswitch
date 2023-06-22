@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 #[cfg(feature = "payouts")]
-use crate::{enums as api_enums, payments};
+use crate::{admin, enums as api_enums, payments};
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -56,6 +56,10 @@ pub struct PayoutCreateRequest {
         "type": "single",
         "data": "adyen"
     }))]
+    #[serde(
+        default,
+        deserialize_with = "admin::payout_routing_algorithm::deserialize_option"
+    )]
     pub routing: Option<serde_json::Value>,
 
     /// This allows the merchant to manually select a connector with which the payout can go through
@@ -171,7 +175,7 @@ pub struct Card {
 
 #[cfg(feature = "payouts")]
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
+#[serde(untagged)]
 pub enum Bank {
     Ach(AchBankTransfer),
     Bacs(BacsBankTransfer),

@@ -106,6 +106,10 @@ pub struct PaymentsRequest {
         "type": "single",
         "data": "stripe"
     }))]
+    #[serde(
+        default,
+        deserialize_with = "admin::routing_algorithm::deserialize_option"
+    )]
     pub routing: Option<serde_json::Value>,
 
     /// This allows the merchant to manually select a connector with which the payment can go through
