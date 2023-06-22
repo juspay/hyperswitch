@@ -528,6 +528,7 @@ pub enum ProcessTrackerStatus {
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum RefundStatus {
     Failure,
     ManualReview,
@@ -551,6 +552,7 @@ pub enum RefundStatus {
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum RefundType {
     InstantRefund,
     #[default]
