@@ -695,7 +695,7 @@ pub struct FrmPaymentMethod {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FrmPaymentMethodType {
-    pub payment_method_types: Option<Vec<PaymentMethodType>>,
+    pub payment_method_type: Option<PaymentMethodType>,
     pub card_networks: Option<Vec<CardNetwork>>,
     pub flow: api_enums::FrmPreferredFlowTypes,
     pub action: api_enums::FrmAction,
