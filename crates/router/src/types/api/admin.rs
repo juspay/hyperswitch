@@ -1,9 +1,10 @@
 pub use api_models::admin::{
-    MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
-    MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
-    MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId,
-    MerchantConnectorResponse, MerchantDetails, MerchantId, PaymentMethodsEnabled,
-    RoutingAlgorithm, StraightThroughAlgorithm, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
+    payout_routing_algorithm, routing_algorithm, MerchantAccountCreate,
+    MerchantAccountDeleteResponse, MerchantAccountResponse, MerchantAccountUpdate,
+    MerchantConnectorCreate, MerchantConnectorDeleteResponse, MerchantConnectorDetails,
+    MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantConnectorResponse, MerchantDetails,
+    MerchantId, PaymentMethodsEnabled, RoutingAlgorithm, StraightThroughAlgorithm, ToggleKVRequest,
+    ToggleKVResponse, WebhookDetails,
 };
 use common_utils::ext_traits::ValueExt;
 
@@ -34,6 +35,7 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             primary_business_details,
             frm_routing_algorithm: item.frm_routing_algorithm,
             intent_fulfillment_time: item.intent_fulfillment_time,
+            payout_routing_algorithm: item.payout_routing_algorithm,
         })
     }
 }

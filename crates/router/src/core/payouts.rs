@@ -68,12 +68,17 @@ pub async fn get_connector_data(
                 merchant_account,
                 request_straight_through,
                 &mut routing_data,
+                storage::enums::RouterOperation::Payout,
             )?
         }
 
-        api::ConnectorChoice::Decide => {
-            payments::decide_connector(state, merchant_account, None, &mut routing_data)?
-        }
+        api::ConnectorChoice::Decide => payments::decide_connector(
+            state,
+            merchant_account,
+            None,
+            &mut routing_data,
+            storage::enums::RouterOperation::Payout,
+        )?,
     };
     let connector_data = match connector_details {
         api::ConnectorCallType::Single(connector) => connector,
