@@ -946,8 +946,7 @@ pub struct CardResponse {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct RewardData {
-    /// The merchant id with which we have to call the connector.
-    #[schema(value_type = String, example = "")]
+    /// The merchant ID with which we have to call the connector
     pub mid: String,
 }
 
