@@ -112,8 +112,16 @@ impl ConnectorCommon for Trustpay {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.status.to_string(),
-            message: format!("{:?}", response.errors.first().unwrap_or(&default_error)),
-            reason: Some(format!("{:?}", response.errors)),
+            message: format!(
+                "{:?}",
+                response
+                    .errors
+                    .as_ref()
+                    .unwrap_or(&vec![])
+                    .first()
+                    .unwrap_or(&default_error)
+            ),
+            reason: response.errors.map(|errors| format!("{:?}", errors)),
         })
     }
 }
