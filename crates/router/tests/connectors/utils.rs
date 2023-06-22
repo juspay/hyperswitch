@@ -442,6 +442,7 @@ async fn call_connector<
         integration,
         &request,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
 }

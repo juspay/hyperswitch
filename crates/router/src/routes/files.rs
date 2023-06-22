@@ -42,7 +42,7 @@ pub async fn files_create(
         state.get_ref(),
         &req,
         create_file_request,
-        files_create_core,
+        |state, auth, req| files_create_core(state, auth.merchant_account, auth.key_store, req),
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await
@@ -80,7 +80,7 @@ pub async fn files_delete(
         state.get_ref(),
         &req,
         file_id,
-        files_delete_core,
+        |state, auth, req| files_delete_core(state, auth.merchant_account, req),
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await
@@ -118,7 +118,7 @@ pub async fn files_retrieve(
         state.get_ref(),
         &req,
         file_id,
-        files_retrieve_core,
+        |state, auth, req| files_retrieve_core(state, auth.merchant_account, auth.key_store, req),
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await

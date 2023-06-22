@@ -120,7 +120,10 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 },
                 errors::ConnectorError::FlowNotSupported{ flow, connector } => {
                     errors::ApiErrorResponse::FlowNotSupported { flow: flow.to_owned(), connector: connector.to_owned() }
-                }
+                },
+                errors::ConnectorError::InvalidDataFormat { field_name } => {
+                    errors::ApiErrorResponse::InvalidDataValue { field_name }
+                },
                 _ => errors::ApiErrorResponse::InternalServerError,
             };
             err.change_context(error)
@@ -190,21 +193,5 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             };
             err.change_context(error)
         })
-    }
-}
-
-pub trait RedisErrorExt {
-    #[track_caller]
-    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<errors::StorageError>;
-}
-
-impl RedisErrorExt for error_stack::Report<errors::RedisError> {
-    fn to_redis_failed_response(self, key: &str) -> error_stack::Report<errors::StorageError> {
-        match self.current_context() {
-            errors::RedisError::NotFound => self.change_context(
-                errors::StorageError::ValueNotFound(format!("Data does not exist for key {key}",)),
-            ),
-            _ => self.change_context(errors::StorageError::KVError),
-        }
     }
 }
