@@ -13,7 +13,7 @@ use crate::{
     types::{
         api::{admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignTryFrom},
-    }, utils,
+    }, utils::OptionExt,
 };
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -163,7 +163,7 @@ pub struct StripePaymentIntentRequest {
     pub shipping: Option<Shipping>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    pub metadata: Option<payments::Metadata>,
+    pub metadata: Option<secret::SecretSerdeValue>,
     pub client_secret: Option<pii::Secret<String>>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
@@ -218,10 +218,13 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 field_name: "receipt_ipaddress".to_string(),
                 expected_format: "127.0.0.1".to_string(),
             })?;
-        let udf_metadata = utils::Encode::<payments::Metadata>::encode_to_value(&item.metadata)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("convert metadata to udf info failed")?;
-
+        let metadata_object = item
+            .metadata
+            .clone()
+            .parse_value("metadata")
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "metadata mapping failed",
+            })?;
         let request = Ok(Self {
             payment_id: item.id.map(payments::PaymentIdType::PaymentIntentId),
             amount: item.amount.map(|amount| amount.into()),
@@ -259,8 +262,8 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 .and_then(|pmd| pmd.billing_details.map(payments::Address::from)),
             statement_descriptor_name: item.statement_descriptor,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
-            metadata: item.metadata.clone(),
-            udf: Some(masking::Secret::new(udf_metadata)),
+            metadata: metadata_object,
+            udf:item.metadata,//Some(masking::Secret::new(udf_metadata)),
             client_secret: item.client_secret.map(|s| s.peek().clone()),
             authentication_type,
             mandate_data: mandate_options,
