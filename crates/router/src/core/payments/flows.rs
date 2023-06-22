@@ -26,6 +26,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         state: &AppState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 }

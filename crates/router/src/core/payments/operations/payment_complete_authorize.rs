@@ -38,6 +38,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         request: &api::PaymentsRequest,
         mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -134,6 +135,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
+            key_store,
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
@@ -142,6 +144,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
+            key_store,
         )
         .await?;
 
@@ -224,7 +227,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
         db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
-        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRequest>,
@@ -237,7 +240,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
             db,
             payment_data,
             request,
-            merchant_id,
+            &key_store.merchant_id,
+            key_store,
         )
         .await
     }
@@ -277,6 +281,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
         state: &AppState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::payment_intent::PaymentIntent,
+        _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         // Use a new connector in the confirm call or use the same one which was passed when
         // creating the payment or if none is passed then use the routing algorithm
@@ -294,6 +299,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Comple
         _customer: Option<domain::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
