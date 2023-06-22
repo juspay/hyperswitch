@@ -45,8 +45,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsRequest,
-        mandate_type: Option<api::MandateTxnType>,
+        mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -65,7 +66,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let (token, payment_method_type, setup_mandate, mandate_connector) =
+        let (token, payment_method, payment_method_type, setup_mandate, mandate_connector) =
             helpers::get_token_pm_type_mandate_details(
                 state,
                 request,
@@ -82,6 +83,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             None,
             merchant_id,
             customer_details.customer_id.as_ref(),
+            merchant_key_store,
         )
         .await?;
 
@@ -91,6 +93,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             None,
             merchant_id,
             customer_details.customer_id.as_ref(),
+            merchant_key_store,
         )
         .await?;
 
@@ -111,6 +114,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     &payment_id,
                     merchant_id,
                     money,
+                    payment_method,
                     payment_method_type,
                     request,
                     browser_info,
@@ -271,7 +275,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
-        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRequest>,
@@ -284,7 +288,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
             db,
             payment_data,
             request,
-            merchant_id,
+            &key_store.merchant_id,
+            key_store,
         )
         .await
     }
@@ -317,6 +322,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         state: &AppState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::payment_intent::PaymentIntent,
+        _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
     }
@@ -328,11 +334,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -344,6 +350,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             },
             IntentStatus::RequiresConfirmation => {
                 if let Some(true) = payment_data.confirm {
+                    //TODO: do this later, request validation should happen before
                     Some(IntentStatus::Processing)
                 } else {
                     None
@@ -444,6 +451,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             expected_format: "amount_to_capture lesser than amount".to_string(),
         })?;
 
+        helpers::validate_card_data(request.payment_method_data.clone())?;
+
         helpers::validate_payment_method_fields_present(request)?;
 
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
@@ -464,7 +473,11 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
                 request.shipping.is_some(),
                 request.billing.is_some(),
                 request.setup_future_usage.is_some(),
-                &request.customer_id,
+                &request
+                    .customer
+                    .clone()
+                    .map(|customer| customer.id)
+                    .or(request.customer_id.clone()),
             )?;
         }
 
@@ -487,6 +500,7 @@ impl PaymentCreate {
         merchant_id: &str,
         money: (api::Amount, enums::Currency),
         payment_method: Option<enums::PaymentMethod>,
+        payment_method_type: Option<enums::PaymentMethodType>,
         request: &api::PaymentsRequest,
         browser_info: Option<serde_json::Value>,
     ) -> RouterResult<storage::PaymentAttemptNew> {
@@ -522,8 +536,12 @@ impl PaymentCreate {
             authentication_type: request.authentication_type.map(ForeignInto::foreign_into),
             browser_info,
             payment_experience: request.payment_experience.map(ForeignInto::foreign_into),
-            payment_method_type: request.payment_method_type.map(ForeignInto::foreign_into),
+            payment_method_type,
             payment_method_data: additional_pm_data,
+            amount_to_capture: request.amount_to_capture,
+            payment_token: request.payment_token.clone(),
+            mandate_id: request.mandate_id.clone(),
+            business_sub_label: request.business_sub_label.clone(),
             mandate_details: request
                 .mandate_data
                 .as_ref()
@@ -617,6 +635,7 @@ impl PaymentCreate {
             business_label,
             active_attempt_id,
             order_details: order_details_outside_value,
+            udf: request.udf.clone(),
             ..storage::PaymentIntentNew::default()
         })
     }

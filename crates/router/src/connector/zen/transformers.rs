@@ -395,15 +395,20 @@ fn get_item_object(
     _amount: String,
 ) -> Result<Vec<ZenItemObject>, error_stack::Report<errors::ConnectorError>> {
     let order_details = item.request.get_order_details()?;
-    Ok(order_details
+
+    order_details
         .iter()
-        .map(|data| ZenItemObject {
-            name: data.product_name.clone(),
-            quantity: data.quantity,
-            price: data.amount.to_string(),
-            line_amount_total: (i64::from(data.quantity) * data.amount).to_string(),
+        .map(|data| {
+            Ok(ZenItemObject {
+                name: data.product_name.clone(),
+                quantity: data.quantity,
+                price: utils::to_currency_base_unit(data.amount, item.request.currency)?,
+                line_amount_total: (f64::from(data.quantity)
+                    * utils::to_currency_base_unit_asf64(data.amount, item.request.currency)?)
+                .to_string(),
+            })
         })
-        .collect())
+        .collect::<Result<_, _>>()
 }
 
 fn get_browser_details(
