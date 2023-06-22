@@ -812,3 +812,23 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
         }
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct RequestBody(Secret<String>);
+
+impl RequestBody {
+    pub fn log_and_get_request_body<T, F>(
+        body: T,
+        encoder: F,
+    ) -> errors::CustomResult<Self, errors::ParsingError>
+    where
+        F: FnOnce(T) -> errors::CustomResult<String, errors::ParsingError>,
+        T: std::fmt::Debug,
+    {
+        router_env::logger::info!(connector_request_body=?body);
+        Ok(Self(Secret::new(encoder(body)?)))
+    }
+    pub fn get_inner_value(request_body: Self) -> Secret<String> {
+        request_body.0
+    }
+}
