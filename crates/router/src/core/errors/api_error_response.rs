@@ -91,6 +91,8 @@ pub enum ApiErrorResponse {
     MissingRequiredFields { field_names: Vec<&'static str> },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_22", message = "Access forbidden. Not authorized to access this resource")]
     AccessForbidden,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "Token expired or invalid")]
+    UnprocessableEntity,
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
         code: String,
@@ -341,6 +343,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 ApiError::new("IR", 21, "Missing required params".to_string(), Some(Extra {data: Some(serde_json::json!(field_names)), ..Default::default() })),
             ),
             Self::AccessForbidden => AER::ForbiddenCommonResource(ApiError::new("IR", 22, "Access forbidden. Not authorized to access this resource", None)),
+            Self::UnprocessableEntity => AER::Unprocessable(ApiError::new("IR", 23, "Token expired or invalid", None)),
             Self::ExternalConnectorError {
                 code,
                 message,

@@ -366,6 +366,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
         match value {
             errors::ApiErrorResponse::Unauthorized
             | errors::ApiErrorResponse::InvalidJwtToken
+            | errors::ApiErrorResponse::UnprocessableEntity
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
             | errors::ApiErrorResponse::AccessForbidden
             | errors::ApiErrorResponse::InvalidEphemeralKey => Self::Unauthorized,
