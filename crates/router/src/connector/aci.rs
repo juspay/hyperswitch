@@ -374,7 +374,7 @@ impl
         let connector_req = aci::AciCancelRequest::try_from(req)?;
         let aci_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
-            utils::Encode::<aci::AciCancelRequest>::encode_to_string_of_json,
+            utils::Encode::<aci::AciCancelRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(aci_req))
@@ -483,7 +483,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let connector_req = aci::AciRefundRequest::try_from(req)?;
         let body = types::RequestBody::log_and_get_request_body(
             &connector_req,
-            utils::Encode::<aci::AciRefundRequest>::encode_to_string_of_json,
+            utils::Encode::<aci::AciRefundRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(body))
