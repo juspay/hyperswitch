@@ -267,7 +267,7 @@ pub async fn get_address_by_id(
 pub async fn get_token_pm_type_mandate_details(
     state: &AppState,
     request: &api::PaymentsRequest,
-    mandate_type: Option<api::MandateTxnType>,
+    mandate_type: Option<api::MandateTransactionType>,
     merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<(
     Option<String>,
@@ -277,7 +277,7 @@ pub async fn get_token_pm_type_mandate_details(
     Option<String>,
 )> {
     match mandate_type {
-        Some(api::MandateTxnType::NewMandateTxn) => {
+        Some(api::MandateTransactionType::NewMandateTransaction) => {
             let setup_mandate = request
                 .mandate_data
                 .clone()
@@ -290,7 +290,7 @@ pub async fn get_token_pm_type_mandate_details(
                 None,
             ))
         }
-        Some(api::MandateTxnType::RecurringMandateTxn) => {
+        Some(api::MandateTransactionType::RecurringMandateTransaction) => {
             let (token_, payment_method_, payment_method_type_, mandate_connector) =
                 get_token_for_recurring_mandate(state, request, merchant_account).await?;
             Ok((
@@ -515,20 +515,22 @@ pub fn validate_card_data(
 pub fn validate_mandate(
     req: impl Into<api::MandateValidationFields>,
     is_confirm_operation: bool,
-) -> CustomResult<Option<api::MandateTxnType>, errors::ApiErrorResponse> {
+) -> CustomResult<Option<api::MandateTransactionType>, errors::ApiErrorResponse> {
     let req: api::MandateValidationFields = req.into();
     match req.validate_and_get_mandate_type().change_context(
         errors::ApiErrorResponse::MandateValidationFailed {
             reason: "Expected one out of mandate_id and mandate_data but got both".to_string(),
         },
     )? {
-        Some(api::MandateTxnType::NewMandateTxn) => {
+        Some(api::MandateTransactionType::NewMandateTransaction) => {
             validate_new_mandate_request(req, is_confirm_operation)?;
-            Ok(Some(api::MandateTxnType::NewMandateTxn))
+            Ok(Some(api::MandateTransactionType::NewMandateTransaction))
         }
-        Some(api::MandateTxnType::RecurringMandateTxn) => {
+        Some(api::MandateTransactionType::RecurringMandateTransaction) => {
             validate_recurring_mandate(req)?;
-            Ok(Some(api::MandateTxnType::RecurringMandateTxn))
+            Ok(Some(
+                api::MandateTransactionType::RecurringMandateTransaction,
+            ))
         }
         None => Ok(None),
     }
@@ -1719,15 +1721,17 @@ pub(crate) fn validate_pm_or_token_given(
     payment_method: &Option<api_enums::PaymentMethod>,
     payment_method_data: &Option<api::PaymentMethodData>,
     payment_method_type: &Option<api_enums::PaymentMethodType>,
-    mandate_type: &Option<api::MandateTxnType>,
+    mandate_type: &Option<api::MandateTransactionType>,
     token: &Option<String>,
 ) -> Result<(), errors::ApiErrorResponse> {
     utils::when(
         !matches!(
             payment_method_type,
             Some(api_enums::PaymentMethodType::Paypal)
-        ) && !matches!(mandate_type, Some(api::MandateTxnType::RecurringMandateTxn))
-            && token.is_none()
+        ) && !matches!(
+            mandate_type,
+            Some(api::MandateTransactionType::RecurringMandateTransaction)
+        ) && token.is_none()
             && (payment_method_data.is_none() || payment_method.is_none()),
         || {
             Err(errors::ApiErrorResponse::InvalidRequestData {
