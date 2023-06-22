@@ -40,6 +40,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::ApiError, code = "payment_intent_payment_attempt_failed", message = "Capture attempt failed while processing with connector.")]
     PaymentIntentPaymentAttemptFailed { data: Option<serde_json::Value> },
 
+    #[error(error_type = StripeErrorType::ApiError, code = "dispute_failure", message = "Dispute failed while processing with connector. Retry operation.")]
+    DisputeFailed { data: Option<serde_json::Value> },
+
     #[error(error_type = StripeErrorType::CardError, code = "expired_card", message = "Card Expired. Please use another card")]
     ExpiredCard,
 
@@ -364,6 +367,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::Unauthorized
             | errors::ApiErrorResponse::InvalidJwtToken
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
+            | errors::ApiErrorResponse::AccessForbidden
             | errors::ApiErrorResponse::InvalidEphemeralKey => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod
@@ -405,6 +409,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::PaymentCaptureFailed { data } => {
                 Self::PaymentIntentPaymentAttemptFailed { data }
             }
+            errors::ApiErrorResponse::DisputeFailed { data } => Self::DisputeFailed { data },
             errors::ApiErrorResponse::InvalidCardData { data } => Self::InvalidCardType, // Maybe it is better to de generalize this router error
             errors::ApiErrorResponse::CardExpired { data } => Self::ExpiredCard,
             errors::ApiErrorResponse::RefundNotPossible { connector } => Self::RefundFailed,
@@ -548,6 +553,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::DuplicatePaymentMethod
             | Self::PaymentFailed
             | Self::VerificationFailed { .. }
+            | Self::DisputeFailed { .. }
             | Self::MaximumRefundCount
             | Self::PaymentIntentInvalidParameter { .. }
             | Self::SerdeQsError { .. }

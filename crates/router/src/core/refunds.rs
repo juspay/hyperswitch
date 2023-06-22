@@ -30,6 +30,7 @@ use crate::{
 pub async fn refund_create_core(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     req: refunds::RefundRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
     let db = &*state.store;
@@ -100,6 +101,7 @@ pub async fn refund_create_core(
     validate_and_create_refund(
         state,
         &merchant_account,
+        &key_store,
         &payment_attempt,
         &payment_intent,
         amount,
@@ -115,6 +117,7 @@ pub async fn trigger_refund_to_gateway(
     state: &AppState,
     refund: &storage::Refund,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     creds_identifier: Option<String>,
@@ -156,6 +159,7 @@ pub async fn trigger_refund_to_gateway(
         state,
         &routed_through,
         merchant_account,
+        key_store,
         (payment_attempt.amount, currency),
         payment_intent,
         payment_attempt,
@@ -189,9 +193,10 @@ pub async fn trigger_refund_to_gateway(
             connector_integration,
             &router_data,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await
-        .map_err(|error| error.to_refund_failed_response())?
+        .to_refund_failed_response()?
     } else {
         router_data
     };
@@ -246,16 +251,19 @@ pub async fn trigger_refund_to_gateway(
 pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
     state: &'a AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     request: Req,
     f: F,
 ) -> RouterResponse<refunds::RefundResponse>
 where
-    F: Fn(&'a AppState, domain::MerchantAccount, Req) -> Fut,
+    F: Fn(&'a AppState, domain::MerchantAccount, domain::MerchantKeyStore, Req) -> Fut,
     Fut: futures::Future<Output = RouterResult<T>>,
     T: ForeignInto<refunds::RefundResponse>,
 {
     Ok(services::ApplicationResponse::Json(
-        f(state, merchant_account, request).await?.foreign_into(),
+        f(state, merchant_account, key_store, request)
+            .await?
+            .foreign_into(),
     ))
 }
 
@@ -263,6 +271,7 @@ where
 pub async fn refund_retrieve_core(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     request: refunds::RefundsRetrieveRequest,
 ) -> RouterResult<storage::Refund> {
     let refund_id = request.refund_id;
@@ -322,6 +331,7 @@ pub async fn refund_retrieve_core(
         sync_refund_with_gateway(
             state,
             &merchant_account,
+            &key_store,
             &payment_attempt,
             &payment_intent,
             &refund,
@@ -355,6 +365,7 @@ fn should_call_refund(refund: &storage_models::refund::Refund, force_sync: bool)
 pub async fn sync_refund_with_gateway(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     refund: &storage::Refund,
@@ -375,6 +386,7 @@ pub async fn sync_refund_with_gateway(
         state,
         &connector_id,
         merchant_account,
+        key_store,
         (payment_attempt.amount, currency),
         payment_intent,
         payment_attempt,
@@ -408,9 +420,10 @@ pub async fn sync_refund_with_gateway(
             connector_integration,
             &router_data,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await
-        .map_err(|error| error.to_refund_failed_response())?
+        .to_refund_failed_response()?
     } else {
         router_data
     };
@@ -484,9 +497,11 @@ pub async fn refund_update_core(
 // ********************************************** VALIDATIONS **********************************************
 
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn validate_and_create_refund(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     refund_amount: i64,
@@ -608,6 +623,7 @@ pub async fn validate_and_create_refund(
                 refund,
                 refund_type,
                 merchant_account,
+                key_store,
                 payment_attempt,
                 payment_intent,
                 creds_identifier,
@@ -677,11 +693,13 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
 // ********************************************** PROCESS TRACKER **********************************************
 
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn schedule_refund_execution(
     state: &AppState,
     refund: storage::Refund,
     refund_type: api_models::refunds::RefundType,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     creds_identifier: Option<String>,
@@ -716,6 +734,7 @@ pub async fn schedule_refund_execution(
                                 state,
                                 &refund,
                                 merchant_account,
+                                key_store,
                                 payment_attempt,
                                 payment_intent,
                                 creds_identifier,
@@ -766,14 +785,23 @@ pub async fn sync_refund_with_gateway_workflow(
                 )
             })?;
 
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            &refund_core.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await?;
+
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(&refund_core.merchant_id)
+        .find_merchant_account_by_merchant_id(&refund_core.merchant_id, &key_store)
         .await?;
 
     let response = refund_retrieve_core(
         state,
         merchant_account,
+        key_store,
         refunds::RefundsRetrieveRequest {
             refund_id: refund_core.refund_internal_reference_id,
             force_sync: Some(true),
@@ -837,8 +865,16 @@ pub async fn trigger_refund_execute_workflow(
                 )
             })?;
 
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            &refund_core.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await?;
+
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&refund_core.merchant_id)
+        .find_merchant_account_by_merchant_id(&refund_core.merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -853,7 +889,7 @@ pub async fn trigger_refund_execute_workflow(
     match (&refund.sent_to_gateway, &refund.refund_status) {
         (false, enums::RefundStatus::Pending) => {
             let merchant_account = db
-                .find_merchant_account_by_merchant_id(&refund.merchant_id)
+                .find_merchant_account_by_merchant_id(&refund.merchant_id, &key_store)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -881,6 +917,7 @@ pub async fn trigger_refund_execute_workflow(
                 state,
                 &refund,
                 &merchant_account,
+                &key_store,
                 &payment_attempt,
                 &payment_intent,
                 None,
@@ -929,7 +966,7 @@ pub async fn add_refund_sync_task(
         .attach_printable_lazy(|| format!("unable to convert into value {:?}", &refund))?;
     let task = "SYNC_REFUND";
     let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{}_{}_{}", runner, task, refund.id),
+        id: format!("{}_{}_{}", runner, task, refund.internal_reference_id),
         name: Some(String::from(task)),
         tag: vec![String::from("REFUND")],
         runner: Some(String::from(runner)),
@@ -947,7 +984,7 @@ pub async fn add_refund_sync_task(
     let response = db
         .insert_process(process_tracker_entry)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while inserting task in process_tracker: refund_id: {}",
@@ -970,7 +1007,7 @@ pub async fn add_refund_execute_task(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| format!("unable to convert into value {:?}", &refund))?;
     let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{}_{}_{}", runner, task, refund.id),
+        id: format!("{}_{}_{}", runner, task, refund.internal_reference_id),
         name: Some(String::from(task)),
         tag: vec![String::from("REFUND")],
         runner: Some(String::from(runner)),
@@ -988,7 +1025,7 @@ pub async fn add_refund_execute_task(
     let response = db
         .insert_process(process_tracker_entry)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while inserting task in process_tracker: refund_id: {}",
