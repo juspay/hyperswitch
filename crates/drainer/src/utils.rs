@@ -96,11 +96,14 @@ pub async fn make_stream_available(
     stream_name_flag: &str,
     redis: &redis::RedisConnectionPool,
 ) -> errors::DrainerResult<()> {
-    redis
-        .delete_key(stream_name_flag)
-        .await
-        .map_err(DrainerError::from)
-        .into_report()
+    match redis.delete_key(stream_name_flag).await {
+        Ok(redis::DelReply::KeyDeleted) => Ok(()),
+        Ok(redis::DelReply::KeyNotDeleted) => {
+            logger::error!("Tried to unlock a stream which is already unlocked");
+            Ok(())
+        }
+        Err(error) => Err(DrainerError::from(error).into()),
+    }
 }
 
 pub fn parse_stream_entries<'a>(
