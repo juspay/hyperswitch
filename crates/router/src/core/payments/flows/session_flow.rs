@@ -27,6 +27,7 @@ impl
         state: &routes::AppState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
         transformers::construct_payment_router_data::<api::Session, types::PaymentsSessionData>(
@@ -34,6 +35,7 @@ impl
             self.clone(),
             connector_id,
             merchant_account,
+            key_store,
             customer,
         )
         .await

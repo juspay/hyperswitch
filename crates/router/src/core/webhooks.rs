@@ -31,6 +31,7 @@ const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -45,6 +46,7 @@ pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
                 &state,
                 merchant_account.clone(),
+                key_store,
                 payments::operations::PaymentStatus,
                 api::PaymentsRetrieveRequest {
                     resource_id: id,
@@ -107,6 +109,7 @@ pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
 pub async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     webhook_details: api::IncomingWebhookDetails,
     connector_name: &str,
     source_verified: bool,
@@ -173,6 +176,7 @@ pub async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
         refunds::refund_retrieve_core(
             &state,
             merchant_account.clone(),
+            key_store,
             api_models::refunds::RefundsRetrieveRequest {
                 refund_id: refund_id.to_owned(),
                 force_sync: Some(true),
@@ -387,6 +391,7 @@ pub async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
 async fn bank_transfer_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -408,6 +413,7 @@ async fn bank_transfer_webhook_flow<W: api::OutgoingWebhookType>(
         payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
             &state,
             merchant_account.to_owned(),
+            key_store,
             payments::PaymentConfirm,
             request,
             services::api::AuthFlow::Merchant,
@@ -621,6 +627,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     state: &AppState,
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     connector_name: &str,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
@@ -705,6 +712,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
             api::WebhookFlow::Payment => payments_incoming_webhook_flow::<W>(
                 state.clone(),
                 merchant_account,
+                key_store,
                 webhook_details,
                 source_verified,
             )
@@ -714,6 +722,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
             api::WebhookFlow::Refund => refunds_incoming_webhook_flow::<W>(
                 state.clone(),
                 merchant_account,
+                key_store,
                 webhook_details,
                 connector_name,
                 source_verified,
@@ -737,6 +746,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
             api::WebhookFlow::BankTransfer => bank_transfer_webhook_flow::<W>(
                 state.clone(),
                 merchant_account,
+                key_store,
                 webhook_details,
                 source_verified,
             )

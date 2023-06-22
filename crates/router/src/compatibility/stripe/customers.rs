@@ -44,8 +44,8 @@ pub async fn customer_create(
         state.get_ref(),
         &req,
         create_cust_req,
-        |state, merchant_account, req| {
-            customers::create_customer(&*state.store, merchant_account, req)
+        |state, auth, req| {
+            customers::create_customer(&*state.store, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
     )
@@ -78,8 +78,8 @@ pub async fn customer_retrieve(
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, req| {
-            customers::retrieve_customer(&*state.store, merchant_account, req)
+        |state, auth, req| {
+            customers::retrieve_customer(&*state.store, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
     )
@@ -121,8 +121,8 @@ pub async fn customer_update(
         state.get_ref(),
         &req,
         cust_update_req,
-        |state, merchant_account, req| {
-            customers::update_customer(&*state.store, merchant_account, req)
+        |state, auth, req| {
+            customers::update_customer(&*state.store, auth.merchant_account, req, auth.key_store)
         },
         &auth::ApiKeyAuth,
     )
@@ -155,7 +155,9 @@ pub async fn customer_delete(
         state.get_ref(),
         &req,
         payload,
-        customers::delete_customer,
+        |state, auth, req| {
+            customers::delete_customer(state, auth.merchant_account, req, auth.key_store)
+        },
         &auth::ApiKeyAuth,
     )
     .await
@@ -185,7 +187,9 @@ pub async fn list_customer_payment_method_api(
         state.get_ref(),
         &req,
         customer_id.as_ref(),
-        cards::list_customer_payment_method,
+        |state, auth, req| {
+            cards::list_customer_payment_method(state, auth.merchant_account, auth.key_store, req)
+        },
         &auth::ApiKeyAuth,
     )
     .await
