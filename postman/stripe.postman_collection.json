@@ -1,11 +1,11 @@
 {
 	"info": {
-		"_postman_id": "faf79340-e864-41f2-afe8-c87d2b593060",
-		"name": "Stripe collection",
+		"_postman_id": "717c5890-df0c-4921-bdfd-3d5b4f65a67d",
+		"name": "/h Stripe collection",
 		"description": "## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.  \nYou can consume the APIs directly using your favorite HTTP/REST library.  \nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without affecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment | Base URL |\n| --- | --- |\n| Sandbox | [https://sandbox.hyperswitch.io](https://sandbox.hyperswitch.io) |\n| Production | [https://router.juspay.io](https://router.juspay.io) |\n\n# Authentication\n\nWhen you sign up for an account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.  \nNever share your secret api keys. Keep them guarded and secure.\n\nContact Support:  \nName: Juspay Support  \nEmail: [support@juspay.in](mailto:support@juspay.in)",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "25176183",
-		"_collection_link": "https://hyperswitch.postman.co/workspace/My-Workspace~d96cf932-bfd8-42e0-8a66-0ecd4c038223/collection/25176183-faf79340-e864-41f2-afe8-c87d2b593060?action=share&creator=25176183&source=collection_link"
+		"_exporter_id": "25737662",
+		"_collection_link": "https://speeding-rocket-176923.postman.co/workspace/My-Workspace~567a07bc-e4ad-4374-85f6-4ce10cea536f/collection/25737662-717c5890-df0c-4921-bdfd-3d5b4f65a67d?action=share&creator=25737662&source=collection_link"
 	},
 	"item": [
 		{
@@ -351,7 +351,7 @@
 								}
 							]
 						},
-						"description": "To update an existing merchant account. Helpful in updating merchant details such as email, contact deteails, or other configuration details like webhook, routing algorithm etc"
+						"description": "To update an existng merchant account. Helpful in updating merchant details such as email, contact deteails, or other configuration details like webhook, routing algorithm etc"
 					},
 					"response": []
 				}
@@ -1103,7 +1103,7 @@
 								}
 							]
 						},
-						"description": "To update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc"
+						"description": "To update an existng Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc"
 					},
 					"response": []
 				},
@@ -1880,7 +1880,7 @@
 								"refunds"
 							]
 						},
-						"description": "To create a refund against an already processed payment"
+						"description": "To create a refund againt an already processed payment"
 					},
 					"response": []
 				},
@@ -2494,7 +2494,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"amount\": 20000,\n  \"currency\": \"SGD\",\n  \"confirm\" :false,\n  \"capture_method\": \"automatic\",\n  \"capture_on\": \"2022-09-10T10:11:12Z\",\n  \"amount_to_capture\": 6540,\n  \"email\": \"joseph@example.com\",\n  \"name\": \"joseph Doe\",\n  \"phone\": \"8888888888\",\n  \"phone_country_code\": \"+65\",\n  \"description\": \"Its my first payment request\",\n  \"authentication_type\": \"no_three_ds\",\n  \"payment_method\": \"card\",\n  \"return_url\": \"https://google.com\",\n  \"payment_method_data\": {\n    \"card\": {\n      \"card_number\": \"4242424242424242\",\n      \"card_exp_month\": \"10\",\n      \"card_exp_year\": \"25\",\n      \"card_holder_name\": \"joseph Doe\",\n      \"card_cvc\": \"123\"\n    }\n  },\n   \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\"\n        }\n    },\n  \"statement_descriptor_name\": \"joseph\",\n  \"statement_descriptor_suffix\": \"JS\",\n  \"metadata\": {\n    \"udf1\": \"value1\",\n    \"new_customer\": \"true\",\n    \"login_date\": \"2019-09-10T10:11:12Z\"\n  }\n}",
+							"raw": "{\n  \"amount\": 20000,\n  \"currency\": \"SGD\",\n  \"confirm\" :false,\n  \"capture_method\": \"manual\",\n  \"capture_on\": \"2022-09-10T10:11:12Z\",\n  \"amount_to_capture\": 6540,\n  \"email\": \"joseph@example.com\",\n  \"name\": \"joseph Doe\",\n  \"phone\": \"8888888888\",\n  \"phone_country_code\": \"+65\",\n  \"description\": \"Its my first payment request\",\n  \"authentication_type\": \"no_three_ds\",\n  \"payment_method\": \"card\",\n  \"return_url\": \"https://google.com\",\n  \"payment_method_data\": {\n    \"card\": {\n      \"card_number\": \"4242424242424242\",\n      \"card_exp_month\": \"10\",\n      \"card_exp_year\": \"25\",\n      \"card_holder_name\": \"joseph Doe\",\n      \"card_cvc\": \"123\"\n    }\n  },\n   \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\"\n        }\n    },\n  \"statement_descriptor_name\": \"joseph\",\n  \"statement_descriptor_suffix\": \"JS\",\n  \"metadata\": {\n    \"udf1\": \"value1\",\n    \"new_customer\": \"true\",\n    \"login_date\": \"2019-09-10T10:11:12Z\"\n  }\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -2703,7 +2703,7 @@
 								}
 							]
 						},
-						"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+						"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 					},
 					"response": []
 				},
@@ -3217,7 +3217,7 @@
 								"refunds"
 							]
 						},
-						"description": "To create a refund against an already processed payment"
+						"description": "To create a refund againt an already processed payment"
 					},
 					"response": []
 				},
@@ -3569,7 +3569,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"setup_future_usage\":\"on_session\",\n    \"payment_method\": \"card\",\n    \"payment_method_type\": \"credit\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+							"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"setup_future_usage\":\"off_session\",\n    \"payment_method\": \"card\",\n    \"payment_method_type\": \"credit\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -3753,7 +3753,7 @@
 								}
 							]
 						},
-						"description": "To update an existing a payment method attached to a customer object. This API is useful for use cases such as updating the card number for expired cards, to prevent discontinuity in recurring payments"
+						"description": "To update an existng a payment method attached to a customer object. This API is useful for use cases such as updating the card number for expired cards, to prevent discontinuity in recurring payments"
 					},
 					"response": []
 				},
@@ -4351,7 +4351,7 @@
 										"refunds"
 									]
 								},
-								"description": "To create a refund against an already processed payment"
+								"description": "To create a refund againt an already processed payment"
 							},
 							"response": []
 						},
@@ -4826,7 +4826,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -5130,7 +5130,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -6265,7 +6265,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -6642,7 +6642,7 @@
 												"refunds"
 											]
 										},
-										"description": "To create a refund against an already processed payment"
+										"description": "To create a refund againt an already processed payment"
 									},
 									"response": []
 								},
@@ -6999,7 +6999,7 @@
 												"refunds"
 											]
 										},
-										"description": "To create a refund against an already processed payment"
+										"description": "To create a refund againt an already processed payment"
 									},
 									"response": []
 								},
@@ -7154,7 +7154,7 @@
 												"refunds"
 											]
 										},
-										"description": "To create a refund against an already processed payment"
+										"description": "To create a refund againt an already processed payment"
 									},
 									"response": []
 								},
@@ -8310,7 +8310,7 @@
 												"refunds"
 											]
 										},
-										"description": "To create a refund against an already processed payment"
+										"description": "To create a refund againt an already processed payment"
 									},
 									"response": []
 								},
@@ -8612,7 +8612,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -8935,7 +8935,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -9258,7 +9258,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -9581,7 +9581,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -9904,7 +9904,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -10227,7 +10227,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -10550,7 +10550,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -10879,7 +10879,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -11208,7 +11208,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -11479,8 +11479,8 @@
 													"",
 													"// Response body should have value \"connector error\" for \"error type\"",
 													"if (jsonData?.error?.type) {",
-													"pm.test(\"[POST]::/payments - Content check if value for 'error.type' matches 'connector'\", function() {",
-													"  pm.expect(jsonData.error.type).to.eql(\"connector\");",
+													"pm.test(\"[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'\", function() {",
+													"  pm.expect(jsonData.error.type).to.eql(\"invalid_request\");",
 													"})};"
 												],
 												"type": "text/javascript"
@@ -11579,8 +11579,14 @@
 													"",
 													"// Response body should have value \"connector error\" for \"error type\"",
 													"if (jsonData?.error?.type) {",
-													"pm.test(\"[POST]::/payments - Content check if value for 'error.type' matches 'connector'\", function() {",
-													"  pm.expect(jsonData.error.type).to.eql(\"connector\");",
+													"pm.test(\"[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'\", function() {",
+													"  pm.expect(jsonData.error.type).to.eql(\"invalid_request\");",
+													"})};",
+													"",
+													"// Response body should have value \"connector error\" for \"error message\"",
+													"if (jsonData?.error?.message) {",
+													"pm.test(\"[POST]::/payments - Content check if value for 'error.message' matches 'invalid_expiry_year: Your card's expiration year is invalid.'\", function() {",
+													"  pm.expect(jsonData.error.message).to.eql(\"invalid_expiry_year: Your card's expiration year is invalid.\");",
 													"})};"
 												],
 												"type": "text/javascript"
@@ -11932,7 +11938,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								}
@@ -13273,14 +13279,14 @@
 												"refunds"
 											]
 										},
-										"description": "To create a refund against an already processed payment"
+										"description": "To create a refund againt an already processed payment"
 									},
 									"response": []
 								}
 							]
 						},
 						{
-							"name": "Scenario8-Refund for unsuccessful payment",
+							"name": "Scenario8-Refund for unsuccessfull payment",
 							"item": [
 								{
 									"name": "Payments - Create",
@@ -13554,7 +13560,7 @@
 												"refunds"
 											]
 										},
-										"description": "To create a refund against an already processed payment"
+										"description": "To create a refund againt an already processed payment"
 									},
 									"response": []
 								}
