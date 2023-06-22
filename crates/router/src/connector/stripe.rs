@@ -1861,13 +1861,20 @@ impl services::ConnectorRedirectResponse for Stripe {
 
         crate::logger::debug!(stripe_redirect_response=?query);
 
-        Ok(query.redirect_status.map_or(
-            payments::CallConnectorAction::StatusUpdate {
-                status: enums::AttemptStatus::Pending,
-                error_code: None,
-                error_message: None,
-            },
-            |_| payments::CallConnectorAction::Trigger,
-        ))
+        Ok(query
+            .redirect_status
+            .map_or(
+                payments::CallConnectorAction::Trigger,
+                |status| match status {
+                    transformers::StripePaymentStatus::Failed => {
+                        payments::CallConnectorAction::Trigger
+                    }
+                    _ => payments::CallConnectorAction::StatusUpdate {
+                        status: enums::AttemptStatus::from(status),
+                        error_code: None,
+                        error_message: None,
+                    },
+                },
+            ))
     }
 }

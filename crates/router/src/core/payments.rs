@@ -134,7 +134,9 @@ where
             operation
                 .to_domain()?
                 .add_task_to_process_tracker(state, &payment_data.payment_attempt)
-                .await?;
+                .await
+                .map_err(|error| logger::error!(process_tracker_error=?error))
+                .ok();
         }
 
         payment_data = match connector_details {
@@ -551,13 +553,15 @@ where
         payment_data.sessions_token.push(session_token);
     };
 
-    let connector_request = if should_continue_further {
+    // In case of authorize flow, pre-task and post-tasks are being called in build request
+    // if we do not want to proceed further, then the function will return Ok(None, false)
+    let (connector_request, should_continue_further) = if should_continue_further {
         // Check if the actual flow specific request can be built with available data
         router_data
             .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
             .await?
     } else {
-        None
+        (None, false)
     };
 
     // Update the payment trackers just before calling the connector
@@ -574,11 +578,12 @@ where
         )
         .await?;
 
-    // The status of payment_attempt and intent will be updated in the previous step
-    // This field will be used by the connector
-    router_data.status = payment_data.payment_attempt.status;
-
     let router_data_res = if should_continue_further {
+        // The status of payment_attempt and intent will be updated in the previous step
+        // update this in router_data.
+        // This is added because few connector integrations do not update the status,
+        // and rely on previous status set in router_data
+        router_data.status = payment_data.payment_attempt.status;
         router_data
             .decide_flows(
                 state,
