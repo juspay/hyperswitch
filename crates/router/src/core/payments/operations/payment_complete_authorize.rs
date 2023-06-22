@@ -70,7 +70,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             "confirm",
         )?;
 
-        let (token, payment_method, setup_mandate, mandate_connector) =
+        let (token, payment_method, payment_method_type, setup_mandate, mandate_connector) =
             helpers::get_token_pm_type_mandate_details(
                 state,
                 request,
@@ -110,10 +110,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
-        payment_attempt.payment_method_type = request
-            .payment_method_type
-            .map(|pmt| pmt.foreign_into())
-            .or(payment_attempt.payment_method_type);
+        payment_attempt.payment_method_type =
+            payment_method_type.or(payment_attempt.payment_method_type);
         payment_attempt.payment_experience = request
             .payment_experience
             .map(|experience| experience.foreign_into());
@@ -135,7 +133,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             request.shipping.as_ref(),
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
@@ -143,7 +141,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             request.billing.as_ref(),
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
         )
         .await?;
 
@@ -292,7 +290,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Comple
     async fn update_trackers<'b>(
         &'b self,
         _db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
