@@ -106,7 +106,7 @@ impl ConnectorCommon for Cybersource {
             .join(", ");
 
         let error_message = if res.status_code == 401 {
-            "Authentication Error from the connector"
+            consts::CONNECTOR_UNAUTHORIZED_ERROR
         } else {
             consts::NO_ERROR_MESSAGE
         };
