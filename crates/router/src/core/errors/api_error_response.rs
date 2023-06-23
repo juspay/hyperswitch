@@ -84,6 +84,8 @@ pub enum ApiErrorResponse {
     )]
     GenericUnauthorized { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
+    GenericNotFoundError { message: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
     NotSupported { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_20", message = "{flow} flow not supported by the {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
@@ -271,6 +273,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 1,
                 "API key not provided or invalid API key used", None
             )),
+                Self::GenericNotFoundError { message } => {
+                AER::NotFound(ApiError::new("HE", 5, format!("{message:?}"), None))
+            },
             Self::InvalidRequestUrl => {
                 AER::NotFound(ApiError::new("IR", 2, "Unrecognized request URL", None))
             }
