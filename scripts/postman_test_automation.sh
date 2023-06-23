@@ -19,11 +19,15 @@ get_api_keys() {
     # [<connector_name>]
     # api_key = "HeadKey of <connector_name>"
 
+    # Keys are exported as environment variables since some API Keys for connectors such as ACI
+    # base Base64 based and requires "Bearer" to be prefexed such as "Bearer Skst45645gey5r#&$==".
+    # This effectively stops the shell from interpreting the value of the variable as a command.
     export API_KEY=$(echo "${result}" | awk -F ' = ' '$1 == "api_key" { gsub(/"/, "", $2); print $2 }')
     export KEY1=$(echo "${result}" | awk -F ' = ' '$1 == "key1" { gsub(/"/, "", $2); print $2 }')
     export KEY2=$(echo "${result}" | awk -F ' = ' '$1 == "key2" { gsub(/"/, "", $2); print $2 }')
     export API_SECRET=$(echo "${result}" | awk -F ' = ' '$1 == "api_secret" { gsub(/"/, "", $2); print $2 }')
 
+    # Determine the type of key
     if [[ -n "${API_KEY}" && -z "${KEY1}" && -z "${API_SECRET}" ]]; then
         KEY_TYPE="HeaderKey"
     elif [[ -n "${API_KEY}" && -n "${KEY1}" && -z "${API_SECRET}" ]]; then
@@ -55,4 +59,5 @@ newman run "${COLLECTION_PATH}" \
     $(if [[ "${KEY_TYPE}" == MultiAuthKey ]]; then echo --env-var "connector_key1=${KEY1}" --env-var "connector_key2=${KEY2}" --env-var "connector_api_secret=${API_SECRET}"; fi) \
     $(if [[ -n "${GATEWAY_MERCHANT_ID}" ]]; then echo --env-var "gateway_merchant_id=${GATEWAY_MERCHANT_ID}"; fi) \
     $(if [[ -n "${GPAY_CERTIFICATE}" ]]; then echo --env-var "certificate=${GPAY_CERTIFICATE}"; fi) \
-    $(if [[ -n "${GPAY_CERTIFICATE_KEYS}" ]]; then echo --env-var "certificate_keys=${GPAY_CERTIFICATE_KEYS}"; fi)
+    $(if [[ -n "${GPAY_CERTIFICATE_KEYS}" ]]; then echo --env-var "certificate_keys=${GPAY_CERTIFICATE_KEYS}"; fi) \
+    --delay-request 5 --verbose
