@@ -631,7 +631,10 @@ pub async fn get_tokenized_data(
         Err(err) => {
             metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
             match err.status_code {
-                404 => Err(errors::ApiErrorResponse::UnprocessableEntity.into()),
+                404 => Err(errors::ApiErrorResponse::UnprocessableEntity {
+                    entity: "Token".to_string(),
+                }
+                .into()),
                 _ => Err(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
                     .attach_printable(format!("Got error from the basilisk locker: {err:?}")),
