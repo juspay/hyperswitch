@@ -634,6 +634,7 @@ pub async fn refund_list(
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
     let limit = validator::validate_refund_list(req.limit)?;
+    let offset = validator::validate_refund_offset(req.offset)?;
 
     let refund_list = db
         .filter_refund_by_constraints(
@@ -641,6 +642,7 @@ pub async fn refund_list(
             &req,
             merchant_account.storage_scheme,
             limit,
+            offset,
         )
         .await
         .change_context(errors::ApiErrorResponse::RefundNotFound)?;
@@ -651,6 +653,7 @@ pub async fn refund_list(
             &req,
             merchant_account.storage_scheme,
             limit,
+            offset,
         )
         .await
         .change_context(errors::ApiErrorResponse::RefundNotFound)?;

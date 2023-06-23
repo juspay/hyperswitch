@@ -3,10 +3,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{
-    admin,
-    enums::{self, Currency},
-};
+use crate::{admin, enums};
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -135,15 +132,20 @@ pub struct RefundListRequest {
     pub payment_id: Option<String>,
     /// Limit on the number of objects to return
     pub limit: Option<i64>,
-
+    /// The starting point within a list of objects
+    pub offset: Option<i64>,
+    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     pub time_range: Option<TimeRange>,
-    pub connector: Option<String>,
-    pub currency: Option<Currency>,
-    pub refund_status: Option<enums::RefundStatus>,
+    /// The List of connector filters for objects list
+    pub connector: Option<Vec<String>>,
+    /// The List of currency filters for objects list
+    pub currency: Option<Vec<enums::Currency>>,
+    /// The List of refund status filters for objects list
+    pub refund_status: Option<Vec<enums::RefundStatus>>,
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
 pub struct TimeRange {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub start_time: PrimitiveDateTime,
@@ -157,14 +159,17 @@ pub struct RefundListResponse {
     pub size: usize,
     /// The List of refund response object
     pub data: Vec<RefundResponse>,
-    // List of available filter
+    // The List of all available filters
     pub filter: RefundListMetaData,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, ToSchema)]
 pub struct RefundListMetaData {
+    /// The List of available connector filters
     pub connector: Vec<String>,
-    pub currency: Vec<Currency>,
+    /// The List of available currency filters
+    pub currency: Vec<enums::Currency>,
+    /// The List of refund status filters
     pub status: Vec<enums::RefundStatus>,
 }
 

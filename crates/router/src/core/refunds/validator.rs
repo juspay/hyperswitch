@@ -3,6 +3,7 @@ use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
 use crate::{
+    consts::{DEFAULT_LIMIT, DEFAULT_OFFSET, LOWER_LIMIT, UPPER_LIMIT},
     core::errors::{self, CustomResult, RouterResult},
     db::StorageInterface,
     logger,
@@ -125,7 +126,7 @@ pub async fn validate_uniqueness_of_refund_id_against_merchant_id(
 pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::ApiErrorResponse> {
     match limit {
         Some(limit_val) => {
-            if !(1..=100).contains(&limit_val) {
+            if !(LOWER_LIMIT..=UPPER_LIMIT).contains(&limit_val) {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "limit should be in between 1 and 100".to_string(),
                 }
@@ -134,7 +135,14 @@ pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::Api
                 Ok(limit_val)
             }
         }
-        None => Ok(10),
+        None => Ok(DEFAULT_LIMIT),
+    }
+}
+
+pub fn validate_refund_offset(offset: Option<i64>) -> CustomResult<i64, errors::ApiErrorResponse> {
+    match offset {
+        Some(offset_val) => Ok(offset_val),
+        None => Ok(DEFAULT_OFFSET),
     }
 }
 
