@@ -105,6 +105,14 @@ pub struct PaymentMethodUpdateInternal {
     metadata: Option<serde_json::Value>,
 }
 
+impl PaymentMethodUpdateInternal {
+    pub fn create_payment_method(self, source: PaymentMethod) -> PaymentMethod {
+        let metadata = self.metadata.map(|metadata| Secret::new(metadata));
+
+        PaymentMethod { metadata, ..source }
+    }
+}
+
 impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
     fn from(payment_method_update: PaymentMethodUpdate) -> Self {
         match payment_method_update {
