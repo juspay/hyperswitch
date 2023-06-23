@@ -293,8 +293,8 @@ impl Vaultable for api::CardPayout {
     fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = api::TokenizedCardValue1 {
             card_number: self.card_number.peek().clone(),
-            exp_year: self.expiry_month.peek().clone(),
-            exp_month: self.expiry_year.peek().clone(),
+            exp_year: self.expiry_year.peek().clone(),
+            exp_month: self.expiry_month.peek().clone(),
             name_on_card: Some(self.card_holder_name.peek().clone()),
             nickname: None,
             card_last_four: None,
@@ -613,7 +613,7 @@ impl Vault {
         let value2 = payout_method
             .get_value2(customer_id)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting Value12 for locker")?;
+            .attach_printable("Error getting Value2 for locker")?;
 
         let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
 
