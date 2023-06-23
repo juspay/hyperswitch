@@ -12,10 +12,12 @@ use api_models::{
 };
 use common_utils::{
     consts,
+    crypto::Encryptable,
     ext_traits::{AsyncExt, BytesExt, StringExt, ValueExt},
     generate_id,
 };
 use error_stack::{report, IntoReport, ResultExt};
+use masking::Secret;
 use router_env::{instrument, tracing};
 use storage_models::{enums as storage_enums, payment_method};
 
@@ -265,6 +267,60 @@ pub async fn add_card_hs(
         payment_method_resp,
         store_card_payload.duplicate.unwrap_or(false),
     ))
+}
+
+#[instrument(skip_all)]
+pub async fn call_to_generic_hs(
+    state: &routes::AppState,
+    enc_value: &str,
+    customer_id: &str,
+    merchant_account: &domain::MerchantAccount,
+) -> errors::CustomResult<payment_methods::StoreCardRespPayload, errors::VaultError> {
+    let locker = &state.conf.locker;
+    #[cfg(not(feature = "kms"))]
+    let jwekey = &state.conf.jwekey;
+    #[cfg(feature = "kms")]
+    let jwekey = &state.kms_secrets;
+
+    let db = &*state.store;
+    let merchant_id = &merchant_account.merchant_id;
+
+    let request = payment_methods::mk_add_generic_request_hs(
+        jwekey,
+        locker,
+        enc_value,
+        customer_id,
+        merchant_id,
+    )
+    .await?;
+
+    let stored_card_response = if !locker.mock_locker {
+        let response = services::call_connector_api(state, request)
+            .await
+            .change_context(errors::VaultError::SavePaymentMethodFailed);
+
+        let jwe_body: services::JweBody = response
+            .get_response_inner("JweBody")
+            .change_context(errors::VaultError::FetchCardFailed)?;
+
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body)
+            .await
+            .change_context(errors::VaultError::SavePaymentMethodFailed)
+            .attach_printable("Error getting decrypted response payload")?;
+        let stored_card_resp: payment_methods::StoreCardResp = decrypted_payload
+            .parse_struct("StoreCardResp")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)?;
+        stored_card_resp
+    } else {
+        let payment_method_id = generate_id(consts::ID_LENGTH, "payment_method");
+        mock_add_generic_hs(db, &payment_method_id, enc_value, None, Some(customer_id)).await?
+    };
+
+    let stored_card = stored_card_response
+        .payload
+        .get_required_value("StoreCardRespPayload")
+        .change_context(errors::VaultError::SavePaymentMethodFailed)?;
+    Ok(stored_card)
 }
 
 #[instrument(skip_all)]
@@ -567,6 +623,45 @@ pub async fn mock_add_card_hs(
         .insert_locker_mock_up(locker_mock_up)
         .await
         .change_context(errors::VaultError::SaveCardFailed)?;
+    let payload = payment_methods::StoreCardRespPayload {
+        card_reference: response.card_id,
+        duplicate: Some(false),
+    };
+    Ok(payment_methods::StoreCardResp {
+        status: "SUCCESS".to_string(),
+        error_code: None,
+        error_message: None,
+        payload: Some(payload),
+    })
+}
+
+// Mock API for local testing
+pub async fn mock_add_generic_hs(
+    db: &dyn db::StorageInterface,
+    id: &str,
+    enc_value: &str,
+    payment_method_id: Option<String>,
+    customer_id: Option<&str>,
+) -> errors::CustomResult<payment_methods::StoreCardResp, errors::VaultError> {
+    let locker_mock_up = storage::LockerMockUpNew {
+        card_id: id.to_string(),
+        external_id: uuid::Uuid::new_v4().to_string(),
+        card_fingerprint: uuid::Uuid::new_v4().to_string(),
+        card_global_fingerprint: enc_value.to_string(),
+        merchant_id: "mm01".to_string(),
+        card_number: "4111111111111111".to_string(),
+        card_exp_year: "55".to_string(),
+        card_exp_month: "10".to_string(),
+        card_cvc: None,
+        payment_method_id,
+        customer_id: customer_id.map(str::to_string),
+        name_on_card: None,
+    };
+
+    let response = db
+        .insert_locker_mock_up(locker_mock_up)
+        .await
+        .change_context(errors::VaultError::SavePaymentMethodFailed)?;
     let payload = payment_methods::StoreCardRespPayload {
         card_reference: response.card_id,
         duplicate: Some(false),

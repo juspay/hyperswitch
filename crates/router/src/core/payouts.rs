@@ -150,7 +150,7 @@ pub async fn payouts_update_core(
     let status = payout_attempt.status.foreign_into();
 
     // Verify update feasibility
-    if helpers::is_payout_terminal_state(status) {
+    if helpers::is_payout_terminal_state(status) || helpers::is_payout_initiated(status) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
             message: format!(
                 "Payout {} cannot be updated for status {}",
@@ -181,7 +181,6 @@ pub async fn payouts_update_core(
             .foreign_into(),
         metadata: req.metadata.clone().or(payouts.metadata),
         last_modified_at: Some(common_utils::date_time::now()),
-        payout_method_data: None,
     };
 
     let db = &*state.store;
@@ -388,16 +387,14 @@ pub async fn payouts_fulfill_core(
     .await?;
 
     // Trigger fulfillment
-    let payout_method_data = helpers::make_payout_method_data(state, &None, &payout_attempt)
-        .await?
-        .get_required_value("payout_method_data")?;
+    payout_data.payout_method_data =
+        helpers::make_payout_method_data(state, &None, &payout_attempt).await?;
     payout_data = fulfill_payout(
         state,
         &merchant_account,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &connector_data,
         &mut payout_data,
-        &payout_method_data,
     )
     .await
     .attach_printable("Payout fulfillment failed for given Payout request")?;
@@ -430,12 +427,13 @@ pub async fn call_connector_payout(
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let payout_attempt = &payout_data.payout_attempt.to_owned();
     let payouts: &storage_models::payouts::Payouts = &payout_data.payouts.to_owned();
+    // Create / get / update payout_method_data in DB / locker
+    payout_data.payout_method_data = Some(
+        helpers::make_payout_method_data(state, &req.payout_method_data, payout_attempt)
+            .await?
+            .get_required_value("payout_method_data")?,
+    );
     if let Some(true) = req.create_payout {
-        payout_data.payout_method_data = Some(
-            helpers::make_payout_method_data(state, &req.payout_method_data, payout_attempt)
-                .await?
-                .get_required_value("payout_method_data")?,
-        );
         // Eligibility flow
         if payouts.payout_type == storage_enums::PayoutType::Card
             && payout_attempt.is_eligible.is_none()
@@ -485,21 +483,12 @@ pub async fn call_connector_payout(
     // Auto fulfillment flow
     let status = payout_data.payout_attempt.status;
     if payouts.auto_fulfill && status == storage_enums::PayoutStatus::RequiresFulfillment {
-        if payout_data.payout_method_data.is_none() {
-            payout_data.payout_method_data =
-                helpers::make_payout_method_data(state, &req.payout_method_data, payout_attempt)
-                    .await?;
-        }
         *payout_data = fulfill_payout(
             state,
             merchant_account,
             &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
             &connector_data,
             payout_data,
-            &payout_data
-                .payout_method_data
-                .to_owned()
-                .get_required_value("payout_method_data")?,
         )
         .await
         .attach_printable("Payout fulfillment failed for given Payout request")?;
@@ -900,7 +889,6 @@ pub async fn fulfill_payout(
     req: &payouts::PayoutRequest,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
-    payout_method_data: &api::PayoutMethodData,
 ) -> RouterResult<PayoutData> {
     // 1. Form Router data
     let router_data = core_utils::construct_payout_router_data(
@@ -942,7 +930,10 @@ pub async fn fulfill_payout(
                 helpers::save_payout_data_to_locker(
                     state,
                     payout_attempt,
-                    payout_method_data,
+                    &payout_data
+                        .payout_method_data
+                        .clone()
+                        .get_required_value("payout_method_data")?,
                     merchant_account,
                 )
                 .await?;
@@ -1059,8 +1050,8 @@ pub async fn response_handler(
         phone_country_code,
         client_secret: None,
         return_url: payouts.return_url.to_owned(),
-        business_country: None, // FIXME: Fetch from MCA
-        business_label: None,   // FIXME: Fetch from MCA
+        business_country: payout_attempt.business_country,
+        business_label: payout_attempt.business_label,
         description: payouts.description.to_owned(),
         entity_type,
         recurring: payouts.recurring,
@@ -1175,6 +1166,7 @@ pub async fn payout_create_db_entries(
         .set_status(status)
         .set_business_country(req.business_country.to_owned())
         .set_business_label(req.business_label.to_owned())
+        .set_payout_token(req.payout_token.to_owned())
         .to_owned();
     let payout_attempt = db
         .insert_payout_attempt(payout_attempt_req)

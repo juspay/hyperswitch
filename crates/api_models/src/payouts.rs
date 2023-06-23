@@ -136,6 +136,10 @@ pub struct PayoutCreateRequest {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<pii::SecretSerdeValue>)]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Provide a reference to a stored payment method
+    #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
+    pub payout_token: Option<String>,
 }
 
 #[cfg(feature = "payouts")]

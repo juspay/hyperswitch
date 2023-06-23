@@ -571,7 +571,6 @@ diesel::table! {
         payout_type -> PayoutType,
         #[max_length = 64]
         payout_method_id -> Nullable<Varchar>,
-        payout_method_data -> Nullable<Jsonb>,
         amount -> Int8,
         destination_currency -> Currency,
         source_currency -> Currency,

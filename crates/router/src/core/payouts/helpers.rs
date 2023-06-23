@@ -1,5 +1,9 @@
+use std::str;
+
+use common_utils::pii::SecretSerdeValue;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
+use storage_models::encryption::Encryption;
 
 use crate::{
     core::{
@@ -14,7 +18,7 @@ use crate::{
         api::{self, enums as api_enums},
         domain::{
             self,
-            types::{self},
+            types::{self as domain_types, AsyncLift},
         },
         storage,
     },
@@ -31,6 +35,7 @@ pub async fn make_payout_method_data<'a>(
         payout_method_data.to_owned(),
         payout_attempt.payout_token.to_owned(),
     ) {
+        // Get operation
         (None, Some(payout_token)) => {
             let (pm, supplementary_data) = vault::Vault::get_payout_method_data_from_locker(
                 state,
@@ -50,28 +55,36 @@ pub async fn make_payout_method_data<'a>(
             )?;
             Ok(pm)
         }
-        (Some(payout_method), _) => {
-            let payout_token = vault::Vault::store_payout_method_data_in_locker(
+
+        // Create / Update operation
+        (Some(payout_method), payout_token) => {
+            let lookup_key = vault::Vault::store_payout_method_data_in_locker(
                 state,
-                None,
+                payout_token.to_owned(),
                 &payout_method,
                 Some(payout_attempt.customer_id.to_owned()),
             )
             .await?;
-            let payout_update = storage::PayoutAttemptUpdate::PayoutTokenUpdate {
-                payout_token,
-                status: payout_attempt.status,
-            };
-            db.update_payout_attempt_by_merchant_id_payout_id(
-                &payout_attempt.merchant_id,
-                &payout_attempt.payout_id,
-                payout_update,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error updating token in payout attempt")?;
+
+            // Update payout_token in payout_attempt table
+            if payout_token.is_none() {
+                let payout_update = storage::PayoutAttemptUpdate::PayoutTokenUpdate {
+                    payout_token: lookup_key,
+                    status: payout_attempt.status,
+                };
+                db.update_payout_attempt_by_merchant_id_payout_id(
+                    &payout_attempt.merchant_id,
+                    &payout_attempt.payout_id,
+                    payout_update,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error updating token in payout attempt")?;
+            }
             Ok(Some(payout_method))
         }
+
+        // Ignore if nothing is passed
         _ => Ok(None),
     }
 }
@@ -101,12 +114,11 @@ pub async fn save_payout_data_to_locker(
             match stored_card_resp.duplicate {
                 Some(false) => {
                     let db = &*state.store;
-                    let update_payout = storage::PayoutsUpdate::PaymentMethodIdUpdate {
+                    let update_payout = storage::PayoutsUpdate::PayoutMethodIdUpdate {
                         payout_method_id: Some(stored_card_resp.card_reference),
-                        payout_method_data: None,
                     };
                     db.update_payout_by_merchant_id_payout_id(
-                        &merchant_account.merchant_id,
+                        &merchant_account.merchant_id.clone(),
                         &payout_attempt.payout_id,
                         update_payout,
                     )
@@ -120,12 +132,40 @@ pub async fn save_payout_data_to_locker(
         }
         api_models::payouts::PayoutMethodData::Bank(_) => {
             let db = &*state.store;
-            let value = serde_json::to_value(payout_method_data.to_owned())
+            let key = domain_types::get_merchant_enc_key(db, merchant_account.merchant_id.clone())
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to get key from merchant key store")?;
+            let encrpytable_value = serde_json::to_value(payout_method_data.to_owned())
                 .into_report()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            let update_payout = storage::PayoutsUpdate::PaymentMethodIdUpdate {
-                payout_method_id: None,
-                payout_method_data: Some(value.into()),
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encode payout method data")
+                .ok()
+                .async_lift(|inner| {
+                    domain_types::encrypt_optional(Some(SecretSerdeValue::new(inner.into())), &key)
+                })
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt bank details")?
+                .map(Encryption::from)
+                .map(|e| e.into_inner())
+                .map_or(Err(errors::ApiErrorResponse::InternalServerError), |v| {
+                    Ok(v)
+                })?;
+            let enc_value = str::from_utf8(&&encrpytable_value)
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt bank details")?;
+            let stored_resp = cards::call_to_generic_hs(
+                state,
+                enc_value,
+                &payout_attempt.customer_id,
+                merchant_account,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            let update_payout = storage::PayoutsUpdate::PayoutMethodIdUpdate {
+                payout_method_id: Some(stored_resp.card_reference),
             };
             db.update_payout_by_merchant_id_payout_id(
                 &merchant_account.merchant_id,
@@ -151,7 +191,7 @@ pub async fn get_or_create_customer_details(
         core_utils::get_or_generate_id("customer_id", &customer_details.customer_id, "cust")?;
     let merchant_id = &merchant_account.merchant_id;
 
-    let key = types::get_merchant_enc_key(db, merchant_id.to_string())
+    let key = domain_types::get_merchant_enc_key(db, merchant_id.to_string())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -165,16 +205,16 @@ pub async fn get_or_create_customer_details(
             let customer = domain::Customer {
                 customer_id,
                 merchant_id: merchant_id.to_string(),
-                name: types::encrypt_optional(customer_details.name.to_owned(), &key)
+                name: domain_types::encrypt_optional(customer_details.name.to_owned(), &key)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                email: types::encrypt_optional(
+                email: domain_types::encrypt_optional(
                     customer_details.email.to_owned().map(|e| e.expose()),
                     &key,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                phone: types::encrypt_optional(customer_details.phone.to_owned(), &key)
+                phone: domain_types::encrypt_optional(customer_details.phone.to_owned(), &key)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)?,
                 description: None,
@@ -191,6 +231,13 @@ pub async fn get_or_create_customer_details(
             )?))
         }
     }
+}
+
+pub fn is_payout_initiated(status: api_enums::PayoutStatus) -> bool {
+    matches!(
+        status,
+        api_enums::PayoutStatus::Pending | api_enums::PayoutStatus::RequiresFulfillment
+    )
 }
 
 pub fn is_payout_terminal_state(status: api_enums::PayoutStatus) -> bool {
