@@ -443,6 +443,7 @@ pub enum PaymentMethodType {
     Sofort,
     Swish,
     Trustly,
+    UpiCollect,
     Walley,
     WeChatPay,
 }
@@ -473,6 +474,7 @@ pub enum PaymentMethod {
     BankTransfer,
     Crypto,
     BankDebit,
+    Upi,
 }
 
 #[derive(

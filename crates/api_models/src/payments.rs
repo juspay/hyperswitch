@@ -589,6 +589,7 @@ pub enum PaymentMethodData {
     BankTransfer(Box<BankTransferData>),
     Crypto(CryptoData),
     MandatePayment,
+    Upi(UpiData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -607,6 +608,7 @@ pub enum AdditionalPaymentData {
     Crypto {},
     BankDebit {},
     MandatePayment {},
+    Upi {},
 }
 
 impl From<&PaymentMethodData> for AdditionalPaymentData {
@@ -634,6 +636,7 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
             PaymentMethodData::Crypto(_) => Self::Crypto {},
             PaymentMethodData::BankDebit(_) => Self::BankDebit {},
             PaymentMethodData::MandatePayment => Self::MandatePayment {},
+            PaymentMethodData::Upi(_) => Self::Upi {},
         }
     }
 }
@@ -769,6 +772,12 @@ pub struct SepaAndBacsBillingDetails {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct CryptoData {}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct UpiData {
+    pub vpa_id: Option<String>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
@@ -953,6 +962,7 @@ pub enum PaymentMethodDataResponse {
     Crypto(CryptoData),
     BankDebit(BankDebitData),
     MandatePayment,
+    Upi(UpiData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1578,6 +1588,7 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             PaymentMethodData::Crypto(crpto_data) => Self::Crypto(crpto_data),
             PaymentMethodData::BankDebit(bank_debit_data) => Self::BankDebit(bank_debit_data),
             PaymentMethodData::MandatePayment => Self::MandatePayment,
+            PaymentMethodData::Upi(upi_data) => Self::Upi(upi_data),
         }
     }
 }
