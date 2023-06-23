@@ -16,6 +16,8 @@ pub async fn invalidate(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    // If the message was published to 1 or more than channels
+    // then return status Ok
     if result > 0 {
         Ok(services::api::ApplicationResponse::StatusOk)
     } else {
