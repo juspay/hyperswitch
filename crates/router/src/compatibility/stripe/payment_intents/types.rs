@@ -14,6 +14,7 @@ use crate::{
         api::{admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignTryFrom},
     },
+    utils::OptionExt,
 };
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -218,6 +219,13 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 field_name: "receipt_ipaddress".to_string(),
                 expected_format: "127.0.0.1".to_string(),
             })?;
+        let metadata_object = item
+            .metadata
+            .clone()
+            .parse_value("metadata")
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "metadata mapping failed",
+            })?;
         let request = Ok(Self {
             payment_id: item.id.map(payments::PaymentIdType::PaymentIntentId),
             amount: item.amount.map(|amount| amount.into()),
@@ -255,6 +263,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 .and_then(|pmd| pmd.billing_details.map(payments::Address::from)),
             statement_descriptor_name: item.statement_descriptor,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
+            metadata: metadata_object,
             udf: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
             authentication_type,

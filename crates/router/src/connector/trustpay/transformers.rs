@@ -1290,7 +1290,7 @@ pub struct Errors {
 pub struct TrustpayErrorResponse {
     pub status: i64,
     pub description: Option<String>,
-    pub errors: Vec<Errors>,
+    pub errors: Option<Vec<Errors>>,
 }
 
 #[derive(Deserialize)]
