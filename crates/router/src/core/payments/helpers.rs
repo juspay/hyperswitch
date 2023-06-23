@@ -2473,26 +2473,36 @@ pub async fn get_additional_payment_data(
 ) -> RouterResult<api_models::payments::AdditionalPaymentData> {
     match pm_data {
         api_models::payments::PaymentMethodData::Card(card_data)  => {
-            if card_data.card_issuer.is_some() && card_data.card_network.is_some() {
+            if card_data.card_issuer.is_some() && card_data.card_network.is_some() && card_data.card_type.is_some() && card_data.card_type.is_some()
+                && card_data.card_issuing_country.is_some() && card_data.bank_code.is_some() {
                 let card_issuer = card_data.card_issuer.to_owned();
-            let card_network = card_data.card_network.as_ref().map(|card_network| card_network.to_string());
+                let card_network = card_data.card_network.as_ref().map(|card_network| card_network.to_string());
+                let card_type = card_data.card_type.to_owned();
+                let bank_code = card_data.bank_code.to_owned();
+                let card_issuing_country = card_data.card_issuing_country.to_owned();
 
                 Ok(api_models::payments::AdditionalPaymentData::Card {
                     card_issuer,
                     card_network,
+                    card_type,
+                    card_issuing_country,
+                    bank_code,
                 })
             }
             else {
                 let card_info = db
-                .get_card_info(&card_data.card_number.clone().get_card_isin())
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to retrieve card information")?
-                .ok_or(report!(errors::ApiErrorResponse::InvalidCardIin))?;
+                    .get_card_info(&card_data.card_number.clone().get_card_isin())
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve card information")?
+                    .ok_or(report!(errors::ApiErrorResponse::InvalidCardIin))?;
 
                 Ok(api_models::payments::AdditionalPaymentData::Card {
                     card_issuer: card_info.card_issuer.to_owned(),
                     card_network: card_info.card_network.as_ref().map(|card_network| card_network.to_string()),
+                    card_type : card_data.card_type.to_owned(),
+                    bank_code : card_data.bank_code.to_owned(),
+                    card_issuing_country : card_data.card_issuing_country.to_owned(),
                 })
             }
         }

@@ -487,6 +487,15 @@ pub struct Card {
     /// The card network for the card
     #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     pub card_network: Option<api_enums::CardNetwork>,
+
+    #[schema(example = "CREDIT")]
+    pub card_type: Option<String>,
+
+    #[schema(example = "INDIA")]
+    pub card_issuing_country: Option<String>,
+
+    #[schema(example = "JP_AMEX")]
+    pub bank_code: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -595,6 +604,9 @@ pub enum AdditionalPaymentData {
     Card {
         card_issuer: Option<String>,
         card_network: Option<String>,
+        card_type: Option<String>,
+        card_issuing_country: Option<String>,
+        bank_code: Option<String>,
     },
     BankRedirect {
         bank_name: Option<api_enums::BankNames>,
