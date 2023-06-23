@@ -534,7 +534,7 @@ impl actix_web::ResponseError for StripeErrorCode {
 
         match self {
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
-            Self::InvalidRequestUrl => StatusCode::NOT_FOUND,
+            Self::InvalidRequestUrl | Self::GenericNotFoundError { .. } => StatusCode::NOT_FOUND,
             Self::ParameterUnknown { .. } => StatusCode::UNPROCESSABLE_ENTITY,
             Self::ParameterMissing { .. }
             | Self::RefundAmountExceedsPaymentAmount { .. }
@@ -547,7 +547,6 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::CustomerNotFound
             | Self::ConfigNotFound
             | Self::ClientSecretNotFound
-            | Self::GenericNotFoundError { .. }
             | Self::PaymentNotFound
             | Self::PaymentMethodNotFound
             | Self::MerchantAccountNotFound

@@ -273,9 +273,6 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 1,
                 "API key not provided or invalid API key used", None
             )),
-                Self::GenericNotFoundError { message } => {
-                AER::NotFound(ApiError::new("HE", 5, format!("{message:?}"), None))
-            },
             Self::InvalidRequestUrl => {
                 AER::NotFound(ApiError::new("IR", 2, "Unrecognized request URL", None))
             }
@@ -430,6 +427,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::AddressNotFound => {
                 AER::NotFound(ApiError::new("HE", 4, "Address does not exist in our records", None))
+            },
+            Self::GenericNotFoundError { message } => {
+                AER::NotFound(ApiError::new("HE", 5, format!("{message:?}"), None))
             },
             Self::ApiKeyNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "API Key does not exist in our records", None))
