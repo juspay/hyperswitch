@@ -248,7 +248,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         let req_obj = paypal::PaypalAuthUpdateRequest::try_from(req)?;
         let paypal_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
-            utils::Encode::<paypal::PaypalAuthUpdateRequest>::encode_to_string_of_json,
+            utils::Encode::<paypal::PaypalAuthUpdateRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
