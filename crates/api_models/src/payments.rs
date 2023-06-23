@@ -1392,6 +1392,8 @@ pub struct PaymentsResponse {
     /// Any user defined fields can be passed here.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub udf: Option<pii::SecretSerdeValue>,
+
+    pub frm_message: Option<FrmMessage>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
@@ -2023,6 +2025,17 @@ pub struct PaymentsStartRequest {
     pub merchant_id: String,
     /// The identifier for the payment transaction
     pub attempt_id: String,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
+pub struct FrmMessage {
+    pub frm_name: String,
+    pub frm_transaction_id: Option<String>,
+    pub frm_transaction_type: Option<String>,
+    pub frm_status: Option<String>,
+    pub frm_score: Option<i32>,
+    pub frm_reason: Option<serde_json::Value>,
+    pub frm_error: Option<String>,
 }
 
 mod payment_id_type {

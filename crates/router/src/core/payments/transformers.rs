@@ -1,6 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData};
 
-use api_models::payments::OrderDetailsWithAmount;
+use api_models::payments::{FrmMessage, OrderDetailsWithAmount};
 use common_utils::fp_utils;
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -170,6 +170,7 @@ where
             &operation,
             payment_data.ephemeral_key,
             payment_data.sessions_token,
+            payment_data.frm_message,
         )
     }
 }
@@ -262,6 +263,7 @@ pub fn payments_to_payments_response<R, Op>(
     operation: &Op,
     ephemeral_key_option: Option<ephemeral_key::EphemeralKey>,
     session_tokens: Vec<api::SessionToken>,
+    frm_message: Option<FrmMessage>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
@@ -463,6 +465,7 @@ where
                         )
                         .set_ephemeral_key(ephemeral_key_option.map(ForeignFrom::foreign_from))
                         .set_udf(payment_intent.udf)
+                        .set_frm_message(frm_message)
                         .to_owned(),
                 )
             }
@@ -507,6 +510,7 @@ where
             metadata: payment_intent.metadata,
             order_details: payment_intent.order_details,
             udf: payment_intent.udf,
+            frm_message,
             ..Default::default()
         }),
     });

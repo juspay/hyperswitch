@@ -472,11 +472,6 @@ pub async fn create_payment_connector(
 
     let frm_configs = match req.frm_configs {
         Some(frm_value) => {
-            // let configs_for_frm_value: serde_json::Value =
-            //     utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&frm_value)
-            //         .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
-            // Some(Secret::new(configs_for_frm_value));
-
             let configs_for_frm_value: Vec<Secret<serde_json::Value>> = frm_value
                 .iter()
                 .map(|config| {
@@ -486,19 +481,6 @@ pub async fn create_payment_connector(
                 })
                 .collect::<Result<Vec<_>, _>>()?;
             Some(configs_for_frm_value)
-
-            //     utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&frm_value)
-            //         .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
-            // Some(Secret::new(configs_for_frm_value));
-
-            // let order_details_outside_value = order_details_outside_struct
-            //     .iter()
-            //     .map(|order| {
-            //         Encode::<api_models::payments::OrderDetailsWithAmount>::encode_to_value(order)
-            //             .change_context(errors::ApiErrorResponse::InternalServerError)
-            //             .map(masking::Secret::new)
-            //     })
-            //     .collect::<Result<Vec<_>, _>>()?;
         }
         None => None,
     };

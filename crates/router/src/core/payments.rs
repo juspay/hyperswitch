@@ -8,7 +8,7 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use api_models::payments::Metadata;
+use api_models::payments::{FrmMessage, Metadata};
 use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -1032,6 +1032,7 @@ where
     pub connector_customer_id: Option<String>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
+    pub frm_message: Option<FrmMessage>,
 }
 
 #[derive(Debug, Default)]

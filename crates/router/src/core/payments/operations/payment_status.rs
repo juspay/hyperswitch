@@ -290,6 +290,7 @@ async fn get_tracker_for_sync<
             connector_customer_id: None,
             ephemeral_key: None,
             redirect_response: None,
+            frm_message: None,
         },
         None,
     ))

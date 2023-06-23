@@ -154,6 +154,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                 connector_customer_id: None,
                 ephemeral_key: None,
                 redirect_response: None,
+                frm_message: None,
             },
             None,
         ))
