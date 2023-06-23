@@ -530,7 +530,6 @@ pub async fn validate_and_create_refund(
     })?;
 
     let refund = match validator::validate_uniqueness_of_refund_id_against_merchant_id(
-        // this is not required ? as (refund_id, merchant_id ) unique btree, just insert if insert fails not valid
         db,
         &payment_intent.payment_id,
         &merchant_account.merchant_id,
