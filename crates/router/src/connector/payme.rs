@@ -226,7 +226,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             &router_data.to_owned(),
             router_data.request.clone(),
         ));
-        services::execute_connector_processing_step(
+        let init_res = services::execute_connector_processing_step(
             app_state,
             integ,
             init_data,
@@ -234,6 +234,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             None,
         )
         .await?;
+        router_data.request.related_transaction_id = init_res.request.related_transaction_id;
         Ok(())
     }
 
