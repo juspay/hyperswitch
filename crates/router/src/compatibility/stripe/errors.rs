@@ -512,7 +512,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::MerchantConnectorAccountDisabled
             }
             errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
-            errors::ApiErrorResponse::FileProviderNotSupported { .. } => Self::FileProviderNotSupported,
+            errors::ApiErrorResponse::FileProviderNotSupported { .. } => {
+                Self::FileProviderNotSupported
+            }
             errors::ApiErrorResponse::WebhookBadRequest
             | errors::ApiErrorResponse::WebhookResourceNotFound
             | errors::ApiErrorResponse::WebhookProcessingFailure
