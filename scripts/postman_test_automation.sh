@@ -19,10 +19,10 @@ get_api_keys() {
     # [<connector_name>]
     # api_key = "HeadKey of <connector_name>"
 
-    API_KEY=$(echo "${result}" | awk -F ' = ' '$1 == "api_key" { gsub(/"/, "", $2); print $2 }')
-    KEY1=$(echo "${result}" | awk -F ' = ' '$1 == "key1" { gsub(/"/, "", $2); print $2 }')
-    KEY2=$(echo "${result}" | awk -F ' = ' '$1 == "key2" { gsub(/"/, "", $2); print $2 }')
-    API_SECRET=$(echo "${result}" | awk -F ' = ' '$1 == "api_secret" { gsub(/"/, "", $2); print $2 }')
+    export API_KEY=$(echo "${result}" | awk -F ' = ' '$1 == "api_key" { gsub(/"/, "", $2); print $2 }')
+    export KEY1=$(echo "${result}" | awk -F ' = ' '$1 == "key1" { gsub(/"/, "", $2); print $2 }')
+    export KEY2=$(echo "${result}" | awk -F ' = ' '$1 == "key2" { gsub(/"/, "", $2); print $2 }')
+    export API_SECRET=$(echo "${result}" | awk -F ' = ' '$1 == "api_secret" { gsub(/"/, "", $2); print $2 }')
 
     if [[ -n "${API_KEY}" && -z "${KEY1}" && -z "${API_SECRET}" ]]; then
         KEY_TYPE="HeaderKey"
@@ -41,22 +41,18 @@ get_api_keys() {
 CONNECTOR_NAME="${1}"
 KEY_TYPE=""
 
-API_KEY=""
-API_SECRET=""
-KEY1=""
-
 # Function call
-get_api_keys "${CONNECTOR_NAME}"
 COLLECTION_PATH=$(path_generation "${CONNECTOR_NAME}")
+get_api_keys "${CONNECTOR_NAME}"
 
 # Newman runner
 newman run "${COLLECTION_PATH}" \
     --env-var "admin_api_key=${ADMIN_API_KEY}" \
     --env-var "baseUrl=${BASE_URL}" \
     --env-var "connector_api_key=${API_KEY}" \
-    $(if [[ "${KEY_TYPE}" == "BodyKey" ]]; then --env-var "connector_key1=${KEY1}"; fi) \
-    $(if [[ "${KEY_TYPE}" == "SignatureKey" ]]; then echo --env-var "connector_key1=${KEY1}" --env-var "connector_api_secret=${API_SECRET}"; fi) \
-    $(if [[ "${KEY_TYPE}" == "MultiAuthKey" ]]; then echo --env-var "connector_key1=${KEY1}" --env-var "connector_key2=${KEY2}" --env-var "connector_api_secret=${API_SECRET}"; fi) \
+    $(if [[ "${KEY_TYPE}" == BodyKey ]]; then echo --env-var "connector_key1=${KEY1}"; fi) \
+    $(if [[ "${KEY_TYPE}" == SignatureKey ]]; then echo --env-var "connector_key1=${KEY1}" --env-var "connector_api_secret=${API_SECRET}"; fi) \
+    $(if [[ "${KEY_TYPE}" == MultiAuthKey ]]; then echo --env-var "connector_key1=${KEY1}" --env-var "connector_key2=${KEY2}" --env-var "connector_api_secret=${API_SECRET}"; fi) \
     $(if [[ -n "${GATEWAY_MERCHANT_ID}" ]]; then echo --env-var "gateway_merchant_id=${GATEWAY_MERCHANT_ID}"; fi) \
     $(if [[ -n "${GPAY_CERTIFICATE}" ]]; then echo --env-var "certificate=${GPAY_CERTIFICATE}"; fi) \
     $(if [[ -n "${GPAY_CERTIFICATE_KEYS}" ]]; then echo --env-var "certificate_keys=${GPAY_CERTIFICATE_KEYS}"; fi)
