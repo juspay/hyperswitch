@@ -107,7 +107,7 @@ pub struct PaymentMethodUpdateInternal {
 
 impl PaymentMethodUpdateInternal {
     pub fn create_payment_method(self, source: PaymentMethod) -> PaymentMethod {
-        let metadata = self.metadata.map(|metadata| Secret::new(metadata));
+        let metadata = self.metadata.map(Secret::new);
 
         PaymentMethod { metadata, ..source }
     }
