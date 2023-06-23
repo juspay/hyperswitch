@@ -5,10 +5,7 @@ use masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    core::errors::{self, CustomResult},
-    types,
-};
+use crate::core::errors::{self, CustomResult};
 
 pub(crate) type Headers = collections::HashSet<(String, Maskable<String>)>;
 
@@ -214,8 +211,8 @@ impl RequestBuilder {
         self
     }
 
-    pub fn body(mut self, option_body: Option<types::RequestBody>) -> Self {
-        self.payload = option_body.map(types::RequestBody::get_inner_value);
+    pub fn body(mut self, body: Option<String>) -> Self {
+        self.payload = body.map(From::from);
         self
     }
 

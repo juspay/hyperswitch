@@ -2586,24 +2586,18 @@ pub struct StripeGpayToken {
 pub fn get_bank_transfer_request_data(
     req: &types::PaymentsAuthorizeRouterData,
     bank_transfer_data: &api_models::payments::BankTransferData,
-) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+) -> CustomResult<Option<String>, errors::ConnectorError> {
     match bank_transfer_data {
         api_models::payments::BankTransferData::AchBankTransfer { .. } => {
             let req = ChargesRequest::try_from(req)?;
-            let request = types::RequestBody::log_and_get_request_body(
-                &req,
-                utils::Encode::<ChargesRequest>::url_encode,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            let request = utils::Encode::<ChargesRequest>::url_encode(&req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
             Ok(Some(request))
         }
         _ => {
             let req = PaymentIntentRequest::try_from(req)?;
-            let request = types::RequestBody::log_and_get_request_body(
-                &req,
-                utils::Encode::<PaymentIntentRequest>::url_encode,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            let request = utils::Encode::<PaymentIntentRequest>::url_encode(&req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
             Ok(Some(request))
         }
     }

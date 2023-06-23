@@ -162,14 +162,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = coinbase::CoinbasePaymentsRequest::try_from(req)?;
-        let coinbase_payment_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            Encode::<coinbase::CoinbasePaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(coinbase_payment_request))
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let req_obj = coinbase::CoinbasePaymentsRequest::try_from(req)?;
+        let coinbase_req =
+            Encode::<coinbase::CoinbasePaymentsRequest>::encode_to_string_of_json(&req_obj)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(coinbase_req))
     }
 
     fn build_request(
@@ -313,7 +311,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         _req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
@@ -389,14 +387,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = coinbase::CoinbaseRefundRequest::try_from(req)?;
-        let coinbase_refund_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            Encode::<coinbase::CoinbaseRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(coinbase_refund_request))
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let req_obj = coinbase::CoinbaseRefundRequest::try_from(req)?;
+        let coinbase_req =
+            Encode::<coinbase::CoinbaseRefundRequest>::encode_to_string_of_json(&req_obj)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(coinbase_req))
     }
 
     fn build_request(

@@ -4,7 +4,6 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
 use ring::hmac;
 use time::OffsetDateTime;
 use transformers as fiserv;
@@ -72,12 +71,7 @@ where
 
         let client_request_id = Uuid::new_v4().to_string();
         let hmac = self
-            .generate_authorization_signature(
-                auth,
-                &client_request_id,
-                types::RequestBody::get_inner_value(fiserv_req).peek(),
-                timestamp,
-            )
+            .generate_authorization_signature(auth, &client_request_id, &fiserv_req, timestamp)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let mut headers = vec![
             (
@@ -218,14 +212,12 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = fiserv::FiservCancelRequest::try_from(req)?;
-        let fiserv_payments_cancel_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<fiserv::FiservCancelRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(fiserv_payments_cancel_request))
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = fiserv::FiservCancelRequest::try_from(req)?;
+        let fiserv_req =
+            utils::Encode::<fiserv::FiservCancelRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(fiserv_req))
     }
 
     fn build_request(
@@ -304,14 +296,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_request_body(
         &self,
         req: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = fiserv::FiservSyncRequest::try_from(req)?;
-        let fiserv_payments_sync_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<fiserv::FiservSyncRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(fiserv_payments_sync_request))
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = fiserv::FiservSyncRequest::try_from(req)?;
+        let fiserv_req =
+            utils::Encode::<fiserv::FiservSyncRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(fiserv_req))
     }
 
     fn build_request(
@@ -377,14 +367,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = fiserv::FiservCaptureRequest::try_from(req)?;
-        let fiserv_payments_capture_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<fiserv::FiservCaptureRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(fiserv_payments_capture_request))
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = fiserv::FiservCaptureRequest::try_from(req)?;
+        let fiserv_req =
+            utils::Encode::<fiserv::FiservCaptureRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(fiserv_req))
     }
 
     fn build_request(
@@ -482,14 +470,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = fiserv::FiservPaymentsRequest::try_from(req)?;
-        let fiserv_payments_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<fiserv::FiservPaymentsRequest>::encode_to_string_of_json,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = fiserv::FiservPaymentsRequest::try_from(req)?;
+        let fiserv_req = utils::Encode::<fiserv::FiservPaymentsRequest>::encode_to_string_of_json(
+            &connector_req,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(fiserv_payments_request))
+        Ok(Some(fiserv_req))
     }
 
     fn build_request(
@@ -569,14 +556,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = fiserv::FiservRefundRequest::try_from(req)?;
-        let fiserv_refund_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<fiserv::FiservRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(fiserv_refund_request))
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = fiserv::FiservRefundRequest::try_from(req)?;
+        let fiserv_req =
+            utils::Encode::<fiserv::FiservRefundRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(fiserv_req))
     }
     fn build_request(
         &self,
@@ -649,14 +634,12 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_request_body(
         &self,
         req: &types::RefundSyncRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = fiserv::FiservSyncRequest::try_from(req)?;
-        let fiserv_sync_request = types::RequestBody::log_and_get_request_body(
-            &connector_request,
-            utils::Encode::<fiserv::FiservSyncRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(fiserv_sync_request))
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = fiserv::FiservSyncRequest::try_from(req)?;
+        let fiserv_req =
+            utils::Encode::<fiserv::FiservSyncRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(fiserv_req))
     }
 
     fn build_request(

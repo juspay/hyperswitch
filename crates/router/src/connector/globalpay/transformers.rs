@@ -1,6 +1,5 @@
 use common_utils::crypto::{self, GenerateDigest};
 use error_stack::{IntoReport, ResultExt};
-use masking::Secret;
 use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -24,7 +23,7 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GlobalPayMeta {
-    account_name: Secret<String>,
+    account_name: String,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
@@ -105,7 +104,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for requests::GlobalpayCancelRequ
 }
 
 pub struct GlobalpayAuthType {
-    pub app_id: Secret<String>,
+    pub app_id: String,
     pub key: String,
 }
 
@@ -114,7 +113,7 @@ impl TryFrom<&types::ConnectorAuthType> for GlobalpayAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                app_id: Secret::new(key1.to_owned()),
+                app_id: key1.to_string(),
                 key: api_key.to_string(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),

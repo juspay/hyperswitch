@@ -254,15 +254,10 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         // encode only for for urlencoded things.
-        let connector_req = aci::AciPaymentsRequest::try_from(req)?;
-        let aci_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<aci::AciPaymentsRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
+        let aci_req = utils::Encode::<aci::AciPaymentsRequest>::convert_and_url_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(aci_req))
     }
 
@@ -370,13 +365,9 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = aci::AciCancelRequest::try_from(req)?;
-        let aci_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<aci::AciCancelRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let aci_req = utils::Encode::<aci::AciCancelRequest>::convert_and_url_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(aci_req))
     }
     fn build_request(
@@ -479,13 +470,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = aci::AciRefundRequest::try_from(req)?;
-        let body = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<aci::AciRefundRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let body = utils::Encode::<aci::AciRefundRequest>::convert_and_url_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(body))
     }
 

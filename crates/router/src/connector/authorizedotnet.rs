@@ -120,14 +120,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = authorizedotnet::CancelOrCaptureTransactionRequest::try_from(req)?;
-
-        let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<authorizedotnet::CancelOrCaptureTransactionRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let authorizedotnet_req =
+            utils::Encode::<authorizedotnet::CancelOrCaptureTransactionRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(authorizedotnet_req))
     }
 
@@ -208,14 +207,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_request_body(
         &self,
         req: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = authorizedotnet::AuthorizedotnetCreateSyncRequest::try_from(req)?;
-        let sync_request = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<authorizedotnet::AuthorizedotnetCreateSyncRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
+        let sync_request =
+            utils::Encode::<authorizedotnet::AuthorizedotnetCreateSyncRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(sync_request))
     }
 
@@ -293,14 +291,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = authorizedotnet::CreateTransactionRequest::try_from(req)?;
-
-        let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<authorizedotnet::CreateTransactionRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let authorizedotnet_req =
+            utils::Encode::<authorizedotnet::CreateTransactionRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(authorizedotnet_req))
     }
 
@@ -385,14 +382,13 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = authorizedotnet::CancelOrCaptureTransactionRequest::try_from(req)?;
-
-        let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<authorizedotnet::CancelOrCaptureTransactionRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let authorizedotnet_req =
+            utils::Encode::<authorizedotnet::CancelOrCaptureTransactionRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(authorizedotnet_req))
     }
     fn build_request(
@@ -474,14 +470,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = authorizedotnet::CreateRefundRequest::try_from(req)?;
-
-        let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<authorizedotnet::CreateRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let authorizedotnet_req =
+            utils::Encode::<authorizedotnet::CreateRefundRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(authorizedotnet_req))
     }
 
@@ -561,13 +556,13 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::RSync>,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = authorizedotnet::AuthorizedotnetCreateSyncRequest::try_from(req)?;
-        let sync_request = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<authorizedotnet::AuthorizedotnetCreateSyncRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let sync_request =
+            utils::Encode::<authorizedotnet::AuthorizedotnetCreateSyncRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(sync_request))
     }
 

@@ -244,13 +244,10 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn get_request_body(
         &self,
         req: &types::RefreshTokenRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = paypal::PaypalAuthUpdateRequest::try_from(req)?;
-        let paypal_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<paypal::PaypalAuthUpdateRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let paypal_req =
+            utils::Encode::<paypal::PaypalAuthUpdateRequest>::convert_and_url_encode(req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         Ok(Some(paypal_req))
     }
@@ -338,13 +335,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let req_obj = paypal::PaypalPaymentsRequest::try_from(req)?;
-        let paypal_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<paypal::PaypalPaymentsRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let paypal_req =
+            utils::Encode::<paypal::PaypalPaymentsRequest>::encode_to_string_of_json(&req_obj)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(paypal_req))
     }
 
@@ -619,13 +614,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = paypal::PaypalPaymentsCaptureRequest::try_from(req)?;
-        let paypal_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<paypal::PaypalPaymentsCaptureRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let paypal_req =
+            utils::Encode::<paypal::PaypalPaymentsCaptureRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(paypal_req))
     }
 
@@ -768,13 +763,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let req_obj = paypal::PaypalRefundRequest::try_from(req)?;
-        let paypal_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<paypal::PaypalRefundRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let paypal_req =
+            utils::Encode::<paypal::PaypalRefundRequest>::encode_to_string_of_json(&req_obj)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(paypal_req))
     }
 

@@ -52,10 +52,10 @@ pub struct Order {
 pub struct BillingAddress {
     pub city: Option<String>,
     pub country_code: Option<api_enums::CountryAlpha2>,
-    pub house_number: Option<Secret<String>>,
+    pub house_number: Option<String>,
     pub state: Option<Secret<String>>,
-    pub state_code: Option<Secret<String>>,
-    pub street: Option<Secret<String>>,
+    pub state_code: Option<String>,
+    pub street: Option<String>,
     pub zip: Option<Secret<String>>,
 }
 

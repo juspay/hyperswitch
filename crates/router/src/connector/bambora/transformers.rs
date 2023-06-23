@@ -428,7 +428,7 @@ pub struct BamboraRefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for BamboraRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.request.refund_amount,
