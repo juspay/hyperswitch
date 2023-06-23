@@ -852,6 +852,7 @@ pub enum WalletData {
 #[serde(rename_all = "snake_case")]
 pub struct SamsungPayWalletData {
     /// The encrypted payment token from Samsung
+    #[schema(value_type = String)]
     pub token: Secret<String>,
 }
 
