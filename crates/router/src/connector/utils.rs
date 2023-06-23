@@ -609,6 +609,7 @@ impl PhoneDetailsData for api::PhoneDetails {
 pub trait AddressDetailsData {
     fn get_first_name(&self) -> Result<&Secret<String>, Error>;
     fn get_last_name(&self) -> Result<&Secret<String>, Error>;
+    fn get_full_name(&self) -> Result<Secret<String>, Error>;
     fn get_line1(&self) -> Result<&Secret<String>, Error>;
     fn get_city(&self) -> Result<&String, Error>;
     fn get_line2(&self) -> Result<&Secret<String>, Error>;
@@ -628,6 +629,13 @@ impl AddressDetailsData for api::AddressDetails {
         self.last_name
             .as_ref()
             .ok_or_else(missing_field_err("address.last_name"))
+    }
+
+    fn get_full_name(&self) -> Result<Secret<String>, Error> {
+        let first_name = self.get_first_name()?.peek().to_owned();
+        let last_name = self.get_last_name()?.peek().to_owned();
+        let full_name = format!("{} {}", first_name, last_name).trim().to_string();
+        Ok(Secret::new(full_name))
     }
 
     fn get_line1(&self) -> Result<&Secret<String>, Error> {
