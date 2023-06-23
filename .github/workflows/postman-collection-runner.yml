@@ -23,10 +23,10 @@ jobs:
           # - braintree
           # - iatapay
           # - multisafepay
-          # - nmi
+          - nmi
           - stripe
           # - trustpay
-          # - worldline
+          - worldline
 
     steps:
       - name: Checkout repository
