@@ -23,7 +23,7 @@ pub trait EphemeralKeyInterface {
     ) -> CustomResult<EphemeralKey, errors::StorageError>;
 }
 
-pub mod storage {
+mod storage {
     use common_utils::date_time;
     use error_stack::ResultExt;
     use redis_interface::HsetnxReply;
@@ -154,11 +154,11 @@ impl EphemeralKeyInterface for MockDb {
             .lock()
             .await
             .iter()
-            .find(|ephemeral_key| ephemeral_key.secret == key)
+            .find(|ephemeral_key| ephemeral_key.secret.eq(key))
         {
             Some(ephemeral_key) => Ok(ephemeral_key.clone()),
             None => Err(
-                errors::StorageError::ValueNotFound("ephrmeral key not found".to_string()).into(),
+                errors::StorageError::ValueNotFound("ephemeral key not found".to_string()).into(),
             ),
         }
     }
@@ -167,12 +167,12 @@ impl EphemeralKeyInterface for MockDb {
         id: &str,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
         let mut ephemeral_keys = self.ephemeral_keys.lock().await;
-        if let Some(pos) = ephemeral_keys.iter().position(|x| *x.id == id) {
+        if let Some(pos) = ephemeral_keys.iter().position(|x| (*x.id).eq(id)) {
             let ek = ephemeral_keys.remove(pos);
             Ok(ek)
         } else {
             return Err(
-                errors::StorageError::ValueNotFound("ephrmeral key not found".to_string()).into(),
+                errors::StorageError::ValueNotFound("ephemeral key not found".to_string()).into(),
             );
         }
     }
