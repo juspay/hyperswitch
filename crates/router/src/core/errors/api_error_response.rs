@@ -84,8 +84,6 @@ pub enum ApiErrorResponse {
     )]
     GenericUnauthorized { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
-    GenericNotFoundError { message: String },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
     NotSupported { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_20", message = "{flow} flow not supported by the {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
@@ -192,6 +190,8 @@ pub enum ApiErrorResponse {
     MissingFilePurpose,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "File content type not found / valid")]
     MissingFileContentType,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_05", message = "{message}")]
+    GenericNotFoundError { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::ObjectNotFound, code = "WE_04", message = "Webhook resource not found")]
