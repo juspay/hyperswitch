@@ -1,4 +1,5 @@
 use std::ops::Deref;
+
 use api_models::{self, enums as api_enums, payments};
 use common_utils::{
     errors::CustomResult,
@@ -939,7 +940,7 @@ fn get_bank_debit_data(
         } => {
             let bacs_data = BankDebitData::Bacs {
                 account_number: account_number.to_owned(),
-                sort_code: Secret::new(sort_code.clone().expose().replace("-", "")),
+                sort_code: Secret::new(sort_code.clone().expose().replace('-', "")),
             };
 
             let billing_data = StripeBillingAddress::from(billing_details);

@@ -575,7 +575,7 @@ pub enum BankDebitData {
         /// holder name for bank debit
         #[schema(value_type = String, example = "A. Schneider")]
         bank_account_holder_name: Option<Secret<String>>,
-    }
+    },
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
