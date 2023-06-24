@@ -225,7 +225,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         let req_obj = payu::PayuAuthUpdateRequest::try_from(req)?;
         let payu_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
-            utils::Encode::<payu::PayuAuthUpdateRequest>::encode_to_string_of_json,
+            utils::Encode::<payu::PayuAuthUpdateRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
