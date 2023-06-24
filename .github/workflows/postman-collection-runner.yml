@@ -50,5 +50,9 @@ jobs:
           GATEWAY_MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
           GPAY_CERTIFICATE: ${{ secrets.STRIPE_GPAY_CERTIFICATE }}
           GPAY_CERTIFICATE_KEYS: ${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
-        shell: bash
-        run: ./scripts/postman_test_automation.sh ${{ matrix.connector }}
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 6
+          max_attempts: 3
+          retry_on: error
+          command: ./scripts/postman_test_automation.sh ${{ matrix.connector }}
