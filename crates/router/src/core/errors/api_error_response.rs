@@ -429,7 +429,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 AER::NotFound(ApiError::new("HE", 4, "Address does not exist in our records", None))
             },
             Self::GenericNotFoundError { message } => {
-                AER::NotFound(ApiError::new("HE", 5, format!("{message:?}"), None))
+                AER::NotFound(ApiError::new("HE", 5, message, None))
             },
             Self::ApiKeyNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "API Key does not exist in our records", None))
