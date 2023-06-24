@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         connector:
-          # - aci
+          - aci
           # - authorizedotnet
           # - braintree
           # - iatapay
