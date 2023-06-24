@@ -23,7 +23,7 @@ pub trait PaymentMethodInterface {
 
     async fn insert_payment_method(
         &self,
-        m: storage::PaymentMethodNew,
+        payment_method_new: storage::PaymentMethodNew,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError>;
 
     async fn update_payment_method(
@@ -54,10 +54,14 @@ impl PaymentMethodInterface for Store {
 
     async fn insert_payment_method(
         &self,
-        m: storage::PaymentMethodNew,
+        payment_method_new: storage::PaymentMethodNew,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        m.insert(&conn).await.map_err(Into::into).into_report()
+        payment_method_new
+            .insert(&conn)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn update_payment_method(
@@ -125,33 +129,33 @@ impl PaymentMethodInterface for MockDb {
 
     async fn insert_payment_method(
         &self,
-        m: storage::PaymentMethodNew,
+        payment_method_new: storage::PaymentMethodNew,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         let mut payment_methods = self.payment_methods.lock().await;
 
         let payment_method = storage::PaymentMethod {
             #[allow(clippy::as_conversions)]
             id: payment_methods.len() as i32,
-            customer_id: m.customer_id,
-            merchant_id: m.merchant_id,
-            payment_method_id: m.payment_method_id,
-            accepted_currency: m.accepted_currency,
-            scheme: m.scheme,
-            token: m.token,
-            cardholder_name: m.cardholder_name,
-            issuer_name: m.issuer_name,
-            issuer_country: m.issuer_country,
-            payer_country: m.payer_country,
-            is_stored: m.is_stored,
-            swift_code: m.swift_code,
-            direct_debit_token: m.direct_debit_token,
-            created_at: m.created_at,
-            last_modified: m.last_modified,
-            payment_method: m.payment_method,
-            payment_method_type: m.payment_method_type,
-            payment_method_issuer: m.payment_method_issuer,
-            payment_method_issuer_code: m.payment_method_issuer_code,
-            metadata: m.metadata,
+            customer_id: payment_method_new.customer_id,
+            merchant_id: payment_method_new.merchant_id,
+            payment_method_id: payment_method_new.payment_method_id,
+            accepted_currency: payment_method_new.accepted_currency,
+            scheme: payment_method_new.scheme,
+            token: payment_method_new.token,
+            cardholder_name: payment_method_new.cardholder_name,
+            issuer_name: payment_method_new.issuer_name,
+            issuer_country: payment_method_new.issuer_country,
+            payer_country: payment_method_new.payer_country,
+            is_stored: payment_method_new.is_stored,
+            swift_code: payment_method_new.swift_code,
+            direct_debit_token: payment_method_new.direct_debit_token,
+            created_at: payment_method_new.created_at,
+            last_modified: payment_method_new.last_modified,
+            payment_method: payment_method_new.payment_method,
+            payment_method_type: payment_method_new.payment_method_type,
+            payment_method_issuer: payment_method_new.payment_method_issuer,
+            payment_method_issuer_code: payment_method_new.payment_method_issuer_code,
+            metadata: payment_method_new.metadata,
         };
         payment_methods.push(payment_method.clone());
         Ok(payment_method)
