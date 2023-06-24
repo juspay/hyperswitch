@@ -20,13 +20,13 @@ get_api_keys() {
     # api_key = "HeadKey of <connector_name>"
 
     # Keys are exported as environment variables since some API Keys for connectors such as ACI
-    # base Base64 based and requires "Bearer" to be prefexed such as "Bearer Skst45645gey5r#&$==".
+    # which is Base64 based and requires "Bearer" to be prefixed such as "Bearer Skst45645gey5r#&$==".
     # This effectively stops the shell from interpreting the value of the variable as a command.
-    export API_KEY=$(echo "${result}" | awk -F ' = ' '$1 == "api_key" { gsub(/"/, "", $2); print $2 }')
-    export KEY1=$(echo "${result}" | awk -F ' = ' '$1 == "key1" { gsub(/"/, "", $2); print $2 }')
-    export KEY2=$(echo "${result}" | awk -F ' = ' '$1 == "key2" { gsub(/"/, "", $2); print $2 }')
-    export API_SECRET=$(echo "${result}" | awk -F ' = ' '$1 == "api_secret" { gsub(/"/, "", $2); print $2 }')
-
+    API_KEY=$(echo "${result}" | awk -F ' = ' '$1 == "api_key" { gsub(/"/, "", $2); print $2 }')
+    KEY1=$(echo "${result}" | awk -F ' = ' '$1 == "key1" { gsub(/"/, "", $2); print $2 }')
+    KEY2=$(echo "${result}" | awk -F ' = ' '$1 == "key2" { gsub(/"/, "", $2); print $2 }')
+    API_SECRET=$(echo "${result}" | awk -F ' = ' '$1 == "api_secret" { gsub(/"/, "", $2); print $2 }')
+    
     # Determine the type of key
     if [[ -n "${API_KEY}" && -z "${KEY1}" && -z "${API_SECRET}" ]]; then
         KEY_TYPE="HeaderKey"
@@ -50,6 +50,9 @@ COLLECTION_PATH=$(path_generation "${CONNECTOR_NAME}")
 get_api_keys "${CONNECTOR_NAME}"
 
 # Newman runner
+# Depending on the conditions satisfied, variables are added. Since certificates of stripe have already
+# been added to the postman collection, those conditions are set to true and collections that have
+# variables set up for certificate, will consider those variables and will fail.
 newman run "${COLLECTION_PATH}" \
     --env-var "admin_api_key=${ADMIN_API_KEY}" \
     --env-var "baseUrl=${BASE_URL}" \
@@ -60,4 +63,4 @@ newman run "${COLLECTION_PATH}" \
     $(if [[ -n "${GATEWAY_MERCHANT_ID}" ]]; then echo --env-var "gateway_merchant_id=${GATEWAY_MERCHANT_ID}"; fi) \
     $(if [[ -n "${GPAY_CERTIFICATE}" ]]; then echo --env-var "certificate=${GPAY_CERTIFICATE}"; fi) \
     $(if [[ -n "${GPAY_CERTIFICATE_KEYS}" ]]; then echo --env-var "certificate_keys=${GPAY_CERTIFICATE_KEYS}"; fi) \
-    --delay-request 5 --verbose
+    --delay-request 5
