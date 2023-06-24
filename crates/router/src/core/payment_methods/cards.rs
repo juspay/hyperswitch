@@ -1225,7 +1225,11 @@ pub async fn filter_payment_methods(
 
                     let connector_variant = api_enums::Connector::from_str(connector.as_str())
                         .into_report()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                        .change_context(errors::ConnectorError::InvalidConnectorName)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable_lazy(|| {
+                            format!("unable to parse connector name {connector:?}")
+                        })?;
                     let filter7 = payment_attempt
                         .and_then(|attempt| attempt.mandate_details.as_ref())
                         .map(|_mandate_details| {
