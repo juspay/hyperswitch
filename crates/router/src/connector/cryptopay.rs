@@ -9,6 +9,7 @@ use common_utils::{
 };
 use error_stack::{IntoReport, ResultExt};
 use hex::encode;
+use masking::PeekInterface;
 use transformers as cryptopay;
 
 use crate::{
@@ -67,15 +68,16 @@ where
         let api_method;
         let payload = match self.get_request_body(req)? {
             Some(val) => {
+                let body = types::RequestBody::get_inner_value(val).peek().to_owned();
                 api_method = "POST".to_string();
                 let md5_payload = crypto::Md5
-                    .generate_digest(val.as_bytes())
+                    .generate_digest(body.as_bytes())
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 encode(md5_payload)
             }
             None => {
                 api_method = "GET".to_string();
-                "".to_string()
+                String::default()
             }
         };
 
@@ -205,13 +207,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = cryptopay::CryptopayPaymentsRequest::try_from(req)?;
-        let cryptopay_req =
-            utils::Encode::<cryptopay::CryptopayPaymentsRequest>::encode_to_string_of_json(
-                &req_obj,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = cryptopay::CryptopayPaymentsRequest::try_from(req)?;
+        let cryptopay_req = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<cryptopay::CryptopayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(cryptopay_req))
     }
 
@@ -359,7 +361,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         _req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
@@ -437,11 +439,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = cryptopay::CryptopayRefundRequest::try_from(req)?;
-        let cryptopay_req =
-            utils::Encode::<cryptopay::CryptopayRefundRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let cryptopay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<cryptopay::CryptopayRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(cryptopay_req))
     }
 

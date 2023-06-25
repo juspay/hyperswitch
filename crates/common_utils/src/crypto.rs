@@ -165,7 +165,6 @@ impl SignMessage for HmacSha1 {
         msg: &[u8],
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
         let key = hmac::Key::new(hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY, secret);
-        println!("##tag-{:?}", hmac::sign(&key, msg).as_ref());
         Ok(hmac::sign(&key, msg).as_ref().to_vec())
     }
 }
