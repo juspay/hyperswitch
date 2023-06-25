@@ -103,7 +103,7 @@ pub enum RecurringType {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsBankRedirects {
-    bic: NexinetsBIC,
+    bic: Option<NexinetsBIC>,
 }
 
 #[derive(Debug, Serialize)]
@@ -578,7 +578,9 @@ fn get_payment_details_and_product(
             api_models::payments::BankRedirectData::Ideal { bank_name, .. } => Ok((
                 Some(NexinetsPaymentDetails::BankRedirects(Box::new(
                     NexinetsBankRedirects {
-                        bic: NexinetsBIC::try_from(bank_name)?,
+                        bic: bank_name
+                            .map(|bank_name| NexinetsBIC::try_from(&bank_name))
+                            .transpose()?,
                     },
                 ))),
                 NexinetsProduct::Ideal,
