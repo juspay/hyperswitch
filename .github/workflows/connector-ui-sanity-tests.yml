@@ -74,6 +74,8 @@ jobs:
             override: true
 
       - name: Start server and Run tests
+        env:
+          UI_TESTCASES_PATH: ${{ secrets.UI_TESTCASES_PATH }}
         shell: bash
         run: sh scripts/run_ui_tests.sh ${{ matrix.connector }}
       
