@@ -52,10 +52,10 @@ pub struct Order {
 pub struct BillingAddress {
     pub city: Option<String>,
     pub country_code: Option<api_enums::CountryAlpha2>,
-    pub house_number: Option<String>,
+    pub house_number: Option<Secret<String>>,
     pub state: Option<Secret<String>>,
-    pub state_code: Option<String>,
-    pub street: Option<String>,
+    pub state_code: Option<Secret<String>>,
+    pub street: Option<Secret<String>>,
     pub zip: Option<Secret<String>>,
 }
 
@@ -133,7 +133,7 @@ pub struct Giropay {
 #[derive(Debug, Serialize)]
 pub struct Ideal {
     #[serde(rename = "issuerId")]
-    pub issuer_id: WorldlineBic,
+    pub issuer_id: Option<WorldlineBic>,
 }
 
 #[derive(Debug, Serialize)]
@@ -322,7 +322,9 @@ fn make_bank_redirect_request(
         payments::BankRedirectData::Ideal { bank_name, .. } => (
             {
                 PaymentMethodSpecificData::PaymentProduct809SpecificInput(Box::new(Ideal {
-                    issuer_id: WorldlineBic::try_from(bank_name)?,
+                    issuer_id: bank_name
+                        .map(|bank_name| WorldlineBic::try_from(&bank_name))
+                        .transpose()?,
                 }))
             },
             809,
@@ -687,4 +689,6 @@ pub enum WebhookEvent {
     RejectedCapture,
     #[serde(rename = "payment.paid")]
     Paid,
+    #[serde(other)]
+    Unknown,
 }

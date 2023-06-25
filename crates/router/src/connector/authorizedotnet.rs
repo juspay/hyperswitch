@@ -14,7 +14,7 @@ use crate::{
     core::errors::{self, CustomResult},
     db::StorageInterface,
     headers,
-    services::{self, ConnectorIntegration},
+    services::{self, request, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -33,10 +33,11 @@ where
         &self,
         _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, services::request::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string(),
+            self.get_content_type().to_string().into(),
         )])
     }
 }
@@ -101,7 +102,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -119,13 +120,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = authorizedotnet::CancelOrCaptureTransactionRequest::try_from(req)?;
-        let authorizedotnet_req =
-            utils::Encode::<authorizedotnet::CancelOrCaptureTransactionRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<authorizedotnet::CancelOrCaptureTransactionRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(authorizedotnet_req))
     }
 
@@ -186,7 +188,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         // This connector does not require an auth header, the authentication details are sent in the request body
         self.build_headers(req, connectors)
     }
@@ -206,13 +208,14 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_request_body(
         &self,
         req: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = authorizedotnet::AuthorizedotnetCreateSyncRequest::try_from(req)?;
-        let sync_request =
-            utils::Encode::<authorizedotnet::AuthorizedotnetCreateSyncRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let sync_request = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<authorizedotnet::AuthorizedotnetCreateSyncRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
         Ok(Some(sync_request))
     }
 
@@ -270,7 +273,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         // This connector does not require an auth header, the authentication details are sent in the request body
         self.build_headers(req, connectors)
     }
@@ -290,13 +293,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = authorizedotnet::CreateTransactionRequest::try_from(req)?;
-        let authorizedotnet_req =
-            utils::Encode::<authorizedotnet::CreateTransactionRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<authorizedotnet::CreateTransactionRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(authorizedotnet_req))
     }
 
@@ -362,7 +366,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -381,13 +385,14 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = authorizedotnet::CancelOrCaptureTransactionRequest::try_from(req)?;
-        let authorizedotnet_req =
-            utils::Encode::<authorizedotnet::CancelOrCaptureTransactionRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<authorizedotnet::CancelOrCaptureTransactionRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(authorizedotnet_req))
     }
     fn build_request(
@@ -449,7 +454,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         // This connector does not require an auth header, the authentication details are sent in the request body
         self.build_headers(req, connectors)
     }
@@ -469,13 +474,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = authorizedotnet::CreateRefundRequest::try_from(req)?;
-        let authorizedotnet_req =
-            utils::Encode::<authorizedotnet::CreateRefundRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<authorizedotnet::CreateRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(authorizedotnet_req))
     }
 
@@ -535,7 +541,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundsRouterData<api::RSync>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         // This connector does not require an auth header, the authentication details are sent in the request body
         self.build_headers(req, connectors)
     }
@@ -555,13 +561,13 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::RSync>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = authorizedotnet::AuthorizedotnetCreateSyncRequest::try_from(req)?;
-        let sync_request =
-            utils::Encode::<authorizedotnet::AuthorizedotnetCreateSyncRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let sync_request = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<authorizedotnet::AuthorizedotnetCreateSyncRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(sync_request))
     }
 

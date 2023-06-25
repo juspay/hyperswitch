@@ -418,6 +418,8 @@ pub struct GlobalpayPaymentsWebhookResponse {
 pub enum GlobalpayWebhookStatus {
     Declined,
     Captured,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

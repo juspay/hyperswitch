@@ -5,7 +5,7 @@ use common_utils::{
     ext_traits::AsyncExt,
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use storage_models::encryption::Encryption;
 
@@ -23,12 +23,11 @@ pub trait TypeEncryption<
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError>;
+
     async fn decrypt(
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
-        timestamp: i64,
-        migration_timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError>;
 }
 
@@ -46,7 +45,7 @@ impl<
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted_data = crypt_algo.encode_message(key, masked_data.peek().as_bytes())?;
 
-        Ok(Self::new(masked_data, encrypted_data))
+        Ok(Self::new(masked_data, encrypted_data.into()))
     }
 
     #[instrument(skip_all)]
@@ -54,22 +53,9 @@ impl<
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
-        timestamp: i64,
-        migration_timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
-
-        let (data, encrypted) = if timestamp < migration_timestamp {
-            (
-                encrypted.clone(),
-                crypt_algo.encode_message(key, &encrypted)?,
-            )
-        } else {
-            (
-                crypt_algo.decode_message(key, encrypted.clone())?,
-                encrypted,
-            )
-        };
+        let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
         let value: String = std::str::from_utf8(&data)
             .into_report()
@@ -98,7 +84,7 @@ impl<
             .change_context(errors::CryptoError::DecodingFailed)?;
         let encrypted_data = crypt_algo.encode_message(key, &data)?;
 
-        Ok(Self::new(masked_data, encrypted_data))
+        Ok(Self::new(masked_data, encrypted_data.into()))
     }
 
     #[instrument(skip_all)]
@@ -106,21 +92,9 @@ impl<
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
-        timestamp: i64,
-        migration_timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
-        let (data, encrypted) = if timestamp < migration_timestamp {
-            (
-                encrypted.clone(),
-                crypt_algo.encode_message(key, &encrypted)?,
-            )
-        } else {
-            (
-                crypt_algo.decode_message(key, encrypted.clone())?,
-                encrypted,
-            )
-        };
+        let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
         let value: serde_json::Value = serde_json::from_slice(&data)
             .into_report()
@@ -144,7 +118,7 @@ impl<
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted_data = crypt_algo.encode_message(key, masked_data.peek())?;
 
-        Ok(Self::new(masked_data, encrypted_data))
+        Ok(Self::new(masked_data, encrypted_data.into()))
     }
 
     #[instrument(skip_all)]
@@ -152,37 +126,12 @@ impl<
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
-        timestamp: i64,
-        migration_timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
+        let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
-        let (data, encrypted) = if timestamp < migration_timestamp {
-            (
-                encrypted.clone(),
-                crypt_algo.encode_message(key, &encrypted)?,
-            )
-        } else {
-            (
-                crypt_algo.decode_message(key, encrypted.clone())?,
-                encrypted,
-            )
-        };
         Ok(Self::new(data.into(), encrypted))
     }
-}
-
-pub async fn get_merchant_enc_key(
-    db: &dyn crate::db::StorageInterface,
-    merchant_id: impl AsRef<str>,
-) -> CustomResult<Vec<u8>, crate::core::errors::StorageError> {
-    let merchant_id = merchant_id.as_ref();
-    let key = db
-        .get_merchant_key_store_by_merchant_id(merchant_id)
-        .await?
-        .key
-        .into_inner();
-    Ok(key.expose())
 }
 
 pub trait Lift<U> {
@@ -241,7 +190,7 @@ where
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     request::record_operation_time(
-        crypto::Encryptable::encrypt(inner, key, crypto::GcmAes256 {}),
+        crypto::Encryptable::encrypt(inner, key, crypto::GcmAes256),
         &ENCRYPTION_TIME,
     )
     .await
@@ -264,22 +213,12 @@ where
 pub async fn decrypt<T: Clone, S: masking::Strategy<T>>(
     inner: Option<Encryption>,
     key: &[u8],
-    timestamp: i64,
-    migration_timestamp: i64,
 ) -> CustomResult<Option<crypto::Encryptable<Secret<T, S>>>, errors::CryptoError>
 where
     crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
 {
     request::record_operation_time(
-        inner.async_map(|item| {
-            crypto::Encryptable::decrypt(
-                item,
-                key,
-                crypto::GcmAes256 {},
-                timestamp,
-                migration_timestamp,
-            )
-        }),
+        inner.async_map(|item| crypto::Encryptable::decrypt(item, key, crypto::GcmAes256)),
         &DECRYPTION_TIME,
     )
     .await

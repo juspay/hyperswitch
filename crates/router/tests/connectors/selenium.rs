@@ -204,10 +204,7 @@ pub trait SeleniumTest {
                             .automation_configs
                             .unwrap()
                             .hs_base_url
-                            .unwrap_or_else(|| {
-                                env::var("HS_BASE_URL")
-                                    .unwrap_or_else(|_| "http://localhost:8080".to_string())
-                            });
+                            .unwrap_or_else(|| "http://localhost:8080".to_string());
                         let configs_url = self
                             .get_configs()
                             .automation_configs
@@ -318,10 +315,7 @@ pub trait SeleniumTest {
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
         let config = self.get_configs().automation_configs.unwrap();
-        let (email, pass) = (
-            &config.gmail_email.unwrap_or_else(|| get_env("GMAIL_EMAIL")),
-            &config.gmail_pass.unwrap_or_else(|| get_env("GMAIL_PASS")),
-        );
+        let (email, pass) = (&config.gmail_email.unwrap(), &config.gmail_pass.unwrap());
         let default_actions = vec![
             Event::Trigger(Trigger::Goto(url)),
             Event::Trigger(Trigger::Click(By::Css(".gpay-button"))),
@@ -377,13 +371,13 @@ pub trait SeleniumTest {
                 .automation_configs
                 .unwrap()
                 .pypl_email
-                .unwrap_or_else(|| get_env("PYPL_EMAIL")),
+                .unwrap(),
             &self
                 .get_configs()
                 .automation_configs
                 .unwrap()
                 .pypl_pass
-                .unwrap_or_else(|| get_env("PYPL_PASS")),
+                .unwrap(),
         );
         let mut pypl_actions = vec![
             Event::EitherOr(
@@ -480,7 +474,7 @@ macro_rules! tester {
 }
 
 pub fn get_browser() -> String {
-    env::var("HS_TEST_BROWSER").unwrap_or_else(|_| "firefox".to_string())
+    "firefox".to_string()
 }
 
 pub fn make_capabilities(s: &str) -> Capabilities {
@@ -508,42 +502,32 @@ pub fn make_capabilities(s: &str) -> Capabilities {
     }
 }
 fn get_chrome_profile_path() -> Result<String, WebDriverError> {
-    env::var("CHROME_PROFILE_PATH").map_or_else(
-        |_| -> Result<String, WebDriverError> {
-            let exe = env::current_exe()?;
-            let dir = exe.parent().expect("Executable must be in some directory");
-            let mut base_path = dir
-                .to_str()
-                .map(|str| {
-                    let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
-                    fp.truncate(3);
-                    fp.join(&MAIN_SEPARATOR.to_string())
-                })
-                .unwrap();
-            base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#);
-            Ok(base_path)
-        },
-        Ok,
-    )
+    let exe = env::current_exe()?;
+    let dir = exe.parent().expect("Executable must be in some directory");
+    let mut base_path = dir
+        .to_str()
+        .map(|str| {
+            let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
+            fp.truncate(3);
+            fp.join(&MAIN_SEPARATOR.to_string())
+        })
+        .unwrap();
+    base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#);
+    Ok(base_path)
 }
 fn get_firefox_profile_path() -> Result<String, WebDriverError> {
-    env::var("FIREFOX_PROFILE_PATH").map_or_else(
-        |_| -> Result<String, WebDriverError> {
-            let exe = env::current_exe()?;
-            let dir = exe.parent().expect("Executable must be in some directory");
-            let mut base_path = dir
-                .to_str()
-                .map(|str| {
-                    let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
-                    fp.truncate(3);
-                    fp.join(&MAIN_SEPARATOR.to_string())
-                })
-                .unwrap();
-            base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#);
-            Ok(base_path)
-        },
-        Ok,
-    )
+    let exe = env::current_exe()?;
+    let dir = exe.parent().expect("Executable must be in some directory");
+    let mut base_path = dir
+        .to_str()
+        .map(|str| {
+            let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
+            fp.truncate(3);
+            fp.join(&MAIN_SEPARATOR.to_string())
+        })
+        .unwrap();
+    base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#);
+    Ok(base_path)
 }
 
 pub fn make_url(s: &str) -> &'static str {
@@ -572,8 +556,4 @@ pub fn handle_test_error(
             false
         }
     }
-}
-
-pub fn get_env(name: &str) -> String {
-    env::var(name).unwrap_or_else(|_| panic!("{name} not present"))
 }

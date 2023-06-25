@@ -19,7 +19,6 @@ pub mod scheduler;
 pub mod middleware;
 #[cfg(feature = "openapi")]
 pub mod openapi;
-pub mod scripts;
 pub mod services;
 pub mod types;
 pub mod utils;
@@ -57,6 +56,7 @@ pub mod headers {
     pub const TOKEN: &str = "token";
     pub const X_API_KEY: &str = "X-API-KEY";
     pub const X_API_VERSION: &str = "X-ApiVersion";
+    pub const X_FORWARDED_FOR: &str = "X-Forwarded-For";
     pub const X_MERCHANT_ID: &str = "X-Merchant-Id";
     pub const X_LOGIN: &str = "X-Login";
     pub const X_TRANS_KEY: &str = "X-Trans-Key";
@@ -138,7 +138,9 @@ pub fn mk_app(
         server_app = server_app.service(routes::StripeApis::server(state.clone()));
     }
     server_app = server_app.service(routes::Cards::server(state.clone()));
+    server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state));
+
     server_app
 }
 

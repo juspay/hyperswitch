@@ -24,6 +24,7 @@ pub async fn construct_refund_router_data<'a, F>(
     state: &'a AppState,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     money: (i64, enums::Currency),
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
@@ -42,6 +43,7 @@ pub async fn construct_refund_router_data<'a, F>(
         merchant_account.merchant_id.as_str(),
         &connector_label,
         creds_identifier,
+        key_store,
     )
     .await?;
 
@@ -52,11 +54,12 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let status = payment_attempt.status;
 
-    let (amount, currency) = money;
+    let (payment_amount, currency) = money;
 
     let payment_method_type = payment_attempt
         .payment_method
-        .get_required_value("payment_method_type")?;
+        .get_required_value("payment_method_type")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let webhook_url = Some(helpers::create_webhook_url(
         &state.conf.server.base_url.clone(),
@@ -87,7 +90,7 @@ pub async fn construct_refund_router_data<'a, F>(
             connector_transaction_id: refund.connector_transaction_id.clone(),
             refund_amount: refund.refund_amount,
             currency,
-            amount,
+            payment_amount,
             webhook_url,
             connector_metadata: payment_attempt.connector_metadata.clone(),
             reason: refund.refund_reason.clone(),
@@ -238,6 +241,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::AcceptDisputeRouterData> {
     let connector_id = &dispute.connector;
@@ -252,6 +256,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         merchant_account.merchant_id.as_str(),
         &connector_label,
         None,
+        key_store,
     )
     .await?;
     let auth_type: types::ConnectorAuthType = merchant_connector_account
@@ -299,6 +304,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     dispute: &storage::Dispute,
     submit_evidence_request_data: types::SubmitEvidenceRequestData,
 ) -> RouterResult<types::SubmitEvidenceRouterData> {
@@ -314,6 +320,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         merchant_account.merchant_id.as_str(),
         &connector_label,
         None,
+        key_store,
     )
     .await?;
     let auth_type: types::ConnectorAuthType = merchant_connector_account
@@ -359,6 +366,7 @@ pub async fn construct_upload_file_router_data<'a>(
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     create_file_request: &types::api::CreateFileRequest,
     connector_id: &str,
     file_key: String,
@@ -369,6 +377,7 @@ pub async fn construct_upload_file_router_data<'a>(
         merchant_account.merchant_id.as_str(),
         &connector_label,
         None,
+        key_store,
     )
     .await?;
     let auth_type: types::ConnectorAuthType = merchant_connector_account
@@ -418,6 +427,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::DefendDisputeRouterData> {
     let _db = &*state.store;
@@ -433,6 +443,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         merchant_account.merchant_id.as_str(),
         &connector_label,
         None,
+        key_store,
     )
     .await?;
     let auth_type: types::ConnectorAuthType = merchant_connector_account
@@ -478,6 +489,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
 pub async fn construct_retrieve_file_router_data<'a>(
     state: &'a AppState,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     file_metadata: &storage_models::file::FileMetadata,
     connector_id: &str,
 ) -> RouterResult<types::RetrieveFileRouterData> {
@@ -492,6 +504,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         merchant_account.merchant_id.as_str(),
         &connector_label,
         None,
+        key_store,
     )
     .await?;
     let auth_type: types::ConnectorAuthType = merchant_connector_account

@@ -12,7 +12,11 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     db, headers,
-    services::{self, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -45,13 +49,17 @@ where
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, services::request::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                self.common_get_content_type().to_string(),
+                self.common_get_content_type().to_string().into(),
             ),
-            (headers::X_CC_VERSION.to_string(), "2018-03-22".to_string()),
+            (
+                headers::X_CC_VERSION.to_string(),
+                "2018-03-22".to_string().into(),
+            ),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -75,10 +83,13 @@ impl ConnectorCommon for Coinbase {
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth: coinbase::CoinbaseAuthType = coinbase::CoinbaseAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::X_CC_API_KEY.to_string(), auth.api_key)])
+        Ok(vec![(
+            headers::X_CC_API_KEY.to_string(),
+            auth.api_key.into_masked(),
+        )])
     }
 
     fn build_error_response(
@@ -92,9 +103,9 @@ impl ConnectorCommon for Coinbase {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error.error_type,
+            message: response.error.message,
+            reason: response.error.code,
         })
     }
 }
@@ -132,7 +143,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -151,12 +162,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = coinbase::CoinbasePaymentsRequest::try_from(req)?;
-        let coinbase_req =
-            Encode::<coinbase::CoinbasePaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(coinbase_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = coinbase::CoinbasePaymentsRequest::try_from(req)?;
+        let coinbase_payment_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            Encode::<coinbase::CoinbasePaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(coinbase_payment_request))
     }
 
     fn build_request(
@@ -210,7 +223,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -281,7 +294,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -300,7 +313,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         _req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
@@ -357,7 +370,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -376,12 +389,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = coinbase::CoinbaseRefundRequest::try_from(req)?;
-        let coinbase_req =
-            Encode::<coinbase::CoinbaseRefundRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(coinbase_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = coinbase::CoinbaseRefundRequest::try_from(req)?;
+        let coinbase_refund_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            Encode::<coinbase::CoinbaseRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(coinbase_refund_request))
     }
 
     fn build_request(
@@ -430,7 +445,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -567,7 +582,9 @@ impl api::IncomingWebhook for Coinbase {
             coinbase::WebhookEventType::Pending => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentProcessing)
             }
-            _ => Ok(api::IncomingWebhookEvent::EventNotSupported),
+            coinbase::WebhookEventType::Unknown | coinbase::WebhookEventType::Created => {
+                Ok(api::IncomingWebhookEvent::EventNotSupported)
+            }
         }
     }
 

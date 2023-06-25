@@ -35,7 +35,8 @@ api_key = "Bearer MyApiKey"
 key1 = "MerchantPosId"
 
 [globalpay]
-api_key = "Bearer MyApiKey"
+api_key = "api_key"
+key1 = "key1"
 
 [rapyd]
 api_key = "access_key"
@@ -116,6 +117,7 @@ api_key = "Application API KEY"
 api_secret = "Application Identifier"
 key1 = "Business Identifier"
 
+[automation_configs]
 hs_base_url="http://localhost:8080"
 hs_test_browser="firefox"
 chrome_profile_path=""

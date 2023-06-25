@@ -17,7 +17,11 @@ use crate::{
         payments,
     },
     db::StorageInterface,
-    headers, services,
+    headers, logger,
+    services::{
+        self,
+        request::{self, Mask},
+    },
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -45,13 +49,13 @@ impl ConnectorCommon for Stripe {
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth: stripe::StripeAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key),
+            format!("Bearer {}", auth.api_key).into_masked(),
         )])
     }
 }
@@ -98,10 +102,12 @@ impl
         &self,
         req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsPreProcessingType::get_content_type(self).to_string(),
+            types::PaymentsPreProcessingType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -123,12 +129,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsPreProcessingRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req = stripe::StripeAchSourceRequest::try_from(req)?;
-        let pre_processing_request =
-            utils::Encode::<stripe::StripeAchSourceRequest>::url_encode(&req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
+        let pre_processing_request = types::RequestBody::log_and_get_request_body(
+            &req,
+            utils::Encode::<stripe::StripeAchSourceRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(pre_processing_request))
     }
 
@@ -163,6 +170,7 @@ impl
             .response
             .parse_struct("StripeSourceResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -180,6 +188,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -208,10 +217,12 @@ impl
         &self,
         req: &types::ConnectorCustomerRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::ConnectorCustomerType::get_content_type(self).to_string(),
+            types::ConnectorCustomerType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -233,11 +244,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::ConnectorCustomerRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_request = stripe::CustomerRequest::try_from(req)?;
-        let stripe_req = utils::Encode::<stripe::CustomerRequest>::url_encode(&connector_request)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
+        let stripe_req = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<stripe::CustomerRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
 
@@ -273,6 +286,7 @@ impl
             .response
             .parse_struct("StripeCustomerResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -290,6 +304,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -319,10 +334,12 @@ impl
         &self,
         req: &types::TokenizationRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::TokenizationType::get_content_type(self).to_string(),
+            types::TokenizationType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -344,11 +361,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::TokenizationRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_request = stripe::TokenRequest::try_from(req)?;
-        let stripe_req = utils::Encode::<stripe::TokenRequest>::url_encode(&connector_request)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
+        let stripe_req = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<stripe::TokenRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
 
@@ -380,6 +399,7 @@ impl
             .response
             .parse_struct("StripeTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -397,6 +417,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -426,10 +447,10 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            Self::common_get_content_type(self).to_string(),
+            Self::common_get_content_type(self).to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -459,9 +480,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let stripe_req = utils::Encode::<stripe::CaptureRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = stripe::CaptureRequest::try_from(req)?;
+        let stripe_req = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<stripe::CaptureRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
 
@@ -496,6 +521,7 @@ impl
             .response
             .parse_struct("PaymentIntentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -512,6 +538,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -536,10 +563,12 @@ impl
         &self,
         req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsSyncType::get_content_type(self).to_string(),
+            types::PaymentsSyncType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -606,6 +635,7 @@ impl
                     .response
                     .parse_struct("SetupIntentSyncResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                logger::info!(connector_response=?response);
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),
@@ -617,6 +647,7 @@ impl
                     .response
                     .parse_struct("PaymentIntentSyncResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                logger::info!(connector_response=?response);
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),
@@ -637,6 +668,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
 
         Ok(types::ErrorResponse {
             status_code: res.status_code,
@@ -665,10 +697,12 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -708,15 +742,18 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         match &req.request.payment_method_data {
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 stripe::get_bank_transfer_request_data(req, bank_transfer_data.deref())
             }
             _ => {
                 let req = stripe::PaymentIntentRequest::try_from(req)?;
-                let request = utils::Encode::<stripe::PaymentIntentRequest>::url_encode(&req)
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                let request = types::RequestBody::log_and_get_request_body(
+                    &req,
+                    utils::Encode::<stripe::PaymentIntentRequest>::url_encode,
+                )
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 Ok(Some(request))
             }
         }
@@ -756,6 +793,7 @@ impl
                     .response
                     .parse_struct("PaymentIntentResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                logger::info!(connector_response=?response);
 
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
@@ -775,6 +813,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -801,10 +840,12 @@ impl
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsVoidType::get_content_type(self).to_string(),
+            types::PaymentsVoidType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -831,9 +872,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let stripe_req = utils::Encode::<stripe::CancelRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = stripe::CancelRequest::try_from(req)?;
+        let stripe_req = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<stripe::CancelRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
 
@@ -861,6 +906,7 @@ impl
             .response
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -877,6 +923,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -908,10 +955,10 @@ impl
         &self,
         req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            Verify::get_content_type(self).to_string(),
+            Verify::get_content_type(self).to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -941,10 +988,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req = stripe::SetupIntentRequest::try_from(req)?;
-        let stripe_req = utils::Encode::<stripe::SetupIntentRequest>::url_encode(&req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let stripe_req = types::RequestBody::log_and_get_request_body(
+            &req,
+            utils::Encode::<stripe::SetupIntentRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
 
@@ -985,6 +1035,7 @@ impl
             .response
             .parse_struct("SetupIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1001,6 +1052,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1027,10 +1079,12 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::RefundExecuteType::get_content_type(self).to_string(),
+            types::RefundExecuteType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -1052,9 +1106,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let stripe_req = utils::Encode::<stripe::RefundRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = stripe::RefundRequest::try_from(req)?;
+        let stripe_req = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<stripe::RefundRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
 
@@ -1085,6 +1143,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             res.response
                 .parse_struct("Stripe RefundResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1101,6 +1160,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1123,10 +1183,12 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         &self,
         req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::RefundSyncType::get_content_type(self).to_string(),
+            types::RefundSyncType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -1175,6 +1237,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             res.response
                 .parse_struct("Stripe RefundResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -1191,6 +1254,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1251,7 +1315,7 @@ impl
             types::UploadFileResponse,
         >,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.get_auth_header(&req.connector_auth_type)
     }
 
@@ -1308,6 +1372,7 @@ impl
             .response
             .parse_struct("Stripe FileUploadResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::info!(connector_response=?response);
         Ok(types::UploadFileRouterData {
             response: Ok(types::UploadFileResponse {
                 provider_file_id: response.file_id,
@@ -1324,6 +1389,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1356,7 +1422,7 @@ impl
             types::RetrieveFileResponse,
         >,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.get_auth_header(&req.connector_auth_type)
     }
 
@@ -1416,6 +1482,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1444,10 +1511,12 @@ impl
         &self,
         req: &types::SubmitEvidenceRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::SubmitEvidenceType::get_content_type(self).to_string(),
+            types::SubmitEvidenceType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -1474,10 +1543,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::SubmitEvidenceRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let stripe_req = stripe::Evidence::try_from(req)?;
-        let stripe_req_string = utils::Encode::<stripe::Evidence>::url_encode(&stripe_req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let stripe_req_string = types::RequestBody::log_and_get_request_body(
+            &stripe_req,
+            utils::Encode::<stripe::Evidence>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req_string))
     }
 
@@ -1508,6 +1580,7 @@ impl
             .response
             .parse_struct("Stripe DisputeObj")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::info!(connector_response=?response);
         Ok(types::SubmitEvidenceRouterData {
             response: Ok(types::SubmitEvidenceResponse {
                 dispute_status: api_models::enums::DisputeStatus::DisputeChallenged,
@@ -1525,6 +1598,7 @@ impl
             .response
             .parse_struct("ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(error_response=?response);
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -1644,9 +1718,15 @@ impl api::IncomingWebhook for Stripe {
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         Ok(match details.event_data.event_object.object {
-            stripe::WebhookEventObjectType::PaymentIntent
-            | stripe::WebhookEventObjectType::Charge
-            | stripe::WebhookEventObjectType::Dispute => {
+            stripe::WebhookEventObjectType::PaymentIntent => {
+                api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        details.event_data.event_object.id,
+                    ),
+                )
+            }
+
+            stripe::WebhookEventObjectType::Charge | stripe::WebhookEventObjectType::Dispute => {
                 api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
                         details
@@ -1671,7 +1751,7 @@ impl api::IncomingWebhook for Stripe {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: stripe::WebhookEvent = request
+        let details: stripe::WebhookEventTypeBody = request
             .body
             .parse_struct("WebhookEvent")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
@@ -1683,28 +1763,50 @@ impl api::IncomingWebhook for Stripe {
             stripe::WebhookEventType::PaymentIntentSucceed => {
                 api::IncomingWebhookEvent::PaymentIntentSuccess
             }
+            stripe::WebhookEventType::ChargeSucceeded => {
+                if let Some(stripe::WebhookPaymentMethodDetails {
+                    payment_method: stripe::WebhookPaymentMethodType::AchCreditTransfer,
+                }) = details.event_data.event_object.payment_method_details
+                {
+                    api::IncomingWebhookEvent::PaymentIntentSuccess
+                } else {
+                    api::IncomingWebhookEvent::EventNotSupported
+                }
+            }
             stripe::WebhookEventType::SourceChargeable => {
                 api::IncomingWebhookEvent::SourceChargeable
             }
-            stripe::WebhookEventType::ChargeSucceeded => {
-                api::IncomingWebhookEvent::PaymentIntentSuccess
-            }
             stripe::WebhookEventType::DisputeCreated => api::IncomingWebhookEvent::DisputeOpened,
             stripe::WebhookEventType::DisputeClosed => api::IncomingWebhookEvent::DisputeCancelled,
-            stripe::WebhookEventType::DisputeUpdated => api::IncomingWebhookEvent::try_from(
-                details
-                    .event_data
-                    .event_object
-                    .status
-                    .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?,
-            )?,
+            stripe::WebhookEventType::DisputeUpdated => details
+                .event_data
+                .event_object
+                .status
+                .map(Into::into)
+                .unwrap_or(api::IncomingWebhookEvent::EventNotSupported),
             stripe::WebhookEventType::PaymentIntentPartiallyFunded => {
                 api::IncomingWebhookEvent::PaymentIntentPartiallyFunded
             }
             stripe::WebhookEventType::PaymentIntentRequiresAction => {
                 api::IncomingWebhookEvent::PaymentActionRequired
             }
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+            stripe::WebhookEventType::Unknown
+            | stripe::WebhookEventType::ChargeCaptured
+            | stripe::WebhookEventType::ChargeDisputeCaptured
+            | stripe::WebhookEventType::ChargeDisputeFundsReinstated
+            | stripe::WebhookEventType::ChargeDisputeFundsWithdrawn
+            | stripe::WebhookEventType::ChargeExpired
+            | stripe::WebhookEventType::ChargeFailed
+            | stripe::WebhookEventType::ChargePending
+            | stripe::WebhookEventType::ChargeUpdated
+            | stripe::WebhookEventType::ChanrgeRefunded
+            | stripe::WebhookEventType::PaymentIntentCanceled
+            | stripe::WebhookEventType::PaymentIntentCreated
+            | stripe::WebhookEventType::PaymentIntentProcessing
+            | stripe::WebhookEventType::PaymentIntentAmountCapturableUpdated
+            | stripe::WebhookEventType::SourceTransactionCreated => {
+                api::IncomingWebhookEvent::EventNotSupported
+            }
         })
     }
 
@@ -1781,9 +1883,11 @@ impl services::ConnectorRedirectResponse for Stripe {
                     transformers::StripePaymentStatus::Failed => {
                         payments::CallConnectorAction::Trigger
                     }
-                    _ => payments::CallConnectorAction::StatusUpdate(enums::AttemptStatus::from(
-                        status,
-                    )),
+                    _ => payments::CallConnectorAction::StatusUpdate {
+                        status: enums::AttemptStatus::from(status),
+                        error_code: None,
+                        error_message: None,
+                    },
                 },
             ))
     }
