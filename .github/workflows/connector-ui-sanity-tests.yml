@@ -67,13 +67,16 @@ jobs:
         shell: bash
         run: echo "CONNECTOR_TESTS_FILE_PATH=$HOME/target/test/connector_tests.json" >> $GITHUB_ENV
 
-      - uses: Swatinem/rust-cache@v2.4.0
-
       - name: Install latest nightly
         uses: actions-rs/toolchain@v1
         with:
             toolchain: nightly
             override: true
+      - uses: Swatinem/rust-cache@v2.4.0
+      
+      - name: Build hyperswitch
+        shell: bash
+        run: cargo build
 
       - name: Start server and Run tests
         env:
