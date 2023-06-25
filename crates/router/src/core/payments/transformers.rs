@@ -943,7 +943,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
 
         Ok(Self {
             payment_method_data,
-            amount: Some(i64::from(payment_data.amount)),
             email: payment_data.email,
             currency: Some(payment_data.currency),
             amount: Some(payment_data.amount.into()),

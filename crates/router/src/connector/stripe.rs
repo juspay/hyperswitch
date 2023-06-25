@@ -129,13 +129,15 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsPreProcessingRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req = stripe::StripeCreditTransferSourceRequest::try_from(req)?;
         router_env::logger::info!(connector_request=?req);
-        let pre_processing_request =
-            utils::Encode::<stripe::StripeCreditTransferSourceRequest>::url_encode(&req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
+        let pre_processing_request = types::RequestBody::log_and_get_request_body(
+            &req,
+            utils::Encode::<stripe::StripeCreditTransferSourceRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    
         Ok(Some(pre_processing_request))
     }
 
