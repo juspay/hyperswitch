@@ -19,8 +19,8 @@ get_api_keys() {
     # [<connector_name>]
     # api_key = "HeadKey of <connector_name>"
 
-    # Keys are exported as environment variables since some API Keys for connectors such as ACI
-    # which is Base64 based and requires "Bearer" to be prefixed such as "Bearer Skst45645gey5r#&$==".
+    # Keys are set as variables since some API Keys for connectors such as ACI
+    # are Base64 encoded and require "Bearer" to be prefixed such as "Bearer Skst45645gey5r#&$==".
     # This effectively stops the shell from interpreting the value of the variable as a command.
     API_KEY=$(echo "${result}" | awk -F ' = ' '$1 == "api_key" { gsub(/"/, "", $2); print $2 }')
     KEY1=$(echo "${result}" | awk -F ' = ' '$1 == "key1" { gsub(/"/, "", $2); print $2 }')
