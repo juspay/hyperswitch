@@ -34,7 +34,7 @@ async fn should_make_3ds_mandate_payment(c: WebDriver) -> Result<(), WebDriverEr
             Event::Assert(Assert::IsPresent("Mandate ID")),
             Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
             Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
-            Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("succeeded")),
 
     ]).await?;
@@ -53,7 +53,7 @@ async fn should_fail_recurring_payment_due_to_authentication(
             Event::Assert(Assert::IsPresent("Mandate ID")),
             Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
             Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
-            Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("authentication_required: Your card was declined. This transaction requires authentication.")),
 
     ]).await?;
@@ -72,7 +72,7 @@ async fn should_make_3ds_mandate_with_zero_dollar_payment(
             Event::Assert(Assert::IsPresent("Mandate ID")),
             Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
             Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
-            Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             // Need to be handled as mentioned in https://stripe.com/docs/payments/save-and-reuse?platform=web#charge-saved-payment-method
             Event::Assert(Assert::IsPresent("succeeded")),
 
@@ -111,7 +111,7 @@ async fn should_make_gpay_mandate_payment(c: WebDriver) -> Result<(), WebDriverE
         Event::Assert(Assert::IsPresent("Mandate ID")),
         Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
         Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
-        Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
+        Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
         Event::Assert(Assert::IsPresent("succeeded")),
     ]).await?;
     Ok(())
@@ -144,6 +144,12 @@ async fn should_make_stripe_klarna_payment(c: WebDriver) -> Result<(), WebDriver
             Event::Trigger(Trigger::Click(By::Css(
                 "button[data-testid='confirm-and-pay']",
             ))),
+            Event::RunIf(
+                Assert::IsPresent("Fewer clicks"),
+                vec![Event::Trigger(Trigger::Click(By::Css(
+                    "button[data-testid='SmoothCheckoutPopUp:skip']",
+                )))],
+            ),
             Event::Trigger(Trigger::SwitchTab(Position::Prev)),
             Event::Assert(Assert::IsPresent("Google")),
             Event::Assert(Assert::Contains(

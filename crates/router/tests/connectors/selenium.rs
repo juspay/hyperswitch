@@ -3,6 +3,7 @@ use std::{collections::HashMap, env, path::MAIN_SEPARATOR, time::Duration};
 use actix_web::cookie::SameSite;
 use async_trait::async_trait;
 use thirtyfour::{components::SelectElement, prelude::*, WebDriver};
+use std::io::Read;
 
 use crate::connector_auth;
 
@@ -51,9 +52,21 @@ pub enum Assert<'a> {
 }
 
 pub static CHEKOUT_BASE_URL: &str = "https://hs-payments-test.netlify.app";
-pub static CHEKOUT_DOMAIN: &str = "hs-payments-test.netlify.app";
 #[async_trait]
 pub trait SeleniumTest {
+    fn get_saved_testcases(&self) -> serde_json::Value {
+        let path =
+            env::var("CONNECTOR_TESTS_FILE_PATH").expect("connector tests file path not set");
+        let mut file = &std::fs::File::open(path).expect("Failed to open file");
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)
+            .expect("Failed to read file");
+
+        // Parse the JSON data
+        serde_json::from_str(&contents).expect("Failed to parse JSON")
+        // let file = &std::fs::File::open(path, errors).expect("connector testcases file not found");
+        // serde_json::from_reader(file).expect("tests file should be proper JSON")
+    }
     fn get_configs(&self) -> connector_auth::ConnectorAuthentication {
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
             .expect("connector authentication file path not set");
@@ -197,7 +210,8 @@ pub trait SeleniumTest {
                 },
                 Event::Trigger(trigger) => match trigger {
                     Trigger::Goto(url) => {
-                        driver.goto(url).await?;
+                        let saved_tests =
+                            serde_json::to_string(&self.get_saved_testcases()).unwrap();
                         let conf = serde_json::to_string(&self.get_configs()).unwrap();
                         let hs_base_url = self
                             .get_configs()
@@ -213,7 +227,12 @@ pub trait SeleniumTest {
                             .unwrap();
                         let script = &[
                             format!("localStorage.configs='{configs_url}'").as_str(),
+                            "localStorage.current_env='local'",
+                            "localStorage.hs_api_key=''",
+                            "localStorage.hs_api_keys=''",
+                            format!("localStorage.base_url='{hs_base_url}'").as_str(),
                             format!("localStorage.hs_api_configs='{conf}'").as_str(),
+                            format!("localStorage.saved_payments=JSON.stringify({saved_tests})").as_str(),
                             "localStorage.force_sync='true'",
                             format!(
                                 "localStorage.current_connector=\"{}\";",
@@ -222,11 +241,11 @@ pub trait SeleniumTest {
                             .as_str(),
                         ]
                         .join(";");
-
+                        driver.goto(url).await?;
                         driver.execute(script, Vec::new()).await?;
-                        driver
-                            .add_cookie(new_cookie("hs_base_url", hs_base_url).clone())
-                            .await?;
+                        // driver
+                        //     .add_cookie(new_cookie("hs_base_url", hs_base_url).clone())
+                        //     .await?;
                     }
                     Trigger::Click(by) => {
                         let ele = driver.query(by).first().await?;
@@ -332,6 +351,7 @@ pub trait SeleniumTest {
                             Event::Trigger(Trigger::SendKeys(By::Name("Passwd"), pass)),
                             Event::Trigger(Trigger::Sleep(2)),
                             Event::Trigger(Trigger::Click(By::Id("passwordNext"))),
+                            Event::Trigger(Trigger::Sleep(10)),
                         ],
                         vec![
                             Event::Trigger(Trigger::SendKeys(By::Id("identifierId"), email)),
@@ -339,6 +359,7 @@ pub trait SeleniumTest {
                             Event::Trigger(Trigger::SendKeys(By::Name("Passwd"), pass)),
                             Event::Trigger(Trigger::Sleep(2)),
                             Event::Trigger(Trigger::Click(By::Id("passwordNext"))),
+                            Event::Trigger(Trigger::Sleep(10)),
                         ],
                     ),
                 ],
@@ -413,13 +434,6 @@ async fn is_text_present(driver: &WebDriver, key: &str) -> WebDriverResult<bool>
     let result = driver.query(By::XPath(&xpath)).first().await?;
     result.is_present().await
 }
-fn new_cookie(name: &str, value: String) -> Cookie<'_> {
-    let mut base_url_cookie = Cookie::new(name, value);
-    base_url_cookie.set_same_site(Some(SameSite::Lax));
-    base_url_cookie.set_domain(CHEKOUT_DOMAIN);
-    base_url_cookie.set_path("/");
-    base_url_cookie
-}
 
 #[macro_export]
 macro_rules! tester_inner {
@@ -480,9 +494,10 @@ pub fn get_browser() -> String {
 pub fn make_capabilities(s: &str) -> Capabilities {
     match s {
         "firefox" => {
-            let mut caps = DesiredCapabilities::firefox();
-            let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
-            caps.add_firefox_arg(profile_path).unwrap();
+            let caps = DesiredCapabilities::firefox();
+            caps.add_firefox_arg("--headless");
+            // let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
+            // caps.add_firefox_arg(profile_path).unwrap();
             // let mut prefs = FirefoxPreferences::new();
             // prefs.set("-browser.link.open_newwindow", 3).unwrap();
             // caps.set_preferences(prefs).unwrap();
@@ -515,20 +530,20 @@ fn get_chrome_profile_path() -> Result<String, WebDriverError> {
     base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#);
     Ok(base_path)
 }
-fn get_firefox_profile_path() -> Result<String, WebDriverError> {
-    let exe = env::current_exe()?;
-    let dir = exe.parent().expect("Executable must be in some directory");
-    let mut base_path = dir
-        .to_str()
-        .map(|str| {
-            let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
-            fp.truncate(3);
-            fp.join(&MAIN_SEPARATOR.to_string())
-        })
-        .unwrap();
-    base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#);
-    Ok(base_path)
-}
+// fn get_firefox_profile_path() -> Result<String, WebDriverError> {
+//     let exe = env::current_exe()?;
+//     let dir = exe.parent().expect("Executable must be in some directory");
+//     let mut base_path = dir
+//         .to_str()
+//         .map(|str| {
+//             let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
+//             fp.truncate(3);
+//             fp.join(&MAIN_SEPARATOR.to_string())
+//         })
+//         .unwrap();
+//     base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#);
+//     Ok(base_path)
+// }
 
 pub fn make_url(s: &str) -> &'static str {
     match s {
