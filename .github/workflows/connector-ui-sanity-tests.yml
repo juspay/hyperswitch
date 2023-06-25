@@ -53,7 +53,7 @@ jobs:
 
       - name: Decrypt connector auth file
         env:
-          CONNECTOR_AUTH_PASSPHRASE: stripe
+          CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
         shell: bash
         run: ./scripts/decrypt_connector_auth.sh
 

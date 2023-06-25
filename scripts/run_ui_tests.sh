@@ -24,7 +24,7 @@ mkdir tests
 sudo apt install -y postgresql postgresql-contrib libpq-dev redis-tools redis-server
 
 #download connector ui tests
-wget https://getpantry.cloud/apiv1/pantry/17746960-b133-4fa3-a0c4-e81f717ec459/basket/testcases && mv testcases $HOME/target/test/connector_tests.json
+wget $UI_TESTCASES_PATH && mv testcases $HOME/target/test/connector_tests.json
 
 #install and run redis
 redis-server &
