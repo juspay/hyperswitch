@@ -213,15 +213,15 @@ pub struct ChargesResponse {
 pub enum StripeBankName {
     Eps {
         #[serde(rename = "payment_method_data[eps][bank]")]
-        bank_name: StripeBankNames,
+        bank_name: Option<StripeBankNames>,
     },
     Ideal {
         #[serde(rename = "payment_method_data[ideal][bank]")]
-        ideal_bank_name: StripeBankNames,
+        ideal_bank_name: Option<StripeBankNames>,
     },
     Przelewy24 {
         #[serde(rename = "payment_method_data[p24][bank]")]
-        bank_name: StripeBankNames,
+        bank_name: Option<StripeBankNames>,
     },
 }
 
@@ -245,23 +245,25 @@ fn get_bank_name(
             StripePaymentMethodType::Eps,
             api_models::payments::BankRedirectData::Eps { ref bank_name, .. },
         ) => Ok(Some(StripeBankName::Eps {
-            bank_name: StripeBankNames::try_from(bank_name)?,
+            bank_name: bank_name
+                .map(|bank_name| StripeBankNames::try_from(&bank_name))
+                .transpose()?,
         })),
         (
             StripePaymentMethodType::Ideal,
             api_models::payments::BankRedirectData::Ideal { bank_name, .. },
         ) => Ok(Some(StripeBankName::Ideal {
-            ideal_bank_name: StripeBankNames::try_from(bank_name)?,
+            ideal_bank_name: bank_name
+                .map(|bank_name| StripeBankNames::try_from(&bank_name))
+                .transpose()?,
         })),
         (
             StripePaymentMethodType::Przelewy24,
             api_models::payments::BankRedirectData::Przelewy24 { bank_name, .. },
         ) => Ok(Some(StripeBankName::Przelewy24 {
-            bank_name: StripeBankNames::try_from(&bank_name.ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "bank_name",
-                },
-            )?)?,
+            bank_name: bank_name
+                .map(|bank_name| StripeBankNames::try_from(&bank_name))
+                .transpose()?,
         })),
         (
             StripePaymentMethodType::Sofort
@@ -1066,7 +1068,7 @@ fn create_stripe_payment_method(
                 StripePaymentMethodType::Wechatpay,
                 StripeBillingAddress::default(),
             )),
-            payments::WalletData::AliPay(_) => Ok((
+            payments::WalletData::AliPayRedirect(_) => Ok((
                 StripePaymentMethodData::Wallet(StripeWallet::AlipayPayment(AlipayPayment {
                     payment_method_types: StripePaymentMethodType::Alipay,
                     payment_method_data_type: StripePaymentMethodType::Alipay,
@@ -2232,8 +2234,11 @@ impl<F, T>
         };
         Ok(Self {
             response: Ok(types::PaymentsResponseData::PreProcessingResponse {
-                pre_processing_id: item.response.id,
+                pre_processing_id: types::PreprocessingResponseId::PreProcessingId(
+                    item.response.id,
+                ),
                 connector_metadata: Some(connector_metadata),
+                session_token: None,
             }),
             status,
             ..item.data
@@ -2578,7 +2583,7 @@ impl
                     });
                     Ok(Self::Wallet(wallet_info))
                 }
-                payments::WalletData::AliPay(_) => {
+                payments::WalletData::AliPayRedirect(_) => {
                     let wallet_info = StripeWallet::AlipayPayment(AlipayPayment {
                         payment_method_types: StripePaymentMethodType::Alipay,
                         payment_method_data_type: StripePaymentMethodType::Alipay,
@@ -2653,19 +2658,25 @@ pub struct StripeGpayToken {
 pub fn get_bank_transfer_request_data(
     req: &types::PaymentsAuthorizeRouterData,
     bank_transfer_data: &api_models::payments::BankTransferData,
-) -> CustomResult<Option<String>, errors::ConnectorError> {
+) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
     match bank_transfer_data {
         api_models::payments::BankTransferData::AchBankTransfer { .. }
         | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
             let req = ChargesRequest::try_from(req)?;
-            let request = utils::Encode::<ChargesRequest>::url_encode(&req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            let request = types::RequestBody::log_and_get_request_body(
+                &req,
+                utils::Encode::<ChargesRequest>::url_encode,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
             Ok(Some(request))
         }
         _ => {
             let req = PaymentIntentRequest::try_from(req)?;
-            let request = utils::Encode::<PaymentIntentRequest>::url_encode(&req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            let request = types::RequestBody::log_and_get_request_body(
+                &req,
+                utils::Encode::<PaymentIntentRequest>::url_encode,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
             Ok(Some(request))
         }
     }
