@@ -137,7 +137,7 @@ impl
             utils::Encode::<stripe::StripeCreditTransferSourceRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-    
+
         Ok(Some(pre_processing_request))
     }
 

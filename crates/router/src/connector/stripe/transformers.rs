@@ -2688,7 +2688,8 @@ pub fn get_bank_transfer_authorize_response(
     bank_transfer_data: &api_models::payments::BankTransferData,
 ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
     match bank_transfer_data {
-        api_models::payments::BankTransferData::AchBankTransfer { .. } | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
+        api_models::payments::BankTransferData::AchBankTransfer { .. }
+        | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
             let response: ChargesResponse = res
                 .response
                 .parse_struct("ChargesResponse")
