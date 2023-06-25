@@ -42,6 +42,9 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                 card_cvc: Secret::new("999".to_string()),
                 card_issuer: None,
                 card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
             }),
             confirm: true,
             statement_descriptor_suffix: None,
@@ -187,6 +190,9 @@ async fn payments_create_failure() {
                 card_cvc: Secret::new("99".to_string()),
                 card_issuer: None,
                 card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
             });
 
         let response = services::api::execute_connector_processing_step(

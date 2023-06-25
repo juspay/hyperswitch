@@ -48,6 +48,9 @@ async fn should_only_authorize_payment() {
                     card_cvc: Secret::new("123".to_string()),
                     card_issuer: None,
                     card_network: None,
+                    card_type: None,
+                    card_issuing_country: None,
+                    bank_code: None,
                 }),
                 capture_method: Some(storage_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
@@ -72,6 +75,9 @@ async fn should_authorize_and_capture_payment() {
                     card_cvc: Secret::new("123".to_string()),
                     card_issuer: None,
                     card_network: None,
+                    card_type: None,
+                    card_issuing_country: None,
+                    bank_code: None,
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),

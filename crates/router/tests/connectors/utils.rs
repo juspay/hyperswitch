@@ -489,6 +489,9 @@ impl Default for CCardType {
             card_cvc: Secret::new("999".to_string()),
             card_issuer: None,
             card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
         })
     }
 }
