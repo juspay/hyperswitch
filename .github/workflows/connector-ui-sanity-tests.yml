@@ -4,6 +4,14 @@ on:
   push:
     branches:
       - main
+  
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - reopened
+      - ready_for_review
+      - synchronize
 
   merge_group:
     types:
