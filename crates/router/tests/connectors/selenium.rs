@@ -1,9 +1,7 @@
-use std::{collections::HashMap, env, path::MAIN_SEPARATOR, time::Duration};
+use std::{collections::HashMap, env, io::Read, path::MAIN_SEPARATOR, time::Duration};
 
-use actix_web::cookie::SameSite;
 use async_trait::async_trait;
 use thirtyfour::{components::SelectElement, prelude::*, WebDriver};
-use std::io::Read;
 
 use crate::connector_auth;
 
@@ -232,7 +230,8 @@ pub trait SeleniumTest {
                             "localStorage.hs_api_keys=''",
                             format!("localStorage.base_url='{hs_base_url}'").as_str(),
                             format!("localStorage.hs_api_configs='{conf}'").as_str(),
-                            format!("localStorage.saved_payments=JSON.stringify({saved_tests})").as_str(),
+                            format!("localStorage.saved_payments=JSON.stringify({saved_tests})")
+                                .as_str(),
                             "localStorage.force_sync='true'",
                             format!(
                                 "localStorage.current_connector=\"{}\";",
@@ -494,8 +493,8 @@ pub fn get_browser() -> String {
 pub fn make_capabilities(s: &str) -> Capabilities {
     match s {
         "firefox" => {
-            let caps = DesiredCapabilities::firefox();
-            caps.add_firefox_arg("--headless");
+            let mut caps = DesiredCapabilities::firefox();
+            caps.add_firefox_arg("--headless").ok();
             // let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
             // caps.add_firefox_arg(profile_path).unwrap();
             // let mut prefs = FirefoxPreferences::new();
