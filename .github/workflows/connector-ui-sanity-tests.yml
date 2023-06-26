@@ -43,6 +43,30 @@ jobs:
     name: Run tests on stable toolchain for connectors
     runs-on: ubuntu-latest
 
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      postgres:
+        image: postgres:14.5
+        env:
+          POSTGRES_USER: db_user
+          POSTGRES_PASSWORD: db_pass
+          POSTGRES_DB: hyperswitch_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     strategy:
       fail-fast: false
       matrix:
@@ -73,10 +97,6 @@ jobs:
             toolchain: nightly
             override: true
       - uses: Swatinem/rust-cache@v2.4.0
-      
-      - name: Build hyperswitch
-        shell: bash
-        run: cargo build
 
       - name: Start server and Run tests
         env:
