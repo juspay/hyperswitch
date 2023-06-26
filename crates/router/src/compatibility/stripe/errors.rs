@@ -199,7 +199,7 @@ pub enum StripeErrorCode {
     FileNotFound,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File not available")]
     FileNotAvailable,
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "IR_23", message = "Not Supported because provider is not Router")]
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Not Supported because provider is not Router")]
     FileProviderNotSupported,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "There was an issue with processing webhooks")]
     WebhookProcessingError,
