@@ -29,9 +29,7 @@ pub trait RefundDbExt: Sized {
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
         merchant_id: &str,
-        refund_list_details: &api_models::refunds::RefundListRequest,
-        limit: i64,
-        offset: i64,
+        refund_list_details: &api_models::refunds::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError>;
 }
 
@@ -70,7 +68,7 @@ impl RefundDbExt for Refund {
             filter = filter.filter(dsl::connector.eq_any(connector));
         }
 
-        if let Some(filter_currency) = refund_list_details.clone().currency {
+        if let Some(filter_currency) = &refund_list_details.currency {
             let currency: Vec<Currency> = filter_currency
                 .iter()
                 .map(|currency| (*currency).foreign_into())
@@ -78,7 +76,7 @@ impl RefundDbExt for Refund {
             filter = filter.filter(dsl::currency.eq_any(currency));
         }
 
-        if let Some(filter_refund_status) = refund_list_details.clone().refund_status {
+        if let Some(filter_refund_status) = &refund_list_details.refund_status {
             let refund_status: Vec<RefundStatus> = filter_refund_status
                 .iter()
                 .map(|refund_status| (*refund_status).foreign_into())
@@ -99,25 +97,17 @@ impl RefundDbExt for Refund {
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
         merchant_id: &str,
-        refund_list_details: &api_models::refunds::RefundListRequest,
-        limit: i64,
-        offset: i64,
+        refund_list_details: &api_models::refunds::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError> {
-        let start_time = refund_list_details
-            .time_range
-            .map(|t| t.start_time)
-            .unwrap_or(common_utils::date_time::now() - time::Duration::days(30));
+        let start_time = refund_list_details.start_time;
 
         let end_time = refund_list_details
-            .time_range
-            .and_then(|t| t.end_time)
+            .end_time
             .unwrap_or_else(common_utils::date_time::now);
 
         let filter = <Self as HasTable>::table()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
             .order(dsl::modified_at.desc())
-            .limit(limit)
-            .offset(offset)
             .filter(dsl::created_at.ge(start_time))
             .filter(dsl::created_at.le(end_time));
 
@@ -130,7 +120,7 @@ impl RefundDbExt for Refund {
             .await
             .into_report()
             .change_context(errors::DatabaseError::Others)
-            .attach_printable_lazy(|| "Error filtering records by connector")?;
+            .attach_printable("Error filtering records by connector")?;
 
         let filter_currency: Vec<Currency> = filter
             .clone()
@@ -141,7 +131,7 @@ impl RefundDbExt for Refund {
             .await
             .into_report()
             .change_context(errors::DatabaseError::Others)
-            .attach_printable_lazy(|| "Error filtering records by currency")?;
+            .attach_printable("Error filtering records by currency")?;
 
         let filter_status: Vec<RefundStatus> = filter
             .select(dsl::refund_status)
@@ -151,7 +141,7 @@ impl RefundDbExt for Refund {
             .await
             .into_report()
             .change_context(errors::DatabaseError::Others)
-            .attach_printable_lazy(|| "Error filtering records by refund status")?;
+            .attach_printable("Error filtering records by refund status")?;
 
         let meta = api_models::refunds::RefundListMetaData {
             connector: filter_connector,

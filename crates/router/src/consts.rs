@@ -31,11 +31,3 @@ pub(crate) const PUB_SUB_CHANNEL: &str = "hyperswitch_invalidate";
 // Apple Pay validation url
 pub(crate) const APPLEPAY_VALIDATION_URL: &str =
     "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";
-
-// Default value for offset
-pub const DEFAULT_OFFSET: i64 = 0;
-
-// Limit constants for queries
-pub const LOWER_LIMIT: i64 = 1;
-pub const UPPER_LIMIT: i64 = 100;
-pub const DEFAULT_LIMIT: i64 = 10;

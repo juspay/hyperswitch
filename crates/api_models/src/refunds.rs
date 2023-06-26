@@ -136,19 +136,22 @@ pub struct RefundListRequest {
     pub offset: Option<i64>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     pub time_range: Option<TimeRange>,
-    /// The List of connector filters for objects list
+    /// The list of connectors to filter refunds list
     pub connector: Option<Vec<String>>,
-    /// The List of currency filters for objects list
+    /// The list of currencies to filter refunds list
+    #[schema(value_type = Option<Vec<Currency>>)]
     pub currency: Option<Vec<enums::Currency>>,
-    /// The List of refund status filters for objects list
+    /// The list of refund statuses to filter refunds list
+    #[schema(value_type = Option<Vec<RefundStatus>>)]
     pub refund_status: Option<Vec<enums::RefundStatus>>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, ToSchema)]
 pub struct TimeRange {
+    /// The start time to filter refunds list or to get list of filters. To get list of filters start time is needed to be passed
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub start_time: PrimitiveDateTime,
+    /// The end time to filter refunds list or to get list of filters. If not passed the default time is now
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub end_time: Option<PrimitiveDateTime>,
 }
@@ -159,17 +162,17 @@ pub struct RefundListResponse {
     pub size: usize,
     /// The List of refund response object
     pub data: Vec<RefundResponse>,
-    // The List of all available filters
-    pub filter: RefundListMetaData,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, ToSchema)]
 pub struct RefundListMetaData {
-    /// The List of available connector filters
+    /// The list of available connector filters
     pub connector: Vec<String>,
-    /// The List of available currency filters
+    /// The list of available currency filters
+    #[schema(value_type = Vec<Currency>)]
     pub currency: Vec<enums::Currency>,
-    /// The List of refund status filters
+    /// The list of available refund status filters
+    #[schema(value_type = Vec<RefundStatus>)]
     pub status: Vec<enums::RefundStatus>,
 }
 

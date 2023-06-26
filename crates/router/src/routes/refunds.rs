@@ -184,7 +184,6 @@ pub async fn refunds_update(
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
 #[cfg(feature = "olap")]
-// #[post("/list")]
 pub async fn refunds_list(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -197,6 +196,39 @@ pub async fn refunds_list(
         &req,
         payload.into_inner(),
         |state, merchant_account, req| refund_list(&*state.store, merchant_account, req),
+        &auth::ApiKeyAuth,
+    )
+    .await
+}
+
+/// Refunds - Filter
+///
+/// To list the refunds filters associated with list of connectors, currencies and payment statuses
+#[utoipa::path(
+    post,
+    path = "/refunds/filter",
+    request_body=TimeRange,
+    responses(
+        (status = 200, description = "List of filters", body = RefundListMetaData),
+    ),
+    tag = "Refunds",
+    operation_id = "List all filters for Refunds",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
+#[cfg(feature = "olap")]
+pub async fn refunds_filter_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<api_models::refunds::TimeRange>,
+) -> HttpResponse {
+    let flow = Flow::RefundsList;
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload.into_inner(),
+        |state, merchant_account, req| refund_filter_list(&*state.store, merchant_account, req),
         &auth::ApiKeyAuth,
     )
     .await

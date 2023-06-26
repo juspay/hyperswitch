@@ -3,13 +3,17 @@ use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
 use crate::{
-    consts::{DEFAULT_LIMIT, DEFAULT_OFFSET, LOWER_LIMIT, UPPER_LIMIT},
     core::errors::{self, CustomResult, RouterResult},
     db::StorageInterface,
     logger,
     types::storage::{self, enums},
     utils::{self, OptionExt},
 };
+
+// Limit constraints for refunds list flow
+pub const LOWER_LIMIT: i64 = 1;
+pub const UPPER_LIMIT: i64 = 100;
+pub const DEFAULT_LIMIT: i64 = 10;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RefundValidationError {
@@ -136,13 +140,6 @@ pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::Api
             }
         }
         None => Ok(DEFAULT_LIMIT),
-    }
-}
-
-pub fn validate_refund_offset(offset: Option<i64>) -> CustomResult<i64, errors::ApiErrorResponse> {
-    match offset {
-        Some(offset_val) => Ok(offset_val),
-        None => Ok(DEFAULT_OFFSET),
     }
 }
 

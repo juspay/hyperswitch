@@ -1,3 +1,6 @@
+#[cfg(feature = "olap")]
+use std::collections::HashSet;
+
 use storage_models::{errors::DatabaseError, refund::RefundUpdateInternal};
 
 use super::MockDb;
@@ -73,10 +76,8 @@ pub trait RefundInterface {
     async fn filter_refund_by_meta_constraints(
         &self,
         merchant_id: &str,
-        refund_details: &api_models::refunds::RefundListRequest,
+        refund_details: &api_models::refunds::TimeRange,
         storage_scheme: enums::MerchantStorageScheme,
-        limit: i64,
-        offset: i64,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError>;
 }
 
@@ -221,18 +222,14 @@ mod storage {
         async fn filter_refund_by_meta_constraints(
             &self,
             merchant_id: &str,
-            refund_details: &api_models::refunds::RefundListRequest,
+            refund_details: &api_models::refunds::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
-            limit: i64,
-            offset: i64,
         ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             <storage_models::refund::Refund as storage_types::RefundDbExt>::filter_by_meta_constraints(
                 &conn,
                 merchant_id,
                 refund_details,
-                limit,
-                offset
             )
             .await
             .map_err(Into::into)
@@ -640,15 +637,13 @@ mod storage {
         async fn filter_refund_by_meta_constraints(
             &self,
             merchant_id: &str,
-            refund_details: &api_models::refunds::RefundListRequest,
+            refund_details: &api_models::refunds::TimeRange,
             storage_scheme: enums::MerchantStorageScheme,
-            limit: i64,
-            offset: i64,
         ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_read(self).await?;
-                    <storage_models::refund::Refund as storage_types::RefundDbExt>::filter_by_meta_constraints(&conn, merchant_id, refund_details, limit, offset)
+                    <storage_models::refund::Refund as storage_types::RefundDbExt>::filter_by_meta_constraints(&conn, merchant_id, refund_details)
                         .await
                         .map_err(Into::into)
                         .into_report()
@@ -820,13 +815,15 @@ impl RefundInterface for MockDb {
         _refund_details: &api_models::refunds::RefundListRequest,
         _storage_scheme: enums::MerchantStorageScheme,
         limit: i64,
-        _offset: i64,
+        offset: i64,
     ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError> {
-        let refunds = self.refunds.lock().await;
-
-        Ok(refunds
+        Ok(self
+            .refunds
+            .lock()
+            .await
             .iter()
             .filter(|refund| refund.merchant_id == merchant_id)
+            .skip(usize::try_from(offset).unwrap_or_default())
             .take(usize::try_from(limit).unwrap_or(usize::MAX))
             .cloned()
             .collect::<Vec<_>>())
@@ -836,40 +833,45 @@ impl RefundInterface for MockDb {
     async fn filter_refund_by_meta_constraints(
         &self,
         _merchant_id: &str,
-        _refund_details: &api_models::refunds::RefundListRequest,
+        refund_details: &api_models::refunds::TimeRange,
         _storage_scheme: enums::MerchantStorageScheme,
-        _limit: i64,
-        _offset: i64,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
+        let refunds = self.refunds.lock().await;
+
+        let start_time = refund_details.start_time;
+        let end_time = refund_details
+            .end_time
+            .unwrap_or_else(common_utils::date_time::now);
+
+        let filtered_refunds = refunds
+            .clone()
+            .into_iter()
+            .filter(|refund| refund.created_at >= start_time && refund.created_at <= end_time)
+            .collect::<Vec<_>>();
+
         let mut refund_meta_data = api_models::refunds::RefundListMetaData {
             connector: vec![],
             currency: vec![],
             status: vec![],
         };
 
-        let refunds = self.refunds.lock().await;
+        let mut unique_connectors = HashSet::new();
+        let mut unique_currencies = HashSet::new();
+        let mut unique_statuses = HashSet::new();
 
-        for refund in refunds.clone().into_iter() {
-            if !refund_meta_data.connector.contains(&refund.connector) {
-                refund_meta_data.connector.push(refund.connector);
-            }
+        for refund in filtered_refunds.into_iter() {
+            unique_connectors.insert(refund.connector);
 
-            if !refund_meta_data
-                .currency
-                .contains(&refund.currency.foreign_into())
-            {
-                let currency: api_models::enums::Currency = refund.currency.foreign_into();
-                refund_meta_data.currency.push(currency);
-            }
+            let currency: api_models::enums::Currency = refund.currency.foreign_into();
+            unique_currencies.insert(currency);
 
-            if !refund_meta_data
-                .status
-                .contains(&refund.refund_status.foreign_into())
-            {
-                let status: api_models::enums::RefundStatus = refund.refund_status.foreign_into();
-                refund_meta_data.status.push(status);
-            }
+            let status: api_models::enums::RefundStatus = refund.refund_status.foreign_into();
+            unique_statuses.insert(status);
         }
+
+        refund_meta_data.connector = unique_connectors.into_iter().collect();
+        refund_meta_data.currency = unique_currencies.into_iter().collect();
+        refund_meta_data.status = unique_statuses.into_iter().collect();
 
         Ok(refund_meta_data)
     }

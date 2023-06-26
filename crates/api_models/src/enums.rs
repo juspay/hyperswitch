@@ -502,6 +502,7 @@ pub enum WalletIssuer {
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
     strum::Display,
     strum::EnumString,
