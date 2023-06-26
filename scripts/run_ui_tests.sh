@@ -41,13 +41,10 @@ sudo apt install -y firefox
 firefox
 
 #start server and run ui tests
-touch tests/server.log
-tests tests/test_results.log
-cargo run > tests/server.log 2>&1 &
-tail -f tests/server.log.log &
-tail -f tests/test_results.log &
+cargo run &
 sleep 640
 cargo test --package router --test connectors -- "stripe_ui::" --test-threads=1 >> tests/test_results.log 2>&1
 cargo test --package router --test connectors -- "adyen_uk_ui::" --test-threads=1 >> tests/test_results.log 2>&1
 cargo test --package router --test connectors -- "payu_ui::" --test-threads=1 >> tests/test_results.log 2>&1
 cargo test --package router --test connectors -- "worldline_ui::" --test-threads=1 >> tests/test_results.log 2>&1
+cat tests/test_results.log
