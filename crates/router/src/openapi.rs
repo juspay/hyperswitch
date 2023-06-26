@@ -164,6 +164,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AddressDetails,
         api_models::payments::BankDebitData,
         api_models::payments::AliPayRedirection,
+        api_models::payments::AliPayHkRedirection
         api_models::payments::MbWayRedirection,
         api_models::payments::MobilePayRedirection,
         api_models::payments::WeChatPayRedirection,
