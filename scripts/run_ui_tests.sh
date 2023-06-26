@@ -41,6 +41,8 @@ sudo apt install -y firefox
 firefox
 
 #start server and run ui tests
+touch tests/server.log
+tests tests/test_results.log
 cargo run > tests/server.log 2>&1 &
 tail -f tests/server.log.log &
 tail -f tests/test_results.log &
