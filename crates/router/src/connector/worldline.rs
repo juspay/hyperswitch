@@ -355,11 +355,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
         >,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = worldline::ApproveRequest::try_from(req)?;
-        let worldline_req =
-            utils::Encode::<worldline::ApproveRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let worldline_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<worldline::ApproveRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(worldline_req))
     }
 
@@ -463,11 +466,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = worldline::PaymentsRequest::try_from(req)?;
-        let worldline_req =
-            utils::Encode::<worldline::PaymentsRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let worldline_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<worldline::PaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(worldline_req))
     }
 
@@ -554,13 +559,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = worldline::WorldlineRefundRequest::try_from(req)?;
-        let refund_req =
-            utils::Encode::<worldline::WorldlineRefundRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let refund_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<worldline::WorldlineRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(refund_req))
     }
 

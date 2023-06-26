@@ -504,11 +504,11 @@ pub struct MultisafepayRefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for MultisafepayRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             currency: item.request.currency,
-            amount: item.request.amount,
+            amount: item.request.refund_amount,
             description: item.description.clone(),
             refund_order_id: Some(item.request.refund_id.clone()),
             checkout_data: None,

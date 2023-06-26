@@ -108,10 +108,12 @@ pub struct MockDb {
     connector_response: Arc<Mutex<Vec<storage::ConnectorResponse>>>,
     redis: Arc<redis_interface::RedisConnectionPool>,
     api_keys: Arc<Mutex<Vec<storage::ApiKey>>>,
+    ephemeral_keys: Arc<Mutex<Vec<storage::EphemeralKey>>>,
     cards_info: Arc<Mutex<Vec<storage::CardInfo>>>,
     events: Arc<Mutex<Vec<storage::Event>>>,
     disputes: Arc<Mutex<Vec<storage::Dispute>>>,
     lockers: Arc<Mutex<Vec<storage::LockerMockUp>>>,
+    mandates: Arc<Mutex<Vec<storage::Mandate>>>,
 }
 
 impl MockDb {
@@ -128,10 +130,12 @@ impl MockDb {
             connector_response: Default::default(),
             redis: Arc::new(crate::connection::redis_connection(redis).await),
             api_keys: Default::default(),
+            ephemeral_keys: Default::default(),
             cards_info: Default::default(),
             events: Default::default(),
             disputes: Default::default(),
             lockers: Default::default(),
+            mandates: Default::default(),
         }
     }
 }

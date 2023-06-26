@@ -176,12 +176,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::TokenizationRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = checkout::TokenRequest::try_from(req)?;
-        router_env::logger::info!(?connector_req);
-        let checkout_req =
-            utils::Encode::<checkout::TokenRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let checkout_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<checkout::TokenRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(checkout_req))
     }
 
@@ -276,14 +277,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = checkout::PaymentCaptureRequest::try_from(req)?;
-        router_env::logger::info!(?connector_req);
-        let checkout_req =
-            utils::Encode::<checkout::PaymentCaptureRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let checkout_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<checkout::PaymentCaptureRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(checkout_req))
     }
 
@@ -428,12 +428,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = checkout::PaymentsRequest::try_from(req)?;
-        router_env::logger::info!(?connector_req);
-        let checkout_req =
-            utils::Encode::<checkout::PaymentsRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let checkout_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<checkout::PaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(checkout_req))
     }
     fn build_request(
@@ -512,12 +513,13 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = checkout::PaymentVoidRequest::try_from(req)?;
-        router_env::logger::info!(?connector_req);
-        let checkout_req =
-            utils::Encode::<checkout::PaymentVoidRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let checkout_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<checkout::PaymentVoidRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(checkout_req))
     }
     fn build_request(
@@ -598,12 +600,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = checkout::RefundRequest::try_from(req)?;
-        router_env::logger::info!(?connector_req);
-        let body =
-            utils::Encode::<checkout::RefundRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let body = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<checkout::RefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(body))
     }
 
@@ -958,12 +961,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::SubmitEvidenceRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let checkout_req = checkout::Evidence::try_from(req)?;
-        router_env::logger::info!(?checkout_req);
-        let checkout_req_string =
-            utils::Encode::<checkout::Evidence>::encode_to_string_of_json(&checkout_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let checkout_req_string = types::RequestBody::log_and_get_request_body(
+            &checkout_req,
+            utils::Encode::<checkout::Evidence>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(checkout_req_string))
     }
 

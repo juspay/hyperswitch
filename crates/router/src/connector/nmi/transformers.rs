@@ -68,12 +68,12 @@ pub struct CardData {
 
 #[derive(Debug, Serialize)]
 pub struct GooglePayData {
-    googlepay_payment_data: String,
+    googlepay_payment_data: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct ApplePayData {
-    applepay_payment_data: String,
+    applepay_payment_data: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
@@ -143,7 +143,7 @@ impl From<&api_models::payments::Card> for PaymentMethod {
 impl From<&api_models::payments::GooglePayWalletData> for PaymentMethod {
     fn from(wallet_data: &api_models::payments::GooglePayWalletData) -> Self {
         let gpay_data = GooglePayData {
-            googlepay_payment_data: wallet_data.tokenization_data.token.clone(),
+            googlepay_payment_data: Secret::new(wallet_data.tokenization_data.token.clone()),
         };
         Self::GPay(Box::new(gpay_data))
     }
@@ -152,7 +152,7 @@ impl From<&api_models::payments::GooglePayWalletData> for PaymentMethod {
 impl From<&api_models::payments::ApplePayWalletData> for PaymentMethod {
     fn from(wallet_data: &api_models::payments::ApplePayWalletData) -> Self {
         let apple_pay_data = ApplePayData {
-            applepay_payment_data: wallet_data.payment_data.clone(),
+            applepay_payment_data: Secret::new(wallet_data.payment_data.clone()),
         };
         Self::ApplePay(Box::new(apple_pay_data))
     }
@@ -510,8 +510,7 @@ impl From<NmiStatus> for enums::AttemptStatus {
             NmiStatus::Abandoned => Self::AuthenticationFailed,
             NmiStatus::Cancelled => Self::Voided,
             NmiStatus::Pending => Self::Authorized,
-            NmiStatus::Pendingsettlement => Self::Pending,
-            NmiStatus::Complete => Self::Charged,
+            NmiStatus::Pendingsettlement | NmiStatus::Complete => Self::Charged,
             NmiStatus::InProgress => Self::AuthenticationPending,
             NmiStatus::Failed | NmiStatus::Unknown => Self::Failure,
         }
@@ -633,10 +632,8 @@ impl From<NmiStatus> for enums::RefundStatus {
             | NmiStatus::Cancelled
             | NmiStatus::Failed
             | NmiStatus::Unknown => Self::Failure,
-            NmiStatus::Pendingsettlement | NmiStatus::Pending | NmiStatus::InProgress => {
-                Self::Pending
-            }
-            NmiStatus::Complete => Self::Success,
+            NmiStatus::Pending | NmiStatus::InProgress => Self::Pending,
+            NmiStatus::Pendingsettlement | NmiStatus::Complete => Self::Success,
         }
     }
 }
@@ -659,14 +656,11 @@ impl From<String> for NmiStatus {
 
 #[derive(Debug, Deserialize)]
 pub struct SyncTransactionResponse {
-    #[serde(rename = "transaction_id")]
     transaction_id: String,
-    #[serde(rename = "condition")]
     condition: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct SyncResponse {
-    #[serde(rename = "transaction")]
     transaction: SyncTransactionResponse,
 }

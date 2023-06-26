@@ -89,6 +89,8 @@ pub enum ApiErrorResponse {
     FlowNotSupported { flow: String, connector: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_21", message = "Missing required params")]
     MissingRequiredFields { field_names: Vec<&'static str> },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_22", message = "Access forbidden. Not authorized to access this resource")]
+    AccessForbidden,
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
         code: String,
@@ -234,94 +236,17 @@ impl ::core::fmt::Display for ApiErrorResponse {
 
 impl actix_web::ResponseError for ApiErrorResponse {
     fn status_code(&self) -> StatusCode {
-        match self {
-            Self::Unauthorized
-            | Self::InvalidEphemeralKey
-            | Self::InvalidJwtToken
-            | Self::GenericUnauthorized { .. }
-            | Self::WebhookAuthenticationFailed => StatusCode::UNAUTHORIZED, // 401
-            Self::ExternalConnectorError { status_code, .. } => {
-                StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
-            }
-            Self::InvalidRequestUrl | Self::WebhookResourceNotFound => StatusCode::NOT_FOUND, // 404
-            Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED,                        // 405
-            Self::MissingRequiredField { .. }
-            | Self::MissingRequiredFields { .. }
-            | Self::InvalidDataValue { .. }
-            | Self::InvalidCardIin
-            | Self::InvalidCardIinLength => StatusCode::BAD_REQUEST, // 400
-            Self::InvalidDataFormat { .. } | Self::InvalidRequestData { .. } => {
-                StatusCode::UNPROCESSABLE_ENTITY
-            } // 422
-
-            Self::PaymentAuthorizationFailed { .. }
-            | Self::PaymentAuthenticationFailed { .. }
-            | Self::PaymentCaptureFailed { .. }
-            | Self::InvalidCardData { .. }
-            | Self::CardExpired { .. }
-            | Self::RefundFailed { .. }
-            | Self::RefundNotPossible { .. }
-            | Self::VerificationFailed { .. }
-            | Self::PaymentUnexpectedState { .. }
-            | Self::MandateValidationFailed { .. }
-            | Self::DisputeFailed { .. }
-            | Self::RefundAmountExceedsPaymentAmount
-            | Self::MaximumRefundCount
-            | Self::IncorrectPaymentMethodConfiguration
-            | Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST, // 400
-
-            Self::MandateUpdateFailed
-            | Self::InternalServerError
-            | Self::WebhookProcessingFailure => StatusCode::INTERNAL_SERVER_ERROR, // 500
-            Self::DuplicateRefundRequest | Self::DuplicatePayment { .. } => StatusCode::BAD_REQUEST, // 400
-            Self::RefundNotFound
-            | Self::CustomerNotFound
-            | Self::MandateActive
-            | Self::CustomerRedacted
-            | Self::PaymentNotFound
-            | Self::PaymentMethodNotFound
-            | Self::MerchantAccountNotFound
-            | Self::MerchantConnectorAccountNotFound { .. }
-            | Self::MerchantConnectorAccountDisabled
-            | Self::MandateNotFound
-            | Self::ClientSecretNotGiven
-            | Self::ClientSecretExpired
-            | Self::ClientSecretInvalid
-            | Self::SuccessfulPaymentNotFound
-            | Self::IncorrectConnectorNameGiven
-            | Self::ResourceIdNotFound
-            | Self::ConfigNotFound
-            | Self::AddressNotFound
-            | Self::NotSupported { .. }
-            | Self::FlowNotSupported { .. }
-            | Self::ApiKeyNotFound
-            | Self::DisputeStatusValidationFailed { .. }
-            | Self::WebhookBadRequest => StatusCode::BAD_REQUEST, // 400
-            Self::DuplicateMerchantAccount
-            | Self::DuplicateMerchantConnectorAccount { .. }
-            | Self::DuplicatePaymentMethod
-            | Self::DuplicateMandate
-            | Self::DisputeNotFound { .. }
-            | Self::MissingFile
-            | Self::FileValidationFailed { .. }
-            | Self::MissingFileContentType
-            | Self::MissingFilePurpose
-            | Self::MissingDisputeId
-            | Self::FileNotFound
-            | Self::FileNotAvailable => StatusCode::BAD_REQUEST, // 400
-            Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE, // 503
-            Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,          // 400
-            Self::NotImplemented { .. } => StatusCode::NOT_IMPLEMENTED,    // 501
-            Self::WebhookUnprocessableEntity => StatusCode::UNPROCESSABLE_ENTITY,
-        }
+        common_utils::errors::ErrorSwitch::<api_models::errors::types::ApiErrorResponse>::switch(
+            self,
+        )
+        .status_code()
     }
 
     fn error_response(&self) -> actix_web::HttpResponse {
-        use actix_web::http::header;
-
-        actix_web::HttpResponseBuilder::new(self.status_code())
-            .insert_header((header::CONTENT_TYPE, mime::APPLICATION_JSON))
-            .body(self.to_string())
+        common_utils::errors::ErrorSwitch::<api_models::errors::types::ApiErrorResponse>::switch(
+            self,
+        )
+        .error_response()
     }
 }
 
@@ -415,6 +340,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::MissingRequiredFields { field_names } => AER::BadRequest(
                 ApiError::new("IR", 21, "Missing required params".to_string(), Some(Extra {data: Some(serde_json::json!(field_names)), ..Default::default() })),
             ),
+            Self::AccessForbidden => AER::ForbiddenCommonResource(ApiError::new("IR", 22, "Access forbidden. Not authorized to access this resource", None)),
             Self::ExternalConnectorError {
                 code,
                 message,
@@ -485,7 +411,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::ReturnUrlUnavailable => AER::NotFound(ApiError::new("HE", 3, "Return URL is not configured and not passed in payments request", None)),
             Self::RefundNotPossible { connector } => {
-                AER::BadRequest(ApiError::new("HE", 3, "This refund is not possible through Hyperswitch. Please raise the refund through {connector} dashboard", None))
+                AER::BadRequest(ApiError::new("HE", 3, format!("This refund is not possible through Hyperswitch. Please raise the refund through {connector} dashboard"), None))
             }
             Self::MandateValidationFailed { reason } => {
                 AER::BadRequest(ApiError::new("HE", 3, "Mandate Validation Failed", Some(Extra { reason: Some(reason.clone()), ..Default::default() })))
