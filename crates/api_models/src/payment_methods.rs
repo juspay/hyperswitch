@@ -215,10 +215,9 @@ pub struct ResponsePaymentMethodTypes {
 // Required fields info used while listing the payment methods
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq)]
 pub struct RequiredFieldInfo {
-    pub required_field: Option<String>,
-    pub display_name: Option<String>,
-    pub field_type: Option<String>,
-    pub field_options: Option<Vec<String>>,
+    pub required_field: String,
+    pub display_name: String,
+    pub field_type: api_enums::FieldType,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]

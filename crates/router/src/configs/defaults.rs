@@ -155,10 +155,9 @@ impl Default for super::settings::RequiredFields {
                         fields: HashMap::from([(
                             enums::Connector::Stripe,
                             vec![RequiredFieldInfo {
-                                required_field: Some("card_exp_year".to_string()),
-                                display_name: Some("card_exp_year".to_string()),
-                                field_type: Some("text".to_string()),
-                                field_options: None,
+                                required_field: "card_exp_year".to_string(),
+                                display_name: "card_exp_year".to_string(),
+                                field_type: enums::FieldType::Text,
                             }],
                         )]),
                     },
@@ -175,36 +174,27 @@ impl Default for super::settings::RequiredFields {
                                     enums::Connector::Stripe,
                                     vec![
                                         RequiredFieldInfo {
-                                            required_field: Some(
-                                                "shipping.address.first_name".to_string(),
-                                            ),
-                                            display_name: Some("first_name".to_string()),
-                                            field_type: Some("text".to_string()),
-                                            field_options: None,
+                                            required_field: "shipping.address.first_name"
+                                                .to_string(),
+                                            display_name: "first_name".to_string(),
+                                            field_type: enums::FieldType::Text,
                                         },
                                         RequiredFieldInfo {
-                                            required_field: Some(
-                                                "shipping.address.line1".to_string(),
-                                            ),
-                                            display_name: Some("line1".to_string()),
-                                            field_type: Some("text".to_string()),
-                                            field_options: None,
+                                            required_field: "shipping.address.line1".to_string(),
+                                            display_name: "line1".to_string(),
+                                            field_type: enums::FieldType::Text,
                                         },
                                         RequiredFieldInfo {
-                                            required_field: Some(
-                                                "shipping.address.country".to_string(),
-                                            ),
-                                            display_name: Some("country".to_string()),
-                                            field_type: Some("dropdown".to_string()),
-                                            field_options: None,
+                                            required_field: "shipping.address.country".to_string(),
+                                            display_name: "country".to_string(),
+                                            field_type: enums::FieldType::DropDown {
+                                                options: vec!["US".to_string(), "IN".to_string()],
+                                            },
                                         },
                                         RequiredFieldInfo {
-                                            required_field: Some(
-                                                "shipping.address.zip".to_string(),
-                                            ),
-                                            display_name: Some("zip".to_string()),
-                                            field_type: Some("text".to_string()),
-                                            field_options: None,
+                                            required_field: "shipping.address.zip".to_string(),
+                                            display_name: "zip".to_string(),
+                                            field_type: enums::FieldType::Text,
                                         },
                                     ],
                                 ),
@@ -212,36 +202,27 @@ impl Default for super::settings::RequiredFields {
                                     enums::Connector::Adyen,
                                     vec![
                                         RequiredFieldInfo {
-                                            required_field: Some(
-                                                "shipping.address.first_name".to_string(),
-                                            ),
-                                            display_name: Some("first_name".to_string()),
-                                            field_type: Some("text".to_string()),
-                                            field_options: None,
+                                            required_field: "shipping.address.first_name"
+                                                .to_string(),
+                                            display_name: "first_name".to_string(),
+                                            field_type: enums::FieldType::Text,
                                         },
                                         RequiredFieldInfo {
-                                            required_field: Some(
-                                                "shipping.address.line1".to_string(),
-                                            ),
-                                            display_name: Some("line1".to_string()),
-                                            field_type: Some("text".to_string()),
-                                            field_options: None,
+                                            required_field: "shipping.address.line1".to_string(),
+                                            display_name: "line1".to_string(),
+                                            field_type: enums::FieldType::Text,
                                         },
                                         RequiredFieldInfo {
-                                            required_field: Some(
-                                                "shipping.address.country".to_string(),
-                                            ),
-                                            display_name: Some("country".to_string()),
-                                            field_type: Some("dropdown".to_string()),
-                                            field_options: None,
+                                            required_field: "shipping.address.country".to_string(),
+                                            display_name: "country".to_string(),
+                                            field_type: enums::FieldType::DropDown {
+                                                options: vec!["US".to_string(), "IN".to_string()],
+                                            },
                                         },
                                         RequiredFieldInfo {
-                                            required_field: Some(
-                                                "shipping.address.zip".to_string(),
-                                            ),
-                                            display_name: Some("zip".to_string()),
-                                            field_type: Some("text".to_string()),
-                                            field_options: None,
+                                            required_field: "shipping.address.zip".to_string(),
+                                            display_name: "zip".to_string(),
+                                            field_type: enums::FieldType::Text,
                                         },
                                     ],
                                 ),
@@ -254,10 +235,9 @@ impl Default for super::settings::RequiredFields {
                             fields: HashMap::from([(
                                 enums::Connector::Bluesnap,
                                 vec![RequiredFieldInfo {
-                                    required_field: Some("billing_address".to_string()),
-                                    display_name: Some("billing_address".to_string()),
-                                    field_type: Some("text".to_string()),
-                                    field_options: None,
+                                    required_field: "billing_address".to_string(),
+                                    display_name: "billing_address".to_string(),
+                                    field_type: enums::FieldType::Text,
                                 }],
                             )]),
                         },
@@ -269,19 +249,17 @@ impl Default for super::settings::RequiredFields {
                                 (
                                     enums::Connector::Stripe,
                                     vec![RequiredFieldInfo {
-                                        required_field: Some("currency".to_string()),
-                                        display_name: Some("currency".to_string()),
-                                        field_type: Some("text".to_string()),
-                                        field_options: None,
+                                        required_field: "currency".to_string(),
+                                        display_name: "currency".to_string(),
+                                        field_type: enums::FieldType::Text,
                                     }],
                                 ),
                                 (
                                     enums::Connector::Adyen,
                                     vec![RequiredFieldInfo {
-                                        required_field: Some("card_holder_name".to_string()),
-                                        display_name: Some("card_holder_name".to_string()),
-                                        field_type: Some("text".to_string()),
-                                        field_options: None,
+                                        required_field: "card_holder_name".to_string(),
+                                        display_name: "card_holder_name".to_string(),
+                                        field_type: enums::FieldType::Text,
                                     }],
                                 ),
                             ]),
@@ -293,10 +271,9 @@ impl Default for super::settings::RequiredFields {
                             fields: HashMap::from([(
                                 enums::Connector::Stripe,
                                 vec![RequiredFieldInfo {
-                                    required_field: Some("bank_name".to_string()),
-                                    display_name: Some("bank_name".to_string()),
-                                    field_type: Some("text".to_string()),
-                                    field_options: None,
+                                    required_field: "bank_name".to_string(),
+                                    display_name: "bank_name".to_string(),
+                                    field_type: enums::FieldType::Text,
                                 }],
                             )]),
                         },
@@ -308,48 +285,37 @@ impl Default for super::settings::RequiredFields {
                                 (
                                     enums::Connector::Stripe,
                                     vec![RequiredFieldInfo {
-                                        required_field: Some(
-                                            "bancontact_card.billing_name".to_string(),
-                                        ),
-                                        display_name: Some("billing_name".to_string()),
-                                        field_type: Some("text".to_string()),
-                                        field_options: None,
+                                        required_field: "bancontact_card.billing_name".to_string(),
+                                        display_name: "billing_name".to_string(),
+                                        field_type: enums::FieldType::Text,
                                     }],
                                 ),
                                 (
                                     enums::Connector::Adyen,
                                     vec![
                                         RequiredFieldInfo {
-                                            required_field: Some(
-                                                "bancontact_card.card_number".to_string(),
-                                            ),
-                                            display_name: Some("card_number".to_string()),
-                                            field_type: Some("text".to_string()),
-                                            field_options: None,
+                                            required_field: "bancontact_card.card_number"
+                                                .to_string(),
+                                            display_name: "card_number".to_string(),
+                                            field_type: enums::FieldType::Text,
                                         },
                                         RequiredFieldInfo {
-                                            required_field: Some(
-                                                "bancontact_card.card_exp_month".to_string(),
-                                            ),
-                                            display_name: Some("card_exp_month".to_string()),
-                                            field_type: Some("text".to_string()),
-                                            field_options: None,
+                                            required_field: "bancontact_card.card_exp_month"
+                                                .to_string(),
+                                            display_name: "card_exp_month".to_string(),
+                                            field_type: enums::FieldType::Text,
                                         },
                                         RequiredFieldInfo {
-                                            required_field: Some(
-                                                "bancontact_card.card_exp_year".to_string(),
-                                            ),
-                                            display_name: Some("card_exp_year".to_string()),
-                                            field_type: Some("text".to_string()),
-                                            field_options: None,
+                                            required_field: "bancontact_card.card_exp_year"
+                                                .to_string(),
+                                            display_name: "card_exp_year".to_string(),
+                                            field_type: enums::FieldType::Text,
                                         },
                                         RequiredFieldInfo {
-                                            required_field: Some(
-                                                "bancontact_card.card_holder_name".to_string(),
-                                            ),
-                                            display_name: Some("card_holder_name".to_string()),
-                                            field_type: Some("text".to_string()),
-                                            field_options: None,
+                                            required_field: "bancontact_card.card_holder_name"
+                                                .to_string(),
+                                            display_name: "card_holder_name".to_string(),
+                                            field_type: enums::FieldType::Text,
                                         },
                                     ],
                                 ),
@@ -362,10 +328,9 @@ impl Default for super::settings::RequiredFields {
                             fields: HashMap::from([(
                                 enums::Connector::Adyen,
                                 vec![RequiredFieldInfo {
-                                    required_field: Some("bank_account_holder_name".to_string()),
-                                    display_name: Some("bank_account_holder_name".to_string()),
-                                    field_type: Some("text".to_string()),
-                                    field_options: None,
+                                    required_field: "bank_account_holder_name".to_string(),
+                                    display_name: "bank_account_holder_name".to_string(),
+                                    field_type: enums::FieldType::Text,
                                 }],
                             )]),
                         },
@@ -377,20 +342,14 @@ impl Default for super::settings::RequiredFields {
                                 enums::Connector::Adyen,
                                 vec![
                                     RequiredFieldInfo {
-                                        required_field: Some(
-                                            "bancontact_card.billing_name".to_string(),
-                                        ),
-                                        display_name: Some("billing_name".to_string()),
-                                        field_type: Some("text".to_string()),
-                                        field_options: None,
+                                        required_field: "bancontact_card.billing_name".to_string(),
+                                        display_name: "billing_name".to_string(),
+                                        field_type: enums::FieldType::Text,
                                     },
                                     RequiredFieldInfo {
-                                        required_field: Some(
-                                            "bank_account_holder_name".to_string(),
-                                        ),
-                                        display_name: Some("bank_account_holder_name".to_string()),
-                                        field_type: Some("text".to_string()),
-                                        field_options: None,
+                                        required_field: "bank_account_holder_name".to_string(),
+                                        display_name: "bank_account_holder_name".to_string(),
+                                        field_type: enums::FieldType::Text,
                                     },
                                 ],
                             )]),
@@ -403,16 +362,14 @@ impl Default for super::settings::RequiredFields {
                                 enums::Connector::Mollie,
                                 vec![
                                     RequiredFieldInfo {
-                                        required_field: Some("billing_address".to_string()),
-                                        display_name: Some("billing_address".to_string()),
-                                        field_type: Some("text".to_string()),
-                                        field_options: None,
+                                        required_field: "billing_address".to_string(),
+                                        display_name: "billing_address".to_string(),
+                                        field_type: enums::FieldType::Text,
                                     },
                                     RequiredFieldInfo {
-                                        required_field: Some("shipping_address".to_string()),
-                                        display_name: Some("shipping_address".to_string()),
-                                        field_type: Some("text".to_string()),
-                                        field_options: None,
+                                        required_field: "shipping_address".to_string(),
+                                        display_name: "shipping_address".to_string(),
+                                        field_type: enums::FieldType::Text,
                                     },
                                 ],
                             )]),
@@ -424,12 +381,9 @@ impl Default for super::settings::RequiredFields {
                             fields: HashMap::from([(
                                 enums::Connector::Worldline,
                                 vec![RequiredFieldInfo {
-                                    required_field: Some(
-                                        "billing_details.billing_name".to_string(),
-                                    ),
-                                    display_name: Some("billing_name".to_string()),
-                                    field_type: Some("text".to_string()),
-                                    field_options: None,
+                                    required_field: "billing_details.billing_name".to_string(),
+                                    display_name: "billing_name".to_string(),
+                                    field_type: enums::FieldType::Text,
                                 }],
                             )]),
                         },
