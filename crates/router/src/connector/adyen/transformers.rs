@@ -264,6 +264,7 @@ pub enum AdyenPaymentMethod<'a> {
     ApplePay(Box<AdyenApplePay>),
     BancontactCard(Box<BancontactCardData>),
     Blik(Box<BlikRedirectionData>),
+    ClearPay(Box<AdyenPayLaterData>),
     Eps(Box<BankRedirectionWithIssuer<'a>>),
     Giropay(Box<BankRedirectionPMData>),
     Gpay(Box<AdyenGPay>),
@@ -659,6 +660,7 @@ pub enum PaymentType {
     Alipay,
     Applepay,
     Blik,
+    ClearPay,
     Eps,
     Giropay,
     Googlepay,
@@ -897,7 +899,7 @@ fn get_address_info(address: Option<&api_models::payments::Address>) -> Option<A
 }
 
 fn get_line_items(item: &types::PaymentsAuthorizeRouterData) -> Vec<LineItem> {
-    let order_details = item.request.order_details.clone();
+    let order_details: Option<Vec<payments::OrderDetailsWithAmount>> = item.request.order_details.clone();
     match order_details {
         Some(od) => od
             .iter()
@@ -915,7 +917,7 @@ fn get_line_items(item: &types::PaymentsAuthorizeRouterData) -> Vec<LineItem> {
             let line_item = LineItem {
                 amount_including_tax: Some(item.request.amount),
                 amount_excluding_tax: Some(item.request.amount),
-                description: None,
+                description: Some("NULL".to_string()),
                 id: Some(String::from("Items #1")),
                 tax_amount: None,
                 quantity: Some(1),
@@ -1102,9 +1104,10 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
     }
 }
 
-impl<'a> TryFrom<&api::PayLaterData> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<(&api::PayLaterData, Option<api_enums::CountryAlpha2>)> for AdyenPaymentMethod<'a> {
     type Error = Error;
-    fn try_from(pay_later_data: &api::PayLaterData) -> Result<Self, Self::Error> {
+    fn try_from(value: (&api::PayLaterData, Option<api_enums::CountryAlpha2>)) -> Result<Self, Self::Error> {
+        let (pay_later_data, country_code) = value;
         match pay_later_data {
             api_models::payments::PayLaterData::KlarnaRedirect { .. } => {
                 let klarna = AdyenPayLaterData {
@@ -1118,9 +1121,22 @@ impl<'a> TryFrom<&api::PayLaterData> for AdyenPaymentMethod<'a> {
                 })),
             ),
             api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
-                Ok(AdyenPaymentMethod::AfterPay(Box::new(AdyenPayLaterData {
-                    payment_type: PaymentType::Afterpaytouch,
-                })))
+                match country_code.unwrap() {
+                    api_enums::CountryAlpha2::IT
+                    | api_enums::CountryAlpha2::FR
+                    | api_enums::CountryAlpha2::ES
+                    | api_enums::CountryAlpha2::GB
+                    => {
+                        Ok(AdyenPaymentMethod::ClearPay(Box::new(AdyenPayLaterData { 
+                            payment_type: PaymentType::ClearPay,
+                        })))
+                    }
+                    _=> {
+                        Ok(AdyenPaymentMethod::AfterPay(Box::new(AdyenPayLaterData { 
+                            payment_type: PaymentType::Afterpaytouch,
+                        })))
+                    }
+                }
             }
             api_models::payments::PayLaterData::PayBrightRedirect { .. } => {
                 Ok(AdyenPaymentMethod::PayBright(Box::new(PayBrightData {
@@ -1542,7 +1558,8 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::PayLaterData)>
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
-        let payment_method = AdyenPaymentMethod::try_from(paylater_data)?;
+        let country_code = get_country_code(item);
+        let payment_method = AdyenPaymentMethod::try_from((paylater_data,country_code.clone()))?;
         let shopper_interaction = AdyenShopperInteraction::from(item);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item)?;
@@ -1551,7 +1568,6 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::PayLaterData)>
         let shopper_email = item.request.email.clone();
         let billing_address = get_address_info(item.address.billing.as_ref());
         let delivery_address = get_address_info(item.address.shipping.as_ref());
-        let country_code = get_country_code(item);
         let line_items = Some(get_line_items(item));
         let telephone_number = get_telephone_number(item);
         Ok(AdyenPaymentRequest {
