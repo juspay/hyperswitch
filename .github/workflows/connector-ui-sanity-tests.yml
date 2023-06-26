@@ -119,6 +119,10 @@ jobs:
         shell: bash
         run: sh scripts/run_ui_tests.sh ${{ matrix.connector }}
       
+      - name: View test results
+        shell: bash
+        run:  cat tests/test_results.log
+      
       - name: Check test results
         shell: bash
         run:  |
