@@ -122,7 +122,6 @@ jobs:
       - name: Check test results
         shell: bash
         run:  |
-          cat tests/test_results.log
           if test "$( grep 'test result: FAILED' -r tests/test_results.log | wc -l )" -gt "0"; then
             exit 1
           fi
