@@ -428,6 +428,7 @@ pub enum PaymentMethodType {
     Eps,
     Giropay,
     GooglePay,
+    GoPay,
     Ideal,
     Interac,
     Klarna,

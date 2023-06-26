@@ -1796,6 +1796,9 @@
       "AliPayHkRedirection": {
         "type": "object"
       },
+      "GoPayRedirection": {
+        "type": "object"
+      },
       "AmountInfo": {
         "type": "object",
         "required": [
@@ -7890,6 +7893,17 @@
             "properties": {
               "apple_pay": {
                 "$ref": "#/components/schemas/ApplePayWalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "go_pay"
+            ],
+            "properties": {
+              "go_pay": {
+                "$ref": "#/components/schemas/GoPayRedirection"
               }
             }
           },
