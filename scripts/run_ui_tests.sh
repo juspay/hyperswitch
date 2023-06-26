@@ -44,6 +44,6 @@ firefox
 cargo run &
 
 #Wait for the server to start in port 8080
-while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do sleep 60; done
+while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do sleep 10; done
 cargo test --package router --test connectors -- $1"_ui::" --test-threads=1 >> tests/test_results.log 2>&1
 cat tests/test_results.log
