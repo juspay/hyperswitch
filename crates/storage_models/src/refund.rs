@@ -26,7 +26,7 @@ pub struct Refund {
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
     pub refund_error_message: Option<String>,
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub udf: Option<pii::SecretSerdeValue>,
     pub refund_arn: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
@@ -66,7 +66,7 @@ pub struct RefundNew {
     pub refund_amount: i64,
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub udf: Option<pii::SecretSerdeValue>,
     pub refund_arn: Option<String>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
@@ -87,7 +87,7 @@ pub enum RefundUpdate {
         refund_arn: String,
     },
     MetadataAndReasonUpdate {
-        metadata: Option<pii::SecretSerdeValue>,
+        udf: Option<pii::SecretSerdeValue>,
         reason: Option<String>,
     },
     StatusUpdate {
@@ -110,7 +110,7 @@ pub struct RefundUpdateInternal {
     sent_to_gateway: Option<bool>,
     refund_error_message: Option<String>,
     refund_arn: Option<String>,
-    metadata: Option<pii::SecretSerdeValue>,
+    udf: Option<pii::SecretSerdeValue>,
     refund_reason: Option<String>,
     refund_error_code: Option<String>,
 }
@@ -123,7 +123,7 @@ impl RefundUpdateInternal {
             sent_to_gateway: self.sent_to_gateway.unwrap_or_default(),
             refund_error_message: self.refund_error_message,
             refund_arn: self.refund_arn,
-            metadata: self.metadata,
+            udf: self.udf,
             refund_reason: self.refund_reason,
             refund_error_code: self.refund_error_code,
             ..source
@@ -148,8 +148,11 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_arn: Some(refund_arn),
                 ..Default::default()
             },
-            RefundUpdate::MetadataAndReasonUpdate { metadata, reason } => Self {
-                metadata,
+            RefundUpdate::MetadataAndReasonUpdate {
+                udf: metadata,
+                reason,
+            } => Self {
+                udf: metadata,
                 refund_reason: reason,
                 ..Default::default()
             },
@@ -189,7 +192,7 @@ impl RefundUpdate {
                 .or(source.refund_error_message),
             refund_error_code: pa_update.refund_error_code.or(source.refund_error_code),
             refund_arn: pa_update.refund_arn.or(source.refund_arn),
-            metadata: pa_update.metadata.or(source.metadata),
+            udf: pa_update.udf.or(source.udf),
             ..source
         }
     }

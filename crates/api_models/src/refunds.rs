@@ -42,7 +42,7 @@ pub struct RefundRequest {
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub udf: Option<pii::SecretSerdeValue>,
 
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
@@ -81,7 +81,7 @@ pub struct RefundUpdateRequest {
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub udf: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(
@@ -110,7 +110,7 @@ pub struct RefundResponse {
     pub status: RefundStatus,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object
     #[schema(value_type = Option<Object>)]
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub udf: Option<pii::SecretSerdeValue>,
     /// The error message
     pub error_message: Option<String>,
     /// The code for the error

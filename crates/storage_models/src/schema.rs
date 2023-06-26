@@ -576,7 +576,7 @@ diesel::table! {
         refund_status -> RefundStatus,
         sent_to_gateway -> Bool,
         refund_error_message -> Nullable<Text>,
-        metadata -> Nullable<Json>,
+        udf -> Nullable<Json>,
         #[max_length = 128]
         refund_arn -> Nullable<Varchar>,
         created_at -> Timestamp,

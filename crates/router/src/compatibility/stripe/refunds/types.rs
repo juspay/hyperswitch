@@ -48,7 +48,7 @@ impl From<StripeCreateRefundRequest> for refunds::RefundRequest {
             payment_id: req.payment_intent,
             reason: req.reason,
             refund_type: Some(refunds::RefundType::Instant),
-            metadata: req.metadata,
+            udf: req.metadata,
             merchant_connector_details: req.merchant_connector_details,
             ..Default::default()
         }
@@ -58,7 +58,7 @@ impl From<StripeCreateRefundRequest> for refunds::RefundRequest {
 impl From<StripeUpdateRefundRequest> for refunds::RefundUpdateRequest {
     fn from(req: StripeUpdateRefundRequest) -> Self {
         Self {
-            metadata: req.metadata,
+            udf: req.metadata,
             reason: None,
         }
     }
@@ -85,7 +85,7 @@ impl From<refunds::RefundResponse> for StripeRefundResponse {
             status: res.status.into(),
             created: res.created_at.map(|t| t.assume_utc().unix_timestamp()),
             metadata: res
-                .metadata
+                .udf
                 .unwrap_or_else(|| masking::Secret::new(serde_json::json!({}))),
         }
     }

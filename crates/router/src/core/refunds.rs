@@ -480,7 +480,7 @@ pub async fn refund_update_core(
         .update_refund(
             refund,
             storage::RefundUpdate::MetadataAndReasonUpdate {
-                metadata: req.metadata,
+                udf: req.udf,
                 reason: req.reason,
             },
             merchant_account.storage_scheme,
@@ -605,7 +605,7 @@ pub async fn validate_and_create_refund(
                 .set_created_at(Some(common_utils::date_time::now()))
                 .set_modified_at(Some(common_utils::date_time::now()))
                 .set_refund_status(enums::RefundStatus::Pending)
-                .set_metadata(req.metadata)
+                .set_udf(req.udf)
                 .set_description(req.reason.clone())
                 .set_attempt_id(payment_attempt.attempt_id.clone())
                 .set_refund_reason(req.reason)
@@ -678,7 +678,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             currency: refund.currency.to_string(),
             reason: refund.description,
             status: refund.refund_status.foreign_into(),
-            metadata: refund.metadata,
+            udf: refund.udf,
             error_message: refund.refund_error_message,
             error_code: refund.refund_error_code,
             created_at: Some(refund.created_at),
