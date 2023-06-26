@@ -449,7 +449,7 @@ pub struct MerchantConnectorCreate {
     pub metadata: Option<pii::SecretSerdeValue>,
     /// contains the frm configs for the merchant connector
     #[schema(example = json!([{
-        "connector": "stripe",
+        "gateway": "stripe",
         "payment_methods": [{
             "payment_method": "card",
             "payment_method_types": [{
@@ -569,7 +569,7 @@ pub struct MerchantConnectorResponse {
 
     /// contains the frm configs for the merchant connector
     #[schema(example = json!([{
-        "connector": "stripe",
+        "gateway": "stripe",
         "payment_methods": [{
             "payment_method": "card",
             "payment_method_types": [{
@@ -651,7 +651,7 @@ pub struct MerchantConnectorUpdate {
 
     /// contains the frm configs for the merchant connector
     #[schema(example = json!([{
-        "connector": "stripe",
+        "gateway": "stripe",
         "payment_methods": [{
             "payment_method": "card",
             "payment_method_types": [{
