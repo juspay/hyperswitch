@@ -664,6 +664,7 @@ pub enum PaymentType {
     Affirm,
     Afterpaytouch,
     Alipay,
+    #[serde(rename = "alipay_hk")]
     AlipayHk,
     Applepay,
     Blik,

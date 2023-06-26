@@ -674,6 +674,7 @@ pub enum PaymentMethodType {
     Affirm,
     AfterpayClearpay,
     AliPay,
+    AliPayHk,
     ApplePay,
     Bacs,
     BancontactCard,
