@@ -426,6 +426,7 @@ pub enum PaymentMethodType {
     CryptoCurrency,
     Debit,
     Eps,
+    Gcash,
     Giropay,
     GooglePay,
     GoPay,

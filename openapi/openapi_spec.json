@@ -1802,6 +1802,9 @@
       "KakaoPayRedirection": {
         "type": "object"
       },
+      "GcashRedirection": {
+        "type": "object"
+      },
       "AmountInfo": {
         "type": "object",
         "required": [
@@ -7874,6 +7877,17 @@
             "properties": {
               "ali_pay": {
                 "$ref": "#/components/schemas/AliPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "gcash"
+            ],
+            "properties": {
+              "gcash": {
+                "$ref": "#/components/schemas/GcashRedirection"
               }
             }
           },

@@ -272,6 +272,7 @@ pub enum AdyenPaymentMethod<'a> {
     BancontactCard(Box<BancontactCardData>),
     Blik(Box<BlikRedirectionData>),
     Eps(Box<BankRedirectionWithIssuer<'a>>),
+    Gcash(Box<GcashData>),
     Giropay(Box<BankRedirectionPMData>),
     Gpay(Box<AdyenGPay>),
     GoPay(Box<GoPayData>),
@@ -630,6 +631,11 @@ pub struct KakaoPayData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
 }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GcashData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
@@ -689,6 +695,7 @@ pub enum PaymentType {
     Applepay,
     Blik,
     Eps,
+    Gcash,
     Giropay,
     Googlepay,
     #[serde(rename = "gopay_wallet")]
@@ -1136,6 +1143,12 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                     payment_type: PaymentType::Kakaopay,
                 };
                 Ok(AdyenPaymentMethod::KakaoPay(Box::new(kakao_pay_data)))
+            }
+            api_models::payments::WalletData::GcashRedirect(_) => {
+                let gcash_data = GcashData {
+                    payment_type: PaymentType::Gcash,
+                };
+                Ok(AdyenPaymentMethod::Gcash(Box::new(gcash_data)))
             }
             api_models::payments::WalletData::MbWayRedirect(data) => {
                 let mbway_data = MbwayData {
