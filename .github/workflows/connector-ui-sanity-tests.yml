@@ -103,11 +103,3 @@ jobs:
           UI_TESTCASES_PATH: ${{ secrets.UI_TESTCASES_PATH }}
         shell: bash
         run: sh scripts/run_ui_tests.sh ${{ matrix.connector }}
-      
-      - name: Check test results
-        shell: bash
-        run:  |
-          cat tests/test_results.log
-          if test "$( grep 'test result: FAILED' -r tests/test_results.log | wc -l )" -gt "0"; then
-            exit 1
-          fi

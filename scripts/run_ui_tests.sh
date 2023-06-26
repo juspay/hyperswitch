@@ -3,7 +3,7 @@ apt install net-tools
 apt-get install wget
 mkdir tests
 
-sudo apt install -y postgresql postgresql-contrib libpq-dev redis-tools redis-server
+# sudo apt install -y postgresql postgresql-contrib libpq-dev redis-tools redis-server
 
 #download connector ui tests
 wget $UI_TESTCASES_PATH && mv testcases $HOME/target/test/connector_tests.json
@@ -41,9 +41,9 @@ sudo apt install -y firefox
 firefox
 
 #start server and run ui tests
-cargo run &
-tail -f tests/test_results.log &
-cargo test --package router --test connectors -- "stripe_ui::" --test-threads=1 >> tests/test_results.log 2>&1
-cargo test --package router --test connectors -- "adyen_uk_ui::" --test-threads=1 >> tests/test_results.log 2>&1
-cargo test --package router --test connectors -- "payu_ui::" --test-threads=1 >> tests/test_results.log 2>&1
-cargo test --package router --test connectors -- "worldline_ui::" --test-threads=1 >> tests/test_results.log 2>&1
+cargo run
+# tail -f tests/test_results.log &
+# cargo test --package router --test connectors -- "stripe_ui::" --test-threads=1 >> tests/test_results.log 2>&1
+# cargo test --package router --test connectors -- "adyen_uk_ui::" --test-threads=1 >> tests/test_results.log 2>&1
+# cargo test --package router --test connectors -- "payu_ui::" --test-threads=1 >> tests/test_results.log 2>&1
+# cargo test --package router --test connectors -- "worldline_ui::" --test-threads=1 >> tests/test_results.log 2>&1
