@@ -98,6 +98,12 @@ jobs:
             override: true
       - uses: Swatinem/rust-cache@v2.4.0
 
+      - name: diesel migration run
+        shell: bash
+        env:
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
+        run: diesel migration run
+
       - name: Start server and Run tests
         env:
           UI_TESTCASES_PATH: ${{ secrets.UI_TESTCASES_PATH }}

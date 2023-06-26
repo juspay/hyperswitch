@@ -41,10 +41,7 @@ sudo apt install -y firefox
 firefox
 
 #start server and run ui tests
-# cargo install diesel_cli --no-default-features --features "postgres"
-diesel migration --database-url postgres://db_user:db_pass@localhost:5432/hyperswitch_db run
 cargo run &
-sleep 640
 cargo test --package router --test connectors -- "stripe_ui::" --test-threads=1 >> tests/test_results.log 2>&1
 cargo test --package router --test connectors -- "adyen_uk_ui::" --test-threads=1 >> tests/test_results.log 2>&1
 cargo test --package router --test connectors -- "payu_ui::" --test-threads=1 >> tests/test_results.log 2>&1
