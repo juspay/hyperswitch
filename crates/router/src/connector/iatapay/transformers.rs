@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -61,7 +62,7 @@ pub struct RedirectUrls {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayerInfo {
-    token_id: String,
+    token_id: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]

@@ -776,7 +776,8 @@ pub struct CryptoData {}
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct UpiData {
-    pub vpa_id: Option<String>,
+    #[schema(value_type = Option<String>, example = "successtest@iata")]
+    pub vpa_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
