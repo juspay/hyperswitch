@@ -27,7 +27,7 @@ wget $UI_TESTCASES_PATH && mv testcases $HOME/target/test/connector_tests.json
 wget -c https://github.com/mozilla/geckodriver/releases/download/v0.33.0/geckodriver-v0.33.0-linux-aarch64.tar.gz && tar -xvzf geckodriver*
 chmod +x geckodriver
 mv geckodriver /usr/local/bin/
-geckodriver &
+geckodriver > tests/geckodriver.log 2>&1 &
 
 #install and run firefox
 sudo add-apt-repository -y ppa:mozillateam/ppa
@@ -42,8 +42,8 @@ firefox
 
 #start server and run ui tests
 cargo run &
-cargo test --package router --test connectors -- "stripe_ui::" --test-threads=1 >> tests/test_results.log 2>&1
-cargo test --package router --test connectors -- "adyen_uk_ui::" --test-threads=1 >> tests/test_results.log 2>&1
-cargo test --package router --test connectors -- "payu_ui::" --test-threads=1 >> tests/test_results.log 2>&1
-cargo test --package router --test connectors -- "worldline_ui::" --test-threads=1 >> tests/test_results.log 2>&1
+
+#Wait for the server to start in port 8080
+while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do sleep 60; done
+cargo test --package router --test connectors -- $1"_ui::" --test-threads=1 >> tests/test_results.log 2>&1
 cat tests/test_results.log
