@@ -111,10 +111,14 @@ where
                                         .attach_printable("Failed to add payment method in db")
                                     }
                                     _ => {
-                                        Err(report!(errors::ApiErrorResponse::InternalServerError))
+                                        Err(report!(errors::ApiErrorResponse::InternalServerError)
+                                            .attach_printable(
+                                                "Database Error while finding payment method",
+                                            ))
                                     }
                                 },
-                                _ => Err(report!(errors::ApiErrorResponse::InternalServerError)),
+                                _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable("Error while finding payment method")),
                             }?;
                         }
                     };
