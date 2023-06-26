@@ -1799,6 +1799,9 @@
       "GoPayRedirection": {
         "type": "object"
       },
+      "KakaoPayRedirection": {
+        "type": "object"
+      },
       "AmountInfo": {
         "type": "object",
         "required": [
@@ -7871,6 +7874,17 @@
             "properties": {
               "ali_pay": {
                 "$ref": "#/components/schemas/AliPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kakao_pay"
+            ],
+            "properties": {
+              "kakao_pay": {
+                "$ref": "#/components/schemas/KakaoPayRedirection"
               }
             }
           },
