@@ -20,7 +20,9 @@ jobs:
         connector:
           - aci
           # - authorizedotnet
+          - bluesnap
           # - braintree
+          - checkout
           # - iatapay
           # - multisafepay
           - nmi
