@@ -40,7 +40,7 @@ pub struct RefundRequest {
     #[schema(default = "Instant", example = "Instant")]
     pub refund_type: Option<RefundType>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Udf is useful for storing additional, structured information on an object.
     #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub udf: Option<pii::SecretSerdeValue>,
 
@@ -79,7 +79,7 @@ pub struct RefundUpdateRequest {
     #[schema(max_length = 255, example = "Customer returned the product")]
     pub reason: Option<String>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Udf is useful for storing additional, structured information on an object.
     #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub udf: Option<pii::SecretSerdeValue>,
 }
@@ -108,7 +108,7 @@ pub struct RefundResponse {
     pub reason: Option<String>,
     /// The status for refund
     pub status: RefundStatus,
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Udf is useful for storing additional, structured information on an object
     #[schema(value_type = Option<Object>)]
     pub udf: Option<pii::SecretSerdeValue>,
     /// The error message

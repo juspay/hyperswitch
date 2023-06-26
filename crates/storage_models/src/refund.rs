@@ -148,11 +148,8 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_arn: Some(refund_arn),
                 ..Default::default()
             },
-            RefundUpdate::MetadataAndReasonUpdate {
-                udf: metadata,
-                reason,
-            } => Self {
-                udf: metadata,
+            RefundUpdate::MetadataAndReasonUpdate { udf, reason } => Self {
+                udf,
                 refund_reason: reason,
                 ..Default::default()
             },
