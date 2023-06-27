@@ -40,7 +40,6 @@ pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     } else {
         payments::CallConnectorAction::Trigger
     };
-
     let payments_response = match webhook_details.object_reference_id {
         api_models::webhooks::ObjectReferenceId::PaymentId(id) => {
             payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
