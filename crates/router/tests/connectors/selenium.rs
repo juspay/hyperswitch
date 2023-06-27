@@ -408,7 +408,7 @@ pub trait SeleniumTest {
             &c,
             vec![
                 Event::Trigger(Trigger::Goto(url)),
-                Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),    
+                Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             ],
         )
         .await?;
@@ -430,9 +430,7 @@ pub trait SeleniumTest {
             Event::Trigger(Trigger::Sleep(3)),
             Event::EitherOr(
                 Assert::IsPresent("Review your order | Clearpay"),
-                vec![    
-                    Event::Trigger(Trigger::Click(By::ClassName("ai_az"))),     
-                ],
+                vec![Event::Trigger(Trigger::Click(By::ClassName("ai_az")))],
                 vec![
                     Event::Trigger(Trigger::SendKeys(By::ClassName("n8_fl"), email)),
                     Event::Trigger(Trigger::Click(By::ClassName("ai_az"))),

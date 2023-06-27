@@ -101,7 +101,6 @@ async fn should_make_adyen_clearpay_payment(c: WebDriver) -> Result<(), WebDrive
     Ok(())
 }
 
-
 #[test]
 #[serial]
 fn should_make_adyen_gpay_payment_test() {
@@ -128,7 +127,7 @@ fn should_make_adyen_klarna_mandate_payment_test() {
 
 #[test]
 #[serial]
-fn should_make_adyen_clearpay_payment_test(){
+fn should_make_adyen_clearpay_payment_test() {
     tester!(should_make_adyen_clearpay_payment);
 }
 

@@ -899,7 +899,8 @@ fn get_address_info(address: Option<&api_models::payments::Address>) -> Option<A
 }
 
 fn get_line_items(item: &types::PaymentsAuthorizeRouterData) -> Vec<LineItem> {
-    let order_details: Option<Vec<payments::OrderDetailsWithAmount>> = item.request.order_details.clone();
+    let order_details: Option<Vec<payments::OrderDetailsWithAmount>> =
+        item.request.order_details.clone();
     match order_details {
         Some(od) => od
             .iter()
@@ -1104,9 +1105,13 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
     }
 }
 
-impl<'a> TryFrom<(&api::PayLaterData, Option<api_enums::CountryAlpha2>)> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<(&api::PayLaterData, Option<api_enums::CountryAlpha2>)>
+    for AdyenPaymentMethod<'a>
+{
     type Error = Error;
-    fn try_from(value: (&api::PayLaterData, Option<api_enums::CountryAlpha2>)) -> Result<Self, Self::Error> {
+    fn try_from(
+        value: (&api::PayLaterData, Option<api_enums::CountryAlpha2>),
+    ) -> Result<Self, Self::Error> {
         let (pay_later_data, country_code) = value;
         match pay_later_data {
             api_models::payments::PayLaterData::KlarnaRedirect { .. } => {
@@ -1121,21 +1126,24 @@ impl<'a> TryFrom<(&api::PayLaterData, Option<api_enums::CountryAlpha2>)> for Ady
                 })),
             ),
             api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
-                match country_code.unwrap() {
-                    api_enums::CountryAlpha2::IT
-                    | api_enums::CountryAlpha2::FR
-                    | api_enums::CountryAlpha2::ES
-                    | api_enums::CountryAlpha2::GB
-                    => {
-                        Ok(AdyenPaymentMethod::ClearPay(Box::new(AdyenPayLaterData { 
-                            payment_type: PaymentType::ClearPay,
-                        })))
-                    }
-                    _=> {
-                        Ok(AdyenPaymentMethod::AfterPay(Box::new(AdyenPayLaterData { 
+                if let Some(country) = country_code {
+                    match country {
+                        api_enums::CountryAlpha2::IT
+                        | api_enums::CountryAlpha2::FR
+                        | api_enums::CountryAlpha2::ES
+                        | api_enums::CountryAlpha2::GB => {
+                            Ok(AdyenPaymentMethod::ClearPay(Box::new(AdyenPayLaterData {
+                                payment_type: PaymentType::ClearPay,
+                            })))
+                        }
+                        _ => Ok(AdyenPaymentMethod::AfterPay(Box::new(AdyenPayLaterData {
                             payment_type: PaymentType::Afterpaytouch,
-                        })))
+                        }))),
                     }
+                } else {
+                    Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "country",
+                    })?
                 }
             }
             api_models::payments::PayLaterData::PayBrightRedirect { .. } => {
@@ -1559,7 +1567,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::PayLaterData)>
         let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let country_code = get_country_code(item);
-        let payment_method = AdyenPaymentMethod::try_from((paylater_data,country_code.clone()))?;
+        let payment_method = AdyenPaymentMethod::try_from((paylater_data, country_code))?;
         let shopper_interaction = AdyenShopperInteraction::from(item);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item)?;
