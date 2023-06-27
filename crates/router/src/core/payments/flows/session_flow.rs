@@ -27,6 +27,7 @@ impl
         state: &routes::AppState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
         transformers::construct_payment_router_data::<api::Session, types::PaymentsSessionData>(
@@ -34,6 +35,7 @@ impl
             self.clone(),
             connector_id,
             merchant_account,
+            key_store,
             customer,
         )
         .await
@@ -114,10 +116,12 @@ fn mk_applepay_session_request(
             .clone(),
     };
 
-    let applepay_session_request =
-        utils::Encode::<payment_types::ApplepaySessionRequest>::encode_to_string_of_json(&request)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encode ApplePay session request to a string of json")?;
+    let applepay_session_request = types::RequestBody::log_and_get_request_body(
+        &request,
+        utils::Encode::<payment_types::ApplepaySessionRequest>::encode_to_string_of_json,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encode ApplePay session request to a string of json")?;
 
     let mut url = state.conf.connectors.applepay.base_url.to_owned();
     url.push_str("paymentservices/paymentSession");

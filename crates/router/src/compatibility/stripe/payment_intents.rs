@@ -49,10 +49,11 @@ pub async fn payment_intents_create(
         state.get_ref(),
         &req,
         create_payment_req,
-        |state, merchant_account, req| {
+        |state, auth, req| {
             payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentCreate,
                 req,
                 api::AuthFlow::Merchant,
@@ -100,10 +101,11 @@ pub async fn payment_intents_retrieve(
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, payload| {
+        |state, auth, payload| {
             payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentStatus,
                 payload,
                 auth_flow,
@@ -160,10 +162,11 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, req| {
+        |state, auth, req| {
             payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentStatus,
                 req,
                 api::AuthFlow::Merchant,
@@ -221,10 +224,11 @@ pub async fn payment_intents_update(
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, req| {
+        |state, auth, req| {
             payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentUpdate,
                 req,
                 auth_flow,
@@ -284,10 +288,11 @@ pub async fn payment_intents_confirm(
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, req| {
+        |state, auth, req| {
             payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentConfirm,
                 req,
                 auth_flow,
@@ -337,10 +342,11 @@ pub async fn payment_intents_capture(
         state.get_ref(),
         &req,
         capture_payload,
-        |state, merchant_account, payload| {
+        |state, auth, payload| {
             payments::payments_core::<api_types::Capture, api_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentCapture,
                 payload,
                 api::AuthFlow::Merchant,
@@ -394,10 +400,11 @@ pub async fn payment_intents_cancel(
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, req| {
+        |state, auth, req| {
             payments::payments_core::<api_types::Void, api_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentCancel,
                 req,
                 auth_flow,
@@ -437,9 +444,7 @@ pub async fn payment_intent_list(
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, req| {
-            payments::list_payments(&*state.store, merchant_account, req)
-        },
+        |state, auth, req| payments::list_payments(&*state.store, auth.merchant_account, req),
         &auth::ApiKeyAuth,
     )
     .await
