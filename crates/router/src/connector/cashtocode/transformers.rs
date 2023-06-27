@@ -37,7 +37,7 @@ fn get_mid(
 ) -> Result<String, errors::ConnectorError> {
     match payment_method_data {
         api_models::payments::PaymentMethodData::Reward(reward_data) => {
-            Ok(reward_data.mid.to_string())
+            Ok(reward_data.merchant_id.to_string())
         }
         _ => Err(errors::ConnectorError::NotImplemented(
             "Payment methods".to_string(),

@@ -137,12 +137,12 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
-    connector::Cashtocode,
     connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
     connector::Bitpay,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Checkout,
     connector::Coinbase,
     connector::Cybersource,
@@ -194,7 +194,6 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
-    connector::Cashtocode,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -202,6 +201,7 @@ default_imp_for_create_customer!(
     connector::Bambora,
     connector::Bitpay,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Checkout,
     connector::Coinbase,
     connector::Cybersource,
@@ -259,12 +259,12 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
-    connector::Cashtocode,
     connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
     connector::Bitpay,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Coinbase,
     connector::Cybersource,
     connector::Dlocal,
@@ -296,7 +296,6 @@ macro_rules! default_imp_for_connector_request_id{
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
-    connector::Cashtocode,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -305,6 +304,7 @@ default_imp_for_connector_request_id!(
     connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Checkout,
     connector::Coinbase,
     connector::Cybersource,
@@ -362,7 +362,6 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
-    connector::Cashtocode,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -371,6 +370,7 @@ default_imp_for_accept_dispute!(
     connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Coinbase,
     connector::Cybersource,
     connector::Dlocal,
@@ -448,7 +448,6 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
-    connector::Cashtocode,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -457,6 +456,7 @@ default_imp_for_file_upload!(
     connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Coinbase,
     connector::Cybersource,
     connector::Dlocal,
@@ -511,7 +511,6 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
-    connector::Cashtocode,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -520,6 +519,7 @@ default_imp_for_submit_evidence!(
     connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Cybersource,
     connector::Coinbase,
     connector::Dlocal,
@@ -574,7 +574,6 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
-    connector::Cashtocode,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -583,6 +582,7 @@ default_imp_for_defend_dispute!(
     connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Cybersource,
     connector::Coinbase,
     connector::Dlocal,
@@ -638,7 +638,6 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
-    connector::Cashtocode,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -647,6 +646,7 @@ default_imp_for_pre_processing_steps!(
     connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Checkout,
     connector::Coinbase,
     connector::Cybersource,

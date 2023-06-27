@@ -51,16 +51,16 @@ fn get_auth_cashtocode(
     {
         Ok(reward_type) => match reward_type {
             storage::enums::PaymentMethodType::ClassicReward => match auth_type {
-                types::ConnectorAuthType::BodyKey { api_key, key1: _ } => Ok(vec![(
+                types::ConnectorAuthType::BodyKey { api_key, .. } => Ok(vec![(
                     headers::AUTHORIZATION.to_string(),
-                    format!("Basic {}", api_key).into_masked(),
+                    format!("Basic {api_key}").into_masked(),
                 )]),
                 _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
             },
             storage::enums::PaymentMethodType::Evoucher => match auth_type {
-                types::ConnectorAuthType::BodyKey { api_key: _, key1 } => Ok(vec![(
+                types::ConnectorAuthType::BodyKey { key1, .. } => Ok(vec![(
                     headers::AUTHORIZATION.to_string(),
-                    format!("Basic {}", key1.to_owned()).into_masked(),
+                    format!("Basic {key1}").into_masked(),
                 )]),
                 _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
             },
