@@ -12,15 +12,13 @@ async fn get_redis_conn_failure() {
     let (tx, _) = tokio::sync::oneshot::channel();
     let state = routes::AppState::new(Settings::default(), tx).await;
 
-    state
-        .store
-        .get_redis_conn()
-        .expect("")
-        .is_redis_available
-        .store(false, atomic::Ordering::SeqCst);
+    let _ = state.store.get_redis_conn().map(|conn| {
+        conn.is_redis_available
+            .store(false, atomic::Ordering::SeqCst)
+    });
 
     // Act
-    state.store.get_redis_conn().expect("");
+    let _ = state.store.get_redis_conn();
 
     // Assert
     // based on #[should_panic] attribute
