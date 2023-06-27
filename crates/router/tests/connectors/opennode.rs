@@ -128,7 +128,7 @@ async fn should_sync_authorized_payment() {
     assert_eq!(response.status, enums::AttemptStatus::Charged);
 }
 
-// Synchronizes a unresovled(underpaid) transaction.
+// Synchronizes a unresolved(underpaid) transaction.
 #[actix_web::test]
 async fn should_sync_unresolved_payment() {
     let response = CONNECTOR

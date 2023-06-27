@@ -21,6 +21,7 @@ use self::request::{ContentType, HeaderExt, RequestBuilderExt};
 pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
     configs::settings::Connectors,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -77,7 +78,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     fn get_request_body(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Ok(None)
     }
 
@@ -144,6 +145,32 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(ErrorResponse::get_not_implemented())
     }
 
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let error_message = match res.status_code {
+            500 => "internal_server_error",
+            501 => "not_implemented",
+            502 => "bad_gateway",
+            503 => "service_unavailable",
+            504 => "gateway_timeout",
+            505 => "http_version_not_supported",
+            506 => "variant_also_negotiates",
+            507 => "insufficient_storage",
+            508 => "loop_detected",
+            510 => "not_extended",
+            511 => "network_authentication_required",
+            _ => "unknown_error",
+        };
+        Ok(ErrorResponse {
+            code: res.status_code.to_string(),
+            message: error_message.to_string(),
+            reason: String::from_utf8(res.response.to_vec()).ok(),
+            status_code: res.status_code,
+        })
+    }
+
     fn get_certificate(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
@@ -159,6 +186,9 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     }
 }
 
+/// Handle the flow by interacting with connector module
+/// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
+/// In other cases, It will be created if required, even if it is not passed
 #[instrument(skip_all)]
 pub async fn execute_connector_processing_step<
     'b,
@@ -171,6 +201,7 @@ pub async fn execute_connector_processing_step<
     connector_integration: BoxedConnectorIntegration<'a, T, Req, Resp>,
     req: &'b types::RouterData<T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
+    connector_request: Option<Request>,
 ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
 where
     T: Clone + Debug,
@@ -190,8 +221,23 @@ where
             connector_integration.handle_response(req, response)
         }
         payments::CallConnectorAction::Avoid => Ok(router_data),
-        payments::CallConnectorAction::StatusUpdate(status) => {
+        payments::CallConnectorAction::StatusUpdate {
+            status,
+            error_code,
+            error_message,
+        } => {
             router_data.status = status;
+            let error_response = if error_code.is_some() | error_message.is_some() {
+                Some(ErrorResponse {
+                    code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: error_message.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    status_code: 200, // This status code is ignored in redirection response it will override with 302 status code.
+                    reason: None,
+                })
+            } else {
+                None
+            };
+            router_data.response = error_response.map(Err).unwrap_or(router_data.response);
             Ok(router_data)
         }
         payments::CallConnectorAction::Trigger => {
@@ -210,7 +256,8 @@ where
                     ),
                 ],
             );
-            match connector_integration
+
+            let connector_request = connector_request.or(connector_integration
                 .build_request(req, &state.conf.connectors)
                 .map_err(|error| {
                     if matches!(
@@ -218,7 +265,7 @@ where
                         &errors::ConnectorError::RequestEncodingFailed
                             | &errors::ConnectorError::RequestEncodingFailedWithReason(_)
                     ) {
-                        metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
+                        metrics::REQUEST_BUILD_FAILURE.add(
                             &metrics::CONTEXT,
                             1,
                             &[metrics::request::add_attributes(
@@ -228,7 +275,9 @@ where
                         )
                     }
                     error
-                })? {
+                })?);
+
+            match connector_request {
                 Some(request) => {
                     logger::debug!(connector_request=?request);
                     let response = call_connector_api(state, request).await;
@@ -262,7 +311,13 @@ where
                                             req.connector.clone(),
                                         )],
                                     );
-                                    let error = connector_integration.get_error_response(body)?;
+                                    let error = match body.status_code {
+                                        500..=511 => {
+                                            connector_integration.get_5xx_error_response(body)?
+                                        }
+                                        _ => connector_integration.get_error_response(body)?,
+                                    };
+
                                     router_data.response = Err(error);
 
                                     router_data
@@ -588,6 +643,7 @@ where
     T: Debug,
     U: auth::AuthInfo,
     A: AppStateInfo,
+    ApplicationResponse<Q>: Debug,
     CustomResult<ApplicationResponse<Q>, E>:
         ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
 {
@@ -604,7 +660,10 @@ where
         &flow,
     )
     .await
-    {
+    .map(|response| {
+        logger::info!(api_response =? response);
+        response
+    }) {
         Ok(ApplicationResponse::Json(response)) => match serde_json::to_string(&response) {
             Ok(res) => http_response_json(res),
             Err(_) => http_response_err(
