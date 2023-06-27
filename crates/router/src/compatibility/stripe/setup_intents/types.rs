@@ -170,7 +170,7 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             item.connector.and_then(|v| v.into_iter().next());
 
         let routing = routable_connector
-            .map(crate::types::api::RoutingAlgorithm::Single)
+            .map(api_types::RoutingAlgorithm::Single)
             .map(|r| {
                 serde_json::to_value(r)
                     .into_report()
