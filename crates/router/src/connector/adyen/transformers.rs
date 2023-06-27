@@ -707,7 +707,7 @@ pub enum PaymentType {
     #[serde(rename = "directdebit_GB")]
     BacsDirectDebit,
     Twint,
-    Vipps
+    Vipps,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -1123,7 +1123,7 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 Ok(AdyenPaymentMethod::Twint(Box::new(data)))
             }
             api_models::payments::WalletData::VippsRedirect { .. } => {
-                let data = VippsWalletData{
+                let data = VippsWalletData {
                     payment_type: PaymentType::Vipps,
                 };
                 Ok(AdyenPaymentMethod::Vipps(Box::new(data)))
