@@ -701,6 +701,7 @@ pub enum PaymentMethodType {
     Sofort,
     Swish,
     Trustly,
+    Twint,
     Walley,
     WeChatPay,
 }

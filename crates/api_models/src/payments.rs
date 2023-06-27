@@ -844,6 +844,8 @@ pub enum WalletData {
     PaypalSdk(PayPalWalletData),
     /// The wallet data for WeChat Pay Redirection
     WeChatPayRedirect(Box<WeChatPayRedirection>),
+    /// Wallet data for Twint Redirection
+    TwintRedirect {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
