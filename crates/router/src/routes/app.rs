@@ -29,7 +29,7 @@ pub struct AppState {
     #[cfg(feature = "email")]
     pub email_client: Option<Box<dyn EmailClient>>,
     #[cfg(feature = "kms")]
-    pub kms_secrets: settings::ActiveKmsSecrets,
+    pub kms_secrets: Option<settings::ActiveKmsSecrets>,
 }
 
 pub trait AppStateInfo {
@@ -91,7 +91,7 @@ impl AppState {
             #[cfg(feature = "email")]
             email_client: Some(email_client),
             #[cfg(feature = "kms")]
-            kms_secrets,
+            kms_secrets: Some(kms_secrets),
         }
     }
 
