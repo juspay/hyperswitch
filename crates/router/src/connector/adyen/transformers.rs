@@ -918,7 +918,7 @@ fn get_line_items(item: &types::PaymentsAuthorizeRouterData) -> Vec<LineItem> {
             let line_item = LineItem {
                 amount_including_tax: Some(item.request.amount),
                 amount_excluding_tax: Some(item.request.amount),
-description: item.description,
+                description: item.description.clone(),
                 id: Some(String::from("Items #1")),
                 tax_amount: None,
                 quantity: Some(1),
