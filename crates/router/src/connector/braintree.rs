@@ -155,11 +155,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsSessionRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let braintree_session_request =
-            utils::Encode::<braintree::BraintreeSessionRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = braintree::BraintreeSessionRequest::try_from(req)?;
+        let braintree_session_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<braintree::BraintreeSessionRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(braintree_session_request))
     }
 
@@ -304,7 +306,7 @@ impl
     fn get_request_body(
         &self,
         _req: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Ok(None)
     }
 
@@ -394,11 +396,14 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let braintree_req =
-            utils::Encode::<braintree::BraintreePaymentsRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(braintree_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = braintree::BraintreePaymentsRequest::try_from(req)?;
+        let braintree_payment_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<braintree::BraintreePaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(braintree_payment_request))
     }
 
     fn handle_response(
@@ -521,7 +526,7 @@ impl
     fn get_request_body(
         &self,
         _req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Ok(None)
     }
 
@@ -596,11 +601,14 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let braintree_req =
-            utils::Encode::<braintree::BraintreeRefundRequest>::convert_and_url_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(braintree_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = braintree::BraintreeRefundRequest::try_from(req)?;
+        let braintree_refund_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<braintree::BraintreeRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(braintree_refund_request))
     }
 
     fn build_request(
@@ -680,7 +688,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn get_request_body(
         &self,
         _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Ok(None)
     }
 

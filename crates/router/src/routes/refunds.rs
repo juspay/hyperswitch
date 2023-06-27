@@ -36,7 +36,7 @@ pub async fn refunds_create(
         state.get_ref(),
         &req,
         json_payload.into_inner(),
-        refund_create_core,
+        |state, auth, req| refund_create_core(state, auth.merchant_account, auth.key_store, req),
         &auth::ApiKeyAuth,
     )
     .await
@@ -79,10 +79,11 @@ pub async fn refunds_retrieve(
         state.get_ref(),
         &req,
         refund_request,
-        |state, merchant_account, refund_request| {
+        |state, auth, refund_request| {
             refund_response_wrapper(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 refund_request,
                 refund_retrieve_core,
             )
@@ -119,8 +120,14 @@ pub async fn refunds_retrieve_with_body(
         state.get_ref(),
         &req,
         json_payload.into_inner(),
-        |state, merchant_account, req| {
-            refund_response_wrapper(state, merchant_account, req, refund_retrieve_core)
+        |state, auth, req| {
+            refund_response_wrapper(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                req,
+                refund_retrieve_core,
+            )
         },
         &auth::ApiKeyAuth,
     )
@@ -160,8 +167,8 @@ pub async fn refunds_update(
         state.get_ref(),
         &req,
         json_payload.into_inner(),
-        |state, merchant_account, req| {
-            refund_update_core(&*state.store, merchant_account, &refund_id, req)
+        |state, auth, req| {
+            refund_update_core(&*state.store, auth.merchant_account, &refund_id, req)
         },
         &auth::ApiKeyAuth,
     )
@@ -195,7 +202,7 @@ pub async fn refunds_list(
         state.get_ref(),
         &req,
         payload.into_inner(),
-        |state, merchant_account, req| refund_list(&*state.store, merchant_account, req),
+        |state, auth, req| refund_list(&*state.store, auth.merchant_account, req),
         &auth::ApiKeyAuth,
     )
     .await
@@ -228,7 +235,7 @@ pub async fn refunds_filter_list(
         state.get_ref(),
         &req,
         payload.into_inner(),
-        |state, merchant_account, req| refund_filter_list(&*state.store, merchant_account, req),
+        |state, auth, req| refund_filter_list(&*state.store, auth.merchant_account, req),
         &auth::ApiKeyAuth,
     )
     .await
