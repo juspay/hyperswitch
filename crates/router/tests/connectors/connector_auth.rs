@@ -130,6 +130,8 @@ pub struct AutomationConfigs {
     pub hs_test_browser: Option<String>,
     pub chrome_profile_path: Option<String>,
     pub firefox_profile_path: Option<String>,
+    pub clearpay_email: Option<String>,
+    pub clearpay_pass: Option<String>,
     pub pypl_email: Option<String>,
     pub pypl_pass: Option<String>,
     pub gmail_email: Option<String>,
