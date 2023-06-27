@@ -341,9 +341,9 @@ pub struct VerifyRequest {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum MandateTxnType {
-    NewMandateTxn,
-    RecurringMandateTxn,
+pub enum MandateTransactionType {
+    NewMandateTransaction,
+    RecurringMandateTransaction,
 }
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -589,6 +589,7 @@ pub enum PaymentMethodData {
     BankTransfer(Box<BankTransferData>),
     Crypto(CryptoData),
     MandatePayment,
+    Reward(RewardData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -607,6 +608,7 @@ pub enum AdditionalPaymentData {
     Crypto {},
     BankDebit {},
     MandatePayment {},
+    Reward {},
 }
 
 impl From<&PaymentMethodData> for AdditionalPaymentData {
@@ -634,6 +636,7 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
             PaymentMethodData::Crypto(_) => Self::Crypto {},
             PaymentMethodData::BankDebit(_) => Self::BankDebit {},
             PaymentMethodData::MandatePayment => Self::MandatePayment {},
+            PaymentMethodData::Reward(_) => Self::Reward {},
         }
     }
 }
@@ -940,6 +943,13 @@ pub struct CardResponse {
     exp_year: String,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct RewardData {
+    /// The merchant ID with which we have to call the connector
+    pub merchant_id: String,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodDataResponse {
@@ -953,6 +963,7 @@ pub enum PaymentMethodDataResponse {
     Crypto(CryptoData),
     BankDebit(BankDebitData),
     MandatePayment,
+    Reward(RewardData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1392,6 +1403,10 @@ pub struct PaymentsResponse {
     /// Any user defined fields can be passed here.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub udf: Option<pii::SecretSerdeValue>,
+
+    /// A unique identifier for a payment provided by the connector
+    #[schema(value_type = Option<String>, example = "993672945374576J")]
+    pub connector_transaction_id: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
@@ -1578,6 +1593,7 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             PaymentMethodData::Crypto(crpto_data) => Self::Crypto(crpto_data),
             PaymentMethodData::BankDebit(bank_debit_data) => Self::BankDebit(bank_debit_data),
             PaymentMethodData::MandatePayment => Self::MandatePayment,
+            PaymentMethodData::Reward(reward_data) => Self::Reward(reward_data),
         }
     }
 }

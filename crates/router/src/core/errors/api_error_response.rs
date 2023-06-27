@@ -91,6 +91,8 @@ pub enum ApiErrorResponse {
     MissingRequiredFields { field_names: Vec<&'static str> },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_22", message = "Access forbidden. Not authorized to access this resource")]
     AccessForbidden,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{entity} expired or invalid")]
+    UnprocessableEntity { entity: String },
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
         code: String,
@@ -341,6 +343,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 ApiError::new("IR", 21, "Missing required params".to_string(), Some(Extra {data: Some(serde_json::json!(field_names)), ..Default::default() })),
             ),
             Self::AccessForbidden => AER::ForbiddenCommonResource(ApiError::new("IR", 22, "Access forbidden. Not authorized to access this resource", None)),
+            Self::UnprocessableEntity {entity} => AER::Unprocessable(ApiError::new("IR", 23, format!("{entity} expired or invalid"), None)),
             Self::ExternalConnectorError {
                 code,
                 message,
@@ -411,7 +414,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::ReturnUrlUnavailable => AER::NotFound(ApiError::new("HE", 3, "Return URL is not configured and not passed in payments request", None)),
             Self::RefundNotPossible { connector } => {
-                AER::BadRequest(ApiError::new("HE", 3, "This refund is not possible through Hyperswitch. Please raise the refund through {connector} dashboard", None))
+                AER::BadRequest(ApiError::new("HE", 3, format!("This refund is not possible through Hyperswitch. Please raise the refund through {connector} dashboard"), None))
             }
             Self::MandateValidationFailed { reason } => {
                 AER::BadRequest(ApiError::new("HE", 3, "Mandate Validation Failed", Some(Extra { reason: Some(reason.clone()), ..Default::default() })))

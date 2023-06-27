@@ -69,8 +69,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::VerifyRequest,
-        _mandate_type: Option<api::MandateTxnType>,
+        _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
+        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         PaymentData<F>,
@@ -206,6 +207,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(BoxedOperation<'b, F, api::VerifyRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -247,7 +249,7 @@ where
         db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
-        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::VerifyRequest>,
@@ -260,7 +262,8 @@ where
             db,
             payment_data,
             request,
-            merchant_id,
+            &key_store.merchant_id,
+            key_store,
         )
         .await
     }
@@ -284,6 +287,7 @@ where
         state: &AppState,
         _request: &api::VerifyRequest,
         _payment_intent: &storage::payment_intent::PaymentIntent,
+        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
     }

@@ -13,6 +13,7 @@ mod authorizedotnet;
 mod bambora;
 mod bitpay;
 mod bluesnap;
+mod cashtocode;
 mod checkout;
 mod coinbase;
 mod connector_auth;
