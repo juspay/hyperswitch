@@ -1,10 +1,10 @@
 use common_utils::errors::CustomResult;
-use redis_interface::DelReply;
+use error_stack::{report, ResultExt};
 
 use super::errors;
 use crate::{
-    cache::{ACCOUNTS_CACHE, CONFIG_CACHE},
-    db::StorageInterface,
+    cache::CacheKind,
+    db::{cache::publish_into_redact_channel, StorageInterface},
     services,
 };
 
@@ -12,14 +12,16 @@ pub async fn invalidate(
     store: &dyn StorageInterface,
     key: &str,
 ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ApiErrorResponse> {
-    CONFIG_CACHE.remove(key).await;
-    ACCOUNTS_CACHE.remove(key).await;
+    let result = publish_into_redact_channel(store, CacheKind::All(key.into()))
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    match store.get_redis_conn().delete_key(key).await {
-        Ok(DelReply::KeyDeleted) => Ok(services::api::ApplicationResponse::StatusOk),
-        Ok(DelReply::KeyNotDeleted) => Err(errors::ApiErrorResponse::InvalidRequestUrl.into()),
-        Err(error) => Err(error
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to invalidate cache")),
+    // If the message was published to atleast one channel
+    // then return status Ok
+    if result > 0 {
+        Ok(services::api::ApplicationResponse::StatusOk)
+    } else {
+        Err(report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to invalidate cache"))
     }
 }
