@@ -497,8 +497,7 @@ pub fn make_capabilities(s: &str) -> Capabilities {
             if ignore_profile.is_none() {
                 let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
                 caps.add_firefox_arg(profile_path).unwrap();
-            }
-            else {
+            } else {
                 caps.add_firefox_arg("--headless").ok();
             }
             // let mut prefs = FirefoxPreferences::new();
