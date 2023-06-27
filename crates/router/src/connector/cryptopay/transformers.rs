@@ -14,8 +14,7 @@ pub struct CryptopayPaymentsRequest {
     price_currency: enums::Currency,
     pay_currency: String,
     success_redirect_url: Option<String>,
-    #[serde(rename = "unsuccess_redirect_url")]
-    unsuccessful_redirect_url: Option<String>,
+    unsuccess_redirect_url: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for CryptopayPaymentsRequest {
@@ -29,7 +28,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CryptopayPaymentsRequest {
                     price_currency: item.request.currency,
                     pay_currency,
                     success_redirect_url: item.clone().request.router_return_url,
-                    unsuccessful_redirect_url: item.clone().request.router_return_url,
+                    unsuccess_redirect_url: item.clone().request.router_return_url,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -151,8 +150,7 @@ pub struct CryptopayPaymentResponseData {
     pub name: Option<String>,
     pub description: Option<String>,
     pub success_redirect_url: Option<String>,
-    #[serde(rename = "unsuccess_redirect_url")]
-    pub unsuccessful_redirect_url: Option<String>,
+    pub unsuccess_redirect_url: Option<String>,
     pub hosted_page_url: Option<Url>,
     pub created_at: Option<String>,
     pub expires_at: Option<String>,
