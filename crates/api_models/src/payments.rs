@@ -1741,6 +1741,7 @@ pub struct GpayTransactionInfo {
     #[schema(value_type = CountryAlpha2, example = "US")]
     pub country_code: api_enums::CountryAlpha2,
     /// The currency code
+    #[schema(value_type = Currency, example = "USD")]
     pub currency_code: api_enums::Currency,
     /// The total price status (ex: 'FINAL')
     pub total_price_status: String,
@@ -1975,6 +1976,7 @@ pub struct ApplePayPaymentRequest {
     #[schema(value_type = CountryAlpha2, example = "US")]
     pub country_code: api_enums::CountryAlpha2,
     /// The code for currency
+    #[schema(value_type = Currency, example = "USD")]
     pub currency_code: api_enums::Currency,
     /// Represents the total for the payment.
     pub total: AmountInfo,
