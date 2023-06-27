@@ -2,44 +2,42 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    connector::utils::CryptoData,
     core::errors,
     services,
     types::{self, api, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 pub struct CryptopayPaymentsRequest {
     price_amount: i64,
     price_currency: enums::Currency,
     pay_currency: String,
     success_redirect_url: Option<String>,
-    unsuccess_redirect_url: Option<String>,
+    #[serde(rename = "unsuccess_redirect_url")]
+    unsuccessful_redirect_url: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for CryptopayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let pay_currency = match item.request.payment_method_data {
+        let cryptopay_request = match item.request.payment_method_data {
             api::PaymentMethodData::Crypto(ref cryptodata) => {
-                let pay_currency = cryptodata.pay_currency.clone().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "pay_currency",
-                    },
-                )?;
+                let pay_currency = cryptodata.get_pay_currency()?;
                 Ok(Self {
                     price_amount: item.request.amount,
                     price_currency: item.request.currency,
                     pay_currency,
                     success_redirect_url: item.clone().request.router_return_url,
-                    unsuccess_redirect_url: item.clone().request.router_return_url,
+                    unsuccessful_redirect_url: item.clone().request.router_return_url,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented(
                 "payment method".to_string(),
             )),
         }?;
-        Ok(pay_currency)
+        println!("##request:src-{:?}", cryptopay_request);
+        Ok(cryptopay_request)
     }
 }
 
@@ -63,7 +61,7 @@ impl TryFrom<&types::ConnectorAuthType> for CryptopayAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CryptopayPaymentStatus {
     #[default]
@@ -78,9 +76,10 @@ impl From<CryptopayPaymentStatus> for enums::AttemptStatus {
     fn from(item: CryptopayPaymentStatus) -> Self {
         match item {
             CryptopayPaymentStatus::New => Self::AuthenticationPending,
-            CryptopayPaymentStatus::Completed | CryptopayPaymentStatus::Refunded => Self::Charged,
+            CryptopayPaymentStatus::Completed => Self::Charged,
             CryptopayPaymentStatus::Cancelled => Self::Failure,
             CryptopayPaymentStatus::Unresolved => Self::Unresolved,
+            _ => Self::Voided,
         }
     }
 }
@@ -122,86 +121,6 @@ impl<F, T>
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct CryptopayRefundRequest {
-    pub amount: i64,
-}
-
-impl<F> TryFrom<&types::RefundsRouterData<F>> for CryptopayRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.request.refund_amount,
-        })
-    }
-}
-
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct CryptopayErrorData {
     pub code: String,
@@ -233,8 +152,25 @@ pub struct CryptopayPaymentResponseData {
     pub name: Option<String>,
     pub description: Option<String>,
     pub success_redirect_url: Option<String>,
-    pub unsuccess_redirect_url: Option<String>,
+    #[serde(rename = "unsuccess_redirect_url")]
+    pub unsuccessful_redirect_url: Option<String>,
     pub hosted_page_url: Option<Url>,
     pub created_at: Option<String>,
     pub expires_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CryptopayWebhookDetails {
+    #[serde(rename = "type")]
+    pub service_type: String,
+    pub event: WebhookEvent,
+    pub data: CryptopayPaymentResponseData,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WebhookEvent {
+    TransactionCreated,
+    TransactionConfirmed,
+    StatusChanged,
 }
