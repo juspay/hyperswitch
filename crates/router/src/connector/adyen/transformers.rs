@@ -281,6 +281,7 @@ pub enum AdyenPaymentMethod<'a> {
     Mandate(Box<AdyenMandate>),
     Mbway(Box<MbwayData>),
     MobilePay(Box<MobilePayData>),
+    Momo(Box<MomoData>),
     OnlineBankingCzechRepublic(Box<OnlineBankingCzechRepublicData>),
     OnlineBankingFinland(Box<OnlineBankingFinlandData>),
     OnlineBankingPoland(Box<OnlineBankingPolandData>),
@@ -638,6 +639,12 @@ pub struct GcashData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MomoData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
     #[serde(rename = "type")]
     payment_type: PaymentType,
@@ -705,6 +712,8 @@ pub enum PaymentType {
     Kakaopay,
     Mbway,
     MobilePay,
+    #[serde(rename = "momo_wallet")]
+    Momo,
     #[serde(rename = "onlineBanking_CZ")]
     OnlineBankingCzechRepublic,
     #[serde(rename = "ebanking_FI")]
@@ -1149,6 +1158,12 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                     payment_type: PaymentType::Gcash,
                 };
                 Ok(AdyenPaymentMethod::Gcash(Box::new(gcash_data)))
+            }
+            api_models::payments::WalletData::MomoRedirect(_) => {
+                let momo_data = MomoData {
+                    payment_type: PaymentType::Momo,
+                };
+                Ok(AdyenPaymentMethod::Momo(Box::new(momo_data)))
             }
             api_models::payments::WalletData::MbWayRedirect(data) => {
                 let mbway_data = MbwayData {

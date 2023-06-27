@@ -250,6 +250,7 @@ pub enum Currency {
     USD,
     UYU,
     UZS,
+    VND,
     YER,
     ZAR,
 }
@@ -436,6 +437,7 @@ pub enum PaymentMethodType {
     Klarna,
     MbWay,
     MobilePay,
+    Momo,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
     OnlineBankingPoland,

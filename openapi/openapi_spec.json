@@ -1805,6 +1805,9 @@
       "GcashRedirection": {
         "type": "object"
       },
+      "MomoRedirection": {
+        "type": "object"
+      },
       "AmountInfo": {
         "type": "object",
         "required": [
@@ -3428,6 +3431,7 @@
           "USD",
           "UYU",
           "UZS",
+          "VND",
           "YER",
           "ZAR"
         ]
@@ -7888,6 +7892,17 @@
             "properties": {
               "gcash": {
                 "$ref": "#/components/schemas/GcashRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "momo"
+            ],
+            "properties": {
+              "momo": {
+                "$ref": "#/components/schemas/MomoRedirection"
               }
             }
           },
