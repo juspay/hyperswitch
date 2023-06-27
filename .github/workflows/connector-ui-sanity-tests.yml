@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-  
-  pull_request:
 
   merge_group:
     types:
@@ -94,10 +92,14 @@ jobs:
         shell: bash
         run: echo "CONNECTOR_TESTS_FILE_PATH=$HOME/target/test/connector_tests.json" >> $GITHUB_ENV
 
-      - name: Install latest nightly
+      - name: Set ignore_browser_profile usage in env
+        shell: bash
+        run: echo "IGNORE_BROWSER_PROFILE=true" >> $GITHUB_ENV
+
+      - name: Install latest compiler
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: nightly
+            toolchain: stable
             override: true
       - uses: Swatinem/rust-cache@v2.4.0
 
@@ -113,15 +115,15 @@ jobs:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: diesel migration run
 
-      - name: Start server and Run tests
+      - name: Start server
         env:
           UI_TESTCASES_PATH: ${{ secrets.UI_TESTCASES_PATH }}
         shell: bash
-        run: sh scripts/run_ui_tests.sh ${{ matrix.connector }}
-      
-      - name: View test results
+        run: sh .github/scripts/run_ui_tests.sh ${{ matrix.connector }}
+
+      - name: Run tests
         shell: bash
-        run:  cat tests/test_results.log
+        run: cargo test --package router --test connectors -- "${{ matrix.connector }}_ui::" --test-threads=1 >> tests/test_results.log 2>&1  
       
       - name: Check test results
         shell: bash

@@ -53,6 +53,10 @@ pub static CHEKOUT_BASE_URL: &str = "https://hs-payments-test.netlify.app";
 #[async_trait]
 pub trait SeleniumTest {
     fn get_saved_testcases(&self) -> serde_json::Value {
+        let env_value = env::var("CONNECTOR_TESTS_FILE_PATH").ok();
+        if env_value.is_none() {
+            return serde_json::json!("");
+        }
         let path =
             env::var("CONNECTOR_TESTS_FILE_PATH").expect("connector tests file path not set");
         let mut file = &std::fs::File::open(path).expect("Failed to open file");
@@ -62,8 +66,6 @@ pub trait SeleniumTest {
 
         // Parse the JSON data
         serde_json::from_str(&contents).expect("Failed to parse JSON")
-        // let file = &std::fs::File::open(path, errors).expect("connector testcases file not found");
-        // serde_json::from_reader(file).expect("tests file should be proper JSON")
     }
     fn get_configs(&self) -> connector_auth::ConnectorAuthentication {
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
@@ -242,9 +244,6 @@ pub trait SeleniumTest {
                         .join(";");
                         driver.goto(url).await?;
                         driver.execute(script, Vec::new()).await?;
-                        // driver
-                        //     .add_cookie(new_cookie("hs_base_url", hs_base_url).clone())
-                        //     .await?;
                     }
                     Trigger::Click(by) => {
                         let ele = driver.query(by).first().await?;
@@ -494,9 +493,14 @@ pub fn make_capabilities(s: &str) -> Capabilities {
     match s {
         "firefox" => {
             let mut caps = DesiredCapabilities::firefox();
-            caps.add_firefox_arg("--headless").ok();
-            // let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
-            // caps.add_firefox_arg(profile_path).unwrap();
+            let ignore_profile = env::var("IGNORE_BROWSER_PROFILE").ok();
+            if ignore_profile.is_none() {
+                let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
+                caps.add_firefox_arg(profile_path).unwrap();
+            }
+            else {
+                caps.add_firefox_arg("--headless").ok();
+            }
             // let mut prefs = FirefoxPreferences::new();
             // prefs.set("-browser.link.open_newwindow", 3).unwrap();
             // caps.set_preferences(prefs).unwrap();
@@ -529,20 +533,20 @@ fn get_chrome_profile_path() -> Result<String, WebDriverError> {
     base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#);
     Ok(base_path)
 }
-// fn get_firefox_profile_path() -> Result<String, WebDriverError> {
-//     let exe = env::current_exe()?;
-//     let dir = exe.parent().expect("Executable must be in some directory");
-//     let mut base_path = dir
-//         .to_str()
-//         .map(|str| {
-//             let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
-//             fp.truncate(3);
-//             fp.join(&MAIN_SEPARATOR.to_string())
-//         })
-//         .unwrap();
-//     base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#);
-//     Ok(base_path)
-// }
+fn get_firefox_profile_path() -> Result<String, WebDriverError> {
+    let exe = env::current_exe()?;
+    let dir = exe.parent().expect("Executable must be in some directory");
+    let mut base_path = dir
+        .to_str()
+        .map(|str| {
+            let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
+            fp.truncate(3);
+            fp.join(&MAIN_SEPARATOR.to_string())
+        })
+        .unwrap();
+    base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#);
+    Ok(base_path)
+}
 
 pub fn make_url(s: &str) -> &'static str {
     match s {
