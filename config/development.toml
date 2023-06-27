@@ -225,6 +225,7 @@ bancontact_card = {country = "BE", currency = "EUR"}
 ach = {country = "US", currency = "USD"}
 bacs = {country = "UK", currency = "GBP"}
 sepa = {country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT", currency = "EUR"}
+ali_pay_hk = {country = "HK", currency = "HKD"}
 
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }
