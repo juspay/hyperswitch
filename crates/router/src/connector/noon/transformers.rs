@@ -326,19 +326,18 @@ impl<F, T>
                     connector_mandate_id: Some(subscription_data.identifier),
                     payment_method_id: None,
                 });
+        let order = item.response.result.order;
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.result.order.status),
-            response: match item.response.result.order.error_message {
+            status: enums::AttemptStatus::from(order.status),
+            response: match order.error_message {
                 Some(error_message) => Err(ErrorResponse {
-                    code: item.response.result.order.error_code.to_string(),
+                    code: order.error_code.to_string(),
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
                 }),
                 _ => Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.result.order.id.to_string(),
-                    ),
+                    resource_id: types::ResponseId::ConnectorTransactionId(order.id.to_string()),
                     redirection_data,
                     mandate_reference,
                     connector_metadata: None,
