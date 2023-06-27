@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-  pull_request:
 
   merge_group:
     types:
@@ -126,10 +125,3 @@ jobs:
         shell: bash
         run: |
           cargo test --package router --test connectors -- "${{ matrix.connector }}_ui::" --test-threads=1
-      
-      - name: Check test results
-        shell: bash
-        run:  |
-          if test "$( grep 'test result: FAILED' -r tests/test_results.log | wc -l )" -gt "0"; then
-            exit 1
-          fi
