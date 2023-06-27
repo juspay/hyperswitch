@@ -1,6 +1,5 @@
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
-use error_stack::ResultExt;
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -8,7 +7,8 @@ use time::PrimitiveDateTime;
 
 use crate::{
     connector::utils::{
-        self, CardData, MandateReferenceData, PaymentsAuthorizeRequestData, RouterData,
+        self, BrowserInformationData, CardData, MandateReferenceData, PaymentsAuthorizeRequestData,
+        RouterData,
     },
     consts,
     core::errors,
@@ -20,7 +20,6 @@ use crate::{
         storage::enums as storage_enums,
         transformers::ForeignFrom,
     },
-    utils::OptionExt,
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -154,8 +153,8 @@ impl ForeignFrom<(bool, AdyenStatus)> for storage_enums::AttemptStatus {
             AdyenStatus::AuthenticationNotRequired => Self::Pending,
             AdyenStatus::Authorised => match is_manual_capture {
                 true => Self::Authorized,
-                // Final outcome of the payment can be confirmed only through webhooks
-                false => Self::Pending,
+                // In case of Automatic capture Authorized is the final status of the payment
+                false => Self::Charged,
             },
             AdyenStatus::Cancelled => Self::Voided,
             AdyenStatus::ChallengeShopper | AdyenStatus::RedirectShopper => {
@@ -540,7 +539,7 @@ pub struct BankRedirectionPMData {
 pub struct BankRedirectionWithIssuer<'a> {
     #[serde(rename = "type")]
     payment_type: PaymentType,
-    issuer: &'a str,
+    issuer: Option<&'a str>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -610,7 +609,7 @@ pub struct AdyenGPay {
     #[serde(rename = "type")]
     payment_type: PaymentType,
     #[serde(rename = "googlePayToken")]
-    google_pay_token: String,
+    google_pay_token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -618,7 +617,7 @@ pub struct AdyenApplePay {
     #[serde(rename = "type")]
     payment_type: PaymentType,
     #[serde(rename = "applePayToken")]
-    apple_pay_token: String,
+    apple_pay_token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -847,65 +846,17 @@ fn get_browser_info(
     if item.auth_type == storage_enums::AuthenticationType::ThreeDs
         || item.payment_method == storage_enums::PaymentMethod::BankRedirect
     {
-        item.request
-            .browser_info
-            .as_ref()
-            .map(|info| {
-                Ok(AdyenBrowserInfo {
-                    accept_header: info
-                        .accept_header
-                        .clone()
-                        .get_required_value("accept_header")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "accept_header",
-                        })?,
-                    language: info
-                        .language
-                        .clone()
-                        .get_required_value("language")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "language",
-                        })?,
-                    screen_height: info
-                        .screen_height
-                        .get_required_value("screen_height")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "screen_height",
-                        })?,
-                    screen_width: info
-                        .screen_width
-                        .get_required_value("screen_width")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "screen_width",
-                        })?,
-                    color_depth: info
-                        .color_depth
-                        .get_required_value("color_depth")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "color_depth",
-                        })?,
-                    user_agent: info
-                        .user_agent
-                        .clone()
-                        .get_required_value("user_agent")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "user_agent",
-                        })?,
-                    time_zone_offset: info
-                        .time_zone
-                        .get_required_value("time_zone_offset")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "time_zone_offset",
-                        })?,
-                    java_enabled: info
-                        .java_enabled
-                        .get_required_value("java_enabled")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "java_enabled",
-                        })?,
-                })
-            })
-            .transpose()
+        let info = item.request.get_browser_info()?;
+        Ok(Some(AdyenBrowserInfo {
+            accept_header: info.get_accept_header()?,
+            language: info.get_language()?,
+            screen_height: info.get_screen_height()?,
+            screen_width: info.get_screen_width()?,
+            color_depth: info.get_color_depth()?,
+            user_agent: info.get_user_agent()?,
+            time_zone_offset: info.get_time_zone()?,
+            java_enabled: info.get_java_enabled()?,
+        }))
     } else {
         Ok(None)
     }
@@ -1075,7 +1026,7 @@ impl<'a> TryFrom<&api::Card> for AdyenPaymentMethod<'a> {
             payment_type: PaymentType::Scheme,
             number: card.card_number.clone(),
             expiry_month: card.card_exp_month.clone(),
-            expiry_year: card.card_exp_year.clone(),
+            expiry_year: card.get_expiry_year_4_digit(),
             cvc: Some(card.card_cvc.clone()),
             brand: None,
             network_payment_reference: None,
@@ -1103,14 +1054,14 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
             api_models::payments::WalletData::GooglePay(data) => {
                 let gpay_data = AdyenGPay {
                     payment_type: PaymentType::Googlepay,
-                    google_pay_token: data.tokenization_data.token.to_owned(),
+                    google_pay_token: Secret::new(data.tokenization_data.token.to_owned()),
                 };
                 Ok(AdyenPaymentMethod::Gpay(Box::new(gpay_data)))
             }
             api_models::payments::WalletData::ApplePay(data) => {
                 let apple_pay_data = AdyenApplePay {
                     payment_type: PaymentType::Applepay,
-                    apple_pay_token: data.payment_data.to_string(),
+                    apple_pay_token: Secret::new(data.payment_data.to_string()),
                 };
 
                 Ok(AdyenPaymentMethod::ApplePay(Box::new(apple_pay_data)))
@@ -1237,7 +1188,10 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             api_models::payments::BankRedirectData::Eps { bank_name, .. } => Ok(
                 AdyenPaymentMethod::Eps(Box::new(BankRedirectionWithIssuer {
                     payment_type: PaymentType::Eps,
-                    issuer: AdyenTestBankNames::try_from(bank_name)?.0,
+                    issuer: bank_name
+                        .map(|bank_name| AdyenTestBankNames::try_from(&bank_name))
+                        .transpose()?
+                        .map(|adyen_bank_name| adyen_bank_name.0),
                 })),
             ),
             api_models::payments::BankRedirectData::Giropay { .. } => Ok(
@@ -1248,7 +1202,10 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             api_models::payments::BankRedirectData::Ideal { bank_name, .. } => Ok(
                 AdyenPaymentMethod::Ideal(Box::new(BankRedirectionWithIssuer {
                     payment_type: PaymentType::Ideal,
-                    issuer: AdyenTestBankNames::try_from(bank_name)?.0,
+                    issuer: bank_name
+                        .map(|bank_name| AdyenTestBankNames::try_from(&bank_name))
+                        .transpose()?
+                        .map(|adyen_bank_name| adyen_bank_name.0),
                 })),
             ),
             api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { issuer } => {
@@ -1693,8 +1650,9 @@ pub fn get_adyen_response(
     let mandate_reference = response
         .additional_data
         .as_ref()
-        .map(|data| types::MandateReference {
-            connector_mandate_id: data.recurring_detail_reference.to_owned(),
+        .and_then(|data| data.recurring_detail_reference.to_owned())
+        .map(|mandate_id| types::MandateReference {
+            connector_mandate_id: Some(mandate_id),
             payment_method_id: None,
         });
     let network_txn_id = response

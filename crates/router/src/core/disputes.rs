@@ -63,6 +63,7 @@ pub async fn retrieve_disputes_list(
 pub async fn accept_dispute(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     req: disputes::DisputeId,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
     let db = &state.store;
@@ -119,6 +120,7 @@ pub async fn accept_dispute(
         &payment_intent,
         &payment_attempt,
         &merchant_account,
+        &key_store,
         &dispute,
     )
     .await?;
@@ -127,9 +129,10 @@ pub async fn accept_dispute(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
-    .map_err(|error| error.to_dispute_failed_response())
+    .to_dispute_failed_response()
     .attach_printable("Failed while calling accept dispute connector api")?;
     let accept_dispute_response =
         response
@@ -163,6 +166,7 @@ pub async fn accept_dispute(
 pub async fn submit_evidence(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     req: dispute_models::SubmitEvidenceRequest,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
     let db = &state.store;
@@ -191,8 +195,14 @@ pub async fn submit_evidence(
             })
         },
     )?;
-    let submit_evidence_request_data =
-        transformers::get_evidence_request_data(state, &merchant_account, req, &dispute).await?;
+    let submit_evidence_request_data = transformers::get_evidence_request_data(
+        state,
+        &merchant_account,
+        &key_store,
+        req,
+        &dispute,
+    )
+    .await?;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
             &dispute.payment_id,
@@ -225,6 +235,7 @@ pub async fn submit_evidence(
         &payment_intent,
         &payment_attempt,
         &merchant_account,
+        &key_store,
         &dispute,
         submit_evidence_request_data,
     )
@@ -234,9 +245,10 @@ pub async fn submit_evidence(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
-    .map_err(|error| error.to_payment_failed_response())
+    .to_dispute_failed_response()
     .attach_printable("Failed while calling submit evidence connector api")?;
     let submit_evidence_response =
         response
@@ -262,6 +274,7 @@ pub async fn submit_evidence(
                 &payment_intent,
                 &payment_attempt,
                 &merchant_account,
+                &key_store,
                 &dispute,
             )
             .await?;
@@ -270,9 +283,10 @@ pub async fn submit_evidence(
                 connector_integration_defend_dispute,
                 &defend_dispute_router_data,
                 payments::CallConnectorAction::Trigger,
+                None,
             )
             .await
-            .map_err(|error| error.to_payment_failed_response())
+            .to_dispute_failed_response()
             .attach_printable("Failed while calling defend dispute connector api")?;
             let defend_dispute_response = defend_response.response.map_err(|err| {
                 errors::ApiErrorResponse::ExternalConnectorError {
@@ -313,6 +327,7 @@ pub async fn submit_evidence(
 pub async fn attach_evidence(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     attach_evidence_request: api::AttachEvidenceRequest,
 ) -> RouterResponse<files_api_models::CreateFileResponse> {
     let db = &state.store;
@@ -347,6 +362,7 @@ pub async fn attach_evidence(
     let create_file_response = files::files_create_core(
         state,
         merchant_account,
+        key_store,
         attach_evidence_request.create_file_request,
     )
     .await?;
