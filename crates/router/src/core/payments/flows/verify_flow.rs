@@ -21,6 +21,7 @@ impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::Pay
         state: &AppState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<types::VerifyRouterData> {
         transformers::construct_payment_router_data::<api::Verify, types::VerifyRequestData>(
@@ -28,6 +29,7 @@ impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::Pay
             self.clone(),
             connector_id,
             merchant_account,
+            key_store,
             customer,
         )
         .await
@@ -67,6 +69,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
             resp.to_owned(),
             maybe_customer,
             merchant_account,
+            self.request.payment_method_type.clone(),
         )
         .await?;
 
@@ -117,7 +120,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         state: &AppState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<Option<services::Request>> {
+    ) -> RouterResult<(Option<services::Request>, bool)> {
         match call_connector_action {
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedConnectorIntegration<
@@ -127,11 +130,14 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
 
-                connector_integration
-                    .build_request(self, &state.conf.connectors)
-                    .to_payment_failed_response()
+                Ok((
+                    connector_integration
+                        .build_request(self, &state.conf.connectors)
+                        .to_payment_failed_response()?,
+                    true,
+                ))
             }
-            _ => Ok(None),
+            _ => Ok((None, true)),
         }
     }
 }
@@ -177,12 +183,14 @@ impl types::VerifyRouterData {
                 .await
                 .to_verify_failed_response()?;
 
+                let payment_method_type = self.request.payment_method_type.clone();
                 let pm_id = tokenization::save_payment_method(
                     state,
                     connector,
                     resp.to_owned(),
                     maybe_customer,
                     merchant_account,
+                    payment_method_type,
                 )
                 .await?;
 

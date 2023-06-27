@@ -14,6 +14,9 @@ const CONFIG_CACHE_PREFIX: &str = "config";
 /// Prefix for accounts cache key
 const ACCOUNTS_CACHE_PREFIX: &str = "accounts";
 
+/// Prefix for all kinds of cache key
+const ALL_CACHE_PREFIX: &str = "all_cache_kind";
+
 /// Time to live 30 mins
 const CACHE_TTL: u64 = 30 * 60;
 
@@ -38,6 +41,7 @@ pub trait Cacheable: Any + Send + Sync + DynClone {
 pub enum CacheKind<'a> {
     Config(Cow<'a, str>),
     Accounts(Cow<'a, str>),
+    All(Cow<'a, str>),
 }
 
 impl<'a> From<CacheKind<'a>> for RedisValue {
@@ -45,6 +49,7 @@ impl<'a> From<CacheKind<'a>> for RedisValue {
         let value = match kind {
             CacheKind::Config(s) => format!("{CONFIG_CACHE_PREFIX},{s}"),
             CacheKind::Accounts(s) => format!("{ACCOUNTS_CACHE_PREFIX},{s}"),
+            CacheKind::All(s) => format!("{ALL_CACHE_PREFIX},{s}"),
         };
         Self::from_string(value)
     }
@@ -61,6 +66,7 @@ impl<'a> TryFrom<RedisValue> for CacheKind<'a> {
         match split.0 {
             ACCOUNTS_CACHE_PREFIX => Ok(Self::Accounts(Cow::Owned(split.1.to_string()))),
             CONFIG_CACHE_PREFIX => Ok(Self::Config(Cow::Owned(split.1.to_string()))),
+            ALL_CACHE_PREFIX => Ok(Self::All(Cow::Owned(split.1.to_string()))),
             _ => Err(validation_err.into()),
         }
     }
@@ -117,6 +123,10 @@ impl Cache {
         let val = self.get(key)?;
         (*val).as_any().downcast_ref::<T>().cloned()
     }
+
+    pub async fn remove(&self, key: &str) {
+        self.invalidate(key).await;
+    }
 }
 
 #[cfg(test)]
@@ -131,17 +141,27 @@ mod cache_tests {
     }
 
     #[tokio::test]
-    async fn eviction_on_time_test() {
-        let cache = Cache::new(2, 2, None);
+    async fn eviction_on_size_test() {
+        let cache = Cache::new(2, 2, Some(0));
         cache.push("key".to_string(), "val".to_string()).await;
-        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
         assert_eq!(cache.get_val::<String>("key"), None);
     }
 
     #[tokio::test]
-    async fn eviction_on_size_test() {
-        let cache = Cache::new(2, 2, Some(0));
+    async fn invalidate_cache_for_key() {
+        let cache = Cache::new(1800, 1800, None);
         cache.push("key".to_string(), "val".to_string()).await;
+
+        cache.remove("key").await;
+
+        assert_eq!(cache.get_val::<String>("key"), None);
+    }
+
+    #[tokio::test]
+    async fn eviction_on_time_test() {
+        let cache = Cache::new(2, 2, None);
+        cache.push("key".to_string(), "val".to_string()).await;
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
         assert_eq!(cache.get_val::<String>("key"), None);
     }
 }

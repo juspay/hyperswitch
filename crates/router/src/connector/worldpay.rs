@@ -405,12 +405,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let connector_req = WorldpayPaymentsRequest::try_from(req)?;
-        let worldpay_req =
-            ext_traits::Encode::<WorldpayPaymentsRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(worldpay_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = WorldpayPaymentsRequest::try_from(req)?;
+        let worldpay_payment_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            ext_traits::Encode::<WorldpayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(worldpay_payment_request))
     }
 
     fn build_request(
@@ -480,12 +482,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundExecuteRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let connector_req = WorldpayRefundRequest::try_from(req)?;
-        let req =
-            ext_traits::Encode::<WorldpayRefundRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = WorldpayRefundRequest::try_from(req)?;
+        let fiserv_refund_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            ext_traits::Encode::<WorldpayRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(fiserv_refund_request))
     }
 
     fn get_url(

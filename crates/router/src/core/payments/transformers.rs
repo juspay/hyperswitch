@@ -31,6 +31,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
@@ -53,6 +54,7 @@ where
         merchant_account.merchant_id.as_str(),
         &connector_label,
         payment_data.creds_identifier.to_owned(),
+        key_store,
     )
     .await?;
 
@@ -463,6 +465,7 @@ where
                         )
                         .set_ephemeral_key(ephemeral_key_option.map(ForeignFrom::foreign_from))
                         .set_udf(payment_intent.udf)
+                        .set_connector_transaction_id(payment_attempt.connector_transaction_id)
                         .to_owned(),
                 )
             }
@@ -507,6 +510,7 @@ where
             metadata: payment_intent.metadata,
             order_details: payment_intent.order_details,
             udf: payment_intent.udf,
+            connector_transaction_id: payment_attempt.connector_transaction_id,
             ..Default::default()
         }),
     });
@@ -885,6 +889,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             router_return_url,
             email: payment_data.email,
             return_url: payment_data.payment_intent.return_url,
+            payment_method_type: attempt.payment_method_type.clone(),
         })
     }
 }
