@@ -6,7 +6,14 @@ pub mod operations;
 pub mod tokenization;
 pub mod transformers;
 
-use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
+use std::{
+    collections::HashMap,
+    fmt::Debug,
+    marker::PhantomData,
+    ops::Deref,
+    sync::{Arc, RwLock},
+    time::Instant,
+};
 
 use api_models::payments::Metadata;
 use common_utils::pii;
@@ -1177,20 +1184,24 @@ pub async fn list_payments(
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
-    use futures::stream::StreamExt;
-
     use crate::types::transformers::ForeignFrom;
 
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
-    let payment_intents =
+    let mut payment_intents =
         helpers::filter_by_constraints(db, &constraints, merchant_id, merchant.storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    payment_intents.sort();
+    payment_intents.reverse();
 
-    let pi = futures::stream::iter(payment_intents)
-        .filter_map(|pi| async {
-            let pa = db
+    let payment_intent_attempt_map: Arc<RwLock<HashMap<&str, Vec<storage::PaymentAttempt>>>> =
+        Arc::new(RwLock::new(HashMap::new()));
+    let collected_futures = payment_intents
+        .iter()
+        .map(|pi| async {
+            let internal_map = payment_intent_attempt_map.clone(); // Arc clone
+            let pa = match db
                 .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                     &pi.payment_id,
                     merchant_id,
@@ -1199,13 +1210,60 @@ pub async fn list_payments(
                     storage_enums::MerchantStorageScheme::PostgresOnly,
                 )
                 .await
-                .ok()?;
-            Some((pi, pa))
+            {
+                Ok(pa) => pa,
+                Err(e) => return Err(e),
+            };
+            let mut map_write_locks = match internal_map.write() {
+                //Blocking wait for write
+                Ok(lock) => lock,
+                Err(_) => {
+                    logger::warn!("Failed to get lock in async context.");
+                    return Ok(()); // Exiting the async context
+                }
+            };
+            if map_write_locks.get(pi.payment_id.as_str()).is_none() {
+                map_write_locks.insert(&pi.payment_id, vec![pa]);
+            } else {
+                match map_write_locks.get_mut(pi.payment_id.as_str()) {
+                    Some(existing_pas) => {
+                        (*existing_pas).push(pa);
+                    }
+                    None => {
+                        return Ok(()); //Exiting async function
+                    }
+                }
+            }
+            Ok(())
         })
-        .collect::<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>>()
-        .await;
+        .collect::<Vec<_>>();
+    let _result = join_all(collected_futures).await;
+    let mut pi_pa_tuple_vec: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = Vec::new();
+    let read_lock = match payment_intent_attempt_map.read() {
+        Ok(read_lock) => read_lock,
+        Err(_) => {
+            logger::warn!("Failed to gain read locks.");
+            return Err(errors::ApiErrorResponse::InternalServerError).into_report();
+        }
+    };
 
-    let data: Vec<api::PaymentsResponse> = pi.into_iter().map(ForeignFrom::foreign_from).collect();
+    for v in payment_intents.iter() {
+        let pa_list = match read_lock.get(v.payment_id.as_str()) {
+            Some(list) => list,
+            None => {
+                continue;
+            }
+        };
+        let mut pi_pa_tuples = pa_list
+            .iter()
+            .map(|pa| (v.clone(), pa.clone()))
+            .collect::<Vec<_>>();
+        pi_pa_tuple_vec.append(&mut pi_pa_tuples);
+    }
+    let data: Vec<api::PaymentsResponse> = pi_pa_tuple_vec
+        .into_iter()
+        .map(ForeignFrom::foreign_from)
+        .collect();
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {

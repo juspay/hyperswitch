@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
@@ -164,6 +166,17 @@ pub struct PaymentIntentUpdateInternal {
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub udf: Option<pii::SecretSerdeValue>,
+}
+
+impl PartialOrd for PaymentIntent {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.created_at.partial_cmp(&other.created_at)
+    }
+}
+impl Ord for PaymentIntent {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.created_at.cmp(&other.created_at)
+    }
 }
 
 impl PaymentIntentUpdate {
