@@ -1,4 +1,4 @@
-use std::env;
+use std::{collections::HashMap, env};
 
 use router::types::ConnectorAuthType;
 use serde::{Deserialize, Serialize};
@@ -47,6 +47,61 @@ pub struct ConnectorAuthentication {
     pub worldline: Option<SignatureKey>,
     pub zen: Option<HeaderKey>,
     pub automation_configs: Option<AutomationConfigs>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ConnectorAuthenticationMap(HashMap<String, ConnectorAuthType>);
+
+impl ConnectorAuthenticationMap {
+    #[allow(clippy::expect_used)]
+    pub(crate) fn new() -> Self {
+        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
+        // before running tests
+        let path = env::var("CONNECTOR_AUTH_FILE_PATH")
+            .expect("connector authentication file path not set");
+        ConnectorAuthenticationMap(
+            toml::from_str(
+                &std::fs::read_to_string(path)
+                    .expect("connector authentication config file not found"),
+            )
+            .expect("Failed to read connector authentication config file"),
+        )
+    }
+
+    pub(crate) fn lookup(self, key: &str) -> String {
+        match self.0.get(key) {
+            Some(auth_type) => match auth_type {
+                ConnectorAuthType::HeaderKey { api_key } => {
+                    format!("--env-var connector_api_key={}", api_key.clone())
+                }
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    format!(
+                        "--env-var connector_api_key={} --env-var connector_key1={}",
+                        api_key, key1
+                    )
+                }
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => format!(
+                    "--env-var connector_api_key={} --env-var connector_key1={} --env-var connector_api_secret={}",
+                    api_key, key1, api_secret
+                ),
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => format!(
+                    "--env-var connector_api_key={} --env-var connector_key1={} --env-var connector_key2={} --env-var connector_api_secret={}",
+                    api_key, key1, key2, api_secret
+                ),
+                ConnectorAuthType::NoKey => String::new(),
+            },
+            None => String::new(),
+        }
+    }
 }
 
 impl ConnectorAuthentication {
