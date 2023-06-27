@@ -43,7 +43,11 @@ pub async fn payment(
                         timestamp.to_owned(),
                         types::PaymentMethodType::Card,
                     );
-                    let redis_conn = state.store.get_redis_conn();
+                    let redis_conn = state
+                        .store
+                        .get_redis_conn()
+                        .change_context(errors::DummyConnectorErrors::RedisConnectionError)?;
+
                     store_data_in_redis(
                         redis_conn,
                         payment_id.to_owned(),
@@ -80,7 +84,11 @@ pub async fn payment_data(
     )
     .await;
 
-    let redis_conn = state.store.get_redis_conn();
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::DummyConnectorErrors::RedisConnectionError)?;
+
     let payment_data = redis_conn
         .get_and_deserialize_key::<types::DummyConnectorPaymentData>(
             payment_id.as_str(),
@@ -118,7 +126,11 @@ pub async fn refund_payment(
             field_name: "payment_id",
         })?;
 
-    let redis_conn = state.store.get_redis_conn();
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::DummyConnectorErrors::RedisConnectionError)?;
+
     let mut payment_data = redis_conn
         .get_and_deserialize_key::<types::DummyConnectorPaymentData>(
             payment_id.as_str(),
@@ -179,7 +191,11 @@ pub async fn refund_data(
     )
     .await;
 
-    let redis_conn = state.store.get_redis_conn();
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::DummyConnectorErrors::RedisConnectionError)?;
+
     let refund_data = redis_conn
         .get_and_deserialize_key::<types::DummyConnectorRefundResponse>(
             refund_id.as_str(),

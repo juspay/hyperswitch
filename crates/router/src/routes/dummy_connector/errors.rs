@@ -29,6 +29,9 @@ pub enum DummyConnectorErrors {
 
     #[error(error_type = ErrorType::InvalidRequestError, code = "DC_06", message = "Payment is not successful")]
     PaymentNotSuccessful,
+
+    #[error(error_type = ErrorType::ServerNotAvailable, code = "DC_07", message = "Error occurred while fetching redis connection")]
+    RedisConnectionError,
 }
 
 impl core::fmt::Display for DummyConnectorErrors {
@@ -68,6 +71,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::PaymentNotSuccessful => {
                 AER::BadRequest(ApiError::new("DC", 6, self.error_message(), None))
+            }
+            Self::RedisConnectionError => {
+                AER::BadRequest(ApiError::new("DC", 7, self.error_message(), None))
             }
         }
     }
