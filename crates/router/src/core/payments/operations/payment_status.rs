@@ -158,7 +158,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsRetrieveRequest,
-        _mandate_type: Option<api::MandateTxnType>,
+        _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(

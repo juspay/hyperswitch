@@ -112,8 +112,16 @@ impl ConnectorCommon for Trustpay {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.status.to_string(),
-            message: format!("{:?}", response.errors.first().unwrap_or(&default_error)),
-            reason: Some(format!("{:?}", response.errors)),
+            message: format!(
+                "{:?}",
+                response
+                    .errors
+                    .as_ref()
+                    .unwrap_or(&vec![])
+                    .first()
+                    .unwrap_or(&default_error)
+            ),
+            reason: response.errors.map(|errors| format!("{:?}", errors)),
         })
     }
 }
@@ -194,7 +202,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         let connector_req = trustpay::TrustpayAuthUpdateRequest::try_from(req)?;
         let trustpay_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
-            utils::Encode::<trustpay::TrustpayAuthUpdateRequest>::encode_to_string_of_json,
+            utils::Encode::<trustpay::TrustpayAuthUpdateRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(trustpay_req))
@@ -505,7 +513,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             }
             _ => types::RequestBody::log_and_get_request_body(
                 &connector_req,
-                utils::Encode::<trustpay::PaymentRequestCards>::encode_to_string_of_json,
+                utils::Encode::<trustpay::PaymentRequestCards>::url_encode,
             )
             .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         };
@@ -609,7 +617,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             _ =>
                 types::RequestBody::log_and_get_request_body(
                     &connector_req,
-                    utils::Encode::<trustpay::TrustpayRefundRequestCards>::encode_to_string_of_json,
+                    utils::Encode::<trustpay::TrustpayRefundRequestCards>::url_encode,
                 )
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         };

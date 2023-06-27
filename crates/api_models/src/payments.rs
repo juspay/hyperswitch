@@ -341,9 +341,9 @@ pub struct VerifyRequest {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum MandateTxnType {
-    NewMandateTxn,
-    RecurringMandateTxn,
+pub enum MandateTransactionType {
+    NewMandateTransaction,
+    RecurringMandateTransaction,
 }
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
