@@ -873,7 +873,11 @@ pub async fn list_payment_methods(
 
         let connector_variant = api_enums::Connector::from_str(connector.as_str())
             .into_report()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ConnectorError::InvalidConnectorName)
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector",
+            })
+            .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))?;
         state.conf.required_fields.0.get(&payment_method).map(
             |required_fields_hm_for_each_payment_method_type| {
                 required_fields_hm_for_each_payment_method_type
