@@ -623,7 +623,7 @@ pub struct AdyenApplePay {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TwintWalletData{
+pub struct TwintWalletData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
 }
@@ -1109,7 +1109,7 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 Ok(AdyenPaymentMethod::WeChatPayWeb(Box::new(data)))
             }
             api_models::payments::WalletData::TwintRedirect { .. } => {
-                let data = TwintWalletData{
+                let data = TwintWalletData {
                     payment_type: PaymentType::Twint,
                 };
                 Ok(AdyenPaymentMethod::Twint(Box::new(data)))

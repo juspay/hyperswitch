@@ -103,19 +103,19 @@ async fn should_make_adyen_clearpay_payment(c: WebDriver) -> Result<(), WebDrive
 
 async fn should_make_adyen_twint_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
-    conn.make_redirection_payment(c, 
+    conn.make_redirection_payment(
+        c,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/170"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
-            Event::Trigger(Trigger::Sleep(5)),           
+            Event::Trigger(Trigger::Sleep(5)),
             Event::Trigger(Trigger::Click(By::LinkText("authorised"))),
             Event::Assert(Assert::IsPresent("Google")),
             Event::Assert(Assert::ContainsAny(
                 Selector::QueryParamStr,
                 vec!["status=succeeded"],
             )),
-            
-        ]
+        ],
     )
     .await?;
     Ok(())
@@ -153,7 +153,7 @@ fn should_make_adyen_clearpay_payment_test() {
 
 #[test]
 #[serial]
-fn should_make_adyen_twint_payment_test(){
+fn should_make_adyen_twint_payment_test() {
     tester!(should_make_adyen_twint_payment);
 }
 
