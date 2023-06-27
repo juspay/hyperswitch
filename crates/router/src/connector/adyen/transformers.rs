@@ -286,6 +286,7 @@ pub enum AdyenPaymentMethod<'a> {
     SepaDirectDebit(Box<SepaDirectDebitData>),
     BacsDirectDebit(Box<BacsDirectDebitData>),
     Twint(Box<TwintWalletData>),
+    Vipps(Box<VippsWalletData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -629,6 +630,12 @@ pub struct TwintWalletData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VippsWalletData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenPayLaterData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
@@ -700,6 +707,7 @@ pub enum PaymentType {
     #[serde(rename = "directdebit_GB")]
     BacsDirectDebit,
     Twint,
+    Vipps
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -1113,6 +1121,12 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                     payment_type: PaymentType::Twint,
                 };
                 Ok(AdyenPaymentMethod::Twint(Box::new(data)))
+            }
+            api_models::payments::WalletData::VippsRedirect { .. } => {
+                let data = VippsWalletData{
+                    payment_type: PaymentType::Vipps,
+                };
+                Ok(AdyenPaymentMethod::Vipps(Box::new(data)))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }

@@ -702,6 +702,7 @@ pub enum PaymentMethodType {
     Swish,
     Trustly,
     Twint,
+    Vipps,
     Walley,
     WeChatPay,
 }

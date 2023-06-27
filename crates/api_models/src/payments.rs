@@ -846,6 +846,8 @@ pub enum WalletData {
     WeChatPayRedirect(Box<WeChatPayRedirection>),
     /// Wallet data for Twint Redirection
     TwintRedirect {},
+    /// Wallet data for Vipps Redirection
+    VippsRedirect {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
