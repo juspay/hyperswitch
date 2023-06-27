@@ -888,7 +888,7 @@ pub enum InitResultData {
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayTransactionInfo {
     pub country_code: api_models::enums::CountryAlpha2,
-    pub currency_code: String,
+    pub currency_code: api_models::enums::Currency,
     pub total_price_status: String,
     pub total_price: String,
 }
@@ -949,7 +949,7 @@ pub struct SdkSecretInfo {
 #[serde(rename_all = "camelCase")]
 pub struct TrustpayApplePayResponse {
     pub country_code: api_models::enums::CountryAlpha2,
-    pub currency_code: String,
+    pub currency_code: api_models::enums::Currency,
     pub supported_networks: Vec<String>,
     pub merchant_capabilities: Vec<String>,
     pub total: ApplePayTotalInfo,
@@ -1036,7 +1036,7 @@ pub fn get_apple_pay_session<F, T>(
                         ),
                     payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
                         country_code: apple_pay_init_result.country_code,
-                        currency_code: apple_pay_init_result.currency_code.clone(),
+                        currency_code: apple_pay_init_result.currency_code,
                         supported_networks: apple_pay_init_result.supported_networks.clone(),
                         merchant_capabilities: apple_pay_init_result.merchant_capabilities.clone(),
                         total: apple_pay_init_result.total.into(),
