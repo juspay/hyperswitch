@@ -286,6 +286,7 @@ pub enum AdyenPaymentMethod<'a> {
     OnlineBankingFinland(Box<OnlineBankingFinlandData>),
     OnlineBankingPoland(Box<OnlineBankingPolandData>),
     OnlineBankingSlovakia(Box<OnlineBankingSlovakiaData>),
+    OnlineBankingFpx(Box<OnlineBankingFpxData>),
     PayBright(Box<PayBrightData>),
     Sofort(Box<BankRedirectionPMData>),
     Trustly(Box<BankRedirectionPMData>),
@@ -503,6 +504,14 @@ pub struct OnlineBankingSlovakiaData {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OnlineBankingFpxData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+    issuer: AdyenIssuerID,
+}
+
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum OnlineBankingSlovakiaBanks {
     Vub,
@@ -521,6 +530,38 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingSlovakiaBanks {
             api::enums::BankNames::SporoPay => Ok(Self::Sporo),
             api::enums::BankNames::TatraPay => Ok(Self::Tatra),
             api::enums::BankNames::Viamo => Ok(Self::Viamo),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: String::from("BankRedirect"),
+                connector: "Adyen",
+                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
+            })?,
+        }
+    }
+}
+
+
+impl TryFrom<&api_enums::BankNames> for AdyenIssuerID {
+    type Error = Error;
+    fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
+        match bank_name {
+            api::enums::BankNames::AffinBank => Ok(Self::FpxAbb),
+            api::enums::BankNames::AgroBank	=> Ok(Self::FpxAgrobank),
+            api::enums::BankNames::AllianceBank	 => Ok(Self::FpxAbmb),
+            api::enums::BankNames::AmBank => Ok(Self::FpxAmb),
+            api::enums::BankNames::BankIslam => Ok(Self::FpxBimb),
+            api::enums::BankNames::BankMuamalat	=> Ok(Self::FpxBmmb),
+            api::enums::BankNames::BankRakyat => Ok(Self::FpxBkrm),
+            api::enums::BankNames::BankSimpananNasional => Ok(Self::FpxBsn),
+            api::enums::BankNames::CimbBank => Ok(Self::FpxCimbclicks),
+            api::enums::BankNames::HongLeongBank => Ok(Self::FpxHlb),
+            api::enums::BankNames::HsbcBank	=> Ok(Self::FpxHsbc),
+            api::enums::BankNames::KuwaitFinanceHouse => Ok(Self::FpxKfh),
+            api::enums::BankNames::Maybank => Ok(Self::FpxMb2u),
+            api::enums::BankNames::OcbcBank	=> Ok(Self::FpxOcbc),
+            api::enums::BankNames::PublicBank => Ok(Self::FpxPbb),
+            api::enums::BankNames::RhbBank => Ok(Self::FpxRhb),
+            api::enums::BankNames::StandardCharteredBank => Ok(Self::FpxScb),
+            api::enums::BankNames::UobBank => Ok(Self::FpxUob),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
@@ -722,6 +763,8 @@ pub enum PaymentType {
     OnlineBankingPoland,
     #[serde(rename = "onlineBanking_SK")]
     OnlineBankingSlovakia,
+    #[serde(rename = "molpay_ebanking_fpx_MY")]
+    OnlineBankingFpx,
     PayBright,
     Paypal,
     Scheme,
@@ -738,6 +781,29 @@ pub enum PaymentType {
     SepaDirectDebit,
     #[serde(rename = "directdebit_GB")]
     BacsDirectDebit,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum AdyenIssuerID {
+    FpxAbb,
+    FpxAgrobank,
+    FpxAbmb,
+    FpxAmb,
+    FpxBimb,
+    FpxBmmb,
+    FpxBkrm,
+    FpxBsn,
+    FpxCimbclicks,
+    FpxHlb,
+    FpxHsbc,
+    FpxKfh,
+    FpxMb2u,
+    FpxOcbc,
+    FpxPbb,
+    FpxRhb,
+    FpxScb,
+    FpxUob
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -1318,6 +1384,12 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                 AdyenPaymentMethod::OnlineBankingSlovakia(Box::new(OnlineBankingSlovakiaData {
                     payment_type: PaymentType::OnlineBankingSlovakia,
                     issuer: OnlineBankingSlovakiaBanks::try_from(issuer)?,
+                })),
+            ),
+            api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => Ok(
+                AdyenPaymentMethod::OnlineBankingFpx(Box::new(OnlineBankingFpxData {
+                    payment_type: PaymentType::OnlineBankingFpx,
+                    issuer: AdyenIssuerID::try_from(issuer)?,
                 })),
             ),
             api_models::payments::BankRedirectData::Sofort { .. } => Ok(
