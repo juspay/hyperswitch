@@ -16,13 +16,11 @@ async fn invalidate_existing_cache_success() {
 
     let cache_key = "cacheKey".to_string();
     let cache_key_value = "val".to_string();
-    let redis_conn = state
+    let _ = state
         .store
         .get_redis_conn()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get redis connection")?;
-
-    let _ = redis_conn.set_key(&cache_key.clone(), cache_key_value.clone())
+        .unwrap()
+        .set_key(&cache_key.clone(), cache_key_value.clone())
         .await;
 
     let api_key = ("api-key", "test_admin");

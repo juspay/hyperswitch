@@ -203,8 +203,7 @@ impl Store {
 
     pub fn redis_conn(
         &self,
-    ) -> CustomResult<Arc<redis_interface::RedisConnectionPool>, redis_errors::RedisError>
-    {
+    ) -> CustomResult<Arc<redis_interface::RedisConnectionPool>, redis_errors::RedisError> {
         if self
             .redis_conn
             .is_redis_available

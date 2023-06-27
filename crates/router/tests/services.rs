@@ -1,5 +1,6 @@
-use router::{configs::settings::Settings, routes};
 use std::sync::atomic;
+
+use router::{configs::settings::Settings, routes};
 
 mod utils;
 

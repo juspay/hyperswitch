@@ -1173,7 +1173,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             .get_redis_conn()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
-        
+
         let key = format!(
             "pm_token_{}_{}_hyperswitch",
             token,
