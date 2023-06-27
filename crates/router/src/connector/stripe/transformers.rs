@@ -1034,8 +1034,7 @@ fn create_stripe_payment_method(
                 StripePaymentMethodType::ApplePay,
                 StripeBillingAddress::default(),
             )),
-
-            payments::WalletData::WeChatPayRedirect(_) => Ok((
+            payments::WalletData::WeChatPay(_) => Ok((
                 StripePaymentMethodData::Wallet(StripeWallet::WechatpayPayment(WechatpayPayment {
                     client: WechatClient::Web,
                     payment_method_types: StripePaymentMethodType::Wechatpay,
@@ -1469,6 +1468,12 @@ pub struct SepaAndBacsBankTransferInstructions {
     pub receiver: SepaAndBacsReceiver,
 }
 
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Debug, Serialize)]
+pub struct WechatPayNextInstructions {
+    pub image_data_url: Url,
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct SepaAndBacsReceiver {
     pub amount_received: i64,
@@ -1652,26 +1657,38 @@ pub fn get_connector_metadata(
     amount: i64,
 ) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
     let next_action_response = next_action
-            .and_then(|next_action_response| match next_action_response {
-                    StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
-                        Some(SepaAndBacsBankTransferInstructions {
-                            sepa_bank_instructions: response.financial_addresses[0].iban.to_owned(),
-                            bacs_bank_instructions: response.financial_addresses[0]
-                                .sort_code
-                                .to_owned(),
-                            receiver: SepaAndBacsReceiver {
-                                amount_received: amount - response.amount_remaining,
-                                amount_remaining: response.amount_remaining,
-                            },
-                        })
-                    }
-                    _ => None,
-                }).map(|response| {
-                     common_utils::ext_traits::Encode::<SepaAndBacsBankTransferInstructions>::encode_to_value(
-                &response,
-            )
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
-                }).transpose()?;
+        .and_then(|next_action_response| match next_action_response {
+            StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
+                let bank_transfer_instructions = SepaAndBacsBankTransferInstructions {
+                    sepa_bank_instructions: response.financial_addresses[0].iban.to_owned(),
+                    bacs_bank_instructions: response.financial_addresses[0].sort_code.to_owned(),
+                    receiver: SepaAndBacsReceiver {
+                        amount_received: amount - response.amount_remaining,
+                        amount_remaining: response.amount_remaining,
+                    },
+                };
+
+                Some(common_utils::ext_traits::Encode::<
+                    SepaAndBacsBankTransferInstructions,
+                >::encode_to_value(
+                    &bank_transfer_instructions
+                ))
+            }
+            StripeNextActionResponse::WechatPayDisplayQrCode(response) => {
+                let wechat_pay_instructions = WechatPayNextInstructions {
+                    image_data_url: response.image_data_url.to_owned(),
+                };
+
+                Some(
+                    common_utils::ext_traits::Encode::<WechatPayNextInstructions>::encode_to_value(
+                        &wechat_pay_instructions,
+                    ),
+                )
+            }
+            _ => None,
+        })
+        .transpose()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
     Ok(next_action_response)
 }
 
@@ -1801,7 +1818,7 @@ impl StripeNextActionResponse {
             Self::RedirectToUrl(redirect_to_url) | Self::AlipayHandleRedirect(redirect_to_url) => {
                 Some(redirect_to_url.url.to_owned())
             }
-            Self::WechatPayDisplayQrCode(redirect_to_url) => Some(redirect_to_url.data.to_owned()),
+            Self::WechatPayDisplayQrCode(_) => None,
             Self::VerifyWithMicrodeposits(verify_with_microdeposits) => {
                 Some(verify_with_microdeposits.hosted_verification_url.to_owned())
             }
@@ -1838,7 +1855,11 @@ pub struct StripeRedirectToUrlResponse {
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeRedirectToQr {
+    // This data contains url, it should be converted to QR code.
+    // Note: The url in this data is not redirection url
     data: Url,
+    // This is the image source, this image_data_url can directly be used by sdk to show the QR code
+    image_data_url: Url,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]

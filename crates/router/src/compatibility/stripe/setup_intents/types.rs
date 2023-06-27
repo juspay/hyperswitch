@@ -328,6 +328,9 @@ pub enum StripeNextAction {
     ThirdPartySdkSessionToken {
         session_token: Option<payments::SessionToken>,
     },
+    QrCodeInformation {
+        image_data_url: url::Url,
+    },
 }
 
 pub(crate) fn into_stripe_next_action(
@@ -350,6 +353,9 @@ pub(crate) fn into_stripe_next_action(
         },
         payments::NextActionData::ThirdPartySdkSessionToken { session_token } => {
             StripeNextAction::ThirdPartySdkSessionToken { session_token }
+        }
+        payments::NextActionData::QrCodeInformation { image_data_url } => {
+            StripeNextAction::QrCodeInformation { image_data_url }
         }
     })
 }
