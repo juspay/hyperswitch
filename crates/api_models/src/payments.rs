@@ -1392,6 +1392,10 @@ pub struct PaymentsResponse {
     /// Any user defined fields can be passed here.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub udf: Option<pii::SecretSerdeValue>,
+
+    /// A unique identifier for a payment provided by the connector
+    #[schema(value_type = Option<String>, example = "993672945374576J")]
+    pub connector_transaction_id: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
