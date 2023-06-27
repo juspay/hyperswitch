@@ -36,7 +36,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CryptopayPaymentsRequest {
                 "payment method".to_string(),
             )),
         }?;
-        println!("##request:src-{:?}", cryptopay_request);
         Ok(cryptopay_request)
     }
 }
