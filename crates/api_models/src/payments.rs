@@ -519,8 +519,13 @@ pub enum PayLaterData {
         #[schema(value_type = String)]
         billing_name: Secret<String>,
     },
+    /// For PayBright Redirect as PayLater Option
     PayBrightRedirect {},
+    /// For WalleyRedirect as PayLater Option
     WalleyRedirect {},
+    /// For Alma Redirection as PayLater Option
+    AlmaRedirect {},
+
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]

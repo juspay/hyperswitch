@@ -260,6 +260,7 @@ pub enum AdyenPaymentMethod<'a> {
     AdyenKlarna(Box<AdyenPayLaterData>),
     AdyenPaypal(Box<AdyenPaypal>),
     AfterPay(Box<AdyenPayLaterData>),
+    AlmaPayLater(Box<AdyenPayLaterData>),
     AliPay(Box<AliPayData>),
     ApplePay(Box<AdyenApplePay>),
     BancontactCard(Box<BancontactCardData>),
@@ -672,6 +673,7 @@ pub enum PaymentType {
     Affirm,
     Afterpaytouch,
     Alipay,
+    Alma,
     Applepay,
     Blik,
     ClearPay,
@@ -1182,6 +1184,11 @@ impl<'a> TryFrom<(&api::PayLaterData, Option<api_enums::CountryAlpha2>)>
             api_models::payments::PayLaterData::WalleyRedirect { .. } => {
                 Ok(AdyenPaymentMethod::Walley(Box::new(WalleyData {
                     payment_type: PaymentType::Walley,
+                })))
+            }
+            api_models::payments::PayLaterData::AlmaRedirect { .. } => {
+                Ok(AdyenPaymentMethod::AlmaPayLater(Box::new(AdyenPayLaterData { 
+                    payment_type: PaymentType::Alma,
                 })))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
