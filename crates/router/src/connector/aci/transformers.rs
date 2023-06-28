@@ -79,10 +79,12 @@ impl TryFrom<&api_models::payments::WalletData> for PaymentDetails {
     type Error = Error;
     fn try_from(wallet_data: &api_models::payments::WalletData) -> Result<Self, Self::Error> {
         let payment_data = match wallet_data {
-            api_models::payments::WalletData::MbWayRedirect(data) => Self::Wallet(Box::new(WalletPMData {
-                payment_brand: PaymentBrand::Mbway,
-                account_id: Some(data.telephone_number.clone()),
-            })),
+            api_models::payments::WalletData::MbWayRedirect(data) => {
+                Self::Wallet(Box::new(WalletPMData {
+                    payment_brand: PaymentBrand::Mbway,
+                    account_id: Some(data.telephone_number.clone()),
+                }))
+            }
             api_models::payments::WalletData::AliPayRedirect { .. } => {
                 Self::Wallet(Box::new(WalletPMData {
                     payment_brand: PaymentBrand::AliPay,
@@ -372,14 +374,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
             api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Reward(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: format!("{:?}", item.payment_method),
-                    connector: "Aci",
-                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                        .to_string(),
-                })?
-            }
+            | api::PaymentMethodData::Reward(_) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{:?}", item.payment_method),
+                connector: "Aci",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })?,
         }
     }
 }
