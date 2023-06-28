@@ -477,7 +477,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for MollieRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = Amount {
             currency: item.request.currency,
-            value: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
+            value: utils::to_currency_base_unit(item.request.refund_amount, item.request.currency)?,
         };
         Ok(Self {
             amount,

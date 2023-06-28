@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize)]
 pub struct GlobalpayPaymentsRequest {
     /// A meaningful label for the merchant account set by Global Payments.
-    pub account_name: String,
+    pub account_name: Secret<String>,
     /// The amount to transfer between Payer and Merchant for a SALE or a REFUND. It is always
     /// represented in the lowest denomiation of the related currency.
     pub amount: Option<String>,
@@ -79,7 +79,7 @@ pub struct GlobalpayPaymentsRequest {
 
 #[derive(Debug, Serialize)]
 pub struct GlobalpayRefreshTokenRequest {
-    pub app_id: String,
+    pub app_id: Secret<String>,
     pub nonce: String,
     pub secret: String,
     pub grant_type: String,

@@ -23,8 +23,15 @@ pub async fn receive_incoming_webhook<W: api_types::OutgoingWebhookType>(
         state.get_ref(),
         &req,
         body,
-        |state, merchant_account, body| {
-            webhooks::webhooks_core::<W>(state, &req, merchant_account, &connector_name, body)
+        |state, auth, body| {
+            webhooks::webhooks_core::<W>(
+                state,
+                &req,
+                auth.merchant_account,
+                auth.key_store,
+                &connector_name,
+                body,
+            )
         },
         &auth::MerchantIdAuth(merchant_id),
     )

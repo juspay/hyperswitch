@@ -5,9 +5,9 @@ use tokio::sync::oneshot;
 
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
-use super::health::*;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
+use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
 #[cfg(feature = "oltp")]
@@ -187,7 +187,8 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/redirect/response/{connector}")
-                        .route(web::get().to(payments_redirect_response)),
+                        .route(web::get().to(payments_redirect_response))
+                        .route(web::post().to(payments_redirect_response))
                 )
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
@@ -409,8 +410,9 @@ impl Webhooks {
                     .route(
                         web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     )
+                    .route(web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>))
                     .route(
-                        web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                        web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     ),
             )
     }
@@ -423,7 +425,6 @@ impl Configs {
     pub fn server(config: AppState) -> Scope {
         web::scope("/configs")
             .app_data(web::Data::new(config))
-            .service(web::resource("/").route(web::post().to(config_key_create)))
             .service(
                 web::resource("/{key}")
                     .route(web::get().to(config_key_retrieve))
@@ -464,10 +465,6 @@ impl Disputes {
                     .route(web::post().to(submit_dispute_evidence))
                     .route(web::put().to(attach_dispute_evidence)),
             )
-            .service(
-                web::resource("/evidence/{dispute_id}")
-                    .route(web::get().to(retrieve_dispute_evidence)),
-            )
             .service(web::resource("/{dispute_id}").route(web::get().to(retrieve_dispute)))
     }
 }
@@ -495,5 +492,15 @@ impl Files {
                     .route(web::delete().to(files_delete))
                     .route(web::get().to(files_retrieve)),
             )
+    }
+}
+
+pub struct Cache;
+
+impl Cache {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/cache")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/invalidate/{key}").route(web::post().to(invalidate)))
     }
 }
