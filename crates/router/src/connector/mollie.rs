@@ -137,15 +137,15 @@ impl
     fn get_request_body(
         &self,
         req: &types::TokenizationRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = mollie::MollieCardTokenRequest::try_from(req)?;
-        let mollie_req = utils::Encode::<mollie::MollieCardTokenRequest>::encode_to_string_of_json(
+        let mollie_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
+            utils::Encode::<mollie::MollieCardTokenRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(mollie_req))
     }
-
     fn build_request(
         &self,
         req: &types::TokenizationRouterData,

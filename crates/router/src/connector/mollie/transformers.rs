@@ -1,7 +1,6 @@
 use api_models::payments;
 use cards::CardNumber;
-use error_stack::{IntoReport, ResultExt};
-// use error_stack::IntoReport;
+use error_stack::IntoReport;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use storage_models::enums;
@@ -9,12 +8,12 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+        self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
+        RouterData,
     },
     core::errors,
     services, types,
     types::storage::enums as storage_enums,
-    utils::OptionExt,
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -205,7 +204,7 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
                 let browser_info = get_browser_info(item)?;
                 let locale = browser_info
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "locale",
+                        field_name: "browser_info.language",
                     })?
                     .language;
                 let testmode = true;
@@ -304,13 +303,7 @@ fn get_browser_info(
             .as_ref()
             .map(|info| {
                 Ok(MollieBrowserInfo {
-                    language: info
-                        .language
-                        .clone()
-                        .get_required_value("language")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "language",
-                        })?,
+                    language: info.get_language()?,
                 })
             })
             .transpose()
