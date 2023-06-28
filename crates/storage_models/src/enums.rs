@@ -685,6 +685,7 @@ pub enum PaymentMethodType {
     ClassicReward,
     Credit,
     CryptoCurrency,
+    Dana,
     Debit,
     Eps,
     Evoucher,

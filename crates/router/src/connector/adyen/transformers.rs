@@ -266,6 +266,7 @@ pub enum AdyenPaymentMethod<'a> {
     BancontactCard(Box<BancontactCardData>),
     Blik(Box<BlikRedirectionData>),
     ClearPay(Box<AdyenPayLaterData>),
+    Dana(Box<DanaWalletData>),
     Eps(Box<BankRedirectionWithIssuer<'a>>),
     Giropay(Box<BankRedirectionPMData>),
     Gpay(Box<AdyenGPay>),
@@ -625,6 +626,12 @@ pub struct AdyenApplePay {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DanaWalletData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TwintWalletData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
@@ -677,6 +684,7 @@ pub enum PaymentType {
     Applepay,
     Blik,
     ClearPay,
+    Dana,
     Eps,
     Giropay,
     Googlepay,
@@ -1129,6 +1137,12 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                     payment_type: PaymentType::Vipps,
                 };
                 Ok(AdyenPaymentMethod::Vipps(Box::new(data)))
+            }
+            api_models::payments::WalletData::DanaRedirect { .. } => {
+                let data = DanaWalletData {
+                    payment_type: PaymentType::Dana,
+                };
+                Ok(AdyenPaymentMethod::Dana(Box::new(data)))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }

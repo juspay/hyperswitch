@@ -839,6 +839,8 @@ pub enum WalletData {
     ApplePayRedirect(Box<ApplePayRedirectData>),
     /// Wallet data for apple pay third party sdk flow
     ApplePayThirdPartySdk(Box<ApplePayThirdPartySdkData>),
+    /// Wallet data for DANA redirect flow
+    DanaRedirect {},
     /// The wallet data for Google pay
     GooglePay(GooglePayWalletData),
     /// Wallet data for google pay redirect flow
