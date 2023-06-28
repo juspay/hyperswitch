@@ -142,6 +142,19 @@ where
 }
 */
 
+/// Strategy for Encryption
+#[derive(Debug)]
+pub struct EncryptionStratergy;
+
+impl<T> Strategy<T> for EncryptionStratergy
+where
+    T: AsRef<[u8]>,
+{
+    fn fmt(value: &T, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(fmt, "*** Encrypted {} of bytes ***", value.as_ref().len())
+    }
+}
+
 /// Client secret
 #[derive(Debug)]
 pub struct ClientSecret;

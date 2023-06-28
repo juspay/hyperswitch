@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use api_models::payments::{self, OrderDetailsWithAmount};
+use api_models::{
+    enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
+    payments::{self, OrderDetailsWithAmount},
+};
 use base64::Engine;
 use common_utils::{
     date_time,
@@ -17,7 +20,7 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     pii::PeekInterface,
-    types::{self, api, PaymentsCancelData, ResponseId},
+    types::{self, api, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
     utils::{self, OptionExt, ValueExt},
 };
 
@@ -612,9 +615,11 @@ pub trait AddressDetailsData {
     fn get_line1(&self) -> Result<&Secret<String>, Error>;
     fn get_city(&self) -> Result<&String, Error>;
     fn get_line2(&self) -> Result<&Secret<String>, Error>;
+    fn get_state(&self) -> Result<&Secret<String>, Error>;
     fn get_zip(&self) -> Result<&Secret<String>, Error>;
     fn get_country(&self) -> Result<&api_models::enums::CountryAlpha2, Error>;
     fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
+    fn to_state_code(&self) -> Result<Secret<String>, Error>;
 }
 
 impl AddressDetailsData for api::AddressDetails {
@@ -648,6 +653,12 @@ impl AddressDetailsData for api::AddressDetails {
             .ok_or_else(missing_field_err("address.line2"))
     }
 
+    fn get_state(&self) -> Result<&Secret<String>, Error> {
+        self.state
+            .as_ref()
+            .ok_or_else(missing_field_err("address.state"))
+    }
+
     fn get_zip(&self) -> Result<&Secret<String>, Error> {
         self.zip
             .as_ref()
@@ -666,6 +677,19 @@ impl AddressDetailsData for api::AddressDetails {
             self.get_line1()?.peek(),
             self.get_line2()?.peek()
         )))
+    }
+    fn to_state_code(&self) -> Result<Secret<String>, Error> {
+        let country = self.get_country()?;
+        let state = self.get_state()?;
+        match country {
+            api_models::enums::CountryAlpha2::US => Ok(Secret::new(
+                UsStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            api_models::enums::CountryAlpha2::CA => Ok(Secret::new(
+                CanadaStatesAbbreviation::foreign_try_from(state.peek().to_string())?.to_string(),
+            )),
+            _ => Ok(state.clone()),
+        }
     }
 }
 
@@ -861,4 +885,104 @@ pub fn collect_and_sort_values_by_removing_signature(
 #[inline]
 pub fn get_webhook_merchant_secret_key(connector: &str, merchant_id: &str) -> String {
     format!("whsec_verification_{connector}_{merchant_id}")
+}
+
+impl ForeignTryFrom<String> for UsStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let binding = value.as_str().to_lowercase();
+        let state = binding.as_str();
+        match state {
+            "alabama" => Ok(Self::AL),
+            "alaska" => Ok(Self::AK),
+            "american samoa" => Ok(Self::AS),
+            "arizona" => Ok(Self::AZ),
+            "arkansas" => Ok(Self::AR),
+            "california" => Ok(Self::CA),
+            "colorado" => Ok(Self::CO),
+            "connecticut" => Ok(Self::CT),
+            "delaware" => Ok(Self::DE),
+            "district of columbia" | "columbia" => Ok(Self::DC),
+            "federated states of micronesia" | "micronesia" => Ok(Self::FM),
+            "florida" => Ok(Self::FL),
+            "georgia" => Ok(Self::GA),
+            "guam" => Ok(Self::GU),
+            "hawaii" => Ok(Self::HI),
+            "idaho" => Ok(Self::ID),
+            "illinois" => Ok(Self::IL),
+            "indiana" => Ok(Self::IN),
+            "iowa" => Ok(Self::IA),
+            "kansas" => Ok(Self::KS),
+            "kentucky" => Ok(Self::KY),
+            "louisiana" => Ok(Self::LA),
+            "maine" => Ok(Self::ME),
+            "marshall islands" => Ok(Self::MH),
+            "maryland" => Ok(Self::MD),
+            "massachusetts" => Ok(Self::MA),
+            "michigan" => Ok(Self::MI),
+            "minnesota" => Ok(Self::MN),
+            "mississippi" => Ok(Self::MS),
+            "missouri" => Ok(Self::MO),
+            "montana" => Ok(Self::MT),
+            "nebraska" => Ok(Self::NE),
+            "nevada" => Ok(Self::NV),
+            "new hampshire" => Ok(Self::NH),
+            "new jersey" => Ok(Self::NJ),
+            "new mexico" => Ok(Self::NM),
+            "new york" => Ok(Self::NY),
+            "north carolina" => Ok(Self::NC),
+            "north dakota" => Ok(Self::ND),
+            "northern mariana islands" => Ok(Self::MP),
+            "ohio" => Ok(Self::OH),
+            "oklahoma" => Ok(Self::OK),
+            "oregon" => Ok(Self::OR),
+            "palau" => Ok(Self::PW),
+            "pennsylvania" => Ok(Self::PA),
+            "puerto rico" => Ok(Self::PR),
+            "rhode island" => Ok(Self::RI),
+            "south carolina" => Ok(Self::SC),
+            "south dakota" => Ok(Self::SD),
+            "tennessee" => Ok(Self::TN),
+            "texas" => Ok(Self::TX),
+            "utah" => Ok(Self::UT),
+            "vermont" => Ok(Self::VT),
+            "virgin islands" => Ok(Self::VI),
+            "virginia" => Ok(Self::VA),
+            "washington" => Ok(Self::WA),
+            "west virginia" => Ok(Self::WV),
+            "wisconsin" => Ok(Self::WI),
+            "wyoming" => Ok(Self::WY),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "address.state",
+            }
+            .into()),
+        }
+    }
+}
+
+impl ForeignTryFrom<String> for CanadaStatesAbbreviation {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
+        let binding = value.as_str().to_lowercase();
+        let state = binding.as_str();
+        match state {
+            "alberta" => Ok(Self::AB),
+            "british columbia" => Ok(Self::BC),
+            "manitoba" => Ok(Self::MB),
+            "new brunswick" => Ok(Self::NB),
+            "newfoundland and labrador" | "newfoundland & labrador" => Ok(Self::NL),
+            "northwest territories" => Ok(Self::NT),
+            "nova scotia" => Ok(Self::NS),
+            "nunavut" => Ok(Self::NU),
+            "ontario" => Ok(Self::ON),
+            "prince edward island" => Ok(Self::PE),
+            "quebec" => Ok(Self::QC),
+            "saskatchewan" => Ok(Self::SK),
+            "yukon" => Ok(Self::YT),
+            _ => Err(errors::ConnectorError::InvalidDataFormat {
+                field_name: "address.state",
+            }
+            .into()),
+        }
+    }
 }

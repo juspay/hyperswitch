@@ -421,10 +421,13 @@ pub enum PaymentMethodType {
     BancontactCard,
     Becs,
     Blik,
+    #[serde(rename = "classic")]
+    ClassicReward,
     Credit,
     CryptoCurrency,
     Debit,
     Eps,
+    Evoucher,
     Giropay,
     GooglePay,
     Ideal,
@@ -439,6 +442,7 @@ pub enum PaymentMethodType {
     PayBright,
     Paypal,
     Przelewy24,
+    SamsungPay,
     Sepa,
     Sofort,
     Swish,
@@ -473,6 +477,7 @@ pub enum PaymentMethod {
     BankTransfer,
     Crypto,
     BankDebit,
+    Reward,
 }
 
 #[derive(
@@ -591,21 +596,22 @@ pub enum Connector {
     Bitpay,
     Bluesnap,
     Braintree,
+    Cashtocode,
     Checkout,
     Coinbase,
     Cybersource,
     Iatapay,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector1")]
-    #[strum(serialize = "dummyconnector1")]
+    #[serde(rename = "phonypay")]
+    #[strum(serialize = "phonypay")]
     DummyConnector1,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector2")]
-    #[strum(serialize = "dummyconnector2")]
+    #[serde(rename = "fauxpay")]
+    #[strum(serialize = "fauxpay")]
     DummyConnector2,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector3")]
-    #[strum(serialize = "dummyconnector3")]
+    #[serde(rename = "pretendpay")]
+    #[strum(serialize = "pretendpay")]
     DummyConnector3,
     Opennode,
     Bambora,
@@ -669,16 +675,16 @@ impl Connector {
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector1")]
-    #[strum(serialize = "dummyconnector1")]
+    #[serde(rename = "phonypay")]
+    #[strum(serialize = "phonypay")]
     DummyConnector1,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector2")]
-    #[strum(serialize = "dummyconnector2")]
+    #[serde(rename = "fauxpay")]
+    #[strum(serialize = "fauxpay")]
     DummyConnector2,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector3")]
-    #[strum(serialize = "dummyconnector3")]
+    #[serde(rename = "pretendpay")]
+    #[strum(serialize = "pretendpay")]
     DummyConnector3,
     Aci,
     Adyen,
@@ -688,6 +694,7 @@ pub enum RoutableConnectors {
     Bambora,
     Bluesnap,
     Braintree,
+    Cashtocode,
     Checkout,
     Coinbase,
     Cybersource,

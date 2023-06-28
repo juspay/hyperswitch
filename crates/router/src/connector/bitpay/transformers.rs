@@ -1,3 +1,4 @@
+use masking::Secret;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -27,7 +28,7 @@ pub struct BitpayPaymentsRequest {
     #[serde(rename = "notificationURL")]
     notification_url: String,
     transaction_speed: TransactionSpeed,
-    token: String,
+    token: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BitpayPaymentsRequest {
@@ -249,7 +250,7 @@ fn get_crypto_specific_payment_data(
         redirect_url,
         notification_url,
         transaction_speed,
-        token,
+        token: Secret::new(token),
     })
 }
 

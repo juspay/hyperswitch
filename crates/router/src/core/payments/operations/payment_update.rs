@@ -36,8 +36,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsRequest,
-        mandate_type: Option<api::MandateTxnType>,
+        mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -75,7 +76,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             "update",
         )?;
 
-        let (token, payment_method_type, setup_mandate, mandate_connector) =
+        let (token, payment_method, payment_method_type, setup_mandate, mandate_connector) =
             helpers::get_token_pm_type_mandate_details(
                 state,
                 request,
@@ -108,7 +109,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             None => payment_attempt.currency.get_required_value("currency")?,
         };
 
-        payment_attempt.payment_method = payment_method_type.or(payment_attempt.payment_method);
+        payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
+        payment_attempt.payment_method_type =
+            payment_method_type.or(payment_attempt.payment_method_type);
         let customer_details = helpers::get_customer_details_from_request(request);
 
         let amount = request
@@ -136,6 +139,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .customer_id
                 .as_ref()
                 .or(customer_details.customer_id.as_ref()),
+            key_store,
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
@@ -147,6 +151,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .customer_id
                 .as_ref()
                 .or(customer_details.customer_id.as_ref()),
+            key_store,
         )
         .await?;
 
@@ -316,7 +321,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
-        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRequest>,
@@ -329,7 +334,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
             db,
             payment_data,
             request,
-            merchant_id,
+            &key_store.merchant_id,
+            key_store,
         )
         .await
     }
@@ -362,6 +368,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         state: &AppState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::payment_intent::PaymentIntent,
+        _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
     }
@@ -377,6 +384,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
