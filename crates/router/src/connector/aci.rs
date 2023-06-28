@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use error_stack::{IntoReport, ResultExt};
 use transformers as aci;
 
+use super::utils::PaymentsAuthorizeRequestData;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -19,8 +20,6 @@ use crate::{
     },
     utils::{self, BytesExt},
 };
-
-use super::utils::PaymentsAuthorizeRequestData;
 
 #[derive(Debug, Clone)]
 pub struct Aci;
@@ -251,13 +250,11 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.request.connector_mandate_id() {
-            Some(mandate_id) => {
-                Ok(format!(
-                    "{}v1/registrations/{}/payments",
-                    self.base_url(connectors),
-                    mandate_id
-                ))
-            }
+            Some(mandate_id) => Ok(format!(
+                "{}v1/registrations/{}/payments",
+                self.base_url(connectors),
+                mandate_id
+            )),
             _ => Ok(format!("{}{}", self.base_url(connectors), "v1/payments")),
         }
     }
