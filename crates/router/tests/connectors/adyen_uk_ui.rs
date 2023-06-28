@@ -128,9 +128,15 @@ async fn should_make_adyen_dana_payment(c: WebDriver) -> Result<(), WebDriverErr
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/175"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
-            Event::Trigger(Trigger::SendKeys(By::XPath("/html/body/div[1]/div[2]/div[1]/div/input"),"12345678901")), // Mobile Number can be any random 11 digit number
+            Event::Trigger(Trigger::SendKeys(
+                By::XPath("/html/body/div[1]/div[2]/div[1]/div/input"),
+                "12345678901",
+            )), // Mobile Number can be any random 11 digit number
             Event::Trigger(Trigger::Click(By::XPath("/html/body/div[1]/div[2]/button"))),
-            Event::Trigger(Trigger::SendKeys(By::XPath("/html/body/div[1]/div[2]/div[1]/div[2]/div/input"),"111111")), // PIN can be any random 11 digit number
+            Event::Trigger(Trigger::SendKeys(
+                By::XPath("/html/body/div[1]/div[2]/div[1]/div[2]/div/input"),
+                "111111",
+            )), // PIN can be any random 11 digit number
             Event::Trigger(Trigger::Click(By::ClassName("btn-next"))),
             Event::Trigger(Trigger::Click(By::ClassName("btn-next"))),
             Event::Assert(Assert::IsPresent("Google")),

@@ -1217,11 +1217,11 @@ impl<'a> TryFrom<(&api::PayLaterData, Option<api_enums::CountryAlpha2>)>
                     payment_type: PaymentType::Walley,
                 })))
             }
-            api_models::payments::PayLaterData::AlmaRedirect { .. } => {
-                Ok(AdyenPaymentMethod::AlmaPayLater(Box::new(AdyenPayLaterData { 
+            api_models::payments::PayLaterData::AlmaRedirect { .. } => Ok(
+                AdyenPaymentMethod::AlmaPayLater(Box::new(AdyenPayLaterData {
                     payment_type: PaymentType::Alma,
-                })))
-            }
+                })),
+            ),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
