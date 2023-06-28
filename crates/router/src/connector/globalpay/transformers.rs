@@ -1,5 +1,6 @@
 use common_utils::crypto::{self, GenerateDigest};
 use error_stack::{IntoReport, ResultExt};
+use masking::Secret;
 use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -12,7 +13,7 @@ use super::{
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData, RouterData, WalletData},
+    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData, WalletData},
     consts,
     core::errors,
     services::{self, RedirectForm},
@@ -23,7 +24,7 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GlobalPayMeta {
-    account_name: String,
+    account_name: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
@@ -104,7 +105,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for requests::GlobalpayCancelRequ
 }
 
 pub struct GlobalpayAuthType {
-    pub app_id: String,
+    pub app_id: Secret<String>,
     pub key: String,
 }
 
@@ -113,7 +114,7 @@ impl TryFrom<&types::ConnectorAuthType> for GlobalpayAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                app_id: key1.to_string(),
+                app_id: Secret::new(key1.to_owned()),
                 key: api_key.to_string(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
@@ -340,7 +341,7 @@ fn get_payment_method_data(
         api::PaymentMethodData::Card(ccard) => Ok(PaymentMethodData::Card(requests::Card {
             number: ccard.card_number.clone(),
             expiry_month: ccard.card_exp_month.clone(),
-            expiry_year: ccard.card_exp_year.clone(),
+            expiry_year: ccard.get_card_expiry_year_2_digit(),
             cvv: ccard.card_cvc.clone(),
             account_type: None,
             authcode: None,
