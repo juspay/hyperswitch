@@ -16,7 +16,7 @@ use crate::{
             customers,
             mandates::{self, MandateResponseExt},
         },
-        storage,
+        domain, storage,
         transformers::{ForeignInto, ForeignTryFrom},
     },
     utils::OptionExt,
@@ -25,7 +25,7 @@ use crate::{
 #[instrument(skip(state))]
 pub async fn get_mandate(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: mandates::MandateId,
 ) -> RouterResponse<mandates::MandateResponse> {
     let mandate = state
@@ -41,7 +41,7 @@ pub async fn get_mandate(
 #[instrument(skip(db))]
 pub async fn revoke_mandate(
     db: &dyn StorageInterface,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: mandates::MandateId,
 ) -> RouterResponse<mandates::MandateRevokedResponse> {
     let mandate = db
@@ -97,7 +97,7 @@ pub async fn update_connector_mandate_id(
 #[instrument(skip(state))]
 pub async fn get_customer_mandates(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: customers::CustomerId,
 ) -> RouterResponse<Vec<mandates::MandateResponse>> {
     let mandates = state
@@ -129,7 +129,7 @@ pub async fn get_customer_mandates(
 pub async fn mandate_procedure<F, FData>(
     state: &AppState,
     mut resp: types::RouterData<F, FData, types::PaymentsResponseData>,
-    maybe_customer: &Option<storage::Customer>,
+    maybe_customer: &Option<domain::Customer>,
     pm_id: Option<String>,
 ) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
@@ -144,7 +144,7 @@ where
                     .store
                     .find_mandate_by_merchant_id_mandate_id(resp.merchant_id.as_ref(), mandate_id)
                     .await
-                    .change_context(errors::ApiErrorResponse::MandateNotFound)?;
+                    .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
                 let mandate = match mandate.mandate_type {
                     storage_enums::MandateType::SingleUse => state
                         .store
@@ -197,7 +197,9 @@ where
                     let mandate_ids = mandate_reference
                         .map(|md| {
                             Encode::<types::MandateReference>::encode_to_value(&md)
-                                .change_context(errors::ApiErrorResponse::MandateNotFound)
+                                .change_context(
+                                    errors::ApiErrorResponse::MandateSerializationFailed,
+                                )
                                 .map(masking::Secret::new)
                         })
                         .transpose()?;
@@ -224,7 +226,7 @@ where
                                     .parse_value::<api_models::payments::ConnectorMandateReferenceId>(
                                         "ConnectorMandateId",
                                     )
-                                    .change_context(errors::ApiErrorResponse::MandateNotFound)
+                                    .change_context(errors::ApiErrorResponse::MandateDeserializationFailed)
                             })
                             .transpose()?
                             .map_or(
@@ -261,7 +263,7 @@ where
 #[instrument(skip(state))]
 pub async fn retrieve_mandates_list(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     constraints: api_models::mandates::MandateListConstraints,
 ) -> RouterResponse<Vec<api_models::mandates::MandateResponse>> {
     let mandates = state

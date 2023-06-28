@@ -15,6 +15,7 @@ use self::{
         GlobalpayRefreshTokenResponse,
     },
 };
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     connector::utils as conn_utils,
@@ -23,13 +24,17 @@ use crate::{
         payments,
     },
     db, headers,
-    services::{self, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt, PaymentsCompleteAuthorize},
         ErrorResponse,
     },
-    utils::{self, crypto, BytesExt, OptionExt},
+    utils::{self, crypto, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -43,7 +48,7 @@ where
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let access_token = req
             .access_token
             .clone()
@@ -52,12 +57,12 @@ where
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                self.get_content_type().to_string(),
+                self.get_content_type().to_string().into(),
             ),
-            ("X-GP-Version".to_string(), "2021-03-22".to_string()),
+            ("X-GP-Version".to_string(), "2021-03-22".to_string().into()),
             (
                 headers::AUTHORIZATION.to_string(),
-                format!("Bearer {}", access_token.token),
+                format!("Bearer {}", access_token.token).into_masked(),
             ),
         ])
     }
@@ -79,7 +84,7 @@ impl ConnectorCommon for Globalpay {
     fn get_auth_header(
         &self,
         _auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
 
@@ -114,7 +119,7 @@ impl
         &self,
         req: &types::PaymentsCompleteAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -140,8 +145,10 @@ impl
     fn get_request_body(
         &self,
         _req: &types::PaymentsCompleteAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Ok(Some("{}".to_string()))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let globalpay_req = types::RequestBody::log_and_get_request_body("{}".to_string(), Ok)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(globalpay_req))
     }
 
     fn build_request(
@@ -201,13 +208,15 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         &self,
         _req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::RefreshTokenType::get_content_type(self).to_string(),
+                types::RefreshTokenType::get_content_type(self)
+                    .to_string()
+                    .into(),
             ),
-            ("X-GP-Version".to_string(), "2021-03-22".to_string()),
+            ("X-GP-Version".to_string(), "2021-03-22".to_string().into()),
         ])
     }
 
@@ -242,11 +251,13 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn get_request_body(
         &self,
         req: &types::RefreshTokenRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = GlobalpayRefreshTokenRequest::try_from(req)?;
-        let globalpay_req =
-            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let globalpay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(globalpay_req))
     }
 
@@ -316,7 +327,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -355,11 +366,13 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = requests::GlobalpayCancelRequest::try_from(req)?;
-        let globalpay_req =
-            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let globalpay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(globalpay_req))
     }
 
@@ -397,7 +410,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -468,7 +481,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -491,11 +504,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = requests::GlobalpayCaptureRequest::try_from(req)?;
-        let globalpay_req =
-            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let globalpay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(globalpay_req))
     }
 
@@ -559,7 +574,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -578,11 +593,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = GlobalpayPaymentsRequest::try_from(req)?;
-        let globalpay_req =
-            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let globalpay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(globalpay_req))
     }
 
@@ -643,7 +660,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -666,13 +683,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = requests::GlobalpayRefundRequest::try_from(req)?;
-        let globalpay_req =
-            utils::Encode::<requests::GlobalpayRefundRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let globalpay_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<requests::GlobalpayRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(globalpay_req))
     }
 
@@ -725,7 +742,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -738,13 +755,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let refund_id = req
-            .response
-            .clone()
-            .ok()
-            .get_required_value("response")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
-            .connector_refund_id;
+        let refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
             "{}transactions/{}",
             self.base_url(connectors),
@@ -808,12 +819,17 @@ impl api::IncomingWebhook for Globalpay {
         db: &dyn db::StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .find_config_by_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-        Ok(secret.config.into_bytes())
+        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
+        let secret = match db.find_config_by_key(&key).await {
+            Ok(config) => Some(config),
+            Err(e) => {
+                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
+                None
+            }
+        };
+        Ok(secret
+            .map(|conf| conf.config.into_bytes())
+            .unwrap_or_default())
     }
 
     fn get_webhook_source_verification_signature(
@@ -869,6 +885,9 @@ impl api::IncomingWebhook for Globalpay {
             response::GlobalpayWebhookStatus::Captured => {
                 api::IncomingWebhookEvent::PaymentIntentSuccess
             }
+            response::GlobalpayWebhookStatus::Unknown => {
+                api::IncomingWebhookEvent::EventNotSupported
+            }
         })
     }
 
@@ -900,9 +919,11 @@ impl services::ConnectorRedirectResponse for Globalpay {
             payments::CallConnectorAction::Trigger,
             |status| match status {
                 response::GlobalpayPaymentStatus::Captured => {
-                    payments::CallConnectorAction::StatusUpdate(
-                        storage_models::enums::AttemptStatus::from(status),
-                    )
+                    payments::CallConnectorAction::StatusUpdate {
+                        status: storage_models::enums::AttemptStatus::from(status),
+                        error_code: None,
+                        error_message: None,
+                    }
                 }
                 _ => payments::CallConnectorAction::Trigger,
             },

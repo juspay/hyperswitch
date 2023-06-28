@@ -1,0 +1,1 @@
+ALTER TABLE payment_intent ADD COLUMN order_details jsonb[];
