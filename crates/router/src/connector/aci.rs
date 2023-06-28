@@ -20,6 +20,8 @@ use crate::{
     utils::{self, BytesExt},
 };
 
+use super::utils::PaymentsAuthorizeRequestData;
+
 #[derive(Debug, Clone)]
 pub struct Aci;
 
@@ -248,20 +250,12 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        match req.request.mandate_id.as_ref() {
-            Some(mandate_ids) => {
-                let connector_mandate_id = match mandate_ids.mandate_reference_id.to_owned() {
-                    Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                        connector_mandate_ids,
-                    )) => connector_mandate_ids.connector_mandate_id,
-                    _ => None,
-                };
-                let man_id = connector_mandate_id
-                    .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
+        match req.request.connector_mandate_id() {
+            Some(mandate_id) => {
                 Ok(format!(
                     "{}v1/registrations/{}/payments",
                     self.base_url(connectors),
-                    man_id
+                    mandate_id
                 ))
             }
             _ => Ok(format!("{}{}", self.base_url(connectors), "v1/payments")),
