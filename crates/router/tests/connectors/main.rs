@@ -15,6 +15,7 @@ mod bitpay;
 mod bluesnap;
 mod cashtocode;
 mod checkout;
+mod checkout_ui;
 mod coinbase;
 mod connector_auth;
 mod cybersource;
