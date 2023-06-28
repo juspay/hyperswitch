@@ -1745,6 +1745,13 @@ impl api::IncomingWebhook for Stripe {
                     ),
                 )
             }
+            stripe::WebhookEventObjectType::Refund => {
+                api_models::webhooks::ObjectReferenceId::RefundId(
+                    api_models::webhooks::RefundIdType::ConnectorRefundId(
+                        details.event_data.event_object.id,
+                    ),
+                )
+            }
         })
     }
 
@@ -1754,7 +1761,7 @@ impl api::IncomingWebhook for Stripe {
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         let details: stripe::WebhookEventTypeBody = request
             .body
-            .parse_struct("WebhookEvent")
+            .parse_struct("WebhookEventTypeBody")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         Ok(match details.event_type {
@@ -1774,6 +1781,18 @@ impl api::IncomingWebhook for Stripe {
                     api::IncomingWebhookEvent::EventNotSupported
                 }
             }
+            stripe::WebhookEventType::ChargeRefundUpdated => details
+                .event_data
+                .event_object
+                .status
+                .map(|status| match status {
+                    stripe::WebhookEventStatus::Succeeded => {
+                        api::IncomingWebhookEvent::RefundSuccess
+                    }
+                    stripe::WebhookEventStatus::Failed => api::IncomingWebhookEvent::RefundFailure,
+                    _ => api::IncomingWebhookEvent::EventNotSupported,
+                })
+                .unwrap_or(api::IncomingWebhookEvent::EventNotSupported),
             stripe::WebhookEventType::SourceChargeable => {
                 api::IncomingWebhookEvent::SourceChargeable
             }
@@ -1800,7 +1819,7 @@ impl api::IncomingWebhook for Stripe {
             | stripe::WebhookEventType::ChargeFailed
             | stripe::WebhookEventType::ChargePending
             | stripe::WebhookEventType::ChargeUpdated
-            | stripe::WebhookEventType::ChanrgeRefunded
+            | stripe::WebhookEventType::ChargeRefunded
             | stripe::WebhookEventType::PaymentIntentCanceled
             | stripe::WebhookEventType::PaymentIntentCreated
             | stripe::WebhookEventType::PaymentIntentProcessing

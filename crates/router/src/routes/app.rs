@@ -410,8 +410,9 @@ impl Webhooks {
                     .route(
                         web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     )
+                    .route(web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>))
                     .route(
-                        web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                        web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     ),
             )
     }
@@ -463,6 +464,10 @@ impl Disputes {
                 web::resource("/evidence")
                     .route(web::post().to(submit_dispute_evidence))
                     .route(web::put().to(attach_dispute_evidence)),
+            )
+            .service(
+                web::resource("/evidence/{dispute_id}")
+                    .route(web::get().to(retrieve_dispute_evidence)),
             )
             .service(web::resource("/{dispute_id}").route(web::get().to(retrieve_dispute)))
     }

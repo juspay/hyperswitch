@@ -757,10 +757,10 @@ pub struct CheckoutDisputeWebhookData {
     pub action_id: Option<String>,
     pub amount: i32,
     pub currency: String,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub evidence_required_by: Option<PrimitiveDateTime>,
     pub reason_code: Option<String>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub date: Option<PrimitiveDateTime>,
 }
 #[derive(Debug, Deserialize)]
@@ -768,7 +768,7 @@ pub struct CheckoutDisputeWebhookBody {
     #[serde(rename = "type")]
     pub transaction_type: CheckoutTransactionType,
     pub data: CheckoutDisputeWebhookData,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_on: Option<PrimitiveDateTime>,
 }
 #[derive(Debug, Deserialize, strum::Display, Clone)]

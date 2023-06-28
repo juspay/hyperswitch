@@ -106,6 +106,13 @@ impl ConnectorCommon for Cybersource {
             .map(|det| format!("{} : {}", det.field, det.reason))
             .collect::<Vec<_>>()
             .join(", ");
+
+        let error_message = if res.status_code == 401 {
+            consts::CONNECTOR_UNAUTHORIZED_ERROR
+        } else {
+            consts::NO_ERROR_MESSAGE
+        };
+
         let (code, message) = match response.error_information {
             Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
             None => (
@@ -116,7 +123,7 @@ impl ConnectorCommon for Cybersource {
                     }),
                 response
                     .message
-                    .map_or(consts::NO_ERROR_MESSAGE.to_string(), |message| message),
+                    .map_or(error_message.to_string(), |message| message),
             ),
         };
         Ok(types::ErrorResponse {
