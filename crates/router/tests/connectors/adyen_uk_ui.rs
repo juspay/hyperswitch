@@ -121,6 +121,29 @@ async fn should_make_adyen_twint_payment(c: WebDriver) -> Result<(), WebDriverEr
     Ok(())
 }
 
+async fn should_make_adyen_dana_payment(c: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        c,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/175"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::SendKeys(By::XPath("/html/body/div[1]/div[2]/div[1]/div/input"),"12345678901")), // Mobile Number can be any random 11 digit number
+            Event::Trigger(Trigger::Click(By::XPath("/html/body/div[1]/div[2]/button"))),
+            Event::Trigger(Trigger::SendKeys(By::XPath("/html/body/div[1]/div[2]/div[1]/div[2]/div/input"),"111111")), // PIN can be any random 11 digit number
+            Event::Trigger(Trigger::Click(By::ClassName("btn-next"))),
+            Event::Trigger(Trigger::Click(By::ClassName("btn-next"))),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=succeeded"],
+            )),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
 #[test]
 #[serial]
 fn should_make_adyen_gpay_payment_test() {
@@ -155,6 +178,12 @@ fn should_make_adyen_clearpay_payment_test() {
 #[serial]
 fn should_make_adyen_twint_payment_test() {
     tester!(should_make_adyen_twint_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_dana_payment_test() {
+    tester!(should_make_adyen_dana_payment);
 }
 
 // https://hs-payments-test.netlify.app/paypal-redirect?amount=70.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD&apikey=dev_uFpxA0r6jjbVaxHSY3X0BZLL3erDUzvg3i51abwB1Bknu3fdiPxw475DQgnByn1z
