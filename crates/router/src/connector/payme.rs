@@ -2,16 +2,20 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use transformers as payme;
 
 use super::utils::PaymentsAuthorizeRequestData;
 use crate::{
     configs::settings,
+    connector::utils as conn_utils,
     core::{
         errors::{self, CustomResult},
         payments,
     },
+    db::StorageInterface,
     headers, routes,
     services::{self, request, ConnectorIntegration},
     types::{
@@ -533,24 +537,114 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Payme {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::Md5))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let resource: payme::WebhookEventDataResource =
+            request
+                .body
+                .parse_struct("WebhookEvent")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(resource.payme_signature.expose().into_bytes())
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let resource: payme::WebhookEventDataResource =
+            request
+                .body
+                .parse_struct("WebhookEvent")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let id = match resource.notify_type {
+            transformers::NotifyType::SaleComplete
+            | transformers::NotifyType::SaleAuthorized
+            | transformers::NotifyType::SaleFailure => api::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(resource.payme_sale_id),
+            ),
+            transformers::NotifyType::Refund => api::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(resource.payme_sale_id),
+            ),
+            transformers::NotifyType::SaleChargeback
+            | transformers::NotifyType::SaleChargebackRefund => {
+                api::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        resource.payme_sale_id,
+                    ),
+                )
+            }
+        };
+        Ok(id)
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let resource: payme::WebhookEventDataResource =
+            request
+                .body
+                .parse_struct("WebhookEvent")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let event_type = match resource.notify_type {
+            transformers::NotifyType::SaleComplete => {
+                api::IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            transformers::NotifyType::SaleFailure => {
+                api::IncomingWebhookEvent::PaymentIntentFailure
+            }
+            transformers::NotifyType::Refund => api::IncomingWebhookEvent::RefundSuccess,
+            transformers::NotifyType::SaleAuthorized
+            | transformers::NotifyType::SaleChargeback
+            | transformers::NotifyType::SaleChargebackRefund => {
+                api::IncomingWebhookEvent::EventNotSupported
+            }
+        };
+        Ok(event_type)
+    }
+
+    async fn get_webhook_source_verification_merchant_secret(
+        &self,
+        db: &dyn StorageInterface,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
+        let secret = match db.find_config_by_key(&key).await {
+            Ok(config) => Some(config),
+            Err(e) => {
+                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
+                None
+            }
+        };
+        Ok(secret
+            .map(|conf| conf.config.into_bytes())
+            .unwrap_or_default())
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let resource: payme::WebhookEventDataResource =
+            request
+                .body
+                .parse_struct("WebhookEvent")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let sale_response = payme::PaymePaySaleResponse::try_from(resource)?;
+
+        let res_json = serde_json::to_value(sale_response)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+        Ok(res_json)
     }
 }

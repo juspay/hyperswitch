@@ -1,7 +1,7 @@
 use api_models::payments::PaymentMethodData;
 use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -76,7 +76,7 @@ impl<F, T>
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.payme_sale_id),
                 redirection_data: None,
                 mandate_reference: item.response.buyer_key.map(|buyer_key| MandateReference {
-                    connector_mandate_id: Some(buyer_key),
+                    connector_mandate_id: Some(buyer_key.expose()),
                     payment_method_id: None,
                 }),
                 connector_metadata: Some(
@@ -155,7 +155,8 @@ impl TryFrom<&PaymentMethodData> for SalePyamentMethod {
             | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::Crypto(_)
-            | PaymentMethodData::MandatePayment => {
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
         }
@@ -241,7 +242,7 @@ impl TryFrom<&types::ConnectorAuthType> for PaymeAuthType {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SaleStatus {
     Initial,
@@ -271,12 +272,12 @@ impl From<SaleStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PaymePaySaleResponse {
     sale_status: SaleStatus,
     payme_sale_id: String,
     payme_transaction_id: String,
-    buyer_key: Option<String>,
+    buyer_key: Option<Secret<String>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -415,6 +416,39 @@ pub struct PaymeErrorResponse {
 }
 
 #[derive(Debug, Deserialize)]
+pub enum NotifyType {
+    #[serde(rename = "sale-complete")]
+    SaleComplete,
+    #[serde(rename = "sale-authorized")]
+    SaleAuthorized,
+    #[serde(rename = "refund")]
+    Refund,
+    #[serde(rename = "sale-failure")]
+    SaleFailure,
+    #[serde(rename = "sale-chargeback")]
+    SaleChargeback,
+    #[serde(rename = "sale-chargeback-refund")]
+    SaleChargebackRefund,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct WebhookEventDataResource {
-    pub object: serde_json::Value,
+    pub sale_status: SaleStatus,
+    pub payme_signature: Secret<String>,
+    pub buyer_key: Option<Secret<String>>,
+    pub notify_type: NotifyType,
+    pub payme_sale_id: String,
+    pub payme_transaction_id: String,
+}
+
+impl TryFrom<WebhookEventDataResource> for PaymePaySaleResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: WebhookEventDataResource) -> Result<Self, Self::Error> {
+        Ok(Self {
+            sale_status: value.sale_status,
+            payme_sale_id: value.payme_sale_id,
+            payme_transaction_id: value.payme_transaction_id,
+            buyer_key: value.buyer_key,
+        })
+    }
 }
