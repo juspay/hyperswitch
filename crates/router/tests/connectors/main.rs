@@ -28,6 +28,7 @@ mod forte;
 mod globalpay;
 mod iatapay;
 mod mollie;
+mod mollie_ui;
 mod multisafepay;
 mod nexinets;
 mod nmi;
