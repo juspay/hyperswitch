@@ -81,6 +81,7 @@ cards = [
     "opayo",
     "opennode",
     "payeezy",
+    "payme",
     "paypal",
     "payu",
     "shift4",
@@ -134,6 +135,7 @@ nuvei.base_url = "https://ppp-test.nuvei.com/"
 opayo.base_url = "https://pi-test.sagepay.com/api/v1/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
+payme.base_url = "https://sandbox.payme.io/"
 paypal.base_url = "https://www.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
