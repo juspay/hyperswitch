@@ -44,18 +44,6 @@ pub struct ConnectorAuthentication {
     pub worldline: Option<SignatureKey>,
     pub zen: Option<HeaderKey>,
     pub automation_configs: Option<AutomationConfigs>,
-    pub hs_base_url: Option<String>,
-    pub hs_api_key: Option<String>,
-    pub hs_test_browser: Option<String>,
-    pub chrome_profile_path: Option<String>,
-    pub firefox_profile_path: Option<String>,
-    pub pypl_email: Option<String>,
-    pub pypl_pass: Option<String>,
-    pub gmail_email: Option<String>,
-    pub gmail_pass: Option<String>,
-    pub configs_url: Option<String>,
-    pub stripe_pub_key: Option<String>,
-    pub testcases_path: Option<String>,
 }
 
 impl ConnectorAuthentication {
