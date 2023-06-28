@@ -11,6 +11,7 @@ mod adyen_uk_ui;
 mod airwallex;
 mod authorizedotnet;
 mod bambora;
+mod bambora_ui;
 mod bitpay;
 mod bluesnap;
 mod cashtocode;
