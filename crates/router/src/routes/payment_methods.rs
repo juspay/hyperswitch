@@ -35,8 +35,8 @@ pub async fn create_payment_method_api(
         state.get_ref(),
         &req,
         json_payload.into_inner(),
-        |state, merchant_account, req| async move {
-            cards::add_payment_method(state, req, &merchant_account).await
+        |state, auth, req| async move {
+            cards::add_payment_method(state, req, &auth.merchant_account).await
         },
         &auth::ApiKeyAuth,
     )
@@ -85,7 +85,9 @@ pub async fn list_payment_method_api(
         state.get_ref(),
         &req,
         payload,
-        cards::list_payment_methods,
+        |state, auth, req| {
+            cards::list_payment_methods(state, auth.merchant_account, auth.key_store, req)
+        },
         &*auth,
     )
     .await
@@ -136,8 +138,13 @@ pub async fn list_customer_payment_method_api(
         state.get_ref(),
         &req,
         json_payload.into_inner(),
-        |state, merchant_account, _| {
-            cards::list_customer_payment_method(state, merchant_account, &customer_id)
+        |state, auth, _| {
+            cards::list_customer_payment_method(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                &customer_id,
+            )
         },
         &*auth_type,
     )
@@ -178,7 +185,7 @@ pub async fn payment_method_retrieve_api(
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, pm| cards::retrieve_payment_method(state, pm, merchant_account),
+        |state, auth, pm| cards::retrieve_payment_method(state, pm, auth.merchant_account),
         &auth::ApiKeyAuth,
     )
     .await
@@ -217,10 +224,10 @@ pub async fn payment_method_update_api(
         state.get_ref(),
         &req,
         json_payload.into_inner(),
-        |state, merchant_account, payload| {
+        |state, auth, payload| {
             cards::update_customer_payment_method(
                 state,
-                merchant_account,
+                auth.merchant_account,
                 payload,
                 &payment_method_id,
             )
@@ -262,7 +269,7 @@ pub async fn payment_method_delete_api(
         state.get_ref(),
         &req,
         pm,
-        cards::delete_payment_method,
+        |state, auth, req| cards::delete_payment_method(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
     )
     .await

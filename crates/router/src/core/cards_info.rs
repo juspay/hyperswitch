@@ -9,7 +9,7 @@ use crate::{
     },
     routes,
     services::ApplicationResponse,
-    types::{storage, transformers::ForeignFrom},
+    types::{domain, transformers::ForeignFrom},
 };
 
 fn verify_iin_length(card_iin: &str) -> Result<(), errors::ApiErrorResponse> {
@@ -22,7 +22,7 @@ fn verify_iin_length(card_iin: &str) -> Result<(), errors::ApiErrorResponse> {
 #[instrument(skip_all)]
 pub async fn retrieve_card_info(
     state: &routes::AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     request: api_models::cards_info::CardsInfoRequest,
 ) -> RouterResponse<api_models::cards_info::CardInfoResponse> {
     let db = &*state.store;

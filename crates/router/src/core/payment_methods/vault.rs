@@ -3,8 +3,6 @@ use common_utils::generate_id_with_default_len;
 use error_stack::report;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "basilisk")]
-use external_services::kms;
-#[cfg(feature = "basilisk")]
 use josekit::jwe;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
@@ -470,11 +468,11 @@ pub fn get_key_id(keys: &settings::Jwekey) -> &str {
 
 #[cfg(feature = "basilisk")]
 async fn get_locker_jwe_keys(
-    keys: &settings::Jwekey,
-    kms_config: &kms::KmsConfig,
+    keys: &settings::ActiveKmsSecrets,
 ) -> CustomResult<(String, String), errors::EncryptionError> {
+    let keys = keys.jwekey.peek();
     let key_id = get_key_id(keys);
-    let (encryption_key, decryption_key) = if key_id == keys.locker_key_identifier1 {
+    let (public_key, private_key) = if key_id == keys.locker_key_identifier1 {
         (&keys.locker_encryption_key1, &keys.locker_decryption_key1)
     } else if key_id == keys.locker_key_identifier2 {
         (&keys.locker_encryption_key2, &keys.locker_decryption_key2)
@@ -482,18 +480,7 @@ async fn get_locker_jwe_keys(
         return Err(errors::EncryptionError.into());
     };
 
-    let public_key = kms::get_kms_client(kms_config)
-        .await
-        .decrypt(encryption_key)
-        .await
-        .change_context(errors::EncryptionError)?;
-    let private_key = kms::get_kms_client(kms_config)
-        .await
-        .decrypt(decryption_key)
-        .await
-        .change_context(errors::EncryptionError)?;
-
-    Ok((public_key, private_key))
+    Ok((public_key.to_string(), private_key.to_string()))
 }
 
 #[cfg(feature = "basilisk")]
@@ -515,7 +502,7 @@ pub async fn create_tokenize(
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let (public_key, private_key) = get_locker_jwe_keys(&state.conf.jwekey, &state.conf.kms)
+    let (public_key, private_key) = get_locker_jwe_keys(&state.kms_secrets)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encryption key")?;
@@ -592,7 +579,7 @@ pub async fn get_tokenized_data(
     let payload = serde_json::to_string(&payload_to_be_encrypted)
         .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
 
-    let (public_key, private_key) = get_locker_jwe_keys(&state.conf.jwekey, &state.conf.kms)
+    let (public_key, private_key) = get_locker_jwe_keys(&state.kms_secrets)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encryption key")?;
@@ -643,9 +630,15 @@ pub async fn get_tokenized_data(
         }
         Err(err) => {
             metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-            Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
-                .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))
+            match err.status_code {
+                404 => Err(errors::ApiErrorResponse::UnprocessableEntity {
+                    entity: "Token".to_string(),
+                }
+                .into()),
+                _ => Err(errors::ApiErrorResponse::InternalServerError)
+                    .into_report()
+                    .attach_printable(format!("Got error from the basilisk locker: {err:?}")),
+            }
         }
     }
 }
@@ -663,7 +656,7 @@ pub async fn delete_tokenized_data(
     let payload = serde_json::to_string(&payload_to_be_encrypted)
         .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
 
-    let (public_key, _private_key) = get_locker_jwe_keys(&state.conf.jwekey, &state.conf.kms)
+    let (public_key, _private_key) = get_locker_jwe_keys(&state.kms_secrets)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encryption key")?;
