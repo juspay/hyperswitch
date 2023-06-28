@@ -1,16 +1,11 @@
-use common_utils::{
-    crypto::{self},
-    date_time, pii,
-};
+use common_utils::{crypto, date_time, pii};
 use error_stack::ResultExt;
+use masking::{PeekInterface, Secret};
 use storage_models::{customers::CustomerUpdateInternal, encryption::Encryption};
 use time::PrimitiveDateTime;
 
 use super::types::{self, AsyncLift};
-use crate::{
-    db::StorageInterface,
-    errors::{CustomResult, ValidationError},
-};
+use crate::errors::{CustomResult, ValidationError};
 
 #[derive(Clone, Debug)]
 pub struct Customer {
@@ -53,25 +48,14 @@ impl super::behaviour::Conversion for Customer {
 
     async fn convert_back(
         item: Self::DstType,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-        migration_timestamp: i64,
+        key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
-        let key = types::get_merchant_enc_key(db, merchant_id)
-            .await
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed while getting key from key store".to_string(),
-            })?;
         async {
-            let modified_at = item.modified_at.assume_utc().unix_timestamp();
-
-            let inner_decrypt =
-                |inner| types::decrypt(inner, &key, modified_at, migration_timestamp);
-            let inner_decrypt_email =
-                |inner| types::decrypt(inner, &key, modified_at, migration_timestamp);
+            let inner_decrypt = |inner| types::decrypt(inner, key.peek());
+            let inner_decrypt_email = |inner| types::decrypt(inner, key.peek());
             Ok(Self {
                 id: Some(item.id),
                 customer_id: item.customer_id,

@@ -370,7 +370,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
             }
             api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_) => {
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::MandatePayment => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.payment_method),
                     connector: "Aci",
@@ -623,7 +625,7 @@ pub struct ResultCode {
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct ErrorParameters {
     pub(super) name: String,
-    pub(super) value: String,
+    pub(super) value: Option<String>,
     pub(super) message: String,
 }
 

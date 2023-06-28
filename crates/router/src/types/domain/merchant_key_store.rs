@@ -3,11 +3,10 @@ use common_utils::{
     custom_serde, date_time,
 };
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
 use crate::{
-    db::StorageInterface,
     errors::{CustomResult, ValidationError},
     types::domain::types::TypeEncryption,
 };
@@ -34,16 +33,13 @@ impl super::behaviour::Conversion for MerchantKeyStore {
 
     async fn convert_back(
         item: Self::DstType,
-        db: &dyn StorageInterface,
-        _merchant_id: &str,
-        migration_timestamp: i64,
+        key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
-        let key = &db.get_master_key();
         Ok(Self {
-            key: Encryptable::decrypt(item.key, key, GcmAes256 {}, i64::MAX, migration_timestamp)
+            key: Encryptable::decrypt(item.key, key.peek(), GcmAes256)
                 .await
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting customer data".to_string(),

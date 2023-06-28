@@ -9,7 +9,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, domain, storage},
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -21,6 +21,7 @@ impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::Pay
         state: &AppState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<types::VerifyRouterData> {
         transformers::construct_payment_router_data::<api::Verify, types::VerifyRequestData>(
@@ -28,6 +29,7 @@ impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::Pay
             self.clone(),
             connector_id,
             merchant_account,
+            key_store,
             customer,
         )
         .await
@@ -40,19 +42,38 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<domain::Customer>,
+        maybe_customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
     ) -> RouterResult<Self> {
-        self.decide_flow(
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::Verify,
+            types::VerifyRequestData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+        let resp = services::execute_connector_processing_step(
             state,
-            connector,
-            customer,
-            Some(true),
+            connector_integration,
+            &self,
             call_connector_action,
-            merchant_account,
+            connector_request,
         )
         .await
+        .to_verify_failed_response()?;
+
+        let pm_id = tokenization::save_payment_method(
+            state,
+            connector,
+            resp.to_owned(),
+            maybe_customer,
+            merchant_account,
+            self.request.payment_method_type.clone(),
+        )
+        .await?;
+
+        mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await
     }
 
     async fn add_access_token<'a>(
@@ -84,16 +105,40 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
-    ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)> {
+    ) -> RouterResult<Option<String>> {
         customers::create_connector_customer(
             state,
             connector,
             self,
             types::ConnectorCustomerData::try_from(self.request.to_owned())?,
-            connector_customer_map,
         )
         .await
+    }
+
+    async fn build_flow_specific_connector_request(
+        &mut self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        call_connector_action: payments::CallConnectorAction,
+    ) -> RouterResult<(Option<services::Request>, bool)> {
+        match call_connector_action {
+            payments::CallConnectorAction::Trigger => {
+                let connector_integration: services::BoxedConnectorIntegration<
+                    '_,
+                    api::Verify,
+                    types::VerifyRequestData,
+                    types::PaymentsResponseData,
+                > = connector.connector.get_connector_integration();
+
+                Ok((
+                    connector_integration
+                        .build_request(self, &state.conf.connectors)
+                        .to_payment_failed_response()?,
+                    true,
+                ))
+            }
+            _ => Ok((None, true)),
+        }
     }
 }
 
@@ -133,16 +178,19 @@ impl types::VerifyRouterData {
                     connector_integration,
                     self,
                     call_connector_action,
+                    None,
                 )
                 .await
-                .map_err(|err| err.to_verify_failed_response())?;
+                .to_verify_failed_response()?;
 
+                let payment_method_type = self.request.payment_method_type.clone();
                 let pm_id = tokenization::save_payment_method(
                     state,
                     connector,
                     resp.to_owned(),
                     maybe_customer,
                     merchant_account,
+                    payment_method_type,
                 )
                 .await?;
 

@@ -81,6 +81,7 @@ impl AdyenTest {
             capture_method: Some(capture_method),
             browser_info: None,
             order_details: None,
+            order_category: None,
             email: None,
             payment_experience: None,
             payment_method_type: None,
@@ -256,7 +257,7 @@ async fn should_make_payment() {
         )
         .await
         .unwrap();
-    assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
+    assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
 }
 
 // Refunds a payment using the automatic capture flow (Non 3DS).

@@ -77,6 +77,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         // capture_method: Some(capture_method),
         browser_info: None,
         order_details: None,
+        order_category: None,
         email: None,
         payment_experience: None,
         payment_method_type: None,
@@ -128,7 +129,7 @@ async fn should_sync_authorized_payment() {
     assert_eq!(response.status, enums::AttemptStatus::Charged);
 }
 
-// Synchronizes a unresovled(underpaid) transaction.
+// Synchronizes a unresolved(underpaid) transaction.
 #[actix_web::test]
 async fn should_sync_unresolved_payment() {
     let response = CONNECTOR
