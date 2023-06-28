@@ -170,11 +170,17 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 
 pub trait PaymentsPreProcessingData {
     fn get_email(&self) -> Result<Email, Error>;
+    fn get_payment_method_type(&self) -> Result<storage_models::enums::PaymentMethodType, Error>;
 }
 
 impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_payment_method_type(&self) -> Result<storage_models::enums::PaymentMethodType, Error> {
+        self.payment_method_type
+            .to_owned()
+            .ok_or_else(missing_field_err("payment_method_type"))
     }
 }
 

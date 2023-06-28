@@ -984,15 +984,7 @@ impl<F>
         let create_intent_response = item.response.init_result_data.to_owned();
         let secrets = item.response.secrets.to_owned();
         let instance_id = item.response.instance_id.to_owned();
-        let pmt = item
-            .data
-            .request
-            .payment_method_type
-            .to_owned()
-            .get_required_value("payment_method_type")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method_type",
-            })?;
+        let pmt = utils::PaymentsPreProcessingData::get_payment_method_type(&item.data.request)?;
 
         match (pmt, create_intent_response) {
             (
