@@ -1,6 +1,8 @@
+use std::str::FromStr;
+
 use api_models::payments;
-use common_utils::{date_time, ext_traits::StringExt};
-use error_stack::ResultExt;
+use common_utils::{date_time, ext_traits::StringExt, pii as secret};
+use error_stack::{IntoReport, ResultExt};
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -16,6 +18,7 @@ use crate::{
         api::{self as api_types, admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignTryFrom},
     },
+    utils::OptionExt,
 };
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -119,7 +122,6 @@ impl From<Shipping> for payments::Address {
 }
 
 #[derive(Default, PartialEq, Eq, Deserialize, Clone)]
-
 pub struct StripeSetupIntentRequest {
     pub confirm: Option<bool>,
     pub customer: Option<String>,
@@ -133,11 +135,13 @@ pub struct StripeSetupIntentRequest {
     pub billing_details: Option<StripeBillingDetails>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    pub metadata: Option<api_models::payments::Metadata>,
+    pub metadata: Option<secret::SecretSerdeValue>,
     pub client_secret: Option<pii::Secret<String>>,
     pub payment_method_options: Option<payment_intent::StripePaymentMethodOptions>,
     pub payment_method: Option<String>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+    pub receipt_ipaddress: Option<String>,
+    pub user_agent: Option<String>,
 }
 
 impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
@@ -161,6 +165,22 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             }
             None => (None, None),
         };
+        let ip_address = item
+            .receipt_ipaddress
+            .map(|ip| std::net::IpAddr::from_str(ip.as_str()))
+            .transpose()
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "receipt_ipaddress".to_string(),
+                expected_format: "127.0.0.1".to_string(),
+            })?;
+        let metadata_object = item
+            .metadata
+            .clone()
+            .parse_value("metadata")
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "metadata mapping failed",
+            })?;
         let request = Ok(Self {
             amount: Some(api_types::Amount::Zero),
             capture_method: None,
@@ -202,12 +222,24 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
                 .map(|b| payments::Address::from(b.to_owned())),
             statement_descriptor_name: item.statement_descriptor,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
-            metadata: item.metadata,
+            metadata: metadata_object,
+            udf: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
             setup_future_usage: item.setup_future_usage,
             merchant_connector_details: item.merchant_connector_details,
             authentication_type,
             mandate_data: mandate_options,
+            browser_info: Some(
+                serde_json::to_value(crate::types::BrowserInformation {
+                    ip_address,
+                    user_agent: item.user_agent,
+                    ..Default::default()
+                })
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("convert to browser info failed")?,
+            ),
+
             ..Default::default()
         });
         request
@@ -284,23 +316,41 @@ pub struct RedirectUrl {
     pub url: Option<String>,
 }
 
-#[derive(Eq, PartialEq, Serialize)]
-pub struct StripeNextAction {
-    #[serde(rename = "type")]
-    stype: payments::NextActionType,
-    redirect_to_url: RedirectUrl,
+#[derive(Eq, PartialEq, serde::Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum StripeNextAction {
+    RedirectToUrl {
+        redirect_to_url: RedirectUrl,
+    },
+    DisplayBankTransferInformation {
+        bank_transfer_steps_and_charges_details: payments::BankTransferNextStepsData,
+    },
+    ThirdPartySdkSessionToken {
+        session_token: Option<payments::SessionToken>,
+    },
 }
 
 pub(crate) fn into_stripe_next_action(
-    next_action: Option<payments::NextAction>,
+    next_action: Option<payments::NextActionData>,
     return_url: Option<String>,
 ) -> Option<StripeNextAction> {
-    next_action.map(|n| StripeNextAction {
-        stype: n.next_action_type,
-        redirect_to_url: RedirectUrl {
-            return_url,
-            url: n.redirect_to_url,
+    next_action.map(|next_action_data| match next_action_data {
+        payments::NextActionData::RedirectToUrl { redirect_to_url } => {
+            StripeNextAction::RedirectToUrl {
+                redirect_to_url: RedirectUrl {
+                    return_url,
+                    url: Some(redirect_to_url),
+                },
+            }
+        }
+        payments::NextActionData::DisplayBankTransferInformation {
+            bank_transfer_steps_and_charges_details,
+        } => StripeNextAction::DisplayBankTransferInformation {
+            bank_transfer_steps_and_charges_details,
         },
+        payments::NextActionData::ThirdPartySdkSessionToken { session_token } => {
+            StripeNextAction::ThirdPartySdkSessionToken { session_token }
+        }
     })
 }
 

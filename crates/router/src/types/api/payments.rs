@@ -1,7 +1,7 @@
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
-    CustomerAcceptance, MandateData, MandateTxnType, MandateType, MandateValidationFields,
-    NextAction, NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
+    CustomerAcceptance, MandateData, MandateTransactionType, MandateType, MandateValidationFields,
+    NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
     PaymentListResponse, PaymentMethodData, PaymentMethodDataResponse, PaymentOp,
     PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsCancelRequest,
     PaymentsCaptureRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRequest,
@@ -20,15 +20,15 @@ use crate::{
 };
 
 pub(crate) trait PaymentsRequestExt {
-    fn is_mandate(&self) -> Option<MandateTxnType>;
+    fn is_mandate(&self) -> Option<MandateTransactionType>;
 }
 
 impl PaymentsRequestExt for PaymentsRequest {
-    fn is_mandate(&self) -> Option<MandateTxnType> {
+    fn is_mandate(&self) -> Option<MandateTransactionType> {
         match (&self.mandate_data, &self.mandate_id) {
             (None, None) => None,
-            (_, Some(_)) => Some(MandateTxnType::RecurringMandateTxn),
-            (Some(_), _) => Some(MandateTxnType::NewMandateTxn),
+            (_, Some(_)) => Some(MandateTransactionType::RecurringMandateTransaction),
+            (Some(_), _) => Some(MandateTransactionType::NewMandateTransaction),
         }
     }
 }
@@ -43,7 +43,7 @@ impl CustomerAcceptanceExt for CustomerAcceptance {
     fn get_ip_address(&self) -> Option<String> {
         self.online
             .as_ref()
-            .map(|data| data.ip_address.peek().to_owned())
+            .and_then(|data| data.ip_address.as_ref().map(|ip| ip.peek().to_owned()))
     }
 
     fn get_user_agent(&self) -> Option<String> {
@@ -113,15 +113,23 @@ impl PaymentIdTypeExt for PaymentIdType {
 }
 
 pub(crate) trait MandateValidationFieldsExt {
-    fn is_mandate(&self) -> Option<MandateTxnType>;
+    fn validate_and_get_mandate_type(
+        &self,
+    ) -> errors::CustomResult<Option<MandateTransactionType>, errors::ValidationError>;
 }
 
 impl MandateValidationFieldsExt for MandateValidationFields {
-    fn is_mandate(&self) -> Option<MandateTxnType> {
+    fn validate_and_get_mandate_type(
+        &self,
+    ) -> errors::CustomResult<Option<MandateTransactionType>, errors::ValidationError> {
         match (&self.mandate_data, &self.mandate_id) {
-            (None, None) => None,
-            (_, Some(_)) => Some(MandateTxnType::RecurringMandateTxn),
-            (Some(_), _) => Some(MandateTxnType::NewMandateTxn),
+            (None, None) => Ok(None),
+            (Some(_), Some(_)) => Err(errors::ValidationError::InvalidValue {
+                message: "Expected one out of mandate_id and mandate_data but got both".to_string(),
+            })
+            .into_report(),
+            (_, Some(_)) => Ok(Some(MandateTransactionType::RecurringMandateTransaction)),
+            (Some(_), _) => Ok(Some(MandateTransactionType::NewMandateTransaction)),
         }
     }
 }

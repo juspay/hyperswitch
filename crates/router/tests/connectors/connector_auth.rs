@@ -7,11 +7,13 @@ use serde::{Deserialize, Serialize};
 pub struct ConnectorAuthentication {
     pub aci: Option<BodyKey>,
     pub adyen: Option<BodyKey>,
+    pub adyen_uk: Option<BodyKey>,
     pub airwallex: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
     pub bitpay: Option<HeaderKey>,
     pub bluesnap: Option<BodyKey>,
+    pub cashtocode: Option<BodyKey>,
     pub checkout: Option<SignatureKey>,
     pub coinbase: Option<HeaderKey>,
     pub cybersource: Option<SignatureKey>,
@@ -20,12 +22,12 @@ pub struct ConnectorAuthentication {
     pub dummyconnector: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,
     pub forte: Option<MultiAuthKey>,
-    pub globalpay: Option<HeaderKey>,
+    pub globalpay: Option<BodyKey>,
     pub iatapay: Option<SignatureKey>,
     pub mollie: Option<HeaderKey>,
     pub multisafepay: Option<HeaderKey>,
-    pub nexinets: Option<HeaderKey>,
-    pub noon: Option<HeaderKey>,
+    pub nexinets: Option<BodyKey>,
+    pub noon: Option<SignatureKey>,
     pub nmi: Option<HeaderKey>,
     pub nuvei: Option<SignatureKey>,
     pub opennode: Option<HeaderKey>,
@@ -35,10 +37,13 @@ pub struct ConnectorAuthentication {
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
+    pub stripe_au: Option<HeaderKey>,
+    pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
     pub zen: Option<HeaderKey>,
+    pub automation_configs: Option<AutomationConfigs>,
     pub hs_base_url: Option<String>,
     pub hs_api_key: Option<String>,
     pub hs_test_browser: Option<String>,
@@ -56,7 +61,6 @@ pub struct ConnectorAuthentication {
 impl ConnectorAuthentication {
     #[allow(clippy::expect_used)]
     pub(crate) fn new() -> Self {
-        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
         // before running tests
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
             .expect("connector authentication file path not set");
@@ -129,4 +133,21 @@ impl From<MultiAuthKey> for ConnectorAuthType {
             key2: key.key2,
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AutomationConfigs {
+    pub hs_base_url: Option<String>,
+    pub hs_api_key: Option<String>,
+    pub hs_test_browser: Option<String>,
+    pub chrome_profile_path: Option<String>,
+    pub firefox_profile_path: Option<String>,
+    pub pypl_email: Option<String>,
+    pub pypl_pass: Option<String>,
+    pub gmail_email: Option<String>,
+    pub gmail_pass: Option<String>,
+    pub configs_url: Option<String>,
+    pub stripe_pub_key: Option<String>,
+    pub testcases_path: Option<String>,
+    pub run_minimum_steps: Option<bool>,
 }
