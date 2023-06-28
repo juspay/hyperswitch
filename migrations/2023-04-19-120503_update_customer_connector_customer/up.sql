@@ -1,3 +1,3 @@
 -- Your SQL goes here
-ALTER TABLE customers 
+ALTER TABLE customers
 ADD COLUMN connector_customer JSONB;

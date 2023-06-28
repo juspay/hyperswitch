@@ -25,7 +25,7 @@ use crate::{
     configs::settings::Connectors,
     connector, consts,
     core::errors::{self, CustomResult},
-    services::{ConnectorIntegration, ConnectorRedirectResponse},
+    services::{request, ConnectorIntegration, ConnectorRedirectResponse},
     types::{self, api::enums as api_enums},
 };
 
@@ -54,7 +54,7 @@ pub trait ConnectorCommon {
     fn get_auth_header(
         &self,
         _auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(Vec::new())
     }
 
@@ -93,7 +93,7 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
         &self,
         _req: &types::RouterData<Flow, Req, Resp>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(Vec::new())
     }
 }
@@ -209,6 +209,7 @@ impl ConnectorData {
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
                 enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
                 enums::Connector::Braintree => Ok(Box::new(&connector::Braintree)),
+                enums::Connector::Cashtocode => Ok(Box::new(&connector::Cashtocode)),
                 enums::Connector::Checkout => Ok(Box::new(&connector::Checkout)),
                 enums::Connector::Coinbase => Ok(Box::new(&connector::Coinbase)),
                 enums::Connector::Cybersource => Ok(Box::new(&connector::Cybersource)),

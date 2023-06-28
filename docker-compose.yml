@@ -14,7 +14,6 @@ networks:
 
 
 services:
-
   promtail:
     image: grafana/promtail:latest
     volumes:
@@ -84,7 +83,7 @@ services:
       - POSTGRES_DB=hyperswitch_db
 
   migration_runner:
-    image: rust:1.65
+    image: rust:1.70
     command: "bash -c 'cargo install diesel_cli --no-default-features --features \"postgres\" && diesel migration --database-url postgres://db_user:db_pass@pg:5432/hyperswitch_db run'"
     working_dir: /app
     networks:
@@ -92,21 +91,9 @@ services:
     volumes:
       - ./:/app
 
-  hyperswitch-server-init:
-    image: rust:1.65
-    command: cargo build --bin router
-    working_dir: /app
-    networks:
-      - router_net
-    volumes:
-      - ./:/app
-      - cargo_cache:/cargo_cache
-      - cargo_build_cache:/cargo_build_cache
-    environment:
-      - CARGO_TARGET_DIR=/cargo_build_cache
   hyperswitch-server:
-    image: rust:1.65
-    command: /cargo_build_cache/debug/router -f ./config/docker_compose.toml
+    image: rust:1.70
+    command: cargo run -- -f ./config/docker_compose.toml
     working_dir: /app
     ports:
       - "8080:8080"
@@ -127,12 +114,8 @@ services:
       start_period: 20s
       timeout: 10s
 
-    depends_on:
-      hyperswitch-server-init:
-        condition: service_completed_successfully
-
   hyperswitch-producer:
-    image: rust:1.65
+    image: rust:1.70
     command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
     working_dir: /app
     networks:
@@ -153,7 +136,7 @@ services:
       logs: "promtail"
 
   hyperswitch-consumer:
-    image: rust:1.65
+    image: rust:1.70
     command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
     working_dir: /app
     networks:
@@ -270,7 +253,7 @@ services:
       - "4317" # otlp grpc
     restart: unless-stopped
   hyperswitch-drainer:
-    image: rust:1.65
+    image: rust:1.70
     command: cargo run --bin drainer -- -f ./config/docker_compose.toml
     working_dir: /app
     deploy:

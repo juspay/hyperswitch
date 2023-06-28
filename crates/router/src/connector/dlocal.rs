@@ -8,13 +8,18 @@ use common_utils::{
 };
 use error_stack::{IntoReport, ResultExt};
 use hex::encode;
+use masking::PeekInterface;
 use transformers as dlocal;
 
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers, logger,
-    services::{self, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -47,10 +52,12 @@ where
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, services::request::Maskable<String>)>, errors::ConnectorError>
+    {
         let dlocal_req = match self.get_request_body(req)? {
             Some(val) => val,
-            None => "".to_string(),
+            None => types::RequestBody::log_and_get_request_body("".to_string(), Ok)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         };
 
         let date = date_time::date_as_yyyymmddthhmmssmmmz()
@@ -58,7 +65,14 @@ where
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
-        let sign_req: String = format!("{}{}{}", auth.x_login, date, dlocal_req);
+        let sign_req: String = format!(
+            "{}{}{}",
+            auth.x_login,
+            date,
+            types::RequestBody::get_inner_value(dlocal_req)
+                .peek()
+                .to_owned()
+        );
         let authz = crypto::HmacSha256::sign_message(
             &crypto::HmacSha256,
             auth.secret.as_bytes(),
@@ -68,14 +82,20 @@ where
         .attach_printable("Failed to sign the message")?;
         let auth_string: String = format!("V2-HMAC-SHA256, Signature: {}", encode(authz));
         let headers = vec![
-            (headers::AUTHORIZATION.to_string(), auth_string),
-            (headers::X_LOGIN.to_string(), auth.x_login),
-            (headers::X_TRANS_KEY.to_string(), auth.x_trans_key),
-            (headers::X_VERSION.to_string(), "2.1".to_string()),
-            (headers::X_DATE.to_string(), date),
+            (
+                headers::AUTHORIZATION.to_string(),
+                auth_string.into_masked(),
+            ),
+            (headers::X_LOGIN.to_string(), auth.x_login.into_masked()),
+            (
+                headers::X_TRANS_KEY.to_string(),
+                auth.x_trans_key.into_masked(),
+            ),
+            (headers::X_VERSION.to_string(), "2.1".to_string().into()),
+            (headers::X_DATE.to_string(), date.into()),
             (
                 headers::CONTENT_TYPE.to_string(),
-                Self.get_content_type().to_string(),
+                Self.get_content_type().to_string().into(),
             ),
         ];
         Ok(headers)
@@ -146,7 +166,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -165,10 +185,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let dlocal_req = utils::Encode::<dlocal::DlocalPaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(dlocal_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = dlocal::DlocalPaymentsRequest::try_from(req)?;
+        let dlocal_payments_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<dlocal::DlocalPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(dlocal_payments_request))
     }
 
     fn build_request(
@@ -225,7 +249,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -294,7 +318,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -313,11 +337,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let dlocal_req =
-            utils::Encode::<dlocal::DlocalPaymentsCaptureRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(dlocal_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = dlocal::DlocalPaymentsCaptureRequest::try_from(req)?;
+        let dlocal_payments_capture_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<dlocal::DlocalPaymentsCaptureRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(dlocal_payments_capture_request))
     }
 
     fn build_request(
@@ -372,7 +399,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -440,7 +467,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -459,10 +486,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let dlocal_req = utils::Encode::<dlocal::RefundRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(dlocal_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = dlocal::RefundRequest::try_from(req)?;
+        let dlocal_refund_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<dlocal::RefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(dlocal_refund_request))
     }
 
     fn build_request(
@@ -514,7 +545,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -590,7 +621,7 @@ impl api::IncomingWebhook for Dlocal {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Ok(api::IncomingWebhookEvent::EventNotSupported)
     }
 
     fn get_webhook_resource_object(
