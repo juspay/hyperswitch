@@ -7,6 +7,7 @@
 // Separation of concerns instead of separation of forms.
 
 pub mod api;
+pub mod domain;
 pub mod storage;
 pub mod transformers;
 
@@ -224,7 +225,8 @@ pub struct PaymentsAuthorizeData {
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
     pub browser_info: Option<BrowserInformation>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetails>>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub order_category: Option<String>,
     pub session_token: Option<String>,
     pub enrolled_for_3ds: bool,
     pub related_transaction_id: Option<String>,
@@ -268,6 +270,7 @@ pub struct PaymentMethodTokenizationData {
 pub struct PaymentsPreProcessingData {
     pub email: Option<Email>,
     pub currency: Option<storage_enums::Currency>,
+    pub amount: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -284,10 +287,16 @@ pub struct CompleteAuthorizeData {
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
-    pub payload: Option<serde_json::Value>,
+    pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CompleteAuthorizeRedirectResponse {
+    pub params: Option<Secret<String>>,
+    pub payload: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -314,7 +323,7 @@ pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
     pub country: Option<api::enums::CountryAlpha2>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetails>>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
 }
 
 #[derive(Debug, Clone)]
@@ -330,6 +339,7 @@ pub struct VerifyRequestData {
     pub router_return_url: Option<String>,
     pub email: Option<Email>,
     pub return_url: Option<String>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Clone)]
@@ -338,6 +348,34 @@ pub struct AccessTokenRequestData {
     pub id: Option<String>,
     // Add more keys if required
 }
+
+pub trait Capturable {
+    fn get_capture_amount(&self) -> Option<i64> {
+        Some(0)
+    }
+}
+
+impl Capturable for PaymentsAuthorizeData {
+    fn get_capture_amount(&self) -> Option<i64> {
+        Some(self.amount)
+    }
+}
+
+impl Capturable for PaymentsCaptureData {
+    fn get_capture_amount(&self) -> Option<i64> {
+        Some(self.amount_to_capture)
+    }
+}
+
+impl Capturable for CompleteAuthorizeData {
+    fn get_capture_amount(&self) -> Option<i64> {
+        Some(self.amount)
+    }
+}
+impl Capturable for VerifyRequestData {}
+impl Capturable for PaymentsCancelData {}
+impl Capturable for PaymentsSessionData {}
+impl Capturable for PaymentsSyncData {}
 
 pub struct AddAccessTokenResult {
     pub access_token_result: Result<Option<AccessToken>, ErrorResponse>,
@@ -389,9 +427,16 @@ pub enum PaymentsResponseData {
         related_transaction_id: Option<String>,
     },
     PreProcessingResponse {
-        pre_processing_id: String,
+        pre_processing_id: PreprocessingResponseId,
         connector_metadata: Option<serde_json::Value>,
+        session_token: Option<api::SessionToken>,
     },
+}
+
+#[derive(Debug, Clone)]
+pub enum PreprocessingResponseId {
+    PreProcessingId(String),
+    ConnectorTransactionId(String),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -425,7 +470,7 @@ pub struct RefundsData {
     pub connector_refund_id: Option<String>,
     pub currency: storage_enums::Currency,
     /// Amount for the payment against which this refund is issued
-    pub amount: i64,
+    pub payment_amount: i64,
     pub reason: Option<String>,
     pub webhook_url: Option<String>,
     /// Amount to be refunded
@@ -434,18 +479,18 @@ pub struct RefundsData {
     pub connector_metadata: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct BrowserInformation {
-    pub color_depth: u8,
-    pub java_enabled: bool,
-    pub java_script_enabled: bool,
-    pub language: String,
-    pub screen_height: u32,
-    pub screen_width: u32,
-    pub time_zone: i32,
+    pub color_depth: Option<u8>,
+    pub java_enabled: Option<bool>,
+    pub java_script_enabled: Option<bool>,
+    pub language: Option<String>,
+    pub screen_height: Option<u32>,
+    pub screen_width: Option<u32>,
+    pub time_zone: Option<i32>,
     pub ip_address: Option<std::net::IpAddr>,
-    pub accept_header: String,
-    pub user_agent: String,
+    pub accept_header: Option<String>,
+    pub user_agent: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -722,6 +767,7 @@ impl From<&VerifyRouterData> for PaymentsAuthorizeData {
             complete_authorize_url: None,
             browser_info: None,
             order_details: None,
+            order_category: None,
             session_token: None,
             enrolled_for_3ds: true,
             related_transaction_id: None,
@@ -764,5 +810,25 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RequestBody(Secret<String>);
+
+impl RequestBody {
+    pub fn log_and_get_request_body<T, F>(
+        body: T,
+        encoder: F,
+    ) -> errors::CustomResult<Self, errors::ParsingError>
+    where
+        F: FnOnce(T) -> errors::CustomResult<String, errors::ParsingError>,
+        T: std::fmt::Debug,
+    {
+        router_env::logger::info!(connector_request_body=?body);
+        Ok(Self(Secret::new(encoder(body)?)))
+    }
+    pub fn get_inner_value(request_body: Self) -> Secret<String> {
+        request_body.0
     }
 }

@@ -17,8 +17,8 @@ use crate::{
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
+        domain,
         storage::{self, enums as storage_enums},
-        transformers::ForeignInto,
     },
     utils::OptionExt,
 };
@@ -37,8 +37,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsSessionRequest,
-        _mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &storage::MerchantAccount,
+        _mandate_type: Option<api::MandateTransactionType>,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
@@ -87,7 +88,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             None,
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
+            key_store,
         )
         .await?;
 
@@ -96,7 +98,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             None,
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
+            key_store,
         )
         .await?;
 
@@ -153,11 +156,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 amount,
                 email: None,
                 mandate_id: None,
+                mandate_connector: None,
                 token: None,
                 setup_mandate: None,
                 address: payments::PaymentAddress {
-                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
+                    shipping: shipping_address.as_ref().map(|a| a.into()),
+                    billing: billing_address.as_ref().map(|a| a.into()),
                 },
                 confirm: None,
                 payment_method_data: None,
@@ -171,6 +175,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 pm_token: None,
                 connector_customer_id: None,
                 ephemeral_key: None,
+                redirect_response: None,
             },
             Some(customer_details),
         ))
@@ -183,11 +188,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
@@ -196,20 +201,16 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
         F: 'b + Send,
     {
         let metadata = payment_data.payment_intent.metadata.clone();
-        let meta_data = payment_data.payment_intent.meta_data.clone();
-        payment_data.payment_intent = match (metadata, meta_data) {
-            (Some(metadata), Some(meta_data)) => db
+        payment_data.payment_intent = match metadata {
+            Some(metadata) => db
                 .update_payment_intent(
                     payment_data.payment_intent,
-                    storage::PaymentIntentUpdate::MetadataUpdate {
-                        metadata,
-                        meta_data,
-                    },
+                    storage::PaymentIntentUpdate::MetadataUpdate { metadata },
                     storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
-            _ => payment_data.payment_intent,
+            None => payment_data.payment_intent,
         };
 
         Ok((Box::new(self), payment_data))
@@ -221,7 +222,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsSessionRequest,
-        merchant_account: &'a storage::MerchantAccount,
+        merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         operations::ValidateResult<'a>,
@@ -253,11 +254,11 @@ where
         db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
-        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> errors::CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsSessionRequest>,
-            Option<storage::Customer>,
+            Option<domain::Customer>,
         ),
         errors::StorageError,
     > {
@@ -266,7 +267,8 @@ where
             db,
             payment_data,
             request,
-            merchant_id,
+            &key_store.merchant_id,
+            key_store,
         )
         .await
     }
@@ -296,10 +298,11 @@ where
     /// or from separate implementation ( for googlepay - from metadata and applepay - from metadata and call connector)
     async fn get_connector<'a>(
         &'a self,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsSessionRequest,
         payment_intent: &storage::payment_intent::PaymentIntent,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<api::ConnectorChoice> {
         let connectors = &state.conf.connectors;
         let db = &state.store;
@@ -308,6 +311,7 @@ where
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
                 &merchant_account.merchant_id,
                 false,
+                key_store,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -379,15 +383,15 @@ where
         for (connector, payment_method_type, business_sub_label) in
             connector_and_supporting_payment_method_type
         {
-            if let Ok(connector_data) = api::ConnectorData::get_connector_by_name(
-                connectors,
-                &connector,
-                api::GetToken::from(payment_method_type),
-            )
-            .map_err(|err| {
-                logger::error!(session_token_error=?err);
-                err
-            }) {
+            let connector_type =
+                get_connector_type_for_session_token(payment_method_type, request, &connector);
+            if let Ok(connector_data) =
+                api::ConnectorData::get_connector_by_name(connectors, &connector, connector_type)
+                    .map_err(|err| {
+                        logger::error!(session_token_error=?err);
+                        err
+                    })
+            {
                 session_connector_data.push(api::SessionConnectorData {
                     payment_method_type,
                     connector: connector_data,
@@ -414,11 +418,11 @@ impl From<api_models::enums::PaymentMethodType> for api::GetToken {
 
 pub fn get_connector_type_for_session_token(
     payment_method_type: api_models::enums::PaymentMethodType,
-    _request: &api::PaymentsSessionRequest,
-    connector: String,
+    request: &api::PaymentsSessionRequest,
+    connector: &str,
 ) -> api::GetToken {
     if payment_method_type == api_models::enums::PaymentMethodType::ApplePay {
-        if connector == *"bluesnap" {
+        if is_apple_pay_get_token_connector(connector, request) {
             api::GetToken::Connector
         } else {
             api::GetToken::ApplePayMetadata
@@ -426,4 +430,12 @@ pub fn get_connector_type_for_session_token(
     } else {
         api::GetToken::from(payment_method_type)
     }
+}
+
+pub fn is_apple_pay_get_token_connector(
+    connector: &str,
+    _request: &api::PaymentsSessionRequest,
+) -> bool {
+    // Add connectors here, which all are required to hit connector for session call
+    matches!(connector, "bluesnap")
 }
