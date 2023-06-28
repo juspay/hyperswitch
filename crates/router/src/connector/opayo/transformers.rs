@@ -48,7 +48,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpayoPaymentsRequest {
 
 // Auth Struct
 pub struct OpayoAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for OpayoAuthType {
@@ -56,7 +56,7 @@ impl TryFrom<&types::ConnectorAuthType> for OpayoAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: Secret::new(api_key.to_string()),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
