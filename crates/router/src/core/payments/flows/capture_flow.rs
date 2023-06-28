@@ -21,6 +21,7 @@ impl
         state: &AppState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<types::PaymentsCaptureRouterData> {
         transformers::construct_payment_router_data::<api::Capture, types::PaymentsCaptureData>(
@@ -28,6 +29,7 @@ impl
             self.clone(),
             connector_id,
             merchant_account,
+            key_store,
             customer,
         )
         .await
@@ -81,8 +83,8 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         state: &AppState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<Option<services::Request>> {
-        match call_connector_action {
+    ) -> RouterResult<(Option<services::Request>, bool)> {
+        let request = match call_connector_action {
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,
@@ -93,9 +95,11 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
 
                 connector_integration
                     .build_request(self, &state.conf.connectors)
-                    .to_payment_failed_response()
+                    .to_payment_failed_response()?
             }
-            _ => Ok(None),
-        }
+            _ => None,
+        };
+
+        Ok((request, true))
     }
 }

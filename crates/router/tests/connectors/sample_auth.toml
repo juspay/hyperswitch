@@ -127,6 +127,15 @@ pypl_pass=""
 gmail_email=""
 gmail_pass=""
 
+<<<<<<< HEAD
 
 [payme]
 api_key="API Key"
+=======
+[payme]
+api_key="API Key"
+
+[cashtocode]
+api_key="Classic PMT API Key"
+key1 = "Evoucher PMT API Key"
+>>>>>>> b4b6440a9135b75ae76eff1c1bb8c013aa2dd7f3

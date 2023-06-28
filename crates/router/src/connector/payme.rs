@@ -144,11 +144,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsInitRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = payme::GenerateSaleRequest::try_from(req)?;
-        let payme_req =
-            utils::Encode::<payme::GenerateSaleRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let payme_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<payme::GenerateSaleRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payme_req))
     }
 
@@ -270,10 +272,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = payme::PayRequest::try_from(req)?;
-        let payme_req = utils::Encode::<payme::PayRequest>::encode_to_string_of_json(&req_obj)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let payme_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<payme::PayRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payme_req))
     }
 
@@ -364,11 +369,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = payme::PaymentCaptureRequest::try_from(req)?;
-        let payme_req =
-            utils::Encode::<payme::PaymentCaptureRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let payme_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<payme::PaymentCaptureRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payme_req))
     }
 
@@ -455,11 +462,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = payme::PaymeRefundRequest::try_from(req)?;
-        let payme_req =
-            utils::Encode::<payme::PaymeRefundRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let payme_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<payme::PaymeRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payme_req))
     }
 

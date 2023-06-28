@@ -111,8 +111,7 @@ impl TryFrom<&types::PaymentsInitRouterData> for GenerateSaleRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsInitRouterData) -> Result<Self, Self::Error> {
         let sale_type = SaleType::try_from(item)?;
-        let seller_payme_id =
-            Secret::new(PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id);
+        let seller_payme_id = PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
         let product_name = item.request.get_order_details()?[0].product_name.clone();
         Ok(Self {
             currency: item.request.currency,
@@ -178,8 +177,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymePaymentRequest {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for MandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let seller_payme_id =
-            Secret::new(PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id);
+        let seller_payme_id = PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
         let product_name = item.request.get_order_details()?[0].product_name.clone();
         Ok(Self {
             currency: item.request.currency,
@@ -226,8 +224,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
 
 // Auth Struct
 pub struct PaymeAuthType {
-    pub(super) payme_client_key: String,
-    pub(super) seller_payme_id: String,
+    pub(super) payme_client_key: Secret<String>,
+    pub(super) seller_payme_id: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for PaymeAuthType {
@@ -235,8 +233,8 @@ impl TryFrom<&types::ConnectorAuthType> for PaymeAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                seller_payme_id: api_key.to_string(),
-                payme_client_key: key1.to_string(),
+                seller_payme_id: Secret::new(api_key.to_string()),
+                payme_client_key: Secret::new(key1.to_string()),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -355,8 +353,8 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PaymeRefundRequest {
         let auth_type = PaymeAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             payme_sale_id: item.request.connector_transaction_id.clone(),
-            seller_payme_id: Secret::new(auth_type.seller_payme_id),
-            payme_client_key: Secret::new(auth_type.payme_client_key),
+            seller_payme_id: auth_type.seller_payme_id,
+            payme_client_key: auth_type.payme_client_key,
             sale_refund_amount: item.request.refund_amount,
         })
     }
