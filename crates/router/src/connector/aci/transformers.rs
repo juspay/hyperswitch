@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use api_models::enums::BankNames;
 use common_utils::pii::Email;
 use error_stack::report;
 use masking::Secret;
@@ -78,11 +79,11 @@ impl TryFrom<&api_models::payments::WalletData> for PaymentDetails {
     type Error = Error;
     fn try_from(wallet_data: &api_models::payments::WalletData) -> Result<Self, Self::Error> {
         let payment_data = match wallet_data {
-            api_models::payments::WalletData::MbWay(data) => Self::Wallet(Box::new(WalletPMData {
+            api_models::payments::WalletData::MbWayRedirect(data) => Self::Wallet(Box::new(WalletPMData {
                 payment_brand: PaymentBrand::Mbway,
                 account_id: Some(data.telephone_number.clone()),
             })),
-            api_models::payments::WalletData::AliPay { .. } => {
+            api_models::payments::WalletData::AliPayRedirect { .. } => {
                 Self::Wallet(Box::new(WalletPMData {
                     payment_brand: PaymentBrand::AliPay,
                     account_id: None,
@@ -143,7 +144,7 @@ impl
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Ideal,
                     bank_account_country: Some(api_models::enums::CountryAlpha2::NL),
-                    bank_account_bank_name: Some(bank_name.to_string()),
+                    bank_account_bank_name: bank_name.to_owned(),
                     bank_account_bic: None,
                     bank_account_iban: None,
                     billing_country: None,
@@ -236,7 +237,7 @@ pub struct BankRedirectionPMData {
     #[serde(rename = "bankAccount.country")]
     bank_account_country: Option<api_models::enums::CountryAlpha2>,
     #[serde(rename = "bankAccount.bankName")]
-    bank_account_bank_name: Option<String>,
+    bank_account_bank_name: Option<BankNames>,
     #[serde(rename = "bankAccount.bic")]
     bank_account_bic: Option<Secret<String>>,
     #[serde(rename = "bankAccount.iban")]
@@ -371,8 +372,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
             api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Reward(_)
-            | api::PaymentMethodData::MandatePayment => {
+            | api::PaymentMethodData::Reward(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.payment_method),
                     connector: "Aci",
