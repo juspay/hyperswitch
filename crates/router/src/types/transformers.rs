@@ -228,6 +228,49 @@ impl ForeignTryFrom<api_enums::IntentStatus> for storage_enums::EventType {
     }
 }
 
+impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
+    fn foreign_from(payment_method_type: api_enums::PaymentMethodType) -> Self {
+        match payment_method_type {
+            api_enums::PaymentMethodType::ApplePay
+            | api_enums::PaymentMethodType::GooglePay
+            | api_enums::PaymentMethodType::Paypal
+            | api_enums::PaymentMethodType::AliPay
+            | api_enums::PaymentMethodType::MbWay
+            | api_enums::PaymentMethodType::MobilePay
+            | api_enums::PaymentMethodType::WeChatPay => Self::Wallet,
+            api_enums::PaymentMethodType::Affirm
+            | api_enums::PaymentMethodType::AfterpayClearpay
+            | api_enums::PaymentMethodType::Klarna
+            | api_enums::PaymentMethodType::PayBright
+            | api_enums::PaymentMethodType::Walley => Self::PayLater,
+            api_enums::PaymentMethodType::Giropay
+            | api_enums::PaymentMethodType::Ideal
+            | api_enums::PaymentMethodType::Sofort
+            | api_enums::PaymentMethodType::Eps
+            | api_enums::PaymentMethodType::BancontactCard
+            | api_enums::PaymentMethodType::Blik
+            | api_enums::PaymentMethodType::OnlineBankingCzechRepublic
+            | api_enums::PaymentMethodType::OnlineBankingFinland
+            | api_enums::PaymentMethodType::OnlineBankingPoland
+            | api_enums::PaymentMethodType::OnlineBankingSlovakia
+            | api_enums::PaymentMethodType::Przelewy24
+            | api_enums::PaymentMethodType::Swish
+            | api_enums::PaymentMethodType::Trustly
+            | api_enums::PaymentMethodType::Interac => Self::BankRedirect,
+            api_enums::PaymentMethodType::CryptoCurrency => Self::Crypto,
+            api_enums::PaymentMethodType::Ach
+            | api_enums::PaymentMethodType::Sepa
+            | api_enums::PaymentMethodType::Bacs
+            | api_enums::PaymentMethodType::Becs => Self::BankDebit,
+            api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
+                Self::Card
+            }
+            api_enums::PaymentMethodType::Evoucher
+            | api_enums::PaymentMethodType::ClassicReward => Self::Reward,
+        }
+    }
+}
+
 impl ForeignTryFrom<storage_enums::RefundStatus> for storage_enums::EventType {
     type Error = errors::ValidationError;
 
