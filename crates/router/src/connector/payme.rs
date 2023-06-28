@@ -3,6 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as payme;
 
 use crate::{
@@ -90,7 +91,7 @@ impl ConnectorCommon for Payme {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.into_masked(),
+            auth.api_key.peek().to_string().into_masked(),
         )])
     }
 
