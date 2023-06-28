@@ -13,8 +13,10 @@ impl SeleniumTest for AdyenSeleniumTest {
 
 async fn should_make_adyen_3ds_payment_failed(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
-    conn.make_redirection_payment(c, vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/card?cname=CL-BRW1&ccnum=4917610000000000&expmonth=10&expyear=2030&cvv=737&amount=200&country=US&currency=USD"))),
+    conn.make_redirection_payment(
+        c,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/177"))),
             Event::Assert(Assert::IsPresent("Expiry Year")),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Name("threeDSIframe"))),
@@ -24,15 +26,18 @@ async fn should_make_adyen_3ds_payment_failed(c: WebDriver) -> Result<(), WebDri
             Event::Trigger(Trigger::Sleep(5)),
             Event::Assert(Assert::IsPresent("Google")),
             Event::Assert(Assert::Contains(Selector::QueryParamStr, "status=failed")),
-
-    ]).await?;
+        ],
+    )
+    .await?;
     Ok(())
 }
 
 async fn should_make_adyen_3ds_payment_success(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
-    conn.make_redirection_payment(c, vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/card?cname=CL-BRW1&ccnum=4917610000000000&expmonth=03&expyear=2030&cvv=737&amount=10000&country=US&currency=USD"))),
+    conn.make_redirection_payment(
+        c,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/62"))),
             Event::Assert(Assert::IsPresent("Expiry Year")),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Name("threeDSIframe"))),
@@ -41,9 +46,13 @@ async fn should_make_adyen_3ds_payment_success(c: WebDriver) -> Result<(), WebDr
             Event::Trigger(Trigger::Click(By::Id("buttonSubmit"))),
             Event::Trigger(Trigger::Sleep(5)),
             Event::Assert(Assert::IsPresent("Google")),
-            Event::Assert(Assert::Contains(Selector::QueryParamStr, "status=processing")),
-
-    ]).await?;
+            Event::Assert(Assert::Contains(
+                Selector::QueryParamStr,
+                "status=processing",
+            )),
+        ],
+    )
+    .await?;
     Ok(())
 }
 

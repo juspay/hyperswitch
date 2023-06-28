@@ -15,7 +15,7 @@ async fn should_make_paypal_paypal_wallet_payment(c: WebDriver) -> Result<(), We
     let conn = PaypalSeleniumTest {};
     conn.make_paypal_payment(
         c,
-        &format!("{CHEKOUT_BASE_URL}/paypal-redirect?amount=12.00&country=US&currency=USD"),
+        &format!("{CHEKOUT_BASE_URL}/saved/21"),
         vec![
             Event::Assert(Assert::IsPresent("Google")),
             Event::Assert(Assert::ContainsAny(
