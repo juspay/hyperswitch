@@ -9,6 +9,7 @@ use transformers as bitpay;
 use self::bitpay::BitpayWebhookDetails;
 use crate::{
     configs::settings,
+    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{
@@ -109,9 +110,11 @@ impl ConnectorCommon for Bitpay {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response
+                .code
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response.error,
+            reason: response.message,
         })
     }
 }
@@ -158,11 +161,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = bitpay::BitpayPaymentsRequest::try_from(req)?;
-        let bitpay_req =
-            utils::Encode::<bitpay::BitpayPaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let bitpay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<bitpay::BitpayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bitpay_req))
     }
 
@@ -310,7 +316,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         _req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
@@ -384,11 +390,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = bitpay::BitpayRefundRequest::try_from(req)?;
-        let bitpay_req =
-            utils::Encode::<bitpay::BitpayRefundRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let bitpay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<bitpay::BitpayRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bitpay_req))
     }
 

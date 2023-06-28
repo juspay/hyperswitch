@@ -36,6 +36,9 @@ pub struct PaymentIntent {
     pub active_attempt_id: String,
     pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
+    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
+    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    pub udf: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(
@@ -78,6 +81,9 @@ pub struct PaymentIntentNew {
     pub active_attempt_id: String,
     pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
+    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
+    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    pub udf: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,6 +122,12 @@ pub enum PaymentIntentUpdate {
         return_url: Option<String>,
         business_country: Option<storage_enums::CountryAlpha2>,
         business_label: Option<String>,
+        description: Option<String>,
+        statement_descriptor_name: Option<String>,
+        statement_descriptor_suffix: Option<String>,
+        order_details: Option<Vec<pii::SecretSerdeValue>>,
+        metadata: Option<pii::SecretSerdeValue>,
+        udf: Option<pii::SecretSerdeValue>,
     },
     PaymentAttemptUpdate {
         active_attempt_id: String,
@@ -146,6 +158,12 @@ pub struct PaymentIntentUpdateInternal {
     pub active_attempt_id: Option<String>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
+    pub description: Option<String>,
+    pub statement_descriptor_name: Option<String>,
+    pub statement_descriptor_suffix: Option<String>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
+    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    pub udf: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentIntentUpdate {
@@ -173,6 +191,7 @@ impl PaymentIntentUpdate {
                 .shipping_address_id
                 .or(source.shipping_address_id),
             modified_at: common_utils::date_time::now(),
+            order_details: internal_update.order_details.or(source.order_details),
             ..source
         }
     }
@@ -192,6 +211,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 return_url,
                 business_country,
                 business_label,
+                description,
+                statement_descriptor_name,
+                statement_descriptor_suffix,
+                order_details,
+                metadata,
+                udf,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -205,6 +230,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 return_url,
                 business_country,
                 business_label,
+                description,
+                statement_descriptor_name,
+                statement_descriptor_suffix,
+                order_details,
+                metadata,
+                udf,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate { metadata } => Self {
