@@ -35,6 +35,7 @@ mod nuvei;
 mod nuvei_ui;
 mod opennode;
 mod payeezy;
+mod payme;
 mod paypal;
 mod paypal_ui;
 mod payu;
