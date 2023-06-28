@@ -101,13 +101,13 @@ where
         );
         let authz = crypto::HmacSha1::sign_message(
             &crypto::HmacSha1,
-            auth.api_secret.as_bytes(),
+            auth.api_secret.peek().as_bytes(),
             sign_req.as_bytes(),
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to sign the message")?;
         let authz = consts::BASE64_ENGINE.encode(authz);
-        let auth_string: String = format!("HMAC {}:{}", auth.api_key, authz);
+        let auth_string: String = format!("HMAC {}:{}", auth.api_key.peek(), authz);
 
         let headers = vec![
             (
@@ -145,7 +145,7 @@ impl ConnectorCommon for Cryptopay {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.into_masked(),
+            auth.api_key.peek().to_owned().into_masked(),
         )])
     }
 

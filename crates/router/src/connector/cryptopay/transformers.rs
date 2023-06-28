@@ -1,3 +1,4 @@
+use masking::Secret;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -41,8 +42,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CryptopayPaymentsRequest {
 
 // Auth Struct
 pub struct CryptopayAuthType {
-    pub(super) api_key: String,
-    pub(super) api_secret: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) api_secret: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for CryptopayAuthType {
@@ -50,8 +51,8 @@ impl TryFrom<&types::ConnectorAuthType> for CryptopayAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
-                api_key: api_key.to_string(),
-                api_secret: key1.to_string(),
+                api_key: api_key.to_string().into(),
+                api_secret: key1.to_string().into(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
