@@ -212,7 +212,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                         PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
                             payment_brand: PaymentBrand::Ideal,
                             bank_account_country: Some(api_models::enums::CountryAlpha2::NL),
-                            bank_account_bank_name: Some(bank_name.to_string()),
+                            bank_account_bank_name: bank_name
+                                .map(|bank_name| bank_name.to_string()),
                             bank_account_bic: None,
                             bank_account_iban: None,
                             billing_country: None,
@@ -297,6 +298,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
             api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Reward(_)
             | api::PaymentMethodData::MandatePayment => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.payment_method),

@@ -27,6 +27,7 @@ impl
         state: &routes::AppState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
         transformers::construct_payment_router_data::<api::Session, types::PaymentsSessionData>(
@@ -34,6 +35,7 @@ impl
             self.clone(),
             connector_id,
             merchant_account,
+            key_store,
             customer,
         )
         .await
@@ -49,6 +51,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
         _merchant_account: &domain::MerchantAccount,
+        _connector_request: Option<services::Request>,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             &metrics::CONTEXT,
@@ -113,10 +116,12 @@ fn mk_applepay_session_request(
             .clone(),
     };
 
-    let applepay_session_request =
-        utils::Encode::<payment_types::ApplepaySessionRequest>::encode_to_string_of_json(&request)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encode ApplePay session request to a string of json")?;
+    let applepay_session_request = types::RequestBody::log_and_get_request_body(
+        &request,
+        utils::Encode::<payment_types::ApplepaySessionRequest>::encode_to_string_of_json,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encode ApplePay session request to a string of json")?;
 
     let mut url = state.conf.connectors.applepay.base_url.to_owned();
     url.push_str("paymentservices/paymentSession");
@@ -371,6 +376,7 @@ impl types::PaymentsSessionRouterData {
                     connector_integration,
                     self,
                     call_connector_action,
+                    None,
                 )
                 .await
                 .to_payment_failed_response()?;

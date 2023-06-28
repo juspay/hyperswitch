@@ -9,6 +9,7 @@ FO = "FO"  # Faroe Islands (the) country code
 HypoNoeLbFurNiederosterreichUWien = "HypoNoeLbFurNiederosterreichUWien"
 hypo_noe_lb_fur_niederosterreich_u_wien = "hypo_noe_lb_fur_niederosterreich_u_wien"
 NAM = "NAM"  # Namibia country code
+ND = "ND"  # North Dakota state code
 payment_vas = "payment_vas"
 PaymentVas = "PaymentVas"
 RegioBank = "RegioBank"
