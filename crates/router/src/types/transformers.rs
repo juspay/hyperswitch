@@ -174,6 +174,7 @@ impl ForeignFrom<api_models::payments::MandateType> for storage_enums::MandateDa
         }
     }
 }
+
 impl ForeignFrom<storage_enums::MandateDataType> for api_models::payments::MandateType {
     fn foreign_from(from: storage_enums::MandateDataType) -> Self {
         match from {
@@ -566,7 +567,7 @@ impl ForeignFrom<storage_models::cards_info::CardInfo>
             card_iin: item.card_iin,
             card_type: item.card_type,
             card_sub_type: item.card_subtype,
-            card_network: item.card_network,
+            card_network: item.card_network.map(|x| x.to_string()),
             card_issuer: item.card_issuer,
             card_issuing_country: item.card_issuing_country,
         }
@@ -611,5 +612,23 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
             business_sub_label: item.business_sub_label,
             frm_configs,
         })
+    }
+}
+
+impl ForeignFrom<storage_models::enums::CardNetwork> for api_models::enums::CardNetwork {
+    fn foreign_from(source: storage_models::enums::CardNetwork) -> Self {
+        match source {
+            storage_models::enums::CardNetwork::VISA => Self::Visa,
+            storage_models::enums::CardNetwork::MASTERCARD => Self::Mastercard,
+            storage_models::enums::CardNetwork::AMEX => Self::AmericanExpress,
+            storage_models::enums::CardNetwork::JCB => Self::JCB,
+            storage_models::enums::CardNetwork::DINERS => Self::DinersClub,
+            storage_models::enums::CardNetwork::DISCOVER => Self::Discover,
+            storage_models::enums::CardNetwork::CartesBancaires => Self::CartesBancaires,
+            storage_models::enums::CardNetwork::CHINAUNIONPAY => Self::UnionPay,
+            storage_models::enums::CardNetwork::Interac => Self::Interac,
+            storage_models::enums::CardNetwork::RUPAY => Self::RuPay,
+            storage_models::enums::CardNetwork::MAESTRO => Self::Maestro,
+        }
     }
 }

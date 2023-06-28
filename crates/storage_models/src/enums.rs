@@ -796,6 +796,33 @@ pub enum BankNames {
 }
 
 #[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum CardNetwork {
+    VISA,
+    MASTERCARD,
+    AMEX,
+    JCB,
+    DINERS,
+    DISCOVER,
+    CartesBancaires,
+    CHINAUNIONPAY,
+    Interac,
+    RUPAY,
+    MAESTRO,
+}
+
+#[derive(
     Eq,
     PartialEq,
     Hash,

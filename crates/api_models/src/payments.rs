@@ -605,7 +605,7 @@ pub enum PaymentMethodData {
 pub enum AdditionalPaymentData {
     Card {
         card_issuer: Option<String>,
-        card_network: Option<String>,
+        card_network: Option<api_enums::CardNetwork>,
         card_type: Option<String>,
         card_issuing_country: Option<String>,
         bank_code: Option<String>,

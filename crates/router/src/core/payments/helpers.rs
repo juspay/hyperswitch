@@ -2478,39 +2478,43 @@ pub async fn get_additional_payment_data(
                 && card_data.card_issuing_country.is_some()
                 && card_data.bank_code.is_some()
             {
-                let card_issuer = card_data.card_issuer.to_owned();
-                let card_network = card_data
-                    .card_network
-                    .as_ref()
-                    .map(|card_network| card_network.to_string());
-                let card_type = card_data.card_type.to_owned();
-                let bank_code = card_data.bank_code.to_owned();
-                let card_issuing_country = card_data.card_issuing_country.to_owned();
-
                 Ok(api_models::payments::AdditionalPaymentData::Card {
-                    card_issuer,
-                    card_network,
-                    card_type,
-                    card_issuing_country,
-                    bank_code,
+                    card_issuer: card_data.card_issuer.to_owned(),
+                    card_network: card_data.card_network.clone(),
+                    card_type: card_data.card_type.to_owned(),
+                    card_issuing_country: card_data.card_issuing_country.to_owned(),
+                    bank_code: card_data.bank_code.to_owned(),
                 })
             } else {
+                let card_number = card_data.clone().card_number;
                 let card_info = db
-                    .get_card_info(&card_data.card_number.clone().get_card_isin())
+                    .get_card_info(&card_number.get_card_isin())
                     .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to retrieve card information")?
-                    .ok_or(report!(errors::ApiErrorResponse::InvalidCardIin))?;
-
+                    .attach_printable("Failed to retrieve card information")
+                    .ok()
+                    .flatten();
                 Ok(api_models::payments::AdditionalPaymentData::Card {
-                    card_issuer: card_info.card_issuer.to_owned(),
-                    card_network: card_info
-                        .card_network
+                    card_issuer: card_info.as_ref().and_then(|card| {
+                        card.card_issuer.as_ref().map(|issuer| issuer.to_string())
+                    }),
+                    card_network: card_info.as_ref().and_then(|card| {
+                        card.card_network
+                            .clone()
+                            .map(|network| network.foreign_into())
+                    }),
+                    card_type: card_info
                         .as_ref()
-                        .map(|card_network| card_network.to_string()),
-                    card_type: card_data.card_type.to_owned(),
-                    bank_code: card_data.bank_code.to_owned(),
-                    card_issuing_country: card_data.card_issuing_country.to_owned(),
+                        .and_then(|card| card.card_type.as_ref().map(|issuer| issuer.to_string())),
+                    bank_code: card_info.as_ref().and_then(|card| {
+                        card.bank_code
+                            .as_ref()
+                            .map(|bank_code: &String| bank_code.to_string())
+                    }),
+                    card_issuing_country: card_info.as_ref().and_then(|card| {
+                        card.card_issuing_country
+                            .as_ref()
+                            .map(|card_issuing_country| card_issuing_country.to_string())
+                    }),
                 })
             }
         }
