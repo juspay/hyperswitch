@@ -29,7 +29,10 @@ static PAYMENT_METHOD_TYPE_SET: Lazy<
             ST::Credit,
             ST::Debit
         ],
-        T::Wallet => vec![]
+        T::Wallet => vec![
+            ST::GooglePay,
+            ST::ApplePay
+        ]
     }
 });
 
