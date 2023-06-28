@@ -45,7 +45,9 @@ pub async fn refund_create(
         state.get_ref(),
         &req,
         create_refund_req,
-        refunds::refund_create_core,
+        |state, auth, req| {
+            refunds::refund_create_core(state, auth.merchant_account, auth.key_store, req)
+        },
         &auth::ApiKeyAuth,
     )
     .await
@@ -82,10 +84,11 @@ pub async fn refund_retrieve_with_gateway_creds(
         state.get_ref(),
         &req,
         refund_request,
-        |state, merchant_account, refund_request| {
+        |state, auth, refund_request| {
             refunds::refund_response_wrapper(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 refund_request,
                 refunds::refund_retrieve_core,
             )
@@ -123,10 +126,11 @@ pub async fn refund_retrieve(
         state.get_ref(),
         &req,
         refund_request,
-        |state, merchant_account, refund_request| {
+        |state, auth, refund_request| {
             refunds::refund_response_wrapper(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 refund_request,
                 refunds::refund_retrieve_core,
             )
@@ -162,8 +166,8 @@ pub async fn refund_update(
         state.get_ref(),
         &req,
         create_refund_update_req,
-        |state, merchant_account, req| {
-            refunds::refund_update_core(&*state.store, merchant_account, &refund_id, req)
+        |state, auth, req| {
+            refunds::refund_update_core(&*state.store, auth.merchant_account, &refund_id, req)
         },
         &auth::ApiKeyAuth,
     )

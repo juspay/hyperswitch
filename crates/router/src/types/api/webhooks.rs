@@ -60,7 +60,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         algorithm
-            .decode_message(&secret, message)
+            .decode_message(&secret, message.into())
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
     }
 
