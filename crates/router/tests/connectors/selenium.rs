@@ -6,10 +6,7 @@ use thirtyfour::{components::SelectElement, prelude::*, WebDriver};
 
 use crate::connector_auth;
 
-<<<<<<< HEAD
-=======
 #[derive(Clone)]
->>>>>>> main
 pub enum Event<'a> {
     RunIf(Assert<'a>, Vec<Event<'a>>),
     EitherOr(Assert<'a>, Vec<Event<'a>>, Vec<Event<'a>>),
@@ -202,16 +199,6 @@ pub trait SeleniumTest {
                     Trigger::Goto(url) => {
                         driver.goto(url).await?;
                         let conf = serde_json::to_string(&self.get_configs()).unwrap();
-<<<<<<< HEAD
-                        let hs_base_url = self.get_configs().hs_base_url.unwrap_or_else(|| {
-                            env::var("HS_BASE_URL")
-                                .unwrap_or_else(|_| "http://localhost:8080".to_string())
-                        });
-                        let configs_url = self.get_configs().configs_url.unwrap();
-                        let script = &[
-                            format!("localStorage.configs='{configs_url}'").as_str(),
-                            format!("localStorage.hs_api_configs='{conf}'").as_str(),
-=======
                         let hs_base_url = self
                             .get_configs()
                             .automation_configs
@@ -228,7 +215,6 @@ pub trait SeleniumTest {
                             format!("localStorage.configs='{configs_url}'").as_str(),
                             format!("localStorage.hs_api_configs='{conf}'").as_str(),
                             "localStorage.force_sync='true'",
->>>>>>> main
                             format!(
                                 "localStorage.current_connector=\"{}\";",
                                 self.get_connector_name().clone()
@@ -328,16 +314,8 @@ pub trait SeleniumTest {
         url: &str,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
-<<<<<<< HEAD
-        let config = self.get_configs();
-        let (email, pass) = (
-            &config.gmail_email.unwrap_or_else(|| get_env("GMAIL_EMAIL")),
-            &config.gmail_pass.unwrap_or_else(|| get_env("GMAIL_PASS")),
-        );
-=======
         let config = self.get_configs().automation_configs.unwrap();
         let (email, pass) = (&config.gmail_email.unwrap(), &config.gmail_pass.unwrap());
->>>>>>> main
         let default_actions = vec![
             Event::Trigger(Trigger::Goto(url)),
             Event::Trigger(Trigger::Click(By::Css(".gpay-button"))),
@@ -390,14 +368,6 @@ pub trait SeleniumTest {
         let (email, pass) = (
             &self
                 .get_configs()
-<<<<<<< HEAD
-                .pypl_email
-                .unwrap_or_else(|| get_env("PYPL_EMAIL")),
-            &self
-                .get_configs()
-                .pypl_pass
-                .unwrap_or_else(|| get_env("PYPL_PASS")),
-=======
                 .automation_configs
                 .unwrap()
                 .pypl_email
@@ -408,7 +378,6 @@ pub trait SeleniumTest {
                 .unwrap()
                 .pypl_pass
                 .unwrap(),
->>>>>>> main
         );
         let mut pypl_actions = vec![
             Event::EitherOr(
@@ -505,11 +474,7 @@ macro_rules! tester {
 }
 
 pub fn get_browser() -> String {
-<<<<<<< HEAD
-    env::var("HS_TEST_BROWSER").unwrap_or_else(|_| "firefox".to_string())
-=======
     "firefox".to_string()
->>>>>>> main
 }
 
 pub fn make_capabilities(s: &str) -> Capabilities {
@@ -537,44 +502,6 @@ pub fn make_capabilities(s: &str) -> Capabilities {
     }
 }
 fn get_chrome_profile_path() -> Result<String, WebDriverError> {
-<<<<<<< HEAD
-    env::var("CHROME_PROFILE_PATH").map_or_else(
-        |_| -> Result<String, WebDriverError> {
-            let exe = env::current_exe()?;
-            let dir = exe.parent().expect("Executable must be in some directory");
-            let mut base_path = dir
-                .to_str()
-                .map(|str| {
-                    let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
-                    fp.truncate(3);
-                    fp.join(&MAIN_SEPARATOR.to_string())
-                })
-                .unwrap();
-            base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#);
-            Ok(base_path)
-        },
-        Ok,
-    )
-}
-fn get_firefox_profile_path() -> Result<String, WebDriverError> {
-    env::var("FIREFOX_PROFILE_PATH").map_or_else(
-        |_| -> Result<String, WebDriverError> {
-            let exe = env::current_exe()?;
-            let dir = exe.parent().expect("Executable must be in some directory");
-            let mut base_path = dir
-                .to_str()
-                .map(|str| {
-                    let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
-                    fp.truncate(3);
-                    fp.join(&MAIN_SEPARATOR.to_string())
-                })
-                .unwrap();
-            base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#);
-            Ok(base_path)
-        },
-        Ok,
-    )
-=======
     let exe = env::current_exe()?;
     let dir = exe.parent().expect("Executable must be in some directory");
     let mut base_path = dir
@@ -601,7 +528,6 @@ fn get_firefox_profile_path() -> Result<String, WebDriverError> {
         .unwrap();
     base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#);
     Ok(base_path)
->>>>>>> main
 }
 
 pub fn make_url(s: &str) -> &'static str {
@@ -631,10 +557,3 @@ pub fn handle_test_error(
         }
     }
 }
-<<<<<<< HEAD
-
-pub fn get_env(name: &str) -> String {
-    env::var(name).unwrap_or_else(|_| panic!("{name} not present"))
-}
-=======
->>>>>>> main
