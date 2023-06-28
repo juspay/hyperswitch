@@ -188,6 +188,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<storage_models::enums::PaymentMethodType, Error>;
+    fn get_connector_mandate_id(&self) -> Result<String, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -259,6 +260,11 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.payment_method_type
             .to_owned()
             .ok_or_else(missing_field_err("payment_method_type"))
+    }
+
+    fn get_connector_mandate_id(&self) -> Result<String, Error> {
+        self.connector_mandate_id()
+            .ok_or_else(missing_field_err("connector_mandate_id"))
     }
 }
 

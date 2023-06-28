@@ -11,12 +11,30 @@ use crate::{
 };
 
 #[derive(Debug, Serialize)]
-pub struct PaymePaymentsRequest {
+pub struct PayRequest {
     buyer_name: Secret<String>,
     buyer_email: pii::Email,
     payme_sale_id: String,
     #[serde(flatten)]
     card: PaymeCard,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MandateRequest {
+    currency: enums::Currency,
+    sale_price: i64,
+    transaction_id: String,
+    product_name: String,
+    sale_return_url: String,
+    seller_payme_id: Secret<String>,
+    sale_callback_url: String,
+    buyer_key: String,
+}
+
+#[derive(Debug, Serialize)]
+pub enum PaymePaymentRequest {
+    MandateRequest(MandateRequest),
+    PayRequest(PayRequest),
 }
 
 #[derive(Debug, Serialize)]
@@ -80,6 +98,7 @@ impl<F, T>
 pub enum SaleType {
     Sale,
     Authorize,
+    Token,
 }
 
 #[derive(Debug, Serialize)]
@@ -91,10 +110,7 @@ pub enum SalePyamentMethod {
 impl TryFrom<&types::PaymentsInitRouterData> for GenerateSaleRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsInitRouterData) -> Result<Self, Self::Error> {
-        let sale_type = match item.request.is_auto_capture()? {
-            true => SaleType::Sale,
-            false => SaleType::Authorize,
-        };
+        let sale_type = SaleType::try_from(item)?;
         let seller_payme_id =
             Secret::new(PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id);
         let product_name = item.request.get_order_details()?[0].product_name.clone();
@@ -109,6 +125,23 @@ impl TryFrom<&types::PaymentsInitRouterData> for GenerateSaleRequest {
             sale_callback_url: item.request.get_webhook_url()?,
             sale_payment_method: SalePyamentMethod::try_from(&item.request.payment_method_data)?,
         })
+    }
+}
+
+impl TryFrom<&types::PaymentsInitRouterData> for SaleType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &types::PaymentsInitRouterData) -> Result<Self, Self::Error> {
+        let sale_type = if value.request.setup_mandate_details.is_some() {
+            // First mandate
+            Self::Token
+        } else {
+            // Normal payments
+            match value.request.is_auto_capture()? {
+                true => Self::Sale,
+                false => Self::Authorize,
+            }
+        };
+        Ok(sale_type)
     }
 }
 
@@ -130,7 +163,38 @@ impl TryFrom<&PaymentMethodData> for SalePyamentMethod {
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymePaymentsRequest {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymePaymentRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let payme_request = if value.request.is_mandate_payment() {
+            Self::MandateRequest(MandateRequest::try_from(value)?)
+        } else {
+            Self::PayRequest(PayRequest::try_from(value)?)
+        };
+        Ok(payme_request)
+    }
+}
+
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for MandateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let seller_payme_id =
+            Secret::new(PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id);
+        let product_name = item.request.get_order_details()?[0].product_name.clone();
+        Ok(Self {
+            currency: item.request.currency,
+            sale_price: item.request.amount,
+            transaction_id: item.payment_id.clone(),
+            product_name,
+            sale_return_url: item.request.get_return_url()?,
+            seller_payme_id,
+            sale_callback_url: item.request.get_webhook_url()?,
+            buyer_key: item.request.get_connector_mandate_id()?,
+        })
+    }
+}
+
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
@@ -350,4 +414,9 @@ pub struct PaymeErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WebhookEventDataResource {
+    pub object: serde_json::Value,
 }

@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use error_stack::{IntoReport, ResultExt};
 use transformers as payme;
 
+use super::utils::PaymentsAuthorizeRequestData;
 use crate::{
     configs::settings,
     core::{
@@ -213,28 +214,30 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         router_data: &mut types::PaymentsAuthorizeRouterData,
         app_state: &routes::AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let integ: Box<
-            &(dyn ConnectorIntegration<
-                api::InitPayment,
-                types::PaymentsAuthorizeData,
-                types::PaymentsResponseData,
-            > + Send
-                  + Sync
-                  + 'static),
-        > = Box::new(&Self);
-        let init_data = &types::PaymentsInitRouterData::from((
-            &router_data.to_owned(),
-            router_data.request.clone(),
-        ));
-        let init_res = services::execute_connector_processing_step(
-            app_state,
-            integ,
-            init_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-        )
-        .await?;
-        router_data.request.related_transaction_id = init_res.request.related_transaction_id;
+        if !router_data.request.is_mandate_payment() {
+            let integ: Box<
+                &(dyn ConnectorIntegration<
+                    api::InitPayment,
+                    types::PaymentsAuthorizeData,
+                    types::PaymentsResponseData,
+                > + Send
+                      + Sync
+                      + 'static),
+            > = Box::new(&Self);
+            let init_data = &types::PaymentsInitRouterData::from((
+                &router_data.to_owned(),
+                router_data.request.clone(),
+            ));
+            let init_res = services::execute_connector_processing_step(
+                app_state,
+                integ,
+                init_data,
+                payments::CallConnectorAction::Trigger,
+                None,
+            )
+            .await?;
+            router_data.request.related_transaction_id = init_res.request.related_transaction_id;
+        }
         Ok(())
     }
 
@@ -252,20 +255,25 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}api/pay-sale", self.base_url(connectors)))
+        if req.request.is_mandate_payment() {
+            // For recurring mandate payments
+            Ok(format!("{}api/generate-sale", self.base_url(connectors)))
+        } else {
+            // For Normal & first mandate payments
+            Ok(format!("{}api/pay-sale", self.base_url(connectors)))
+        }
     }
 
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = payme::PaymePaymentsRequest::try_from(req)?;
-        let payme_req =
-            utils::Encode::<payme::PaymePaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let req_obj = payme::PayRequest::try_from(req)?;
+        let payme_req = utils::Encode::<payme::PayRequest>::encode_to_string_of_json(&req_obj)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payme_req))
     }
 
