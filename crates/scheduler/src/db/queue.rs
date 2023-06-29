@@ -1,7 +1,10 @@
 use common_utils::errors::CustomResult;
 use redis_interface::{errors::RedisError, RedisEntryId, SetnxReply};
-use router_env::{logger};
-use storage_models::{process_tracker as storage, services::{Store, MockDb}};
+use router_env::logger;
+use storage_models::{
+    process_tracker as storage,
+    services::{MockDb, Store},
+};
 
 use crate::errors::ProcessTrackerError;
 

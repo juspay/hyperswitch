@@ -68,7 +68,7 @@ macro_rules! error_to_process_tracker_error {
         }
     };
 }
-pub trait PTError : Send + Sync + 'static{
+pub trait PTError: Send + Sync + 'static {
     fn to_pt_error(&self) -> ProcessTrackerError;
 }
 

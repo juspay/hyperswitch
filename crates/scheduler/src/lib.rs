@@ -1,14 +1,12 @@
 pub mod consumer;
-pub mod scheduler;
-pub mod producer;
-pub mod metrics;
-pub mod utils;
-pub mod flow;
-pub mod settings;
+pub mod db;
 pub mod env;
 pub mod errors;
-pub mod db;
+pub mod flow;
+pub mod metrics;
+pub mod producer;
+pub mod scheduler;
+pub mod settings;
+pub mod utils;
 
-pub use self::{
-    scheduler::*, flow::*
-};
+pub use self::{consumer::types, flow::*, scheduler::*};

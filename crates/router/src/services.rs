@@ -3,11 +3,9 @@ pub mod authentication;
 pub mod encryption;
 pub mod logger;
 
-use std::sync::{Arc};
+use std::sync::Arc;
 
 use error_stack::{IntoReport, ResultExt};
-#[cfg(feature = "kms")]
-use external_services::kms;
 use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
 use storage_models::services as storage;
 

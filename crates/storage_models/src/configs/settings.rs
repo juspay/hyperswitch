@@ -16,8 +16,8 @@ pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use serde::{de::Error, Deserialize, Deserializer};
 
 use crate::{
-    errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
+    errors::{ApplicationError, ApplicationResult},
 };
 
 #[derive(clap::Parser, Default)]
@@ -149,9 +149,7 @@ pub enum PaymentMethodTypeTokenFilter {
     AllAccepted,
 }
 
-fn pm_deser<'a, D>(
-    deserializer: D,
-) -> Result<HashSet<crate::enums::PaymentMethod>, D::Error>
+fn pm_deser<'a, D>(deserializer: D) -> Result<HashSet<crate::enums::PaymentMethod>, D::Error>
 where
     D: Deserializer<'a>,
 {
@@ -500,7 +498,6 @@ pub struct ApiKeys {
     pub hash_key: String,
 }
 
-
 #[cfg(feature = "s3")]
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
@@ -510,7 +507,6 @@ pub struct FileUploadConfig {
     /// The AWS s3 bucket to send file uploads
     pub bucket_name: String,
 }
-
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DelayedSessionConfig {

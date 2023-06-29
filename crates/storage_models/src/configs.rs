@@ -2,8 +2,8 @@ use std::convert::From;
 
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
-pub mod settings;
 pub mod defaults;
+pub mod settings;
 pub mod validations;
 use crate::schema::configs;
 

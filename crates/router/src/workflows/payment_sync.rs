@@ -1,18 +1,20 @@
+use common_utils::ext_traits::{OptionExt, ValueExt};
 use router_env::logger;
-use scheduler::SchedulerAppState;
-use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors as sch_errors};
-use common_utils::ext_traits::{ValueExt, OptionExt};
-use scheduler::db::process_tracker::ProcessTrackerExt;
-use scheduler::{ utils, consumer::{self,types::process_data}};
+use scheduler::{
+    consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
+    db::process_tracker::ProcessTrackerExt,
+    errors as sch_errors, utils, SchedulerAppState,
+};
+
 use crate::{
     core::payments::{self as payment_flows, operations},
     db::{get_and_deserialize_key, StorageInterface},
-    routes::AppState,
     errors,
+    routes::AppState,
     types::{
         api,
         storage::{self, enums},
-    }
+    },
 };
 
 pub struct PaymentsSyncWorkflow;
@@ -73,7 +75,10 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             status if terminal_status.contains(status) => {
                 let id = process.id.clone();
                 process
-                    .finish_with_status(state.get_db().as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
+                    .finish_with_status(
+                        state.get_db().as_scheduler(),
+                        format!("COMPLETED_BY_PT_{id}"),
+                    )
                     .await?
             }
             _ => {
@@ -99,7 +104,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
         state: &'a AppState,
         process: storage::ProcessTracker,
         error: sch_errors::ProcessTrackerError,
-    ) -> errors::CustomResult<(), sch_errors::ProcessTrackerError>  {
+    ) -> errors::CustomResult<(), sch_errors::ProcessTrackerError> {
         consumer::consumer_error_handler(state.store.as_scheduler(), process, error).await
     }
 }

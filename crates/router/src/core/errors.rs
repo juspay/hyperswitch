@@ -12,8 +12,9 @@ pub use storage_models::errors as storage_errors;
 
 pub use self::{
     api_error_response::ApiErrorResponse,
+    sch_errors::*,
+    storage_errors::*,
     utils::{ConnectorErrorExt, StorageErrorExt},
-    sch_errors::*, storage_errors::*
 };
 use crate::services;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
@@ -45,7 +46,6 @@ macro_rules! impl_error_type {
 }
 
 impl_error_type!(EncryptionError, "Encryption error");
-
 
 impl From<ring::error::Unspecified> for EncryptionError {
     fn from(_: ring::error::Unspecified) -> Self {

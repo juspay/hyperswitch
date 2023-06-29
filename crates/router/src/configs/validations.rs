@@ -1,5 +1,4 @@
 use common_utils::ext_traits::ConfigExt;
-
 use storage_models::errors::ApplicationError;
 
 impl super::settings::SupportedConnectors {

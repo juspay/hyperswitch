@@ -3,7 +3,7 @@ pub mod validator;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
-use scheduler::{utils as process_tracker_utils, consumer::types::process_data};
+use scheduler::{consumer::types::process_data, utils as process_tracker_utils};
 
 use crate::{
     consts,
@@ -22,7 +22,8 @@ use crate::{
         storage::{self, enums, ProcessTrackerExt},
         transformers::{ForeignFrom, ForeignInto},
     },
-    utils::{self, OptionExt}, workflows::payment_sync,
+    utils::{self, OptionExt},
+    workflows::payment_sync,
 };
 // ********************************************** REFUND EXECUTE **********************************************
 
@@ -818,7 +819,7 @@ pub async fn sync_refund_with_gateway_workflow(
             let id = refund_tracker.id.clone();
             refund_tracker
                 .clone()
-                .finish_with_status(&*state.store.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
+                .finish_with_status(state.store.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
                 .await?
         }
         _ => {

@@ -4481,6 +4481,7 @@ dependencies = [
  "async-bb8-diesel 0.1.0 (git+https://github.com/oxidecomputer/async-bb8-diesel?rev=be3d9bce50051d8c0e0c06078e8066cc27db3001)",
  "async-trait",
  "aws-config",
+ "aws-sdk-s3 0.28.0",
  "base64 0.21.2",
  "bb8",
  "bytes",

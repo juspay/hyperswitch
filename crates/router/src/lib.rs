@@ -30,6 +30,7 @@ use actix_web::{
 };
 use http::StatusCode;
 use routes::AppState;
+use storage_models::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
 
 pub use self::env::logger;
@@ -37,7 +38,6 @@ use crate::{
     configs::settings,
     core::errors::{self},
 };
-use storage_models::errors::ApplicationResult;
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]

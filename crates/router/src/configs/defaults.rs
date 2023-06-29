@@ -1,4 +1,3 @@
-
 impl Default for super::settings::SupportedConnectors {
     fn default() -> Self {
         Self {

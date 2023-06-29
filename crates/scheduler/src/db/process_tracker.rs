@@ -1,10 +1,14 @@
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 use serde::Serialize;
-use time::PrimitiveDateTime;
-use crate::{errors as sch_errors, metrics, SchedulerInterface};
-use storage_models::{enums as storage_enums, services::{Store, MockDb}, errors, connection};
 pub use storage_models as storage;
+use storage_models::{
+    connection, enums as storage_enums, errors,
+    services::{MockDb, Store},
+};
+use time::PrimitiveDateTime;
+
+use crate::{errors as sch_errors, metrics, SchedulerInterface};
 
 #[async_trait::async_trait]
 pub trait ProcessTrackerInterface: Send + Sync + 'static {
@@ -231,7 +235,6 @@ impl ProcessTrackerInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 }
-
 
 #[async_trait::async_trait]
 pub trait ProcessTrackerExt {

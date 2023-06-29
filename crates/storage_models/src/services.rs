@@ -2,16 +2,21 @@ pub mod logger;
 
 use std::sync::{atomic, Arc};
 
-use common_utils::{errors::CustomResult};
+use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
 use external_services::kms;
+use futures::lock::Mutex;
 use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
 use tokio::sync::oneshot;
-use futures::lock::Mutex;
 
-use crate::{self as storage, errors, kv, cache::{CacheKind, CONFIG_CACHE, ACCOUNTS_CACHE}, consts, async_spawn, connection::{PgPool, diesel_make_pg_pool}, configs::settings};
-
+use crate::{
+    self as storage, async_spawn,
+    cache::{CacheKind, ACCOUNTS_CACHE, CONFIG_CACHE},
+    configs::settings,
+    connection::{diesel_make_pg_pool, PgPool},
+    consts, errors, kv,
+};
 
 #[async_trait::async_trait]
 pub trait PubSubInterface {
@@ -185,8 +190,7 @@ impl Store {
 
     pub fn redis_conn(
         &self,
-    ) -> CustomResult<Arc<redis_interface::RedisConnectionPool>, redis_errors::RedisError>
-    {
+    ) -> CustomResult<Arc<redis_interface::RedisConnectionPool>, redis_errors::RedisError> {
         if self
             .redis_conn
             .is_redis_available
@@ -207,7 +211,6 @@ impl Store {
     where
         T: crate::utils::storage_partitioning::KvStorePartition,
     {
-
         let shard_key = T::shard_key(partition_key, self.config.drainer_num_partitions);
         let stream_name = self.get_drainer_stream_name(&shard_key);
         self.redis_conn
@@ -256,7 +259,6 @@ pub fn generate_aes256_key() -> CustomResult<[u8; 32], common_utils::errors::Cry
         .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
     Ok(key)
 }
-
 
 #[derive(Clone)]
 pub struct MockDb {

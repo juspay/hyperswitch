@@ -43,7 +43,8 @@ use crate::{
         self,
         crypto::{self, SignMessage},
         OptionExt,
-    }, workflows::payment_sync,
+    },
+    workflows::payment_sync,
 };
 
 pub fn create_identity_from_certificate_and_key(

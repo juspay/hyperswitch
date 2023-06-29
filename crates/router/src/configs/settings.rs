@@ -5,12 +5,9 @@ use std::{
 };
 
 use api_models::enums;
-
-#[cfg(feature = "kms")]
-use external_services::kms;
-use storage_models::settings as storage_settings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use serde::{de::Error, Deserialize, Deserializer};
+use storage_models::settings as storage_settings;
 
 pub use self::storage_settings::*;
 
@@ -79,7 +76,6 @@ pub struct BanksVector {
 pub struct NotAvailableFlows {
     pub capture_method: Option<enums::CaptureMethod>,
 }
-
 
 fn bank_vec_deser<'a, D>(deserializer: D) -> Result<HashSet<api_models::enums::BankNames>, D::Error>
 where

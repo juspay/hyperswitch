@@ -19,8 +19,6 @@ use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 use storage_models::{enums as storage_enums, payment_method};
 
-#[cfg(feature = "basilisk")]
-use crate::scheduler::metrics as scheduler_metrics;
 use crate::{
     configs::settings,
     core::{
@@ -1855,7 +1853,7 @@ impl BasiliskCardSupport {
             enums::PaymentMethod::Card,
         )
         .await?;
-        scheduler_metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         Ok(card)
     }
 }

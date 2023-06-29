@@ -3,25 +3,24 @@ use std::{
     time as std_time,
 };
 
-use api_models::enums;
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
 #[cfg(not(target_os = "windows"))]
 use futures::StreamExt;
 use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::opentelemetry;
-use storage_models::enums::ProcessTrackerStatus;
+use storage_models::enums::{self, ProcessTrackerStatus};
+pub use storage_models::process_tracker as storage;
 use tokio::sync::oneshot;
 use uuid::Uuid;
-use super::env::logger;
-pub use storage_models::process_tracker as storage;
 
-use crate::{metrics, flow::SchedulerFlow, settings::SchedulerSettings, consumer::types::ProcessTrackerBatch, errors, SchedulerAppState, SchedulerInterface};
-
-use super::consumer::{
-    consumer::{self},
-    types::process_data,
-    workflows,
+use super::{
+    consumer::{self, types::process_data, workflows},
+    env::logger,
+};
+use crate::{
+    consumer::types::ProcessTrackerBatch, errors, flow::SchedulerFlow, metrics,
+    settings::SchedulerSettings, SchedulerAppState, SchedulerInterface,
 };
 
 pub async fn divide_and_append_tasks<T>(
@@ -53,7 +52,7 @@ pub async fn update_status_and_append<T>(
     pt_batch: ProcessTrackerBatch,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
-    T: SchedulerInterface + Send + Sync + ?Sized ,
+    T: SchedulerInterface + Send + Sync + ?Sized,
 {
     let process_ids: Vec<String> = pt_batch
         .trackers
@@ -245,7 +244,7 @@ pub fn get_time_from_delta(delta: Option<i32>) -> Option<time::PrimitiveDateTime
     delta.map(|t| common_utils::date_time::now().saturating_add(time::Duration::seconds(t.into())))
 }
 
-pub async fn consumer_operation_handler<E, T : Send + Sync + 'static>(
+pub async fn consumer_operation_handler<E, T: Send + Sync + 'static>(
     state: T,
     settings: sync::Arc<SchedulerSettings>,
     error_handler_fun: E,
@@ -254,7 +253,7 @@ pub async fn consumer_operation_handler<E, T : Send + Sync + 'static>(
 ) where
     // Error handler function
     E: FnOnce(error_stack::Report<errors::ProcessTrackerError>),
-    T: SchedulerAppState + Send + Sync + Clone
+    T: SchedulerAppState + Send + Sync + Clone,
 {
     consumer_operation_counter.fetch_add(1, atomic::Ordering::Release);
     let start_time = std_time::Instant::now();

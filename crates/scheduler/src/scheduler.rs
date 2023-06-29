@@ -1,18 +1,18 @@
 use std::sync::Arc;
 
 use common_utils::errors::CustomResult;
-use storage_models::services::{Store, MockDb};
+use storage_models::services::{MockDb, Store};
 use tokio::sync::mpsc;
 
-pub use crate::{
-    consumer::{
-        consumer,
-        workflows,
-    },
-    producer, flow::SchedulerFlow, settings::SchedulerSettings, errors, db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
-};
 use super::env::logger::error;
-
+pub use crate::{
+    consumer::{self, workflows},
+    db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
+    errors,
+    flow::SchedulerFlow,
+    producer,
+    settings::SchedulerSettings,
+};
 
 pub trait AsSchedulerInterface {
     fn as_scheduler(&self) -> &dyn SchedulerInterface;
@@ -25,7 +25,10 @@ impl<T: SchedulerInterface> AsSchedulerInterface for T {
 }
 
 #[async_trait::async_trait]
-pub trait SchedulerInterface: ProcessTrackerInterface + QueueInterface + AsSchedulerInterface {}
+pub trait SchedulerInterface:
+    ProcessTrackerInterface + QueueInterface + AsSchedulerInterface
+{
+}
 
 #[async_trait::async_trait]
 impl SchedulerInterface for Store {}
@@ -34,29 +37,23 @@ impl SchedulerInterface for Store {}
 impl SchedulerInterface for MockDb {}
 
 #[async_trait::async_trait]
-pub trait SchedulerAppState : Send + Sync   {
+pub trait SchedulerAppState: Send + Sync {
     fn get_db(&self) -> Box<dyn SchedulerInterface>;
 }
 
-pub async fn start_process_tracker< T: SchedulerAppState + Send + Sync + Clone + 'static>(
+pub async fn start_process_tracker<T: SchedulerAppState + Send + Sync + Clone + 'static>(
     state: &T,
     scheduler_flow: SchedulerFlow,
     scheduler_settings: Arc<SchedulerSettings>,
     channel: (mpsc::Sender<()>, mpsc::Receiver<()>),
-    runner_from_task: workflows::WorkflowSelectorFn<T>
-) -> CustomResult<(), errors::ProcessTrackerError>{
+    runner_from_task: workflows::WorkflowSelectorFn<T>,
+) -> CustomResult<(), errors::ProcessTrackerError> {
     match scheduler_flow {
         SchedulerFlow::Producer => {
             producer::start_producer(state, scheduler_settings, channel).await?
         }
         SchedulerFlow::Consumer => {
-            consumer::start_consumer(
-                state,
-                scheduler_settings,
-                runner_from_task,
-                channel,
-            )
-            .await?
+            consumer::start_consumer(state, scheduler_settings, runner_from_task, channel).await?
         }
         SchedulerFlow::Cleaner => {
             error!("This flow has not been implemented yet!");

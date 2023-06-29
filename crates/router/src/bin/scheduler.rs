@@ -7,13 +7,10 @@ use router::{
     core::errors::{self, CustomResult},
     logger, routes, workflows,
 };
-use scheduler::{
-    errors as sch_errors,
-    consumer::workflows::ProcessTrackerWorkflow
-};
-use serde::{Serialize, Deserialize};
-use strum::EnumString;
+use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors as sch_errors};
+use serde::{Deserialize, Serialize};
 use storage_models::process_tracker as storage;
+use strum::EnumString;
 use tokio::sync::{mpsc, oneshot};
 
 const SCHEDULER_FLOW: &str = "SCHEDULER_FLOW";
@@ -52,18 +49,27 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
 pub enum PTRunner {
     PaymentsSyncWorkflow,
     RefundWorkflowRouter,
-    DeleteTokenizeDataWorkflow
+    DeleteTokenizeDataWorkflow,
 }
 
 pub fn runner_from_task(
     task: &storage::ProcessTracker,
-) -> Result<Option<Box<dyn ProcessTrackerWorkflow<routes::AppState>>>, sch_errors::ProcessTrackerError> {
+) -> Result<
+    Option<Box<dyn ProcessTrackerWorkflow<routes::AppState>>>,
+    sch_errors::ProcessTrackerError,
+> {
     let runner = task.runner.clone().get_required_value("runner")?;
     let runner: Option<PTRunner> = runner.parse_enum("PTRunner").ok();
     Ok(match runner {
-        Some(PTRunner::PaymentsSyncWorkflow) => Some(Box::new(workflows::payment_sync::PaymentsSyncWorkflow)),
-        Some(PTRunner::RefundWorkflowRouter) => Some(Box::new(workflows::refund_router::RefundWorkflowRouter)),
-        Some(PTRunner::DeleteTokenizeDataWorkflow) => Some(Box::new(workflows::tokenized_data::DeleteTokenizeDataWorkflow)),
+        Some(PTRunner::PaymentsSyncWorkflow) => {
+            Some(Box::new(workflows::payment_sync::PaymentsSyncWorkflow))
+        }
+        Some(PTRunner::RefundWorkflowRouter) => {
+            Some(Box::new(workflows::refund_router::RefundWorkflowRouter))
+        }
+        Some(PTRunner::DeleteTokenizeDataWorkflow) => Some(Box::new(
+            workflows::tokenized_data::DeleteTokenizeDataWorkflow,
+        )),
         None => None,
     })
 }
@@ -85,7 +91,14 @@ async fn start_scheduler(
         .scheduler
         .clone()
         .ok_or(errors::ProcessTrackerError::ConfigurationError)?;
-    scheduler::start_process_tracker(state, flow, Arc::new(scheduler_settings), channel, runner_from_task).await
+    scheduler::start_process_tracker(
+        state,
+        flow,
+        Arc::new(scheduler_settings),
+        channel,
+        runner_from_task,
+    )
+    .await
 }
 
 #[cfg(test)]

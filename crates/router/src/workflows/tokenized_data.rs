@@ -1,4 +1,5 @@
-use scheduler::{consumer::workflows::ProcessTrackerWorkflow};
+use scheduler::consumer::workflows::ProcessTrackerWorkflow;
+
 #[cfg(feature = "basilisk")]
 use crate::core::payment_methods::vault;
 use crate::{errors, logger::error, routes::AppState, types::storage};

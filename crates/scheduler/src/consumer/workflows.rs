@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use common_utils::errors::CustomResult;
-
-use crate::{errors};
 pub use storage_models::process_tracker as storage;
+
+use crate::errors;
 
 pub type WorkflowSelectorFn<T> =
     fn(
@@ -20,12 +20,7 @@ pub trait ProcessTrackerWorkflow<T>: Send + Sync {
         Err(errors::ProcessTrackerError::NotImplemented)?
     }
     // Callback function after successful execution of the `execute_workflow`
-    async fn success_handler<'a>(
-        &'a self,
-        _state: &'a T,
-        _process: storage::ProcessTracker,
-    ) {
-    }
+    async fn success_handler<'a>(&'a self, _state: &'a T, _process: storage::ProcessTracker) {}
     // Callback function after error received from `execute_workflow`
     async fn error_handler<'a>(
         &'a self,

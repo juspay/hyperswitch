@@ -1,6 +1,7 @@
 use std::fmt::Display;
-use redis_interface::errors::RedisError;
+
 use config::ConfigError;
+use redis_interface::errors::RedisError;
 use router_env::opentelemetry::metrics::MetricsError;
 
 pub type ApplicationResult<T> = Result<T, ApplicationError>;
@@ -92,20 +93,16 @@ impl From<error_stack::Report<DatabaseError>> for StorageError {
 impl StorageError {
     pub fn is_db_not_found(&self) -> bool {
         match self {
-            Self::DatabaseError(err) => matches!(
-                err.current_context(),
-                DatabaseError::NotFound
-            ),
+            Self::DatabaseError(err) => matches!(err.current_context(), DatabaseError::NotFound),
             _ => false,
         }
     }
 
     pub fn is_db_unique_violation(&self) -> bool {
         match self {
-            Self::DatabaseError(err) => matches!(
-                err.current_context(),
-                DatabaseError::UniqueViolation,
-            ),
+            Self::DatabaseError(err) => {
+                matches!(err.current_context(), DatabaseError::UniqueViolation,)
+            }
             _ => false,
         }
     }

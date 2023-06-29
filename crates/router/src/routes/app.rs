@@ -19,7 +19,7 @@ use crate::{
     configs::settings,
     db::{StorageImpl, StorageInterface},
     routes::cards_info::card_iin_info,
-    services::{Store, MockDb},
+    services::{MockDb, Store},
 };
 
 #[derive(Clone)]

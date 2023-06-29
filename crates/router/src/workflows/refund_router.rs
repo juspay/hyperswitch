@@ -1,4 +1,5 @@
-use scheduler::{consumer::workflows::ProcessTrackerWorkflow};
+use scheduler::consumer::workflows::ProcessTrackerWorkflow;
+
 use crate::{
     core::refunds as refund_flow, errors, logger::error, routes::AppState, types::storage,
 };

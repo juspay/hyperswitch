@@ -22,7 +22,7 @@ pub mod reverse_lookup;
 
 use std::sync::Arc;
 
-pub use storage_models::services::{Store, MockDb };
+pub use storage_models::services::{MockDb, Store};
 
 use crate::services;
 

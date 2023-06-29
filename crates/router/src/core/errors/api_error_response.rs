@@ -2,7 +2,7 @@
 
 use api_models::errors::types::Extra;
 use http::StatusCode;
-use scheduler::errors::{ProcessTrackerError, PTError};
+use scheduler::errors::{PTError, ProcessTrackerError};
 
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -213,7 +213,7 @@ pub enum ApiErrorResponse {
 
 impl PTError for ApiErrorResponse {
     fn to_pt_error(&self) -> ProcessTrackerError {
-        return ProcessTrackerError::EClientError;
+        ProcessTrackerError::EClientError
     }
 }
 
