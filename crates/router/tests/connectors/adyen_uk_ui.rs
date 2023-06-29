@@ -11,10 +11,10 @@ impl SeleniumTest for AdyenSeleniumTest {
     }
 }
 
-async fn should_make_adyen_3ds_payment_failed(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_adyen_3ds_payment_failed(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/177"))),
             Event::Assert(Assert::IsPresent("Expiry Year")),
@@ -32,10 +32,12 @@ async fn should_make_adyen_3ds_payment_failed(c: WebDriver) -> Result<(), WebDri
     Ok(())
 }
 
-async fn should_make_adyen_3ds_payment_success(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_adyen_3ds_payment_success(
+    web_driver: WebDriver,
+) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/62"))),
             Event::Assert(Assert::IsPresent("Expiry Year")),
@@ -56,9 +58,9 @@ async fn should_make_adyen_3ds_payment_success(c: WebDriver) -> Result<(), WebDr
     Ok(())
 }
 
-async fn should_make_adyen_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_adyen_gpay_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
-    conn.make_gpay_payment(c,
+    conn.make_gpay_payment(web_driver,
         &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid=JuspayDEECOM&amount=70.00&country=US&currency=USD"),
         vec![
         Event::Assert(Assert::IsPresent("succeeded")),
@@ -66,9 +68,11 @@ async fn should_make_adyen_gpay_payment(c: WebDriver) -> Result<(), WebDriverErr
     Ok(())
 }
 
-async fn should_make_adyen_gpay_mandate_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_adyen_gpay_mandate_payment(
+    web_driver: WebDriver,
+) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
-    conn.make_gpay_payment(c,
+    conn.make_gpay_payment(web_driver,
         &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid=JuspayDEECOM&amount=70.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=7000&mandate_data[mandate_type][multi_use][currency]=USD"),
         vec![
         Event::Assert(Assert::IsPresent("succeeded")),
@@ -82,10 +86,10 @@ async fn should_make_adyen_gpay_mandate_payment(c: WebDriver) -> Result<(), WebD
 }
 
 async fn should_make_adyen_gpay_zero_dollar_mandate_payment(
-    c: WebDriver,
+    web_driver: WebDriver,
 ) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
-    conn.make_gpay_payment(c,
+    conn.make_gpay_payment(web_driver,
         &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid=JuspayDEECOM&amount=0.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD"),
         vec![
         Event::Assert(Assert::IsPresent("succeeded")),
@@ -98,9 +102,11 @@ async fn should_make_adyen_gpay_zero_dollar_mandate_payment(
     Ok(())
 }
 
-async fn should_make_adyen_klarna_mandate_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_adyen_klarna_mandate_payment(
+    web_driver: WebDriver,
+) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
-    conn.make_redirection_payment(c,
+    conn.make_redirection_payment(web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/klarna-redirect?amount=70.00&country=SE&currency=SEK&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=SEK&return_url={CHEKOUT_BASE_URL}/payments"))),
             Event::Trigger(Trigger::Click(By::Id("klarna-redirect-btn"))),

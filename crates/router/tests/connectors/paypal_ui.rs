@@ -11,10 +11,12 @@ impl SeleniumTest for PaypalSeleniumTest {
     }
 }
 
-async fn should_make_paypal_paypal_wallet_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_paypal_paypal_wallet_payment(
+    web_driver: WebDriver,
+) -> Result<(), WebDriverError> {
     let conn = PaypalSeleniumTest {};
     conn.make_paypal_payment(
-        c,
+        web_driver,
         &format!("{CHEKOUT_BASE_URL}/saved/21"),
         vec![
             Event::Assert(Assert::IsPresent("Google")),

@@ -11,10 +11,10 @@ impl SeleniumTest for AirwallexSeleniumTest {
     }
 }
 
-async fn should_make_airwallex_3ds_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_airwallex_3ds_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AirwallexSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/85"))),
             Event::Assert(Assert::IsPresent("Expiry Year")),
