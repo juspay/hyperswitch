@@ -1234,14 +1234,13 @@ pub async fn add_process_sync_task(
         &payment_attempt.attempt_id,
         &payment_attempt.merchant_id,
     );
-    let process_tracker_entry =
-        <storage::ProcessTracker as storage::ProcessTrackerExt>::make_process_tracker_new(
-            process_tracker_id,
-            task,
-            runner,
-            tracking_data,
-            schedule_time,
-        )?;
+    let process_tracker_entry = <storage::ProcessTracker>::make_process_tracker_new(
+        process_tracker_id,
+        task,
+        runner,
+        tracking_data,
+        schedule_time,
+    )?;
 
     db.insert_process(process_tracker_entry).await?;
     Ok(())
