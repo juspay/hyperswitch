@@ -61,7 +61,8 @@ diesel::table! {
         #[max_length = 16]
         card_iin -> Varchar,
         card_issuer -> Nullable<Text>,
-        card_network -> Nullable<Text>,
+        #[max_length = 16]
+        card_network -> Nullable<Varchar>,
         card_type -> Nullable<Text>,
         card_subtype -> Nullable<Text>,
         card_issuing_country -> Nullable<Text>,
