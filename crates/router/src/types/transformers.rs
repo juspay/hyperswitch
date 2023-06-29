@@ -618,17 +618,17 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
 impl ForeignFrom<storage_models::enums::CardNetwork> for api_models::enums::CardNetwork {
     fn foreign_from(source: storage_models::enums::CardNetwork) -> Self {
         match source {
-            storage_models::enums::CardNetwork::VISA => Self::Visa,
-            storage_models::enums::CardNetwork::MASTERCARD => Self::Mastercard,
-            storage_models::enums::CardNetwork::AMEX => Self::AmericanExpress,
+            storage_models::enums::CardNetwork::Visa => Self::Visa,
+            storage_models::enums::CardNetwork::Mastercard => Self::Mastercard,
+            storage_models::enums::CardNetwork::AmericanExpress => Self::AmericanExpress,
             storage_models::enums::CardNetwork::JCB => Self::JCB,
-            storage_models::enums::CardNetwork::DINERS => Self::DinersClub,
-            storage_models::enums::CardNetwork::DISCOVER => Self::Discover,
+            storage_models::enums::CardNetwork::DinersClub => Self::DinersClub,
+            storage_models::enums::CardNetwork::Discover => Self::Discover,
             storage_models::enums::CardNetwork::CartesBancaires => Self::CartesBancaires,
-            storage_models::enums::CardNetwork::CHINAUNIONPAY => Self::UnionPay,
+            storage_models::enums::CardNetwork::UnionPay => Self::UnionPay,
             storage_models::enums::CardNetwork::Interac => Self::Interac,
-            storage_models::enums::CardNetwork::RUPAY => Self::RuPay,
-            storage_models::enums::CardNetwork::MAESTRO => Self::Maestro,
+            storage_models::enums::CardNetwork::RuPay => Self::RuPay,
+            storage_models::enums::CardNetwork::Maestro => Self::Maestro,
         }
     }
 }

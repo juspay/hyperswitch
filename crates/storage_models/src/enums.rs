@@ -816,17 +816,17 @@ pub enum BankNames {
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum CardNetwork {
-    VISA,
-    MASTERCARD,
-    AMEX,
+    Visa,
+    Mastercard,
+    AmericanExpress,
     JCB,
-    DINERS,
-    DISCOVER,
+    DinersClub,
+    Discover,
     CartesBancaires,
-    CHINAUNIONPAY,
+    UnionPay,
     Interac,
-    RUPAY,
-    MAESTRO,
+    RuPay,
+    Maestro,
 }
 
 #[derive(
