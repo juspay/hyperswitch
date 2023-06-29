@@ -26,6 +26,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         state: &AppState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 }
@@ -97,13 +98,14 @@ pub trait Feature<F, T> {
         Ok(None)
     }
 
+    /// Returns the connector request and a bool which specifies whether to proceed with further
     async fn build_flow_specific_connector_request(
         &mut self,
         _state: &AppState,
         _connector: &api::ConnectorData,
         _call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<Option<services::Request>> {
-        Ok(None)
+    ) -> RouterResult<(Option<services::Request>, bool)> {
+        Ok((None, true))
     }
 }
 
@@ -140,6 +142,7 @@ default_imp_for_complete_authorize!(
     connector::Authorizedotnet,
     connector::Bitpay,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Checkout,
     connector::Coinbase,
     connector::Cybersource,
@@ -154,6 +157,7 @@ default_imp_for_complete_authorize!(
     connector::Noon,
     connector::Opennode,
     connector::Payeezy,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Stripe,
@@ -198,6 +202,7 @@ default_imp_for_create_customer!(
     connector::Bambora,
     connector::Bitpay,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Checkout,
     connector::Coinbase,
     connector::Cybersource,
@@ -216,6 +221,7 @@ default_imp_for_create_customer!(
     connector::Opennode,
     connector::Payeezy,
     connector::Paypal,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
@@ -260,6 +266,7 @@ default_imp_for_connector_redirect_response!(
     connector::Authorizedotnet,
     connector::Bitpay,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Coinbase,
     connector::Cybersource,
     connector::Dlocal,
@@ -272,6 +279,7 @@ default_imp_for_connector_redirect_response!(
     connector::Nmi,
     connector::Opennode,
     connector::Payeezy,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
@@ -299,6 +307,7 @@ default_imp_for_connector_request_id!(
     connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Checkout,
     connector::Coinbase,
     connector::Cybersource,
@@ -315,6 +324,7 @@ default_imp_for_connector_request_id!(
     connector::Nuvei,
     connector::Opennode,
     connector::Payeezy,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
@@ -364,6 +374,7 @@ default_imp_for_accept_dispute!(
     connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Coinbase,
     connector::Cybersource,
     connector::Dlocal,
@@ -380,6 +391,7 @@ default_imp_for_accept_dispute!(
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
@@ -449,6 +461,7 @@ default_imp_for_file_upload!(
     connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Coinbase,
     connector::Cybersource,
     connector::Dlocal,
@@ -465,6 +478,7 @@ default_imp_for_file_upload!(
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
@@ -511,6 +525,7 @@ default_imp_for_submit_evidence!(
     connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Cybersource,
     connector::Coinbase,
     connector::Dlocal,
@@ -527,6 +542,7 @@ default_imp_for_submit_evidence!(
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
@@ -573,6 +589,7 @@ default_imp_for_defend_dispute!(
     connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Cybersource,
     connector::Coinbase,
     connector::Dlocal,
@@ -589,6 +606,7 @@ default_imp_for_defend_dispute!(
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Stripe,
@@ -636,6 +654,7 @@ default_imp_for_pre_processing_steps!(
     connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
+    connector::Cashtocode,
     connector::Checkout,
     connector::Coinbase,
     connector::Cybersource,
@@ -654,6 +673,7 @@ default_imp_for_pre_processing_steps!(
     connector::Opennode,
     connector::Payeezy,
     connector::Paypal,
+    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,

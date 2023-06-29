@@ -45,8 +45,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsRequest,
-        mandate_type: Option<api::MandateTxnType>,
+        mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -81,6 +82,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             None,
             merchant_id,
             customer_details.customer_id.as_ref(),
+            merchant_key_store,
         )
         .await?;
 
@@ -90,6 +92,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             None,
             merchant_id,
             customer_details.customer_id.as_ref(),
+            merchant_key_store,
         )
         .await?;
 
@@ -158,7 +161,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 let mandate = db
                     .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
                     .await
-                    .change_context(errors::ApiErrorResponse::MandateNotFound);
+                    .to_not_found_response(errors::ApiErrorResponse::MandateNotFound);
                 Some(mandate.and_then(|mandate_obj| {
                     match (
                         mandate_obj.network_transaction_id,
@@ -273,7 +276,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
-        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRequest>,
@@ -286,7 +289,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
             db,
             payment_data,
             request,
-            merchant_id,
+            &key_store.merchant_id,
+            key_store,
         )
         .await
     }
@@ -319,6 +323,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         state: &AppState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::payment_intent::PaymentIntent,
+        _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
     }
@@ -334,6 +339,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _merchant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,

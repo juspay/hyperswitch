@@ -50,10 +50,11 @@ pub async fn setup_intents_create(
         state.get_ref(),
         &req,
         create_payment_req,
-        |state, merchant_account, req| {
+        |state, auth, req| {
             payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentCreate,
                 req,
                 api::AuthFlow::Merchant,
@@ -101,10 +102,11 @@ pub async fn setup_intents_retrieve(
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, payload| {
+        |state, auth, payload| {
             payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentStatus,
                 payload,
                 auth_flow,
@@ -163,10 +165,11 @@ pub async fn setup_intents_update(
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, req| {
+        |state, auth, req| {
             payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentUpdate,
                 req,
                 auth_flow,
@@ -226,10 +229,11 @@ pub async fn setup_intents_confirm(
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, req| {
+        |state, auth, req| {
             payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
                 state,
-                merchant_account,
+                auth.merchant_account,
+                auth.key_store,
                 payments::PaymentConfirm,
                 req,
                 auth_flow,

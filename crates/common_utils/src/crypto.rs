@@ -402,14 +402,25 @@ impl<T: Clone, S: masking::Strategy<T>> Encryptable<Secret<T, S>> {
 
 impl<T: Clone> Encryptable<T> {
     ///
-    /// Get the inner data while consumping self
+    /// Get the inner data while consuming self
     ///
+    #[inline]
     pub fn into_inner(self) -> T {
         self.inner
     }
+
+    ///
+    /// Get the reference to inner value
+    ///
+    #[inline]
+    pub fn get_inner(&self) -> &T {
+        &self.inner
+    }
+
     ///
     /// Get the inner encrypted data while consuming self
     ///
+    #[inline]
     pub fn into_encrypted(self) -> Secret<Vec<u8>, EncryptionStratergy> {
         self.encrypted
     }
