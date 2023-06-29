@@ -86,9 +86,8 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
         state: &'a AppState,
         process: storage::ProcessTracker,
         error: sch_errors::ProcessTrackerError,
-    ) -> errors::CustomResult<(), sch_errors::ProcessTrackerError> {
-        let db: &dyn StorageInterface = &*state.store;
-        consumer::consumer_error_handler(db.as_scheduler(), process, error).await
+    ) -> errors::CustomResult<(), sch_errors::ProcessTrackerError>  {
+        consumer::consumer_error_handler(state.store.as_scheduler(), process, error).await
     }
 }
 

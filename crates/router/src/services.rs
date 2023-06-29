@@ -106,28 +106,6 @@ impl RedisConnInterface for Store {
     }
 }
 
-#[allow(clippy::expect_used)]
-async fn get_master_enc_key(
-    conf: &crate::configs::settings::Settings,
-    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
-) -> Vec<u8> {
-    #[cfg(feature = "kms")]
-    let master_enc_key = hex::decode(
-        kms::get_kms_client(kms_config)
-            .await
-            .decrypt(&conf.secrets.master_enc_key)
-            .await
-            .expect("Failed to decrypt master enc key"),
-    )
-    .expect("Failed to decode from hex");
-
-    #[cfg(not(feature = "kms"))]
-    let master_enc_key =
-        hex::decode(&conf.secrets.master_enc_key).expect("Failed to decode from hex");
-
-    master_enc_key
-}
-
 #[inline]
 pub fn generate_aes256_key() -> errors::CustomResult<[u8; 32], common_utils::errors::CryptoError> {
     use ring::rand::SecureRandom;

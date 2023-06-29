@@ -565,6 +565,7 @@ pub trait AddressDetailsData {
     fn get_city(&self) -> Result<&String, Error>;
     fn get_line2(&self) -> Result<&Secret<String>, Error>;
     fn get_zip(&self) -> Result<&Secret<String>, Error>;
+    fn get_state(&self) -> Result<&Secret<String>, Error>;
     fn get_country(&self) -> Result<&api_models::enums::CountryAlpha2, Error>;
     fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
 }
@@ -586,6 +587,12 @@ impl AddressDetailsData for api::AddressDetails {
         self.line1
             .as_ref()
             .ok_or_else(missing_field_err("address.line1"))
+    }
+
+    fn get_state(&self) -> Result<&Secret<String>, Error> {
+        self.state
+            .as_ref()
+            .ok_or_else(missing_field_err("address.state"))
     }
 
     fn get_city(&self) -> Result<&String, Error> {

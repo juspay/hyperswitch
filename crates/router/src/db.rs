@@ -24,12 +24,10 @@ pub mod reverse_lookup;
 
 use std::sync::Arc;
 
-use futures::lock::Mutex;
 use storage_models::services::{Store, MockDb};
 
 use crate::{
-    services::{self},
-    types::storage,
+    services,
 };
 
 #[derive(PartialEq, Eq)]
@@ -70,6 +68,7 @@ pub trait StorageInterface:
     + services::RedisConnInterface
     + 'static
 {
+    fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
 }
 
 pub trait MasterKeyInterface {
@@ -93,10 +92,18 @@ impl MasterKeyInterface for MockDb {
 }
 
 #[async_trait::async_trait]
-impl StorageInterface for Store {}
+impl StorageInterface for Store {
+    fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
+        Box::new(self.clone())
+    }
+}
 
 #[async_trait::async_trait]
-impl StorageInterface for MockDb {}
+impl StorageInterface for MockDb {
+    fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface> {
+        Box::new(self.clone())
+    }
+}
 
 pub async fn get_and_deserialize_key<T>(
     db: &dyn StorageInterface,

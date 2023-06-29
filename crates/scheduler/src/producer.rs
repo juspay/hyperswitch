@@ -7,7 +7,7 @@ use storage_models::enums::ProcessTrackerStatus;
 use time::Duration;
 use tokio::sync::mpsc;
 
-use crate::errors;
+use crate::{errors, SchedulerAppState};
 use crate::scheduler::SchedulerInterface;
 use crate::{utils::*, flow::SchedulerFlow, settings::SchedulerSettings};
 
@@ -15,11 +15,11 @@ use super::metrics;
 use super::env::logger::{self, debug, error, warn};
 
 #[instrument(skip_all)]
-pub async fn start_producer<T>(
+pub async fn start_producer<T, F>(
     state: &T,
     scheduler_settings: Arc<SchedulerSettings>,
     (tx, mut rx): (mpsc::Sender<()>, mpsc::Receiver<()>),
-) -> CustomResult<(), errors::ProcessTrackerError>  where T : SchedulerInterface + Send + Sync + Clone{
+) -> CustomResult<(), errors::ProcessTrackerError>  where T : SchedulerAppState<F> + Send + Sync + Clone, F: SchedulerInterface {
     use rand::Rng;
     let timeout = rand::thread_rng().gen_range(0..=scheduler_settings.loop_interval);
     tokio::time::sleep(std::time::Duration::from_millis(timeout)).await;
@@ -75,17 +75,19 @@ pub async fn start_producer<T>(
 }
 
 #[instrument(skip_all)]
-pub async fn run_producer_flow<T>(
+pub async fn run_producer_flow<F, T>(
     state: &T,
     settings: &SchedulerSettings,
-) -> CustomResult<(), errors::ProcessTrackerError>  where T : SchedulerInterface + Send + Sync + Clone {
-    lock_acquire_release::<_, _, _>(state, settings, move || async {
-        let tasks = fetch_producer_tasks(&*state, settings).await?;
+) -> CustomResult<(), errors::ProcessTrackerError>  where 
+T : SchedulerAppState<F> + Send + Sync + Clone,
+F: SchedulerInterface  {
+    lock_acquire_release::<_, _, _>(&state.get_db(), settings, move || async {
+        let tasks = fetch_producer_tasks(&state.get_db(), settings).await?;
         debug!("Producer count of tasks {}", tasks.len());
 
         // [#268]: Allow task based segregation of tasks
 
-        divide_and_append_tasks(state, SchedulerFlow::Producer, tasks, settings).await?;
+        divide_and_append_tasks(&state.get_db(), SchedulerFlow::Producer, tasks, settings).await?;
 
         Ok(())
     })

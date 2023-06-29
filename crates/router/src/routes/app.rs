@@ -1,6 +1,7 @@
 use actix_web::{web, Scope};
 #[cfg(feature = "email")]
 use external_services::email::{AwsSes, EmailClient};
+use scheduler::SchedulerInterface;
 use tokio::sync::oneshot;
 
 #[cfg(feature = "dummy_connector")]
@@ -30,6 +31,12 @@ pub struct AppState {
     pub email_client: Box<dyn EmailClient>,
     #[cfg(feature = "kms")]
     pub kms_secrets: settings::ActiveKmsSecrets,
+}
+
+impl scheduler::SchedulerAppState<Box<dyn SchedulerInterface >> for AppState {
+    fn get_db(&self) -> Box<dyn SchedulerInterface> {
+        self.store.get_scheduler_db()
+    }
 }
 
 pub trait AppStateInfo {

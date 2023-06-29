@@ -38,6 +38,8 @@ pub enum ProcessTrackerError {
     JobNotFound,
     #[error("Received Error ApiResponseError")]
     EApiErrorResponse,
+    #[error("Received Error ClientError")]
+    EClientError,
     #[error("Received Error StorageError: {0}")]
     EStorageError(error_stack::Report<StorageError>),
     #[error("Received Error RedisError: {0}")]
@@ -66,12 +68,25 @@ macro_rules! error_to_process_tracker_error {
         }
     };
 }
+pub trait PTError : Send + Sync + 'static{
+    fn to_pt_error(self: &Self) -> ProcessTrackerError;
+}
 
-impl From<error_stack::Report<ProcessTrackerError>> for ProcessTrackerError {
-    fn from(value: error_stack::Report<ProcessTrackerError>) -> Self {
-        ProcessTrackerError::EApiErrorResponse
+impl<T: PTError> From<T> for ProcessTrackerError {
+    fn from(value: T) -> Self {
+        value.to_pt_error()
     }
 }
+
+impl<T: PTError> From<error_stack::Report<T>> for ProcessTrackerError {
+    fn from(value: error_stack::Report<T>) -> Self {
+        value.current_context().to_pt_error()
+    }
+}
+
+// fn error(arg: impl PTError) -> ProcessTrackerError {
+//     arg.to_pt_error()
+// }
 
 error_to_process_tracker_error!(
     error_stack::Report<StorageError>,

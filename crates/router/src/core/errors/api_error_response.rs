@@ -1,9 +1,8 @@
 #![allow(dead_code, unused_variables)]
 
 use api_models::errors::types::Extra;
-use crate::types::transformers::ForeignFrom;
 use http::StatusCode;
-use scheduler::{errors::ProcessTrackerError};
+use scheduler::errors::{ProcessTrackerError, PTError};
 
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -204,10 +203,9 @@ pub enum ApiErrorResponse {
     WebhookUnprocessableEntity,
 }
 
-
-impl ApiErrorResponse {
-    pub fn to_process_tracker_error(&self) ->  ProcessTrackerError {
-        return ProcessTrackerError::EApiErrorResponse;
+impl PTError for ApiErrorResponse {
+    fn to_pt_error(self: &Self) -> ProcessTrackerError {
+        return ProcessTrackerError::EClientError;
     }
 }
 

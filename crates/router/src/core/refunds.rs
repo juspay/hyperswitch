@@ -754,7 +754,7 @@ pub async fn schedule_refund_execution(
 pub async fn sync_refund_with_gateway_workflow(
     state: &AppState,
     refund_tracker: &storage::ProcessTracker,
-) -> error_stack::Result<(), errors::ApiErrorResponse> {
+) -> Result<(), errors::ProcessTrackerError> {
     let refund_core =
         serde_json::from_value::<storage::RefundCoreWorkflow>(refund_tracker.tracking_data.clone())
             .into_report()
@@ -829,7 +829,7 @@ pub async fn trigger_refund_execute_workflow(
     let refund_core =
         serde_json::from_value::<storage::RefundCoreWorkflow>(refund_tracker.tracking_data.clone())
             .into_report()
-            .change_context(errors::ApiErrorResponse::InternalServerError.to_process_tracker_error())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| {
                 format!(
                     "unable to convert into refund_core {:?}",

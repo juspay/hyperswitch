@@ -2,7 +2,7 @@ use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 use serde::Serialize;
 use time::PrimitiveDateTime;
-use crate::{errors as sch_errors, metrics, scheduler::SchedulerInterface};
+use crate::{errors as sch_errors, metrics, SchedulerInterface};
 use storage_models::{enums as storage_enums, services::{Store, MockDb}, errors, connection};
 pub use storage_models as storage;
 

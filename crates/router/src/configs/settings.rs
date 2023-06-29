@@ -5,23 +5,16 @@ use std::{
 };
 
 use api_models::enums;
-use common_utils::ext_traits::ConfigExt;
-use config::{Environment, File};
+
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
 #[cfg(feature = "kms")]
 use external_services::kms;
-use redis_interface::RedisSettings;
 use storage_models::settings as storage_settings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use serde::{de::Error, Deserialize, Deserializer};
 
-pub use self::{storage_settings::*};
-
-use crate::{
-    core::errors::{ApplicationError, ApplicationResult},
-    env::{self, logger, Env,}
-};
+pub use self::storage_settings::*;
 
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
@@ -114,21 +107,6 @@ where
         .map_err(D::Error::custom)
 }
 
-fn pm_type_deser<'a, D>(
-    deserializer: D,
-) -> Result<HashSet<storage_models::enums::PaymentMethodType>, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let value = <String>::deserialize(deserializer)?;
-    value
-        .trim()
-        .split(',')
-        .map(storage_models::enums::PaymentMethodType::from_str)
-        .collect::<Result<_, _>>()
-        .map_err(D::Error::custom)
-}
-
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct BankRedirectConfig(
     pub HashMap<api_models::enums::PaymentMethodType, ConnectorBankNames>,
@@ -148,45 +126,6 @@ pub struct NotAvailableFlows {
     pub capture_method: Option<enums::CaptureMethod>,
 }
 
-fn string_set_deser<'a, D>(
-    deserializer: D,
-) -> Result<Option<HashSet<api_models::enums::CountryAlpha2>>, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let value = <Option<String>>::deserialize(deserializer)?;
-    Ok(value.and_then(|inner| {
-        let list = inner
-            .trim()
-            .split(',')
-            .flat_map(api_models::enums::CountryAlpha2::from_str)
-            .collect::<HashSet<_>>();
-        match list.len() {
-            0 => None,
-            _ => Some(list),
-        }
-    }))
-}
-
-fn currency_set_deser<'a, D>(
-    deserializer: D,
-) -> Result<Option<HashSet<api_models::enums::Currency>>, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let value = <Option<String>>::deserialize(deserializer)?;
-    Ok(value.and_then(|inner| {
-        let list = inner
-            .trim()
-            .split(',')
-            .flat_map(api_models::enums::Currency::from_str)
-            .collect::<HashSet<_>>();
-        match list.len() {
-            0 => None,
-            _ => Some(list),
-        }
-    }))
-}
 
 fn bank_vec_deser<'a, D>(deserializer: D) -> Result<HashSet<api_models::enums::BankNames>, D::Error>
 where
