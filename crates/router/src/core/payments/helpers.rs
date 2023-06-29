@@ -2573,5 +2573,8 @@ pub async fn get_additional_payment_data(
         api_models::payments::PaymentMethodData::MandatePayment => {
             Ok(api_models::payments::AdditionalPaymentData::MandatePayment {})
         }
+        api_models::payments::PaymentMethodData::Reward(_) => {
+            Ok(api_models::payments::AdditionalPaymentData::Reward {})
+        }
     }
 }
