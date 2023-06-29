@@ -81,10 +81,10 @@ async fn should_make_adyen_klarna_mandate_payment(c: WebDriver) -> Result<(), We
     Ok(())
 }
 
-async fn should_make_adyen_clearpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_adyen_clearpay_payment(driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
     conn.make_clearpay_payment(
-        c,
+        driver,
         &format!("{CHEKOUT_BASE_URL}/saved/163"),
         vec![
             Event::Assert(Assert::IsPresent("Google")),
