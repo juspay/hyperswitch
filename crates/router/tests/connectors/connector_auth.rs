@@ -13,6 +13,7 @@ pub struct ConnectorAuthentication {
     pub bambora: Option<BodyKey>,
     pub bitpay: Option<HeaderKey>,
     pub bluesnap: Option<BodyKey>,
+    pub cashtocode: Option<BodyKey>,
     pub checkout: Option<SignatureKey>,
     pub coinbase: Option<HeaderKey>,
     pub cybersource: Option<SignatureKey>,
@@ -31,6 +32,7 @@ pub struct ConnectorAuthentication {
     pub nuvei: Option<SignatureKey>,
     pub opennode: Option<HeaderKey>,
     pub payeezy: Option<SignatureKey>,
+    pub payme: Option<HeaderKey>,
     pub paypal: Option<BodyKey>,
     pub payu: Option<BodyKey>,
     pub rapyd: Option<BodyKey>,
@@ -48,7 +50,6 @@ pub struct ConnectorAuthentication {
 impl ConnectorAuthentication {
     #[allow(clippy::expect_used)]
     pub(crate) fn new() -> Self {
-        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
         // before running tests
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
             .expect("connector authentication file path not set");
@@ -137,5 +138,7 @@ pub struct AutomationConfigs {
     pub configs_url: Option<String>,
     pub stripe_pub_key: Option<String>,
     pub testcases_path: Option<String>,
+    pub bluesnap_gateway_merchant_id: Option<String>,
+    pub globalpay_gateway_merchant_id: Option<String>,
     pub run_minimum_steps: Option<bool>,
 }
