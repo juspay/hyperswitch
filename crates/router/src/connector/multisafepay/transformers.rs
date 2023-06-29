@@ -66,8 +66,8 @@ pub struct Settings {
 pub struct PaymentOptions {
     pub notification_url: Option<String>,
     pub notification_method: Option<String>,
-    pub redirect_url: Option<String>,
-    pub cancel_url: Option<String>,
+    pub redirect_url: String,
+    pub cancel_url: String,
     pub close_window: Option<bool>,
     pub settings: Option<Settings>,
     pub template_id: Option<String>,
@@ -139,8 +139,14 @@ pub struct PayLaterInfo {
 #[serde(untagged)]
 pub enum GatewayInfo {
     Card(CardInfo),
-    GooglePay(GpayInfo),
+    Wallet(WalletInfo),
     PayLater(PayLaterInfo),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum WalletInfo {
+    GooglePay(GpayInfo)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -258,10 +264,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
         let description = item.get_description()?;
         let payment_options = PaymentOptions {
             notification_url: None,
-            redirect_url: Some(item.request.get_router_return_url()?)
-                .map(|return_url| format!("{return_url}?status=success")),
-            cancel_url: Some(item.request.get_router_return_url()?)
-                .map(|return_url| format!("{return_url}?status=failure")),
+            redirect_url: item.request.get_router_return_url()?,
+            cancel_url: item.request.get_router_return_url()?,
             close_window: None,
             notification_method: None,
             settings: None,
@@ -326,9 +330,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                 term_url: None,
             }),
             api::PaymentMethodData::Wallet(api::WalletData::GooglePay(ref google_pay)) => {
-                GatewayInfo::GooglePay(GpayInfo {
+                GatewayInfo::Wallet( WalletInfo::GooglePay({GpayInfo {
                     payment_token: Some(google_pay.tokenization_data.token.clone()),
-                })
+                }}))
             }
             api::PaymentMethodData::PayLater(ref paylater) => GatewayInfo::PayLater(PayLaterInfo {
                 email: Some(match paylater {
