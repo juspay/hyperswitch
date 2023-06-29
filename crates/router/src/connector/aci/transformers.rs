@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use super::result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
 use crate::{
-    connector::utils,
+    connector::utils::{self, RouterData},
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -202,11 +202,7 @@ impl
                     bank_account_bic: None,
                     bank_account_iban: None,
                     billing_country: Some(country.to_owned()),
-                    merchant_customer_id: Some(Secret::new(item.customer_id.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "customer_id",
-                        },
-                    )?)),
+                    merchant_customer_id: Some(Secret::new(item.get_customer_id()?)),
                     merchant_transaction_id: Some(Secret::new(item.payment_id.clone())),
                     customer_email: None,
                 }))
