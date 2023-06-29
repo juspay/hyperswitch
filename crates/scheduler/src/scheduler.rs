@@ -34,17 +34,17 @@ impl SchedulerInterface for Store {}
 impl SchedulerInterface for MockDb {}
 
 #[async_trait::async_trait]
-pub trait SchedulerAppState<T> : Send + Sync   {
-    fn get_db(&self) -> T where T : SchedulerInterface + Send + Sync;
+pub trait SchedulerAppState : Send + Sync   {
+    fn get_db(&self) -> Box<dyn SchedulerInterface>;
 }
 
-pub async fn start_process_tracker<F, T: SchedulerAppState<F> + Send + Sync + Clone + 'static>(
+pub async fn start_process_tracker< T: SchedulerAppState + Send + Sync + Clone + 'static>(
     state: &T,
     scheduler_flow: SchedulerFlow,
     scheduler_settings: Arc<SchedulerSettings>,
     channel: (mpsc::Sender<()>, mpsc::Receiver<()>),
     runner_from_task: workflows::WorkflowSelectorFn<T>
-) -> CustomResult<(), errors::ProcessTrackerError> where F: SchedulerInterface {
+) -> CustomResult<(), errors::ProcessTrackerError>{
     match scheduler_flow {
         SchedulerFlow::Producer => {
             producer::start_producer(state, scheduler_settings, channel).await?

@@ -1,4 +1,5 @@
 use router_env::logger;
+use scheduler::SchedulerAppState;
 use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors as sch_errors};
 use common_utils::ext_traits::{ValueExt, OptionExt};
 use scheduler::db::process_tracker::ProcessTrackerExt;
@@ -60,7 +61,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             status if terminal_status.contains(status) => {
                 let id = process.id.clone();
                 process
-                    .finish_with_status(db.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
+                    .finish_with_status(state.get_db().as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
                     .await?
             }
             _ => {

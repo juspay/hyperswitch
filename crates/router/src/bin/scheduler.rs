@@ -51,6 +51,8 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum PTRunner {
     PaymentsSyncWorkflow,
+    RefundWorkflowRouter,
+    DeleteTokenizeDataWorkflow
 }
 
 pub fn runner_from_task(
@@ -60,6 +62,8 @@ pub fn runner_from_task(
     let runner: Option<PTRunner> = runner.parse_enum("PTRunner").ok();
     Ok(match runner {
         Some(PTRunner::PaymentsSyncWorkflow) => Some(Box::new(workflows::payment_sync::PaymentsSyncWorkflow)),
+        Some(PTRunner::RefundWorkflowRouter) => Some(Box::new(workflows::refund_router::RefundWorkflowRouter)),
+        Some(PTRunner::DeleteTokenizeDataWorkflow) => Some(Box::new(workflows::tokenized_data::DeleteTokenizeDataWorkflow)),
         None => None,
     })
 }

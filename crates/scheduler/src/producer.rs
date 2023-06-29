@@ -15,11 +15,11 @@ use super::metrics;
 use super::env::logger::{self, debug, error, warn};
 
 #[instrument(skip_all)]
-pub async fn start_producer<T, F>(
+pub async fn start_producer<T>(
     state: &T,
     scheduler_settings: Arc<SchedulerSettings>,
     (tx, mut rx): (mpsc::Sender<()>, mpsc::Receiver<()>),
-) -> CustomResult<(), errors::ProcessTrackerError>  where T : SchedulerAppState<F> + Send + Sync + Clone, F: SchedulerInterface {
+) -> CustomResult<(), errors::ProcessTrackerError>  where T : SchedulerAppState + Send + Sync + Clone {
     use rand::Rng;
     let timeout = rand::thread_rng().gen_range(0..=scheduler_settings.loop_interval);
     tokio::time::sleep(std::time::Duration::from_millis(timeout)).await;
@@ -75,19 +75,18 @@ pub async fn start_producer<T, F>(
 }
 
 #[instrument(skip_all)]
-pub async fn run_producer_flow<F, T>(
+pub async fn run_producer_flow< T>(
     state: &T,
     settings: &SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError>  where 
-T : SchedulerAppState<F> + Send + Sync + Clone,
-F: SchedulerInterface  {
-    lock_acquire_release::<_, _, _>(&state.get_db(), settings, move || async {
-        let tasks = fetch_producer_tasks(&state.get_db(), settings).await?;
+T : SchedulerAppState + Send + Sync + Clone {
+    lock_acquire_release::<_, _, _>(state.get_db().as_scheduler(), settings, move || async {
+        let tasks = fetch_producer_tasks(state.get_db().as_scheduler(), settings).await?;
         debug!("Producer count of tasks {}", tasks.len());
 
         // [#268]: Allow task based segregation of tasks
 
-        divide_and_append_tasks(&state.get_db(), SchedulerFlow::Producer, tasks, settings).await?;
+        divide_and_append_tasks(state.get_db().as_scheduler(), SchedulerFlow::Producer, tasks, settings).await?;
 
         Ok(())
     })

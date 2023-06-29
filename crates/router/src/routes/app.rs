@@ -33,7 +33,7 @@ pub struct AppState {
     pub kms_secrets: settings::ActiveKmsSecrets,
 }
 
-impl scheduler::SchedulerAppState<Box<dyn SchedulerInterface >> for AppState {
+impl scheduler::SchedulerAppState for AppState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
         self.store.get_scheduler_db()
     }

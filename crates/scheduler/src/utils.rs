@@ -31,7 +31,7 @@ pub async fn divide_and_append_tasks<T>(
     settings: &SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
-    T: SchedulerInterface + Send + Sync ,
+    T: SchedulerInterface + Send + Sync + ?Sized,
 {
     let batches = divide(tasks, settings);
     // Safety: Assuming we won't deal with more than `u64::MAX` batches at once
@@ -53,7 +53,7 @@ pub async fn update_status_and_append<T>(
     pt_batch: ProcessTrackerBatch,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
-    T: SchedulerInterface + Send + Sync ,
+    T: SchedulerInterface + Send + Sync + ?Sized ,
 {
     let process_ids: Vec<String> = pt_batch
         .trackers
@@ -245,7 +245,7 @@ pub fn get_time_from_delta(delta: Option<i32>) -> Option<time::PrimitiveDateTime
     delta.map(|t| common_utils::date_time::now().saturating_add(time::Duration::seconds(t.into())))
 }
 
-pub async fn consumer_operation_handler<E,F, T : Send + Sync + 'static>(
+pub async fn consumer_operation_handler<E, T : Send + Sync + 'static>(
     state: T,
     settings: sync::Arc<SchedulerSettings>,
     error_handler_fun: E,
@@ -254,8 +254,7 @@ pub async fn consumer_operation_handler<E,F, T : Send + Sync + 'static>(
 ) where
     // Error handler function
     E: FnOnce(error_stack::Report<errors::ProcessTrackerError>),
-    T: SchedulerAppState<F> + Send + Sync + Clone,
-    F: SchedulerInterface  
+    T: SchedulerAppState + Send + Sync + Clone
 {
     consumer_operation_counter.fetch_add(1, atomic::Ordering::Release);
     let start_time = std_time::Instant::now();
@@ -357,7 +356,7 @@ pub(crate) async fn lock_acquire_release<T, F, Fut>(
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
     F: Fn() -> Fut,
-    T: SchedulerInterface + Send + Sync,
+    T: SchedulerInterface + Send + Sync + ?Sized,
     Fut: futures::Future<Output = CustomResult<(), errors::ProcessTrackerError>>,
 {
     let tag = "PRODUCER_LOCK";
