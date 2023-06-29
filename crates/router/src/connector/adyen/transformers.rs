@@ -902,7 +902,7 @@ fn get_additional_data(item: &types::PaymentsAuthorizeRouterData) -> Option<Addi
 }
 
 fn get_channel_type(pm_type: &Option<storage_enums::PaymentMethodType>) -> Option<Channel> {
- pm_type.as_ref().and_then(|pmt| match pmt {
+    pm_type.as_ref().and_then(|pmt| match pmt {
         storage_enums::PaymentMethodType::GoPay => Some(Channel::Web),
         _ => None,
     })
