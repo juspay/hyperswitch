@@ -52,6 +52,7 @@ pub enum PaymentMethodData {
     Paypal(Box<PaypalMethodData>),
     Sofort,
     CreditCard(Box<CreditCardMethodData>),
+    DirectDebit(Box<DirectDebitMethodData>),
 }
 
 #[derive(Debug, Serialize)]
@@ -71,6 +72,13 @@ pub struct IdealMethodData {
 pub struct PaypalMethodData {
     billing_address: Option<Address>,
     shipping_address: Option<Address>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectDebitMethodData {
+    consumer_name: Option<Secret<String>>,
+    consumer_account: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -127,6 +135,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
                 api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => {
                     get_payment_method_for_wallet(item, wallet_data)
                 }
+                api_models::payments::PaymentMethodData::BankDebit(ref directdebit_data) => {
+                    PaymentMethodData::try_from(directdebit_data)
+                }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     "Payment Method".to_string(),
                 ))
@@ -172,6 +183,23 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
                 })))
             }
             api_models::payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::BankDebitData> for PaymentMethodData {
+    type Error = Error;
+    fn try_from(value: &api_models::payments::BankDebitData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::BankDebitData::SepaBankDebit {
+                bank_account_holder_name,
+                iban,
+                ..
+            } => Ok(Self::DirectDebit(Box::new(DirectDebitMethodData {
+                consumer_name: bank_account_holder_name.clone(),
+                consumer_account: iban.clone(),
+            }))),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
