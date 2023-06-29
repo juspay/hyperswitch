@@ -234,7 +234,7 @@ diesel::table! {
         card_fingerprint -> Varchar,
         #[max_length = 255]
         card_global_fingerprint -> Varchar,
-        #[max_length = 255]
+        #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 255]
         card_number -> Varchar,
@@ -477,7 +477,6 @@ diesel::table! {
         #[max_length = 64]
         business_label -> Varchar,
         order_details -> Nullable<Array<Nullable<Jsonb>>>,
-        udf -> Nullable<Jsonb>,
     }
 }
 

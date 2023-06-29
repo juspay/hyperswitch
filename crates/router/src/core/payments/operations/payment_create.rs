@@ -635,7 +635,7 @@ impl PaymentCreate {
             business_label,
             active_attempt_id,
             order_details: order_details_outside_value,
-            udf: request.udf.clone(),
+
             ..storage::PaymentIntentNew::default()
         })
     }

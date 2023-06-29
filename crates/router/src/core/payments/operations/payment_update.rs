@@ -477,7 +477,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .clone();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-        let udf = payment_data.payment_intent.udf.clone();
+
         payment_data.payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
@@ -497,7 +497,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     statement_descriptor_suffix,
                     order_details,
                     metadata,
-                    udf,
                 },
                 storage_scheme,
             )
@@ -641,10 +640,5 @@ impl PaymentUpdate {
             .client_secret
             .clone()
             .map(|i| payment_intent.client_secret.replace(i));
-
-        request
-            .udf
-            .clone()
-            .map(|udf| payment_intent.udf.replace(udf));
     }
 }

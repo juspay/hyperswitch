@@ -281,10 +281,6 @@ pub struct PaymentsRequest {
     /// If enabled payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted.
     #[serde(default)]
     pub manual_retry: bool,
-
-    /// Any user defined fields can be passed here.
-    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
-    pub udf: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]

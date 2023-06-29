@@ -264,7 +264,6 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             statement_descriptor_name: item.statement_descriptor,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             metadata: metadata_object,
-            udf: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
             authentication_type,
             mandate_data: mandate_options,

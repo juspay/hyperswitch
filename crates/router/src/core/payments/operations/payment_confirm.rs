@@ -202,7 +202,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .as_ref()
             .map(|a| a.to_string())
             .or(payment_intent.return_url);
-        payment_intent.udf = request.udf.clone().or(payment_intent.udf);
 
         payment_attempt.business_sub_label = request
             .business_sub_label
@@ -428,7 +427,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .take();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-        let udf = payment_data.payment_intent.udf.clone();
+
         payment_data.payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
@@ -448,7 +447,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     statement_descriptor_suffix,
                     order_details,
                     metadata,
-                    udf,
                 },
                 storage_scheme,
             )
