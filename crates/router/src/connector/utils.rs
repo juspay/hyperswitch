@@ -191,6 +191,8 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<storage_models::enums::PaymentMethodType, Error>;
+    fn is_bank_redirect(&self) -> bool;
+    fn is_card_payment(&self) -> bool;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -258,10 +260,20 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         matches!(self.payment_method_data, api::PaymentMethodData::Wallet(_))
     }
 
+    fn is_card_payment(&self) -> bool {
+        matches!(self.payment_method_data, api::PaymentMethodData::Card(_))
+    }
+
     fn get_payment_method_type(&self) -> Result<storage_models::enums::PaymentMethodType, Error> {
         self.payment_method_type
             .to_owned()
             .ok_or_else(missing_field_err("payment_method_type"))
+    }
+    fn is_bank_redirect(&self) -> bool {
+        matches!(
+            self.payment_method_data,
+            api::PaymentMethodData::BankRedirect(_)
+        )
     }
 }
 

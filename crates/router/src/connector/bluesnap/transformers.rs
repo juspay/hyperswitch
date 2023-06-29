@@ -16,6 +16,7 @@ use crate::{
     consts,
     core::errors,
     pii::Secret,
+    services,
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
     utils::{Encode, OptionExt},
 };
@@ -31,6 +32,15 @@ pub struct BluesnapPaymentsRequest {
     three_d_secure: Option<BluesnapThreeDSecureInfo>,
     transaction_fraud_info: Option<TransactionFraudInfo>,
     card_holder_info: Option<BluesnapCardHolderInfo>,
+    payer_info: Option<BluesnapPayerInfo>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapPayerInfo {
+    first_name: Secret<String>,
+    last_name: Secret<String>,
+    country: api_enums::CountryAlpha2,
 }
 
 #[derive(Debug, Serialize)]
@@ -67,6 +77,20 @@ pub struct BluesnapThreeDSecureInfo {
 pub enum PaymentMethodDetails {
     CreditCard(Card),
     Wallet(BluesnapWallet),
+    IdealTransaction(BluesnapIdealTransaction),
+    SofortTransaction(BluesnapSofortTransaction),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapIdealTransaction {
+    return_url: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapSofortTransaction {
+    return_url: String,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -263,10 +287,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                     "Wallets".to_string(),
                 )),
             },
+            api::PaymentMethodData::BankRedirect(bank_redirect) => Ok((
+                get_bank_redirect_data(bank_redirect, &auth_mode, &item.request.router_return_url)?,
+                None,
+            )),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "payment method".to_string(),
             )),
         }?;
+        let payer_info = get_payer_info(item)?;
         Ok(Self {
             amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             payment_method,
@@ -277,6 +306,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                 fraud_session_id: item.payment_id.clone(),
             }),
             card_holder_info,
+            payer_info,
         })
     }
 }
@@ -408,9 +438,9 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
             item.request.payment_method_data.clone()
         {
             PaymentMethodDetails::CreditCard(Card {
-                card_number: ccard.card_number,
+                card_number: ccard.card_number.clone(),
                 expiration_month: ccard.card_exp_month.clone(),
-                expiration_year: ccard.card_exp_year.clone(),
+                expiration_year: ccard.get_expiry_year_4_digit(),
                 security_code: ccard.card_cvc,
             })
         } else {
@@ -435,6 +465,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
                 fraud_session_id: item.payment_id.clone(),
             }),
             card_holder_info: None,
+            payer_info: None,
         })
     }
 }
@@ -570,7 +601,7 @@ impl<F, T>
 }
 
 // PaymentsResponse
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BluesnapTxnType {
     AuthOnly,
@@ -815,4 +846,130 @@ fn get_card_holder_info(
         last_name: address.get_last_name()?.clone(),
         email: item.request.get_email()?,
     }))
+}
+
+fn get_payer_info(
+    item: &types::PaymentsAuthorizeRouterData,
+) -> CustomResult<Option<BluesnapPayerInfo>, errors::ConnectorError> {
+    if item.request.is_bank_redirect() {
+        let address = item.get_billing_address()?; // this fields are mandatory for bank redirects
+        Ok(Some(BluesnapPayerInfo {
+            first_name: address.get_first_name()?.to_owned(),
+            last_name: address.get_last_name()?.to_owned(),
+            country: address.get_country()?.to_owned(),
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapAltPaymentResponse {
+    processing_info: BluesnapAltProcessingInfo,
+    #[serde(alias = "sofortTransaction")]
+    ideal_transaction: BluesnapAltTransaction,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapAltProcessingInfo {
+    processing_status: BluesnapAltProcessingStatus,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BluesnapAltProcessingStatus {
+    Pending,
+    Success,
+    Fail,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapAltTransaction {
+    #[serde(alias = "sofortUrl")]
+    ideal_url: url::Url,
+    order_id: i64, //connector transaction id incase of bank_redirects
+}
+
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<F, BluesnapAltPaymentResponse, T, types::PaymentsResponseData>,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BluesnapAltPaymentResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let redirection_data = Some(services::RedirectForm::from((
+            item.response.ideal_transaction.ideal_url.clone(),
+            services::Method::Get,
+        )));
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.processing_info.processing_status),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.ideal_transaction.order_id.to_string(),
+                ),
+                redirection_data,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl From<BluesnapAltProcessingStatus> for enums::AttemptStatus {
+    fn from(status: BluesnapAltProcessingStatus) -> Self {
+        match status {
+            BluesnapAltProcessingStatus::Pending => Self::AuthenticationPending,
+            BluesnapAltProcessingStatus::Success => Self::Charged,
+            BluesnapAltProcessingStatus::Fail => Self::Failure,
+        }
+    }
+}
+
+fn get_bank_redirect_data(
+    bank_redirect: api_models::payments::BankRedirectData,
+    auth_mode: &BluesnapTxnType,
+    return_url: &Option<String>,
+) -> Result<PaymentMethodDetails, errors::ConnectorError> {
+    if auth_mode == &BluesnapTxnType::AuthOnly {
+        Err(errors::ConnectorError::NotSupported {
+            message: "Authorization is not supported by Ideal".to_string(),
+            connector: "Bluesnap",
+            payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
+        })?
+    };
+    match bank_redirect {
+        api_models::payments::BankRedirectData::Ideal { .. } => Ok(
+            PaymentMethodDetails::IdealTransaction(BluesnapIdealTransaction {
+                return_url: return_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "return_url",
+                    },
+                )?,
+            }),
+        ),
+        api_models::payments::BankRedirectData::Sofort { .. } => Ok(
+            PaymentMethodDetails::SofortTransaction(BluesnapSofortTransaction {
+                return_url: return_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "return_url",
+                    },
+                )?,
+            }),
+        ),
+        _ => Err(errors::ConnectorError::NotImplemented(
+            "payment method".to_string(),
+        )),
+    }
 }
