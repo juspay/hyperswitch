@@ -146,7 +146,7 @@ pub enum GatewayInfo {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum WalletInfo {
-    GooglePay(GpayInfo)
+    GooglePay(GpayInfo),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -330,9 +330,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                 term_url: None,
             }),
             api::PaymentMethodData::Wallet(api::WalletData::GooglePay(ref google_pay)) => {
-                GatewayInfo::Wallet( WalletInfo::GooglePay({GpayInfo {
-                    payment_token: Some(google_pay.tokenization_data.token.clone()),
-                }}))
+                GatewayInfo::Wallet(WalletInfo::GooglePay({
+                    GpayInfo {
+                        payment_token: Some(google_pay.tokenization_data.token.clone()),
+                    }
+                }))
             }
             api::PaymentMethodData::PayLater(ref paylater) => GatewayInfo::PayLater(PayLaterInfo {
                 email: Some(match paylater {
