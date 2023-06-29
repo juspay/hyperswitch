@@ -325,7 +325,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
         };
 
         let gateway_info = match item.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => GatewayInfo::Card(CardInfo {
+            api::PaymentMethodData::Card(ref ccard) => Some(GatewayInfo::Card(CardInfo {
                 card_number: Some(ccard.card_number.clone()),
                 card_expiry_date: Some(
                     (format!(
@@ -341,25 +341,33 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                 flexible_3d: None,
                 moto: None,
                 term_url: None,
-            }),
-            api::PaymentMethodData::Wallet(api::WalletData::GooglePay(ref google_pay)) => {
-                GatewayInfo::Wallet(WalletInfo::GooglePay({
-                    GpayInfo {
-                        payment_token: Some(google_pay.tokenization_data.token.clone()),
-                    }
+            })),
+            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                api::WalletData::GooglePay(ref google_pay) => {
+                    Some(GatewayInfo::Wallet(WalletInfo::GooglePay({
+                        GpayInfo {
+                            payment_token: Some(google_pay.tokenization_data.token.clone()),
+                        }
+                    })))
+                }
+                api::WalletData::PaypalRedirect(_) => None,
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Payment method".to_string(),
+                ))?,
+            },
+            api::PaymentMethodData::PayLater(ref paylater) => {
+                Some(GatewayInfo::PayLater(PayLaterInfo {
+                    email: Some(match paylater {
+                        api_models::payments::PayLaterData::KlarnaRedirect {
+                            billing_email,
+                            billing_country: _,
+                        } => billing_email.clone(),
+                        _ => Err(errors::ConnectorError::NotImplemented(
+                            "Only KlarnaRedirect is implemented".to_string(),
+                        ))?,
+                    }),
                 }))
             }
-            api::PaymentMethodData::PayLater(ref paylater) => GatewayInfo::PayLater(PayLaterInfo {
-                email: Some(match paylater {
-                    api_models::payments::PayLaterData::KlarnaRedirect {
-                        billing_email,
-                        billing_country: _,
-                    } => billing_email.clone(),
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Only KlarnaRedirect is implemented".to_string(),
-                    ))?,
-                }),
-            }),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method".to_string(),
             ))?,
