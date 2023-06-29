@@ -205,13 +205,14 @@ where
         map_serializer.serialize_entry(VERSION, &self.version)?;
         #[cfg(feature = "vergen")]
         map_serializer.serialize_entry(BUILD, &self.build)?;
-        map_serializer.serialize_entry(LEVEL, &format!("{}", metadata.level()))?;
+        map_serializer.serialize_entry(LEVEL, &format_args!("{}", metadata.level()))?;
         map_serializer.serialize_entry(TARGET, metadata.target())?;
         map_serializer.serialize_entry(SERVICE, &self.service)?;
         map_serializer.serialize_entry(LINE, &metadata.line())?;
         map_serializer.serialize_entry(FILE, &metadata.file())?;
         map_serializer.serialize_entry(FN, name)?;
-        map_serializer.serialize_entry(FULL_NAME, &format!("{}::{}", metadata.target(), name))?;
+        map_serializer
+            .serialize_entry(FULL_NAME, &format_args!("{}::{}", metadata.target(), name))?;
         if let Ok(time) = &time::OffsetDateTime::now_utc().format(&Iso8601::DEFAULT) {
             map_serializer.serialize_entry(TIME, time)?;
         }
