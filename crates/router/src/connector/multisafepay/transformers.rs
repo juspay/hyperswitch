@@ -140,7 +140,7 @@ pub struct PayLaterInfo {
 pub enum GatewayInfo {
     Card(CardInfo),
     GooglePay(GpayInfo),
-    PayLater(PayLaterInfo)
+    PayLater(PayLaterInfo),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -308,7 +308,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
         };
 
         let gateway_info = match item.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => GatewayInfo::Card( CardInfo{
+            api::PaymentMethodData::Card(ref ccard) => GatewayInfo::Card(CardInfo {
                 card_number: Some(ccard.card_number.clone()),
                 card_expiry_date: Some(
                     (format!(
@@ -326,7 +326,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                 term_url: None,
             }),
             api::PaymentMethodData::Wallet(api::WalletData::GooglePay(ref google_pay)) => {
-                GatewayInfo::GooglePay( GpayInfo {
+                GatewayInfo::GooglePay(GpayInfo {
                     payment_token: Some(google_pay.tokenization_data.token.clone()),
                 })
             }
@@ -339,7 +339,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                     _ => Err(errors::ConnectorError::NotImplemented(
                         "Only KlarnaRedirect is implemented".to_string(),
                     ))?,
-                })
+                }),
             }),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method".to_string(),
