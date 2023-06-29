@@ -400,12 +400,12 @@ pub trait SeleniumTest {
     }
     async fn make_clearpay_payment(
         &self,
-        c: WebDriver,
+        driver: WebDriver,
         url: &str,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
         self.complete_actions(
-            &c,
+            &driver,
             vec![
                 Event::Trigger(Trigger::Goto(url)),
                 Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
@@ -443,7 +443,7 @@ pub trait SeleniumTest {
             ),
         ];
         clearpay_actions.extend(actions);
-        self.complete_actions(&c, clearpay_actions).await
+        self.complete_actions(&driver, clearpay_actions).await
     }
 }
 async fn is_text_present_now(driver: &WebDriver, key: &str) -> WebDriverResult<bool> {
