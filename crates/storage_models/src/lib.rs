@@ -42,7 +42,7 @@ pub type StorageResult<T> = error_stack::Result<T, errors::DatabaseError>;
 pub type PgPooledConn = async_bb8_diesel::Connection<diesel::PgConnection>;
 pub use self::{
     address::*, api_keys::*, cards_info::*, configs::*, connector_response::*, customers::*,
-    dispute::*, events::*, file::*, locker_mock_up::*, mandate::*, merchant_account::*,
+    dispute::*,ephemeral_key::*, events::*, file::*, locker_mock_up::*, mandate::*, merchant_account::*,
     merchant_connector_account::*, payment_attempt::*, payment_intent::*, payment_method::*,
     process_tracker::*, refund::*, reverse_lookup::*,
 };

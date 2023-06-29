@@ -265,16 +265,19 @@ pub struct MockDb {
     pub merchant_connector_accounts: Arc<Mutex<Vec<storage::MerchantConnectorAccount>>>,
     pub payment_attempts: Arc<Mutex<Vec<storage::PaymentAttempt>>>,
     pub payment_intents: Arc<Mutex<Vec<storage::PaymentIntent>>>,
+    pub payment_methods: Arc<Mutex<Vec<storage::PaymentMethod>>>,
     pub customers: Arc<Mutex<Vec<storage::Customer>>>,
     pub refunds: Arc<Mutex<Vec<storage::Refund>>>,
     pub processes: Arc<Mutex<Vec<storage::ProcessTracker>>>,
     pub connector_response: Arc<Mutex<Vec<storage::ConnectorResponse>>>,
     pub redis: Arc<redis_interface::RedisConnectionPool>,
     pub api_keys: Arc<Mutex<Vec<storage::ApiKey>>>,
+    pub ephemeral_keys: Arc<Mutex<Vec<storage::EphemeralKey>>>,
     pub cards_info: Arc<Mutex<Vec<storage::CardInfo>>>,
     pub events: Arc<Mutex<Vec<storage::Event>>>,
     pub disputes: Arc<Mutex<Vec<storage::Dispute>>>,
     pub lockers: Arc<Mutex<Vec<storage::LockerMockUp>>>,
+    pub mandates: Arc<Mutex<Vec<storage::Mandate>>>,
 }
 
 impl MockDb {
@@ -285,16 +288,19 @@ impl MockDb {
             merchant_connector_accounts: Default::default(),
             payment_attempts: Default::default(),
             payment_intents: Default::default(),
+            payment_methods: Default::default(),
             customers: Default::default(),
             refunds: Default::default(),
             processes: Default::default(),
             connector_response: Default::default(),
             redis: Arc::new(crate::connection::redis_connection(redis).await),
             api_keys: Default::default(),
+            ephemeral_keys: Default::default(),
             cards_info: Default::default(),
             events: Default::default(),
             disputes: Default::default(),
             lockers: Default::default(),
+            mandates: Default::default(),
         }
     }
 }

@@ -30,18 +30,30 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             .clone()
             .parse_value("PaymentsRetrieveRequest")?;
 
+        let key_store = db
+            .get_merchant_key_store_by_merchant_id(
+                tracking_data
+                    .merchant_id
+                    .as_ref()
+                    .get_required_value("merchant_id")?,
+                &db.get_master_key().to_vec().into(),
+            )
+            .await?;
+
         let merchant_account = db
             .find_merchant_account_by_merchant_id(
                 tracking_data
                     .merchant_id
                     .as_ref()
                     .get_required_value("merchant_id")?,
+                &key_store,
             )
             .await?;
 
         let (payment_data, _, _) = payment_flows::payments_operation_core::<api::PSync, _, _, _>(
             state,
             merchant_account.clone(),
+            key_store,
             operations::PaymentStatus,
             tracking_data.clone(),
             payment_flows::CallConnectorAction::Trigger,

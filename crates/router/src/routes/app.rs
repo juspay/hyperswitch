@@ -6,9 +6,9 @@ use tokio::sync::oneshot;
 
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
-use super::health::*;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
+use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
 #[cfg(feature = "oltp")]
@@ -417,8 +417,9 @@ impl Webhooks {
                     .route(
                         web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     )
+                    .route(web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>))
                     .route(
-                        web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                        web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     ),
             )
     }
@@ -503,5 +504,15 @@ impl Files {
                     .route(web::delete().to(files_delete))
                     .route(web::get().to(files_retrieve)),
             )
+    }
+}
+
+pub struct Cache;
+
+impl Cache {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/cache")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/invalidate/{key}").route(web::post().to(invalidate)))
     }
 }

@@ -35,7 +35,8 @@ api_key = "Bearer MyApiKey"
 key1 = "MerchantPosId"
 
 [globalpay]
-api_key = "Bearer MyApiKey"
+api_key = "api_key"
+key1 = "key1"
 
 [rapyd]
 api_key = "access_key"
@@ -125,3 +126,10 @@ pypl_email=""
 pypl_pass=""
 gmail_email=""
 gmail_pass=""
+
+[payme]
+api_key="API Key"
+
+[cashtocode]
+api_key="Classic PMT API Key"
+key1 = "Evoucher PMT API Key"

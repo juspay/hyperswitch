@@ -44,10 +44,6 @@ pub struct ActiveKmsSecrets {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-#[serde(transparent)]
-pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
-
-#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
     #[serde(deserialize_with = "connector_deser")]
     pub connector_list: HashSet<api_models::enums::Connector>,

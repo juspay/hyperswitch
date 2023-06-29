@@ -270,6 +270,7 @@ pub struct PaymentMethodTokenizationData {
 pub struct PaymentsPreProcessingData {
     pub email: Option<Email>,
     pub currency: Option<storage_enums::Currency>,
+    pub amount: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -338,6 +339,7 @@ pub struct VerifyRequestData {
     pub router_return_url: Option<String>,
     pub email: Option<Email>,
     pub return_url: Option<String>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Clone)]
@@ -346,6 +348,34 @@ pub struct AccessTokenRequestData {
     pub id: Option<String>,
     // Add more keys if required
 }
+
+pub trait Capturable {
+    fn get_capture_amount(&self) -> Option<i64> {
+        Some(0)
+    }
+}
+
+impl Capturable for PaymentsAuthorizeData {
+    fn get_capture_amount(&self) -> Option<i64> {
+        Some(self.amount)
+    }
+}
+
+impl Capturable for PaymentsCaptureData {
+    fn get_capture_amount(&self) -> Option<i64> {
+        Some(self.amount_to_capture)
+    }
+}
+
+impl Capturable for CompleteAuthorizeData {
+    fn get_capture_amount(&self) -> Option<i64> {
+        Some(self.amount)
+    }
+}
+impl Capturable for VerifyRequestData {}
+impl Capturable for PaymentsCancelData {}
+impl Capturable for PaymentsSessionData {}
+impl Capturable for PaymentsSyncData {}
 
 pub struct AddAccessTokenResult {
     pub access_token_result: Result<Option<AccessToken>, ErrorResponse>,
@@ -397,9 +427,16 @@ pub enum PaymentsResponseData {
         related_transaction_id: Option<String>,
     },
     PreProcessingResponse {
-        pre_processing_id: String,
+        pre_processing_id: PreprocessingResponseId,
         connector_metadata: Option<serde_json::Value>,
+        session_token: Option<api::SessionToken>,
     },
+}
+
+#[derive(Debug, Clone)]
+pub enum PreprocessingResponseId {
+    PreProcessingId(String),
+    ConnectorTransactionId(String),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -433,7 +470,7 @@ pub struct RefundsData {
     pub connector_refund_id: Option<String>,
     pub currency: storage_enums::Currency,
     /// Amount for the payment against which this refund is issued
-    pub amount: i64,
+    pub payment_amount: i64,
     pub reason: Option<String>,
     pub webhook_url: Option<String>,
     /// Amount to be refunded
@@ -773,5 +810,25 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RequestBody(Secret<String>);
+
+impl RequestBody {
+    pub fn log_and_get_request_body<T, F>(
+        body: T,
+        encoder: F,
+    ) -> errors::CustomResult<Self, errors::ParsingError>
+    where
+        F: FnOnce(T) -> errors::CustomResult<String, errors::ParsingError>,
+        T: std::fmt::Debug,
+    {
+        router_env::logger::info!(connector_request_body=?body);
+        Ok(Self(Secret::new(encoder(body)?)))
+    }
+    pub fn get_inner_value(request_body: Self) -> Secret<String> {
+        request_body.0
     }
 }
