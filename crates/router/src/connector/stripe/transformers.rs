@@ -271,7 +271,8 @@ fn get_bank_name(
         (
             StripePaymentMethodType::Sofort
             | StripePaymentMethodType::Giropay
-            | StripePaymentMethodType::Bancontact,
+            | StripePaymentMethodType::Bancontact
+            | StripePaymentMethodType::Blik,
             _,
         ) => Ok(None),
         _ => Err(errors::ConnectorError::MismatchedPaymentData),
@@ -289,6 +290,8 @@ pub struct StripeBankRedirectData {
     pub bank_name: Option<StripeBankName>,
     #[serde(flatten)]
     pub bank_specific_data: Option<BankSpecificData>,
+    #[serde(rename = "payment_method_options[blik][code]")]
+    pub code: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -494,6 +497,7 @@ pub enum StripePaymentMethodType {
     #[serde(rename = "p24")]
     Przelewy24,
     CustomerBalance,
+    Blik,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -753,6 +757,7 @@ fn infer_stripe_bank_redirect_issuer(
             Ok(StripePaymentMethodType::Przelewy24)
         }
         Some(storage_models::enums::PaymentMethodType::Eps) => Ok(StripePaymentMethodType::Eps),
+        Some(storage_models::enums::PaymentMethodType::Blik) => Ok(StripePaymentMethodType::Blik),
         None => Err(errors::ConnectorError::MissingRequiredField {
             field_name: "payment_method_type",
         }),
@@ -1011,6 +1016,10 @@ fn create_stripe_payment_method(
             let pm_type = infer_stripe_bank_redirect_issuer(pm_type)?;
             let bank_specific_data = get_bank_specific_data(bank_redirect_data);
             let bank_name = get_bank_name(&pm_type, bank_redirect_data)?;
+            let blik_code = match bank_redirect_data {
+                payments::BankRedirectData::Blik { blik_code } => Some(blik_code.to_owned()),
+                _ => None,
+            };
 
             Ok((
                 StripePaymentMethodData::BankRedirect(StripeBankRedirectData {
@@ -1018,6 +1027,7 @@ fn create_stripe_payment_method(
                     payment_method_data_type: pm_type,
                     bank_name,
                     bank_specific_data,
+                    code: blik_code,
                 }),
                 pm_type,
                 billing_address,
@@ -1597,6 +1607,7 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
                 | StripePaymentMethodOptions::Sepa {}
                 | StripePaymentMethodOptions::Bancontact {}
                 | StripePaymentMethodOptions::Przelewy24 {}
+                | StripePaymentMethodOptions::Blik {}
                 | StripePaymentMethodOptions::CustomerBalance {} => None,
             }),
             payment_method_id: Some(payment_method_id),
@@ -1795,6 +1806,7 @@ pub enum StripeNextActionResponse {
     VerifyWithMicrodeposits(StripeVerifyWithMicroDepositsResponse),
     WechatPayDisplayQrCode(StripeRedirectToQr),
     DisplayBankTransferInstructions(StripeBankTransferDetails),
+    NoNextActionBody,
 }
 
 impl StripeNextActionResponse {
@@ -1808,6 +1820,7 @@ impl StripeNextActionResponse {
                 Some(verify_with_microdeposits.hosted_verification_url.to_owned())
             }
             Self::DisplayBankTransferInstructions(_) => None,
+            Self::NoNextActionBody => None,
         }
     }
 }
@@ -1828,7 +1841,17 @@ impl<'de> Deserialize<'de> for StripeNextActionResponse {
             #[serde(flatten, with = "StripeNextActionResponse")]
             inner: StripeNextActionResponse,
         }
-        Wrapper::deserialize(deserializer).map(|w| w.inner)
+
+        // There is some exception in the stripe next action, it usually sends :
+        // "next_action": {
+        //   "redirect_to_url": { "return_url": "...", "url": "..." },
+        //   "type": "redirect_to_url"
+        // },
+        // But there is a case where it only sends the type and not other field named as it's type
+        let stripe_next_action_response =
+            Wrapper::deserialize(deserializer).map_or(Self::NoNextActionBody, |w| w.inner);
+
+        Ok(stripe_next_action_response)
     }
 }
 
@@ -2088,6 +2111,7 @@ pub enum StripePaymentMethodOptions {
     #[serde(rename = "p24")]
     Przelewy24 {},
     CustomerBalance {},
+    Blik {},
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -2501,6 +2525,7 @@ impl
                     payment_method_data_type: pm_type,
                     bank_name: None,
                     bank_specific_data: None,
+                    code: None,
                 }))
             }
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {

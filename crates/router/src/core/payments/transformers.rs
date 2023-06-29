@@ -332,12 +332,14 @@ where
                                 bank_transfer_steps_and_charges_details: bank_transfer,
                             }
                         })
-                        .or(Some(api_models::payments::NextActionData::RedirectToUrl {
-                            redirect_to_url: helpers::create_startpay_url(
-                                server,
-                                &payment_attempt,
-                                &payment_intent,
-                            ),
+                        .or(redirection_data.map(|_| {
+                            api_models::payments::NextActionData::RedirectToUrl {
+                                redirect_to_url: helpers::create_startpay_url(
+                                    server,
+                                    &payment_attempt,
+                                    &payment_intent,
+                                ),
+                            }
                         }));
                 };
 
