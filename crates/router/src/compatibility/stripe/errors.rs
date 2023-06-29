@@ -203,6 +203,8 @@ pub enum StripeErrorCode {
     WebhookProcessingError,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "payment_method_unactivated", message = "The operation cannot be performed as the payment method used has not been activated. Activate the payment method in the Dashboard, then try again.")]
     PaymentMethodUnactivated,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "{entity} expired or invalid")]
+    HyperswitchUnprocessableEntity { entity: String },
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -367,6 +369,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::Unauthorized
             | errors::ApiErrorResponse::InvalidJwtToken
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
+            | errors::ApiErrorResponse::AccessForbidden
             | errors::ApiErrorResponse::InvalidEphemeralKey => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod
@@ -377,6 +380,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                     field_name: field_name.to_string(),
                     param: field_name.to_string(),
                 }
+            }
+            errors::ApiErrorResponse::UnprocessableEntity { entity } => {
+                Self::HyperswitchUnprocessableEntity { entity }
             }
             errors::ApiErrorResponse::MissingRequiredFields { field_names } => {
                 // Instead of creating a new error variant in StripeErrorCode for MissingRequiredFields, converted vec<&str> to String
@@ -415,6 +421,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::RefundFailed { data } => Self::RefundFailed, // Nothing at stripe to map
 
             errors::ApiErrorResponse::MandateUpdateFailed
+            | errors::ApiErrorResponse::MandateSerializationFailed
+            | errors::ApiErrorResponse::MandateDeserializationFailed
             | errors::ApiErrorResponse::InternalServerError => Self::InternalServerError, // not a stripe code
             errors::ApiErrorResponse::ExternalConnectorError {
                 code,
@@ -528,7 +536,9 @@ impl actix_web::ResponseError for StripeErrorCode {
         match self {
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
             Self::InvalidRequestUrl => StatusCode::NOT_FOUND,
-            Self::ParameterUnknown { .. } => StatusCode::UNPROCESSABLE_ENTITY,
+            Self::ParameterUnknown { .. } | Self::HyperswitchUnprocessableEntity { .. } => {
+                StatusCode::UNPROCESSABLE_ENTITY
+            }
             Self::ParameterMissing { .. }
             | Self::RefundAmountExceedsPaymentAmount { .. }
             | Self::PaymentIntentAuthenticationFailure { .. }

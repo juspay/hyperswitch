@@ -164,9 +164,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut headers = self.build_headers(req, connectors)?;
         let api_headers = match req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Wallet(
-                api_models::payments::WalletData::ApplePayRedirect(_),
-            ) => None,
+            api_models::payments::PaymentMethodData::Wallet(_) => None,
             _ => Some(Self::get_default_header()),
         };
         if let Some(api_header) = api_headers {
@@ -185,9 +183,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = match &req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Wallet(
-                api_models::payments::WalletData::ApplePayRedirect(_),
-            ) => {
+            api_models::payments::PaymentMethodData::Wallet(_) => {
                 let base_url = connectors
                     .zen
                     .secondary_base_url
@@ -203,11 +199,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = zen::ZenPaymentsRequest::try_from(req)?;
-        router_env::logger::info!(connector_request=?req_obj);
-        let zen_req = utils::Encode::<zen::ZenPaymentsRequest>::encode_to_string_of_json(&req_obj)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let zen_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<zen::ZenPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(zen_req))
     }
 
@@ -395,11 +393,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = zen::ZenRefundRequest::try_from(req)?;
-        router_env::logger::info!(connector_request=?req_obj);
-        let zen_req = utils::Encode::<zen::ZenRefundRequest>::encode_to_string_of_json(&req_obj)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let zen_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<zen::ZenRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(zen_req))
     }
 
