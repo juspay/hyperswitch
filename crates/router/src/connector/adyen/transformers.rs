@@ -285,6 +285,7 @@ pub enum AdyenPaymentMethod<'a> {
     #[serde(rename = "sepadirectdebit")]
     SepaDirectDebit(Box<SepaDirectDebitData>),
     BacsDirectDebit(Box<BacsDirectDebitData>),
+    SamsungPay(Box<SamsungPayPmData>),
     Twint(Box<TwintWalletData>),
 }
 
@@ -360,6 +361,14 @@ pub struct MbwayData {
 pub struct WalleyData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SamsungPayPmData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+    #[serde(rename = "samsungPayToken")]
+    samsung_pay_token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -699,6 +708,7 @@ pub enum PaymentType {
     SepaDirectDebit,
     #[serde(rename = "directdebit_GB")]
     BacsDirectDebit,
+    Samsungpay,
     Twint,
 }
 
@@ -1107,6 +1117,13 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                     payment_type: PaymentType::WeChatPayWeb,
                 };
                 Ok(AdyenPaymentMethod::WeChatPayWeb(Box::new(data)))
+            }
+            api_models::payments::WalletData::SamsungPay(samsung_data) => {
+                let data = SamsungPayPmData {
+                    payment_type: PaymentType::Samsungpay,
+                    samsung_pay_token: samsung_data.token.to_owned(),
+                };
+                Ok(AdyenPaymentMethod::SamsungPay(Box::new(data)))
             }
             api_models::payments::WalletData::TwintRedirect { .. } => {
                 let data = TwintWalletData {
