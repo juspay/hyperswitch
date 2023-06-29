@@ -13,7 +13,7 @@ use tokio::sync::mpsc;
 use uuid::Uuid;
 
 use super::super::env::logger;
-use super::workflows::{self, ProcessTrackerWorkflow};
+pub use super::workflows::{self, ProcessTrackerWorkflow};
 use crate::{
     db::process_tracker::{ProcessTrackerExt, ProcessTrackerInterface},
     errors, metrics,

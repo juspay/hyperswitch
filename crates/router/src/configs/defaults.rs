@@ -18,18 +18,3 @@ impl Default for super::settings::SupportedConnectors {
         }
     }
 }
-
-impl Default for super::settings::Refund {
-    fn default() -> Self {
-        Self {
-            max_attempts: 10,
-            max_age: 365,
-        }
-    }
-}
-
-impl Default for super::settings::EphemeralConfig {
-    fn default() -> Self {
-        Self { validity: 1 }
-    }
-}

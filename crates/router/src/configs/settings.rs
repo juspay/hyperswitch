@@ -44,41 +44,6 @@ pub struct ActiveKmsSecrets {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct ConnectorCustomer {
-    #[serde(deserialize_with = "connector_deser")]
-    pub connector_list: HashSet<api_models::enums::Connector>,
-}
-
-fn connector_deser<'a, D>(
-    deserializer: D,
-) -> Result<HashSet<api_models::enums::Connector>, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let value = <String>::deserialize(deserializer)?;
-    Ok(value
-        .trim()
-        .split(',')
-        .flat_map(api_models::enums::Connector::from_str)
-        .collect())
-}
-
-#[cfg(feature = "dummy_connector")]
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct DummyConnector {
-    pub payment_ttl: i64,
-    pub payment_duration: u64,
-    pub payment_tolerance: u64,
-    pub payment_retrieve_duration: u64,
-    pub payment_retrieve_tolerance: u64,
-    pub refund_ttl: i64,
-    pub refund_duration: u64,
-    pub refund_tolerance: u64,
-    pub refund_retrieve_duration: u64,
-    pub refund_retrieve_tolerance: u64,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentMethodTokenFilter {
     #[serde(deserialize_with = "pm_deser")]
     pub payment_method: HashSet<storage_models::enums::PaymentMethod>,
@@ -100,11 +65,6 @@ where
         .collect::<Result<_, _>>()
         .map_err(D::Error::custom)
 }
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct BankRedirectConfig(
-    pub HashMap<api_models::enums::PaymentMethodType, ConnectorBankNames>,
-);
 #[derive(Debug, Deserialize, Clone)]
 pub struct ConnectorBankNames(pub HashMap<String, BanksVector>);
 
@@ -135,19 +95,6 @@ where
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
-pub struct Refund {
-    pub max_attempts: usize,
-    pub max_age: i64,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(default)]
-pub struct EphemeralConfig {
-    pub validity: i64,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(default)]
 pub struct SupportedConnectors {
     pub wallets: Vec<String>,
 }
@@ -164,12 +111,6 @@ pub struct ConnectorParamsWithMoreUrls {
 pub struct ConnectorParamsWithFileUploadUrl {
     pub base_url: String,
     pub base_url_file_upload: String,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(default)]
-pub struct WebhooksSettings {
-    pub outgoing_enabled: bool,
 }
 
 #[cfg(feature = "s3")]

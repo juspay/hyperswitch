@@ -4,24 +4,20 @@ pub mod utils;
 
 use std::fmt::Display;
 
-use actix_web::{body::BoxBody, http::StatusCode, ResponseError};
+use actix_web::{body::BoxBody, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
-use config::ConfigError;
 pub use redis_interface::errors::RedisError;
-use router_env::opentelemetry::metrics::MetricsError;
 use scheduler::errors as sch_errors;
+pub use storage_models::errors as storage_errors;
 
 pub use self::{
     api_error_response::ApiErrorResponse,
     utils::{ConnectorErrorExt, StorageErrorExt},
-    sch_errors::*
+    sch_errors::*, storage_errors::*
 };
 use crate::services;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
 pub type RouterResponse<T> = CustomResult<services::ApplicationResponse<T>, ApiErrorResponse>;
-
-pub type ApplicationResult<T> = Result<T, ApplicationError>;
-pub type ApplicationResponse<T> = ApplicationResult<services::ApplicationResponse<T>>;
 
 macro_rules! impl_error_display {
     ($st: ident, $arg: tt) => {
@@ -50,65 +46,10 @@ macro_rules! impl_error_type {
 
 impl_error_type!(EncryptionError, "Encryption error");
 
-#[derive(Debug, thiserror::Error)]
-pub enum ApplicationError {
-    // Display's impl can be overridden by the attribute error marco.
-    // Don't use Debug here, Debug gives error stack in response.
-    #[error("Application configuration error: {0}")]
-    ConfigurationError(ConfigError),
-
-    #[error("Invalid configuration value provided: {0}")]
-    InvalidConfigurationValueError(String),
-
-    #[error("Metrics error: {0}")]
-    MetricsError(MetricsError),
-
-    #[error("I/O: {0}")]
-    IoError(std::io::Error),
-}
-
-impl From<MetricsError> for ApplicationError {
-    fn from(err: MetricsError) -> Self {
-        Self::MetricsError(err)
-    }
-}
-
-impl From<std::io::Error> for ApplicationError {
-    fn from(err: std::io::Error) -> Self {
-        Self::IoError(err)
-    }
-}
 
 impl From<ring::error::Unspecified> for EncryptionError {
     fn from(_: ring::error::Unspecified) -> Self {
         Self
-    }
-}
-
-impl From<ConfigError> for ApplicationError {
-    fn from(err: ConfigError) -> Self {
-        Self::ConfigurationError(err)
-    }
-}
-
-fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
-    actix_web::HttpResponse::BadRequest()
-        .content_type(mime::APPLICATION_JSON)
-        .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
-}
-
-impl ResponseError for ApplicationError {
-    fn status_code(&self) -> StatusCode {
-        match self {
-            Self::MetricsError(_)
-            | Self::IoError(_)
-            | Self::ConfigurationError(_)
-            | Self::InvalidConfigurationValueError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        }
-    }
-
-    fn error_response(&self) -> actix_web::HttpResponse {
-        error_response(self)
     }
 }
 

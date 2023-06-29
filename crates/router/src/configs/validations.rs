@@ -1,6 +1,6 @@
 use common_utils::ext_traits::ConfigExt;
 
-use crate::core::errors::ApplicationError;
+use storage_models::errors::ApplicationError;
 
 impl super::settings::SupportedConnectors {
     pub fn validate(&self) -> Result<(), ApplicationError> {

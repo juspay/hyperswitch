@@ -8,11 +8,12 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["kv_store", "dummy_connector", "email"]
+default = ["kv_store", "dummy_connector", "email", "olap"]
 email = ["external_services/email", "dep:aws-config"]
 dummy_connector = ["api_models/dummy_connector"]
 external_access_dc = ["dummy_connector"]
 kv_store = []
+olap = []
 
 [dependencies]
 actix-web = "4.3.1"
