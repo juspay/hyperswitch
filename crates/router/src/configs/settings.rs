@@ -6,8 +6,6 @@ use std::{
 
 use api_models::enums;
 
-#[cfg(feature = "email")]
-use external_services::email::EmailSettings;
 #[cfg(feature = "kms")]
 use external_services::kms;
 use storage_models::settings as storage_settings;
