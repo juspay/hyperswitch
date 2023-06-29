@@ -118,10 +118,10 @@ async fn should_make_adyen_twint_payment(driver: WebDriver) -> Result<(), WebDri
     Ok(())
 }
 
-async fn should_make_adyen_dana_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_adyen_dana_payment(driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/175"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
