@@ -405,6 +405,7 @@ pub struct Connectors {
     pub nuvei: ConnectorParams,
     pub opennode: ConnectorParams,
     pub payeezy: ConnectorParams,
+    pub payme: ConnectorParams,
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
     pub rapyd: ConnectorParams,
