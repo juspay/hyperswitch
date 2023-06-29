@@ -15,9 +15,8 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api,
+        api, domain,
         storage::{self, enums},
-        transformers::ForeignInto,
     },
     utils::OptionExt,
 };
@@ -57,11 +56,11 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
-        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRequest>,
-            Option<storage::Customer>,
+            Option<domain::Customer>,
         ),
         errors::StorageError,
     > {
@@ -70,7 +69,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
             db,
             payment_data,
             request,
-            merchant_id,
+            &key_store.merchant_id,
+            key_store,
         )
         .await
     }
@@ -99,10 +99,11 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &storage::MerchantAccount,
+        _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::payment_intent::PaymentIntent,
+        _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
     }
@@ -113,11 +114,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         _db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -131,11 +132,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest> fo
     async fn update_trackers<'b>(
         &'b self,
         _db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRetrieveRequest>,
         PaymentData<F>,
@@ -157,8 +158,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsRetrieveRequest,
-        _mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &storage::MerchantAccount,
+        _mandate_type: Option<api::MandateTransactionType>,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         PaymentData<F>,
@@ -167,6 +169,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
         get_tracker_for_sync(
             payment_id,
             &merchant_account.merchant_id,
+            key_store,
             &*state.store,
             request,
             self,
@@ -183,6 +186,7 @@ async fn get_tracker_for_sync<
 >(
     payment_id: &api::PaymentIdType,
     merchant_id: &str,
+    mechant_key_store: &domain::MerchantKeyStore,
     db: &dyn StorageInterface,
     request: &api::PaymentsRetrieveRequest,
     operation: Op,
@@ -214,10 +218,18 @@ async fn get_tracker_for_sync<
     currency = payment_attempt.currency.get_required_value("currency")?;
     amount = payment_attempt.amount.into();
 
-    let shipping_address =
-        helpers::get_address_by_id(db, payment_intent.shipping_address_id.clone()).await?;
-    let billing_address =
-        helpers::get_address_by_id(db, payment_intent.billing_address_id.clone()).await?;
+    let shipping_address = helpers::get_address_by_id(
+        db,
+        payment_intent.shipping_address_id.clone(),
+        mechant_key_store,
+    )
+    .await?;
+    let billing_address = helpers::get_address_by_id(
+        db,
+        payment_intent.billing_address_id.clone(),
+        mechant_key_store,
+    )
+    .await?;
 
     let refunds = db
         .find_refund_by_payment_id_merchant_id(&payment_id_str, merchant_id, storage_scheme)
@@ -267,11 +279,12 @@ async fn get_tracker_for_sync<
                     mandate_reference_id: None,
                 }
             }),
+            mandate_connector: None,
             setup_mandate: None,
             token: None,
             address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                billing: billing_address.as_ref().map(|a| a.foreign_into()),
+                shipping: shipping_address.as_ref().map(|a| a.into()),
+                billing: billing_address.as_ref().map(|a| a.into()),
             },
             confirm: Some(request.force_sync),
             payment_method_data: None,
@@ -291,6 +304,7 @@ async fn get_tracker_for_sync<
             pm_token: None,
             connector_customer_id: None,
             ephemeral_key: None,
+            redirect_response: None,
         },
         None,
     ))
@@ -300,7 +314,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRetrieveRequest> for Payme
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRetrieveRequest,
-        merchant_account: &'a storage::MerchantAccount,
+        merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRetrieveRequest>,
         operations::ValidateResult<'a>,

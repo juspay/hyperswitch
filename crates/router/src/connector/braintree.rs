@@ -2,14 +2,18 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 
 use self::transformers as braintree;
 use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
-    headers, services,
+    headers,
+    services::{
+        self,
+        request::{self, Mask},
+    },
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -32,11 +36,14 @@ impl ConnectorCommon for Braintree {
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth: braintree::BraintreeAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.auth_header)])
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth.auth_header.into_masked(),
+        )])
     }
 }
 
@@ -71,14 +78,19 @@ impl
         &self,
         req: &types::PaymentsSessionRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::PaymentsSessionType::get_content_type(self).to_string(),
+                types::PaymentsSessionType::get_content_type(self)
+                    .to_string()
+                    .into(),
             ),
-            (headers::X_API_VERSION.to_string(), "6".to_string()),
-            (headers::ACCEPT.to_string(), "application/json".to_string()),
+            (headers::X_API_VERSION.to_string(), "6".to_string().into()),
+            (
+                headers::ACCEPT.to_string(),
+                "application/json".to_string().into(),
+            ),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         headers.append(&mut api_key);
@@ -143,11 +155,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsSessionRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let braintree_session_request =
-            utils::Encode::<braintree::BraintreeSessionRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = braintree::BraintreeSessionRequest::try_from(req)?;
+        let braintree_session_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<braintree::BraintreeSessionRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(braintree_session_request))
     }
 
@@ -213,14 +227,19 @@ impl
         &self,
         req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::PaymentsSyncType::get_content_type(self).to_string(),
+                types::PaymentsSyncType::get_content_type(self)
+                    .to_string()
+                    .into(),
             ),
-            (headers::X_API_VERSION.to_string(), "6".to_string()),
-            (headers::ACCEPT.to_string(), "application/json".to_string()),
+            (headers::X_API_VERSION.to_string(), "6".to_string().into()),
+            (
+                headers::ACCEPT.to_string(),
+                "application/json".to_string().into(),
+            ),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         headers.append(&mut api_key);
@@ -287,7 +306,7 @@ impl
     fn get_request_body(
         &self,
         _req: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Ok(None)
     }
 
@@ -320,14 +339,19 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self)
+                    .to_string()
+                    .into(),
             ),
-            (headers::X_API_VERSION.to_string(), "6".to_string()),
-            (headers::ACCEPT.to_string(), "application/json".to_string()),
+            (headers::X_API_VERSION.to_string(), "6".to_string().into()),
+            (
+                headers::ACCEPT.to_string(),
+                "application/json".to_string().into(),
+            ),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         headers.append(&mut api_key);
@@ -372,11 +396,14 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let braintree_req =
-            utils::Encode::<braintree::BraintreePaymentsRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(braintree_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = braintree::BraintreePaymentsRequest::try_from(req)?;
+        let braintree_payment_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<braintree::BraintreePaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(braintree_payment_request))
     }
 
     fn handle_response(
@@ -425,14 +452,19 @@ impl
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self)
+                    .to_string()
+                    .into(),
             ),
-            (headers::X_API_VERSION.to_string(), "6".to_string()),
-            (headers::ACCEPT.to_string(), "application/json".to_string()),
+            (headers::X_API_VERSION.to_string(), "6".to_string().into()),
+            (
+                headers::ACCEPT.to_string(),
+                "application/json".to_string().into(),
+            ),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         headers.append(&mut api_key);
@@ -494,7 +526,7 @@ impl
     fn get_request_body(
         &self,
         _req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Ok(None)
     }
 
@@ -527,14 +559,19 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::RefundExecuteType::get_content_type(self).to_string(),
+                types::RefundExecuteType::get_content_type(self)
+                    .to_string()
+                    .into(),
             ),
-            (headers::X_API_VERSION.to_string(), "6".to_string()),
-            (headers::ACCEPT.to_string(), "application/json".to_string()),
+            (headers::X_API_VERSION.to_string(), "6".to_string().into()),
+            (
+                headers::ACCEPT.to_string(),
+                "application/json".to_string().into(),
+            ),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         headers.append(&mut api_key);
@@ -564,11 +601,14 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let braintree_req =
-            utils::Encode::<braintree::BraintreeRefundRequest>::convert_and_url_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(braintree_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = braintree::BraintreeRefundRequest::try_from(req)?;
+        let braintree_refund_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<braintree::BraintreeRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(braintree_refund_request))
     }
 
     fn build_request(
@@ -622,7 +662,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         &self,
         _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
     }
 
@@ -648,7 +688,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn get_request_body(
         &self,
         _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Ok(None)
     }
 
@@ -688,20 +728,20 @@ impl api::IncomingWebhook for Braintree {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
+        Ok(api::IncomingWebhookEvent::EventNotSupported)
     }
 
     fn get_webhook_resource_object(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }

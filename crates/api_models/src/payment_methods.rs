@@ -439,8 +439,8 @@ pub struct PaymentMethodListResponse {
     ))]
     pub payment_methods: Vec<ResponsePaymentMethodsEnabled>,
     /// Value indicating if the current payment is a mandate payment
-    #[schema(example = "new_mandate_txn")]
-    pub mandate_payment: Option<payments::MandateTxnType>,
+    #[schema(value_type = MandateType)]
+    pub mandate_payment: Option<payments::MandateType>,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
@@ -625,5 +625,15 @@ pub struct TokenizedBankTransferValue1 {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankTransferValue2 {
+    pub customer_id: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankRedirectValue1 {
+    pub data: payments::BankRedirectData,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankRedirectValue2 {
     pub customer_id: Option<String>,
 }

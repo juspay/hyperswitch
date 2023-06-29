@@ -3,8 +3,6 @@ use common_utils::generate_id_with_default_len;
 use error_stack::report;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "basilisk")]
-use external_services::kms;
-#[cfg(feature = "basilisk")]
 use josekit::jwe;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
@@ -207,12 +205,57 @@ impl Vaultable for api::WalletData {
     }
 }
 
+impl Vaultable for api_models::payments::BankRedirectData {
+    fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+        let value1 = api_models::payment_methods::TokenizedBankRedirectValue1 {
+            data: self.to_owned(),
+        };
+
+        utils::Encode::<api_models::payment_methods::TokenizedBankRedirectValue1>::encode_to_string_of_json(&value1)
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank redirect data")
+    }
+
+    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+        let value2 = api_models::payment_methods::TokenizedBankRedirectValue2 { customer_id };
+
+        utils::Encode::<api_models::payment_methods::TokenizedBankRedirectValue2>::encode_to_string_of_json(&value2)
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank redirect supplementary data")
+    }
+
+    fn from_values(
+        value1: String,
+        value2: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let value1: api_models::payment_methods::TokenizedBankRedirectValue1 = value1
+            .parse_struct("TokenizedBankRedirectValue1")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into bank redirect data")?;
+
+        let value2: api_models::payment_methods::TokenizedBankRedirectValue2 = value2
+            .parse_struct("TokenizedBankRedirectValue2")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into supplementary bank redirect data")?;
+
+        let bank_transfer_data = value1.data;
+
+        let supp_data = SupplementaryVaultData {
+            customer_id: value2.customer_id,
+            payment_method_id: None,
+        };
+
+        Ok((bank_transfer_data, supp_data))
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum VaultPaymentMethod {
     Card(String),
     Wallet(String),
     BankTransfer(String),
+    BankRedirect(String),
 }
 
 impl Vaultable for api::PaymentMethodData {
@@ -222,6 +265,9 @@ impl Vaultable for api::PaymentMethodData {
             Self::Wallet(wallet) => VaultPaymentMethod::Wallet(wallet.get_value1(customer_id)?),
             Self::BankTransfer(bank_transfer) => {
                 VaultPaymentMethod::BankTransfer(bank_transfer.get_value1(customer_id)?)
+            }
+            Self::BankRedirect(bank_redirect) => {
+                VaultPaymentMethod::BankRedirect(bank_redirect.get_value1(customer_id)?)
             }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .into_report()
@@ -239,6 +285,9 @@ impl Vaultable for api::PaymentMethodData {
             Self::Wallet(wallet) => VaultPaymentMethod::Wallet(wallet.get_value2(customer_id)?),
             Self::BankTransfer(bank_transfer) => {
                 VaultPaymentMethod::BankTransfer(bank_transfer.get_value2(customer_id)?)
+            }
+            Self::BankRedirect(bank_redirect) => {
+                VaultPaymentMethod::BankRedirect(bank_redirect.get_value2(customer_id)?)
             }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .into_report()
@@ -281,6 +330,15 @@ impl Vaultable for api::PaymentMethodData {
                     api_models::payments::BankTransferData::from_values(mvalue1, mvalue2)?;
                 Ok((Self::BankTransfer(Box::new(bank_transfer)), supp_data))
             }
+            (
+                VaultPaymentMethod::BankRedirect(mvalue1),
+                VaultPaymentMethod::BankRedirect(mvalue2),
+            ) => {
+                let (bank_redirect, supp_data) =
+                    api_models::payments::BankRedirectData::from_values(mvalue1, mvalue2)?;
+                Ok((Self::BankRedirect(bank_redirect), supp_data))
+            }
+
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .into_report()
                 .attach_printable("Payment method not supported"),
@@ -470,11 +528,11 @@ pub fn get_key_id(keys: &settings::Jwekey) -> &str {
 
 #[cfg(feature = "basilisk")]
 async fn get_locker_jwe_keys(
-    keys: &settings::Jwekey,
-    kms_config: &kms::KmsConfig,
+    keys: &settings::ActiveKmsSecrets,
 ) -> CustomResult<(String, String), errors::EncryptionError> {
+    let keys = keys.jwekey.peek();
     let key_id = get_key_id(keys);
-    let (encryption_key, decryption_key) = if key_id == keys.locker_key_identifier1 {
+    let (public_key, private_key) = if key_id == keys.locker_key_identifier1 {
         (&keys.locker_encryption_key1, &keys.locker_decryption_key1)
     } else if key_id == keys.locker_key_identifier2 {
         (&keys.locker_encryption_key2, &keys.locker_decryption_key2)
@@ -482,18 +540,7 @@ async fn get_locker_jwe_keys(
         return Err(errors::EncryptionError.into());
     };
 
-    let public_key = kms::get_kms_client(kms_config)
-        .await
-        .decrypt(encryption_key)
-        .await
-        .change_context(errors::EncryptionError)?;
-    let private_key = kms::get_kms_client(kms_config)
-        .await
-        .decrypt(decryption_key)
-        .await
-        .change_context(errors::EncryptionError)?;
-
-    Ok((public_key, private_key))
+    Ok((public_key.to_string(), private_key.to_string()))
 }
 
 #[cfg(feature = "basilisk")]
@@ -515,7 +562,7 @@ pub async fn create_tokenize(
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let (public_key, private_key) = get_locker_jwe_keys(&state.conf.jwekey, &state.conf.kms)
+    let (public_key, private_key) = get_locker_jwe_keys(&state.kms_secrets)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encryption key")?;
@@ -592,7 +639,7 @@ pub async fn get_tokenized_data(
     let payload = serde_json::to_string(&payload_to_be_encrypted)
         .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
 
-    let (public_key, private_key) = get_locker_jwe_keys(&state.conf.jwekey, &state.conf.kms)
+    let (public_key, private_key) = get_locker_jwe_keys(&state.kms_secrets)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encryption key")?;
@@ -663,7 +710,7 @@ pub async fn delete_tokenized_data(
     let payload = serde_json::to_string(&payload_to_be_encrypted)
         .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
 
-    let (public_key, _private_key) = get_locker_jwe_keys(&state.conf.jwekey, &state.conf.kms)
+    let (public_key, _private_key) = get_locker_jwe_keys(&state.kms_secrets)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encryption key")?;

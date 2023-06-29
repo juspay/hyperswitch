@@ -6,6 +6,8 @@ pub mod logger;
 use std::sync::{atomic, Arc};
 
 use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "kms")]
+use external_services::kms;
 use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
 use tokio::sync::oneshot;
 
@@ -21,10 +23,7 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait PubSubInterface {
-    async fn subscribe(
-        &self,
-        channel: &str,
-    ) -> errors::CustomResult<usize, redis_errors::RedisError>;
+    async fn subscribe(&self, channel: &str) -> errors::CustomResult<(), redis_errors::RedisError>;
 
     async fn publish<'a>(
         &self,
@@ -38,10 +37,10 @@ pub trait PubSubInterface {
 #[async_trait::async_trait]
 impl PubSubInterface for redis_interface::RedisConnectionPool {
     #[inline]
-    async fn subscribe(
-        &self,
-        channel: &str,
-    ) -> errors::CustomResult<usize, redis_errors::RedisError> {
+    async fn subscribe(&self, channel: &str) -> errors::CustomResult<(), redis_errors::RedisError> {
+        // Spawns a task that will automatically re-subscribe to any channels or channel patterns used by the client.
+        self.subscriber.manage_subscriptions();
+
         self.subscriber
             .subscribe(channel)
             .await
@@ -64,21 +63,38 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
 
     #[inline]
     async fn on_message(&self) -> errors::CustomResult<(), redis_errors::RedisError> {
+        logger::debug!("Started on message");
         let mut rx = self.subscriber.on_message();
         while let Ok(message) = rx.recv().await {
-            let key: CacheKind<'_> = RedisValue::new(message.value)
+            logger::debug!("Invalidating {message:?}");
+            let key: CacheKind<'_> = match RedisValue::new(message.value)
                 .try_into()
-                .change_context(redis_errors::RedisError::OnMessageError)?;
-            match key {
+                .change_context(redis_errors::RedisError::OnMessageError)
+            {
+                Ok(value) => value,
+                Err(err) => {
+                    logger::error!(value_conversion_err=?err);
+                    continue;
+                }
+            };
+
+            let key = match key {
                 CacheKind::Config(key) => {
-                    self.delete_key(key.as_ref()).await?;
                     CONFIG_CACHE.invalidate(key.as_ref()).await;
+                    key
                 }
                 CacheKind::Accounts(key) => {
-                    self.delete_key(key.as_ref()).await?;
                     ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
+                    key
                 }
-            }
+            };
+
+            self.delete_key(key.as_ref())
+                .await
+                .map_err(|err| logger::error!("Error while deleting redis key: {err:?}"))
+                .ok();
+
+            logger::debug!("Done invalidating {key}");
         }
         Ok(())
     }
@@ -86,6 +102,12 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
 
 pub trait RedisConnInterface {
     fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool>;
+}
+
+impl RedisConnInterface for Store {
+    fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool> {
+        self.redis_conn.clone()
+    }
 }
 
 #[derive(Clone)]
@@ -96,6 +118,7 @@ pub struct Store {
     pub redis_conn: Arc<redis_interface::RedisConnectionPool>,
     #[cfg(feature = "kv_store")]
     pub(crate) config: StoreConfig,
+    pub master_key: Vec<u8>,
 }
 
 #[cfg(feature = "kv_store")]
@@ -116,7 +139,10 @@ impl Store {
 
         let subscriber_conn = redis_conn.clone();
 
-        redis_conn.subscribe(consts::PUB_SUB_CHANNEL).await.ok();
+        if let Err(e) = redis_conn.subscribe(consts::PUB_SUB_CHANNEL).await {
+            logger::error!(subscribe_err=?e);
+        }
+
         async_spawn!({
             if let Err(e) = subscriber_conn.on_message().await {
                 logger::error!(pubsub_err=?e);
@@ -125,6 +151,13 @@ impl Store {
         async_spawn!({
             redis_clone.on_error(shut_down_signal).await;
         });
+
+        let master_enc_key = get_master_enc_key(
+            config,
+            #[cfg(feature = "kms")]
+            &config.kms,
+        )
+        .await;
 
         Self {
             master_pool: diesel_make_pg_pool(
@@ -148,6 +181,7 @@ impl Store {
                 drainer_stream_name: config.drainer.stream_name.clone(),
                 drainer_num_partitions: config.drainer.num_partitions,
             },
+            master_key: master_enc_key,
         }
     }
 
@@ -196,8 +230,36 @@ impl Store {
     }
 }
 
-impl RedisConnInterface for Store {
-    fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool> {
-        self.redis_conn.clone()
-    }
+#[allow(clippy::expect_used)]
+async fn get_master_enc_key(
+    conf: &crate::configs::settings::Settings,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
+) -> Vec<u8> {
+    #[cfg(feature = "kms")]
+    let master_enc_key = hex::decode(
+        kms::get_kms_client(kms_config)
+            .await
+            .decrypt(&conf.secrets.master_enc_key)
+            .await
+            .expect("Failed to decrypt master enc key"),
+    )
+    .expect("Failed to decode from hex");
+
+    #[cfg(not(feature = "kms"))]
+    let master_enc_key =
+        hex::decode(&conf.secrets.master_enc_key).expect("Failed to decode from hex");
+
+    master_enc_key
+}
+
+#[inline]
+pub fn generate_aes256_key() -> errors::CustomResult<[u8; 32], common_utils::errors::CryptoError> {
+    use ring::rand::SecureRandom;
+
+    let rng = ring::rand::SystemRandom::new();
+    let mut key: [u8; 256 / 8] = [0_u8; 256 / 8];
+    rng.fill(&mut key)
+        .into_report()
+        .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
+    Ok(key)
 }

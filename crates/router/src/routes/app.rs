@@ -5,15 +5,17 @@ use tokio::sync::oneshot;
 
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
-use super::health::*;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
+use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
+#[cfg(feature = "kms")]
+use crate::configs::kms;
 use crate::{
-    configs::settings::Settings,
+    configs::settings,
     db::{MockDb, StorageImpl, StorageInterface},
     routes::cards_info::card_iin_info,
     services::Store,
@@ -23,13 +25,15 @@ use crate::{
 pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
-    pub conf: Settings,
+    pub conf: settings::Settings,
     #[cfg(feature = "email")]
     pub email_client: Box<dyn EmailClient>,
+    #[cfg(feature = "kms")]
+    pub kms_secrets: settings::ActiveKmsSecrets,
 }
 
 pub trait AppStateInfo {
-    fn conf(&self) -> Settings;
+    fn conf(&self) -> settings::Settings;
     fn flow_name(&self) -> String;
     fn store(&self) -> Box<dyn StorageInterface>;
     #[cfg(feature = "email")]
@@ -37,7 +41,7 @@ pub trait AppStateInfo {
 }
 
 impl AppStateInfo for AppState {
-    fn conf(&self) -> Settings {
+    fn conf(&self) -> settings::Settings {
         self.conf.to_owned()
     }
     fn flow_name(&self) -> String {
@@ -54,7 +58,7 @@ impl AppStateInfo for AppState {
 
 impl AppState {
     pub async fn with_storage(
-        conf: Settings,
+        conf: settings::Settings,
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
     ) -> Self {
@@ -66,6 +70,17 @@ impl AppState {
             StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
         };
 
+        #[cfg(feature = "kms")]
+        #[allow(clippy::expect_used)]
+        let kms_secrets = kms::KmsDecrypt::decrypt_inner(
+            settings::ActiveKmsSecrets {
+                jwekey: conf.jwekey.clone().into(),
+            },
+            &conf.kms,
+        )
+        .await
+        .expect("Failed while performing KMS decryption");
+
         #[cfg(feature = "email")]
         #[allow(clippy::expect_used)]
         let email_client = Box::new(AwsSes::new(&conf.email).await);
@@ -75,10 +90,12 @@ impl AppState {
             conf,
             #[cfg(feature = "email")]
             email_client,
+            #[cfg(feature = "kms")]
+            kms_secrets,
         }
     }
 
-    pub async fn new(conf: Settings, shut_down_signal: oneshot::Sender<()>) -> Self {
+    pub async fn new(conf: settings::Settings, shut_down_signal: oneshot::Sender<()>) -> Self {
         Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal).await
     }
 }
@@ -170,7 +187,8 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/redirect/response/{connector}")
-                        .route(web::get().to(payments_redirect_response)),
+                        .route(web::get().to(payments_redirect_response))
+                        .route(web::post().to(payments_redirect_response))
                 )
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
@@ -406,7 +424,6 @@ impl Configs {
     pub fn server(config: AppState) -> Scope {
         web::scope("/configs")
             .app_data(web::Data::new(config))
-            .service(web::resource("/").route(web::post().to(config_key_create)))
             .service(
                 web::resource("/{key}")
                     .route(web::get().to(config_key_retrieve))
@@ -447,10 +464,6 @@ impl Disputes {
                     .route(web::post().to(submit_dispute_evidence))
                     .route(web::put().to(attach_dispute_evidence)),
             )
-            .service(
-                web::resource("/evidence/{dispute_id}")
-                    .route(web::get().to(retrieve_dispute_evidence)),
-            )
             .service(web::resource("/{dispute_id}").route(web::get().to(retrieve_dispute)))
     }
 }
@@ -478,5 +491,15 @@ impl Files {
                     .route(web::delete().to(files_delete))
                     .route(web::get().to(files_retrieve)),
             )
+    }
+}
+
+pub struct Cache;
+
+impl Cache {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/cache")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/invalidate/{key}").route(web::post().to(invalidate)))
     }
 }

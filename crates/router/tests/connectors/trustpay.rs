@@ -36,15 +36,15 @@ impl utils::Connector for TrustpayTest {
 
 fn get_default_browser_info() -> BrowserInformation {
     BrowserInformation {
-        color_depth: 24,
-        java_enabled: false,
-        java_script_enabled: true,
-        language: "en-US".to_string(),
-        screen_height: 1080,
-        screen_width: 1920,
-        time_zone: 3600,
-        accept_header: "*".to_string(),
-        user_agent: "none".to_string(),
+        color_depth: Some(24),
+        java_enabled: Some(false),
+        java_script_enabled: Some(true),
+        language: Some("en-US".to_string()),
+        screen_height: Some(1080),
+        screen_width: Some(1920),
+        time_zone: Some(3600),
+        accept_header: Some("*".to_string()),
+        user_agent: Some("none".to_string()),
         ip_address: None,
     }
 }

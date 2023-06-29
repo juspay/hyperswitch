@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use rand::distributions::DistString;
 use ring::hmac;
 use transformers as payeezy;
@@ -13,7 +14,11 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, ConnectorIntegration},
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorIntegration,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -33,10 +38,12 @@ where
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = payeezy::PayeezyAuthType::try_from(&req.connector_auth_type)?;
         let option_request_payload = self.get_request_body(req)?;
-        let request_payload = option_request_payload.map_or("{}".to_string(), |s| s);
+        let request_payload = option_request_payload.map_or("{}".to_string(), |payload| {
+            types::RequestBody::get_inner_value(payload).expose()
+        });
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .ok()
@@ -55,13 +62,19 @@ where
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                Self.get_content_type().to_string(),
+                Self.get_content_type().to_string().into(),
             ),
-            (headers::APIKEY.to_string(), auth.api_key),
-            (headers::TOKEN.to_string(), auth.merchant_token),
-            (headers::AUTHORIZATION.to_string(), signature_value),
-            (headers::NONCE.to_string(), nonce),
-            (headers::TIMESTAMP.to_string(), timestamp),
+            (headers::APIKEY.to_string(), auth.api_key.into_masked()),
+            (
+                headers::TOKEN.to_string(),
+                auth.merchant_token.into_masked(),
+            ),
+            (
+                headers::AUTHORIZATION.to_string(),
+                signature_value.into_masked(),
+            ),
+            (headers::NONCE.to_string(), nonce.into_masked()),
+            (headers::TIMESTAMP.to_string(), timestamp.into()),
         ])
     }
 }
@@ -133,7 +146,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -157,13 +170,13 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = payeezy::PayeezyCaptureOrVoidRequest::try_from(req)?;
-        let payeezy_req =
-            utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let payeezy_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payeezy_req))
     }
 
@@ -239,7 +252,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -263,13 +276,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = payeezy::PayeezyCaptureOrVoidRequest::try_from(req)?;
-        let payeezy_req =
-            utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let payeezy_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payeezy_req))
     }
 
@@ -332,7 +345,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -351,13 +364,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = payeezy::PayeezyPaymentsRequest::try_from(req)?;
-        let payeezy_req =
-            utils::Encode::<payeezy::PayeezyPaymentsRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let payeezy_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<payeezy::PayeezyPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payeezy_req))
     }
 
@@ -416,7 +429,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -440,13 +453,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = payeezy::PayeezyRefundRequest::try_from(req)?;
-        let payeezy_req =
-            utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let payeezy_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payeezy_req))
     }
 
@@ -518,7 +531,7 @@ impl api::IncomingWebhook for Payeezy {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Ok(api::IncomingWebhookEvent::EventNotSupported)
     }
 
     fn get_webhook_resource_object(
