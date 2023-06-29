@@ -76,6 +76,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         BoxedOperation<'a, F, api::VerifyRequest>,
         PaymentData<F>,
         Option<payments::CustomerDetails>,
+        bool,
     )> {
         let db = &*state.store;
 
@@ -192,6 +193,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 phone: request.phone.clone(),
                 phone_country_code: request.phone_country_code.clone(),
             }),
+            false,
         ))
     }
 }

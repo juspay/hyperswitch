@@ -93,7 +93,7 @@ pub trait GetTracker<F, D, R>: Send {
         mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>;
+    ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>, bool)>;
 }
 
 #[async_trait]
@@ -119,6 +119,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         &'a self,
         _db: &'a AppState,
         _payment_attempt: &storage::PaymentAttempt,
+        _manual_requeue: bool,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }

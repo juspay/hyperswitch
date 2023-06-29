@@ -285,6 +285,10 @@ pub struct PaymentsRequest {
     /// Any user defined fields can be passed here.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub udf: Option<pii::SecretSerdeValue>,
+
+    /// If enabled denotes that the payment is requeued
+    #[serde(default)]
+    pub requeue: bool,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]

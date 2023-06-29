@@ -44,6 +44,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         BoxedOperation<'a, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
         Option<payments::CustomerDetails>,
+        bool,
     )> {
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -178,6 +179,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 redirect_response: None,
             },
             Some(customer_details),
+            false,
         ))
     }
 }

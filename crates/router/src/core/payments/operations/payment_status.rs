@@ -93,8 +93,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         &'a self,
         state: &'a AppState,
         payment_attempt: &storage::PaymentAttempt,
+        requeue: bool,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        helpers::add_domain_task_to_pt(self, state, payment_attempt).await
+        helpers::add_domain_task_to_pt(self, state, payment_attempt, requeue).await
     }
 
     async fn get_connector<'a>(
@@ -165,6 +166,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         PaymentData<F>,
         Option<CustomerDetails>,
+        bool,
     )> {
         get_tracker_for_sync(
             payment_id,
@@ -195,6 +197,7 @@ async fn get_tracker_for_sync<
     BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
     PaymentData<F>,
     Option<CustomerDetails>,
+    bool,
 )> {
     let (payment_intent, payment_attempt, currency, amount);
 
@@ -307,6 +310,7 @@ async fn get_tracker_for_sync<
             redirect_response: None,
         },
         None,
+        false,
     ))
 }
 

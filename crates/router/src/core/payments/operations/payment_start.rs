@@ -40,6 +40,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
         PaymentData<F>,
         Option<CustomerDetails>,
+        bool,
     )> {
         let (mut payment_intent, payment_attempt, currency, amount);
         let db = &*state.store;
@@ -150,6 +151,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 redirect_response: None,
             },
             Some(customer_details),
+            false,
         ))
     }
 }

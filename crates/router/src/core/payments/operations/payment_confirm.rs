@@ -44,6 +44,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
         Option<CustomerDetails>,
+        bool,
     )> {
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
@@ -269,6 +270,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 redirect_response: None,
             },
             Some(customer_details),
+            request.requeue,
         ))
     }
 }
@@ -325,8 +327,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         &'a self,
         state: &'a AppState,
         payment_attempt: &storage::PaymentAttempt,
+        requeue: bool,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        helpers::add_domain_task_to_pt(self, state, payment_attempt).await
+        helpers::add_domain_task_to_pt(self, state, payment_attempt, requeue).await
     }
 
     async fn get_connector<'a>(

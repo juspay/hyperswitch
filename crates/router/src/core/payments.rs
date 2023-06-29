@@ -40,7 +40,7 @@ use crate::{
     services::{self, api::Authenticate},
     types::{
         self, api, domain,
-        storage::{self, enums as storage_enums},
+        storage::{self, enums as storage_enums, ProcessTrackerExt},
     },
     utils::{Encode, OptionExt, ValueExt},
 };
@@ -80,7 +80,7 @@ where
         .validate_request(&req, &merchant_account)?;
 
     tracing::Span::current().record("payment_id", &format!("{}", validate_result.payment_id));
-    let (operation, mut payment_data, customer_details) = operation
+    let (operation, mut payment_data, customer_details, requeue) = operation
         .to_get_tracker()?
         .get_trackers(
             state,
@@ -137,7 +137,7 @@ where
         if should_add_task_to_process_tracker(&payment_data) {
             operation
                 .to_domain()?
-                .add_task_to_process_tracker(state, &payment_data.payment_attempt)
+                .add_task_to_process_tracker(state, &payment_data.payment_attempt, requeue)
                 .await
                 .map_err(|error| logger::error!(process_tracker_error=?error))
                 .ok();
@@ -1244,6 +1244,27 @@ pub async fn add_process_sync_task(
         )?;
 
     db.insert_process(process_tracker_entry).await?;
+    Ok(())
+}
+
+pub async fn reset_process_sync_task(
+    db: &dyn StorageInterface,
+    payment_attempt: &storage::PaymentAttempt,
+    schedule_time: time::PrimitiveDateTime,
+) -> Result<(), errors::ProcessTrackerError> {
+    let runner = "PAYMENTS_SYNC_WORKFLOW";
+    let task = "PAYMENTS_SYNC";
+    let process_tracker_id = pt_utils::get_process_tracker_id(
+        runner,
+        task,
+        &payment_attempt.attempt_id,
+        &payment_attempt.merchant_id,
+    );
+    let psync_process = db
+        .find_process_by_id(&process_tracker_id)
+        .await?
+        .ok_or(errors::ProcessTrackerError::ProcessFetchingFailed)?;
+    psync_process.reset(db, schedule_time).await?;
     Ok(())
 }
 

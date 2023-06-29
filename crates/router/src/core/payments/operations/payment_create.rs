@@ -52,6 +52,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
         Option<CustomerDetails>,
+        bool,
     )> {
         let db = &*state.store;
         let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_account).await;
@@ -263,6 +264,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 redirect_response: None,
             },
             Some(customer_details),
+            request.requeue,
         ))
     }
 }
@@ -312,6 +314,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         &'a self,
         _state: &'a AppState,
         _payment_attempt: &storage::PaymentAttempt,
+        _requeue: bool,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }

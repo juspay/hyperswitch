@@ -763,6 +763,7 @@ pub async fn add_domain_task_to_pt<Op>(
     operation: &Op,
     state: &AppState,
     payment_attempt: &storage::PaymentAttempt,
+    requeue: bool,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
     Op: std::fmt::Debug,
@@ -786,12 +787,21 @@ where
 
         match schedule_time {
             Some(stime) => {
-                scheduler_metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
-                super::add_process_sync_task(&*state.store, payment_attempt, stime)
-                    .await
-                    .into_report()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while adding task to process tracker")
+                if !requeue {
+                    scheduler_metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                    super::add_process_sync_task(&*state.store, payment_attempt, stime)
+                        .await
+                        .into_report()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed while adding task to process tracker")
+                } else {
+                    scheduler_metrics::TASKS_RESET_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                    super::reset_process_sync_task(&*state.store, payment_attempt, stime)
+                        .await
+                        .into_report()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed while updating task in process tracker")
+                }
             }
             None => Ok(()),
         }

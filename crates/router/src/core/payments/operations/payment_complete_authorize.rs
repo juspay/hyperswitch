@@ -43,6 +43,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
         Option<CustomerDetails>,
+        bool,
     )> {
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
@@ -215,6 +216,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 phone: request.phone.clone(),
                 phone_country_code: request.phone_country_code.clone(),
             }),
+            request.requeue,
         ))
     }
 }
@@ -271,6 +273,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
         &'a self,
         _state: &'a AppState,
         _payment_attempt: &storage::PaymentAttempt,
+        _requeue: bool,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }

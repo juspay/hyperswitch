@@ -41,6 +41,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         PaymentData<F>,
         Option<CustomerDetails>,
+        bool,
     )> {
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
@@ -160,6 +161,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                 redirect_response: None,
             },
             None,
+            false,
         ))
     }
 }
