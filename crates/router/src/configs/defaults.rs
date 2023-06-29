@@ -143,7 +143,6 @@ impl Default for super::settings::DrainerSettings {
     }
 }
 
-// Test Data
 impl Default for super::settings::RequiredFields {
     fn default() -> Self {
         Self(HashMap::from([
