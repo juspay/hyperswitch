@@ -762,7 +762,7 @@ impl Default for super::settings::RequiredFields {
                                 (
                                     enums::Connector::Zen,
                                     vec![RequiredFieldInfo {
-                                        required_field: "metadta.order_details".to_string(),
+                                        required_field: "metadata.order_details".to_string(),
                                         display_name: "order_details".to_string(),
                                         field_type: enums::FieldType::Text,
                                     }],
