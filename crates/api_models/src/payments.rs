@@ -279,20 +279,12 @@ pub struct PaymentsRequest {
     pub business_sub_label: Option<String>,
 
     /// Denotes the retry action
-    pub retry_action: Option<RetryAction>,
+    #[schema(value_type = Option<RetryAction>)]
+    pub retry_action: Option<api_enums::RetryAction>,
 
     /// Any user defined fields can be passed here.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub udf: Option<pii::SecretSerdeValue>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum RetryAction {
-    /// Payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted
-    ManualRetry,
-    /// Denotes that the payment is requeued
-    Requeue,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]

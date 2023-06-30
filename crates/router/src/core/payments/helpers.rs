@@ -2166,7 +2166,7 @@ pub fn get_attempt_type(
         enums::IntentStatus::Failed => {
             if matches!(
                 request.retry_action,
-                Some(api_models::payments::RetryAction::ManualRetry)
+                Some(api_models::enums::RetryAction::ManualRetry)
             ) {
                 match payment_attempt.status {
                     enums::AttemptStatus::Started

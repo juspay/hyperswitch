@@ -491,7 +491,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: matches!(
                     request.retry_action,
-                    Some(api_models::payments::RetryAction::Requeue)
+                    Some(api_models::enums::RetryAction::Requeue)
                 ),
             },
         ))
