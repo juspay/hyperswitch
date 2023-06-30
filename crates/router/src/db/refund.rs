@@ -11,6 +11,9 @@ use crate::{
     types::storage::{self as storage_types, enums},
 };
 
+#[cfg(feature = "olap")]
+const MAX_LIMIT: usize = 100;
+
 #[async_trait::async_trait]
 pub trait RefundInterface {
     async fn find_refund_by_internal_reference_id_merchant_id(
@@ -824,7 +827,7 @@ impl RefundInterface for MockDb {
             .iter()
             .filter(|refund| refund.merchant_id == merchant_id)
             .skip(usize::try_from(offset).unwrap_or_default())
-            .take(usize::try_from(limit).unwrap_or(usize::MAX))
+            .take(usize::try_from(limit).unwrap_or(MAX_LIMIT))
             .cloned()
             .collect::<Vec<_>>())
     }
@@ -843,11 +846,11 @@ impl RefundInterface for MockDb {
             .end_time
             .unwrap_or_else(common_utils::date_time::now);
 
-        let filtered_refunds = refunds
-            .clone()
-            .into_iter()
+            let filtered_refunds = refunds
+            .iter()
             .filter(|refund| refund.created_at >= start_time && refund.created_at <= end_time)
-            .collect::<Vec<_>>();
+            .cloned()
+            .collect::<Vec<storage_models::refund::Refund>>();
 
         let mut refund_meta_data = api_models::refunds::RefundListMetaData {
             connector: vec![],
