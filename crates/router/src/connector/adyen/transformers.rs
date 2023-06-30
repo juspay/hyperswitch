@@ -269,6 +269,7 @@ pub enum AdyenPaymentMethod<'a> {
     AliPay(Box<AliPayData>),
     AliPayHk(Box<AliPayHkData>),
     ApplePay(Box<AdyenApplePay>),
+    Atome(Box<AtomeData>),
     BancontactCard(Box<BancontactCardData>),
     Blik(Box<BlikRedirectionData>),
     Eps(Box<BankRedirectionWithIssuer<'a>>),
@@ -722,6 +723,11 @@ pub struct AdyenApplePay {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AtomeData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenPayLaterData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
@@ -761,6 +767,7 @@ pub enum PaymentType {
     #[serde(rename = "alipay_hk")]
     AlipayHk,
     Applepay,
+    Atome,
     Blik,
     Eps,
     Gcash,
@@ -1318,6 +1325,11 @@ impl<'a> TryFrom<&api::PayLaterData> for AdyenPaymentMethod<'a> {
             api_models::payments::PayLaterData::WalleyRedirect { .. } => {
                 Ok(AdyenPaymentMethod::Walley(Box::new(WalleyData {
                     payment_type: PaymentType::Walley,
+                })))
+            }
+            api_models::payments::PayLaterData::AtomeRedirect { .. } => {
+                Ok(AdyenPaymentMethod::Atome(Box::new(AtomeData {
+                    payment_type: PaymentType::Atome,
                 })))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
