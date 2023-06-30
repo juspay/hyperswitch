@@ -847,8 +847,18 @@ pub enum WalletData {
     PaypalRedirect(PaypalRedirection),
     /// The wallet data for Paypal
     PaypalSdk(PayPalWalletData),
+    /// The wallet data for Samsung Pay
+    SamsungPay(Box<SamsungPayWalletData>),
     /// The wallet data for WeChat Pay Redirection
     WeChatPayRedirect(Box<WeChatPayRedirection>),
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct SamsungPayWalletData {
+    /// The encrypted payment token from Samsung
+    #[schema(value_type = String)]
+    pub token: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

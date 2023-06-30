@@ -117,29 +117,27 @@ pub async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     let db = &*state.store;
     //find refund by connector refund id
     let refund = match webhook_details.object_reference_id {
-        api_models::webhooks::ObjectReferenceId::RefundId(
-            api_models::webhooks::RefundIdType::ConnectorRefundId(id),
-        ) => db
-            .find_refund_by_merchant_id_connector_refund_id_connector(
-                &merchant_account.merchant_id,
-                &id,
-                connector_name,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
-            .attach_printable_lazy(|| "Failed fetching the refund")?,
-        api_models::webhooks::ObjectReferenceId::RefundId(
-            api_models::webhooks::RefundIdType::RefundId(id),
-        ) => db
-            .find_refund_by_merchant_id_refund_id(
-                &merchant_account.merchant_id,
-                &id,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
-            .attach_printable_lazy(|| "Failed fetching the refund")?,
+        api_models::webhooks::ObjectReferenceId::RefundId(refund_id_type) => match refund_id_type {
+            api_models::webhooks::RefundIdType::RefundId(id) => db
+                .find_refund_by_merchant_id_refund_id(
+                    &merchant_account.merchant_id,
+                    &id,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
+                .attach_printable_lazy(|| "Failed fetching the refund")?,
+            api_models::webhooks::RefundIdType::ConnectorRefundId(id) => db
+                .find_refund_by_merchant_id_connector_refund_id_connector(
+                    &merchant_account.merchant_id,
+                    &id,
+                    connector_name,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
+                .attach_printable_lazy(|| "Failed fetching the refund")?,
+        },
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
             .into_report()
             .attach_printable("received a non-refund id when processing refund webhooks")?,

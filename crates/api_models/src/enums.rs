@@ -442,6 +442,7 @@ pub enum PaymentMethodType {
     PayBright,
     Paypal,
     Przelewy24,
+    SamsungPay,
     Sepa,
     Sofort,
     Swish,
@@ -613,7 +614,6 @@ pub enum Connector {
     #[serde(rename = "pretendpay")]
     #[strum(serialize = "pretendpay")]
     DummyConnector3,
-    Opennode,
     Bambora,
     Dlocal,
     Fiserv,
@@ -626,7 +626,10 @@ pub enum Connector {
     Nmi,
     Noon,
     Nuvei,
+    // Opayo, added as template code for future usage
+    Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
+    // Payme,
     Paypal,
     Payu,
     Rapyd,
@@ -711,8 +714,10 @@ pub enum RoutableConnectors {
     Nmi,
     Noon,
     Nuvei,
+    // Opayo, added as template code for future usage
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
+    // Payme,
     Paypal,
     Payu,
     Rapyd,

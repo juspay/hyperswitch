@@ -31,8 +31,10 @@ pub struct ConnectorAuthentication {
     pub noon: Option<SignatureKey>,
     pub nmi: Option<HeaderKey>,
     pub nuvei: Option<SignatureKey>,
+    pub opayo: Option<HeaderKey>,
     pub opennode: Option<HeaderKey>,
     pub payeezy: Option<SignatureKey>,
+    pub payme: Option<HeaderKey>,
     pub paypal: Option<BodyKey>,
     pub payu: Option<BodyKey>,
     pub rapyd: Option<BodyKey>,
@@ -138,5 +140,7 @@ pub struct AutomationConfigs {
     pub configs_url: Option<String>,
     pub stripe_pub_key: Option<String>,
     pub testcases_path: Option<String>,
+    pub bluesnap_gateway_merchant_id: Option<String>,
+    pub globalpay_gateway_merchant_id: Option<String>,
     pub run_minimum_steps: Option<bool>,
 }
