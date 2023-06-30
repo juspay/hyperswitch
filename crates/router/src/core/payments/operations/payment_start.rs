@@ -248,10 +248,7 @@ where
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
         Option<api::PaymentMethodData>,
     )> {
-        Ok((
-            Box::new(self),
-            None,
-        ))
+        Ok((Box::new(self), None))
         // helpers::make_pm_data(Box::new(self), state, payment_data).await
     }
 
