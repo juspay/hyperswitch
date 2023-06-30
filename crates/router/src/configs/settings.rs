@@ -403,6 +403,7 @@ pub struct Connectors {
     pub nmi: ConnectorParams,
     pub noon: ConnectorParams,
     pub nuvei: ConnectorParams,
+    pub opayo: ConnectorParams,
     pub opennode: ConnectorParams,
     pub payeezy: ConnectorParams,
     pub payme: ConnectorParams,
