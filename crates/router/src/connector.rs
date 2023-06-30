@@ -24,6 +24,7 @@ pub mod nexinets;
 pub mod nmi;
 pub mod noon;
 pub mod nuvei;
+pub mod opayo;
 pub mod opennode;
 pub mod payeezy;
 pub mod payme;
@@ -46,7 +47,7 @@ pub use self::{
     cashtocode::Cashtocode, checkout::Checkout, coinbase::Coinbase, cybersource::Cybersource,
     dlocal::Dlocal, fiserv::Fiserv, forte::Forte, globalpay::Globalpay, iatapay::Iatapay,
     klarna::Klarna, mollie::Mollie, multisafepay::Multisafepay, nexinets::Nexinets, nmi::Nmi,
-    noon::Noon, nuvei::Nuvei, opennode::Opennode, payeezy::Payeezy, payme::Payme, paypal::Paypal,
-    payu::Payu, rapyd::Rapyd, shift4::Shift4, stripe::Stripe, trustpay::Trustpay,
+    noon::Noon, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, payeezy::Payeezy, payme::Payme,
+    paypal::Paypal, payu::Payu, rapyd::Rapyd, shift4::Shift4, stripe::Stripe, trustpay::Trustpay,
     worldline::Worldline, worldpay::Worldpay, zen::Zen,
 };
