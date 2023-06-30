@@ -1808,6 +1808,9 @@
       "MomoRedirection": {
         "type": "object"
       },
+      "TouchNGoRedirection": {
+        "type": "object"
+      },
       "AmountInfo": {
         "type": "object",
         "required": [
@@ -7926,6 +7929,17 @@
             "properties": {
               "momo": {
                 "$ref": "#/components/schemas/MomoRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "touch_n_go"
+            ],
+            "properties": {
+              "touch_n_go": {
+                "$ref": "#/components/schemas/TouchNGoRedirection"
               }
             }
           },

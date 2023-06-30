@@ -708,6 +708,7 @@ pub enum PaymentMethodType {
     Sepa,
     Sofort,
     Swish,
+    TouchNGo,
     Trustly,
     Walley,
     WeChatPay,

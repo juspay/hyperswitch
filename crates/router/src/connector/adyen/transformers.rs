@@ -282,6 +282,7 @@ pub enum AdyenPaymentMethod<'a> {
     Mbway(Box<MbwayData>),
     MobilePay(Box<MobilePayData>),
     Momo(Box<MomoData>),
+    TouchNGo(Box<TouchNGoData>),
     OnlineBankingCzechRepublic(Box<OnlineBankingCzechRepublicData>),
     OnlineBankingFinland(Box<OnlineBankingFinlandData>),
     OnlineBankingPoland(Box<OnlineBankingPolandData>),
@@ -698,6 +699,11 @@ pub struct MomoData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
 }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TouchNGoData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
@@ -789,6 +795,8 @@ pub enum PaymentType {
     #[serde(rename = "networkToken")]
     NetworkToken,
     Trustly,
+    #[serde(rename = "touchngo")]
+    TouchNGo,
     Walley,
     #[serde(rename = "wechatpayWeb")]
     WeChatPayWeb,
@@ -1251,6 +1259,12 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                     payment_type: PaymentType::Momo,
                 };
                 Ok(AdyenPaymentMethod::Momo(Box::new(momo_data)))
+            }
+            api_models::payments::WalletData::TouchNGoRedirect(_) => {
+                let touch_n_go_data = TouchNGoData {
+                    payment_type: PaymentType::TouchNGo,
+                };
+                Ok(AdyenPaymentMethod::TouchNGo(Box::new(touch_n_go_data)))
             }
             api_models::payments::WalletData::MbWayRedirect(data) => {
                 let mbway_data = MbwayData {
