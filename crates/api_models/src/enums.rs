@@ -416,6 +416,7 @@ pub enum PaymentMethodType {
     Affirm,
     AfterpayClearpay,
     AliPay,
+    AliPayHk,
     Alma,
     ApplePay,
     Bacs,
@@ -449,6 +450,7 @@ pub enum PaymentMethodType {
     Sofort,
     Swish,
     Trustly,
+    UpiCollect,
     Twint,
     Vipps,
     Walley,
@@ -482,6 +484,7 @@ pub enum PaymentMethod {
     Crypto,
     BankDebit,
     Reward,
+    Upi,
 }
 
 #[derive(
@@ -511,10 +514,13 @@ pub enum WalletIssuer {
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    serde::Deserialize,
+    serde::Serialize,
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum RefundStatus {
@@ -603,6 +609,7 @@ pub enum Connector {
     Cashtocode,
     Checkout,
     Coinbase,
+    Cryptopay,
     Cybersource,
     Iatapay,
     #[cfg(feature = "dummy_connector")]
@@ -703,6 +710,7 @@ pub enum RoutableConnectors {
     Cashtocode,
     Checkout,
     Coinbase,
+    Cryptopay,
     Cybersource,
     Dlocal,
     Fiserv,

@@ -1793,6 +1793,9 @@
       "AliPayRedirection": {
         "type": "object"
       },
+      "AliPayHkRedirection": {
+        "type": "object"
+      },
       "AmountInfo": {
         "type": "object",
         "required": [
@@ -2896,14 +2899,15 @@
           "bitpay",
           "bluesnap",
           "braintree",
+          "cashtocode",
           "checkout",
           "coinbase",
+          "cryptopay",
           "cybersource",
           "iatapay",
           "phonypay",
           "fauxpay",
           "pretendpay",
-          "opennode",
           "bambora",
           "dlocal",
           "fiserv",
@@ -2916,6 +2920,7 @@
           "nmi",
           "noon",
           "nuvei",
+          "opennode",
           "paypal",
           "payu",
           "rapyd",
@@ -3273,7 +3278,13 @@
         }
       },
       "CryptoData": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "pay_currency": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "Currency": {
         "type": "string",
@@ -5822,7 +5833,9 @@
           "bank_redirect",
           "bank_transfer",
           "crypto",
-          "bank_debit"
+          "bank_debit",
+          "reward",
+          "upi"
         ]
       },
       "PaymentMethodCreate": {
@@ -5967,6 +5980,28 @@
             "enum": [
               "mandate_payment"
             ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "reward"
+            ],
+            "properties": {
+              "reward": {
+                "$ref": "#/components/schemas/RewardData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi"
+            ],
+            "properties": {
+              "upi": {
+                "$ref": "#/components/schemas/UpiData"
+              }
+            }
           }
         ]
       },
@@ -6153,10 +6188,12 @@
           "bancontact_card",
           "becs",
           "blik",
+          "classic",
           "credit",
           "crypto_currency",
           "debit",
           "eps",
+          "evoucher",
           "giropay",
           "google_pay",
           "ideal",
@@ -6176,6 +6213,7 @@
           "sofort",
           "swish",
           "trustly",
+          "upi_collect",
           "walley",
           "we_chat_pay"
         ]
@@ -6307,73 +6345,38 @@
       "PaymentsCreateRequest": {
         "type": "object",
         "required": [
-          "currency",
+          "amount",
           "manual_retry",
-          "amount"
+          "currency"
         ],
         "properties": {
-          "name": {
-            "type": "string",
-            "description": "description: The customer's name\nThis field will be deprecated soon, use the customer object instead",
-            "example": "John Test",
-            "nullable": true,
-            "maxLength": 255
+          "browser_info": {
+            "type": "object",
+            "description": "Additional details required by 3DS 2.0",
+            "nullable": true
           },
-          "payment_experience": {
+          "billing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentExperience"
+                "$ref": "#/components/schemas/Address"
               }
             ],
             "nullable": true
           },
-          "business_label": {
-            "type": "string",
-            "description": "Business label of the merchant for this payment",
-            "example": "food",
-            "nullable": true
-          },
-          "phone": {
-            "type": "string",
-            "description": "The customer's phone number\nThis field will be deprecated soon, use the customer object instead",
-            "example": "3141592653",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "statement_descriptor_suffix": {
-            "type": "string",
-            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor.",
-            "example": "Payment for shoes purchase",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "statement_descriptor_name": {
-            "type": "string",
-            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
-            "example": "Hyperswitch Router",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "currency": {
+          "merchant_connector_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/Currency"
+                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
               }
             ],
             "nullable": true
           },
-          "card_cvc": {
-            "type": "string",
-            "description": "This is used when payment is to be confirmed and the card is not saved",
-            "nullable": true
-          },
-          "order_details": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/OrderDetailsWithAmount"
-            },
-            "description": "Information about the product , quantity and amount for connectors. (e.g. Klarna)",
-            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n    }]",
+          "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
             "nullable": true
           },
           "shipping": {
@@ -6384,21 +6387,48 @@
             ],
             "nullable": true
           },
-          "business_sub_label": {
-            "type": "string",
-            "description": "Business sub label for the payment",
+          "routing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RoutingAlgorithm"
+              }
+            ],
             "nullable": true
           },
-          "capture_on": {
-            "type": "string",
-            "format": "date-time",
-            "description": "A timestamp (ISO 8601 code) that determines when the payment should be captured.\nProviding this field will automatically set `capture` to true",
-            "example": "2022-09-10T10:11:12Z",
-            "nullable": true
-          },
-          "manual_retry": {
+          "off_session": {
             "type": "boolean",
-            "description": "If enabled payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted."
+            "description": "Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. This parameter can only be used with `confirm: true`.",
+            "example": true,
+            "nullable": true
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to redirect after the completion of the operation",
+            "example": "https://hyperswitch.io",
+            "nullable": true
+          },
+          "statement_descriptor_name": {
+            "type": "string",
+            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
+            "example": "Hyperswitch Router",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "setup_future_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "nullable": true
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
+            "example": 6540,
+            "nullable": true,
+            "minimum": 0.0
           },
           "merchant_id": {
             "type": "string",
@@ -6407,10 +6437,48 @@
             "nullable": true,
             "maxLength": 255
           },
-          "capture_method": {
+          "amount_to_capture": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The Amount to be captured/ debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,\nIf not provided, the default amount_to_capture will be the payment amount.",
+            "example": 6540,
+            "nullable": true
+          },
+          "customer": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CaptureMethod"
+                "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_id": {
+            "type": "string",
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
+            "example": "pay_mbabizu24mvu3mela5njyhpit4",
+            "nullable": true,
+            "maxLength": 30,
+            "minLength": 30
+          },
+          "confirm": {
+            "type": "boolean",
+            "description": "Whether to confirm the payment (if applicable)",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "authentication_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationType"
+              }
+            ],
+            "nullable": true
+          },
+          "metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Metadata"
               }
             ],
             "nullable": true
@@ -6423,30 +6491,10 @@
             ],
             "nullable": true
           },
-          "udf": {
-            "type": "object",
-            "description": "Any user defined fields can be passed here.",
-            "nullable": true
-          },
-          "amount_to_capture": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The Amount to be captured/ debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,\nIf not provided, the default amount_to_capture will be the payment amount.",
-            "example": 6540,
-            "nullable": true
-          },
-          "payment_method": {
+          "payment_experience": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethod"
-              }
-            ],
-            "nullable": true
-          },
-          "customer": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CustomerDetails"
+                "$ref": "#/components/schemas/PaymentExperience"
               }
             ],
             "nullable": true
@@ -6455,6 +6503,87 @@
             "type": "string",
             "description": "Provide a reference to a stored payment method",
             "example": "187282ab-40ef-47a9-9206-5099ba31e432",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "description": "The customer's phone number\nThis field will be deprecated soon, use the customer object instead",
+            "example": "3141592653",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "business_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          },
+          "phone_country_code": {
+            "type": "string",
+            "description": "The country code for the customer phone number\nThis field will be deprecated soon, use the customer object instead",
+            "example": "+1",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "It's a token used for client side verification.",
+            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo",
+            "nullable": true
+          },
+          "udf": {
+            "type": "object",
+            "description": "Any user defined fields can be passed here.",
+            "nullable": true
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The identifier for the customer object.\nThis field will be deprecated soon, use the customer object instead",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "This is used when payment is to be confirmed and the card is not saved",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "description": "description: The customer's name\nThis field will be deprecated soon, use the customer object instead",
+            "example": "John Test",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "allowed_payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodType"
+            },
+            "description": "Allowed Payment Method Types for a given PaymentIntent",
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
+            "nullable": true
+          },
+          "manual_retry": {
+            "type": "boolean",
+            "description": "If enabled payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted."
+          },
+          "order_details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderDetailsWithAmount"
+            },
+            "description": "Information about the product , quantity and amount for connectors. (e.g. Klarna)",
+            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n    }]",
             "nullable": true
           },
           "connector": {
@@ -6469,16 +6598,17 @@
             ],
             "nullable": true
           },
-          "client_secret": {
+          "capture_on": {
             "type": "string",
-            "description": "It's a token used for client side verification.",
-            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines when the payment should be captured.\nProviding this field will automatically set `capture` to true",
+            "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
-          "phone_country_code": {
+          "mandate_id": {
             "type": "string",
-            "description": "The country code for the customer phone number\nThis field will be deprecated soon, use the customer object instead",
-            "example": "+1",
+            "description": "A unique identifier to link the payment to a mandate, can be use instead of payment_method_data",
+            "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 255
           },
@@ -6490,88 +6620,38 @@
             ],
             "nullable": true
           },
-          "off_session": {
-            "type": "boolean",
-            "description": "Set to true to indicate that the customer is not in your checkout flow during this payment, and therefore is unable to authenticate. This parameter is intended for scenarios where you collect card details and charge them later. This parameter can only be used with `confirm: true`.",
-            "example": true,
-            "nullable": true
-          },
-          "merchant_connector_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
-              }
-            ],
-            "nullable": true
-          },
-          "email": {
+          "business_label": {
             "type": "string",
-            "description": "The customer's email address\nThis field will be deprecated soon, use the customer object instead",
-            "example": "johntest@test.com",
+            "description": "Business label of the merchant for this payment",
+            "example": "food",
+            "nullable": true
+          },
+          "statement_descriptor_suffix": {
+            "type": "string",
+            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor.",
+            "example": "Payment for shoes purchase",
             "nullable": true,
             "maxLength": 255
           },
-          "payment_id": {
+          "business_sub_label": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
-            "example": "pay_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
-            "maxLength": 30,
-            "minLength": 30
+            "description": "Business sub label for the payment",
+            "nullable": true
           },
-          "customer_id": {
-            "type": "string",
-            "description": "The identifier for the customer object.\nThis field will be deprecated soon, use the customer object instead",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "routing": {
+          "currency": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/Currency"
               }
             ],
             "nullable": true
           },
-          "setup_future_usage": {
+          "payment_method": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/FutureUsage"
+                "$ref": "#/components/schemas/PaymentMethod"
               }
             ],
-            "nullable": true
-          },
-          "payment_method_data": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodData"
-              }
-            ],
-            "nullable": true
-          },
-          "metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Metadata"
-              }
-            ],
-            "nullable": true
-          },
-          "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
-            "example": 6540,
-            "nullable": true,
-            "minimum": 0.0
-          },
-          "allowed_payment_method_types": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentMethodType"
-            },
-            "description": "Allowed Payment Method Types for a given PaymentIntent",
             "nullable": true
           },
           "description": {
@@ -6580,54 +6660,12 @@
             "example": "It's my first payment request",
             "nullable": true
           },
-          "browser_info": {
-            "type": "object",
-            "description": "Additional details required by 3DS 2.0",
-            "nullable": true
-          },
-          "business_country": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CountryAlpha2"
-              }
-            ],
-            "nullable": true
-          },
-          "mandate_id": {
+          "email": {
             "type": "string",
-            "description": "A unique identifier to link the payment to a mandate, can be use instead of payment_method_data",
-            "example": "mandate_iwer89rnjef349dni3",
+            "description": "The customer's email address\nThis field will be deprecated soon, use the customer object instead",
+            "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
-          },
-          "return_url": {
-            "type": "string",
-            "description": "The URL to redirect after the completion of the operation",
-            "example": "https://hyperswitch.io",
-            "nullable": true
-          },
-          "billing": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Address"
-              }
-            ],
-            "nullable": true
-          },
-          "authentication_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthenticationType"
-              }
-            ],
-            "nullable": true
-          },
-          "confirm": {
-            "type": "boolean",
-            "description": "Whether to confirm the payment (if applicable)",
-            "default": false,
-            "example": true,
-            "nullable": true
           }
         }
       },
@@ -7274,6 +7312,12 @@
             "type": "object",
             "description": "Any user defined fields can be passed here.",
             "nullable": true
+          },
+          "connector_transaction_id": {
+            "type": "string",
+            "description": "A unique identifier for a payment provided by the connector",
+            "example": "993672945374576J",
+            "nullable": true
           }
         }
       },
@@ -7800,6 +7844,18 @@
           }
         }
       },
+      "RewardData": {
+        "type": "object",
+        "required": [
+          "merchant_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The merchant ID with which we have to call the connector"
+          }
+        }
+      },
       "RoutingAlgorithm": {
         "type": "string",
         "description": "The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'",
@@ -8038,6 +8094,16 @@
           }
         }
       },
+      "UpiData": {
+        "type": "object",
+        "properties": {
+          "vpa_id": {
+            "type": "string",
+            "example": "successtest@iata",
+            "nullable": true
+          }
+        }
+      },
       "WalletData": {
         "oneOf": [
           {
@@ -8048,6 +8114,17 @@
             "properties": {
               "ali_pay_redirect": {
                 "$ref": "#/components/schemas/AliPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "ali_pay_hk"
+            ],
+            "properties": {
+              "ali_pay_hk": {
+                "$ref": "#/components/schemas/AliPayHkRedirection"
               }
             }
           },

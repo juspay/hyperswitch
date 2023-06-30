@@ -9,6 +9,7 @@ pub mod braintree;
 pub mod cashtocode;
 pub mod checkout;
 pub mod coinbase;
+pub mod cryptopay;
 pub mod cybersource;
 pub mod dlocal;
 #[cfg(feature = "dummy_connector")]
@@ -44,10 +45,10 @@ pub use self::dummyconnector::DummyConnector;
 pub use self::{
     aci::Aci, adyen::Adyen, airwallex::Airwallex, authorizedotnet::Authorizedotnet,
     bambora::Bambora, bitpay::Bitpay, bluesnap::Bluesnap, braintree::Braintree,
-    cashtocode::Cashtocode, checkout::Checkout, coinbase::Coinbase, cybersource::Cybersource,
-    dlocal::Dlocal, fiserv::Fiserv, forte::Forte, globalpay::Globalpay, iatapay::Iatapay,
-    klarna::Klarna, mollie::Mollie, multisafepay::Multisafepay, nexinets::Nexinets, nmi::Nmi,
-    noon::Noon, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, payeezy::Payeezy, payme::Payme,
-    paypal::Paypal, payu::Payu, rapyd::Rapyd, shift4::Shift4, stripe::Stripe, trustpay::Trustpay,
-    worldline::Worldline, worldpay::Worldpay, zen::Zen,
+    cashtocode::Cashtocode, checkout::Checkout, coinbase::Coinbase, cryptopay::Cryptopay,
+    cybersource::Cybersource, dlocal::Dlocal, fiserv::Fiserv, forte::Forte, globalpay::Globalpay,
+    iatapay::Iatapay, klarna::Klarna, mollie::Mollie, multisafepay::Multisafepay,
+    nexinets::Nexinets, nmi::Nmi, noon::Noon, nuvei::Nuvei, opayo::Opayo, opennode::Opennode,
+    payeezy::Payeezy, payme::Payme, paypal::Paypal, payu::Payu, rapyd::Rapyd, shift4::Shift4,
+    stripe::Stripe, trustpay::Trustpay, worldline::Worldline, worldpay::Worldpay, zen::Zen,
 };
