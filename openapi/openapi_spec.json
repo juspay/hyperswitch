@@ -1793,6 +1793,9 @@
       "AliPayRedirection": {
         "type": "object"
       },
+      "AliPayHkRedirection": {
+        "type": "object"
+      },
       "AmountInfo": {
         "type": "object",
         "required": [
@@ -8111,6 +8114,17 @@
             "properties": {
               "ali_pay_redirect": {
                 "$ref": "#/components/schemas/AliPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "ali_pay_hk"
+            ],
+            "properties": {
+              "ali_pay_hk": {
+                "$ref": "#/components/schemas/AliPayHkRedirection"
               }
             }
           },

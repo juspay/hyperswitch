@@ -840,6 +840,8 @@ pub struct BankDebitBilling {
 pub enum WalletData {
     /// The wallet data for Ali Pay redirect
     AliPayRedirect(AliPayRedirection),
+    /// The wallet data for Ali Pay HK redirect
+    AliPayHkRedirect(AliPayHkRedirection),
     /// The wallet data for Apple pay
     ApplePay(ApplePayWalletData),
     /// Wallet data for apple pay redirect flow
@@ -902,6 +904,9 @@ pub struct PaypalRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AliPayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct AliPayHkRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MobilePayRedirection {}
