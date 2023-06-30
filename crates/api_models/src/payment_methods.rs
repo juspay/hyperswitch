@@ -293,7 +293,7 @@ pub struct RequestPaymentMethodTypes {
 }
 
 //List Payment Method
-#[derive(Debug, serde::Serialize, Default, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodListRequest {
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
