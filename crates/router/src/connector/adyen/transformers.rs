@@ -287,6 +287,7 @@ pub enum AdyenPaymentMethod<'a> {
     OnlineBankingPoland(Box<OnlineBankingPolandData>),
     OnlineBankingSlovakia(Box<OnlineBankingSlovakiaData>),
     OnlineBankingFpx(Box<OnlineBankingFpxData>),
+    OnlineBankingThailand(Box<OnlineBankingThailandData>),
     PayBright(Box<PayBrightData>),
     Sofort(Box<BankRedirectionPMData>),
     Trustly(Box<BankRedirectionPMData>),
@@ -512,6 +513,14 @@ pub struct OnlineBankingFpxData {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OnlineBankingThailandData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+    issuer: AdyenIssuerID,
+}
+
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum OnlineBankingSlovakiaBanks {
     Vub,
@@ -548,6 +557,7 @@ impl TryFrom<&api_enums::BankNames> for AdyenIssuerID {
             api::enums::BankNames::AgroBank	=> Ok(Self::FpxAgrobank),
             api::enums::BankNames::AllianceBank	 => Ok(Self::FpxAbmb),
             api::enums::BankNames::AmBank => Ok(Self::FpxAmb),
+            api::enums::BankNames::BangkokBank => Ok(Self::MolpayBangkokbank),
             api::enums::BankNames::BankIslam => Ok(Self::FpxBimb),
             api::enums::BankNames::BankMuamalat	=> Ok(Self::FpxBmmb),
             api::enums::BankNames::BankRakyat => Ok(Self::FpxBkrm),
@@ -556,11 +566,15 @@ impl TryFrom<&api_enums::BankNames> for AdyenIssuerID {
             api::enums::BankNames::HongLeongBank => Ok(Self::FpxHlb),
             api::enums::BankNames::HsbcBank	=> Ok(Self::FpxHsbc),
             api::enums::BankNames::KuwaitFinanceHouse => Ok(Self::FpxKfh),
+            api::enums::BankNames::KrungsriBank	=> Ok(Self::MolpayKrungsribank),
+            api::enums::BankNames::KrungThaiBank => Ok(Self::MolpayKrungthaibank),
+            api::enums::BankNames::KasikornBank	=> Ok(Self::MolpayKbank),
             api::enums::BankNames::Maybank => Ok(Self::FpxMb2u),
             api::enums::BankNames::OcbcBank	=> Ok(Self::FpxOcbc),
             api::enums::BankNames::PublicBank => Ok(Self::FpxPbb),
             api::enums::BankNames::RhbBank => Ok(Self::FpxRhb),
             api::enums::BankNames::StandardCharteredBank => Ok(Self::FpxScb),
+            api::enums::BankNames::TheSiamCommercialBank => Ok(Self::MolpaySiamcommercialbank),	
             api::enums::BankNames::UobBank => Ok(Self::FpxUob),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
@@ -765,6 +779,8 @@ pub enum PaymentType {
     OnlineBankingSlovakia,
     #[serde(rename = "molpay_ebanking_fpx_MY")]
     OnlineBankingFpx,
+    #[serde(rename = "molpay_ebanking_TH")]
+    OnlineBankingThailand,
     PayBright,
     Paypal,
     Scheme,
@@ -803,7 +819,12 @@ pub enum AdyenIssuerID {
     FpxPbb,
     FpxRhb,
     FpxScb,
-    FpxUob
+    FpxUob,
+    MolpayBangkokbank,
+    MolpayKrungsribank,
+    MolpayKrungthaibank,
+    MolpaySiamcommercialbank,
+    MolpayKbank
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -1389,6 +1410,12 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => Ok(
                 AdyenPaymentMethod::OnlineBankingFpx(Box::new(OnlineBankingFpxData {
                     payment_type: PaymentType::OnlineBankingFpx,
+                    issuer: AdyenIssuerID::try_from(issuer)?,
+                })),
+            ),
+            api_models::payments::BankRedirectData::OnlineBankingThailand { issuer } => Ok(
+                AdyenPaymentMethod::OnlineBankingThailand(Box::new(OnlineBankingThailandData {
+                    payment_type: PaymentType::OnlineBankingThailand,
                     issuer: AdyenIssuerID::try_from(issuer)?,
                 })),
             ),

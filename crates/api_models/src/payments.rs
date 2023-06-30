@@ -751,6 +751,11 @@ pub enum BankRedirectData {
         // Issuer banks
         #[schema(value_type = BankNames)]
         issuer: api_enums::BankNames,
+    },
+    OnlineBankingThailand {
+        // Issuer banks
+        #[schema(value_type = BankNames)]
+        issuer: api_enums::BankNames,
     }
 }
 

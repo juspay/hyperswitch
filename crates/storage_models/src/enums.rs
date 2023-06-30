@@ -701,6 +701,7 @@ pub enum PaymentMethodType {
     OnlineBankingPoland,
     OnlineBankingSlovakia,
     OnlineBankingFpx,
+    OnlineBankingThailand,
     PayBright,
     Paypal,
     Przelewy24,
@@ -820,6 +821,11 @@ pub enum BankNames {
     UobBank,
     AliorBank,
     Boz,
+    BangkokBank,
+    KrungsriBank,
+    KrungThaiBank,
+    TheSiamCommercialBank,
+    KasikornBank
 }
 
 #[derive(

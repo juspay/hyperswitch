@@ -2340,8 +2340,12 @@
           "public_bank",
           "rhb_bank",
           "standard_chartered_bank",
-          "uob_bank"
-
+          "uob_bank",
+          "bangkok_bank",
+          "krungsri_bank",
+          "krung_thai_bank",
+          "the_siam_commercial_bank",
+          "kasikorn_bank"	
         ]
       },
       "BankRedirectBilling": {
