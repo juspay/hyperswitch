@@ -599,6 +599,7 @@ pub enum Connector {
     Cashtocode,
     Checkout,
     Coinbase,
+    Cryptopay,
     Cybersource,
     Iatapay,
     #[cfg(feature = "dummy_connector")]
@@ -699,6 +700,7 @@ pub enum RoutableConnectors {
     Cashtocode,
     Checkout,
     Coinbase,
+    Cryptopay,
     Cybersource,
     Dlocal,
     Fiserv,
