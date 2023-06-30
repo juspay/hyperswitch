@@ -299,6 +299,12 @@ impl ForeignFrom<storage_enums::RefundStatus> for api_enums::RefundStatus {
     }
 }
 
+impl ForeignFrom<api_enums::RefundStatus> for storage_enums::RefundStatus {
+    fn foreign_from(status: api_enums::RefundStatus) -> Self {
+        frunk::labelled_convert_from(status)
+    }
+}
+
 impl ForeignFrom<api_enums::CaptureMethod> for storage_enums::CaptureMethod {
     fn foreign_from(capture_method: api_enums::CaptureMethod) -> Self {
         frunk::labelled_convert_from(capture_method)
