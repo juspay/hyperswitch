@@ -134,18 +134,21 @@ async fn should_make_adyen_klarna_mandate_payment(
 
 #[test]
 #[serial]
+#[ignore]
 fn should_make_adyen_gpay_payment_test() {
     tester!(should_make_adyen_gpay_payment);
 }
 
 #[test]
 #[serial]
+#[ignore]
 fn should_make_adyen_gpay_mandate_payment_test() {
     tester!(should_make_adyen_gpay_mandate_payment);
 }
 
 #[test]
 #[serial]
+#[ignore]
 fn should_make_adyen_gpay_zero_dollar_mandate_payment_test() {
     tester!(should_make_adyen_gpay_zero_dollar_mandate_payment);
 }

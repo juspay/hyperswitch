@@ -502,19 +502,12 @@ pub fn make_capabilities(s: &str) -> Capabilities {
             } else {
                 caps.add_firefox_arg("--headless").ok();
             }
-            // let mut prefs = FirefoxPreferences::new();
-            // prefs.set("-browser.link.open_newwindow", 3).unwrap();
-            // caps.set_preferences(prefs).unwrap();
             caps.into()
         }
         "chrome" => {
             let mut caps = DesiredCapabilities::chrome();
             let profile_path = &format!("user-data-dir={}", get_chrome_profile_path().unwrap());
             caps.add_chrome_arg(profile_path).unwrap();
-            // caps.set_headless().unwrap();
-            // caps.set_no_sandbox().unwrap();
-            // caps.set_disable_gpu().unwrap();
-            // caps.set_disable_dev_shm_usage().unwrap();
             caps.into()
         }
         &_ => DesiredCapabilities::safari().into(),
@@ -531,7 +524,7 @@ fn get_chrome_profile_path() -> Result<String, WebDriverError> {
             fp.join(&MAIN_SEPARATOR.to_string())
         })
         .unwrap();
-    base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#);
+    base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#); //Issue: 1573
     Ok(base_path)
 }
 fn get_firefox_profile_path() -> Result<String, WebDriverError> {
@@ -545,7 +538,7 @@ fn get_firefox_profile_path() -> Result<String, WebDriverError> {
             fp.join(&MAIN_SEPARATOR.to_string())
         })
         .unwrap();
-    base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#);
+    base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#); //Issue: 1573
     Ok(base_path)
 }
 

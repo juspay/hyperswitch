@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  pull_request:
 
   merge_group:
     types:
@@ -71,7 +72,15 @@ jobs:
         connector:
           - stripe
           - adyen_uk
+          - airwallex
+          - bambora
+          - bluesnap
+          - checkout
+          - globalpay
+          - mollie
+          - paypal
           - payu
+          - shift4
           - worldline
 
     steps:
