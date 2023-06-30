@@ -248,7 +248,11 @@ where
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
         Option<api::PaymentMethodData>,
     )> {
-        helpers::make_pm_data(Box::new(self), state, payment_data).await
+        Ok((
+            Box::new(self),
+            None,
+        ))
+        // helpers::make_pm_data(Box::new(self), state, payment_data).await
     }
 
     async fn get_connector<'a>(
