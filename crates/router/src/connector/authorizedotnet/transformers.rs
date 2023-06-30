@@ -140,6 +140,7 @@ fn get_pm_and_subsequent_auth_detail(
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Reward(_)
             | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_data),
                 connector: "AuthorizeDotNet",

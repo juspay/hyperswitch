@@ -328,6 +328,7 @@ impl BrowserInformationData for types::BrowserInformation {
 
 pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_email(&self) -> Result<Email, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
@@ -337,6 +338,9 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
             Some(storage_models::enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
+    }
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
     }
 }
 
@@ -591,6 +595,19 @@ impl ApplePay for payments::ApplePayWalletData {
         Ok(token)
     }
 }
+
+pub trait CryptoData {
+    fn get_pay_currency(&self) -> Result<String, Error>;
+}
+
+impl CryptoData for api::CryptoData {
+    fn get_pay_currency(&self) -> Result<String, Error> {
+        self.pay_currency
+            .clone()
+            .ok_or_else(missing_field_err("crypto_data.pay_currency"))
+    }
+}
+
 pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
