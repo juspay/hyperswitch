@@ -260,6 +260,7 @@ pub struct Amount {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
+#[serde(rename_all = "snake_case")]
 pub enum AdyenPaymentMethod<'a> {
     AdyenAffirm(Box<AdyenPayLaterData>),
     AdyenCard(Box<AdyenCard>),
@@ -276,7 +277,7 @@ pub enum AdyenPaymentMethod<'a> {
     Gpay(Box<AdyenGPay>),
     GoPay(Box<GoPayData>),
     Ideal(Box<BankRedirectionWithIssuer<'a>>),
-    KakaoPay(Box<KakaoPayData>),
+    Kakaopay(Box<KakaoPayData>),
     Mandate(Box<AdyenMandate>),
     Mbway(Box<MbwayData>),
     MobilePay(Box<MobilePayData>),
@@ -626,10 +627,7 @@ pub struct GoPayData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KakaoPayData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
+pub struct KakaoPayData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
@@ -1131,10 +1129,8 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 Ok(AdyenPaymentMethod::GoPay(Box::new(go_pay_data)))
             }
             api_models::payments::WalletData::KakaoPayRedirect(_) => {
-                let kakao_pay_data = KakaoPayData {
-                    payment_type: PaymentType::Kakaopay,
-                };
-                Ok(AdyenPaymentMethod::KakaoPay(Box::new(kakao_pay_data)))
+                let kakao_pay_data = KakaoPayData {};
+                Ok(AdyenPaymentMethod::Kakaopay(Box::new(kakao_pay_data)))
             }
             api_models::payments::WalletData::MbWayRedirect(data) => {
                 let mbway_data = MbwayData {
