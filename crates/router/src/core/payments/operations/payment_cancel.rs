@@ -41,7 +41,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         PaymentData<F>,
         Option<CustomerDetails>,
-        bool,
     )> {
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
@@ -161,7 +160,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                 redirect_response: None,
             },
             None,
-            false,
         ))
     }
 }
@@ -237,6 +235,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCancelRequest> for Payment
                 payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }

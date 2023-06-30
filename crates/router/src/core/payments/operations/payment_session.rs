@@ -44,7 +44,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         BoxedOperation<'a, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
         Option<payments::CustomerDetails>,
-        bool,
     )> {
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -179,7 +178,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 redirect_response: None,
             },
             Some(customer_details),
-            false,
         ))
     }
 }
@@ -239,6 +237,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
                 payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }

@@ -56,6 +56,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
                 payment_id: api::PaymentIdType::PaymentIntentId(validation_id),
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }
@@ -76,7 +77,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         BoxedOperation<'a, F, api::VerifyRequest>,
         PaymentData<F>,
         Option<payments::CustomerDetails>,
-        bool,
     )> {
         let db = &*state.store;
 
@@ -193,7 +193,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 phone: request.phone.clone(),
                 phone_country_code: request.phone_country_code.clone(),
             }),
-            false,
         ))
     }
 }

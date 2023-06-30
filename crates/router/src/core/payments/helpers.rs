@@ -2164,7 +2164,10 @@ pub fn get_attempt_type(
 ) -> RouterResult<AttemptType> {
     match payment_intent.status {
         enums::IntentStatus::Failed => {
-            if request.manual_retry {
+            if matches!(
+                request.retry_action,
+                Some(api_models::payments::RetryAction::ManualRetry)
+            ) {
                 match payment_attempt.status {
                     enums::AttemptStatus::Started
                     | enums::AttemptStatus::AuthenticationPending

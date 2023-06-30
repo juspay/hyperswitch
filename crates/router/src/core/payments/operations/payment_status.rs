@@ -166,7 +166,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         PaymentData<F>,
         Option<CustomerDetails>,
-        bool,
     )> {
         get_tracker_for_sync(
             payment_id,
@@ -197,7 +196,6 @@ async fn get_tracker_for_sync<
     BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
     PaymentData<F>,
     Option<CustomerDetails>,
-    bool,
 )> {
     let (payment_intent, payment_attempt, currency, amount);
 
@@ -310,7 +308,6 @@ async fn get_tracker_for_sync<
             redirect_response: None,
         },
         None,
-        false,
     ))
 }
 
@@ -337,6 +334,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRetrieveRequest> for Payme
                 payment_id: request.resource_id.clone(),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }

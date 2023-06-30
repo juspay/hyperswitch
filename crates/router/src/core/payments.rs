@@ -80,7 +80,7 @@ where
         .validate_request(&req, &merchant_account)?;
 
     tracing::Span::current().record("payment_id", &format!("{}", validate_result.payment_id));
-    let (operation, mut payment_data, customer_details, requeue) = operation
+    let (operation, mut payment_data, customer_details) = operation
         .to_get_tracker()?
         .get_trackers(
             state,
@@ -137,7 +137,11 @@ where
         if should_add_task_to_process_tracker(&payment_data) {
             operation
                 .to_domain()?
-                .add_task_to_process_tracker(state, &payment_data.payment_attempt, requeue)
+                .add_task_to_process_tracker(
+                    state,
+                    &payment_data.payment_attempt,
+                    validate_result.requeue,
+                )
                 .await
                 .map_err(|error| logger::error!(process_tracker_error=?error))
                 .ok();

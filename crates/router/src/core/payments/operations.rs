@@ -71,6 +71,7 @@ pub struct ValidateResult<'a> {
     pub payment_id: api::PaymentIdType,
     pub mandate_type: Option<api::MandateTransactionType>,
     pub storage_scheme: enums::MerchantStorageScheme,
+    pub requeue: bool,
 }
 
 #[allow(clippy::type_complexity)]
@@ -93,7 +94,7 @@ pub trait GetTracker<F, D, R>: Send {
         mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>, bool)>;
+    ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>;
 }
 
 #[async_trait]
