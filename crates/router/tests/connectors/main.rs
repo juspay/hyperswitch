@@ -37,6 +37,7 @@ mod nmi;
 mod noon;
 mod nuvei;
 mod nuvei_ui;
+mod opayo;
 mod opennode;
 mod payeezy;
 mod payme;

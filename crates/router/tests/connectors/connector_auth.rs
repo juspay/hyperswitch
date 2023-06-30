@@ -30,6 +30,7 @@ pub struct ConnectorAuthentication {
     pub noon: Option<SignatureKey>,
     pub nmi: Option<HeaderKey>,
     pub nuvei: Option<SignatureKey>,
+    pub opayo: Option<HeaderKey>,
     pub opennode: Option<HeaderKey>,
     pub payeezy: Option<SignatureKey>,
     pub payme: Option<HeaderKey>,
