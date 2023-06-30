@@ -249,7 +249,7 @@ where
         Option<api::PaymentMethodData>,
     )> {
         Ok((Box::new(self), None))
-        // helpers::make_pm_data(Box::new(self), state, payment_data).await
+        
     }
 
     async fn get_connector<'a>(
