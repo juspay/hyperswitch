@@ -31,7 +31,7 @@ use crate::{
     services::authentication as auth,
     types::{
         self,
-        api::{self},
+        api,
         ErrorResponse,
     },
 };
