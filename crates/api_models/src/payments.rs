@@ -589,6 +589,7 @@ pub enum PaymentMethodData {
     BankTransfer(Box<BankTransferData>),
     Crypto(CryptoData),
     MandatePayment,
+    Reward(RewardData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -607,6 +608,7 @@ pub enum AdditionalPaymentData {
     Crypto {},
     BankDebit {},
     MandatePayment {},
+    Reward {},
 }
 
 impl From<&PaymentMethodData> for AdditionalPaymentData {
@@ -634,6 +636,7 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
             PaymentMethodData::Crypto(_) => Self::Crypto {},
             PaymentMethodData::BankDebit(_) => Self::BankDebit {},
             PaymentMethodData::MandatePayment => Self::MandatePayment {},
+            PaymentMethodData::Reward(_) => Self::Reward {},
         }
     }
 }
@@ -842,8 +845,18 @@ pub enum WalletData {
     PaypalRedirect(PaypalRedirection),
     /// The wallet data for Paypal
     PaypalSdk(PayPalWalletData),
+    /// The wallet data for Samsung Pay
+    SamsungPay(Box<SamsungPayWalletData>),
     /// The wallet data for WeChat Pay Redirection
     WeChatPayRedirect(Box<WeChatPayRedirection>),
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct SamsungPayWalletData {
+    /// The encrypted payment token from Samsung
+    #[schema(value_type = String)]
+    pub token: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -940,6 +953,13 @@ pub struct CardResponse {
     exp_year: String,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct RewardData {
+    /// The merchant ID with which we have to call the connector
+    pub merchant_id: String,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodDataResponse {
@@ -953,6 +973,7 @@ pub enum PaymentMethodDataResponse {
     Crypto(CryptoData),
     BankDebit(BankDebitData),
     MandatePayment,
+    Reward(RewardData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1582,6 +1603,7 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             PaymentMethodData::Crypto(crpto_data) => Self::Crypto(crpto_data),
             PaymentMethodData::BankDebit(bank_debit_data) => Self::BankDebit(bank_debit_data),
             PaymentMethodData::MandatePayment => Self::MandatePayment,
+            PaymentMethodData::Reward(reward_data) => Self::Reward(reward_data),
         }
     }
 }

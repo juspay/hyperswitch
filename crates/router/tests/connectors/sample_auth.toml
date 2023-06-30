@@ -117,6 +117,9 @@ api_key = "Application API KEY"
 api_secret = "Application Identifier"
 key1 = "Business Identifier"
 
+[opayo]
+api_key="API Key"
+
 [automation_configs]
 hs_base_url="http://localhost:8080"
 hs_test_browser="firefox"
@@ -126,3 +129,10 @@ pypl_email=""
 pypl_pass=""
 gmail_email=""
 gmail_pass=""
+
+[payme]
+api_key="API Key"
+
+[cashtocode]
+api_key="Classic PMT API Key"
+key1 = "Evoucher PMT API Key"
