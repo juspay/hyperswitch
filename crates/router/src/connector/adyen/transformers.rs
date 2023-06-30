@@ -147,7 +147,7 @@ pub enum AdyenStatus {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Channel {
-    Web
+    Web,
 }
 
 /// This implementation will be used only in Authorize, Automatic capture flow.
@@ -260,6 +260,7 @@ pub struct Amount {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
+#[serde(rename_all = "snake_case")]
 pub enum AdyenPaymentMethod<'a> {
     AdyenAffirm(Box<AdyenPayLaterData>),
     AdyenCard(Box<AdyenCard>),
@@ -277,7 +278,7 @@ pub enum AdyenPaymentMethod<'a> {
     Gpay(Box<AdyenGPay>),
     GoPay(Box<GoPayData>),
     Ideal(Box<BankRedirectionWithIssuer<'a>>),
-    KakaoPay(Box<KakaoPayData>),
+    Kakaopay(Box<KakaoPayData>),
     Mandate(Box<AdyenMandate>),
     Mbway(Box<MbwayData>),
     MobilePay(Box<MobilePayData>),
@@ -627,10 +628,7 @@ pub struct GoPayData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KakaoPayData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
+pub struct KakaoPayData {}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GcashData {
     #[serde(rename = "type")]
@@ -883,7 +881,7 @@ fn get_browser_info(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<Option<AdyenBrowserInfo>, Error> {
     if item.auth_type == storage_enums::AuthenticationType::ThreeDs
-        || item.payment_method == storage_enums::PaymentMethod::BankRedirect 
+        || item.payment_method == storage_enums::PaymentMethod::BankRedirect
         || item.request.payment_method_type == Some(storage_enums::PaymentMethodType::GoPay)
     {
         let info = item.request.get_browser_info()?;
@@ -916,11 +914,10 @@ fn get_additional_data(item: &types::PaymentsAuthorizeRouterData) -> Option<Addi
     }
 }
 
-
 fn get_channel_type(pm_type: &Option<storage_enums::PaymentMethodType>) -> Option<Channel> {
     match pm_type {
         Some(storage_enums::PaymentMethodType::GoPay) => Some(Channel::Web),
-        _ => None
+        _ => None,
     }
 }
 
@@ -1139,10 +1136,8 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 Ok(AdyenPaymentMethod::GoPay(Box::new(go_pay_data)))
             }
             api_models::payments::WalletData::KakaoPayRedirect(_) => {
-                let kakao_pay_data = KakaoPayData {
-                    payment_type: PaymentType::Kakaopay,
-                };
-                Ok(AdyenPaymentMethod::KakaoPay(Box::new(kakao_pay_data)))
+                let kakao_pay_data = KakaoPayData {};
+                Ok(AdyenPaymentMethod::Kakaopay(Box::new(kakao_pay_data)))
             }
             api_models::payments::WalletData::GcashRedirect(_) => {
                 let gcash_data = GcashData {
