@@ -120,7 +120,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         &'a self,
         _db: &'a AppState,
         _payment_attempt: &storage::PaymentAttempt,
-        _manual_requeue: bool,
+        _requeue: bool,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
