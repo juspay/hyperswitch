@@ -519,7 +519,6 @@ impl PaymentCreate {
                 helpers::get_additional_payment_data(payment_method_data, db).await
             })
             .await
-            .transpose()?
             .as_ref()
             .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
             .transpose()
