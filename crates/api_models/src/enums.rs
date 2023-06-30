@@ -507,10 +507,13 @@ pub enum WalletIssuer {
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    serde::Deserialize,
+    serde::Serialize,
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum RefundStatus {
