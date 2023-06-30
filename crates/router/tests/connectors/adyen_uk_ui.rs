@@ -132,6 +132,29 @@ async fn should_make_adyen_klarna_mandate_payment(
     Ok(())
 }
 
+async fn should_make_adyen_alipay_hk_payment(c: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        c,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/162"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::EitherOr(
+                Assert::IsPresent("Payment Method Not Available"),
+                vec![Event::Assert(Assert::IsPresent(
+                    " (Note: these error messages are not visible on the live platform) ",
+                ))],
+                vec![
+                    Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
+                    Event::Assert(Assert::IsPresent("succeeded")),
+                ],
+            ),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
 async fn should_make_adyen_clearpay_payment(driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
     conn.make_clearpay_payment(
@@ -203,6 +226,12 @@ fn should_make_adyen_3ds_payment_failed_test() {
 #[serial]
 fn should_make_adyen_3ds_payment_success_test() {
     tester!(should_make_adyen_3ds_payment_success);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_alipay_hk_payment_test() {
+    tester!(should_make_adyen_alipay_hk_payment);
 }
 
 #[test]

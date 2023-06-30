@@ -465,6 +465,7 @@ pub enum PaymentMethod {
     Crypto,
     BankDebit,
     Reward,
+    Upi,
 }
 
 #[derive(
@@ -675,6 +676,7 @@ pub enum PaymentMethodType {
     Affirm,
     AfterpayClearpay,
     AliPay,
+    AliPayHk,
     ApplePay,
     Bacs,
     BancontactCard,
@@ -707,6 +709,7 @@ pub enum PaymentMethodType {
     Swish,
     Trustly,
     Twint,
+    UpiCollect,
     Vipps,
     Walley,
     WeChatPay,

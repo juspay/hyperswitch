@@ -590,6 +590,7 @@ pub enum PaymentMethodData {
     Crypto(CryptoData),
     MandatePayment,
     Reward(RewardData),
+    Upi(UpiData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -609,6 +610,7 @@ pub enum AdditionalPaymentData {
     BankDebit {},
     MandatePayment {},
     Reward {},
+    Upi {},
 }
 
 impl From<&PaymentMethodData> for AdditionalPaymentData {
@@ -637,6 +639,7 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
             PaymentMethodData::BankDebit(_) => Self::BankDebit {},
             PaymentMethodData::MandatePayment => Self::MandatePayment {},
             PaymentMethodData::Reward(_) => Self::Reward {},
+            PaymentMethodData::Upi(_) => Self::Upi {},
         }
     }
 }
@@ -771,7 +774,16 @@ pub struct SepaAndBacsBillingDetails {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct CryptoData {}
+pub struct CryptoData {
+    pub pay_currency: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct UpiData {
+    #[schema(value_type = Option<String>, example = "successtest@iata")]
+    pub vpa_id: Option<Secret<String>>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
@@ -828,6 +840,8 @@ pub struct BankDebitBilling {
 pub enum WalletData {
     /// The wallet data for Ali Pay redirect
     AliPayRedirect(AliPayRedirection),
+    /// The wallet data for Ali Pay HK redirect
+    AliPayHkRedirect(AliPayHkRedirection),
     /// The wallet data for Apple pay
     ApplePay(ApplePayWalletData),
     /// Wallet data for apple pay redirect flow
@@ -894,6 +908,9 @@ pub struct PaypalRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AliPayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct AliPayHkRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MobilePayRedirection {}
@@ -978,6 +995,7 @@ pub enum PaymentMethodDataResponse {
     BankDebit(BankDebitData),
     MandatePayment,
     Reward(RewardData),
+    Upi(UpiData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1608,6 +1626,7 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             PaymentMethodData::BankDebit(bank_debit_data) => Self::BankDebit(bank_debit_data),
             PaymentMethodData::MandatePayment => Self::MandatePayment,
             PaymentMethodData::Reward(reward_data) => Self::Reward(reward_data),
+            PaymentMethodData::Upi(upi_data) => Self::Upi(upi_data),
         }
     }
 }
