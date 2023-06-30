@@ -13,6 +13,62 @@ use utoipa::ToSchema;
 use crate::{
     admin, disputes, enums as api_enums, ephemeral_key::EphemeralKeyCreateResponse, refunds,
 };
+use serde::{Serialize, Deserialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ClientSecretDomain {
+    domain: String,
+    // Add any other fields you need for the domain type
+}
+impl ClientSecretDomain {
+    pub fn new(domain: String) -> Self {
+        ClientSecretDomain { domain }
+    }
+}
+
+impl ToString for ClientSecretDomain {
+    fn to_string(&self) -> String {
+        self.domain.clone()
+    }
+}
+
+impl<'de> Deserialize<'de> for ClientSecretDomain {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(ClientSecretDomain::new(s))
+    }
+}
+
+impl Serialize for ClientSecretDomain {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.domain.serialize(serializer)
+    }
+}
+
+#[derive(Default, Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsSessionResponse {
+    pub payment_id: String,
+    pub client_secret: Secret<ClientSecretDomain, pii::ClientSecret>,
+    pub session_token: Vec<SessionToken>,
+}
+impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
+    fn from(item: PaymentsSessionRequest) -> Self {
+        let client_secret: Secret<ClientSecretDomain, pii::ClientSecret> =
+            Secret::new(ClientSecretDomain::new(item.client_secret));
+        Self {
+            session_token: vec![],
+            payment_id: item.payment_id,
+            client_secret,
+        }
+    }
+}
+
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
