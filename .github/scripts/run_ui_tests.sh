@@ -4,7 +4,7 @@ apt-get install wget
 mkdir tests
 
 #download connector ui tests
-wget --wait 10 --random-wait --continue $UI_TESTCASES_PATH && mv testcases $HOME/target/test/connector_tests.json
+mv .github/testcases/ui_tests.json $HOME/target/test/connector_tests.json
 
 #install geckodriver
 wget -c https://github.com/mozilla/geckodriver/releases/download/v0.33.0/geckodriver-v0.33.0-linux-aarch64.tar.gz && tar -xvzf geckodriver*
