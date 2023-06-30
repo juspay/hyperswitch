@@ -630,10 +630,7 @@ pub struct GoPayData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KakaoPayData {}
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GcashData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
+pub struct GcashData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
@@ -1140,9 +1137,7 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 Ok(AdyenPaymentMethod::Kakaopay(Box::new(kakao_pay_data)))
             }
             api_models::payments::WalletData::GcashRedirect(_) => {
-                let gcash_data = GcashData {
-                    payment_type: PaymentType::Gcash,
-                };
+                let gcash_data = GcashData {};
                 Ok(AdyenPaymentMethod::Gcash(Box::new(gcash_data)))
             }
             api_models::payments::WalletData::MbWayRedirect(data) => {
