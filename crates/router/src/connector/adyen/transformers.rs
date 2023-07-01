@@ -276,6 +276,7 @@ pub enum AdyenPaymentMethod<'a> {
     Gcash(Box<GcashData>),
     Giropay(Box<BankRedirectionPMData>),
     Gpay(Box<AdyenGPay>),
+    #[serde(rename = "gopay_wallet")]
     GoPay(Box<GoPayData>),
     Ideal(Box<BankRedirectionWithIssuer<'a>>),
     Kakaopay(Box<KakaoPayData>),
@@ -295,6 +296,7 @@ pub enum AdyenPaymentMethod<'a> {
     #[serde(rename = "sepadirectdebit")]
     SepaDirectDebit(Box<SepaDirectDebitData>),
     BacsDirectDebit(Box<BacsDirectDebitData>),
+    SamsungPay(Box<SamsungPayPmData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -369,6 +371,14 @@ pub struct MbwayData {
 pub struct WalleyData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SamsungPayPmData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+    #[serde(rename = "samsungPayToken")]
+    samsung_pay_token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -622,10 +632,7 @@ pub struct AliPayHkData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GoPayData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
+pub struct GoPayData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KakaoPayData {}
@@ -724,6 +731,7 @@ pub enum PaymentType {
     SepaDirectDebit,
     #[serde(rename = "directdebit_GB")]
     BacsDirectDebit,
+    Samsungpay,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -912,10 +920,10 @@ fn get_additional_data(item: &types::PaymentsAuthorizeRouterData) -> Option<Addi
 }
 
 fn get_channel_type(pm_type: &Option<storage_enums::PaymentMethodType>) -> Option<Channel> {
-    match pm_type {
-        Some(storage_enums::PaymentMethodType::GoPay) => Some(Channel::Web),
+    pm_type.as_ref().and_then(|pmt| match pmt {
+        storage_enums::PaymentMethodType::GoPay => Some(Channel::Web),
         _ => None,
-    }
+    })
 }
 
 fn get_amount_data(item: &types::PaymentsAuthorizeRouterData) -> Amount {
@@ -1127,9 +1135,7 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 Ok(AdyenPaymentMethod::AliPayHk(Box::new(alipay_hk_data)))
             }
             api_models::payments::WalletData::GoPayRedirect(_) => {
-                let go_pay_data = GoPayData {
-                    payment_type: PaymentType::GoPay,
-                };
+                let go_pay_data = GoPayData {};
                 Ok(AdyenPaymentMethod::GoPay(Box::new(go_pay_data)))
             }
             api_models::payments::WalletData::KakaoPayRedirect(_) => {
@@ -1158,6 +1164,13 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                     payment_type: PaymentType::WeChatPayWeb,
                 };
                 Ok(AdyenPaymentMethod::WeChatPayWeb(Box::new(data)))
+            }
+            api_models::payments::WalletData::SamsungPay(samsung_data) => {
+                let data = SamsungPayPmData {
+                    payment_type: PaymentType::Samsungpay,
+                    samsung_pay_token: samsung_data.token.to_owned(),
+                };
+                Ok(AdyenPaymentMethod::SamsungPay(Box::new(data)))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }

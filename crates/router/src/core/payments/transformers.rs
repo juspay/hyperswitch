@@ -465,6 +465,7 @@ where
                         )
                         .set_ephemeral_key(ephemeral_key_option.map(ForeignFrom::foreign_from))
                         .set_udf(payment_intent.udf)
+                        .set_connector_transaction_id(payment_attempt.connector_transaction_id)
                         .to_owned(),
                 )
             }
@@ -509,6 +510,7 @@ where
             metadata: payment_intent.metadata,
             order_details: payment_intent.order_details,
             udf: payment_intent.udf,
+            connector_transaction_id: payment_attempt.connector_transaction_id,
             ..Default::default()
         }),
     });
@@ -943,6 +945,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             email: payment_data.email,
             currency: Some(payment_data.currency),
             amount: Some(payment_data.amount.into()),
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
         })
     }
 }
