@@ -3,7 +3,6 @@ use std::{fmt::Debug, marker::PhantomData};
 use api_models::payments::OrderDetailsWithAmount;
 use common_utils::fp_utils;
 use error_stack::ResultExt;
-use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use storage_models::ephemeral_key;
 
@@ -361,19 +360,7 @@ where
                         connector_name,
                     )
                 });
-                let parsed_metadata: Option<api_models::payments::Metadata> = payment_intent
-                    .metadata
-                    .clone()
-                    .map(|metadata_value| {
-                        metadata_value
-                            .parse_value("metadata")
-                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                                field_name: "metadata",
-                            })
-                            .attach_printable("unable to parse metadata")
-                    })
-                    .transpose()
-                    .unwrap_or_default();
+
                 let amount_captured = payment_intent.amount_captured.unwrap_or_default();
                 let amount_capturable = Some(payment_attempt.amount - amount_captured);
                 services::ApplicationResponse::Json(
@@ -460,8 +447,7 @@ where
                         .set_business_label(payment_intent.business_label)
                         .set_business_sub_label(payment_attempt.business_sub_label)
                         .set_allowed_payment_method_types(
-                            parsed_metadata
-                                .and_then(|metadata| metadata.allowed_payment_method_types),
+                            payment_intent.allowed_payment_method_types,
                         )
                         .set_ephemeral_key(ephemeral_key_option.map(ForeignFrom::foreign_from))
                         .set_connector_transaction_id(payment_attempt.connector_transaction_id)
@@ -652,31 +638,54 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 field_name: "browser_info",
             })?;
 
-        let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
+        // let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
+        //     .payment_intent
+        //     .metadata
+        //     .as_ref()
+        //     .map(|metadata_value| {
+        //         metadata_value
+        //             .clone()
+        //             .parse_value("metadata")
+        //             .change_context(errors::ApiErrorResponse::InvalidDataValue {
+        //                 field_name: "metadata",
+        //             })
+        //             .attach_printable("unable to parse metadata")
+        //     })
+        //     .transpose()
+        //     .unwrap_or_default();
+
+        let order_category = additional_data
+            .payment_data
             .payment_intent
-            .metadata
-            .as_ref()
-            .map(|metadata_value| {
-                metadata_value
-                    .clone()
-                    .parse_value("metadata")
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "metadata",
+            .connector_metadata
+            .noon
+            .order_category;
+
+        let order_details = additional_data
+            .payment_data
+            .payment_intent
+            .order_details
+            .map(|order_details| {
+                order_details
+                    .iter()
+                    .map(|data| {
+                        data.to_owned()
+                            .parse_value("OrderDetailsWithAmount")
+                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "OrderDetailsWithAmount",
+                            })
+                            .attach_printable("Unable to parse OrderDetailsWithAmount")
                     })
-                    .attach_printable("unable to parse metadata")
+                    .collect::<Result<Vec<_>, _>>()
             })
-            .transpose()
-            .unwrap_or_default();
-        let order_category = parsed_metadata
-            .as_ref()
-            .and_then(|data| data.order_category.clone());
-        let order_details =
-            fetch_order_details(additional_data.clone(), parsed_metadata, &payment_data)?;
+            .transpose()?;
+
         let complete_authorize_url = Some(helpers::create_complete_authorize_url(
             router_base_url,
             attempt,
             connector_name,
         ));
+
         let webhook_url = Some(helpers::create_webhook_url(
             router_base_url,
             &attempt.merchant_id,
@@ -829,24 +838,25 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data.clone();
-        let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
-            .payment_intent
-            .metadata
-            .as_ref()
-            .map(|metadata_value| {
-                metadata_value
-                    .clone()
-                    .parse_value("metadata")
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "metadata",
-                    })
-                    .attach_printable("unable to parse metadata")
-            })
-            .transpose()
-            .unwrap_or_default();
 
-        let order_details =
-            fetch_order_details(additional_data.clone(), parsed_metadata, &payment_data)?;
+        let order_details = additional_data
+            .payment_data
+            .payment_intent
+            .order_details
+            .map(|order_details| {
+                order_details
+                    .iter()
+                    .map(|data| {
+                        data.to_owned()
+                            .parse_value("OrderDetailsWithAmount")
+                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "OrderDetailsWithAmount",
+                            })
+                            .attach_printable("Unable to parse OrderDetailsWithAmount")
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
 
         Ok(Self {
             amount: payment_data.amount.into(),
@@ -947,37 +957,37 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
     }
 }
 
-pub fn fetch_order_details<F: Clone>(
-    additional_data: PaymentAdditionalData<'_, F>,
-    parsed_metadata: Option<api_models::payments::Metadata>,
-    payment_data: &PaymentData<F>,
-) -> RouterResult<Option<Vec<OrderDetailsWithAmount>>> {
-    let order_details_metadata_parsed = parsed_metadata.and_then(|data| data.order_details);
-    let order_details_outside_metadata_parsed =
-        match payment_data.payment_intent.order_details.clone() {
-            Some(order_details_outside_metadata_value) => {
-                let parsed_value = order_details_outside_metadata_value
-                    .iter()
-                    .map(|data| {
-                        data.peek()
-                            .to_owned()
-                            .parse_value("OrderDetailsWithAmount")
-                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                                field_name: "OrderDetailsWithAmount",
-                            })
-                            .attach_printable("unable to parse OrderDetailsWithAmount")
-                    })
-                    .collect::<Result<Vec<_>, _>>()?;
-                Some(parsed_value)
-            }
-            None => None,
-        };
-    let order_details = match order_details_metadata_parsed {
-        Some(odm) => change_order_details_to_new_type(
-            additional_data.clone().payment_data.payment_intent.amount,
-            odm,
-        ),
-        None => order_details_outside_metadata_parsed,
-    };
-    Ok(order_details)
-}
+// pub fn fetch_order_details<F: Clone>(
+//     additional_data: PaymentAdditionalData<'_, F>,
+//     parsed_metadata: Option<api_models::payments::Metadata>,
+//     payment_data: &PaymentData<F>,
+// ) -> RouterResult<Option<Vec<OrderDetailsWithAmount>>> {
+//     let order_details_metadata_parsed = parsed_metadata.and_then(|data| data.order_details);
+//     let order_details_outside_metadata_parsed =
+//         match payment_data.payment_intent.order_details.clone() {
+//             Some(order_details_outside_metadata_value) => {
+//                 let parsed_value = order_details_outside_metadata_value
+//                     .iter()
+//                     .map(|data| {
+//                         data.peek()
+//                             .to_owned()
+//                             .parse_value("OrderDetailsWithAmount")
+//                             .change_context(errors::ApiErrorResponse::InvalidDataValue {
+//                                 field_name: "OrderDetailsWithAmount",
+//                             })
+//                             .attach_printable("unable to parse OrderDetailsWithAmount")
+//                     })
+//                     .collect::<Result<Vec<_>, _>>()?;
+//                 Some(parsed_value)
+//             }
+//             None => None,
+//         };
+//     let order_details = match order_details_metadata_parsed {
+//         Some(odm) => change_order_details_to_new_type(
+//             additional_data.clone().payment_data.payment_intent.amount,
+//             odm,
+//         ),
+//         None => order_details_outside_metadata_parsed,
+//     };
+//     Ok(order_details)
+// }

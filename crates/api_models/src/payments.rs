@@ -215,9 +215,6 @@ pub struct PaymentsRequest {
     #[schema(max_length = 255, example = "Payment for shoes purchase")]
     pub statement_descriptor_suffix: Option<String>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    pub metadata: Option<Metadata>,
-
     /// Information about the product , quantity and amount for connectors. (e.g. Klarna)
     #[schema(value_type = Option<Vec<OrderDetailsWithAmount>>, example = r#"[{
         "product_name": "gillete creme",
@@ -281,6 +278,21 @@ pub struct PaymentsRequest {
     /// If enabled payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted.
     #[serde(default)]
     pub manual_retry: bool,
+
+    /// Information about the order category that merchant wants to specify at connector level. (e.g. In Noon Payments it can take values like "pay", "food", or any other custom string set by the merchant in Noon's Dashboard)
+    pub order_category: Option<String>,
+
+    /// Redirection response coming in request as metadata field only for redirection scenarios
+    #[schema(value_type = Option<RedirectResponse>)]
+    pub redirect_response: Option<RedirectResponse>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    pub connector_metadata: Option<ConnectorMetadata>,
+
+    pub feature_metadata: Option<FeatureMetadata>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
@@ -1670,23 +1682,6 @@ pub struct OrderDetails {
 }
 
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-pub struct Metadata {
-    /// Information about the product and quantity for specific connectors. (e.g. Klarna)
-    pub order_details: Option<OrderDetails>,
-
-    /// Information about the order category that merchant wants to specify at connector level. (e.g. In Noon Payments it can take values like "pay", "food", or any other custom string set by the merchant in Noon's Dashboard)
-    pub order_category: Option<String>,
-
-    /// Redirection response coming in request as metadata field only for redirection scenarios
-    #[schema(value_type = Option<RedirectResponse>)]
-    pub redirect_response: Option<RedirectResponse>,
-
-    /// Allowed payment method types for a payment intent
-    #[schema(value_type = Option<Vec<PaymentMethodType>>)]
-    pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
-}
-
-#[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct RedirectResponse {
     #[schema(value_type = Option<String>)]
     pub param: Option<Secret<String>>,
@@ -1795,6 +1790,18 @@ pub struct ApplepaySessionRequest {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorMetadata {
     pub apple_pay: Option<ApplepayConnectorMetadataRequest>,
+    pub airwallex: Option<AirwallexData>,
+    pub noon: Option<NoonData>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AirwallexData {
+    payload: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct NoonData {
+    order_catgory: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -2046,6 +2053,9 @@ pub struct PaymentsStartRequest {
     /// The identifier for the payment transaction
     pub attempt_id: String,
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct FeatureMetadata {}
 
 mod payment_id_type {
     use std::fmt;

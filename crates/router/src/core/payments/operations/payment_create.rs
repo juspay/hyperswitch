@@ -414,19 +414,6 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
-        let order_details_inside_metadata = request
-            .metadata
-            .as_ref()
-            .and_then(|meta| meta.order_details.to_owned());
-        if request
-            .order_details
-            .as_ref()
-            .zip(order_details_inside_metadata)
-            .is_some()
-        {
-            Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
-        }
-
         helpers::validate_customer_details_in_request(request)?;
 
         let given_payment_id = match &request.payment_id {
@@ -566,45 +553,22 @@ impl PaymentCreate {
         let client_secret =
             crate::utils::generate_id(consts::ID_LENGTH, format!("{payment_id}_secret").as_str());
         let (amount, currency) = (money.0, Some(money.1));
-        let metadata = request
-            .metadata
-            .as_ref()
-            .map(|metadata| {
-                let transformed_metadata = api_models::payments::Metadata {
-                    allowed_payment_method_types: request.allowed_payment_method_types.clone(),
-                    ..metadata.clone()
-                };
-                Encode::<api_models::payments::Metadata>::encode_to_value(&transformed_metadata)
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Encoding Metadata to value failed")?;
-        let order_details_metadata_req = request
-            .metadata
-            .as_ref()
-            .and_then(|meta| meta.order_details.to_owned());
-        if request
+
+        let metadata = request.metadata;
+
+        let order_details = request
             .order_details
-            .as_ref()
-            .zip(order_details_metadata_req)
-            .is_some()
-        {
-            Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
-        }
-        let order_details_outside_value = match request.order_details.as_ref() {
-            Some(od_value) => {
-                let order_details_outside_value_secret = od_value
+            .map(|order_details| {
+                order_details
                     .iter()
                     .map(|order| {
                         Encode::<OrderDetailsWithAmount>::encode_to_value(order)
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .map(masking::Secret::new)
                     })
-                    .collect::<Result<Vec<_>, _>>()?;
-                Some(order_details_outside_value_secret)
-            }
-            None => None,
-        };
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
 
         let (business_country, business_label) = helpers::get_business_details(
             request.business_country,
@@ -630,12 +594,11 @@ impl PaymentCreate {
             billing_address_id,
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
-            metadata: metadata.map(masking::Secret::new),
+            metadata,
             business_country,
             business_label,
             active_attempt_id,
-            order_details: order_details_outside_value,
-
+            order_details,
             ..storage::PaymentIntentNew::default()
         })
     }

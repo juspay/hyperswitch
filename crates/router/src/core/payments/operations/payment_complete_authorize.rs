@@ -158,10 +158,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let redirect_response = request
-            .metadata
-            .as_ref()
-            .and_then(|secret_metadata| secret_metadata.redirect_response.to_owned());
+        let redirect_response = request.redirect_response;
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);

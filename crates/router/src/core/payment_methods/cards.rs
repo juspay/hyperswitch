@@ -1134,25 +1134,8 @@ pub async fn filter_payment_methods(
         if let Ok(payment_methods_enabled) = parse_result {
             let payment_method = payment_methods_enabled.payment_method;
             let allowed_payment_method_types = payment_intent
-                .map(|payment_intent|
-                    payment_intent
-                        .metadata
-                        .as_ref()
-                        .and_then(|masked_metadata| {
-                            let metadata = masked_metadata.peek().clone();
-                            let parsed_metadata: Option<api_models::payments::Metadata> =
-                                serde_json::from_value(metadata)
-                                    .map_err(|error| logger::error!(%error, "Failed to deserialize PaymentIntent metadata"))
-                                    .ok();
-                            parsed_metadata.and_then(|pm| {
-                                logger::info!(
-                                    "Only given PaymentMethodTypes will be allowed {:?}",
-                                    pm.allowed_payment_method_types
-                                );
-                                pm.allowed_payment_method_types
-                            })
-                }))
-                .and_then(|a| a);
+                .and_then(|payment_intent| payment_intent.allowed_payment_method_types);
+
             for payment_method_type_info in payment_methods_enabled
                 .payment_method_types
                 .unwrap_or_default()

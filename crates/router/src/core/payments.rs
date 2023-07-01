@@ -8,7 +8,6 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use api_models::payments::Metadata;
 use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -378,14 +377,9 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         let payment_confirm_req = api::PaymentsRequest {
             payment_id: Some(req.resource_id.clone()),
             merchant_id: req.merchant_id.clone(),
-            metadata: Some(Metadata {
-                order_details: None,
-                redirect_response: Some(api_models::payments::RedirectResponse {
-                    param: req.param.map(Secret::new),
-                    json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
-                }),
-                allowed_payment_method_types: None,
-                order_category: None,
+            redirect_response: Some(api_models::payments::RedirectResponse {
+                param: req.param.map(Secret::new),
+                json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
             }),
             ..Default::default()
         };

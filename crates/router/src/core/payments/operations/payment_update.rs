@@ -90,10 +90,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let _ = helpers::validate_and_add_order_details_to_payment_intent(
-            &mut payment_intent,
-            request,
-        )?;
+        payment_intent.order_details = request.order_details;
+
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
@@ -522,19 +520,6 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
-        let order_details_inside_metadata = request
-            .metadata
-            .as_ref()
-            .and_then(|meta| meta.order_details.to_owned());
-        if request
-            .order_details
-            .as_ref()
-            .zip(order_details_inside_metadata)
-            .is_some()
-        {
-            Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
-        }
-
         helpers::validate_customer_details_in_request(request)?;
 
         let given_payment_id = match &request.payment_id {
