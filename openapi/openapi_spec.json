@@ -6197,6 +6197,7 @@
           "debit",
           "eps",
           "evoucher",
+          "g_cash",
           "giropay",
           "google_pay",
           "go_pay",
@@ -8153,17 +8154,6 @@
             "type": "object",
             "required": [
               "gcash_redirect"
-            ],
-            "properties": {
-              "gcash_redirect": {
-                "$ref": "#/components/schemas/GcashRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-            "gcash_redirect"
             ],
             "properties": {
               "gcash_redirect": {
