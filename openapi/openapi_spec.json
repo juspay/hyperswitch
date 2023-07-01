@@ -6199,6 +6199,7 @@
           "evoucher",
           "giropay",
           "google_pay",
+          "go_pay",
           "ideal",
           "interac",
           "klarna",
@@ -8194,7 +8195,7 @@
           {
             "type": "object",
             "required": [
-              "google_pay_redirect"
+              "go_pay_redirect"
             ],
             "properties": {
               "go_pay_redirect": {
