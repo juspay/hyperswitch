@@ -20,8 +20,8 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         uses: actions/checkout@v3
         with:
-          # Checkout pull request HEAD commit instead of merge commit
-          ref: ${{ github.event.pull_request.head.sha }}
+          # Checkout pull request branch instead of merge commit
+          ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Checkout merge group HEAD commit
         if: ${{ github.event_name == 'merge_group' }}
@@ -51,7 +51,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         shell: bash
         run: |
-          if ! git diff --quiet --exit-code origin/$GITHUB_HEAD_REF -- openapi/openapi_spec.json ; then
+          if ! git diff --quiet --exit-code $GITHUB_HEAD_REF -- openapi/openapi_spec.json ; then
             git config --local user.name 'github-actions[bot]'
             git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git add openapi/openapi_spec.json
@@ -64,7 +64,7 @@ jobs:
         if: ${{ github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
         shell: bash
         run: |
-          if ! git diff --quiet --exit-code origin/$GITHUB_HEAD_REF -- openapi/openapi_spec.json ; then
+          if ! git diff --quiet --exit-code $GITHUB_HEAD_REF -- openapi/openapi_spec.json ; then
             echo '::error::The OpenAPI spec file is not up-to-date. Please re-generate the OpenAPI spec file using `cargo run --features openapi -- generate-openapi-spec` and commit it.'
             exit 1
           fi
