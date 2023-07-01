@@ -1735,9 +1735,6 @@
       "AliPayRedirection": {
         "type": "object"
       },
-      "AliPayHkRedirection": {
-        "type": "object"
-      },
       "GoPayRedirection": {
         "type": "object"
       },
@@ -8179,40 +8176,7 @@
           {
             "type": "object",
             "required": [
-            "momo"
-            ],
-            "properties": {
-              "momo": {
-                "$ref": "#/components/schemas/MomoRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-          "gcash_redirect"
-            ],
-            "properties": {
-              "gcash_redirect": {
-                "$ref": "#/components/schemas/GcashRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
             "kakao_pay_redirect"
-            ],
-            "properties": {
-              "kakao_pay_redirect": {
-                "$ref": "#/components/schemas/KakaoPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-                 "kakao_pay_redirect"
             ],
             "properties": {
               "kakao_pay_redirect": {
@@ -8239,17 +8203,6 @@
             "properties": {
               "apple_pay": {
                 "$ref": "#/components/schemas/ApplePayWalletData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "google_pay_redirect"
-            ],
-            "properties": {
-              "go_pay_redirect": {
-                "$ref": "#/components/schemas/GoPayRedirection"
               }
             }
           },
