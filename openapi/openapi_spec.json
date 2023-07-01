@@ -8169,7 +8169,7 @@
           {
             "type": "object",
             "required": [
-              "google_pay_redirect"
+              "go_pay_redirect"
             ],
             "properties": {
               "go_pay_redirect": {
