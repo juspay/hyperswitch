@@ -34,6 +34,7 @@ async fn should_make_3ds_mandate_payment(c: WebDriver) -> Result<(), WebDriverEr
             Event::Assert(Assert::IsPresent("Mandate ID")),
             Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
             Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
+            Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
             Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
             Event::Assert(Assert::IsPresent("succeeded")),
 
@@ -53,6 +54,7 @@ async fn should_fail_recurring_payment_due_to_authentication(
             Event::Assert(Assert::IsPresent("Mandate ID")),
             Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
             Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
+            Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
             Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
             Event::Assert(Assert::IsPresent("authentication_required: Your card was declined. This transaction requires authentication.")),
 
@@ -71,6 +73,7 @@ async fn should_make_3ds_mandate_with_zero_dollar_payment(
             Event::Assert(Assert::IsPresent("succeeded")),
             Event::Assert(Assert::IsPresent("Mandate ID")),
             Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
+            Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
             Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
             Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
             // Need to be handled as mentioned in https://stripe.com/docs/payments/save-and-reuse?platform=web#charge-saved-payment-method
@@ -360,6 +363,7 @@ async fn should_make_stripe_becs_bank_debit_payment(c: WebDriver) -> Result<(), 
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/56"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("Status")),
             Event::Assert(Assert::IsPresent("processing")),
         ],
     )
@@ -374,6 +378,7 @@ async fn should_make_stripe_sepa_bank_debit_payment(c: WebDriver) -> Result<(), 
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/67"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("Status")),
             Event::Assert(Assert::IsPresent("processing")),
         ],
     )
