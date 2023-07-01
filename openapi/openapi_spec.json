@@ -1735,9 +1735,6 @@
       "AliPayRedirection": {
         "type": "object"
       },
-      "AliPayHkRedirection": {
-        "type": "object"
-      },
       "GoPayRedirection": {
         "type": "object"
       },
@@ -6203,6 +6200,7 @@
           "ideal",
           "interac",
           "klarna",
+          "kakao_pay",
           "mb_way",
           "mobile_pay",
           "online_banking_czech_republic",
@@ -8152,17 +8150,6 @@
             "type": "object",
             "required": [
               "kakao_pay_redirect"
-            ],
-            "properties": {
-              "kakao_pay_redirect": {
-                "$ref": "#/components/schemas/KakaoPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-                 "kakao_pay_redirect"
             ],
             "properties": {
               "kakao_pay_redirect": {
