@@ -1,5 +1,4 @@
-use std::collections::{HashMap, HashSet};
-
+use indexmap::{IndexMap, IndexSet};
 use syn::{self, parse_quote, punctuated::Punctuated, Token};
 
 use crate::macros::helpers;
@@ -44,10 +43,10 @@ pub fn polymorphic_macro_derive_inner(
 
     // Go through all the fields and create a mapping of required fields for a schema
     // PaymentsCreate -> ["amount","currency"]
-    // This will be stored in a hashset
-    // mandatory_hashset -> ((PaymentsCreate, amount), (PaymentsCreate,currency))
-    let mut mandatory_hashset = HashSet::<(syn::Ident, syn::Ident)>::new();
-    let mut other_fields_hm = HashMap::<syn::Field, Vec<syn::Attribute>>::new();
+    // This will be stored in an `IndexSet`
+    // required_fields -> ((PaymentsCreate, amount), (PaymentsCreate,currency))
+    let mut required_fields = IndexSet::<(syn::Ident, syn::Ident)>::new();
+    let mut optional_fields = IndexMap::<syn::Field, Vec<syn::Attribute>>::new();
 
     fields.iter().for_each(|field| {
         // Partition the attributes of a field into two vectors
@@ -68,14 +67,14 @@ pub fn polymorphic_macro_derive_inner(
                 let mut field_without_attributes = field.clone();
                 field_without_attributes.attrs.clear();
 
-                other_fields_hm
+                optional_fields
                     .entry(field_without_attributes.to_owned())
                     .or_insert(vec![])
                     .push(attribute.to_owned().to_owned());
             });
 
-        // Mandatory attributes are to be inserted into hashset
-        // The hashset will store it in this format
+        // Mandatory attributes are to be inserted into the `IndexSet`
+        // The `IndexSet` will store it in this format
         // (PaymentsCreateRequest, "amount")
         // (PaymentsConfirmRequest, "currency")
         //
@@ -89,9 +88,9 @@ pub fn polymorphic_macro_derive_inner(
                     .map_err(|error| syn::Error::new(proc_macro2::Span::call_site(), error))?
                     .iter()
                     .filter_map(|schema| field.ident.to_owned().zip(Some(schema.to_owned())))
-                    .collect::<HashSet<_>>();
+                    .collect::<IndexSet<_>>();
 
-                mandatory_hashset.extend(res);
+                required_fields.extend(res);
                 Ok::<_, syn::Error>(())
             });
     });
@@ -99,7 +98,7 @@ pub fn polymorphic_macro_derive_inner(
     let schemas = schemas_to_create
         .iter()
         .map(|schema| {
-            let fields = other_fields_hm
+            let fields = optional_fields
                 .iter()
                 .flat_map(|(field, value)| {
                     let mut attributes = value
@@ -114,7 +113,7 @@ pub fn polymorphic_macro_derive_inner(
 
                     // Can be none, because tuple fields have no ident
                     field.ident.to_owned().and_then(|field_ident| {
-                        mandatory_hashset
+                        required_fields
                             .contains(&(field_ident, schema.to_owned()))
                             .then(|| attributes.push(quote::quote!(#required_attribute)))
                     });
