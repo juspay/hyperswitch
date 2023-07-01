@@ -3343,7 +3343,6 @@
           "USD",
           "UYU",
           "UZS",
-          "VND",
           "YER",
           "ZAR"
         ]
@@ -6201,13 +6200,17 @@
           "debit",
           "eps",
           "evoucher",
+          "gcash",
           "giropay",
           "google_pay",
+          "go_pay",
           "ideal",
           "interac",
           "klarna",
+          "kakao_pay",
           "mb_way",
           "mobile_pay",
+          "momo",
           "online_banking_czech_republic",
           "online_banking_finland",
           "online_banking_poland",
@@ -8203,6 +8206,17 @@
             "properties": {
               "apple_pay": {
                 "$ref": "#/components/schemas/ApplePayWalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "go_pay_redirect"
+            ],
+            "properties": {
+              "go_pay_redirect": {
+                "$ref": "#/components/schemas/GoPayRedirection"
               }
             }
           },
