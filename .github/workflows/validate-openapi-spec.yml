@@ -46,25 +46,7 @@ jobs:
         shell: bash
         run: swagger-cli validate ./openapi/openapi_spec.json
 
-      - name: Commit the JSON file if it is not up-to-date
-        # PR originated from same repository
-        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          OPENAPI_SPEC_FILE='openapi/openapi_spec.json'
-          if ! git diff --quiet --exit-code -- "${OPENAPI_SPEC_FILE}" ; then
-            gh api --method PUT "/repos/{owner}/{repo}/contents/${OPENAPI_SPEC_FILE}" \
-              --field message="docs(openapi): re-generate OpenAPI specification" \
-              --field content=@<( base64 -i $OPENAPI_SPEC_FILE ) \
-              --field branch="${GITHUB_HEAD_REF}" \
-              --field sha="$( git rev-parse ${GITHUB_HEAD_REF}:${OPENAPI_SPEC_FILE} )"
-          fi
-
       - name: Fail check if the JSON file is not up-to-date
-        # PR originated from a fork
-        if: ${{ github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
         shell: bash
         run: |
           if ! git diff --quiet --exit-code -- openapi/openapi_spec.json ; then
