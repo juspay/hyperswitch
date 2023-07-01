@@ -13,25 +13,58 @@ concurrency:
 
 jobs:
   validate_json:
-    name: Validate generated openapi spec file
+    name: Validate generated OpenAPI spec file
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout PR
+        if: ${{ github.event_name == 'pull_request' }}
         uses: actions/checkout@v3
+        with:
+          # Checkout pull request HEAD commit instead of merge commit
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Checkout merge group HEAD commit
+        if: ${{ github.event_name == 'merge_group' }}
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.merge_group.head_sha }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
 
-      - name: Generate the spec file
+      - name: Generate the OpenAPI spec file
         shell: bash
         run: cargo run --features openapi -- generate-openapi-spec
 
-      - name: Install swagger-cli
+      - name: Install `swagger-cli`
         shell: bash
         run: npm install -g @apidevtools/swagger-cli
 
-      - name: Validate the json file
+      - name: Validate the JSON file
         shell: bash
         run: swagger-cli validate ./openapi/openapi_spec.json
+
+      - name: Commit the JSON file if it is not up-to-date
+        # PR originated from same repository
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        shell: bash
+        run: |
+          if ! git diff --quiet --exit-code origin/$GITHUB_HEAD_REF -- openapi/openapi_spec.json ; then
+            git config --local user.name 'github-actions[bot]'
+            git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add openapi/openapi_spec.json
+            git commit --message 'docs(openapi): re-generate OpenAPI specification'
+            git push
+          fi
+
+      - name: Fail check if the JSON file is not up-to-date
+        # PR originated from a fork
+        if: ${{ github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
+        shell: bash
+        run: |
+          if ! git diff --quiet --exit-code origin/$GITHUB_HEAD_REF -- openapi/openapi_spec.json ; then
+            echo '::error::The OpenAPI spec file is not up-to-date. Please re-generate the OpenAPI spec file using `cargo run --features openapi -- generate-openapi-spec` and commit it.'
+            exit 1
+          fi
