@@ -8218,7 +8218,7 @@
           {
             "type": "object",
             "required": [
-            "kakao_pay_redirect"
+              "kakao_pay_redirect"
             ],
             "properties": {
               "kakao_pay_redirect": {

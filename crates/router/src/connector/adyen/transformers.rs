@@ -289,6 +289,7 @@ pub enum AdyenPaymentMethod<'a> {
     OnlineBankingFinland(Box<OnlineBankingFinlandData>),
     OnlineBankingPoland(Box<OnlineBankingPolandData>),
     OnlineBankingSlovakia(Box<OnlineBankingSlovakiaData>),
+    #[serde(rename = "molpay_ebanking_fpx_MY")]
     OnlineBankingFpx(Box<OnlineBankingFpxData>),
     PayBright(Box<PayBrightData>),
     Sofort(Box<BankRedirectionPMData>),
@@ -518,8 +519,6 @@ pub struct OnlineBankingSlovakiaData {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OnlineBankingFpxData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
     issuer: AdyenIssuerID,
 }
 
@@ -1387,7 +1386,6 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             ),
             api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => Ok(
                 AdyenPaymentMethod::OnlineBankingFpx(Box::new(OnlineBankingFpxData {
-                    payment_type: PaymentType::OnlineBankingFpx,
                     issuer: AdyenIssuerID::try_from(issuer)?,
                 })),
             ),
