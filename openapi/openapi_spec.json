@@ -2591,6 +2591,25 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "OnlineBankingFpx"
+            ],
+            "properties": {
+              "OnlineBankingFpx": {
+                "type": "object",
+                "required": [
+                  "country"
+                ],
+                "properties": {
+                  "bank_name": {
+                    "$ref": "#/components/schemas/BankNames"
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -6234,6 +6253,7 @@
           "online_banking_finland",
           "online_banking_poland",
           "online_banking_slovakia",
+          "online_banking_fpx",
           "pay_bright",
           "paypal",
           "przelewy24",
