@@ -274,6 +274,7 @@ pub enum AdyenPaymentMethod<'a> {
     Eps(Box<BankRedirectionWithIssuer<'a>>),
     Giropay(Box<BankRedirectionPMData>),
     Gpay(Box<AdyenGPay>),
+    #[serde(rename = "gopay_wallet")]
     GoPay(Box<GoPayData>),
     Ideal(Box<BankRedirectionWithIssuer<'a>>),
     Mandate(Box<AdyenMandate>),
@@ -628,10 +629,7 @@ pub struct AliPayHkData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GoPayData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
+pub struct GoPayData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
@@ -1127,9 +1125,7 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 Ok(AdyenPaymentMethod::AliPayHk(Box::new(alipay_hk_data)))
             }
             api_models::payments::WalletData::GoPayRedirect(_) => {
-                let go_pay_data = GoPayData {
-                    payment_type: PaymentType::GoPay,
-                };
+                let go_pay_data = GoPayData {};
                 Ok(AdyenPaymentMethod::GoPay(Box::new(go_pay_data)))
             }
             api_models::payments::WalletData::MbWayRedirect(data) => {
