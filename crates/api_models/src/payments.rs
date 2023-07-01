@@ -757,7 +757,7 @@ pub enum BankRedirectData {
         // Issuer banks
         #[schema(value_type = BankNames)]
         issuer: api_enums::BankNames,
-    }
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]

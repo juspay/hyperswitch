@@ -550,25 +550,24 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingSlovakiaBanks {
     }
 }
 
-
 impl TryFrom<&api_enums::BankNames> for AdyenIssuerID {
     type Error = Error;
     fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
         match bank_name {
             api::enums::BankNames::AffinBank => Ok(Self::FpxAbb),
-            api::enums::BankNames::AgroBank	=> Ok(Self::FpxAgrobank),
-            api::enums::BankNames::AllianceBank	 => Ok(Self::FpxAbmb),
+            api::enums::BankNames::AgroBank => Ok(Self::FpxAgrobank),
+            api::enums::BankNames::AllianceBank => Ok(Self::FpxAbmb),
             api::enums::BankNames::AmBank => Ok(Self::FpxAmb),
             api::enums::BankNames::BankIslam => Ok(Self::FpxBimb),
-            api::enums::BankNames::BankMuamalat	=> Ok(Self::FpxBmmb),
+            api::enums::BankNames::BankMuamalat => Ok(Self::FpxBmmb),
             api::enums::BankNames::BankRakyat => Ok(Self::FpxBkrm),
             api::enums::BankNames::BankSimpananNasional => Ok(Self::FpxBsn),
             api::enums::BankNames::CimbBank => Ok(Self::FpxCimbclicks),
             api::enums::BankNames::HongLeongBank => Ok(Self::FpxHlb),
-            api::enums::BankNames::HsbcBank	=> Ok(Self::FpxHsbc),
+            api::enums::BankNames::HsbcBank => Ok(Self::FpxHsbc),
             api::enums::BankNames::KuwaitFinanceHouse => Ok(Self::FpxKfh),
             api::enums::BankNames::Maybank => Ok(Self::FpxMb2u),
-            api::enums::BankNames::OcbcBank	=> Ok(Self::FpxOcbc),
+            api::enums::BankNames::OcbcBank => Ok(Self::FpxOcbc),
             api::enums::BankNames::PublicBank => Ok(Self::FpxPbb),
             api::enums::BankNames::RhbBank => Ok(Self::FpxRhb),
             api::enums::BankNames::StandardCharteredBank => Ok(Self::FpxScb),
@@ -803,7 +802,7 @@ pub enum AdyenIssuerID {
     FpxPbb,
     FpxRhb,
     FpxScb,
-    FpxUob
+    FpxUob,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
