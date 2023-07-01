@@ -601,6 +601,19 @@ impl ApplePay for payments::ApplePayWalletData {
         Ok(token)
     }
 }
+
+pub trait CryptoData {
+    fn get_pay_currency(&self) -> Result<String, Error>;
+}
+
+impl CryptoData for api::CryptoData {
+    fn get_pay_currency(&self) -> Result<String, Error> {
+        self.pay_currency
+            .clone()
+            .ok_or_else(missing_field_err("crypto_data.pay_currency"))
+    }
+}
+
 pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
