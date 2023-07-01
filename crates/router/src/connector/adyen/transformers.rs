@@ -642,8 +642,7 @@ pub struct KakaoPayData {}
 pub struct GcashData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MomoData {
-}
+pub struct MomoData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
@@ -1155,8 +1154,7 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 Ok(AdyenPaymentMethod::Gcash(Box::new(gcash_data)))
             }
             api_models::payments::WalletData::MomoRedirect(_) => {
-                let momo_data = MomoData {
-                };
+                let momo_data = MomoData {};
                 Ok(AdyenPaymentMethod::Momo(Box::new(momo_data)))
             }
             api_models::payments::WalletData::MbWayRedirect(data) => {
