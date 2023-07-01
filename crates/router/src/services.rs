@@ -87,6 +87,11 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
                     ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
                     key
                 }
+                CacheKind::All(key) => {
+                    CONFIG_CACHE.invalidate(key.as_ref()).await;
+                    ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
+                    key
+                }
             };
 
             self.delete_key(key.as_ref())
@@ -119,7 +124,6 @@ pub struct Store {
     #[cfg(feature = "kv_store")]
     pub(crate) config: StoreConfig,
     pub master_key: Vec<u8>,
-    pub migration_timestamp: i64,
 }
 
 #[cfg(feature = "kv_store")]
@@ -183,7 +187,6 @@ impl Store {
                 drainer_num_partitions: config.drainer.num_partitions,
             },
             master_key: master_enc_key,
-            migration_timestamp: config.secrets.migration_encryption_timestamp,
         }
     }
 

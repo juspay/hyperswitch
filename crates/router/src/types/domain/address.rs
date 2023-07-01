@@ -1,10 +1,10 @@
 use async_trait::async_trait;
 use common_utils::{
-    crypto::{self},
-    date_time,
+    crypto, date_time,
     errors::{CustomResult, ValidationError},
 };
 use error_stack::ResultExt;
+use masking::{PeekInterface, Secret};
 use storage_models::{address::AddressUpdateInternal, encryption::Encryption, enums};
 use time::{OffsetDateTime, PrimitiveDateTime};
 
@@ -12,7 +12,6 @@ use super::{
     behaviour,
     types::{self, AsyncLift},
 };
-use crate::db::StorageInterface;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Address {
@@ -72,20 +71,10 @@ impl behaviour::Conversion for Address {
 
     async fn convert_back(
         other: Self::DstType,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-        migration_timestamp: i64,
+        key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError> {
-        let key = types::get_merchant_enc_key(db, merchant_id)
-            .await
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed while getting key from key store".to_string(),
-            })?;
-
         async {
-            let modified_at = other.modified_at.assume_utc().unix_timestamp();
-            let inner_decrypt =
-                |inner| types::decrypt(inner, &key, modified_at, migration_timestamp);
+            let inner_decrypt = |inner| types::decrypt(inner, key.peek());
             Ok(Self {
                 id: Some(other.id),
                 address_id: other.address_id,

@@ -64,7 +64,9 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         amount: 1,
         currency: enums::Currency::USD,
-        payment_method_data: types::api::PaymentMethodData::Crypto(CryptoData {}),
+        payment_method_data: types::api::PaymentMethodData::Crypto(CryptoData {
+            pay_currency: None,
+        }),
         confirm: true,
         statement_descriptor_suffix: None,
         statement_descriptor: None,
@@ -75,6 +77,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         // capture_method: Some(capture_method),
         browser_info: None,
         order_details: None,
+        order_category: None,
         email: None,
         payment_experience: None,
         payment_method_type: None,

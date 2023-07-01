@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use ring::hmac;
 use time::OffsetDateTime;
 use transformers as fiserv;
@@ -14,7 +15,11 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     headers, logger,
-    services::{self, api::ConnectorIntegration},
+    services::{
+        self,
+        api::ConnectorIntegration,
+        request::{self, Mask},
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -55,7 +60,7 @@ where
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
         let auth: fiserv::FiservAuthType =
             fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
@@ -67,17 +72,24 @@ where
 
         let client_request_id = Uuid::new_v4().to_string();
         let hmac = self
-            .generate_authorization_signature(auth, &client_request_id, &fiserv_req, timestamp)
+            .generate_authorization_signature(
+                auth,
+                &client_request_id,
+                types::RequestBody::get_inner_value(fiserv_req).peek(),
+                timestamp,
+            )
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let mut headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self)
+                    .to_string()
+                    .into(),
             ),
-            ("Client-Request-Id".to_string(), client_request_id),
-            ("Auth-Token-Type".to_string(), "HMAC".to_string()),
-            (headers::TIMESTAMP.to_string(), timestamp.to_string()),
-            (headers::AUTHORIZATION.to_string(), hmac),
+            ("Client-Request-Id".to_string(), client_request_id.into()),
+            ("Auth-Token-Type".to_string(), "HMAC".to_string().into()),
+            (headers::TIMESTAMP.to_string(), timestamp.to_string().into()),
+            (headers::AUTHORIZATION.to_string(), hmac.into_masked()),
         ];
         headers.append(&mut auth_header);
         Ok(headers)
@@ -99,11 +111,14 @@ impl ConnectorCommon for Fiserv {
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth: fiserv::FiservAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::API_KEY.to_string(), auth.api_key)])
+        Ok(vec![(
+            headers::API_KEY.to_string(),
+            auth.api_key.into_masked(),
+        )])
     }
     fn build_error_response(
         &self,
@@ -180,7 +195,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -203,12 +218,14 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let connector_req = fiserv::FiservCancelRequest::try_from(req)?;
-        let fiserv_req =
-            utils::Encode::<fiserv::FiservCancelRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(fiserv_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = fiserv::FiservCancelRequest::try_from(req)?;
+        let fiserv_payments_cancel_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<fiserv::FiservCancelRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(fiserv_payments_cancel_request))
     }
 
     fn build_request(
@@ -265,7 +282,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -287,12 +304,14 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_request_body(
         &self,
         req: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let connector_req = fiserv::FiservSyncRequest::try_from(req)?;
-        let fiserv_req =
-            utils::Encode::<fiserv::FiservSyncRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(fiserv_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = fiserv::FiservSyncRequest::try_from(req)?;
+        let fiserv_payments_sync_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<fiserv::FiservSyncRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(fiserv_payments_sync_request))
     }
 
     fn build_request(
@@ -347,7 +366,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -358,12 +377,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let connector_req = fiserv::FiservCaptureRequest::try_from(req)?;
-        let fiserv_req =
-            utils::Encode::<fiserv::FiservCaptureRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(fiserv_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = fiserv::FiservCaptureRequest::try_from(req)?;
+        let fiserv_payments_capture_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<fiserv::FiservCaptureRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(fiserv_payments_capture_request))
     }
 
     fn build_request(
@@ -439,7 +460,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -461,13 +482,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let connector_req = fiserv::FiservPaymentsRequest::try_from(req)?;
-        let fiserv_req = utils::Encode::<fiserv::FiservPaymentsRequest>::encode_to_string_of_json(
-            &connector_req,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = fiserv::FiservPaymentsRequest::try_from(req)?;
+        let fiserv_payments_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<fiserv::FiservPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(fiserv_req))
+        Ok(Some(fiserv_payments_request))
     }
 
     fn build_request(
@@ -528,7 +550,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
     fn get_content_type(&self) -> &'static str {
@@ -547,12 +569,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let connector_req = fiserv::FiservRefundRequest::try_from(req)?;
-        let fiserv_req =
-            utils::Encode::<fiserv::FiservRefundRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(fiserv_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = fiserv::FiservRefundRequest::try_from(req)?;
+        let fiserv_refund_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<fiserv::FiservRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(fiserv_refund_request))
     }
     fn build_request(
         &self,
@@ -603,7 +627,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -625,12 +649,14 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_request_body(
         &self,
         req: &types::RefundSyncRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let connector_req = fiserv::FiservSyncRequest::try_from(req)?;
-        let fiserv_req =
-            utils::Encode::<fiserv::FiservSyncRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(fiserv_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = fiserv::FiservSyncRequest::try_from(req)?;
+        let fiserv_sync_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<fiserv::FiservSyncRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(fiserv_sync_request))
     }
 
     fn build_request(
@@ -691,7 +717,7 @@ impl api::IncomingWebhook for Fiserv {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Ok(api::IncomingWebhookEvent::EventNotSupported)
     }
 
     fn get_webhook_resource_object(

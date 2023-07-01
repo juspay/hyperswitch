@@ -4,6 +4,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{date_time, ext_traits::StringExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
 use transformers as rapyd;
@@ -14,7 +15,11 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     db::StorageInterface,
-    headers, services,
+    headers,
+    services::{
+        self,
+        request::{self, Mask},
+    },
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -66,7 +71,7 @@ impl ConnectorCommon for Rapyd {
     fn get_auth_header(
         &self,
         _auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
 
@@ -123,10 +128,12 @@ impl
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
         )])
     }
 
@@ -142,6 +149,19 @@ impl
         Ok(format!("{}/v1/payments", self.base_url(connectors)))
     }
 
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsAuthorizeRouterData,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = rapyd::RapydPaymentsRequest::try_from(req)?;
+        let rapyd_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<rapyd::RapydPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(rapyd_req))
+    }
+
     fn build_request(
         &self,
         req: &types::RouterData<
@@ -154,17 +174,17 @@ impl
         let timestamp = date_time::now_unix_timestamp();
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
-        let rapyd_req = utils::Encode::<rapyd::RapydPaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
+        let body = types::PaymentsAuthorizeType::get_request_body(self, req)?
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let req_body = types::RequestBody::get_inner_value(body).expose();
         let signature =
-            self.generate_signature(&auth, "post", "/v1/payments", &rapyd_req, &timestamp, &salt)?;
+            self.generate_signature(&auth, "post", "/v1/payments", &req_body, &timestamp, &salt)?;
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
-            ("salt".to_string(), salt),
-            ("timestamp".to_string(), timestamp.to_string()),
-            ("signature".to_string(), signature),
+            ("access_key".to_string(), auth.access_key.into_masked()),
+            ("salt".to_string(), salt.into_masked()),
+            ("timestamp".to_string(), timestamp.to_string().into()),
+            ("signature".to_string(), signature.into_masked()),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -176,18 +196,9 @@ impl
                 self, req, connectors,
             )?)
             .headers(headers)
-            .body(Some(rapyd_req))
+            .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
             .build();
         Ok(Some(request))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let rapyd_req = utils::Encode::<rapyd::RapydPaymentsRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(rapyd_req))
     }
 
     fn handle_response(
@@ -241,10 +252,12 @@ impl
         &self,
         _req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsVoidType::get_content_type(self).to_string(),
+            types::PaymentsVoidType::get_content_type(self)
+                .to_string()
+                .into(),
         )])
     }
 
@@ -278,10 +291,10 @@ impl
             self.generate_signature(&auth, "delete", &url_path, "", &timestamp, &salt)?;
 
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
-            ("salt".to_string(), salt),
-            ("timestamp".to_string(), timestamp.to_string()),
-            ("signature".to_string(), signature),
+            ("access_key".to_string(), auth.access_key.into_masked()),
+            ("salt".to_string(), salt.into_masked()),
+            ("timestamp".to_string(), timestamp.to_string().into()),
+            ("signature".to_string(), signature.into_masked()),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Delete)
@@ -328,10 +341,12 @@ impl
         &self,
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsSyncType::get_content_type(self).to_string(),
+            types::PaymentsSyncType::get_content_type(self)
+                .to_string()
+                .into(),
         )])
     }
 
@@ -372,10 +387,10 @@ impl
         let signature = self.generate_signature(&auth, "get", &url_path, "", &timestamp, &salt)?;
 
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
-            ("salt".to_string(), salt),
-            ("timestamp".to_string(), timestamp.to_string()),
-            ("signature".to_string(), signature),
+            ("access_key".to_string(), auth.access_key.into_masked()),
+            ("salt".to_string(), salt.into_masked()),
+            ("timestamp".to_string(), timestamp.to_string().into()),
+            ("signature".to_string(), signature.into_masked()),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Get)
@@ -425,10 +440,12 @@ impl
         &self,
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsCaptureType::get_content_type(self).to_string(),
+            types::PaymentsCaptureType::get_content_type(self)
+                .to_string()
+                .into(),
         )])
     }
 
@@ -439,9 +456,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let rapyd_req = utils::Encode::<rapyd::CaptureRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = rapyd::CaptureRequest::try_from(req)?;
+        let rapyd_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<rapyd::CaptureRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(rapyd_req))
     }
 
@@ -453,21 +474,21 @@ impl
         let timestamp = date_time::now_unix_timestamp();
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
-        let rapyd_req = utils::Encode::<rapyd::CaptureRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
         let url_path = format!(
             "/v1/payments/{}/capture",
             req.request.connector_transaction_id
         );
+        let body = types::PaymentsCaptureType::get_request_body(self, req)?
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let req_body = types::RequestBody::get_inner_value(body).expose();
         let signature =
-            self.generate_signature(&auth, "post", &url_path, &rapyd_req, &timestamp, &salt)?;
+            self.generate_signature(&auth, "post", &url_path, &req_body, &timestamp, &salt)?;
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
-            ("salt".to_string(), salt),
-            ("timestamp".to_string(), timestamp.to_string()),
-            ("signature".to_string(), signature),
+            ("access_key".to_string(), auth.access_key.into_masked()),
+            ("salt".to_string(), salt.into_masked()),
+            ("timestamp".to_string(), timestamp.to_string().into()),
+            ("signature".to_string(), signature.into_masked()),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
@@ -477,7 +498,7 @@ impl
                 self, req, connectors,
             )?)
             .headers(headers)
-            .body(Some(rapyd_req))
+            .body(types::PaymentsCaptureType::get_request_body(self, req)?)
             .build();
         Ok(Some(request))
     }
@@ -543,10 +564,12 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         _req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::RefundExecuteType::get_content_type(self).to_string(),
+            types::RefundExecuteType::get_content_type(self)
+                .to_string()
+                .into(),
         )])
     }
 
@@ -565,9 +588,14 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let rapyd_req = utils::Encode::<rapyd::RapydRefundRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = rapyd::RapydRefundRequest::try_from(req)?;
+        let rapyd_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<rapyd::RapydRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
         Ok(Some(rapyd_req))
     }
 
@@ -579,24 +607,24 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let timestamp = date_time::now_unix_timestamp();
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
-        let rapyd_req = utils::Encode::<rapyd::RapydRefundRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
+        let body = types::RefundExecuteType::get_request_body(self, req)?
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let req_body = types::RequestBody::get_inner_value(body).expose();
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
         let signature =
-            self.generate_signature(&auth, "post", "/v1/refunds", &rapyd_req, &timestamp, &salt)?;
+            self.generate_signature(&auth, "post", "/v1/refunds", &req_body, &timestamp, &salt)?;
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
-            ("salt".to_string(), salt),
-            ("timestamp".to_string(), timestamp.to_string()),
-            ("signature".to_string(), signature),
+            ("access_key".to_string(), auth.access_key.into_masked()),
+            ("salt".to_string(), salt.into_masked()),
+            ("timestamp".to_string(), timestamp.to_string().into()),
+            ("signature".to_string(), signature.into_masked()),
         ];
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(headers)
-            .body(Some(rapyd_req))
+            .body(types::RefundExecuteType::get_request_body(self, req)?)
             .build();
         Ok(Some(request))
     }
@@ -634,7 +662,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         &self,
         _req: &types::RefundSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
     }
 
@@ -785,14 +813,21 @@ impl api::IncomingWebhook for Rapyd {
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
         Ok(match webhook.data {
-            transformers::WebhookData::PaymentData(payment_data) => {
+            transformers::WebhookData::Payment(payment_data) => {
                 api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(payment_data.id),
                 )
             }
-            transformers::WebhookData::RefundData(refund_data) => {
+            transformers::WebhookData::Refund(refund_data) => {
                 api_models::webhooks::ObjectReferenceId::RefundId(
                     api_models::webhooks::RefundIdType::ConnectorRefundId(refund_data.id),
+                )
+            }
+            transformers::WebhookData::Dispute(dispute_data) => {
+                api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        dispute_data.original_transaction_id,
+                    ),
                 )
             }
         })
@@ -806,8 +841,32 @@ impl api::IncomingWebhook for Rapyd {
             .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-
-        webhook.webhook_type.try_into()
+        Ok(match webhook.webhook_type {
+            rapyd::RapydWebhookObjectEventType::PaymentCompleted
+            | rapyd::RapydWebhookObjectEventType::PaymentCaptured => {
+                api::IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            rapyd::RapydWebhookObjectEventType::PaymentFailed => {
+                api::IncomingWebhookEvent::PaymentIntentFailure
+            }
+            rapyd::RapydWebhookObjectEventType::PaymentRefundFailed
+            | rapyd::RapydWebhookObjectEventType::PaymentRefundRejected => {
+                api::IncomingWebhookEvent::RefundFailure
+            }
+            rapyd::RapydWebhookObjectEventType::RefundCompleted => {
+                api::IncomingWebhookEvent::RefundSuccess
+            }
+            rapyd::RapydWebhookObjectEventType::PaymentDisputeCreated => {
+                api::IncomingWebhookEvent::DisputeOpened
+            }
+            rapyd::RapydWebhookObjectEventType::Unknown => {
+                api::IncomingWebhookEvent::EventNotSupported
+            }
+            rapyd::RapydWebhookObjectEventType::PaymentDisputeUpdated => match webhook.data {
+                rapyd::WebhookData::Dispute(data) => api::IncomingWebhookEvent::from(data.status),
+                _ => api::IncomingWebhookEvent::EventNotSupported,
+            },
+        })
     }
 
     fn get_webhook_resource_object(
@@ -818,17 +877,50 @@ impl api::IncomingWebhook for Rapyd {
             .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        let response = match webhook.data {
-            transformers::WebhookData::PaymentData(payment_data) => {
+        let res_json = match webhook.data {
+            transformers::WebhookData::Payment(payment_data) => {
                 let rapyd_response: transformers::RapydPaymentsResponse = payment_data.into();
-                Ok(rapyd_response)
-            }
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound),
-        }?;
-        let res_json =
-            utils::Encode::<transformers::RapydPaymentsResponse>::encode_to_value(&response)
-                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
+                utils::Encode::<transformers::RapydPaymentsResponse>::encode_to_value(
+                    &rapyd_response,
+                )
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
+            }
+            transformers::WebhookData::Refund(refund_data) => {
+                utils::Encode::<transformers::RefundResponseData>::encode_to_value(&refund_data)
+                    .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
+            }
+            transformers::WebhookData::Dispute(dispute_data) => {
+                utils::Encode::<transformers::DisputeResponseData>::encode_to_value(&dispute_data)
+                    .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
+            }
+        };
         Ok(res_json)
+    }
+
+    fn get_dispute_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let webhook: transformers::RapydIncomingWebhook = request
+            .body
+            .parse_struct("RapydIncomingWebhook")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let webhook_dispute_data = match webhook.data {
+            transformers::WebhookData::Dispute(dispute_data) => Ok(dispute_data),
+            _ => Err(errors::ConnectorError::WebhookBodyDecodingFailed),
+        }?;
+        Ok(api::disputes::DisputePayload {
+            amount: webhook_dispute_data.amount.to_string(),
+            currency: webhook_dispute_data.currency.to_string(),
+            dispute_stage: api_models::enums::DisputeStage::Dispute,
+            connector_dispute_id: webhook_dispute_data.token,
+            connector_reason: Some(webhook_dispute_data.dispute_reason_description),
+            connector_reason_code: None,
+            challenge_required_by: webhook_dispute_data.due_date,
+            connector_status: webhook_dispute_data.status.to_string(),
+            created_at: webhook_dispute_data.created_at,
+            updated_at: webhook_dispute_data.updated_at,
+        })
     }
 }

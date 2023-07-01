@@ -3,12 +3,12 @@ use common_utils::{
     date_time, pii,
 };
 use error_stack::ResultExt;
+use masking::{PeekInterface, Secret};
 use storage_models::{
     encryption::Encryption, enums, merchant_account::MerchantAccountUpdateInternal,
 };
 
 use crate::{
-    db::StorageInterface,
     errors::{CustomResult, ValidationError},
     types::domain::types::{self, AsyncLift},
 };
@@ -147,20 +147,12 @@ impl super::behaviour::Conversion for MerchantAccount {
 
     async fn convert_back(
         item: Self::DstType,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-        migration_timestamp: i64,
+        key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
-        let key = types::get_merchant_enc_key(db, merchant_id.to_owned())
-            .await
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed while getting key from key store".to_string(),
-            })?;
         async {
-            let modified_at = item.modified_at.assume_utc().unix_timestamp();
             Ok(Self {
                 id: Some(item.id),
                 merchant_id: item.merchant_id,
@@ -170,15 +162,11 @@ impl super::behaviour::Conversion for MerchantAccount {
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
                 merchant_name: item
                     .merchant_name
-                    .async_lift(|inner| {
-                        types::decrypt(inner, &key, modified_at, migration_timestamp)
-                    })
+                    .async_lift(|inner| types::decrypt(inner, key.peek()))
                     .await?,
                 merchant_details: item
                     .merchant_details
-                    .async_lift(|inner| {
-                        types::decrypt(inner, &key, modified_at, migration_timestamp)
-                    })
+                    .async_lift(|inner| types::decrypt(inner, key.peek()))
                     .await?,
                 webhook_details: item.webhook_details,
                 sub_merchants_enabled: item.sub_merchants_enabled,
