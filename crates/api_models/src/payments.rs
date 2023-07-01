@@ -852,6 +852,8 @@ pub enum WalletData {
     GooglePay(GooglePayWalletData),
     /// Wallet data for google pay redirect flow
     GooglePayRedirect(Box<GooglePayRedirectData>),
+    /// Wallet data for Google pay third party sdk flow
+    GooglePayThirdPartySdk(Box<GooglePayThirdPartySdkData>),
     MbWayRedirect(Box<MbWayRedirection>),
     /// The wallet data for MobilePay redirect
     MobilePayRedirect(Box<MobilePayRedirection>),
@@ -892,6 +894,9 @@ pub struct ApplePayRedirectData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GooglePayRedirectData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GooglePayThirdPartySdkData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ApplePayThirdPartySdkData {}
@@ -1781,7 +1786,8 @@ pub struct GpayTransactionInfo {
     #[schema(value_type = CountryAlpha2, example = "US")]
     pub country_code: api_enums::CountryAlpha2,
     /// The currency code
-    pub currency_code: String,
+    #[schema(value_type = Currency, example = "USD")]
+    pub currency_code: api_enums::Currency,
     /// The total price status (ex: 'FINAL')
     pub total_price_status: String,
     /// The total price
@@ -1871,15 +1877,42 @@ pub enum SessionToken {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(untagged)]
+pub enum GpaySessionTokenResponse {
+    /// Google pay response involving third party sdk
+    ThirdPartyResponse(GooglePayThirdPartySdk),
+    /// Google pay session response for non third party sdk
+    GooglePaySession(GooglePaySessionResponse),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
-pub struct GpaySessionTokenResponse {
+pub struct GooglePayThirdPartySdk {
+    /// Identifier for the delayed session response
+    pub delayed_session_token: bool,
+    /// The name of the connector
+    pub connector: String,
+    /// The next action for the sdk (ex: calling confirm or sync call)
+    pub sdk_next_action: SdkNextAction,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct GooglePaySessionResponse {
     /// The merchant info
     pub merchant_info: GpayMerchantInfo,
     /// List of the allowed payment meythods
     pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
     /// The transaction info Google Pay requires
     pub transaction_info: GpayTransactionInfo,
+    /// Identifier for the delayed session response
+    pub delayed_session_token: bool,
+    /// The name of the connector
     pub connector: String,
+    /// The next action for the sdk (ex: calling confirm or sync call)
+    pub sdk_next_action: SdkNextAction,
+    /// Secrets for sdk display and payment
+    pub secrets: Option<SecretInfoToInitiateSdk>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -1988,7 +2021,8 @@ pub struct ApplePayPaymentRequest {
     #[schema(value_type = CountryAlpha2, example = "US")]
     pub country_code: api_enums::CountryAlpha2,
     /// The code for currency
-    pub currency_code: String,
+    #[schema(value_type = Currency, example = "USD")]
+    pub currency_code: api_enums::Currency,
     /// Represents the total for the payment.
     pub total: AmountInfo,
     /// The list of merchant capabilities(ex: whether capable of 3ds or no-3ds)
