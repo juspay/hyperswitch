@@ -234,16 +234,18 @@ pub trait SeleniumTest {
                     }
                     Trigger::Click(by) => {
                         let ele = driver.query(by).first().await?;
+                        ele.wait_until().enabled().await?;
                         ele.wait_until().displayed().await?;
                         ele.wait_until().clickable().await?;
-                        ele.wait_until().enabled().await?;
+                        ele.scroll_into_view().await?;
                         ele.click().await?;
                     }
                     Trigger::ClickNth(by, n) => {
                         let ele = driver.query(by).all().await?.into_iter().nth(n).unwrap();
+                        ele.wait_until().enabled().await?;
                         ele.wait_until().displayed().await?;
                         ele.wait_until().clickable().await?;
-                        ele.wait_until().enabled().await?;
+                        ele.scroll_into_view().await?;
                         ele.click().await?;
                     }
                     Trigger::Find(by) => {
@@ -309,6 +311,7 @@ pub trait SeleniumTest {
         if config.run_minimum_steps.unwrap() {
             self.complete_actions(&c, actions[..3].to_vec()).await
         } else {
+            println!("Run all steps");
             self.complete_actions(&c, actions).await
         }
     }
@@ -506,18 +509,23 @@ pub fn make_capabilities(s: &str) -> Capabilities {
     }
 }
 fn get_chrome_profile_path() -> Result<String, WebDriverError> {
-    let exe = env::current_exe()?;
-    let dir = exe.parent().expect("Executable must be in some directory");
-    let mut base_path = dir
-        .to_str()
-        .map(|str| {
-            let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
-            fp.truncate(3);
-            fp.join(&MAIN_SEPARATOR.to_string())
-        })
-        .unwrap();
-    base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#);
-    Ok(base_path)
+    env::var("CHROME_PROFILE_PATH").map_or_else(
+        |_| -> Result<String, WebDriverError> {
+            let exe = env::current_exe()?;
+            let dir = exe.parent().expect("Executable must be in some directory");
+            let mut base_path = dir
+                .to_str()
+                .map(|str| {
+                    let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
+                    fp.truncate(3);
+                    fp.join(&MAIN_SEPARATOR.to_string())
+                })
+                .unwrap();
+            base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#);
+            Ok(base_path)
+        },
+        Ok,
+    )
 }
 fn get_firefox_profile_path() -> Result<String, WebDriverError> {
     let exe = env::current_exe()?;
