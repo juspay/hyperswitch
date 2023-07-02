@@ -2605,10 +2605,29 @@
               "OnlineBankingFpx": {
                 "type": "object",
                 "required": [
-                  "country"
+                  "issuer"
                 ],
                 "properties": {
-                  "bank_name": {
+                  "issuer": {
+                    "$ref": "#/components/schemas/BankNames"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "OnlineBankingThailand"
+            ],
+            "properties": {
+              "OnlineBankingThailand": {
+                "type": "object",
+                "required": [
+                  "issuer"
+                ],
+                "properties": {
+                  "issuer": {
                     "$ref": "#/components/schemas/BankNames"
                   }
                 }
@@ -6258,6 +6277,7 @@
           "online_banking_poland",
           "online_banking_slovakia",
           "online_banking_fpx",
+          "online_banking_thailand",
           "pay_bright",
           "paypal",
           "przelewy24",

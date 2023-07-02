@@ -832,7 +832,7 @@ pub enum BankNames {
     KrungsriBank,
     KrungThaiBank,
     TheSiamCommercialBank,
-    KasikornBank
+    KasikornBank,
 }
 
 #[derive(

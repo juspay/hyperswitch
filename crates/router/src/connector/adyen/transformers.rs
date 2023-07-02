@@ -291,6 +291,7 @@ pub enum AdyenPaymentMethod<'a> {
     OnlineBankingSlovakia(Box<OnlineBankingSlovakiaData>),
     #[serde(rename = "molpay_ebanking_fpx_MY")]
     OnlineBankingFpx(Box<OnlineBankingFpxData>),
+    #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand(Box<OnlineBankingThailandData>),
     PayBright(Box<PayBrightData>),
     Sofort(Box<BankRedirectionPMData>),
@@ -574,15 +575,15 @@ impl TryFrom<&api_enums::BankNames> for AdyenIssuerID {
             api::enums::BankNames::HongLeongBank => Ok(Self::FpxHlb),
             api::enums::BankNames::HsbcBank => Ok(Self::FpxHsbc),
             api::enums::BankNames::KuwaitFinanceHouse => Ok(Self::FpxKfh),
-            api::enums::BankNames::KrungsriBank	=> Ok(Self::MolpayKrungsribank),
+            api::enums::BankNames::KrungsriBank => Ok(Self::MolpayKrungsribank),
             api::enums::BankNames::KrungThaiBank => Ok(Self::MolpayKrungthaibank),
-            api::enums::BankNames::KasikornBank	=> Ok(Self::MolpayKbank),
+            api::enums::BankNames::KasikornBank => Ok(Self::MolpayKbank),
             api::enums::BankNames::Maybank => Ok(Self::FpxMb2u),
             api::enums::BankNames::OcbcBank => Ok(Self::FpxOcbc),
             api::enums::BankNames::PublicBank => Ok(Self::FpxPbb),
             api::enums::BankNames::RhbBank => Ok(Self::FpxRhb),
             api::enums::BankNames::StandardCharteredBank => Ok(Self::FpxScb),
-            api::enums::BankNames::TheSiamCommercialBank => Ok(Self::MolpaySiamcommercialbank),	
+            api::enums::BankNames::TheSiamCommercialBank => Ok(Self::MolpaySiamcommercialbank),
             api::enums::BankNames::UobBank => Ok(Self::FpxUob),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
@@ -821,7 +822,7 @@ pub enum AdyenIssuerID {
     MolpayKrungsribank,
     MolpayKrungthaibank,
     MolpaySiamcommercialbank,
-    MolpayKbank
+    MolpayKbank,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
