@@ -1,5 +1,6 @@
 use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
@@ -245,6 +246,23 @@ pub struct ResponseData {
     pub failure_message: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DisputeResponseData {
+    pub id: String,
+    pub amount: i64,
+    pub currency: api_models::enums::Currency,
+    pub token: String,
+    pub dispute_reason_description: String,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub due_date: Option<PrimitiveDateTime>,
+    pub status: RapydWebhookDisputeStatus,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub created_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub updated_at: Option<PrimitiveDateTime>,
+    pub original_transaction_id: String,
+}
+
 #[derive(Default, Debug, Serialize)]
 pub struct RapydRefundRequest {
     pub payment: String,
@@ -463,21 +481,34 @@ pub enum RapydWebhookObjectEventType {
     RefundCompleted,
     PaymentRefundRejected,
     PaymentRefundFailed,
+    PaymentDisputeCreated,
+    PaymentDisputeUpdated,
     #[serde(other)]
     Unknown,
 }
 
-impl TryFrom<RapydWebhookObjectEventType> for api::IncomingWebhookEvent {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: RapydWebhookObjectEventType) -> Result<Self, Self::Error> {
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, strum::Display)]
+pub enum RapydWebhookDisputeStatus {
+    #[serde(rename = "ACT")]
+    Active,
+    #[serde(rename = "RVW")]
+    Review,
+    #[serde(rename = "LOS")]
+    Lose,
+    #[serde(rename = "WIN")]
+    Win,
+    #[serde(other)]
+    Unknown,
+}
+
+impl From<RapydWebhookDisputeStatus> for api_models::webhooks::IncomingWebhookEvent {
+    fn from(value: RapydWebhookDisputeStatus) -> Self {
         match value {
-            RapydWebhookObjectEventType::PaymentCompleted => Ok(Self::PaymentIntentSuccess),
-            RapydWebhookObjectEventType::PaymentCaptured => Ok(Self::PaymentIntentSuccess),
-            RapydWebhookObjectEventType::PaymentFailed => Ok(Self::PaymentIntentFailure),
-            RapydWebhookObjectEventType::Unknown
-            | RapydWebhookObjectEventType::RefundCompleted
-            | RapydWebhookObjectEventType::PaymentRefundRejected
-            | RapydWebhookObjectEventType::PaymentRefundFailed => Ok(Self::EventNotSupported),
+            RapydWebhookDisputeStatus::Active => Self::DisputeOpened,
+            RapydWebhookDisputeStatus::Review => Self::DisputeChallenged,
+            RapydWebhookDisputeStatus::Lose => Self::DisputeLost,
+            RapydWebhookDisputeStatus::Win => Self::DisputeWon,
+            RapydWebhookDisputeStatus::Unknown => Self::EventNotSupported,
         }
     }
 }
@@ -485,8 +516,9 @@ impl TryFrom<RapydWebhookObjectEventType> for api::IncomingWebhookEvent {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum WebhookData {
-    PaymentData(ResponseData),
-    RefundData(RefundResponseData),
+    Payment(ResponseData),
+    Refund(RefundResponseData),
+    Dispute(DisputeResponseData),
 }
 
 impl From<ResponseData> for RapydPaymentsResponse {
