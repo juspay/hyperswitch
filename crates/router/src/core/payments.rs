@@ -6,14 +6,7 @@ pub mod operations;
 pub mod tokenization;
 pub mod transformers;
 
-use std::{
-    collections::HashMap,
-    fmt::Debug,
-    marker::PhantomData,
-    ops::Deref,
-    sync::{Arc, RwLock},
-    time::Instant,
-};
+use std::{collections::HashMap, fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
 use api_models::payments::Metadata;
 use common_utils::pii;
@@ -1188,20 +1181,14 @@ pub async fn list_payments(
 
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
-    let mut payment_intents =
+    let payment_intents =
         helpers::filter_by_constraints(db, &constraints, merchant_id, merchant.storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-    payment_intents.sort();
-    payment_intents.reverse();
 
-    let payment_intent_attempt_map: Arc<RwLock<HashMap<&str, Vec<storage::PaymentAttempt>>>> =
-        Arc::new(RwLock::new(HashMap::new()));
-    let collected_futures = payment_intents
-        .iter()
-        .map(|pi| async {
-            let internal_map = payment_intent_attempt_map.clone(); // Arc clone
-            let pa = match db
+    let collected_futures = payment_intents.iter().map(|pi| {
+        async {
+            match db
                 .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                     &pi.payment_id,
                     merchant_id,
@@ -1211,55 +1198,35 @@ pub async fn list_payments(
                 )
                 .await
             {
-                Ok(pa) => pa,
-                Err(e) => return Err(e),
-            };
-            let mut map_write_locks = match internal_map.write() {
-                //Blocking wait for write
-                Ok(lock) => lock,
-                Err(_) => {
-                    logger::warn!("Failed to get lock in async context.");
-                    return Ok(()); // Exiting the async context
-                }
-            };
-            if map_write_locks.get(pi.payment_id.as_str()).is_none() {
-                map_write_locks.insert(&pi.payment_id, vec![pa]);
-            } else {
-                match map_write_locks.get_mut(pi.payment_id.as_str()) {
-                    Some(existing_pas) => {
-                        (*existing_pas).push(pa);
-                    }
-                    None => {
-                        return Ok(()); //Exiting async function
-                    }
+                Ok(pa) => return Some((pi.payment_id.as_str(), pa)),
+                Err(e) => {
+                    logger::warn!("Error getting payment_attempts using payment_id : {}", e);
+                    None
                 }
             }
-            Ok(())
-        })
-        .collect::<Vec<_>>();
-    let _result = join_all(collected_futures).await;
-    let mut pi_pa_tuple_vec: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = Vec::new();
-    let read_lock = match payment_intent_attempt_map.read() {
-        Ok(read_lock) => read_lock,
-        Err(_) => {
-            logger::warn!("Failed to gain read locks.");
-            return Err(errors::ApiErrorResponse::InternalServerError).into_report();
         }
-    };
+    });
 
-    for v in payment_intents.iter() {
-        let pa_list = match read_lock.get(v.payment_id.as_str()) {
-            Some(list) => list,
-            None => {
-                continue;
+    //Collecting PaymentAttempt of each PaymentIntent in hashmap
+    let mut pi_pa_map = join_all(collected_futures)
+        .await
+        .into_iter()
+        .flatten()
+        .collect::<HashMap<&str, storage::PaymentAttempt>>();
+
+    //Iterating over sorted Intents and sorting Attempts
+    let pi_pa_tuple_vec: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = payment_intents
+        .iter()
+        .filter_map(|v| {
+            //usinf for_each to get ownership of values
+            match pi_pa_map.remove(v.payment_id.as_str()) {
+                Some(pa) => Some((v.clone(), pa)),
+                None => None,
             }
-        };
-        let mut pi_pa_tuples = pa_list
-            .iter()
-            .map(|pa| (v.clone(), pa.clone()))
-            .collect::<Vec<_>>();
-        pi_pa_tuple_vec.append(&mut pi_pa_tuples);
-    }
+        })
+        .collect();
+
+    //Converting Intent-Attempt array to Response
     let data: Vec<api::PaymentsResponse> = pi_pa_tuple_vec
         .into_iter()
         .map(ForeignFrom::foreign_from)
