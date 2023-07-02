@@ -147,7 +147,7 @@ pub enum AdyenStatus {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Channel {
-    Web
+    Web,
 }
 
 /// This implementation will be used only in Authorize, Automatic capture flow.
@@ -260,6 +260,7 @@ pub struct Amount {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
+#[serde(rename_all = "snake_case")]
 pub enum AdyenPaymentMethod<'a> {
     AdyenAffirm(Box<AdyenPayLaterData>),
     AdyenCard(Box<AdyenCard>),
@@ -275,17 +276,20 @@ pub enum AdyenPaymentMethod<'a> {
     Gcash(Box<GcashData>),
     Giropay(Box<BankRedirectionPMData>),
     Gpay(Box<AdyenGPay>),
+    #[serde(rename = "gopay_wallet")]
     GoPay(Box<GoPayData>),
     Ideal(Box<BankRedirectionWithIssuer<'a>>),
-    KakaoPay(Box<KakaoPayData>),
+    Kakaopay(Box<KakaoPayData>),
     Mandate(Box<AdyenMandate>),
     Mbway(Box<MbwayData>),
     MobilePay(Box<MobilePayData>),
+    #[serde(rename = "momo_wallet")]
     Momo(Box<MomoData>),
     OnlineBankingCzechRepublic(Box<OnlineBankingCzechRepublicData>),
     OnlineBankingFinland(Box<OnlineBankingFinlandData>),
     OnlineBankingPoland(Box<OnlineBankingPolandData>),
     OnlineBankingSlovakia(Box<OnlineBankingSlovakiaData>),
+    #[serde(rename = "molpay_ebanking_fpx_MY")]
     OnlineBankingFpx(Box<OnlineBankingFpxData>),
     OnlineBankingThailand(Box<OnlineBankingThailandData>),
     PayBright(Box<PayBrightData>),
@@ -297,6 +301,7 @@ pub enum AdyenPaymentMethod<'a> {
     #[serde(rename = "sepadirectdebit")]
     SepaDirectDebit(Box<SepaDirectDebitData>),
     BacsDirectDebit(Box<BacsDirectDebitData>),
+    SamsungPay(Box<SamsungPayPmData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -371,6 +376,14 @@ pub struct MbwayData {
 pub struct WalleyData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SamsungPayPmData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+    #[serde(rename = "samsungPayToken")]
+    samsung_pay_token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -507,16 +520,12 @@ pub struct OnlineBankingSlovakiaData {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OnlineBankingFpxData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
     issuer: AdyenIssuerID,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OnlineBankingThailandData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
     issuer: AdyenIssuerID,
 }
 
@@ -548,29 +557,28 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingSlovakiaBanks {
     }
 }
 
-
 impl TryFrom<&api_enums::BankNames> for AdyenIssuerID {
     type Error = Error;
     fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
         match bank_name {
             api::enums::BankNames::AffinBank => Ok(Self::FpxAbb),
-            api::enums::BankNames::AgroBank	=> Ok(Self::FpxAgrobank),
-            api::enums::BankNames::AllianceBank	 => Ok(Self::FpxAbmb),
+            api::enums::BankNames::AgroBank => Ok(Self::FpxAgrobank),
+            api::enums::BankNames::AllianceBank => Ok(Self::FpxAbmb),
             api::enums::BankNames::AmBank => Ok(Self::FpxAmb),
             api::enums::BankNames::BangkokBank => Ok(Self::MolpayBangkokbank),
             api::enums::BankNames::BankIslam => Ok(Self::FpxBimb),
-            api::enums::BankNames::BankMuamalat	=> Ok(Self::FpxBmmb),
+            api::enums::BankNames::BankMuamalat => Ok(Self::FpxBmmb),
             api::enums::BankNames::BankRakyat => Ok(Self::FpxBkrm),
             api::enums::BankNames::BankSimpananNasional => Ok(Self::FpxBsn),
             api::enums::BankNames::CimbBank => Ok(Self::FpxCimbclicks),
             api::enums::BankNames::HongLeongBank => Ok(Self::FpxHlb),
-            api::enums::BankNames::HsbcBank	=> Ok(Self::FpxHsbc),
+            api::enums::BankNames::HsbcBank => Ok(Self::FpxHsbc),
             api::enums::BankNames::KuwaitFinanceHouse => Ok(Self::FpxKfh),
             api::enums::BankNames::KrungsriBank	=> Ok(Self::MolpayKrungsribank),
             api::enums::BankNames::KrungThaiBank => Ok(Self::MolpayKrungthaibank),
             api::enums::BankNames::KasikornBank	=> Ok(Self::MolpayKbank),
             api::enums::BankNames::Maybank => Ok(Self::FpxMb2u),
-            api::enums::BankNames::OcbcBank	=> Ok(Self::FpxOcbc),
+            api::enums::BankNames::OcbcBank => Ok(Self::FpxOcbc),
             api::enums::BankNames::PublicBank => Ok(Self::FpxPbb),
             api::enums::BankNames::RhbBank => Ok(Self::FpxRhb),
             api::enums::BankNames::StandardCharteredBank => Ok(Self::FpxScb),
@@ -677,27 +685,15 @@ pub struct AliPayHkData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GoPayData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
+pub struct GoPayData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KakaoPayData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
+pub struct KakaoPayData {}
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GcashData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
+pub struct GcashData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MomoData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
+pub struct MomoData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
@@ -797,6 +793,7 @@ pub enum PaymentType {
     SepaDirectDebit,
     #[serde(rename = "directdebit_GB")]
     BacsDirectDebit,
+    Samsungpay,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -979,7 +976,7 @@ fn get_browser_info(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<Option<AdyenBrowserInfo>, Error> {
     if item.auth_type == storage_enums::AuthenticationType::ThreeDs
-        || item.payment_method == storage_enums::PaymentMethod::BankRedirect 
+        || item.payment_method == storage_enums::PaymentMethod::BankRedirect
         || item.request.payment_method_type == Some(storage_enums::PaymentMethodType::GoPay)
     {
         let info = item.request.get_browser_info()?;
@@ -1012,12 +1009,11 @@ fn get_additional_data(item: &types::PaymentsAuthorizeRouterData) -> Option<Addi
     }
 }
 
-
 fn get_channel_type(pm_type: &Option<storage_enums::PaymentMethodType>) -> Option<Channel> {
-    match pm_type {
-        Some(storage_enums::PaymentMethodType::GoPay) => Some(Channel::Web),
-        _ => None
-    }
+    pm_type.as_ref().and_then(|pmt| match pmt {
+        storage_enums::PaymentMethodType::GoPay => Some(Channel::Web),
+        _ => None,
+    })
 }
 
 fn get_amount_data(item: &types::PaymentsAuthorizeRouterData) -> Amount {
@@ -1229,27 +1225,19 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 Ok(AdyenPaymentMethod::AliPayHk(Box::new(alipay_hk_data)))
             }
             api_models::payments::WalletData::GoPayRedirect(_) => {
-                let go_pay_data = GoPayData {
-                    payment_type: PaymentType::GoPay,
-                };
+                let go_pay_data = GoPayData {};
                 Ok(AdyenPaymentMethod::GoPay(Box::new(go_pay_data)))
             }
             api_models::payments::WalletData::KakaoPayRedirect(_) => {
-                let kakao_pay_data = KakaoPayData {
-                    payment_type: PaymentType::Kakaopay,
-                };
-                Ok(AdyenPaymentMethod::KakaoPay(Box::new(kakao_pay_data)))
+                let kakao_pay_data = KakaoPayData {};
+                Ok(AdyenPaymentMethod::Kakaopay(Box::new(kakao_pay_data)))
             }
             api_models::payments::WalletData::GcashRedirect(_) => {
-                let gcash_data = GcashData {
-                    payment_type: PaymentType::Gcash,
-                };
+                let gcash_data = GcashData {};
                 Ok(AdyenPaymentMethod::Gcash(Box::new(gcash_data)))
             }
             api_models::payments::WalletData::MomoRedirect(_) => {
-                let momo_data = MomoData {
-                    payment_type: PaymentType::Momo,
-                };
+                let momo_data = MomoData {};
                 Ok(AdyenPaymentMethod::Momo(Box::new(momo_data)))
             }
             api_models::payments::WalletData::MbWayRedirect(data) => {
@@ -1270,6 +1258,13 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                     payment_type: PaymentType::WeChatPayWeb,
                 };
                 Ok(AdyenPaymentMethod::WeChatPayWeb(Box::new(data)))
+            }
+            api_models::payments::WalletData::SamsungPay(samsung_data) => {
+                let data = SamsungPayPmData {
+                    payment_type: PaymentType::Samsungpay,
+                    samsung_pay_token: samsung_data.token.to_owned(),
+                };
+                Ok(AdyenPaymentMethod::SamsungPay(Box::new(data)))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
@@ -1409,13 +1404,11 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             ),
             api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => Ok(
                 AdyenPaymentMethod::OnlineBankingFpx(Box::new(OnlineBankingFpxData {
-                    payment_type: PaymentType::OnlineBankingFpx,
                     issuer: AdyenIssuerID::try_from(issuer)?,
                 })),
             ),
             api_models::payments::BankRedirectData::OnlineBankingThailand { issuer } => Ok(
                 AdyenPaymentMethod::OnlineBankingThailand(Box::new(OnlineBankingThailandData {
-                    payment_type: PaymentType::OnlineBankingThailand,
                     issuer: AdyenIssuerID::try_from(issuer)?,
                 })),
             ),
