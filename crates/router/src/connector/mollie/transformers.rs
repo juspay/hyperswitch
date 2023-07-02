@@ -1,6 +1,6 @@
 use api_models::payments;
-use common_utils::pii::Email;
 use cards::CardNumber;
+use common_utils::pii::Email;
 use error_stack::IntoReport;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
