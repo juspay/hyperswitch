@@ -465,6 +465,8 @@ pub enum PaymentMethod {
     BankTransfer,
     Crypto,
     BankDebit,
+    Reward,
+    Upi,
 }
 
 #[derive(
@@ -682,10 +684,13 @@ pub enum PaymentMethodType {
     BancontactCard,
     Becs,
     Blik,
+    #[serde(rename = "classic")]
+    ClassicReward,
     Credit,
     CryptoCurrency,
     Debit,
     Eps,
+    Evoucher,
     Gcash,
     Giropay,
     GooglePay,
@@ -706,11 +711,13 @@ pub enum PaymentMethodType {
     PayBright,
     Paypal,
     Przelewy24,
+    SamsungPay,
     Sepa,
     Sofort,
     Swish,
     TouchNGo,
     Trustly,
+    UpiCollect,
     Walley,
     WeChatPay,
 }
@@ -827,7 +834,7 @@ pub enum BankNames {
     KrungsriBank,
     KrungThaiBank,
     TheSiamCommercialBank,
-    KasikornBank
+    KasikornBank,
 }
 
 #[derive(
