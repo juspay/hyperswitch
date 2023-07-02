@@ -59,6 +59,54 @@ async fn should_make_adyen_3ds_payment_success(
 }
 
 async fn should_make_adyen_gpay_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_adyen_3ds_payment_failed(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/177"))),
+            Event::Assert(Assert::IsPresent("Expiry Year")),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::SwitchFrame(By::Name("threeDSIframe"))),
+            Event::Assert(Assert::Eq(Selector::Title, "Payment Authentication")),
+            Event::Trigger(Trigger::SendKeys(By::ClassName("input-field"), "password")),
+            Event::Trigger(Trigger::Click(By::Id("buttonSubmit"))),
+            Event::Trigger(Trigger::Sleep(5)),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::Contains(Selector::QueryParamStr, "status=failed")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_3ds_payment_success(
+    web_driver: WebDriver,
+) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/62"))),
+            Event::Assert(Assert::IsPresent("Expiry Year")),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::SwitchFrame(By::Name("threeDSIframe"))),
+            Event::Assert(Assert::Eq(Selector::Title, "Payment Authentication")),
+            Event::Trigger(Trigger::SendKeys(By::ClassName("input-field"), "password")),
+            Event::Trigger(Trigger::Click(By::Id("buttonSubmit"))),
+            Event::Trigger(Trigger::Sleep(5)),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::Contains(
+                Selector::QueryParamStr,
+                "status=processing",
+            )),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_gpay_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
     conn.make_gpay_payment(web_driver,
         &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=adyen&gatewaymerchantid=JuspayDEECOM&amount=70.00&country=US&currency=USD"),

@@ -269,6 +269,7 @@ pub enum AdyenPaymentMethod<'a> {
     AfterPay(Box<AdyenPayLaterData>),
     AliPay(Box<AliPayData>),
     AliPayHk(Box<AliPayHkData>),
+    AliPayHk(Box<AliPayHkData>),
     ApplePay(Box<AdyenApplePay>),
     BancontactCard(Box<BancontactCardData>),
     Blik(Box<BlikRedirectionData>),
@@ -754,6 +755,8 @@ pub enum PaymentType {
     Affirm,
     Afterpaytouch,
     Alipay,
+    #[serde(rename = "alipay_hk")]
+    AlipayHk,
     #[serde(rename = "alipay_hk")]
     AlipayHk,
     Applepay,
