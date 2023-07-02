@@ -3,6 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use transformers as mollie;
 
 use crate::{
@@ -74,7 +75,7 @@ impl ConnectorCommon for Mollie {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key).into_masked(),
+            format!("Bearer {}", auth.api_key.expose()).into_masked(),
         )])
     }
 
@@ -129,9 +130,15 @@ impl
     fn get_url(
         &self,
         _req: &types::TokenizationRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok("https://api.cc.mollie.com/v1/card-tokens".to_string())
+        // Ok("https://api.cc.mollie.com/v1/card-tokens".to_string())
+        let base_url = connectors
+            .mollie
+            .secondary_base_url
+            .as_ref()
+            .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        Ok(format!("{base_url}card-tokens"))
     }
 
     fn get_request_body(

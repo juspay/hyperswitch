@@ -1,7 +1,7 @@
 use api_models::payments;
 use cards::CardNumber;
 use error_stack::IntoReport;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use storage_models::enums;
 use url::Url;
@@ -32,7 +32,7 @@ pub struct MolliePaymentsRequest {
     metadata: Option<serde_json::Value>,
     sequence_type: SequenceType,
     mandate_id: Option<String>,
-    card_token: String,
+    card_token: Secret<String>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -114,13 +114,13 @@ pub struct MollieBrowserInfo {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
     type Error = Error;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let amount: Amount = Amount {
+        let amount = Amount {
             currency: item.request.currency,
             value: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
         };
         let description = item.get_description()?;
         let redirect_url = item.request.get_return_url()?;
-        let card_token = item.get_payment_method_token()?;
+        let token = item.get_payment_method_token()?;
         let payment_method_data = match item.request.capture_method.unwrap_or_default() {
             enums::CaptureMethod::Automatic => match &item.request.payment_method_data {
                 api_models::payments::PaymentMethodData::Card(_) => Ok(
@@ -165,7 +165,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
             metadata: None,
             sequence_type: SequenceType::Oneoff,
             mandate_id: None,
-            card_token,
+            card_token: Secret::new(token),
         })
     }
 }
@@ -214,7 +214,7 @@ pub struct MollieCardTokenRequest {
     card_expiry_date: Secret<String>,
     locale: String,
     testmode: bool,
-    profile_token: String,
+    profile_token: Secret<String>,
 }
 
 impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
@@ -228,7 +228,6 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
                 let card_expiry_date =
                     ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned());
                 let card_cvv = ccard.card_cvc;
-                // let locale = Secret::new("en_US".to_string());
                 let browser_info = get_browser_info(item)?;
                 let locale = browser_info
                     .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -416,8 +415,8 @@ pub struct BankDetails {
 }
 
 pub struct MollieAuthType {
-    pub(super) api_key: String,
-    pub(super) key1: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) key1: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for MollieAuthType {
@@ -425,8 +424,8 @@ impl TryFrom<&types::ConnectorAuthType> for MollieAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
-                api_key: api_key.to_string(),
-                key1: key1.to_string(),
+                api_key: Secret::new(api_key.to_owned()),
+                key1: Secret::new(key1.to_owned()),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -437,7 +436,7 @@ impl TryFrom<&types::ConnectorAuthType> for MollieAuthType {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MollieCardTokenResponse {
-    card_token: String,
+    card_token: Secret<String>,
 }
 
 impl<F, T>
@@ -450,9 +449,9 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: storage_enums::AttemptStatus::Pending,
-            payment_method_token: Some(item.response.card_token.clone()),
+            payment_method_token: Some(item.response.card_token.clone().expose()),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
-                token: item.response.card_token,
+                token: item.response.card_token.expose(),
             }),
             ..item.data
         })
