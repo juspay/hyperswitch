@@ -21,6 +21,7 @@ mod checkout;
 mod checkout_ui;
 mod coinbase;
 mod connector_auth;
+mod cryptopay;
 mod cybersource;
 mod dlocal;
 #[cfg(feature = "dummy_connector")]
@@ -33,6 +34,7 @@ mod iatapay;
 mod mollie;
 mod mollie_ui;
 mod multisafepay;
+mod multisafepay_ui;
 mod nexinets;
 mod nmi;
 mod noon;
