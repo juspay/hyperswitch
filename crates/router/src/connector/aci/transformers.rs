@@ -300,7 +300,6 @@ pub enum InstructionType {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "UPPERCASE")]
 pub enum InstructionSource {
     #[serde(rename = "CIT")]
     CardholderInitiatedTransaction,
