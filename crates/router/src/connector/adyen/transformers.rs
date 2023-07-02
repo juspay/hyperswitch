@@ -1887,6 +1887,7 @@ pub fn get_redirection_response(
     let status =
         storage_enums::AttemptStatus::foreign_from((is_manual_capture, response.result_code));
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
+        
         Some(types::ErrorResponse {
             code: response
                 .refusal_reason_code
