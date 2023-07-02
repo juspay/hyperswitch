@@ -521,7 +521,7 @@ pub enum PayLaterData {
     },
     PayBrightRedirect {},
     WalleyRedirect {},
-    AtomeRedirect {}
+    AtomeRedirect {},
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
