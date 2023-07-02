@@ -130,6 +130,52 @@ async fn should_make_mollie_giropay_payment(web_driver: WebDriver) -> Result<(),
     Ok(())
 }
 
+async fn should_make_mollie_bancontact_card_payment(c: WebDriver) -> Result<(), WebDriverError> {
+    let conn = MollieSeleniumTest {};
+    conn.make_redirection_payment(
+        c,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/86"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("Test profile")),
+            Event::Trigger(Trigger::Click(By::Css("input[value='paid']"))),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button[class='button form__button']",
+            ))),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::Contains(
+                Selector::QueryParamStr,
+                "status=succeeded",
+            )),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_mollie_przelewy24_payment(c: WebDriver) -> Result<(), WebDriverError> {
+    let conn = MollieSeleniumTest {};
+    conn.make_redirection_payment(
+        c,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/87"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("Test profile")),
+            Event::Trigger(Trigger::Click(By::Css("input[value='paid']"))),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button[class='button form__button']",
+            ))),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::Contains(
+                Selector::QueryParamStr,
+                "status=succeeded",
+            )),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
 async fn should_make_mollie_3ds_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = MollieSeleniumTest {};
     conn.make_redirection_payment(
@@ -177,6 +223,18 @@ fn should_make_mollie_eps_payment_test() {
 #[serial]
 fn should_make_mollie_giropay_payment_test() {
     tester!(should_make_mollie_giropay_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_mollie_bancontact_card_payment_test() {
+    tester!(should_make_mollie_bancontact_card_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_mollie_przelewy24_payment_test() {
+    tester!(should_make_mollie_przelewy24_payment);
 }
 
 #[test]
