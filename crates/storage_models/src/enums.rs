@@ -677,6 +677,7 @@ pub enum PaymentMethodType {
     AliPay,
     AliPayHk,
     ApplePay,
+    Atome,
     Bacs,
     BancontactCard,
     Becs,

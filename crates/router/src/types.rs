@@ -826,7 +826,9 @@ impl RequestBody {
         T: std::fmt::Debug,
     {
         router_env::logger::info!(connector_request_body=?body);
-        Ok(Self(Secret::new(encoder(body)?)))
+        let encode = encoder(body)?;
+        crate::logger::debug!("aaaaaaaaaaa{:?}", encode);
+        Ok(Self(Secret::new(encode)))
     }
     pub fn get_inner_value(request_body: Self) -> Secret<String> {
         request_body.0

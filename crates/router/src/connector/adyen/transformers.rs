@@ -260,6 +260,7 @@ pub struct Amount {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
+#[serde(rename_all = "snake_case")]
 pub enum AdyenPaymentMethod<'a> {
     AdyenAffirm(Box<AdyenPayLaterData>),
     AdyenCard(Box<AdyenCard>),
@@ -724,8 +725,6 @@ pub struct AdyenApplePay {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AtomeData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenPayLaterData {
@@ -1329,7 +1328,6 @@ impl<'a> TryFrom<&api::PayLaterData> for AdyenPaymentMethod<'a> {
             }
             api_models::payments::PayLaterData::AtomeRedirect { .. } => {
                 Ok(AdyenPaymentMethod::Atome(Box::new(AtomeData {
-                    payment_type: PaymentType::Atome,
                 })))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),

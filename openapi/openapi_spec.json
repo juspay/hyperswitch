@@ -5598,10 +5598,21 @@
           {
             "type": "object",
             "required": [
-              "walley"
+              "walley_redirect"
             ],
             "properties": {
-              "walley": {
+              "walley_redirect": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "atome_redirect"
+            ],
+            "properties": {
+              "atome_redirect": {
                 "type": "object"
               }
             }
