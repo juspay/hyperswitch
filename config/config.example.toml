@@ -276,7 +276,7 @@ from_email = "notify@example.com" # Sender email
 aws_region = "" # AWS region used by AWS SES
 base_url = "" # Base url used when adding links that should redirect to self
 
-#tokenization configuration which describe token lifetime and payment method for specific conector
+#tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet" }

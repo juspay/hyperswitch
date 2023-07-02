@@ -168,7 +168,7 @@ stream = "SCHEDULER_STREAM"
 disabled = false
 consumer_group = "SCHEDULER_GROUP"
 
-#tokenization configuration which describe token lifetime and payment method for specific conector
+#tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet" }
