@@ -37,7 +37,7 @@ async fn should_make_airwallex_3ds_payment(web_driver: WebDriver) -> Result<(), 
     Ok(())
 }
 
-async fn should_make_airwallex_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_airwallex_gpay_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AirwallexSeleniumTest {};
     let merchant_name = conn
         .get_configs()
@@ -45,7 +45,7 @@ async fn should_make_airwallex_gpay_payment(c: WebDriver) -> Result<(), WebDrive
         .unwrap()
         .airwallex_merchant_name
         .unwrap();
-    conn.make_gpay_payment(c,
+    conn.make_gpay_payment(web_driver,
         &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=airwallex&gatewaymerchantid={merchant_name}&amount=70.00&country=US&currency=USD"),
         vec![
             Event::Trigger(Trigger::Query(By::ClassName("title"))),
