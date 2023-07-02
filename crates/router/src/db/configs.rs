@@ -135,12 +135,9 @@ impl ConfigInterface for MockDb {
         let configs = self.configs.lock().await;
         let config = configs.iter().find(|c| c.key == key).cloned();
 
-        match config {
-            Some(c) => Ok(c),
-            None => {
-                Err(errors::StorageError::ValueNotFound("cannot find config".to_string()).into())
-            }
-        }
+        config.ok_or_else(|| {
+            errors::StorageError::ValueNotFound("cannot find config".to_string()).into()
+        })
     }
 
     async fn update_config_by_key(
@@ -148,62 +145,65 @@ impl ConfigInterface for MockDb {
         key: &str,
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        match self
+        let result = self
             .configs
             .lock()
             .await
             .iter_mut()
             .find(|c| c.key == key)
+            .ok_or_else(|| {
+                errors::StorageError::ValueNotFound("cannot find config to update".to_string())
+                    .into()
+            })
             .map(|c| {
                 let config_updated =
                     ConfigUpdateInternal::from(config_update).create_config(c.clone());
                 *c = config_updated.clone();
                 config_updated
-            }) {
-            Some(result) => Ok(result),
-            None => Err(errors::StorageError::ValueNotFound(
-                "cannot find config to update".to_string(),
-            )
-            .into()),
-        }
+            });
+
+        result
     }
     async fn update_config_cached(
         &self,
         key: &str,
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        match self
+        let result = self
             .configs
             .lock()
             .await
             .iter_mut()
             .find(|c| c.key == key)
+            .ok_or_else(|| {
+                errors::StorageError::ValueNotFound("cannot find config to update".to_string())
+                    .into()
+            })
             .map(|c| {
                 let config_updated =
                     ConfigUpdateInternal::from(config_update).create_config(c.clone());
                 *c = config_updated.clone();
                 config_updated
-            }) {
-            Some(result) => Ok(result),
-            None => Err(errors::StorageError::ValueNotFound(
-                "cannot find config to update".to_string(),
-            )
-            .into()),
-        }
+            });
+
+        result
     }
 
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
         let mut configs = self.configs.lock().await;
-        match configs.iter().position(|c| c.key == key) {
-            Some(index) => {
-                let deleted_config = configs.remove(index);
-                Ok(true)
-            }
-            None => Err(errors::StorageError::ValueNotFound(
-                "cannot find config to delete".to_string(),
-            )
-            .into()),
-        }
+        let result = configs
+            .iter()
+            .position(|c| c.key == key)
+            .map(|index| {
+                configs.remove(index);
+                true
+            })
+            .ok_or_else(|| {
+                errors::StorageError::ValueNotFound("cannot find config to delete".to_string())
+                    .into()
+            });
+
+        result
     }
 
     async fn find_config_by_key_cached(
@@ -213,11 +213,8 @@ impl ConfigInterface for MockDb {
         let configs = self.configs.lock().await;
         let config = configs.iter().find(|c| c.key == key).cloned();
 
-        match config {
-            Some(c) => Ok(c),
-            None => {
-                Err(errors::StorageError::ValueNotFound("cannot find config".to_string()).into())
-            }
-        }
+        config.ok_or_else(|| {
+            errors::StorageError::ValueNotFound("cannot find config".to_string()).into()
+        })
     }
 }
