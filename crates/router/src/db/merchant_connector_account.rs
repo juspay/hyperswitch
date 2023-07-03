@@ -559,6 +559,11 @@ impl MerchantConnectorAccountInterface for MockDb {
 
 #[cfg(test)]
 mod merchant_connector_account_cache_tests {
+    use api_models::enums::CountryAlpha2;
+    use common_utils::date_time;
+    use error_stack::ResultExt;
+    use storage_models::enums::ConnectorType;
+
     use crate::{
         cache::{CacheKind, ACCOUNTS_CACHE},
         core::errors,
@@ -572,10 +577,6 @@ mod merchant_connector_account_cache_tests {
             storage,
         },
     };
-    use api_models::enums::CountryAlpha2;
-    use common_utils::date_time;
-    use error_stack::ResultExt;
-    use storage_models::enums::ConnectorType;
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
