@@ -198,6 +198,8 @@ pub enum ApiErrorResponse {
     MissingFilePurpose,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "File content type not found / valid")]
     MissingFileContentType,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_05", message = "{message}")]
+    GenericNotFoundError { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::ObjectNotFound, code = "WE_04", message = "Webhook resource not found")]
@@ -437,6 +439,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::AddressNotFound => {
                 AER::NotFound(ApiError::new("HE", 4, "Address does not exist in our records", None))
+            },
+            Self::GenericNotFoundError { message } => {
+                AER::NotFound(ApiError::new("HE", 5, message, None))
             },
             Self::ApiKeyNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "API Key does not exist in our records", None))

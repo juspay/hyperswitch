@@ -416,6 +416,7 @@ pub enum PaymentMethodType {
     Affirm,
     AfterpayClearpay,
     AliPay,
+    AliPayHk,
     ApplePay,
     Bacs,
     BancontactCard,
@@ -447,6 +448,7 @@ pub enum PaymentMethodType {
     Sofort,
     Swish,
     Trustly,
+    UpiCollect,
     Walley,
     WeChatPay,
 }
@@ -478,6 +480,7 @@ pub enum PaymentMethod {
     Crypto,
     BankDebit,
     Reward,
+    Upi,
 }
 
 #[derive(
@@ -969,4 +972,24 @@ pub struct UnresolvedResponseReason {
     pub code: String,
     /// A message to merchant to give hint on next action he/she should do to resolve
     pub message: String,
+}
+
+#[derive(
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    Clone,
+    PartialEq,
+    Eq,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RetryAction {
+    /// Payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted
+    ManualRetry,
+    /// Denotes that the payment is requeued
+    Requeue,
 }
