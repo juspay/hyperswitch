@@ -2,8 +2,9 @@ use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
 use error_stack::{IntoReport, ResultExt};
 
 use super::{MockDb, Store};
+#[cfg(feature = "accounts_cache")]
+use crate::cache::{self, ACCOUNTS_CACHE};
 use crate::{
-    cache::{self, ACCOUNTS_CACHE},
     connection,
     core::errors::{self, CustomResult},
     services::logger,
