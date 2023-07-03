@@ -456,6 +456,7 @@ where
                         ))
                         .set_connector_transaction_id(payment_attempt.connector_transaction_id)
                         .set_feature_metadata(payment_intent.feature_metadata)
+                        .set_connector_metadata(payment_intent.connector_metadata)
                         .to_owned(),
                 )
             }
@@ -504,6 +505,9 @@ where
             ),
             order_details: payment_intent.order_details,
             connector_transaction_id: payment_attempt.connector_transaction_id,
+            feature_metadata: payment_intent.feature_metadata,
+            connector_metadata: payment_intent.connector_metadata,
+            allowed_payment_method_types: payment_intent.allowed_payment_method_types,
             ..Default::default()
         }),
     });
