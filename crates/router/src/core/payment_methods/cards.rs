@@ -1562,12 +1562,18 @@ pub async fn list_customer_payment_method(
     state: &routes::AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    customer_id: &str,
+    req: api::PaymentMethodListRequest,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
-
+    let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
+        db,
+        &merchant_account,
+        req.client_secret.clone(),
+    )
+    .await?;
+    let customer_id = payment_intent.and_then(|intent| (intent.customer_id)).ok_or(errors::ApiErrorResponse::PaymentMethodNotFound)?;
     db.find_customer_by_customer_id_merchant_id(
-        customer_id,
+        customer_id.as_str(),
         &merchant_account.merchant_id,
         &key_store,
     )
@@ -1576,7 +1582,7 @@ pub async fn list_customer_payment_method(
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_list(
-            customer_id,
+            customer_id.as_str(),
             &merchant_account.merchant_id,
         )
         .await

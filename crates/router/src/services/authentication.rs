@@ -13,6 +13,7 @@ use crate::{
     core::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
+        payments::helpers,
     },
     db::StorageInterface,
     routes::app::AppStateInfo,
@@ -416,9 +417,64 @@ where
         }
         .into());
     }
-
     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
+
+// pub async fn check_client_secret_and_get_auth_customer<T>(
+//     headers: &HeaderMap,
+//     payload: &PaymentMethodListRequest,
+//     customer_id: &str,
+//     state:T,
+// ) -> RouterResult<(
+//     Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
+//     api::AuthFlow,
+// )>
+// where
+//     T: AppStateInfo,
+//     ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+//     PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+// {
+//     let api_key = get_api_key(headers)?;
+//     if api_key.starts_with("pk_") {
+//         payload
+//             .get_client_secret()
+//             .check_value_present("client_secret")
+//             .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
+//                 field_name: "client_secret",
+//             })?;
+//         let db = &*state.store();
+//         let auth_data = ApiKeyAuth.authenticate_and_fetch(&headers, &state)
+//                 .await
+//                 .map_err(|err| print!("{}",err));
+//         // let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
+//         //                 db,
+//         //                 &auth_data.merchant_account,
+//         //                 payload.client_secret.clone(),
+//         //             ).await.ok().flatten();
+//         // match payment_intent {
+//         //     Some(intent) => {
+//         //         match intent.customer_id {
+//         //             Some(customer) =>
+//         //                 if customer.ne(customer_id) {
+//         //                     return Err(report!(errors::ApiErrorResponse::ClientSecretInvalid));
+//         //                     }
+//         //                 else { return Ok((Box::new(PublishableKeyAuth), api::AuthFlow::Client));}
+//         //             None => return Err(error_stack::report!(errors::ApiErrorResponse::ClientSecretInvalid)),
+//         //         }
+//         //     }
+//         //     None => return Err(error_stack::report!(errors::ApiErrorResponse::ClientSecretInvalid)),
+//         // }
+//     }
+//     if payload.get_client_secret().is_some() {
+//         return Err(errors::ApiErrorResponse::InvalidRequestData {
+//             message: "client_secret is not a valid parameter".to_owned(),
+//         }
+//         .into());
+//     }
+
+//     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
+// }
+
 
 pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
     headers: &HeaderMap,
