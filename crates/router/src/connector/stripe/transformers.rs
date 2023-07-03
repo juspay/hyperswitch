@@ -2407,6 +2407,7 @@ pub struct WebhookStatusObjectData {
 #[serde(rename_all = "snake_case")]
 pub enum WebhookPaymentMethodType {
     AchCreditTransfer,
+    MultibancoBankTransfers,
     #[serde(other)]
     Unknown,
 }

@@ -1775,7 +1775,9 @@ impl api::IncomingWebhook for Stripe {
             }
             stripe::WebhookEventType::ChargeSucceeded => {
                 if let Some(stripe::WebhookPaymentMethodDetails {
-                    payment_method: stripe::WebhookPaymentMethodType::AchCreditTransfer,
+                    payment_method:
+                        stripe::WebhookPaymentMethodType::AchCreditTransfer
+                        | stripe::WebhookPaymentMethodType::MultibancoBankTransfers,
                 }) = details.event_data.event_object.payment_method_details
                 {
                     api::IncomingWebhookEvent::PaymentIntentSuccess
