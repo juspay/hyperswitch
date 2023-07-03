@@ -151,6 +151,10 @@ pub fn to_currency_base_unit_asf64(
     Ok(amount)
 }
 
-pub fn get_payment_attempt_id(payment_id: String, attempt_count: i16) -> String {
+#[inline]
+pub fn get_payment_attempt_id(
+    payment_id: impl AsRef<str> + std::fmt::Display,
+    attempt_count: i16,
+) -> String {
     format!("{payment_id}_{attempt_count}")
 }
