@@ -324,6 +324,7 @@ pub trait SeleniumTest {
         if config.run_minimum_steps.unwrap() {
             self.complete_actions(&c, actions[..3].to_vec()).await
         } else {
+            println!("Run all steps");
             self.complete_actions(&c, actions).await
         }
     }

@@ -366,6 +366,7 @@ async fn should_make_stripe_becs_bank_debit_payment(c: WebDriver) -> Result<(), 
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/56"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("Status")),
             Event::Assert(Assert::IsPresent("processing")),
         ],
     )
@@ -380,6 +381,7 @@ async fn should_make_stripe_sepa_bank_debit_payment(c: WebDriver) -> Result<(), 
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/67"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("Status")),
             Event::Assert(Assert::IsPresent("processing")),
         ],
     )
