@@ -863,7 +863,7 @@ pub async fn list_payment_methods(
 
     let mut required_fields_hm = HashMap::<
         api_enums::PaymentMethod,
-        HashMap<api_enums::PaymentMethodType, Vec<RequiredFieldInfo>>,
+        HashMap<api_enums::PaymentMethodType, HashSet<RequiredFieldInfo>>,
     >::new();
 
     for element in response.clone() {
@@ -891,19 +891,21 @@ pub async fn list_payment_methods(
                             .fields
                             .get(&connector_variant)
                             .map(|required_fields_vec| {
-                                // If payment_ method_type already exist in required_fields_hm, extend the required_fields vec to existing vec.
-                                let existing_req_fields_vec = required_fields_hm
+                                // If payment_method_type already exist in required_fields_hm, extend the required_fields hs to existing hs.
+                                let required_fields_hs =
+                                    HashSet::from_iter(required_fields_vec.iter().cloned());
+                                let existing_req_fields_hs = required_fields_hm
                                     .get_mut(&payment_method)
                                     .map(|inner_hm| inner_hm.get_mut(&payment_method_type))
-                                    .and_then(|vec| vec);
-                                if let Some(vec) = existing_req_fields_vec {
-                                    vec.extend(required_fields_vec.clone().into_iter());
-                                }
+                                    .and_then(|hs: Option<&mut HashSet<RequiredFieldInfo>>| hs);
 
-                                required_fields_hm.get_mut(&payment_method).map(|inner_hm| {
-                                    inner_hm
-                                        .insert(payment_method_type, required_fields_vec.clone())
-                                });
+                                if let Some(inner_hs) = existing_req_fields_hs {
+                                    inner_hs.extend(required_fields_hs);
+                                } else {
+                                    required_fields_hm.get_mut(&payment_method).map(|inner_hm| {
+                                        inner_hm.insert(payment_method_type, required_fields_hs)
+                                    });
+                                }
                             })
                     })
             },
@@ -1041,7 +1043,7 @@ pub async fn list_payment_methods(
                 required_fields: required_fields_hm
                     .get(key.0)
                     .map(|inner_hm| inner_hm.get(payment_method_types_hm.0))
-                    .and_then(|vec| vec)
+                    .and_then(|hs| hs)
                     .cloned(),
             })
         }
@@ -1074,7 +1076,7 @@ pub async fn list_payment_methods(
                 required_fields: required_fields_hm
                     .get(key.0)
                     .map(|inner_hm| inner_hm.get(payment_method_types_hm.0))
-                    .and_then(|vec| vec)
+                    .and_then(|hs| hs)
                     .cloned(),
             })
         }
@@ -1103,7 +1105,7 @@ pub async fn list_payment_methods(
                 required_fields: required_fields_hm
                     .get(&api_enums::PaymentMethod::BankRedirect)
                     .map(|payment_method_type_hm| payment_method_type_hm.get(key.0))
-                    .and_then(|vec| vec)
+                    .and_then(|hs| hs)
                     .cloned(),
             }
         })
@@ -1135,7 +1137,7 @@ pub async fn list_payment_methods(
                 required_fields: required_fields_hm
                     .get(&api_enums::PaymentMethod::BankDebit)
                     .map(|payment_method_type_hm| payment_method_type_hm.get(key.0))
-                    .and_then(|vec| vec)
+                    .and_then(|hs| hs)
                     .cloned(),
             }
         })
@@ -1167,7 +1169,7 @@ pub async fn list_payment_methods(
                 required_fields: required_fields_hm
                     .get(&api_enums::PaymentMethod::BankTransfer)
                     .map(|payment_method_type_hm| payment_method_type_hm.get(key.0))
-                    .and_then(|vec| vec)
+                    .and_then(|hs| hs)
                     .cloned(),
             }
         })

@@ -985,6 +985,7 @@ pub struct UnresolvedResponseReason {
     strum::Display,
     strum::EnumString,
     ToSchema,
+    Hash,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]

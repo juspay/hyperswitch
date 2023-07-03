@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use cards::CardNumber;
 use common_utils::{crypto::OptionalEncryptableName, pii};
 use serde::de;
@@ -209,11 +211,11 @@ pub struct ResponsePaymentMethodTypes {
     pub bank_transfers: Option<BankTransferTypes>,
 
     /// Required fields for the payment_method_type.
-    pub required_fields: Option<Vec<RequiredFieldInfo>>,
+    pub required_fields: Option<HashSet<RequiredFieldInfo>>,
 }
 
 /// Required fields info used while listing the payment_method_data
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema, Hash)]
 pub struct RequiredFieldInfo {
     /// Required field for a payment_method through a payment_method_type
     pub required_field: String,
