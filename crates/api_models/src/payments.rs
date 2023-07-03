@@ -1433,6 +1433,9 @@ pub struct PaymentsResponse {
     /// ephemeral_key for the customer_id mentioned
     pub ephemeral_key: Option<EphemeralKeyCreateResponse>,
 
+    /// If true the payment can be retried with same or different payment method which means the confirm call can be made again.
+    pub manual_retry_allowed: Option<bool>,
+
     /// Any user defined fields can be passed here.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub udf: Option<pii::SecretSerdeValue>,
