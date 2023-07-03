@@ -1,5 +1,5 @@
 use cards::CardNumber;
-use common_utils::pii;
+use common_utils::{crypto::OptionalEncryptableName, pii};
 use serde::de;
 use utoipa::ToSchema;
 
@@ -441,6 +441,9 @@ pub struct PaymentMethodListResponse {
     /// Value indicating if the current payment is a mandate payment
     #[schema(value_type = MandateType)]
     pub mandate_payment: Option<payments::MandateType>,
+
+    #[schema(value_type = Option<String>)]
+    pub merchant_name: OptionalEncryptableName,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
