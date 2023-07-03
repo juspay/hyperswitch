@@ -55,6 +55,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
                 payment_id: api::PaymentIdType::PaymentIntentId(validation_id),
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }

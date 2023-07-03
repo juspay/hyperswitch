@@ -293,7 +293,7 @@ pub struct RequestPaymentMethodTypes {
 }
 
 //List Payment Method
-#[derive(Debug, serde::Serialize, Default, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodListRequest {
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
@@ -543,7 +543,7 @@ pub struct CustomerPaymentMethod {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
 }
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodId {
     pub payment_method_id: String,
 }

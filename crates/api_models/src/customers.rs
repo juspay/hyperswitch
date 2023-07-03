@@ -93,7 +93,7 @@ pub struct CustomerResponse {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
-#[derive(Default, Debug, Deserialize, Serialize)]
+#[derive(Default, Clone, Debug, Deserialize, Serialize)]
 pub struct CustomerId {
     pub customer_id: String,
 }

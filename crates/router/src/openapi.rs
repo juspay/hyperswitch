@@ -152,6 +152,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::CountryAlpha2,
         api_models::enums::FrmAction,
         api_models::enums::FrmPreferredFlowTypes,
+        api_models::enums::RetryAction,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::MerchantConnectorUpdate,
         api_models::admin::PrimaryBusinessDetails,
