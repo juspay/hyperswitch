@@ -14,6 +14,7 @@ use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
+    db::StorageInterface,
     headers, logger,
     services::{
         self,
@@ -24,7 +25,7 @@ use crate::{
         api::{self, ConnectorCommon},
         transformers::ForeignFrom,
     },
-    utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt}, db::StorageInterface,
+    utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt},
 };
 
 #[derive(Debug, Clone)]
@@ -823,7 +824,6 @@ impl api::IncomingWebhook for Adyen {
 
         Ok(message.into_bytes())
     }
-
 
     async fn verify_webhook_source(
         &self,

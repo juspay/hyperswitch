@@ -89,23 +89,20 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                 merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
-        .await
-        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
-        .attach_printable_lazy(|| {
-            crate::logger::warn!(
-                "Fetch  from MCA table failed {}",
-                debug_suffix
-            );
-            format!(
-                "Fetch merchant_webhook_secret from MCA table failed {}",
-                debug_suffix
-            )
-        })?;
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .attach_printable_lazy(|| {
+                crate::logger::warn!("Fetch  from MCA table failed {}", debug_suffix);
+                format!(
+                    "Fetch merchant_webhook_secret from MCA table failed {}",
+                    debug_suffix
+                )
+            })?;
         let merchant_connector_webhook_details = db
             .find_merchant_connector_account_by_merchant_id_connector_label(
                 merchant_id,
                 connector_label,
-                &key_store
+                &key_store,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)

@@ -742,7 +742,7 @@ pub async fn delete_payment_connector(
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &merchant_id,
             &merchant_connector_id,
-            &key_store
+            &key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
