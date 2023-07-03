@@ -595,6 +595,7 @@ pub enum StripeBankNames {
     Boz,
 }
 
+// This is used only for Disputes
 impl From<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
     fn from(value: WebhookEventStatus) -> Self {
         match value {
@@ -614,6 +615,7 @@ impl From<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
             | WebhookEventStatus::RequiresCapture
             | WebhookEventStatus::Canceled
             | WebhookEventStatus::Chargeable
+            | WebhookEventStatus::Failed
             | WebhookEventStatus::Unknown => Self::EventNotSupported,
         }
     }
@@ -964,7 +966,7 @@ fn get_bank_debit_data(
         } => {
             let bacs_data = BankDebitData::Bacs {
                 account_number: account_number.to_owned(),
-                sort_code: sort_code.to_owned(),
+                sort_code: Secret::new(sort_code.clone().expose().replace('-', "")),
             };
 
             let billing_data = StripeBillingAddress::from(billing_details);
@@ -2436,6 +2438,7 @@ pub enum WebhookEventObjectType {
     Dispute,
     Charge,
     Source,
+    Refund,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2464,12 +2467,14 @@ pub enum WebhookEventType {
     ChargePending,
     #[serde(rename = "charge.captured")]
     ChargeCaptured,
+    #[serde(rename = "charge.refund.updated")]
+    ChargeRefundUpdated,
     #[serde(rename = "charge.succeeded")]
     ChargeSucceeded,
     #[serde(rename = "charge.updated")]
     ChargeUpdated,
     #[serde(rename = "charge.refunded")]
-    ChanrgeRefunded,
+    ChargeRefunded,
     #[serde(rename = "payment_intent.canceled")]
     PaymentIntentCanceled,
     #[serde(rename = "payment_intent.created")]
@@ -2509,6 +2514,7 @@ pub enum WebhookEventStatus {
     RequiresCapture,
     Canceled,
     Chargeable,
+    Failed,
     #[serde(other)]
     Unknown,
 }
@@ -2638,14 +2644,14 @@ impl
                     )),
                 }
             }
-            api::PaymentMethodData::MandatePayment | api::PaymentMethodData::Crypto(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: format!("{pm_type:?}"),
-                    connector: "Stripe",
-                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                        .to_string(),
-                })?
-            }
+            api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{pm_type:?}"),
+                connector: "Stripe",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })?,
         }
     }
 }

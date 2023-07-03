@@ -243,7 +243,9 @@ impl Refunds {
 
         #[cfg(feature = "olap")]
         {
-            route = route.service(web::resource("/list").route(web::get().to(refunds_list)));
+            route = route
+                .service(web::resource("/list").route(web::post().to(refunds_list)))
+                .service(web::resource("/filter").route(web::post().to(refunds_filter_list)));
         }
         #[cfg(feature = "oltp")]
         {
@@ -410,8 +412,9 @@ impl Webhooks {
                     .route(
                         web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     )
+                    .route(web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>))
                     .route(
-                        web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                        web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     ),
             )
     }
@@ -424,6 +427,7 @@ impl Configs {
     pub fn server(config: AppState) -> Scope {
         web::scope("/configs")
             .app_data(web::Data::new(config))
+            .service(web::resource("/").route(web::post().to(config_key_create)))
             .service(
                 web::resource("/{key}")
                     .route(web::get().to(config_key_retrieve))
@@ -463,6 +467,10 @@ impl Disputes {
                 web::resource("/evidence")
                     .route(web::post().to(submit_dispute_evidence))
                     .route(web::put().to(attach_dispute_evidence)),
+            )
+            .service(
+                web::resource("/evidence/{dispute_id}")
+                    .route(web::get().to(retrieve_dispute_evidence)),
             )
             .service(web::resource("/{dispute_id}").route(web::get().to(retrieve_dispute)))
     }

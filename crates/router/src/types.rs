@@ -272,6 +272,8 @@ pub struct PaymentsPreProcessingData {
     pub amount: Option<i64>,
     pub email: Option<Email>,
     pub currency: Option<storage_enums::Currency>,
+    pub amount: Option<i64>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Clone)]
