@@ -15,6 +15,7 @@ use self::{
         GlobalpayRefreshTokenResponse,
     },
 };
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     connector::utils as conn_utils,
@@ -33,7 +34,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt, PaymentsCompleteAuthorize},
         ErrorResponse,
     },
-    utils::{self, crypto, BytesExt, OptionExt},
+    utils::{self, crypto, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -144,8 +145,10 @@ impl
     fn get_request_body(
         &self,
         _req: &types::PaymentsCompleteAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Ok(Some("{}".to_string()))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let globalpay_req = types::RequestBody::log_and_get_request_body("{}".to_string(), Ok)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(globalpay_req))
     }
 
     fn build_request(
@@ -248,11 +251,13 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn get_request_body(
         &self,
         req: &types::RefreshTokenRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = GlobalpayRefreshTokenRequest::try_from(req)?;
-        let globalpay_req =
-            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let globalpay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(globalpay_req))
     }
 
@@ -361,11 +366,13 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = requests::GlobalpayCancelRequest::try_from(req)?;
-        let globalpay_req =
-            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let globalpay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(globalpay_req))
     }
 
@@ -497,11 +504,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = requests::GlobalpayCaptureRequest::try_from(req)?;
-        let globalpay_req =
-            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let globalpay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(globalpay_req))
     }
 
@@ -584,11 +593,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = GlobalpayPaymentsRequest::try_from(req)?;
-        let globalpay_req =
-            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let globalpay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(globalpay_req))
     }
 
@@ -672,13 +683,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = requests::GlobalpayRefundRequest::try_from(req)?;
-        let globalpay_req =
-            utils::Encode::<requests::GlobalpayRefundRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let globalpay_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<requests::GlobalpayRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(globalpay_req))
     }
 
@@ -744,13 +755,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let refund_id = req
-            .response
-            .clone()
-            .ok()
-            .get_required_value("response")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
-            .connector_refund_id;
+        let refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
             "{}transactions/{}",
             self.base_url(connectors),

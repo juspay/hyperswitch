@@ -63,10 +63,9 @@ pub async fn retrieve_merchant_account(
     mid: web::Path<String>,
 ) -> HttpResponse {
     let flow = Flow::MerchantsAccountRetrieve;
-    let payload = web::Json(admin::MerchantId {
-        merchant_id: mid.into_inner(),
-    })
-    .into_inner();
+    let merchant_id = mid.into_inner();
+    let payload = web::Json(admin::MerchantId { merchant_id }).into_inner();
+
     api::server_wrap(
         flow,
         state.get_ref(),
@@ -137,13 +136,13 @@ pub async fn delete_merchant_account(
     mid: web::Path<String>,
 ) -> HttpResponse {
     let flow = Flow::MerchantsAccountDelete;
-    let payload = web::Json(admin::MerchantId {
-        merchant_id: mid.into_inner(),
-    })
-    .into_inner();
+    let mid = mid.into_inner();
+    let state = state.get_ref();
+
+    let payload = web::Json(admin::MerchantId { merchant_id: mid }).into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, _, req| merchant_account_delete(&*state.store, req.merchant_id),
@@ -219,6 +218,7 @@ pub async fn payment_connector_retrieve(
         merchant_connector_id,
     })
     .into_inner();
+
     api::server_wrap(
         flow,
         state.get_ref(),
@@ -258,6 +258,7 @@ pub async fn payment_connector_list(
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsList;
     let merchant_id = path.into_inner();
+
     api::server_wrap(
         flow,
         state.get_ref(),
@@ -298,6 +299,7 @@ pub async fn payment_connector_update(
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsUpdate;
     let (merchant_id, merchant_connector_id) = path.into_inner();
+
     api::server_wrap(
         flow,
         state.get_ref(),
@@ -338,6 +340,7 @@ pub async fn payment_connector_delete(
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsDelete;
     let (merchant_id, merchant_connector_id) = path.into_inner();
+
     let payload = web::Json(admin::MerchantConnectorId {
         merchant_id,
         merchant_connector_id,
@@ -369,6 +372,7 @@ pub async fn merchant_account_toggle_kv(
     let flow = Flow::ConfigKeyUpdate;
     let payload = json_payload.into_inner();
     let merchant_id = path.into_inner();
+
     api::server_wrap(
         flow,
         state.get_ref(),
@@ -393,6 +397,7 @@ pub async fn merchant_account_kv_status(
 ) -> HttpResponse {
     let flow = Flow::ConfigKeyFetch;
     let merchant_id = path.into_inner();
+
     api::server_wrap(
         flow,
         state.get_ref(),

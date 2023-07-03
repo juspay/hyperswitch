@@ -63,7 +63,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         algorithm
-            .decode_message(&secret, message)
+            .decode_message(&secret, message.into())
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
     }
 
@@ -84,10 +84,28 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             "For merchant_id: {}, and connector_label: {}",
             merchant_id, connector_label
         );
+        let key_store = db
+            .get_merchant_key_store_by_merchant_id(
+                merchant_id,
+                &db.get_master_key().to_vec().into(),
+            )
+        .await
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+        .attach_printable_lazy(|| {
+            crate::logger::warn!(
+                "Fetch  from MCA table failed {}",
+                debug_suffix
+            );
+            format!(
+                "Fetch merchant_webhook_secret from MCA table failed {}",
+                debug_suffix
+            )
+        })?;
         let merchant_connector_webhook_details = db
             .find_merchant_connector_account_by_merchant_id_connector_label(
                 merchant_id,
                 connector_label,
+                &key_store
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)

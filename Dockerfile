@@ -1,4 +1,4 @@
-FROM rust:slim as builder
+FROM rust:slim-bookworm as builder
 
 ARG EXTRA_FEATURES=""
 
@@ -36,7 +36,7 @@ RUN cargo build --release --features release ${EXTRA_FEATURES}
 
 
 
-FROM debian
+FROM debian:bookworm-slim
 
 # Placing config and binary executable in different directories
 ARG CONFIG_DIR=/local/config

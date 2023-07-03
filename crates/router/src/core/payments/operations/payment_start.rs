@@ -33,8 +33,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         _request: &api::PaymentsStartRequest,
-        _mandate_type: Option<api::MandateTxnType>,
+        _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
+        mechant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
         PaymentData<F>,
@@ -81,7 +82,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             None,
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
+            mechant_key_store,
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
@@ -89,7 +91,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             None,
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
+            mechant_key_store,
         )
         .await?;
 
@@ -157,11 +160,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
     async fn update_trackers<'b>(
         &'b self,
         _db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsStartRequest>,
         PaymentData<F>,
@@ -199,6 +202,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentS
                 payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }
@@ -216,7 +220,7 @@ where
         db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
-        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsStartRequest>,
@@ -229,7 +233,8 @@ where
             db,
             payment_data,
             request,
-            merchant_id,
+            &key_store.merchant_id,
+            key_store,
         )
         .await
     }
@@ -237,14 +242,14 @@ where
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
-        state: &'a AppState,
-        payment_data: &mut PaymentData<F>,
+        _state: &'a AppState,
+        _payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
         Option<api::PaymentMethodData>,
     )> {
-        helpers::make_pm_data(Box::new(self), state, payment_data).await
+        Ok((Box::new(self), None))
     }
 
     async fn get_connector<'a>(
@@ -253,6 +258,7 @@ where
         state: &AppState,
         _request: &api::PaymentsStartRequest,
         _payment_intent: &storage::payment_intent::PaymentIntent,
+        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
     }

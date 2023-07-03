@@ -61,9 +61,9 @@ pub enum AttemptStatus {
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticationType {
     /// If the card is enrolled for 3DS authentication, the 3DS based authentication will be activated. The liability of chargeback shift to the issuer
-    #[default]
     ThreeDs,
     /// 3DS based authentication will not be activated. The liability of chargeback stays with the merchant.
+    #[default]
     NoThreeDs,
 }
 
@@ -230,6 +230,7 @@ pub enum Currency {
     PKR,
     PLN,
     QAR,
+    RON,
     RUB,
     SAR,
     SCR,
@@ -241,6 +242,7 @@ pub enum Currency {
     SVC,
     SZL,
     THB,
+    TRY,
     TTD,
     TWD,
     TZS,
@@ -414,15 +416,19 @@ pub enum PaymentMethodType {
     Affirm,
     AfterpayClearpay,
     AliPay,
+    AliPayHk,
     ApplePay,
     Bacs,
     BancontactCard,
     Becs,
     Blik,
+    #[serde(rename = "classic")]
+    ClassicReward,
     Credit,
     CryptoCurrency,
     Debit,
     Eps,
+    Evoucher,
     Giropay,
     GooglePay,
     Ideal,
@@ -437,10 +443,12 @@ pub enum PaymentMethodType {
     PayBright,
     Paypal,
     Przelewy24,
+    SamsungPay,
     Sepa,
     Sofort,
     Swish,
     Trustly,
+    UpiCollect,
     Walley,
     WeChatPay,
 }
@@ -471,6 +479,8 @@ pub enum PaymentMethod {
     BankTransfer,
     Crypto,
     BankDebit,
+    Reward,
+    Upi,
 }
 
 #[derive(
@@ -500,10 +510,13 @@ pub enum WalletIssuer {
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    serde::Deserialize,
+    serde::Serialize,
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum RefundStatus {
@@ -589,23 +602,24 @@ pub enum Connector {
     Bitpay,
     Bluesnap,
     Braintree,
+    Cashtocode,
     Checkout,
     Coinbase,
+    Cryptopay,
     Cybersource,
     Iatapay,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector1")]
-    #[strum(serialize = "dummyconnector1")]
+    #[serde(rename = "phonypay")]
+    #[strum(serialize = "phonypay")]
     DummyConnector1,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector2")]
-    #[strum(serialize = "dummyconnector2")]
+    #[serde(rename = "fauxpay")]
+    #[strum(serialize = "fauxpay")]
     DummyConnector2,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector3")]
-    #[strum(serialize = "dummyconnector3")]
+    #[serde(rename = "pretendpay")]
+    #[strum(serialize = "pretendpay")]
     DummyConnector3,
-    Opennode,
     Bambora,
     Dlocal,
     Fiserv,
@@ -618,7 +632,10 @@ pub enum Connector {
     Nmi,
     Noon,
     Nuvei,
+    // Opayo, added as template code for future usage
+    Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
+    // Payme,
     Paypal,
     Payu,
     Rapyd,
@@ -667,16 +684,16 @@ impl Connector {
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector1")]
-    #[strum(serialize = "dummyconnector1")]
+    #[serde(rename = "phonypay")]
+    #[strum(serialize = "phonypay")]
     DummyConnector1,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector2")]
-    #[strum(serialize = "dummyconnector2")]
+    #[serde(rename = "fauxpay")]
+    #[strum(serialize = "fauxpay")]
     DummyConnector2,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector3")]
-    #[strum(serialize = "dummyconnector3")]
+    #[serde(rename = "pretendpay")]
+    #[strum(serialize = "pretendpay")]
     DummyConnector3,
     Aci,
     Adyen,
@@ -686,8 +703,10 @@ pub enum RoutableConnectors {
     Bambora,
     Bluesnap,
     Braintree,
+    Cashtocode,
     Checkout,
     Coinbase,
+    Cryptopay,
     Cybersource,
     Dlocal,
     Fiserv,
@@ -701,8 +720,10 @@ pub enum RoutableConnectors {
     Nmi,
     Noon,
     Nuvei,
+    // Opayo, added as template code for future usage
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
+    // Payme,
     Paypal,
     Payu,
     Rapyd,
@@ -735,7 +756,6 @@ pub enum BankNames {
     AmericanExpress,
     BankOfAmerica,
     Barclays,
-    #[serde(rename = "BLIK - PSP")]
     BlikPSP,
     CapitalOne,
     Chase,
@@ -764,20 +784,16 @@ pub enum BankNames {
     Bank99Ag,
     BankhausCarlSpangler,
     BankhausSchelhammerUndSchatteraAg,
-    #[serde(rename = "Bank Millennium")]
     BankMillennium,
-    #[serde(rename = "Bank PEKAO S.A.")]
     BankPEKAOSA,
     BawagPskAg,
     BksBankAg,
     BrullKallmusBankAg,
     BtvVierLanderBank,
     CapitalBankGraweGruppeAg,
-    #[serde(rename = "Česká spořitelna")]
     CeskaSporitelna,
     Dolomitenbank,
     EasybankAg,
-    #[serde(rename = "ePlatby VÚB")]
     EPlatbyVUB,
     ErsteBankUndSparkassen,
     FrieslandBank,
@@ -787,56 +803,38 @@ pub enum BankNames {
     HypoTirolBankAg,
     HypoVorarlbergBankAg,
     HypoBankBurgenlandAktiengesellschaft,
-    #[serde(rename = "Komercní banka")]
     KomercniBanka,
-    #[serde(rename = "mBank - mTransfer")]
     MBank,
     MarchfelderBank,
     OberbankAg,
     OsterreichischeArzteUndApothekerbank,
-    #[serde(rename = "Pay with ING")]
     PayWithING,
-    #[serde(rename = "Płacę z iPKO")]
     PlaceZIPKO,
-    #[serde(rename = "Płatność online kartą płatniczą")]
     PlatnoscOnlineKartaPlatnicza,
     PosojilnicaBankEGen,
-    #[serde(rename = "Poštová banka")]
     PostovaBanka,
     RaiffeisenBankengruppeOsterreich,
     SchelhammerCapitalBankAg,
     SchoellerbankAg,
     SpardaBankWien,
     SporoPay,
-    #[serde(rename = "Santander-Przelew24")]
     SantanderPrzelew24,
     TatraPay,
     Viamo,
     VolksbankGruppe,
     VolkskreditbankAg,
     VrBankBraunau,
-    #[serde(rename = "Pay with Alior Bank")]
     PayWithAliorBank,
-    #[serde(rename = "Banki Spółdzielcze")]
     BankiSpoldzielcze,
-    #[serde(rename = "Pay with Inteligo")]
     PayWithInteligo,
-    #[serde(rename = "BNP Paribas Poland")]
     BNPParibasPoland,
-    #[serde(rename = "Bank Nowy S.A.")]
     BankNowySA,
-    #[serde(rename = "Credit Agricole")]
     CreditAgricole,
-    #[serde(rename = "Pay with BOŚ")]
     PayWithBOS,
-    #[serde(rename = "Pay with CitiHandlowy")]
     PayWithCitiHandlowy,
-    #[serde(rename = "Pay with Plus Bank")]
     PayWithPlusBank,
-    #[serde(rename = "Toyota Bank")]
     ToyotaBank,
     VeloBank,
-    #[serde(rename = "e-transfer Pocztowy24")]
     ETransferPocztowy24,
     PlusBank,
     EtransferPocztowy24,
@@ -974,4 +972,24 @@ pub struct UnresolvedResponseReason {
     pub code: String,
     /// A message to merchant to give hint on next action he/she should do to resolve
     pub message: String,
+}
+
+#[derive(
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    Clone,
+    PartialEq,
+    Eq,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RetryAction {
+    /// Payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted
+    ManualRetry,
+    /// Denotes that the payment is requeued
+    Requeue,
 }

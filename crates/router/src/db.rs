@@ -98,40 +98,48 @@ impl StorageInterface for Store {}
 #[derive(Clone)]
 pub struct MockDb {
     addresses: Arc<Mutex<Vec<storage::Address>>>,
+    configs: Arc<Mutex<Vec<storage::Config>>>,
     merchant_accounts: Arc<Mutex<Vec<storage::MerchantAccount>>>,
     merchant_connector_accounts: Arc<Mutex<Vec<storage::MerchantConnectorAccount>>>,
     payment_attempts: Arc<Mutex<Vec<storage::PaymentAttempt>>>,
     payment_intents: Arc<Mutex<Vec<storage::PaymentIntent>>>,
+    payment_methods: Arc<Mutex<Vec<storage::PaymentMethod>>>,
     customers: Arc<Mutex<Vec<storage::Customer>>>,
     refunds: Arc<Mutex<Vec<storage::Refund>>>,
     processes: Arc<Mutex<Vec<storage::ProcessTracker>>>,
     connector_response: Arc<Mutex<Vec<storage::ConnectorResponse>>>,
     redis: Arc<redis_interface::RedisConnectionPool>,
     api_keys: Arc<Mutex<Vec<storage::ApiKey>>>,
+    ephemeral_keys: Arc<Mutex<Vec<storage::EphemeralKey>>>,
     cards_info: Arc<Mutex<Vec<storage::CardInfo>>>,
     events: Arc<Mutex<Vec<storage::Event>>>,
     disputes: Arc<Mutex<Vec<storage::Dispute>>>,
     lockers: Arc<Mutex<Vec<storage::LockerMockUp>>>,
+    mandates: Arc<Mutex<Vec<storage::Mandate>>>,
 }
 
 impl MockDb {
     pub async fn new(redis: &crate::configs::settings::Settings) -> Self {
         Self {
             addresses: Default::default(),
+            configs: Default::default(),
             merchant_accounts: Default::default(),
             merchant_connector_accounts: Default::default(),
             payment_attempts: Default::default(),
             payment_intents: Default::default(),
+            payment_methods: Default::default(),
             customers: Default::default(),
             refunds: Default::default(),
             processes: Default::default(),
             connector_response: Default::default(),
             redis: Arc::new(crate::connection::redis_connection(redis).await),
             api_keys: Default::default(),
+            ephemeral_keys: Default::default(),
             cards_info: Default::default(),
             events: Default::default(),
             disputes: Default::default(),
             lockers: Default::default(),
+            mandates: Default::default(),
         }
     }
 }

@@ -368,7 +368,7 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     merchant_key_store (merchant_id) {
-        #[max_length = 255]
+        #[max_length = 64]
         merchant_id -> Varchar,
         key -> Bytea,
         created_at -> Timestamp,
@@ -430,6 +430,7 @@ diesel::table! {
         straight_through_algorithm -> Nullable<Jsonb>,
         preprocessing_step_id -> Nullable<Varchar>,
         mandate_details -> Nullable<Jsonb>,
+        error_reason -> Nullable<Text>,
     }
 }
 
@@ -476,6 +477,8 @@ diesel::table! {
         business_country -> CountryAlpha2,
         #[max_length = 64]
         business_label -> Varchar,
+        order_details -> Nullable<Array<Nullable<Jsonb>>>,
+        udf -> Nullable<Jsonb>,
     }
 }
 
