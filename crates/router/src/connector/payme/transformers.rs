@@ -167,7 +167,7 @@ impl TryFrom<&PaymentMethodData> for SalePyamentMethod {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymePaymentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let payme_request = if value.request.is_mandate_payment() {
+        let payme_request = if value.request.mandate_id.is_some() {
             Self::MandateRequest(MandateRequest::try_from(value)?)
         } else {
             Self::PayRequest(PayRequest::try_from(value)?)

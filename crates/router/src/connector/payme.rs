@@ -6,8 +6,6 @@ use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use transformers as payme;
-
-use super::utils::PaymentsAuthorizeRequestData;
 use crate::{
     configs::settings,
     connector::utils as conn_utils,
@@ -220,7 +218,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         router_data: &mut types::PaymentsAuthorizeRouterData,
         app_state: &routes::AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
-        if !router_data.request.is_mandate_payment() {
+        if !router_data.request.mandate_id.is_some() {
             let integ: Box<
                 &(dyn ConnectorIntegration<
                     api::InitPayment,
@@ -264,7 +262,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.is_mandate_payment() {
+        if req.request.mandate_id.is_some() {
             // For recurring mandate payments
             Ok(format!("{}api/generate-sale", self.base_url(connectors)))
         } else {
@@ -277,7 +275,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = payme::PayRequest::try_from(req)?;
+        let req_obj = payme::PaymePaymentRequest::try_from(req)?;
         let payme_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<payme::PayRequest>::encode_to_string_of_json,
