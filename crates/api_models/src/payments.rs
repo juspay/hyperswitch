@@ -279,19 +279,14 @@ pub struct PaymentsRequest {
     #[serde(default)]
     pub manual_retry: bool,
 
-    /// Information about the order category that merchant wants to specify at connector level. (e.g. In Noon Payments it can take values like "pay", "food", or any other custom string set by the merchant in Noon's Dashboard)
-    pub order_category: Option<String>,
-
-    /// Redirection response coming in request as metadata field only for redirection scenarios
-    #[schema(value_type = Option<RedirectResponse>)]
-    pub redirect_response: Option<RedirectResponse>,
-
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
+    /// additional data related to some connectors
     pub connector_metadata: Option<ConnectorMetadata>,
 
+    /// additional data that might be required by hyperswitch
     pub feature_metadata: Option<FeatureMetadata>,
 }
 
@@ -1418,13 +1413,15 @@ pub struct PaymentsResponse {
     /// ephemeral_key for the customer_id mentioned
     pub ephemeral_key: Option<EphemeralKeyCreateResponse>,
 
-    /// Any user defined fields can be passed here.
-    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
-    pub udf: Option<pii::SecretSerdeValue>,
-
     /// A unique identifier for a payment provided by the connector
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub connector_transaction_id: Option<String>,
+
+    /// additional data related to some connectors
+    pub connector_metadata: Option<serde_json::Value>,
+
+    /// additional data that might be required by hyperswitch
+    pub feature_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
@@ -2054,8 +2051,13 @@ pub struct PaymentsStartRequest {
     pub attempt_id: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct FeatureMetadata {}
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct FeatureMetadata {
+    /// Redirection response coming in request as metadata field only for redirection scenarios
+    #[schema(value_type = Option<RedirectResponse>)]
+    #[serde(skip_deserializing)]
+    pub redirect_response: Option<RedirectResponse>,
+}
 
 mod payment_id_type {
     use std::fmt;
