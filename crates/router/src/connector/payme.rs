@@ -6,6 +6,7 @@ use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use transformers as payme;
+
 use crate::{
     configs::settings,
     connector::utils as conn_utils,
@@ -218,7 +219,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         router_data: &mut types::PaymentsAuthorizeRouterData,
         app_state: &routes::AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
-        if !router_data.request.mandate_id.is_some() {
+        if router_data.request.mandate_id.is_none() {
             let integ: Box<
                 &(dyn ConnectorIntegration<
                     api::InitPayment,
