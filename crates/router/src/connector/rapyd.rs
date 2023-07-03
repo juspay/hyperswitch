@@ -813,14 +813,21 @@ impl api::IncomingWebhook for Rapyd {
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
         Ok(match webhook.data {
-            transformers::WebhookData::PaymentData(payment_data) => {
+            transformers::WebhookData::Payment(payment_data) => {
                 api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(payment_data.id),
                 )
             }
-            transformers::WebhookData::RefundData(refund_data) => {
+            transformers::WebhookData::Refund(refund_data) => {
                 api_models::webhooks::ObjectReferenceId::RefundId(
                     api_models::webhooks::RefundIdType::ConnectorRefundId(refund_data.id),
+                )
+            }
+            transformers::WebhookData::Dispute(dispute_data) => {
+                api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        dispute_data.original_transaction_id,
+                    ),
                 )
             }
         })
@@ -834,8 +841,32 @@ impl api::IncomingWebhook for Rapyd {
             .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-
-        webhook.webhook_type.try_into()
+        Ok(match webhook.webhook_type {
+            rapyd::RapydWebhookObjectEventType::PaymentCompleted
+            | rapyd::RapydWebhookObjectEventType::PaymentCaptured => {
+                api::IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            rapyd::RapydWebhookObjectEventType::PaymentFailed => {
+                api::IncomingWebhookEvent::PaymentIntentFailure
+            }
+            rapyd::RapydWebhookObjectEventType::PaymentRefundFailed
+            | rapyd::RapydWebhookObjectEventType::PaymentRefundRejected => {
+                api::IncomingWebhookEvent::RefundFailure
+            }
+            rapyd::RapydWebhookObjectEventType::RefundCompleted => {
+                api::IncomingWebhookEvent::RefundSuccess
+            }
+            rapyd::RapydWebhookObjectEventType::PaymentDisputeCreated => {
+                api::IncomingWebhookEvent::DisputeOpened
+            }
+            rapyd::RapydWebhookObjectEventType::Unknown => {
+                api::IncomingWebhookEvent::EventNotSupported
+            }
+            rapyd::RapydWebhookObjectEventType::PaymentDisputeUpdated => match webhook.data {
+                rapyd::WebhookData::Dispute(data) => api::IncomingWebhookEvent::from(data.status),
+                _ => api::IncomingWebhookEvent::EventNotSupported,
+            },
+        })
     }
 
     fn get_webhook_resource_object(
@@ -846,17 +877,50 @@ impl api::IncomingWebhook for Rapyd {
             .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        let response = match webhook.data {
-            transformers::WebhookData::PaymentData(payment_data) => {
+        let res_json = match webhook.data {
+            transformers::WebhookData::Payment(payment_data) => {
                 let rapyd_response: transformers::RapydPaymentsResponse = payment_data.into();
-                Ok(rapyd_response)
-            }
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound),
-        }?;
-        let res_json =
-            utils::Encode::<transformers::RapydPaymentsResponse>::encode_to_value(&response)
-                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
+                utils::Encode::<transformers::RapydPaymentsResponse>::encode_to_value(
+                    &rapyd_response,
+                )
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
+            }
+            transformers::WebhookData::Refund(refund_data) => {
+                utils::Encode::<transformers::RefundResponseData>::encode_to_value(&refund_data)
+                    .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
+            }
+            transformers::WebhookData::Dispute(dispute_data) => {
+                utils::Encode::<transformers::DisputeResponseData>::encode_to_value(&dispute_data)
+                    .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
+            }
+        };
         Ok(res_json)
+    }
+
+    fn get_dispute_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let webhook: transformers::RapydIncomingWebhook = request
+            .body
+            .parse_struct("RapydIncomingWebhook")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let webhook_dispute_data = match webhook.data {
+            transformers::WebhookData::Dispute(dispute_data) => Ok(dispute_data),
+            _ => Err(errors::ConnectorError::WebhookBodyDecodingFailed),
+        }?;
+        Ok(api::disputes::DisputePayload {
+            amount: webhook_dispute_data.amount.to_string(),
+            currency: webhook_dispute_data.currency.to_string(),
+            dispute_stage: api_models::enums::DisputeStage::Dispute,
+            connector_dispute_id: webhook_dispute_data.token,
+            connector_reason: Some(webhook_dispute_data.dispute_reason_description),
+            connector_reason_code: None,
+            challenge_required_by: webhook_dispute_data.due_date,
+            connector_status: webhook_dispute_data.status.to_string(),
+            created_at: webhook_dispute_data.created_at,
+            updated_at: webhook_dispute_data.updated_at,
+        })
     }
 }
