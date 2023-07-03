@@ -974,6 +974,7 @@ pub struct UnresolvedResponseReason {
     pub message: String,
 }
 
+/// Possible field type of required fields in payment_method_data
 #[derive(
     Clone,
     Debug,
@@ -983,6 +984,7 @@ pub struct UnresolvedResponseReason {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
