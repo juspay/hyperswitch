@@ -1683,7 +1683,7 @@
         "properties": {
           "email": {
             "type": "string",
-            "description": "The Email ID for ACH billing",
+            "description": "The Email ID for Multibanco billing",
             "example": "example@me.com"
           }
         }
