@@ -1,11 +1,11 @@
 use api_models::payments;
-use common_utils::pii::Email;
+use common_utils::pii::{self, Email};
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{self, CardData},
+    connector::utils::{self, BrowserInformationData, CardData, PaymentsAuthorizeRequestData},
     core::errors,
     services,
     types::{
@@ -119,9 +119,29 @@ pub struct RedirectionData {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(clippy::enum_variant_names)]
 pub enum PaymentMethodSpecificData {
     PaymentProduct816SpecificInput(Box<Giropay>),
     PaymentProduct809SpecificInput(Box<Ideal>),
+    PaymentProduct861SpecificInput(Box<Alipay>),
+    PaymentProduct863SpecificInput(Box<Wechatpay>),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Alipay {}
+
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct Wechatpay {
+    pub integration_type: WechatpayIntegrationType,
+}
+
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum WechatpayIntegrationType {
+    #[default]
+    DesktopQRCode,
 }
 
 #[derive(Debug, Serialize)]
@@ -169,11 +189,18 @@ pub struct BankAccountIban {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct FraudFields {
+    customer_ip_address: Secret<String, pii::IpAddress>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaymentsRequest {
     #[serde(flatten)]
     pub payment_data: WorldlinePaymentMethod,
     pub order: Order,
     pub shipping: Option<Shipping>,
+    pub fraud_fields: Option<FraudFields>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
@@ -185,6 +212,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                     &item.request,
                     card,
                 )?))
+            }
+            api::PaymentMethodData::Wallet(ref wallet_data) => {
+                WorldlinePaymentMethod::RedirectPaymentMethodSpecificInput(Box::new(
+                    make_wallet_request(&item.request, wallet_data)?,
+                ))
             }
             api::PaymentMethodData::BankRedirect(ref bank_redirect) => {
                 WorldlinePaymentMethod::RedirectPaymentMethodSpecificInput(Box::new(
@@ -210,10 +242,18 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
             .as_ref()
             .and_then(|shipping| shipping.address.clone())
             .map(Shipping::from);
+        let browser_info = item.request.get_browser_info()?;
+        let fraud_fields = match item.request.payment_method_type {
+            Some(enums::PaymentMethodType::WeChatPay) => Some(FraudFields {
+                customer_ip_address: browser_info.get_ip_address()?,
+            }),
+            _ => None,
+        };
         Ok(Self {
             payment_data,
             order,
             shipping,
+            fraud_fields,
         })
     }
 }
@@ -293,12 +333,46 @@ fn make_card_request(
     Ok(card_payment_method_specific_input)
 }
 
+fn make_wallet_request(
+    req: &types::PaymentsAuthorizeData,
+    wallet_data: &payments::WalletData,
+) -> Result<RedirectPaymentMethod, error_stack::Report<errors::ConnectorError>> {
+    let redirection_data = get_redirection_data(req);
+    let (payment_method_specific_data, payment_product_id) = match wallet_data {
+        payments::WalletData::AliPayRedirect(_) => (
+            PaymentMethodSpecificData::PaymentProduct861SpecificInput(Box::new(Alipay {})),
+            861,
+        ),
+        payments::WalletData::WeChatPayRedirect(_) => (
+            PaymentMethodSpecificData::PaymentProduct863SpecificInput(Box::new(Wechatpay {
+                integration_type: WechatpayIntegrationType::DesktopQRCode,
+            })),
+            863,
+        ),
+        _ => {
+            return Err(
+                errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
+            )
+        }
+    };
+    Ok(RedirectPaymentMethod {
+        payment_product_id,
+        redirection_data,
+        payment_method_specific_data,
+    })
+}
+
+fn get_redirection_data(req: &types::PaymentsAuthorizeData) -> RedirectionData {
+    RedirectionData {
+        return_url: req.router_return_url.clone(),
+    }
+}
+
 fn make_bank_redirect_request(
     req: &types::PaymentsAuthorizeData,
     bank_redirect: &payments::BankRedirectData,
 ) -> Result<RedirectPaymentMethod, error_stack::Report<errors::ConnectorError>> {
-    let return_url = req.router_return_url.clone();
-    let redirection_data = RedirectionData { return_url };
+    let redirection_data = get_redirection_data(req);
     let (payment_method_specific_data, payment_product_id) = match bank_redirect {
         payments::BankRedirectData::Giropay {
             billing_details,
