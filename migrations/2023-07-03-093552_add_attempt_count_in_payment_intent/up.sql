@@ -1,0 +1,1 @@
+ALTER TABLE payment_intent ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 1;

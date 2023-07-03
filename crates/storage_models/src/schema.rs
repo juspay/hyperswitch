@@ -478,6 +478,7 @@ diesel::table! {
         business_label -> Varchar,
         order_details -> Nullable<Array<Nullable<Jsonb>>>,
         udf -> Nullable<Jsonb>,
+        attempt_count -> Int4,
     }
 }
 

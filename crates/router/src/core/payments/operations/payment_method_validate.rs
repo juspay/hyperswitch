@@ -5,7 +5,6 @@ use common_utils::{date_time, errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
-use uuid::Uuid;
 
 use super::{BoxedOperation, Domain, GetTracker, PaymentCreate, UpdateTracker, ValidateRequest};
 use crate::{
@@ -306,7 +305,7 @@ impl PaymentMethodValidate {
         storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            attempt_id: Uuid::new_v4().simple().to_string(),
+            attempt_id: format!("{payment_id}_1"),
             status,
             // Amount & Currency will be zero in this case
             amount: 0,
@@ -346,6 +345,7 @@ impl PaymentMethodValidate {
             setup_future_usage: request.setup_future_usage.map(ForeignInto::foreign_into),
             off_session: request.off_session,
             active_attempt_id,
+            attempt_count: 1,
             ..Default::default()
         }
     }
