@@ -96,6 +96,9 @@ mod storage {
                         business_label: new.business_label.clone(),
                         active_attempt_id: new.active_attempt_id.to_owned(),
                         order_details: new.order_details.clone(),
+                        allowed_payment_method_types: new.allowed_payment_method_types.clone(),
+                        connector_metadata: new.connector_metadata.clone(),
+                        feature_metadata: new.feature_metadata.clone(),
                     };
 
                     match self
@@ -355,6 +358,9 @@ impl PaymentIntentInterface for MockDb {
             business_label: new.business_label,
             active_attempt_id: new.active_attempt_id.to_owned(),
             order_details: new.order_details,
+            allowed_payment_method_types: new.allowed_payment_method_types,
+            connector_metadata: new.connector_metadata,
+            feature_metadata: new.feature_metadata,
         };
         payment_intents.push(payment_intent.clone());
         Ok(payment_intent)

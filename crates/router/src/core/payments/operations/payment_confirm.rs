@@ -82,7 +82,21 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        payment_intent.order_details = request.order_details;
+        payment_intent.order_details = request
+            .order_details
+            .as_ref()
+            .map(|od| {
+                od.iter()
+                    .map(|order| {
+                        Encode::<api_models::payments::OrderDetailsWithAmount>::encode_to_value(
+                            order,
+                        )
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .map(masking::Secret::new)
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
 
         let attempt_type =
             helpers::get_attempt_type(&payment_intent, &payment_attempt, request, "confirm")?;

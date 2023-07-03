@@ -1413,7 +1413,7 @@ pub struct PaymentsResponse {
 
     /// Allowed Payment Method Types for a given PaymentIntent
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
-    pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
+    pub allowed_payment_method_types: Option<serde_json::Value>,
 
     /// ephemeral_key for the customer_id mentioned
     pub ephemeral_key: Option<EphemeralKeyCreateResponse>,
@@ -1801,7 +1801,7 @@ pub struct AirwallexData {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NoonData {
-    order_catgory: Option<String>,
+    pub order_category: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

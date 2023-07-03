@@ -554,10 +554,11 @@ impl PaymentCreate {
             crate::utils::generate_id(consts::ID_LENGTH, format!("{payment_id}_secret").as_str());
         let (amount, currency) = (money.0, Some(money.1));
 
-        let metadata = request.metadata;
+        let metadata = request.metadata.clone();
 
         let order_details = request
             .order_details
+            .as_ref()
             .map(|order_details| {
                 order_details
                     .iter()

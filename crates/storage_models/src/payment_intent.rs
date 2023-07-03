@@ -38,6 +38,9 @@ pub struct PaymentIntent {
     pub business_label: String,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    pub allowed_payment_method_types: Option<serde_json::Value>,
+    pub connector_metadata: Option<serde_json::Value>,
+    pub feature_metadata: Option<serde_json::Value>,
 }
 
 #[derive(
@@ -82,6 +85,9 @@ pub struct PaymentIntentNew {
     pub business_label: String,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    pub allowed_payment_method_types: Option<serde_json::Value>,
+    pub connector_metadata: Option<serde_json::Value>,
+    pub feature_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -658,8 +658,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .payment_data
             .payment_intent
             .connector_metadata
+            .parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed parsing ConnectorMetadata")?
             .noon
-            .order_category;
+            .and_then(|noon| noon.order_category);
 
         let order_details = additional_data
             .payment_data

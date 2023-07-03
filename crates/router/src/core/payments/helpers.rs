@@ -1894,6 +1894,9 @@ mod tests {
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
             order_details: None,
+            allowed_payment_method_types: None,
+            connector_metadata: None,
+            feature_metadata: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -1934,6 +1937,9 @@ mod tests {
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
             order_details: None,
+            allowed_payment_method_types: None,
+            connector_metadata: None,
+            feature_metadata: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -1974,6 +1980,9 @@ mod tests {
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
             order_details: None,
+            allowed_payment_method_types: None,
+            connector_metadata: None,
+            feature_metadata: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2357,62 +2366,6 @@ impl AttemptType {
         }
     }
 }
-
-// pub fn validate_and_add_order_details_to_payment_intent(
-//     payment_intent: &mut storage::payment_intent::PaymentIntent,
-//     request: &api::PaymentsRequest,
-// ) -> RouterResult<()> {
-//     let parsed_metadata_db: Option<api_models::payments::Metadata> = payment_intent
-//         .metadata
-//         .as_ref()
-//         .map(|metadata_value| {
-//             metadata_value
-//                 .peek()
-//                 .clone()
-//                 .parse_value("metadata")
-//                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-//                     field_name: "metadata",
-//                 })
-//                 .attach_printable("unable to parse metadata")
-//         })
-//         .transpose()?;
-//     let order_details_metadata_db = parsed_metadata_db
-//         .as_ref()
-//         .and_then(|meta| meta.order_details.to_owned());
-//     let order_details_outside_metadata_db = payment_intent.order_details.as_ref();
-//     let order_details_outside_metadata_req = request.order_details.as_ref();
-
-//     if order_details_metadata_db
-//         .as_ref()
-//         .zip(order_details_outside_metadata_db.as_ref())
-//         .is_some()
-//     {
-//         Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payment intent in db".to_string() })?
-//     }
-//     let order_details_outside = match order_details_outside_metadata_req {
-//         Some(order) => match order_details_metadata_db {
-//             Some(_) => Err(errors::ApiErrorResponse::NotSupported {
-//                 message: "order_details previously present inside of metadata".to_string(),
-//             })?,
-//             None => Some(order),
-//         },
-//         None => match order_details_metadata_req {
-//             Some(_order) => match order_details_outside_metadata_db {
-//                 Some(_) => Err(errors::ApiErrorResponse::NotSupported {
-//                     message: "order_details previously present outside of metadata".to_string(),
-//                 })?,
-//                 None => None,
-//             },
-//             None => None,
-//         },
-//     };
-//     add_order_details_and_metadata_to_payment_intent(
-//         payment_intent,
-//         request,
-//         parsed_metadata_db,
-//         &order_details_outside.map(|data| data.to_owned()),
-//     )
-// }
 
 #[cfg(test)]
 mod test {
