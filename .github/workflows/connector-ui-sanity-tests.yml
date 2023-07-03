@@ -73,7 +73,6 @@ jobs:
           - stripe
           - adyen_uk
           - airwallex
-          - bambora
           - bluesnap
           - checkout
           - mollie

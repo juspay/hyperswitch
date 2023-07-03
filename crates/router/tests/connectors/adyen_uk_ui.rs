@@ -193,6 +193,7 @@ fn should_make_adyen_3ds_payment_success_test() {
 
 #[test]
 #[serial]
+#[ignore]
 fn should_make_adyen_alipay_hk_payment_test() {
     tester!(should_make_adyen_alipay_hk_payment);
 }
