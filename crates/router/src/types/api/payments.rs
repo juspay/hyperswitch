@@ -1,9 +1,9 @@
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
-    CustomerAcceptance, MandateData, MandateTxnType, MandateType, MandateValidationFields,
-    NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
-    PaymentListResponse, PaymentMethodData, PaymentMethodDataResponse, PaymentOp,
-    PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsCancelRequest,
+    CryptoData, CustomerAcceptance, MandateData, MandateTransactionType, MandateType,
+    MandateValidationFields, NextActionType, OnlineMandate, PayLaterData, PaymentIdType,
+    PaymentListConstraints, PaymentListResponse, PaymentMethodData, PaymentMethodDataResponse,
+    PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsCancelRequest,
     PaymentsCaptureRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRequest,
     PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest,
     PaymentsSessionResponse, PaymentsStartRequest, PgRedirectResponse, PhoneDetails,
@@ -20,15 +20,15 @@ use crate::{
 };
 
 pub(crate) trait PaymentsRequestExt {
-    fn is_mandate(&self) -> Option<MandateTxnType>;
+    fn is_mandate(&self) -> Option<MandateTransactionType>;
 }
 
 impl PaymentsRequestExt for PaymentsRequest {
-    fn is_mandate(&self) -> Option<MandateTxnType> {
+    fn is_mandate(&self) -> Option<MandateTransactionType> {
         match (&self.mandate_data, &self.mandate_id) {
             (None, None) => None,
-            (_, Some(_)) => Some(MandateTxnType::RecurringMandateTxn),
-            (Some(_), _) => Some(MandateTxnType::NewMandateTxn),
+            (_, Some(_)) => Some(MandateTransactionType::RecurringMandateTransaction),
+            (Some(_), _) => Some(MandateTransactionType::NewMandateTransaction),
         }
     }
 }
@@ -115,21 +115,21 @@ impl PaymentIdTypeExt for PaymentIdType {
 pub(crate) trait MandateValidationFieldsExt {
     fn validate_and_get_mandate_type(
         &self,
-    ) -> errors::CustomResult<Option<MandateTxnType>, errors::ValidationError>;
+    ) -> errors::CustomResult<Option<MandateTransactionType>, errors::ValidationError>;
 }
 
 impl MandateValidationFieldsExt for MandateValidationFields {
     fn validate_and_get_mandate_type(
         &self,
-    ) -> errors::CustomResult<Option<MandateTxnType>, errors::ValidationError> {
+    ) -> errors::CustomResult<Option<MandateTransactionType>, errors::ValidationError> {
         match (&self.mandate_data, &self.mandate_id) {
             (None, None) => Ok(None),
             (Some(_), Some(_)) => Err(errors::ValidationError::InvalidValue {
                 message: "Expected one out of mandate_id and mandate_data but got both".to_string(),
             })
             .into_report(),
-            (_, Some(_)) => Ok(Some(MandateTxnType::RecurringMandateTxn)),
-            (Some(_), _) => Ok(Some(MandateTxnType::NewMandateTxn)),
+            (_, Some(_)) => Ok(Some(MandateTransactionType::RecurringMandateTransaction)),
+            (Some(_), _) => Ok(Some(MandateTransactionType::NewMandateTransaction)),
         }
     }
 }

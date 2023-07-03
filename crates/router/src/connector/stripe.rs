@@ -129,13 +129,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsPreProcessingRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req = stripe::StripeAchSourceRequest::try_from(req)?;
-        router_env::logger::info!(connector_request=?req);
-        let pre_processing_request =
-            utils::Encode::<stripe::StripeAchSourceRequest>::url_encode(&req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
+        let pre_processing_request = types::RequestBody::log_and_get_request_body(
+            &req,
+            utils::Encode::<stripe::StripeAchSourceRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(pre_processing_request))
     }
 
@@ -244,12 +244,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::ConnectorCustomerRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_request = stripe::CustomerRequest::try_from(req)?;
-        router_env::logger::info!(?connector_request);
-        let stripe_req = utils::Encode::<stripe::CustomerRequest>::url_encode(&connector_request)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
+        let stripe_req = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<stripe::CustomerRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
 
@@ -360,12 +361,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::TokenizationRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_request = stripe::TokenRequest::try_from(req)?;
-        router_env::logger::info!(?connector_request);
-        let stripe_req = utils::Encode::<stripe::TokenRequest>::url_encode(&connector_request)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
+        let stripe_req = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<stripe::TokenRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
 
@@ -478,11 +480,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_request = stripe::CaptureRequest::try_from(req)?;
-        router_env::logger::info!(?connector_request);
-        let stripe_req = utils::Encode::<stripe::CaptureRequest>::url_encode(&connector_request)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let stripe_req = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<stripe::CaptureRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
 
@@ -738,16 +742,18 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         match &req.request.payment_method_data {
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 stripe::get_bank_transfer_request_data(req, bank_transfer_data.deref())
             }
             _ => {
                 let req = stripe::PaymentIntentRequest::try_from(req)?;
-                router_env::logger::info!(connector_request=?req);
-                let request = utils::Encode::<stripe::PaymentIntentRequest>::url_encode(&req)
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                let request = types::RequestBody::log_and_get_request_body(
+                    &req,
+                    utils::Encode::<stripe::PaymentIntentRequest>::url_encode,
+                )
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 Ok(Some(request))
             }
         }
@@ -866,11 +872,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_request = stripe::CancelRequest::try_from(req)?;
-        router_env::logger::info!(?connector_request);
-        let stripe_req = utils::Encode::<stripe::CancelRequest>::url_encode(&connector_request)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let stripe_req = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<stripe::CancelRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
 
@@ -980,11 +988,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req = stripe::SetupIntentRequest::try_from(req)?;
-        router_env::logger::info!(connector_request=?req);
-        let stripe_req = utils::Encode::<stripe::SetupIntentRequest>::url_encode(&req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let stripe_req = types::RequestBody::log_and_get_request_body(
+            &req,
+            utils::Encode::<stripe::SetupIntentRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
 
@@ -1096,11 +1106,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_request = stripe::RefundRequest::try_from(req)?;
-        router_env::logger::info!(?connector_request);
-        let stripe_req = utils::Encode::<stripe::RefundRequest>::url_encode(&connector_request)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let stripe_req = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<stripe::RefundRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
 
@@ -1531,11 +1543,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::SubmitEvidenceRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let stripe_req = stripe::Evidence::try_from(req)?;
-        router_env::logger::info!(connector_request=?stripe_req);
-        let stripe_req_string = utils::Encode::<stripe::Evidence>::url_encode(&stripe_req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let stripe_req_string = types::RequestBody::log_and_get_request_body(
+            &stripe_req,
+            utils::Encode::<stripe::Evidence>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req_string))
     }
 
@@ -1730,6 +1744,13 @@ impl api::IncomingWebhook for Stripe {
                     ),
                 )
             }
+            stripe::WebhookEventObjectType::Refund => {
+                api_models::webhooks::ObjectReferenceId::RefundId(
+                    api_models::webhooks::RefundIdType::ConnectorRefundId(
+                        details.event_data.event_object.id,
+                    ),
+                )
+            }
         })
     }
 
@@ -1739,7 +1760,7 @@ impl api::IncomingWebhook for Stripe {
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         let details: stripe::WebhookEventTypeBody = request
             .body
-            .parse_struct("WebhookEvent")
+            .parse_struct("WebhookEventTypeBody")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         Ok(match details.event_type {
@@ -1759,6 +1780,18 @@ impl api::IncomingWebhook for Stripe {
                     api::IncomingWebhookEvent::EventNotSupported
                 }
             }
+            stripe::WebhookEventType::ChargeRefundUpdated => details
+                .event_data
+                .event_object
+                .status
+                .map(|status| match status {
+                    stripe::WebhookEventStatus::Succeeded => {
+                        api::IncomingWebhookEvent::RefundSuccess
+                    }
+                    stripe::WebhookEventStatus::Failed => api::IncomingWebhookEvent::RefundFailure,
+                    _ => api::IncomingWebhookEvent::EventNotSupported,
+                })
+                .unwrap_or(api::IncomingWebhookEvent::EventNotSupported),
             stripe::WebhookEventType::SourceChargeable => {
                 api::IncomingWebhookEvent::SourceChargeable
             }
@@ -1785,7 +1818,7 @@ impl api::IncomingWebhook for Stripe {
             | stripe::WebhookEventType::ChargeFailed
             | stripe::WebhookEventType::ChargePending
             | stripe::WebhookEventType::ChargeUpdated
-            | stripe::WebhookEventType::ChanrgeRefunded
+            | stripe::WebhookEventType::ChargeRefunded
             | stripe::WebhookEventType::PaymentIntentCanceled
             | stripe::WebhookEventType::PaymentIntentCreated
             | stripe::WebhookEventType::PaymentIntentProcessing
@@ -1861,13 +1894,20 @@ impl services::ConnectorRedirectResponse for Stripe {
 
         crate::logger::debug!(stripe_redirect_response=?query);
 
-        Ok(query.redirect_status.map_or(
-            payments::CallConnectorAction::StatusUpdate {
-                status: enums::AttemptStatus::Pending,
-                error_code: None,
-                error_message: None,
-            },
-            |_| payments::CallConnectorAction::Trigger,
-        ))
+        Ok(query
+            .redirect_status
+            .map_or(
+                payments::CallConnectorAction::Trigger,
+                |status| match status {
+                    transformers::StripePaymentStatus::Failed => {
+                        payments::CallConnectorAction::Trigger
+                    }
+                    _ => payments::CallConnectorAction::StatusUpdate {
+                        status: enums::AttemptStatus::from(status),
+                        error_code: None,
+                        error_message: None,
+                    },
+                },
+            ))
     }
 }
