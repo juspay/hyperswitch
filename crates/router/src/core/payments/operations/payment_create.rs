@@ -554,8 +554,6 @@ impl PaymentCreate {
             crate::utils::generate_id(consts::ID_LENGTH, format!("{payment_id}_secret").as_str());
         let (amount, currency) = (money.0, Some(money.1));
 
-        let metadata = request.metadata.clone();
-
         let order_details = request
             .order_details
             .as_ref()
@@ -595,7 +593,7 @@ impl PaymentCreate {
             billing_address_id,
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
-            metadata,
+            metadata: request.metadata.clone(),
             business_country,
             business_label,
             active_attempt_id,
