@@ -9,7 +9,7 @@ use common_utils::{
 use error_stack::{report, IntoReport, ResultExt};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 use storage_models::{enums, payment_intent};
 use time::Duration;
 use uuid::Uuid;
@@ -2372,6 +2372,54 @@ impl AttemptType {
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
         }
+    }
+}
+
+#[inline(always)]
+pub fn is_manual_retry_allowed(
+    intent_status: &storage_enums::IntentStatus,
+    attempt_status: &storage_enums::AttemptStatus,
+) -> Option<bool> {
+    match intent_status {
+        enums::IntentStatus::Failed => match attempt_status {
+            enums::AttemptStatus::Started
+            | enums::AttemptStatus::AuthenticationPending
+            | enums::AttemptStatus::AuthenticationSuccessful
+            | enums::AttemptStatus::Authorized
+            | enums::AttemptStatus::Charged
+            | enums::AttemptStatus::Authorizing
+            | enums::AttemptStatus::CodInitiated
+            | enums::AttemptStatus::VoidInitiated
+            | enums::AttemptStatus::CaptureInitiated
+            | enums::AttemptStatus::Unresolved
+            | enums::AttemptStatus::Pending
+            | enums::AttemptStatus::ConfirmationAwaited
+            | enums::AttemptStatus::PartialCharged
+            | enums::AttemptStatus::Voided
+            | enums::AttemptStatus::AutoRefunded
+            | enums::AttemptStatus::PaymentMethodAwaited
+            | enums::AttemptStatus::DeviceDataCollectionPending => {
+                logger::error!("Payment Attempt should not be in this state because Attempt to Intent status mapping doesn't allow it");
+                None
+            }
+
+            storage_enums::AttemptStatus::VoidFailed
+            | storage_enums::AttemptStatus::RouterDeclined
+            | storage_enums::AttemptStatus::CaptureFailed => Some(false),
+
+            storage_enums::AttemptStatus::AuthenticationFailed
+            | storage_enums::AttemptStatus::AuthorizationFailed
+            | storage_enums::AttemptStatus::Failure => Some(true),
+        },
+        enums::IntentStatus::Cancelled
+        | enums::IntentStatus::RequiresCapture
+        | enums::IntentStatus::Processing
+        | enums::IntentStatus::Succeeded => Some(false),
+
+        enums::IntentStatus::RequiresCustomerAction
+        | enums::IntentStatus::RequiresMerchantAction
+        | enums::IntentStatus::RequiresPaymentMethod
+        | enums::IntentStatus::RequiresConfirmation => None,
     }
 }
 
