@@ -360,7 +360,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                     email: Some(match paylater {
                         api_models::payments::PayLaterData::KlarnaRedirect {
                             billing_email,
-                            billing_country: _,
+                            ..
                         } => billing_email.clone(),
                         _ => Err(errors::ConnectorError::NotImplemented(
                             "Payment method".to_string(),
