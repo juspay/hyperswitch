@@ -450,7 +450,12 @@ where
                             payment_intent.allowed_payment_method_types,
                         )
                         .set_ephemeral_key(ephemeral_key_option.map(ForeignFrom::foreign_from))
+                        .set_manual_retry_allowed(helpers::is_manual_retry_allowed(
+                            &payment_intent.status,
+                            &payment_attempt.status,
+                        ))
                         .set_connector_transaction_id(payment_attempt.connector_transaction_id)
+                        .set_feature_metadata(payment_intent.feature_metadata)
                         .to_owned(),
                 )
             }
@@ -493,6 +498,10 @@ where
             cancellation_reason: payment_attempt.cancellation_reason,
             payment_token: payment_attempt.payment_token,
             metadata: payment_intent.metadata,
+            manual_retry_allowed: helpers::is_manual_retry_allowed(
+                &payment_intent.status,
+                &payment_attempt.status,
+            ),
             order_details: payment_intent.order_details,
             connector_transaction_id: payment_attempt.connector_transaction_id,
             ..Default::default()
@@ -956,6 +965,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             email: payment_data.email,
             currency: Some(payment_data.currency),
             amount: Some(payment_data.amount.into()),
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
         })
     }
 }
