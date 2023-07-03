@@ -29,7 +29,7 @@ use crate::{
         },
         transformers::ForeignInto,
     },
-    utils::OptionExt,
+    utils::{self, OptionExt},
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
@@ -526,7 +526,7 @@ impl PaymentCreate {
         Ok(storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            attempt_id: format!("{payment_id}_1"),
+            attempt_id: utils::get_payment_attempt_id(payment_id.to_string(), 1),
             status,
             currency,
             amount: amount.into(),

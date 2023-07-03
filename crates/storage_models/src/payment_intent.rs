@@ -39,7 +39,7 @@ pub struct PaymentIntent {
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub udf: Option<pii::SecretSerdeValue>,
-    pub attempt_count: i32,
+    pub attempt_count: i16,
 }
 
 #[derive(
@@ -85,7 +85,7 @@ pub struct PaymentIntentNew {
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub udf: Option<pii::SecretSerdeValue>,
-    pub attempt_count: i32,
+    pub attempt_count: i16,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -137,7 +137,7 @@ pub enum PaymentIntentUpdate {
     StatusAndAttemptUpdate {
         status: storage_enums::IntentStatus,
         active_attempt_id: String,
-        attempt_count: i32,
+        attempt_count: i16,
     },
 }
 
@@ -167,7 +167,7 @@ pub struct PaymentIntentUpdateInternal {
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub udf: Option<pii::SecretSerdeValue>,
-    pub attempt_count: Option<i32>,
+    pub attempt_count: Option<i16>,
 }
 
 impl PaymentIntentUpdate {
