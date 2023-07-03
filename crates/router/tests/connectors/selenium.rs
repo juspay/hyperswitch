@@ -382,7 +382,7 @@ pub trait SeleniumTest {
             &c,
             vec![
                 Event::Trigger(Trigger::Goto(url)),
-                Event::Trigger(Trigger::Click(By::Id("pypl-redirect-btn"))),
+                Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             ],
         )
         .await?;

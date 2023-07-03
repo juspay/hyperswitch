@@ -76,7 +76,6 @@ jobs:
           - bambora
           - bluesnap
           - checkout
-          - globalpay
           - mollie
           - paypal
           - payu
