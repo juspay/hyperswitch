@@ -190,7 +190,7 @@ impl super::RedisConnectionPool {
             .set(
                 key,
                 value,
-                Some(Expiration::PX(seconds)),
+                Some(Expiration::EX(seconds)),
                 Some(SetOptions::NX),
                 true,
             )
