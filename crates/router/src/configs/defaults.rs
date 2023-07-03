@@ -581,18 +581,11 @@ impl Default for super::settings::RequiredFields {
                         ConnectorFields {
                             fields: HashMap::from([(
                                 enums::Connector::Adyen,
-                                vec![
-                                    RequiredFieldInfo {
-                                        required_field: "bancontact_card.billing_name".to_string(),
-                                        display_name: "billing_name".to_string(),
-                                        field_type: enums::FieldType::Text,
-                                    },
-                                    RequiredFieldInfo {
-                                        required_field: "bank_account_holder_name".to_string(),
-                                        display_name: "bank_account_holder_name".to_string(),
-                                        field_type: enums::FieldType::Text,
-                                    },
-                                ],
+                                vec![RequiredFieldInfo {
+                                    required_field: "bank_account_holder_name".to_string(),
+                                    display_name: "bank_account_holder_name".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
                             )]),
                         },
                     ),

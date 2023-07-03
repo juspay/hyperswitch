@@ -222,6 +222,7 @@ pub struct RequiredFieldInfo {
     pub display_name: String,
 
     /// Possible field type of required field
+    #[schema(value_type = FieldType)]
     pub field_type: api_enums::FieldType,
 }
 
