@@ -2055,7 +2055,6 @@ pub struct PaymentsStartRequest {
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     #[schema(value_type = Option<RedirectResponse>)]
-    #[serde(skip_deserializing)]
     pub redirect_response: Option<RedirectResponse>,
 }
 
