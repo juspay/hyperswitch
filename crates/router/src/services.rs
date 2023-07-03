@@ -23,10 +23,7 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait PubSubInterface {
-    async fn subscribe(
-        &self,
-        channel: &str,
-    ) -> errors::CustomResult<usize, redis_errors::RedisError>;
+    async fn subscribe(&self, channel: &str) -> errors::CustomResult<(), redis_errors::RedisError>;
 
     async fn publish<'a>(
         &self,
@@ -40,10 +37,7 @@ pub trait PubSubInterface {
 #[async_trait::async_trait]
 impl PubSubInterface for redis_interface::RedisConnectionPool {
     #[inline]
-    async fn subscribe(
-        &self,
-        channel: &str,
-    ) -> errors::CustomResult<usize, redis_errors::RedisError> {
+    async fn subscribe(&self, channel: &str) -> errors::CustomResult<(), redis_errors::RedisError> {
         // Spawns a task that will automatically re-subscribe to any channels or channel patterns used by the client.
         self.subscriber.manage_subscriptions();
 
@@ -93,6 +87,11 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
                     ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
                     key
                 }
+                CacheKind::All(key) => {
+                    CONFIG_CACHE.invalidate(key.as_ref()).await;
+                    ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
+                    key
+                }
             };
 
             self.delete_key(key.as_ref())
@@ -125,7 +124,6 @@ pub struct Store {
     #[cfg(feature = "kv_store")]
     pub(crate) config: StoreConfig,
     pub master_key: Vec<u8>,
-    pub migration_timestamp: i64,
 }
 
 #[cfg(feature = "kv_store")]
@@ -189,7 +187,6 @@ impl Store {
                 drainer_num_partitions: config.drainer.num_partitions,
             },
             master_key: master_enc_key,
-            migration_timestamp: config.secrets.migration_encryption_timestamp,
         }
     }
 

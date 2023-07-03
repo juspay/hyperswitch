@@ -1,7 +1,7 @@
 use api_models::payments;
 use common_utils::{
     crypto::{self, GenerateDigest},
-    date_time, fp_utils,
+    date_time, fp_utils, pii,
     pii::Email,
 };
 use error_stack::{IntoReport, ResultExt};
@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, MandateData, PaymentsAuthorizeRequestData,
-        PaymentsCancelRequestData, RouterData,
+        self, AddressDetailsData, BrowserInformationData, MandateData,
+        PaymentsAuthorizeRequestData, PaymentsCancelRequestData, RouterData,
     },
     consts,
     core::errors,
@@ -75,6 +75,15 @@ pub struct NuveiPaymentsRequest {
     pub checksum: String,
     pub billing_address: Option<BillingAddress>,
     pub related_transaction_id: Option<String>,
+    pub url_details: Option<UrlDetails>,
+}
+
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct UrlDetails {
+    pub success_url: String,
+    pub failure_url: String,
+    pub pending_url: String,
 }
 
 #[derive(Debug, Serialize, Default)]
@@ -225,7 +234,7 @@ pub struct Card {
 #[serde(rename_all = "camelCase")]
 pub struct ExternalToken {
     pub external_token_provider: ExternalTokenProvider,
-    pub mobile_token: String,
+    pub mobile_token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -279,7 +288,7 @@ pub enum PlatformType {
 #[serde(rename_all = "camelCase")]
 pub struct BrowserDetails {
     pub accept_header: String,
-    pub ip: Option<std::net::IpAddr>,
+    pub ip: Secret<String, pii::IpAddress>,
     pub java_enabled: String,
     pub java_script_enabled: String,
     pub language: String,
@@ -425,15 +434,23 @@ impl TryFrom<payments::GooglePayWalletData> for NuveiPaymentsRequest {
         Ok(Self {
             payment_option: PaymentOption {
                 card: Some(Card {
-                    external_token: Some(ExternalToken {
-                        external_token_provider: ExternalTokenProvider::GooglePay,
-                        mobile_token: common_utils::ext_traits::Encode::<
-                            payments::GooglePayWalletData,
-                        >::encode_to_string_of_json(
-                            &utils::GooglePayWalletData::from(gpay_data)
-                        )
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                    }),
+                    external_token:
+                        Some(
+                            ExternalToken {
+                                external_token_provider: ExternalTokenProvider::GooglePay,
+                                mobile_token:
+                                    Secret::new(
+                                        common_utils::ext_traits::Encode::<
+                                            payments::GooglePayWalletData,
+                                        >::encode_to_string_of_json(
+                                            &utils::GooglePayWalletData::from(gpay_data),
+                                        )
+                                        .change_context(
+                                            errors::ConnectorError::RequestEncodingFailed,
+                                        )?,
+                                    ),
+                            },
+                        ),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -449,7 +466,7 @@ impl From<payments::ApplePayWalletData> for NuveiPaymentsRequest {
                 card: Some(Card {
                     external_token: Some(ExternalToken {
                         external_token_provider: ExternalTokenProvider::ApplePay,
-                        mobile_token: apple_pay_data.payment_data,
+                        mobile_token: Secret::new(apple_pay_data.payment_data),
                     }),
                     ..Default::default()
                 }),
@@ -540,7 +557,7 @@ impl<F>
                         email: item.request.get_email()?,
                         country: item.get_billing_country()?,
                     }),
-                    Some(NuveiBIC::try_from(bank_name)?),
+                    bank_name.map(NuveiBIC::try_from).transpose()?,
                 )
             }
             _ => Err(errors::ConnectorError::NotSupported {
@@ -676,12 +693,18 @@ impl<F>
             capture_method: item.request.capture_method,
             ..Default::default()
         })?;
+        let return_url = item.request.get_return_url()?;
         Ok(Self {
             is_rebilling: request_data.is_rebilling,
             user_token_id: request_data.user_token_id,
             related_transaction_id: request_data.related_transaction_id,
             payment_option: request_data.payment_option,
             billing_address: request_data.billing_address,
+            url_details: Some(UrlDetails {
+                success_url: return_url.clone(),
+                failure_url: return_url.clone(),
+                pending_url: return_url,
+            }),
             ..request
         })
     }
@@ -745,19 +768,19 @@ fn get_card_info<F>(
         let three_d = if item.is_three_ds() {
             Some(ThreeD {
                 browser_details: Some(BrowserDetails {
-                    accept_header: browser_info.accept_header,
-                    ip: browser_info.ip_address,
-                    java_enabled: browser_info.java_enabled.to_string().to_uppercase(),
+                    accept_header: browser_info.get_accept_header()?,
+                    ip: browser_info.get_ip_address()?,
+                    java_enabled: browser_info.get_java_enabled()?.to_string().to_uppercase(),
                     java_script_enabled: browser_info
-                        .java_script_enabled
+                        .get_java_script_enabled()?
                         .to_string()
                         .to_uppercase(),
-                    language: browser_info.language,
-                    color_depth: browser_info.color_depth,
-                    screen_height: browser_info.screen_height,
-                    screen_width: browser_info.screen_width,
-                    time_zone: browser_info.time_zone,
-                    user_agent: browser_info.user_agent,
+                    language: browser_info.get_language()?,
+                    screen_height: browser_info.get_screen_height()?,
+                    screen_width: browser_info.get_screen_width()?,
+                    color_depth: browser_info.get_color_depth()?,
+                    user_agent: browser_info.get_user_agent()?,
+                    time_zone: browser_info.get_time_zone()?,
                 }),
                 v2_additional_params: additional_params,
                 notification_url: item.request.complete_authorize_url.clone(),
@@ -941,7 +964,7 @@ impl TryFrom<&types::RefundExecuteRouterData> for NuveiPaymentFlowRequest {
         Self::try_from(NuveiPaymentRequestData {
             client_request_id: item.attempt_id.clone(),
             connector_auth_type: item.connector_auth_type.clone(),
-            amount: item.request.amount.to_string(),
+            amount: item.request.refund_amount.to_string(),
             currency: item.request.currency,
             related_transaction_id: Some(item.request.connector_transaction_id.clone()),
             ..Default::default()
@@ -1017,6 +1040,7 @@ pub enum NuveiTransactionStatus {
     Declined,
     Error,
     Redirect,
+    Pending,
     #[default]
     Processing,
 }
@@ -1100,7 +1124,9 @@ fn get_payment_status(response: &NuveiPaymentsResponse) -> enums::AttemptStatus 
                     _ => enums::AttemptStatus::Failure,
                 }
             }
-            NuveiTransactionStatus::Processing => enums::AttemptStatus::Pending,
+            NuveiTransactionStatus::Processing | NuveiTransactionStatus::Pending => {
+                enums::AttemptStatus::Pending
+            }
             NuveiTransactionStatus::Redirect => enums::AttemptStatus::AuthenticationPending,
         },
         None => match response.status {
@@ -1253,7 +1279,9 @@ impl From<NuveiTransactionStatus> for enums::RefundStatus {
         match item {
             NuveiTransactionStatus::Approved => Self::Success,
             NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error => Self::Failure,
-            NuveiTransactionStatus::Processing | NuveiTransactionStatus::Redirect => Self::Pending,
+            NuveiTransactionStatus::Processing
+            | NuveiTransactionStatus::Pending
+            | NuveiTransactionStatus::Redirect => Self::Pending,
         }
     }
 }
@@ -1388,6 +1416,8 @@ pub enum NuveiWebhookStatus {
     #[default]
     Pending,
     Update,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<NuveiWebhookStatus> for NuveiTransactionStatus {

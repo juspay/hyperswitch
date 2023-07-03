@@ -13,4 +13,4 @@ export LLVM_PROFILE_FILE="$$-%p-%m.profraw"
 
 echo "Running 'cargo test' and generating grcov reports.. This may take some time.."
 
-cargo test && grcov . -s . -t html --branch --binary-path ./target/debug &&  rm -f $$*profraw &&  echo "starting server on localhost:$SERVER_PORT" && cd html && python3 -m http.server $SERVER_PORT 
+cargo test && grcov . -s . -t html --branch --binary-path ./target/debug &&  rm -f $$*profraw &&  echo "starting server on localhost:$SERVER_PORT" && cd html && python3 -m http.server $SERVER_PORT

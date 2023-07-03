@@ -1,3 +1,5 @@
+use time::ext::NumericalDuration;
+
 use crate::{
     core::errors::{self, CustomResult},
     db::MockDb,
@@ -125,21 +127,53 @@ mod storage {
 impl EphemeralKeyInterface for MockDb {
     async fn create_ephemeral_key(
         &self,
-        _ek: EphemeralKeyNew,
-        _validity: i64,
+        ek: EphemeralKeyNew,
+        validity: i64,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        Err(errors::StorageError::KVError.into())
+        let mut ephemeral_keys = self.ephemeral_keys.lock().await;
+        let created_at = common_utils::date_time::now();
+        let expires = created_at.saturating_add(validity.hours());
+
+        let ephemeral_key = EphemeralKey {
+            id: ek.id,
+            merchant_id: ek.merchant_id,
+            customer_id: ek.customer_id,
+            created_at: created_at.assume_utc().unix_timestamp(),
+            expires: expires.assume_utc().unix_timestamp(),
+            secret: ek.secret,
+        };
+        ephemeral_keys.push(ephemeral_key.clone());
+        Ok(ephemeral_key)
     }
     async fn get_ephemeral_key(
         &self,
-        _key: &str,
+        key: &str,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        Err(errors::StorageError::KVError.into())
+        match self
+            .ephemeral_keys
+            .lock()
+            .await
+            .iter()
+            .find(|ephemeral_key| ephemeral_key.secret.eq(key))
+        {
+            Some(ephemeral_key) => Ok(ephemeral_key.clone()),
+            None => Err(
+                errors::StorageError::ValueNotFound("ephemeral key not found".to_string()).into(),
+            ),
+        }
     }
     async fn delete_ephemeral_key(
         &self,
-        _id: &str,
+        id: &str,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        Err(errors::StorageError::KVError.into())
+        let mut ephemeral_keys = self.ephemeral_keys.lock().await;
+        if let Some(pos) = ephemeral_keys.iter().position(|x| (*x.id).eq(id)) {
+            let ek = ephemeral_keys.remove(pos);
+            Ok(ek)
+        } else {
+            return Err(
+                errors::StorageError::ValueNotFound("ephemeral key not found".to_string()).into(),
+            );
+        }
     }
 }

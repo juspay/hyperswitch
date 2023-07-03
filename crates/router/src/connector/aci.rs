@@ -5,10 +5,15 @@ use std::fmt::Debug;
 use error_stack::{IntoReport, ResultExt};
 use transformers as aci;
 
+use super::utils::PaymentsAuthorizeRequestData;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
-    headers, services,
+    headers,
+    services::{
+        self,
+        request::{self, Mask},
+    },
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -35,11 +40,14 @@ impl ConnectorCommon for Aci {
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth: aci::AciAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth.api_key.into_masked(),
+        )])
     }
 }
 
@@ -113,10 +121,12 @@ impl
         &self,
         req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsSyncType::get_content_type(self).to_string(),
+            types::PaymentsSyncType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -218,10 +228,12 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -234,19 +246,31 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "v1/payments"))
+        match req.request.connector_mandate_id() {
+            Some(mandate_id) => Ok(format!(
+                "{}v1/registrations/{}/payments",
+                self.base_url(connectors),
+                mandate_id
+            )),
+            _ => Ok(format!("{}{}", self.base_url(connectors), "v1/payments")),
+        }
     }
 
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         // encode only for for urlencoded things.
-        let aci_req = utils::Encode::<aci::AciPaymentsRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let connector_req = aci::AciPaymentsRequest::try_from(req)?;
+        let aci_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<aci::AciPaymentsRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
         Ok(Some(aci_req))
     }
 
@@ -326,10 +350,12 @@ impl
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -352,9 +378,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let aci_req = utils::Encode::<aci::AciCancelRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = aci::AciCancelRequest::try_from(req)?;
+        let aci_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<aci::AciCancelRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(aci_req))
     }
     fn build_request(
@@ -425,10 +455,12 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::RefundExecuteType::get_content_type(self).to_string(),
+            types::RefundExecuteType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -455,9 +487,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let body = utils::Encode::<aci::AciRefundRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = aci::AciRefundRequest::try_from(req)?;
+        let body = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<aci::AciRefundRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(body))
     }
 
@@ -537,7 +573,7 @@ impl api::IncomingWebhook for Aci {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Ok(api::IncomingWebhookEvent::EventNotSupported)
     }
 
     fn get_webhook_resource_object(

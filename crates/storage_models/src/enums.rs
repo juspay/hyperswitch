@@ -80,8 +80,8 @@ pub enum AttemptStatus {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticationType {
-    #[default]
     ThreeDs,
+    #[default]
     NoThreeDs,
 }
 
@@ -243,6 +243,7 @@ pub enum Currency {
     PKR,
     PLN,
     QAR,
+    RON,
     RUB,
     SAR,
     SCR,
@@ -254,6 +255,7 @@ pub enum Currency {
     SVC,
     SZL,
     THB,
+    TRY,
     TTD,
     TWD,
     TZS,
@@ -462,6 +464,8 @@ pub enum PaymentMethod {
     BankTransfer,
     Crypto,
     BankDebit,
+    Reward,
+    Upi,
 }
 
 #[derive(
@@ -526,6 +530,7 @@ pub enum ProcessTrackerStatus {
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum RefundStatus {
     Failure,
     ManualReview,
@@ -549,6 +554,7 @@ pub enum RefundStatus {
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum RefundType {
     InstantRefund,
     #[default]
@@ -670,15 +676,19 @@ pub enum PaymentMethodType {
     Affirm,
     AfterpayClearpay,
     AliPay,
+    AliPayHk,
     ApplePay,
     Bacs,
     BancontactCard,
     Becs,
     Blik,
+    #[serde(rename = "classic")]
+    ClassicReward,
     Credit,
     CryptoCurrency,
     Debit,
     Eps,
+    Evoucher,
     Giropay,
     GooglePay,
     Ideal,
@@ -693,10 +703,12 @@ pub enum PaymentMethodType {
     PayBright,
     Paypal,
     Przelewy24,
+    SamsungPay,
     Sepa,
     Sofort,
     Swish,
     Trustly,
+    UpiCollect,
     Walley,
     WeChatPay,
 }

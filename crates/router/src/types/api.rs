@@ -25,7 +25,7 @@ use crate::{
     configs::settings::Connectors,
     connector, consts,
     core::errors::{self, CustomResult},
-    services::{ConnectorIntegration, ConnectorRedirectResponse},
+    services::{request, ConnectorIntegration, ConnectorRedirectResponse},
     types::{self, api::enums as api_enums},
 };
 
@@ -54,7 +54,7 @@ pub trait ConnectorCommon {
     fn get_auth_header(
         &self,
         _auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(Vec::new())
     }
 
@@ -93,7 +93,7 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
         &self,
         _req: &types::RouterData<Flow, Req, Resp>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(Vec::new())
     }
 }
@@ -209,8 +209,10 @@ impl ConnectorData {
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
                 enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
                 enums::Connector::Braintree => Ok(Box::new(&connector::Braintree)),
+                enums::Connector::Cashtocode => Ok(Box::new(&connector::Cashtocode)),
                 enums::Connector::Checkout => Ok(Box::new(&connector::Checkout)),
                 enums::Connector::Coinbase => Ok(Box::new(&connector::Coinbase)),
+                enums::Connector::Cryptopay => Ok(Box::new(&connector::Cryptopay)),
                 enums::Connector::Cybersource => Ok(Box::new(&connector::Cybersource)),
                 enums::Connector::Dlocal => Ok(Box::new(&connector::Dlocal)),
                 #[cfg(feature = "dummy_connector")]
@@ -230,6 +232,7 @@ impl ConnectorData {
                 enums::Connector::Nuvei => Ok(Box::new(&connector::Nuvei)),
                 enums::Connector::Opennode => Ok(Box::new(&connector::Opennode)),
                 // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
+                //enums::Connector::Payme => Ok(Box::new(&connector::Payme)),
                 enums::Connector::Payu => Ok(Box::new(&connector::Payu)),
                 enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
                 enums::Connector::Shift4 => Ok(Box::new(&connector::Shift4)),
