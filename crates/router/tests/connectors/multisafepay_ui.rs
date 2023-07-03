@@ -11,10 +11,10 @@ impl SeleniumTest for MultisafepaySeleniumTest {
     }
 }
 
-async fn should_make_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_gpay_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = MultisafepaySeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/153"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
@@ -26,10 +26,10 @@ async fn should_make_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
     Ok(())
 }
 
-async fn should_make_paypal_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_paypal_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = MultisafepaySeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/154"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
