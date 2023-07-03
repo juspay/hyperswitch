@@ -897,7 +897,7 @@ pub async fn list_payment_methods(
                                 let existing_req_fields_hs = required_fields_hm
                                     .get_mut(&payment_method)
                                     .map(|inner_hm| inner_hm.get_mut(&payment_method_type))
-                                    .and_then(|hs: Option<&mut HashSet<RequiredFieldInfo>>| hs);
+                                    .and_then(|hs| hs);
 
                                 if let Some(inner_hs) = existing_req_fields_hs {
                                     inner_hs.extend(required_fields_hs);
@@ -1042,8 +1042,7 @@ pub async fn list_payment_methods(
                 // Required fields for PayLater payment method
                 required_fields: required_fields_hm
                     .get(key.0)
-                    .map(|inner_hm| inner_hm.get(payment_method_types_hm.0))
-                    .and_then(|hs| hs)
+                    .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
                     .cloned(),
             })
         }
@@ -1075,8 +1074,7 @@ pub async fn list_payment_methods(
                 // Required fields for Card payment method
                 required_fields: required_fields_hm
                     .get(key.0)
-                    .map(|inner_hm| inner_hm.get(payment_method_types_hm.0))
-                    .and_then(|hs| hs)
+                    .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
                     .cloned(),
             })
         }
@@ -1104,8 +1102,7 @@ pub async fn list_payment_methods(
                 // Required fields for BankRedirect payment method
                 required_fields: required_fields_hm
                     .get(&api_enums::PaymentMethod::BankRedirect)
-                    .map(|payment_method_type_hm| payment_method_type_hm.get(key.0))
-                    .and_then(|hs| hs)
+                    .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
             }
         })
@@ -1136,8 +1133,7 @@ pub async fn list_payment_methods(
                 // Required fields for BankDebit payment method
                 required_fields: required_fields_hm
                     .get(&api_enums::PaymentMethod::BankDebit)
-                    .map(|payment_method_type_hm| payment_method_type_hm.get(key.0))
-                    .and_then(|hs| hs)
+                    .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
             }
         })
@@ -1168,8 +1164,7 @@ pub async fn list_payment_methods(
                 // Required fields for BankTransfer payment method
                 required_fields: required_fields_hm
                     .get(&api_enums::PaymentMethod::BankTransfer)
-                    .map(|payment_method_type_hm| payment_method_type_hm.get(key.0))
-                    .and_then(|hs| hs)
+                    .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
             }
         })
