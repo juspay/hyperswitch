@@ -3,6 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use transformers as cashtocode;
 
 use crate::{
@@ -53,14 +54,14 @@ fn get_auth_cashtocode(
             storage::enums::PaymentMethodType::ClassicReward => match auth_type {
                 types::ConnectorAuthType::BodyKey { api_key, .. } => Ok(vec![(
                     headers::AUTHORIZATION.to_string(),
-                    format!("Basic {api_key}").into_masked(),
+                    format!("Basic {}", api_key.to_owned().expose()).into_masked(),
                 )]),
                 _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
             },
             storage::enums::PaymentMethodType::Evoucher => match auth_type {
                 types::ConnectorAuthType::BodyKey { key1, .. } => Ok(vec![(
                     headers::AUTHORIZATION.to_string(),
-                    format!("Basic {key1}").into_masked(),
+                    format!("Basic {}", key1.to_owned().expose()).into_masked(),
                 )]),
                 _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
             },

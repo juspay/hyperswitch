@@ -24,8 +24,8 @@ impl TryFrom<&types::ConnectorAuthType> for AciAuthType {
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = item {
             Ok(Self {
-                api_key: Secret::new(api_key.to_owned()),
-                entity_id: Secret::new(key1.to_owned()),
+                api_key: api_key.to_owned(),
+                entity_id: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?

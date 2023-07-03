@@ -8,6 +8,7 @@ mod auth {
 }
 
 use auth::ConnectorAuthentication;
+use masking::ExposeInterface;
 use utils::{mk_service, ApiKey, AppClient, MerchantId, PaymentId, Status};
 
 /// Example of unit test
@@ -77,7 +78,7 @@ async fn partial_refund() {
             &server,
             &merchant_id,
             "stripe",
-            &authentication.checkout.unwrap().api_key,
+            &authentication.checkout.unwrap().api_key.expose(),
         )
         .await;
 
@@ -143,7 +144,7 @@ async fn exceed_refund() {
             &server,
             &merchant_id,
             "stripe",
-            &authentication.checkout.unwrap().api_key,
+            &authentication.checkout.unwrap().api_key.expose(),
         )
         .await;
 

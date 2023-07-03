@@ -166,9 +166,9 @@ impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
         } = auth_type
         {
             Ok(Self {
-                api_key: Secret::new(api_key.to_owned()),
-                api_secret: Secret::new(api_secret.to_owned()),
-                processing_channel_id: Secret::new(key1.to_owned()),
+                api_key: api_key.to_owned(),
+                api_secret: api_secret.to_owned(),
+                processing_channel_id: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())

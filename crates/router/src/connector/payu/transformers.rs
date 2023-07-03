@@ -140,8 +140,8 @@ impl TryFrom<&types::ConnectorAuthType> for PayuAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                api_key: Secret::new(api_key.to_owned()),
-                merchant_pos_id: Secret::new(key1.to_owned()),
+                api_key: api_key.to_owned(),
+                merchant_pos_id: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
@@ -260,8 +260,8 @@ impl<F, T>
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct PayuAuthUpdateRequest {
     grant_type: String,
-    client_id: String,
-    client_secret: String,
+    client_id: Secret<String>,
+    client_secret: Secret<String>,
 }
 
 impl TryFrom<&types::RefreshTokenRouterData> for PayuAuthUpdateRequest {
@@ -276,7 +276,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for PayuAuthUpdateRequest {
 }
 #[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct PayuAuthUpdateResponse {
-    pub access_token: String,
+    pub access_token: Secret<String>,
     pub token_type: String,
     pub expires_in: i64,
     pub grant_type: String,

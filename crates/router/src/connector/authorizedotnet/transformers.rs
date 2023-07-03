@@ -1,5 +1,6 @@
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -25,8 +26,8 @@ pub enum TransactionType {
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct MerchantAuthentication {
-    name: String,
-    transaction_key: String,
+    name: Secret<String>,
+    transaction_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
@@ -35,8 +36,8 @@ impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
-                name: api_key.clone(),
-                transaction_key: key1.clone(),
+                name: api_key.to_owned(),
+                transaction_key: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -48,15 +49,15 @@ impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
 #[serde(rename_all = "camelCase")]
 struct CreditCardDetails {
     card_number: masking::StrongSecret<String, cards::CardNumberStrategy>,
-    expiration_date: masking::Secret<String>,
+    expiration_date: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    card_code: Option<masking::Secret<String>>,
+    card_code: Option<Secret<String>>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 struct BankAccountDetails {
-    account_number: masking::Secret<String>,
+    account_number: Secret<String>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]

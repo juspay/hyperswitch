@@ -8,7 +8,7 @@ use common_utils::{
 };
 use error_stack::{IntoReport, ResultExt};
 use hex::encode;
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use transformers as dlocal;
 
 use crate::{
@@ -67,7 +67,7 @@ where
         let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
         let sign_req: String = format!(
             "{}{}{}",
-            auth.x_login,
+            auth.x_login.to_owned().expose(),
             date,
             types::RequestBody::get_inner_value(dlocal_req)
                 .peek()
@@ -75,7 +75,7 @@ where
         );
         let authz = crypto::HmacSha256::sign_message(
             &crypto::HmacSha256,
-            auth.secret.as_bytes(),
+            auth.secret.expose().as_bytes(),
             sign_req.as_bytes(),
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)

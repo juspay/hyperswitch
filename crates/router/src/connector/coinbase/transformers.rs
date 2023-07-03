@@ -41,7 +41,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CoinbasePaymentsRequest {
 
 // Auth Struct
 pub struct CoinbaseAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for CoinbaseAuthType {
@@ -49,7 +49,7 @@ impl TryFrom<&types::ConnectorAuthType> for CoinbaseAuthType {
     fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = _auth_type {
             Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: api_key.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())

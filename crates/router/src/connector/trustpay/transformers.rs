@@ -37,9 +37,9 @@ impl TryFrom<&types::ConnectorAuthType> for TrustpayAuthType {
         } = auth_type
         {
             Ok(Self {
-                api_key: Secret::new(api_key.to_owned()),
-                project_id: Secret::new(key1.to_owned()),
-                secret_key: Secret::new(api_secret.to_owned()),
+                api_key: api_key.to_owned(),
+                project_id: key1.to_owned(),
+                secret_key: api_secret.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -770,7 +770,7 @@ pub struct ResultInfo {
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct TrustpayAuthUpdateResponse {
-    pub access_token: Option<String>,
+    pub access_token: Option<Secret<String>>,
     pub token_type: Option<String>,
     pub expires_in: Option<i64>,
     #[serde(rename = "ResultInfo")]

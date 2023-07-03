@@ -45,9 +45,12 @@ impl Rapyd {
             access_key,
             secret_key,
         } = auth;
-        let to_sign =
-            format!("{http_method}{url_path}{salt}{timestamp}{access_key}{secret_key}{body}");
-        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.as_bytes());
+        let to_sign = format!(
+            "{http_method}{url_path}{salt}{timestamp}{}{}{body}",
+            access_key.to_owned().expose(),
+            secret_key.to_owned().expose()
+        );
+        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.to_owned().expose().as_bytes());
         let tag = hmac::sign(&key, to_sign.as_bytes());
         let hmac_sign = hex::encode(tag);
         let signature_value = consts::BASE64_ENGINE_URL_SAFE.encode(hmac_sign);
@@ -767,7 +770,11 @@ impl api::IncomingWebhook for Rapyd {
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert body to UTF-8")?;
-        let to_sign = format!("{url_path}{salt}{timestamp}{access_key}{secret_key}{body_string}");
+        let to_sign = format!(
+            "{url_path}{salt}{timestamp}{}{}{body_string}",
+            access_key.expose(),
+            secret_key.expose()
+        );
 
         Ok(to_sign.into_bytes())
     }
@@ -797,7 +804,7 @@ impl api::IncomingWebhook for Rapyd {
             .parse_struct("RapydAuthType")
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret_key = auth.secret_key;
-        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.as_bytes());
+        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.expose().as_bytes());
         let tag = hmac::sign(&key, &message);
         let hmac_sign = hex::encode(tag);
         Ok(hmac_sign.as_bytes().eq(&signature))

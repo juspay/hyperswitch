@@ -128,7 +128,7 @@ where
             ),
             (
                 headers::AUTHORIZATION.to_string(),
-                format!("Bearer {}", access_token.token).into_masked(),
+                format!("Bearer {}", access_token.token.expose()).into_masked(),
             ),
             (
                 "Prefer".to_string(),

@@ -216,9 +216,9 @@ impl TryFrom<&types::ConnectorAuthType> for PayeezyAuthType {
         } = item
         {
             Ok(Self {
-                api_key: Secret::new(api_key.to_owned()),
-                api_secret: Secret::new(api_secret.to_owned()),
-                merchant_token: Secret::new(key1.to_owned()),
+                api_key: api_key.to_owned(),
+                api_secret: api_secret.to_owned(),
+                merchant_token: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())

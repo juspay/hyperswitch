@@ -119,7 +119,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
 pub struct AirwallexAuthUpdateResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     expires_at: PrimitiveDateTime,
-    token: String,
+    token: Secret<String>,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, types::AccessToken>>

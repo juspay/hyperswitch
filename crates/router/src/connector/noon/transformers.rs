@@ -232,9 +232,9 @@ impl TryFrom<&types::ConnectorAuthType> for NoonAuthType {
                 key1,
                 api_secret,
             } => Ok(Self {
-                api_key: Secret::new(api_key.to_owned()),
-                application_identifier: Secret::new(api_secret.to_owned()),
-                business_identifier: Secret::new(key1.to_owned()),
+                api_key: api_key.to_owned(),
+                application_identifier: api_secret.to_owned(),
+                business_identifier: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

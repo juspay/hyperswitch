@@ -97,7 +97,7 @@ pub struct LineItem {
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPaymentRequest<'a> {
     amount: Amount,
-    merchant_account: String,
+    merchant_account: Secret<String>,
     payment_method: AdyenPaymentMethod<'a>,
     reference: String,
     return_url: String,
@@ -583,7 +583,7 @@ pub enum CardBrand {
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenCancelRequest {
-    merchant_account: String,
+    merchant_account: Secret<String>,
     reference: String,
 }
 
@@ -639,7 +639,7 @@ pub struct AdyenPayLaterData {
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenRefundRequest {
-    merchant_account: String,
+    merchant_account: Secret<String>,
     amount: Amount,
     merchant_refund_reason: Option<String>,
     reference: String,
@@ -657,7 +657,7 @@ pub struct AdyenRefundResponse {
 
 pub struct AdyenAuthType {
     pub(super) api_key: Secret<String>,
-    pub(super) merchant_account: String,
+    pub(super) merchant_account: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -771,8 +771,8 @@ impl TryFrom<&types::ConnectorAuthType> for AdyenAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
-                api_key: Secret::new(api_key.to_owned()),
-                merchant_account: key1.to_string(),
+                api_key: api_key.to_owned(),
+                merchant_account: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -1774,7 +1774,7 @@ impl<F, Req>
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenCaptureRequest {
-    merchant_account: String,
+    merchant_account: Secret<String>,
     amount: Amount,
     reference: String,
 }

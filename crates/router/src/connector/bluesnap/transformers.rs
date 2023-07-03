@@ -525,8 +525,8 @@ impl TryFrom<&types::ConnectorAuthType> for BluesnapAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
-                api_key: Secret::new(api_key.to_owned()),
-                key1: Secret::new(key1.to_owned()),
+                api_key: api_key.to_owned(),
+                key1: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())

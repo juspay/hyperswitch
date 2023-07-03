@@ -3,7 +3,7 @@ use base64::Engine;
 use cards::CardNumber;
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -193,7 +193,11 @@ impl TryFrom<&types::ConnectorAuthType> for NexinetsAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => {
-                let auth_key = format!("{key1}:{api_key}");
+                let auth_key = format!(
+                    "{}:{}",
+                    key1.to_owned().expose(),
+                    api_key.to_owned().expose()
+                );
                 let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
                 Ok(Self {
                     api_key: Secret::new(auth_header),

@@ -1,6 +1,6 @@
 use api_models::payments;
 use base64::Engine;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -138,7 +138,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
 
 pub struct BraintreeAuthType {
     pub(super) auth_header: String,
-    pub(super) merchant_id: String,
+    pub(super) merchant_id: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
@@ -150,7 +150,11 @@ impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
             api_secret: private_key,
         } = item
         {
-            let auth_key = format!("{public_key}:{private_key}");
+            let auth_key = format!(
+                "{}:{}",
+                public_key.to_owned().expose(),
+                private_key.to_owned().expose()
+            );
             let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
             Ok(Self {
                 auth_header,

@@ -34,7 +34,7 @@ impl TryFrom<&types::ConnectorAuthType> for StripeAuthType {
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = item {
             Ok(Self {
-                api_key: Secret::new(api_key.to_owned()),
+                api_key: api_key.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())

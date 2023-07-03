@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use transformers as trustpay;
 
 use super::utils::collect_and_sort_values_by_removing_signature;
@@ -55,7 +56,7 @@ where
                     ),
                     (
                         headers::AUTHORIZATION.to_string(),
-                        format!("Bearer {}", token.token).into_masked(),
+                        format!("Bearer {}", token.token.expose()).into_masked(),
                     ),
                 ])
             }
