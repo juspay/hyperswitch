@@ -363,7 +363,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                             billing_country: _,
                         } => billing_email.clone(),
                         _ => Err(errors::ConnectorError::NotImplemented(
-                            "Only KlarnaRedirect is implemented".to_string(),
+                            "Payment method".to_string(),
                         ))?,
                     }),
                 }))
