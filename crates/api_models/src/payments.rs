@@ -278,9 +278,9 @@ pub struct PaymentsRequest {
     /// Business sub label for the payment
     pub business_sub_label: Option<String>,
 
-    /// If enabled payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted.
-    #[serde(default)]
-    pub manual_retry: bool,
+    /// Denotes the retry action
+    #[schema(value_type = Option<RetryAction>)]
+    pub retry_action: Option<api_enums::RetryAction>,
 
     /// Any user defined fields can be passed here.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
@@ -1432,6 +1432,9 @@ pub struct PaymentsResponse {
 
     /// ephemeral_key for the customer_id mentioned
     pub ephemeral_key: Option<EphemeralKeyCreateResponse>,
+
+    /// If true the payment can be retried with same or different payment method which means the confirm call can be made again.
+    pub manual_retry_allowed: Option<bool>,
 
     /// Any user defined fields can be passed here.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]

@@ -312,6 +312,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         &'a self,
         _state: &'a AppState,
         _payment_attempt: &storage::PaymentAttempt,
+        _requeue: bool,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -488,6 +489,10 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
                 payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: matches!(
+                    request.retry_action,
+                    Some(api_models::enums::RetryAction::Requeue)
+                ),
             },
         ))
     }
