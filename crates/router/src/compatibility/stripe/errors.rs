@@ -82,6 +82,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment method")]
     PaymentMethodNotFound,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "{message}")]
+    GenericNotFoundError { message: String },
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such merchant account")]
     MerchantAccountNotFound,
 
@@ -391,6 +394,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                     param: field_names.clone().join(", "),
                 }
             }
+            errors::ApiErrorResponse::GenericNotFoundError { message } => {
+                Self::GenericNotFoundError { message }
+            }
             // parameter unknown, invalid request error // actually if we type wrong values in address we get this error. Stripe throws parameter unknown. I don't know if stripe is validating email and stuff
             errors::ApiErrorResponse::InvalidDataFormat {
                 field_name,
@@ -535,7 +541,7 @@ impl actix_web::ResponseError for StripeErrorCode {
 
         match self {
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
-            Self::InvalidRequestUrl => StatusCode::NOT_FOUND,
+            Self::InvalidRequestUrl | Self::GenericNotFoundError { .. } => StatusCode::NOT_FOUND,
             Self::ParameterUnknown { .. } | Self::HyperswitchUnprocessableEntity { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
             }
