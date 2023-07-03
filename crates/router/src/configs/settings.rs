@@ -400,6 +400,7 @@ pub struct Connectors {
     pub cashtocode: ConnectorParams,
     pub checkout: ConnectorParams,
     pub coinbase: ConnectorParams,
+    pub cryptopay: ConnectorParams,
     pub cybersource: ConnectorParams,
     pub dlocal: ConnectorParams,
     #[cfg(feature = "dummy_connector")]
@@ -415,6 +416,7 @@ pub struct Connectors {
     pub nmi: ConnectorParams,
     pub noon: ConnectorParams,
     pub nuvei: ConnectorParams,
+    pub opayo: ConnectorParams,
     pub opennode: ConnectorParams,
     pub payeezy: ConnectorParams,
     pub payme: ConnectorParams,
