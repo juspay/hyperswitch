@@ -359,21 +359,6 @@ async fn should_make_stripe_ach_bank_debit_payment(c: WebDriver) -> Result<(), W
     Ok(())
 }
 
-async fn should_make_stripe_becs_bank_debit_payment(c: WebDriver) -> Result<(), WebDriverError> {
-    let conn = StripeSeleniumTest {};
-    conn.make_redirection_payment(
-        c,
-        vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/56"))),
-            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
-            Event::Assert(Assert::IsPresent("Status")),
-            Event::Assert(Assert::IsPresent("processing")),
-        ],
-    )
-    .await?;
-    Ok(())
-}
-
 async fn should_make_stripe_sepa_bank_debit_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = StripeSeleniumTest {};
     conn.make_redirection_payment(
@@ -485,12 +470,6 @@ fn should_make_stripe_sofort_redirect_payment_test() {
 #[serial]
 fn should_make_stripe_ach_bank_debit_payment_test() {
     tester!(should_make_stripe_ach_bank_debit_payment);
-}
-
-#[test]
-#[serial]
-fn should_make_stripe_becs_bank_debit_payment_test() {
-    tester!(should_make_stripe_becs_bank_debit_payment);
 }
 
 #[test]

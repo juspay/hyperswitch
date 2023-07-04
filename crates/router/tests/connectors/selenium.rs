@@ -402,6 +402,12 @@ pub trait SeleniumTest {
                 .unwrap(),
         );
         let mut pypl_actions = vec![
+            Event::RunIf(
+                Assert::IsPresent("Enter your email address to get started."),
+                vec![
+                Event::Trigger(Trigger::SendKeys(By::Id("email"), email)),
+                Event::Trigger(Trigger::Click(By::Id("btnNext")))]
+            ),
             Event::EitherOr(
                 Assert::IsPresent("Password"),
                 vec![

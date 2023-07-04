@@ -23,6 +23,7 @@ async fn should_make_3ds_payment(driver: WebDriver) -> Result<(), WebDriverError
             Event::Trigger(Trigger::SendKeys(By::Name("challengeDataEntry"), "1234")),
             Event::Trigger(Trigger::Click(By::ClassName("button.primary"))),
             Event::Trigger(Trigger::Sleep(5)),
+            Event::Assert(Assert::IsPresent("Google")),
             Event::Assert(Assert::Contains(
                 Selector::QueryParamStr,
                 "status=succeeded",
@@ -57,7 +58,6 @@ fn should_make_3ds_payment_test() {
 
 #[test]
 #[serial]
-#[ignore]
 fn should_make_gpay_payment_test() {
     tester!(should_make_gpay_payment);
 }
