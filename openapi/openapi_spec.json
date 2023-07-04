@@ -6340,8 +6340,7 @@
         "type": "object",
         "required": [
           "amount",
-          "currency",
-          "manual_retry"
+          "currency"
         ],
         "properties": {
           "payment_id": {
@@ -6652,9 +6651,13 @@
             "description": "Business sub label for the payment",
             "nullable": true
           },
-          "manual_retry": {
-            "type": "boolean",
-            "description": "If enabled payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted."
+          "retry_action": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RetryAction"
+              }
+            ],
+            "nullable": true
           },
           "udf": {
             "type": "object",
@@ -6974,9 +6977,13 @@
             "description": "Business sub label for the payment",
             "nullable": true
           },
-          "manual_retry": {
-            "type": "boolean",
-            "description": "If enabled payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted."
+          "retry_action": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RetryAction"
+              }
+            ],
+            "nullable": true
           },
           "udf": {
             "type": "object",
@@ -7300,6 +7307,11 @@
                 "$ref": "#/components/schemas/EphemeralKeyCreateResponse"
               }
             ],
+            "nullable": true
+          },
+          "manual_retry_allowed": {
+            "type": "boolean",
+            "description": "If true the payment can be retried with same or different payment method which means the confirm call can be made again.",
             "nullable": true
           },
           "udf": {
@@ -7817,6 +7829,13 @@
             "$ref": "#/components/schemas/ApiKeyExpiration"
           }
         }
+      },
+      "RetryAction": {
+        "type": "string",
+        "enum": [
+          "manual_retry",
+          "requeue"
+        ]
       },
       "RevokeApiKeyResponse": {
         "type": "object",
