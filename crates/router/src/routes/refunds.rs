@@ -179,17 +179,9 @@ pub async fn refunds_update(
 ///
 /// To list the refunds associated with a payment_id or with the merchant, if payment_id is not provided
 #[utoipa::path(
-    get,
+    post,
     path = "/refunds/list",
-    params(
-        ("payment_id" = String, Query, description = "The identifier for the payment"),
-        ("limit" = i64, Query, description = "Limit on the number of objects to return"),
-        ("created" = PrimitiveDateTime, Query, description = "The time at which refund is created"),
-        ("created_lt" = PrimitiveDateTime, Query, description = "Time less than the refund created time"),
-        ("created_gt" = PrimitiveDateTime, Query, description = "Time greater than the refund created time"),
-        ("created_lte" = PrimitiveDateTime, Query, description = "Time less than or equals to the refund created time"),
-        ("created_gte" = PrimitiveDateTime, Query, description = "Time greater than or equals to the refund created time")
-    ),
+    request_body=RefundListRequest,
     responses(
         (status = 200, description = "List of refunds", body = RefundListResponse),
     ),
@@ -199,11 +191,10 @@ pub async fn refunds_update(
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
 #[cfg(feature = "olap")]
-// #[get("/list")]
 pub async fn refunds_list(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Query<api_models::refunds::RefundListRequest>,
+    payload: web::Json<api_models::refunds::RefundListRequest>,
 ) -> HttpResponse {
     let flow = Flow::RefundsList;
     api::server_wrap(
@@ -212,6 +203,39 @@ pub async fn refunds_list(
         &req,
         payload.into_inner(),
         |state, auth, req| refund_list(&*state.store, auth.merchant_account, req),
+        &auth::ApiKeyAuth,
+    )
+    .await
+}
+
+/// Refunds - Filter
+///
+/// To list the refunds filters associated with list of connectors, currencies and payment statuses
+#[utoipa::path(
+    post,
+    path = "/refunds/filter",
+    request_body=TimeRange,
+    responses(
+        (status = 200, description = "List of filters", body = RefundListMetaData),
+    ),
+    tag = "Refunds",
+    operation_id = "List all filters for Refunds",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
+#[cfg(feature = "olap")]
+pub async fn refunds_filter_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<api_models::refunds::TimeRange>,
+) -> HttpResponse {
+    let flow = Flow::RefundsList;
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload.into_inner(),
+        |state, auth, req| refund_filter_list(&*state.store, auth.merchant_account, req),
         &auth::ApiKeyAuth,
     )
     .await

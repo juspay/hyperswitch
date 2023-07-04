@@ -106,6 +106,7 @@ impl Vaultable for api::Card {
             card_cvc: value2.card_security_code.unwrap_or_default().into(),
             card_issuer: None,
             card_network: None,
+            nick_name: value1.nickname.map(masking::Secret::new),
         };
 
         let supp_data = SupplementaryVaultData {

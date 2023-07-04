@@ -82,6 +82,7 @@ braintree.base_url = "https://api.sandbox.braintreegateway.com/"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
+cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
@@ -96,8 +97,10 @@ nexinets.base_url = "https://apitest.payengine.de/v1"
 nmi.base_url = "https://secure.nmi.com/"
 noon.base_url = "https://api-test.noonpayments.com/"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
+opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
+payme.base_url = "https://sandbox.payme.io/"
 paypal.base_url = "https://www.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
@@ -125,6 +128,7 @@ cards = [
     "braintree",
     "checkout",
     "coinbase",
+    "cryptopay",
     "cybersource",
     "dlocal",
     "dummyconnector",
@@ -138,8 +142,10 @@ cards = [
     "nmi",
     "noon",
     "nuvei",
+    "opayo",
     "opennode",
     "payeezy",
+    "payme",
     "paypal",
     "payu",
     "shift4",

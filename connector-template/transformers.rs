@@ -97,6 +97,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, {{project-name | downcase | pasca
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None
             }),
             ..item.data
         })

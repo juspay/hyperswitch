@@ -550,6 +550,7 @@ pub async fn mock_add_card_hs(
         payment_method_id,
         customer_id: customer_id.map(str::to_string),
         name_on_card: card.card_holder_name.to_owned().expose_option(),
+        nickname: card.nick_name.to_owned().map(masking::Secret::expose),
     };
 
     let response = db
@@ -590,6 +591,7 @@ pub async fn mock_add_card(
         payment_method_id,
         customer_id: customer_id.map(str::to_string),
         name_on_card: card.card_holder_name.to_owned().expose_option(),
+        nickname: card.nick_name.to_owned().map(masking::Secret::expose),
     };
     let response = db
         .insert_locker_mock_up(locker_mock_up)
@@ -1110,6 +1112,7 @@ pub async fn list_payment_methods(
         .unwrap_or(Ok(services::ApplicationResponse::Json(
             api::PaymentMethodListResponse {
                 redirect_url: merchant_account.return_url,
+                merchant_name: merchant_account.merchant_name,
                 payment_methods: payment_method_responses,
                 mandate_payment: payment_attempt
                     .and_then(|inner| inner.mandate_details)
