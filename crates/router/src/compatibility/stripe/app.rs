@@ -88,7 +88,7 @@ impl Customers {
                     .route(web::delete().to(customer_delete)),
             )
             .service(
-                web::resource("/payment_methods")
+                web::resource("/{customer_id}/payment_methods")
                     .route(web::get().to(list_customer_payment_method_api)),
             )
     }
