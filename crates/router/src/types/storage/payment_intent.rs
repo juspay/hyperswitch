@@ -52,6 +52,21 @@ impl PaymentIntentDbExt for PaymentIntent {
         if let Some(customer_id) = customer_id {
             filter = filter.filter(dsl::customer_id.eq(customer_id.to_owned()));
         }
+        if let Some(created) = pc.created {
+            filter = filter.filter(dsl::created_at.eq(created));
+        }
+        if let Some(created_lt) = pc.created_lt {
+            filter = filter.filter(dsl::created_at.lt(created_lt));
+        }
+        if let Some(created_gt) = pc.created_gt {
+            filter = filter.filter(dsl::created_at.gt(created_gt));
+        }
+        if let Some(created_lte) = pc.created_lte {
+            filter = filter.filter(dsl::created_at.le(created_lte));
+        }
+        if let Some(created_gte) = pc.created_gte {
+            filter = filter.filter(dsl::created_at.gt(created_gte));
+        }
         if let Some(starting_after) = starting_after {
             let id = Self::find_by_payment_id_merchant_id(conn, starting_after, merchant_id)
                 .await?
