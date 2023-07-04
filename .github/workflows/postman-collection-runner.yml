@@ -57,4 +57,5 @@ jobs:
           timeout_minutes: 6
           max_attempts: 3
           retry_on: error
-          command: ./scripts/postman_test_automation.sh ${{ matrix.connector }}
+          command: |
+            cargo run --package router --bin collection_runner ${{ matrix.connector }} $BASE_URL $ADMIN_API_KEY

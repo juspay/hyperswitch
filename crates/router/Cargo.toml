@@ -80,6 +80,7 @@ strum = { version = "0.24.1", features = ["derive"] }
 thiserror = "1.0.40"
 time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread"] }
+toml = "0.7.4"
 url = { version = "2.4.0", features = ["serde"] }
 utoipa = { version = "3.3.0", features = ["preserve_order", "time"] }
 utoipa-swagger-ui = { version = "3.1.3", features = ["actix-web"] }
@@ -111,7 +112,6 @@ serial_test = "2.0.0"
 thirtyfour = "0.31.0"
 time = { version = "0.3.21", features = ["macros"] }
 tokio = "1.28.2"
-toml = "0.7.4"
 wiremock = "0.5"
 
 [[bin]]
@@ -121,3 +121,7 @@ path = "src/bin/router.rs"
 [[bin]]
 name = "scheduler"
 path = "src/bin/scheduler.rs"
+
+[[bin]]
+name = "collection_runner"
+path = "src/bin/collection_runner.rs"

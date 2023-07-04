@@ -48,72 +48,109 @@ pub struct ConnectorAuthentication {
     pub zen: Option<HeaderKey>,
     pub automation_configs: Option<AutomationConfigs>,
 }
-
-#[derive(Debug, Clone)]
-pub(crate) struct ConnectorAuthenticationMap(HashMap<String, ConnectorAuthType>);
-
-impl ConnectorAuthenticationMap {
-    #[allow(clippy::expect_used)]
-    pub(crate) fn new() -> Self {
-        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
-        // before running tests
-        let path = env::var("CONNECTOR_AUTH_FILE_PATH")
-            .expect("connector authentication file path not set");
-        ConnectorAuthenticationMap(
-            toml::from_str(
-                &std::fs::read_to_string(path)
-                    .expect("connector authentication config file not found"),
-            )
-            .expect("Failed to read connector authentication config file"),
-        )
-    }
-
-    pub(crate) fn lookup(self, key: &str) -> String {
-        match self.0.get(key) {
-            Some(auth_type) => match auth_type {
-                ConnectorAuthType::HeaderKey { api_key } => {
-                    format!("--env-var connector_api_key={}", api_key.clone())
-                }
-                ConnectorAuthType::BodyKey { api_key, key1 } => {
-                    format!(
-                        "--env-var connector_api_key={} --env-var connector_key1={}",
-                        api_key, key1
-                    )
-                }
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => format!(
-                    "--env-var connector_api_key={} --env-var connector_key1={} --env-var connector_api_secret={}",
-                    api_key, key1, api_secret
-                ),
-                ConnectorAuthType::MultiAuthKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                    key2,
-                } => format!(
-                    "--env-var connector_api_key={} --env-var connector_key1={} --env-var connector_key2={} --env-var connector_api_secret={}",
-                    api_key, key1, key2, api_secret
-                ),
-                ConnectorAuthType::NoKey => String::new(),
-            },
-            None => String::new(),
-        }
-    }
-}
-
+#[allow(dead_code)]
 impl ConnectorAuthentication {
     #[allow(clippy::expect_used)]
     pub(crate) fn new() -> Self {
-        // before running tests
+        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
+        // before running tests in shell
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
-            .expect("connector authentication file path not set");
+            .expect("Connector authentication file path not set");
         toml::from_str(
             &std::fs::read_to_string(path).expect("connector authentication config file not found"),
         )
         .expect("Failed to read connector authentication config file")
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub(crate) struct ConnectorAuthenticationMap(pub(crate) HashMap<String, ConnectorAuthType>);
+
+// This is a temporary solution to avoid rust compiler from complaining about unused function
+#[allow(dead_code)]
+impl ConnectorAuthenticationMap {
+    #[allow(clippy::expect_used)]
+    pub(crate) fn new() -> Self {
+        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
+        // before running tests in shell
+        let path = env::var("CONNECTOR_AUTH_FILE_PATH")
+            .expect("connector authentication file path not set");
+
+        // Read the file contents to a JsonString
+        let contents =
+            &std::fs::read_to_string(&path).expect("Failed to read connector authentication file");
+
+        // Deserialize the JsonString to a HashMap
+        let auth_config: HashMap<String, toml::Value> =
+            toml::from_str(&contents).expect("Failed to deserialize TOML file");
+
+        // auth_config contains the data in below given format:
+        // {
+        //  "connector_name": Table(
+        //      {
+        //          "api_key": String(
+        //                 "API_Key",
+        //          ),
+        //          "api_secret": String(
+        //              "Secret key",
+        //          ),
+        //          "key1": String(
+        //                  "key1",
+        //          ),
+        //          "key2": String(
+        //              "key2",
+        //          ),
+        //      },
+        //  ),
+        // "connector_name": Table(
+        //  ...
+        // }
+
+        // auth_map refines and extracts required information
+        let auth_map = auth_config
+            .into_iter()
+            .map(|(connector_name, config)| {
+                let auth_type = match config {
+                    toml::Value::Table(table) => {
+                        match (
+                            table.get("api_key"),
+                            table.get("key1"),
+                            table.get("api_secret"),
+                            table.get("key2"),
+                        ) {
+                            (Some(api_key), None, None, None) => ConnectorAuthType::HeaderKey {
+                                api_key: api_key.to_string(),
+                            },
+                            (Some(api_key), Some(key1), None, None) => ConnectorAuthType::BodyKey {
+                                api_key: api_key.to_string(),
+                                key1: key1.to_string(),
+                            },
+                            (Some(api_key), Some(key1), Some(api_secret), None) => {
+                                ConnectorAuthType::SignatureKey {
+                                    api_key: api_key.to_string(),
+                                    key1: key1.to_string(),
+                                    api_secret: api_secret.to_string(),
+                                }
+                            }
+                            (Some(api_key), Some(key1), Some(api_secret), Some(key2)) => {
+                                ConnectorAuthType::MultiAuthKey {
+                                    api_key: api_key.to_string(),
+                                    key1: key1.to_string(),
+                                    api_secret: api_secret.to_string(),
+                                    key2: key2.to_string(),
+                                }
+                            }
+                            _ => ConnectorAuthType::NoKey,
+                        }
+                    }
+                    _ => ConnectorAuthType::NoKey,
+                };
+
+                (connector_name, auth_type)
+            })
+            .collect();
+
+        ConnectorAuthenticationMap(auth_map)
     }
 }
 

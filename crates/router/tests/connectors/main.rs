@@ -60,4 +60,3 @@ mod worldline;
 mod worldline_ui;
 mod worldpay;
 mod zen;
-mod collection_runner;

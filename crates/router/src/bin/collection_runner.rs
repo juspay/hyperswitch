@@ -21,7 +21,7 @@ fn main() {
 
     // Usage Info
     if args.len() < 4 {
-        println!("Usage: cargo collection_runner <connector_name> <base_url> <admin_api_key>");
+        println!("Usage: cargo run --package router --bin collection_runner <connector_name> <base_url> <admin_api_key>");
         return;
     }
 
