@@ -86,6 +86,10 @@ pub struct CardDetail {
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
     pub card_holder_name: Option<masking::Secret<String>>,
+
+    /// Card Holder's Nick Name
+    #[schema(value_type = Option<String>,example = "John Doe")]
+    pub nick_name: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -159,6 +163,9 @@ pub struct CardDetailFromLocker {
 
     #[schema(value_type=Option<String>)]
     pub card_fingerprint: Option<masking::Secret<String>>,
+
+    #[schema(value_type=Option<String>)]
+    pub nick_name: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
@@ -293,7 +300,7 @@ pub struct RequestPaymentMethodTypes {
 }
 
 //List Payment Method
-#[derive(Debug, serde::Serialize, Default, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodListRequest {
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
@@ -543,7 +550,7 @@ pub struct CustomerPaymentMethod {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
 }
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodId {
     pub payment_method_id: String,
 }
