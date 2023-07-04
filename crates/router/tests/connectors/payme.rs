@@ -69,7 +69,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         order_details: Some(vec![OrderDetailsWithAmount {
             product_name: "iphone 13".to_string(),
             quantity: 1,
-            amount: 100,
+            amount: 1000,
         }]),
         router_return_url: Some("https://hyperswitch.io".to_string()),
         webhook_url: Some("https://hyperswitch.io".to_string()),
@@ -82,6 +82,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             card_holder_name: Secret::new("John Doe".to_string()),
             ..utils::CCardType::default().0
         }),
+        amount: 1000,
         ..PaymentAuthorizeType::default().0
     })
 }
@@ -315,6 +316,7 @@ async fn should_refund_succeeded_payment_multiple_times() {
         .make_payment_and_multiple_refund(
             payment_method_details(),
             Some(types::RefundsData {
+                refund_amount: 100,
                 ..utils::PaymentRefundType::default().0
             }),
             get_default_payment_info(),
@@ -483,7 +485,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         .make_payment_and_refund(
             payment_method_details(),
             Some(types::RefundsData {
-                refund_amount: 150,
+                refund_amount: 1500,
                 ..utils::PaymentRefundType::default().0
             }),
             get_default_payment_info(),
