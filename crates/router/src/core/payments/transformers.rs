@@ -651,22 +651,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 field_name: "browser_info",
             })?;
 
-        // let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
-        //     .payment_intent
-        //     .metadata
-        //     .as_ref()
-        //     .map(|metadata_value| {
-        //         metadata_value
-        //             .clone()
-        //             .parse_value("metadata")
-        //             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-        //                 field_name: "metadata",
-        //             })
-        //             .attach_printable("unable to parse metadata")
-        //     })
-        //     .transpose()
-        //     .unwrap_or_default();
-
         let order_category = additional_data
             .payment_data
             .payment_intent

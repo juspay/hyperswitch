@@ -185,6 +185,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             .attach_printable("Error converting feature_metadata to Value")?
             .or(payment_intent.feature_metadata);
 
+        payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
+
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = setup_mandate.map(|mandate_data| api_models::payments::MandateData {
             customer_acceptance: mandate_data.customer_acceptance,

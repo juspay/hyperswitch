@@ -231,7 +231,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error converting feature_metadata to Value")?
             .or(payment_intent.feature_metadata);
-
+        payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
         payment_attempt.business_sub_label = request
             .business_sub_label
             .clone()
