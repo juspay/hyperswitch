@@ -143,8 +143,6 @@ impl Default for super::settings::DrainerSettings {
     }
 }
 
-use api_models::enums;
-
 use super::settings::{
     SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
     SupportedPaymentMethodsForMandate,
