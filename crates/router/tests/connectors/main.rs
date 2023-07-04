@@ -34,6 +34,7 @@ mod iatapay;
 mod mollie;
 mod mollie_ui;
 mod multisafepay;
+mod multisafepay_ui;
 mod nexinets;
 mod nmi;
 mod noon;
