@@ -553,6 +553,7 @@ pub async fn mock_add_card_hs(
         payment_method_id,
         customer_id: customer_id.map(str::to_string),
         name_on_card: card.card_holder_name.to_owned().expose_option(),
+        nickname: card.nick_name.to_owned().map(masking::Secret::expose),
     };
 
     let response = db
@@ -593,6 +594,7 @@ pub async fn mock_add_card(
         payment_method_id,
         customer_id: customer_id.map(str::to_string),
         name_on_card: card.card_holder_name.to_owned().expose_option(),
+        nickname: card.nick_name.to_owned().map(masking::Secret::expose),
     };
     let response = db
         .insert_locker_mock_up(locker_mock_up)

@@ -233,6 +233,7 @@ mod payments_test {
             card_cvc: "123".to_string().into(),
             card_issuer: Some("HDFC".to_string()),
             card_network: Some(api_models::enums::CardNetwork::Visa),
+            nick_name: Some(masking::Secret::new("nick_name".into())),
         }
     }
 
