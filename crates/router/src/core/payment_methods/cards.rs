@@ -894,10 +894,10 @@ pub async fn list_payment_methods(
                                 // If payment_method_type already exist in required_fields_hm, extend the required_fields hs to existing hs.
                                 let required_fields_hs =
                                     HashSet::from_iter(required_fields_vec.iter().cloned());
+
                                 let existing_req_fields_hs = required_fields_hm
                                     .get_mut(&payment_method)
-                                    .map(|inner_hm| inner_hm.get_mut(&payment_method_type))
-                                    .and_then(|hs| hs);
+                                    .and_then(|inner_hm| inner_hm.get_mut(&payment_method_type));
 
                                 if let Some(inner_hs) = existing_req_fields_hs {
                                     inner_hs.extend(required_fields_hs);
