@@ -16,7 +16,7 @@ pub async fn is_stream_available(stream_index: u8, store: Arc<services::Store>) 
 
     match store
         .redis_conn
-        .set_key_if_not_exist(stream_key_flag.as_str(), true)
+        .set_key_if_not_exists_with_expiry(stream_key_flag.as_str(), true, None)
         .await
     {
         Ok(resp) => resp == redis::types::SetnxReply::KeySet,
