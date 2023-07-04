@@ -1,5 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
+use api_models::{enums, payment_methods::RequiredFieldInfo};
+
+use super::settings::{ConnectorFields, PaymentMethodType};
+
 impl Default for super::settings::Server {
     fn default() -> Self {
         Self {
@@ -214,6 +218,811 @@ impl Default for SupportedPaymentMethodsForMandate {
                                 enums::Connector::Nexinets,
                                 enums::Connector::Noon,
                             ]),
+                        },
+                    ),
+                ])),
+            ),
+        ]))
+    }
+}
+
+impl Default for super::settings::RequiredFields {
+    fn default() -> Self {
+        Self(HashMap::from([
+            (
+                enums::PaymentMethod::Card,
+                PaymentMethodType(HashMap::from([(
+                    enums::PaymentMethodType::Debit,
+                    ConnectorFields {
+                        fields: HashMap::from([
+                            (
+                                enums::Connector::Aci,
+                                vec![RequiredFieldInfo {
+                                    required_field: "card.card_holder_name".to_string(),
+                                    display_name: "card_holder_name".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
+                            ),
+                            (
+                                enums::Connector::Bluesnap,
+                                vec![
+                                    RequiredFieldInfo {
+                                        required_field: "email".to_string(),
+                                        display_name: "email".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.first_name".to_string(),
+                                        display_name: "first_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.last_name".to_string(),
+                                        display_name: "last_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                ],
+                            ),
+                            (
+                                enums::Connector::Bambora,
+                                vec![RequiredFieldInfo {
+                                    required_field: "card.card_holder_name".to_string(),
+                                    display_name: "card_holder_name".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
+                            ),
+                            (
+                                enums::Connector::Cybersource,
+                                vec![
+                                    RequiredFieldInfo {
+                                        required_field: "email".to_string(),
+                                        display_name: "email".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.phone.number".to_string(),
+                                        display_name: "phone_number".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.phone.country_code".to_string(),
+                                        display_name: "country".to_string(),
+                                        field_type: enums::FieldType::DropDown {
+                                            options: vec!["US".to_string(), "IN".to_string()],
+                                        },
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.first_name".to_string(),
+                                        display_name: "first_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.last_name".to_string(),
+                                        display_name: "last_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.line1".to_string(),
+                                        display_name: "line1".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.city".to_string(),
+                                        display_name: "city".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.state".to_string(),
+                                        display_name: "state".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.zip".to_string(),
+                                        display_name: "zip".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.country".to_string(),
+                                        display_name: "country".to_string(),
+                                        field_type: enums::FieldType::DropDown {
+                                            options: vec!["US".to_string(), "IN".to_string()],
+                                        },
+                                    },
+                                ],
+                            ),
+                            (
+                                enums::Connector::Dlocal,
+                                vec![
+                                    RequiredFieldInfo {
+                                        required_field: "card.card_holder_name".to_string(),
+                                        display_name: "card_holder_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "email".to_string(),
+                                        display_name: "email".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.country".to_string(),
+                                        display_name: "country".to_string(),
+                                        field_type: enums::FieldType::DropDown {
+                                            options: vec!["US".to_string(), "IN".to_string()],
+                                        },
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.first_name".to_string(),
+                                        display_name: "first_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.last_name".to_string(),
+                                        display_name: "last_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                ],
+                            ),
+                            (
+                                enums::Connector::Forte,
+                                vec![
+                                    RequiredFieldInfo {
+                                        required_field: "card.card_holder_name".to_string(),
+                                        display_name: "card_holder_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.first_name".to_string(),
+                                        display_name: "first_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.last_name".to_string(),
+                                        display_name: "last_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                ],
+                            ),
+                            (
+                                enums::Connector::Globalpay,
+                                vec![RequiredFieldInfo {
+                                    required_field: "billing.address.country".to_string(),
+                                    display_name: "country".to_string(),
+                                    field_type: enums::FieldType::DropDown {
+                                        options: vec!["US".to_string(), "IN".to_string()],
+                                    },
+                                }],
+                            ),
+                            (
+                                enums::Connector::Iatapay,
+                                vec![RequiredFieldInfo {
+                                    required_field: "billing.address.country".to_string(),
+                                    display_name: "country".to_string(),
+                                    field_type: enums::FieldType::DropDown {
+                                        options: vec!["US".to_string(), "IN".to_string()],
+                                    },
+                                }],
+                            ),
+                            (
+                                enums::Connector::Multisafepay,
+                                vec![
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.first_name".to_string(),
+                                        display_name: "first_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.last_name".to_string(),
+                                        display_name: "last_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.line1".to_string(),
+                                        display_name: "line1".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.line2".to_string(),
+                                        display_name: "line2".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.city".to_string(),
+                                        display_name: "city".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.zip".to_string(),
+                                        display_name: "zip".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.country".to_string(),
+                                        display_name: "country".to_string(),
+                                        field_type: enums::FieldType::DropDown {
+                                            options: vec!["US".to_string(), "IN".to_string()],
+                                        },
+                                    },
+                                ],
+                            ),
+                            (
+                                enums::Connector::Noon,
+                                vec![RequiredFieldInfo {
+                                    required_field: "card.card_holder_name".to_string(),
+                                    display_name: "card_holder_name".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
+                            ),
+                            (
+                                enums::Connector::Opennode,
+                                vec![RequiredFieldInfo {
+                                    required_field: "description".to_string(),
+                                    display_name: "description".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
+                            ),
+                            (
+                                enums::Connector::Payu,
+                                vec![RequiredFieldInfo {
+                                    required_field: "description".to_string(),
+                                    display_name: "description".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
+                            ),
+                            (
+                                enums::Connector::Rapyd,
+                                vec![RequiredFieldInfo {
+                                    required_field: "card.card_holder_name".to_string(),
+                                    display_name: "card_holder_name".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
+                            ),
+                            (
+                                enums::Connector::Shift4,
+                                vec![RequiredFieldInfo {
+                                    required_field: "card.card_holder_name".to_string(),
+                                    display_name: "card_holder_name".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
+                            ),
+                            (
+                                enums::Connector::Trustpay,
+                                vec![
+                                    RequiredFieldInfo {
+                                        required_field: "card.card_holder_name".to_string(),
+                                        display_name: "card_holder_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.line1".to_string(),
+                                        display_name: "line1".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.city".to_string(),
+                                        display_name: "city".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.zip".to_string(),
+                                        display_name: "zip".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.country".to_string(),
+                                        display_name: "country".to_string(),
+                                        field_type: enums::FieldType::DropDown {
+                                            options: vec!["US".to_string(), "IN".to_string()],
+                                        },
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "email".to_string(),
+                                        display_name: "email".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "browser_info".to_string(),
+                                        display_name: "browser_info".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                ],
+                            ),
+                            (
+                                enums::Connector::Worldline,
+                                vec![RequiredFieldInfo {
+                                    required_field: "card.card_holder_name".to_string(),
+                                    display_name: "card_holder_name".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
+                            ),
+                            (
+                                enums::Connector::Zen,
+                                vec![
+                                    RequiredFieldInfo {
+                                        required_field: "email".to_string(),
+                                        display_name: "email".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "browser_info".to_string(),
+                                        display_name: "browser_info".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "description".to_string(),
+                                        display_name: "description".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "metadata.order_details".to_string(),
+                                        display_name: "order_details".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                ],
+                            ),
+                        ]),
+                    },
+                )])),
+            ),
+            (
+                enums::PaymentMethod::BankRedirect,
+                PaymentMethodType(HashMap::from([
+                    (
+                        enums::PaymentMethodType::Ach,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Stripe,
+                                    vec![RequiredFieldInfo {
+                                        required_field: "currency".to_string(),
+                                        display_name: "currency".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    }],
+                                ),
+                                (
+                                    enums::Connector::Adyen,
+                                    vec![RequiredFieldInfo {
+                                        required_field: "card_holder_name".to_string(),
+                                        display_name: "card_holder_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    }],
+                                ),
+                            ]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::Przelewy24,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Stripe,
+                                vec![RequiredFieldInfo {
+                                    required_field: "bank_name".to_string(),
+                                    display_name: "bank_name".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
+                            )]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::BancontactCard,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Stripe,
+                                    vec![RequiredFieldInfo {
+                                        required_field: "bancontact_card.billing_name".to_string(),
+                                        display_name: "billing_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    }],
+                                ),
+                                (
+                                    enums::Connector::Adyen,
+                                    vec![
+                                        RequiredFieldInfo {
+                                            required_field: "bancontact_card.card_number"
+                                                .to_string(),
+                                            display_name: "card_number".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "bancontact_card.card_exp_month"
+                                                .to_string(),
+                                            display_name: "card_exp_month".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "bancontact_card.card_exp_year"
+                                                .to_string(),
+                                            display_name: "card_exp_year".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "bancontact_card.card_holder_name"
+                                                .to_string(),
+                                            display_name: "card_holder_name".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                    ],
+                                ),
+                            ]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::Sepa,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Adyen,
+                                vec![RequiredFieldInfo {
+                                    required_field: "bank_account_holder_name".to_string(),
+                                    display_name: "bank_account_holder_name".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
+                            )]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::Bacs,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Adyen,
+                                vec![RequiredFieldInfo {
+                                    required_field: "bank_account_holder_name".to_string(),
+                                    display_name: "bank_account_holder_name".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
+                            )]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::Giropay,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Worldline,
+                                    vec![RequiredFieldInfo {
+                                        required_field: "giropay.billing_details.billing_name"
+                                            .to_string(),
+                                        display_name: "billing_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    }],
+                                ),
+                                (
+                                    enums::Connector::Nuvei,
+                                    vec![
+                                        RequiredFieldInfo {
+                                            required_field: "email".to_string(),
+                                            display_name: "email".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "billing.address.country".to_string(),
+                                            display_name: "country".to_string(),
+                                            field_type: enums::FieldType::DropDown {
+                                                options: vec!["US".to_string(), "IN".to_string()],
+                                            },
+                                        },
+                                    ],
+                                ),
+                            ]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::Ideal,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Worldline,
+                                    vec![RequiredFieldInfo {
+                                        required_field: "ideal.bank_name".to_string(),
+                                        display_name: "bank_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    }],
+                                ),
+                                (
+                                    enums::Connector::Nuvei,
+                                    vec![
+                                        RequiredFieldInfo {
+                                            required_field: "ideal.bank_name".to_string(),
+                                            display_name: "bank_name".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "billing.address.first_name"
+                                                .to_string(),
+                                            display_name: "first_name".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "billing.address.last_name".to_string(),
+                                            display_name: "last_name".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "email".to_string(),
+                                            display_name: "email".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "billing.address.country".to_string(),
+                                            display_name: "country".to_string(),
+                                            field_type: enums::FieldType::DropDown {
+                                                options: vec!["US".to_string(), "IN".to_string()],
+                                            },
+                                        },
+                                    ],
+                                ),
+                            ]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::Sofort,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Nuvei,
+                                vec![
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.first_name".to_string(),
+                                        display_name: "first_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.last_name".to_string(),
+                                        display_name: "last_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "email".to_string(),
+                                        display_name: "email".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.country".to_string(),
+                                        display_name: "country".to_string(),
+                                        field_type: enums::FieldType::DropDown {
+                                            options: vec!["US".to_string(), "IN".to_string()],
+                                        },
+                                    },
+                                ],
+                            )]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::Eps,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Nuvei,
+                                vec![
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.first_name".to_string(),
+                                        display_name: "first_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.last_name".to_string(),
+                                        display_name: "last_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "email".to_string(),
+                                        display_name: "email".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.country".to_string(),
+                                        display_name: "country".to_string(),
+                                        field_type: enums::FieldType::DropDown {
+                                            options: vec!["US".to_string(), "IN".to_string()],
+                                        },
+                                    },
+                                ],
+                            )]),
+                        },
+                    ),
+                ])),
+            ),
+            (
+                enums::PaymentMethod::Wallet,
+                PaymentMethodType(HashMap::from([
+                    (
+                        enums::PaymentMethodType::ApplePay,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Bluesnap,
+                                    vec![RequiredFieldInfo {
+                                        required_field: "billing_address".to_string(),
+                                        display_name: "billing_address".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    }],
+                                ),
+                                (
+                                    enums::Connector::Zen,
+                                    vec![RequiredFieldInfo {
+                                        required_field: "metadata.order_details".to_string(),
+                                        display_name: "order_details".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    }],
+                                ),
+                            ]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::Paypal,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Mollie,
+                                    vec![
+                                        RequiredFieldInfo {
+                                            required_field: "billing_address".to_string(),
+                                            display_name: "billing_address".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "shipping_address".to_string(),
+                                            display_name: "shipping_address".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                    ],
+                                ),
+                                (
+                                    enums::Connector::Nuvei,
+                                    vec![
+                                        RequiredFieldInfo {
+                                            required_field: "email".to_string(),
+                                            display_name: "email".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "billing.address.country".to_string(),
+                                            display_name: "country".to_string(),
+                                            field_type: enums::FieldType::DropDown {
+                                                options: vec!["US".to_string(), "IN".to_string()],
+                                            },
+                                        },
+                                    ],
+                                ),
+                            ]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::GooglePay,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Zen,
+                                vec![RequiredFieldInfo {
+                                    required_field: "metadata.order_details".to_string(),
+                                    display_name: "order_details".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
+                            )]),
+                        },
+                    ),
+                ])),
+            ),
+            (
+                enums::PaymentMethod::PayLater,
+                PaymentMethodType(HashMap::from([
+                    (
+                        enums::PaymentMethodType::AfterpayClearpay,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Stripe,
+                                    vec![
+                                        RequiredFieldInfo {
+                                            required_field: "shipping.address.first_name"
+                                                .to_string(),
+                                            display_name: "first_name".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "shipping.address.line1".to_string(),
+                                            display_name: "line1".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "shipping.address.country".to_string(),
+                                            display_name: "country".to_string(),
+                                            field_type: enums::FieldType::DropDown {
+                                                options: vec!["US".to_string(), "IN".to_string()],
+                                            },
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "shipping.address.zip".to_string(),
+                                            display_name: "zip".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                    ],
+                                ),
+                                (
+                                    enums::Connector::Adyen,
+                                    vec![
+                                        RequiredFieldInfo {
+                                            required_field: "shipping.address.first_name"
+                                                .to_string(),
+                                            display_name: "first_name".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "shipping.address.line1".to_string(),
+                                            display_name: "line1".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "shipping.address.country".to_string(),
+                                            display_name: "country".to_string(),
+                                            field_type: enums::FieldType::DropDown {
+                                                options: vec!["US".to_string(), "IN".to_string()],
+                                            },
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "shipping.address.zip".to_string(),
+                                            display_name: "zip".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                    ],
+                                ),
+                                (
+                                    enums::Connector::Nuvei,
+                                    vec![
+                                        RequiredFieldInfo {
+                                            required_field: "billing.address.first_name"
+                                                .to_string(),
+                                            display_name: "first_name".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "billing.address.last_name".to_string(),
+                                            display_name: "last_name".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "email".to_string(),
+                                            display_name: "email".to_string(),
+                                            field_type: enums::FieldType::Text,
+                                        },
+                                        RequiredFieldInfo {
+                                            required_field: "billing.address.country".to_string(),
+                                            display_name: "country".to_string(),
+                                            field_type: enums::FieldType::DropDown {
+                                                options: vec!["US".to_string(), "IN".to_string()],
+                                            },
+                                        },
+                                    ],
+                                ),
+                            ]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::Klarna,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Nuvei,
+                                vec![
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.first_name".to_string(),
+                                        display_name: "first_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.last_name".to_string(),
+                                        display_name: "last_name".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "email".to_string(),
+                                        display_name: "email".to_string(),
+                                        field_type: enums::FieldType::Text,
+                                    },
+                                    RequiredFieldInfo {
+                                        required_field: "billing.address.country".to_string(),
+                                        display_name: "country".to_string(),
+                                        field_type: enums::FieldType::DropDown {
+                                            options: vec!["US".to_string(), "IN".to_string()],
+                                        },
+                                    },
+                                ],
+                            )]),
                         },
                     ),
                 ])),
