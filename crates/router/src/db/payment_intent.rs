@@ -35,6 +35,14 @@ pub trait PaymentIntentInterface {
         pc: &api::PaymentListConstraints,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn filter_by_time_range_constraints(
+        &self,
+        merchant_id: &str,
+        pc: &api::TimeRange,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError>;
 }
 
 #[cfg(feature = "kv_store")]
@@ -237,6 +245,25 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
             }
         }
+        #[cfg(feature = "olap")]
+        async fn filter_by_time_range_constraints(
+            &self,
+            merchant_id: &str,
+            pc: &api::TimeRange,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
+            match storage_scheme {
+                enums::MerchantStorageScheme::PostgresOnly => {
+                    let conn = connection::pg_connection_read(self).await?;
+                    PaymentIntent::filter_by_time_constraints(&conn, merchant_id, pc)
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
+                }
+
+                enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
+            }
+        }
     }
 }
 
@@ -304,6 +331,19 @@ mod storage {
                 .map_err(Into::into)
                 .into_report()
         }
+        #[cfg(feature = "olap")]
+        async fn filter_by_time_range_constraints(
+            &self,
+            merchant_id: &str,
+            pc: &api::TimeRange,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            PaymentIntent::filter_by_time_constraints(&conn, merchant_id, pc)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        }
     }
 }
 
@@ -314,6 +354,16 @@ impl PaymentIntentInterface for MockDb {
         &self,
         _merchant_id: &str,
         _pc: &api::PaymentListConstraints,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+    #[cfg(feature = "olap")]
+    async fn filter_by_time_range_constraints(
+        &self,
+        _merchant_id: &str,
+        _pc: &api::TimeRange,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
