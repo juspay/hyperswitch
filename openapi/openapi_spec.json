@@ -5653,7 +5653,8 @@
             ],
             "properties": {
               "pay_bright_redirect": {
-                "type": "object"
+                "type": "object",
+                "description": "For PayBright Redirect as PayLater Option"
               }
             }
           },
@@ -5664,7 +5665,20 @@
             ],
             "properties": {
               "walley_redirect": {
-                "type": "object"
+                "type": "object",
+                "description": "For WalleyRedirect as PayLater Option"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "alma_redirect"
+            ],
+            "properties": {
+              "alma_redirect": {
+                "type": "object",
+                "description": "For Alma Redirection as PayLater Option"
               }
             }
           }
@@ -6193,6 +6207,7 @@
           "afterpay_clearpay",
           "ali_pay",
           "ali_pay_hk",
+          "alma",
           "apple_pay",
           "bacs",
           "bancontact_card",
@@ -6201,6 +6216,7 @@
           "classic",
           "credit",
           "crypto_currency",
+          "dana",
           "debit",
           "eps",
           "evoucher",
@@ -6223,7 +6239,9 @@
           "sofort",
           "swish",
           "trustly",
+          "twint",
           "upi_collect",
+          "vipps",
           "walley",
           "we_chat_pay"
         ]
@@ -8220,6 +8238,18 @@
           {
             "type": "object",
             "required": [
+              "dana_redirect"
+            ],
+            "properties": {
+              "dana_redirect": {
+                "type": "object",
+                "description": "Wallet data for DANA redirect flow"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "google_pay"
             ],
             "properties": {
@@ -8313,6 +8343,30 @@
             "properties": {
               "we_chat_pay_redirect": {
                 "$ref": "#/components/schemas/WeChatPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "twint_redirect"
+            ],
+            "properties": {
+              "twint_redirect": {
+                "type": "object",
+                "description": "Wallet data for Twint Redirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "vipps_redirect"
+            ],
+            "properties": {
+              "vipps_redirect": {
+                "type": "object",
+                "description": "Wallet data for Vipps Redirection"
               }
             }
           }
