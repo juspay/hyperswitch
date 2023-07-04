@@ -2740,6 +2740,12 @@
               }
             ],
             "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
           }
         }
       },
@@ -2771,6 +2777,12 @@
             "type": "string",
             "description": "Card Holder Name",
             "example": "John Doe"
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "Card Holder's Nick Name",
+            "example": "John Doe",
+            "nullable": true
           }
         }
       },
@@ -2806,6 +2818,10 @@
             "nullable": true
           },
           "card_fingerprint": {
+            "type": "string",
+            "nullable": true
+          },
+          "nick_name": {
             "type": "string",
             "nullable": true
           }
