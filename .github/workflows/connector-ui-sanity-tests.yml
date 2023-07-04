@@ -73,15 +73,15 @@ jobs:
       matrix:
         connector:
           - stripe
-          # - adyen_uk
-          # - airwallex
-          # - bluesnap
-          # - checkout
-          # - mollie
-          # - paypal
-          # - payu
-          # - shift4
-          # - worldline
+          - adyen_uk
+          - airwallex
+          - bluesnap
+          - checkout
+          - mollie
+          - paypal
+          - payu
+          - shift4
+          - worldline
 
     steps:
       - name: Checkout repository

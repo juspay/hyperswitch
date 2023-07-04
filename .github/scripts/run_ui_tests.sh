@@ -6,7 +6,7 @@ mkdir tests
 mv .github/testcases/ui_tests.json $HOME/target/test/connector_tests.json
 
 firefox --version
-$GECKOWEBDRIVER/geckodriver
+$GECKOWEBDRIVER/geckodriver > tests/geckodriver.log 2>&1 &
 
 #start server and run ui tests
 cargo build
