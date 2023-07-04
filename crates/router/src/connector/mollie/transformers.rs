@@ -33,7 +33,6 @@ pub struct MolliePaymentsRequest {
     metadata: Option<serde_json::Value>,
     sequence_type: SequenceType,
     mandate_id: Option<String>,
-    card_token: Secret<String>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -95,6 +94,7 @@ pub struct DirectDebitMethodData {
 pub struct CreditCardMethodData {
     billing_address: Option<Address>,
     shipping_address: Option<Address>,
+    card_token: Option<Secret<String>>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -129,13 +129,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
         };
         let description = item.get_description()?;
         let redirect_url = item.request.get_return_url()?;
-        let token = item.get_payment_method_token()?;
         let payment_method_data = match item.request.capture_method.unwrap_or_default() {
             enums::CaptureMethod::Automatic => match &item.request.payment_method_data {
                 api_models::payments::PaymentMethodData::Card(_) => Ok(
                     PaymentMethodData::CreditCard(Box::new(CreditCardMethodData {
                         billing_address: get_billing_details(item)?,
                         shipping_address: get_shipping_details(item)?,
+                        card_token: Some(Secret::new(item.get_payment_method_token()?)),
                     })),
                 ),
                 api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
@@ -174,7 +174,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
             metadata: None,
             sequence_type: SequenceType::Oneoff,
             mandate_id: None,
-            card_token: Secret::new(token),
         })
     }
 }

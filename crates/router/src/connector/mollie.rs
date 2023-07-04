@@ -132,7 +132,6 @@ impl
         _req: &types::TokenizationRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        // Ok("https://api.cc.mollie.com/v1/card-tokens".to_string())
         let base_url = connectors
             .mollie
             .secondary_base_url
