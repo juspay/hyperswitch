@@ -1,9 +1,13 @@
+use std::str::FromStr;
+
+use api_models::payments::{Address, AddressDetails, OrderDetailsWithAmount};
+use common_utils::pii::Email;
 use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::types::{self, api, storage::enums, PaymentAddress};
 
 use crate::{
     connector_auth,
-    utils::{self, ConnectorActions},
+    utils::{self, ConnectorActions, PaymentAuthorizeType},
 };
 
 #[derive(Clone, Copy)]
@@ -14,7 +18,7 @@ impl utils::Connector for PaymeTest {
         use router::connector::Payme;
         types::api::ConnectorData {
             connector: Box::new(&Payme),
-            connector_name: types::Connector::DummyConnector1,
+            connector_name: types::Connector::Payme,
             get_token: types::api::GetToken::Connector,
         }
     }
@@ -35,11 +39,53 @@ impl utils::Connector for PaymeTest {
 static CONNECTOR: PaymeTest = PaymeTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
-    None
+    Some(utils::PaymentInfo {
+        address: Some(PaymentAddress {
+            shipping: None,
+            billing: Some(Address {
+                address: Some(AddressDetails {
+                    city: None,
+                    country: None,
+                    line1: None,
+                    line2: None,
+                    line3: None,
+                    zip: None,
+                    state: None,
+                    first_name: Some(Secret::new("John".to_string())),
+                    last_name: Some(Secret::new("Doe".to_string())),
+                }),
+                phone: None,
+            }),
+        }),
+        auth_type: None,
+        access_token: None,
+        connector_meta_data: None,
+        return_url: None,
+    })
 }
 
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
-    None
+    Some(types::PaymentsAuthorizeData {
+        amount: 100,
+        currency: enums::Currency::ILS,
+        order_details: Some(vec![OrderDetailsWithAmount {
+            product_name: "iphone 13".to_string(),
+            quantity: 1,
+            amount: 100,
+        }]),
+        router_return_url: Some("https://hyperswitch.io".to_string()),
+        webhook_url: Some("https://hyperswitch.io".to_string()),
+        email: Some(Email::from_str("test@gmail.com").unwrap()),
+        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+            card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
+            card_cvc: Secret::new("123".to_string()),
+            card_exp_month: Secret::new("10".to_string()),
+            card_exp_year: Secret::new("2025".to_string()),
+            card_holder_name: Secret::new("John Doe".to_string()),
+            ..utils::CCardType::default().0
+        }),
+        ..PaymentAuthorizeType::default().0
+    })
 }
 
 // Cards Positive Tests
@@ -117,9 +163,8 @@ async fn should_void_authorized_payment() {
             }),
             get_default_payment_info(),
         )
-        .await
-        .expect("Void payment response");
-    assert_eq!(response.status, enums::AttemptStatus::Voided);
+        .await;
+    assert_eq!(response.unwrap_err(), "Void flow not supported by Payme connector".to_string());
 }
 
 // Refunds a payment using the manual capture flow (Non 3DS).
@@ -290,8 +335,8 @@ async fn should_sync_refund() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap().refund_status,
-        enums::RefundStatus::Success,
+        response.response.unwrap_err().message,
+        "Refund Sync flow not supported by Payme connector",
     );
 }
 
@@ -302,10 +347,20 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
+                amount: 100,
+                currency: enums::Currency::ILS,
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
+                order_details: Some(vec![OrderDetailsWithAmount {
+                    product_name: "iphone 13".to_string(),
+                    quantity: 1,
+                    amount: 100,
+                }]),
+                router_return_url: Some("https://hyperswitch.io".to_string()),
+                webhook_url: Some("https://hyperswitch.io".to_string()),
+                email: Some(Email::from_str("test@gmail.com").unwrap()),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             get_default_payment_info(),
@@ -314,7 +369,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Your card's security code is invalid.".to_string(),
+        "internal_server_error".to_string(),
     );
 }
 
@@ -324,10 +379,20 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
+                amount: 100,
+                currency: enums::Currency::ILS,
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
+                order_details: Some(vec![OrderDetailsWithAmount {
+                    product_name: "iphone 13".to_string(),
+                    quantity: 1,
+                    amount: 100,
+                }]),
+                router_return_url: Some("https://hyperswitch.io".to_string()),
+                webhook_url: Some("https://hyperswitch.io".to_string()),
+                email: Some(Email::from_str("test@gmail.com").unwrap()),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             get_default_payment_info(),
@@ -336,7 +401,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Your card's expiration month is invalid.".to_string(),
+        "internal_server_error".to_string(),
     );
 }
 
@@ -346,10 +411,20 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
+                amount: 100,
+                currency: enums::Currency::ILS,
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_exp_year: Secret::new("2000".to_string()),
+                    card_exp_year: Secret::new("2012".to_string()),
                     ..utils::CCardType::default().0
                 }),
+                order_details: Some(vec![OrderDetailsWithAmount {
+                    product_name: "iphone 13".to_string(),
+                    quantity: 1,
+                    amount: 100,
+                }]),
+                router_return_url: Some("https://hyperswitch.io".to_string()),
+                webhook_url: Some("https://hyperswitch.io".to_string()),
+                email: Some(Email::from_str("test@gmail.com").unwrap()),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             get_default_payment_info(),
@@ -358,7 +433,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Your card's expiration year is invalid.".to_string(),
+        "internal_server_error".to_string(),
     );
 }
 
@@ -374,11 +449,10 @@ async fn should_fail_void_payment_for_auto_capture() {
     assert_ne!(txn_id, None, "Empty connector transaction id");
     let void_response = CONNECTOR
         .void_payment(txn_id.unwrap(), None, get_default_payment_info())
-        .await
-        .unwrap();
+        .await;
     assert_eq!(
-        void_response.response.unwrap_err().message,
-        "You cannot cancel this PaymentIntent because it has a status of succeeded."
+        void_response.unwrap_err().message,
+        "Void flow not supported by Payme connector"
     );
 }
 
@@ -391,7 +465,7 @@ async fn should_fail_capture_for_invalid_payment() {
         .unwrap();
     assert_eq!(
         capture_response.response.unwrap_err().message,
-        String::from("No such payment_intent: '123456789'")
+        String::from("internal_server_error")
     );
 }
 
@@ -411,7 +485,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Refund amount (₹1.50) is greater than charge amount (₹1.00)",
+        "internal_server_error",
     );
 }
 

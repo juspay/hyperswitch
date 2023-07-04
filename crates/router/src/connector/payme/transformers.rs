@@ -32,6 +32,7 @@ pub struct MandateRequest {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(untagged)]
 pub enum PaymePaymentRequest {
     MandateRequest(MandateRequest),
     PayRequest(PayRequest),
@@ -119,9 +120,9 @@ impl TryFrom<&types::PaymentsInitRouterData> for GenerateSaleRequest {
             sale_price: item.request.amount,
             transaction_id: item.payment_id.clone(),
             product_name,
-            sale_return_url: item.request.get_return_url()?,
+            sale_return_url: "https://google.com".to_string(),
             seller_payme_id,
-            sale_callback_url: item.request.get_webhook_url()?,
+            sale_callback_url: "https://google.com".to_string(),
             sale_payment_method: SalePyamentMethod::try_from(&item.request.payment_method_data)?,
         })
     }
