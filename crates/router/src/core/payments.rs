@@ -12,7 +12,7 @@ use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
-use router_env::{instrument, tracing};
+use router_env::tracing;
 use storage_models::ephemeral_key;
 use time;
 
@@ -44,7 +44,7 @@ use crate::{
     utils::{Encode, OptionExt, ValueExt},
 };
 
-#[instrument(skip_all, fields(payment_id, merchant_id))]
+// #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
     merchant_account: domain::MerchantAccount,

@@ -214,6 +214,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .map(|a| a.to_string())
             .or(payment_intent.return_url);
 
+        payment_intent.allowed_payment_method_types = request
+            .get_allowed_payment_method_types_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error converting allowed_payment_types to Value")?
+            .or(payment_intent.allowed_payment_method_types);
+
+        payment_intent.connector_metadata = request
+            .get_connector_metadata_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error converting connector_metadata to Value")?
+            .or(payment_intent.connector_metadata);
+
+        payment_intent.feature_metadata = request
+            .get_feature_metadata_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error converting feature_metadata to Value")?
+            .or(payment_intent.feature_metadata);
+
         payment_attempt.business_sub_label = request
             .business_sub_label
             .clone()

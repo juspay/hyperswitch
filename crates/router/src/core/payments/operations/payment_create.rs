@@ -1,11 +1,10 @@
-use std::marker::PhantomData;
-
-use api_models::payments::OrderDetailsWithAmount;
+use api_models::payments as api_models_payments;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::{self, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
+use std::marker::PhantomData;
 use storage_models::ephemeral_key;
 use uuid::Uuid;
 
@@ -566,9 +565,11 @@ impl PaymentCreate {
                 order_details
                     .iter()
                     .map(|order| {
-                        Encode::<OrderDetailsWithAmount>::encode_to_value(order)
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .map(masking::Secret::new)
+                        Encode::<api_models_payments::OrderDetailsWithAmount>::encode_to_value(
+                            order,
+                        )
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .map(masking::Secret::new)
                     })
                     .collect::<Result<Vec<_>, _>>()
             })
@@ -579,6 +580,21 @@ impl PaymentCreate {
             request.business_label.as_ref(),
             merchant_account,
         )?;
+
+        let allowed_payment_method_types = request
+            .get_allowed_payment_method_types_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error converting allowed_payment_types to Value")?;
+
+        let connector_metadata = request
+            .get_connector_metadata_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error converting connector_metadata to Value")?;
+
+        let feature_metadata = request
+            .get_feature_metadata_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error converting feature_metadata to Value")?;
 
         Ok(storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),
@@ -603,7 +619,12 @@ impl PaymentCreate {
             business_label,
             active_attempt_id,
             order_details,
-            ..storage::PaymentIntentNew::default()
+            amount_captured: None,
+            customer_id: None,
+            connector_id: None,
+            allowed_payment_method_types,
+            connector_metadata,
+            feature_metadata,
         })
     }
 

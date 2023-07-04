@@ -167,6 +167,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
         payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
 
+        payment_intent.allowed_payment_method_types = request
+            .get_allowed_payment_method_types_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error converting allowed_payment_types to Value")?
+            .or(payment_intent.allowed_payment_method_types);
+
+        payment_intent.connector_metadata = request
+            .get_connector_metadata_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error converting connector_metadata to Value")?
+            .or(payment_intent.connector_metadata);
+
+        payment_intent.feature_metadata = request
+            .get_feature_metadata_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error converting feature_metadata to Value")?
+            .or(payment_intent.feature_metadata);
+
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = setup_mandate.map(|mandate_data| api_models::payments::MandateData {
             customer_acceptance: mandate_data.customer_acceptance,

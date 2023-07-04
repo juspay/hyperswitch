@@ -3,6 +3,7 @@ use std::num::NonZeroI64;
 use cards::CardNumber;
 use common_utils::{
     crypto,
+    ext_traits::Encode,
     pii::{self, Email},
 };
 use masking::{PeekInterface, Secret};
@@ -288,6 +289,44 @@ pub struct PaymentsRequest {
 
     /// additional data that might be required by hyperswitch
     pub feature_metadata: Option<FeatureMetadata>,
+}
+
+impl PaymentsRequest {
+    pub fn get_feature_metadata_as_value(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Option<serde_json::Value>,
+        common_utils::errors::ParsingError,
+    > {
+        self.feature_metadata
+            .as_ref()
+            .map(Encode::<FeatureMetadata>::encode_to_value)
+            .transpose()
+    }
+
+    pub fn get_connector_metadata_as_value(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Option<serde_json::Value>,
+        common_utils::errors::ParsingError,
+    > {
+        self.connector_metadata
+            .as_ref()
+            .map(Encode::<ConnectorMetadata>::encode_to_value)
+            .transpose()
+    }
+
+    pub fn get_allowed_payment_method_types_as_value(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Option<serde_json::Value>,
+        common_utils::errors::ParsingError,
+    > {
+        self.allowed_payment_method_types
+            .as_ref()
+            .map(Encode::<Vec<api_enums::PaymentMethodType>>::encode_to_value)
+            .transpose()
+    }
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
