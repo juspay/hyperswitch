@@ -160,7 +160,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 let mandate = db
                     .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
                     .await
-                    .change_context(errors::ApiErrorResponse::MandateNotFound);
+                    .to_not_found_response(errors::ApiErrorResponse::MandateNotFound);
                 Some(mandate.and_then(|mandate_obj| {
                     match (
                         mandate_obj.network_transaction_id,
@@ -312,6 +312,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         &'a self,
         _state: &'a AppState,
         _payment_attempt: &storage::PaymentAttempt,
+        _requeue: bool,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -488,6 +489,10 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
                 payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: matches!(
+                    request.retry_action,
+                    Some(api_models::enums::RetryAction::Requeue)
+                ),
             },
         ))
     }

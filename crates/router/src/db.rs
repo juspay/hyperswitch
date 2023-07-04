@@ -98,10 +98,12 @@ impl StorageInterface for Store {}
 #[derive(Clone)]
 pub struct MockDb {
     addresses: Arc<Mutex<Vec<storage::Address>>>,
+    configs: Arc<Mutex<Vec<storage::Config>>>,
     merchant_accounts: Arc<Mutex<Vec<storage::MerchantAccount>>>,
     merchant_connector_accounts: Arc<Mutex<Vec<storage::MerchantConnectorAccount>>>,
     payment_attempts: Arc<Mutex<Vec<storage::PaymentAttempt>>>,
     payment_intents: Arc<Mutex<Vec<storage::PaymentIntent>>>,
+    payment_methods: Arc<Mutex<Vec<storage::PaymentMethod>>>,
     customers: Arc<Mutex<Vec<storage::Customer>>>,
     refunds: Arc<Mutex<Vec<storage::Refund>>>,
     processes: Arc<Mutex<Vec<storage::ProcessTracker>>>,
@@ -120,10 +122,12 @@ impl MockDb {
     pub async fn new(redis: &crate::configs::settings::Settings) -> Self {
         Self {
             addresses: Default::default(),
+            configs: Default::default(),
             merchant_accounts: Default::default(),
             merchant_connector_accounts: Default::default(),
             payment_attempts: Default::default(),
             payment_intents: Default::default(),
+            payment_methods: Default::default(),
             customers: Default::default(),
             refunds: Default::default(),
             processes: Default::default(),

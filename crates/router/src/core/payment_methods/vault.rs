@@ -106,6 +106,7 @@ impl Vaultable for api::Card {
             card_cvc: value2.card_security_code.unwrap_or_default().into(),
             card_issuer: None,
             card_network: None,
+            nick_name: value1.nickname.map(masking::Secret::new),
         };
 
         let supp_data = SupplementaryVaultData {
@@ -630,9 +631,15 @@ pub async fn get_tokenized_data(
         }
         Err(err) => {
             metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-            Err(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
-                .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))
+            match err.status_code {
+                404 => Err(errors::ApiErrorResponse::UnprocessableEntity {
+                    entity: "Token".to_string(),
+                }
+                .into()),
+                _ => Err(errors::ApiErrorResponse::InternalServerError)
+                    .into_report()
+                    .attach_printable(format!("Got error from the basilisk locker: {err:?}")),
+            }
         }
     }
 }

@@ -385,8 +385,10 @@ pub struct Connectors {
     pub bitpay: ConnectorParams,
     pub bluesnap: ConnectorParams,
     pub braintree: ConnectorParams,
+    pub cashtocode: ConnectorParams,
     pub checkout: ConnectorParams,
     pub coinbase: ConnectorParams,
+    pub cryptopay: ConnectorParams,
     pub cybersource: ConnectorParams,
     pub dlocal: ConnectorParams,
     #[cfg(feature = "dummy_connector")]
@@ -402,8 +404,10 @@ pub struct Connectors {
     pub nmi: ConnectorParams,
     pub noon: ConnectorParams,
     pub nuvei: ConnectorParams,
+    pub opayo: ConnectorParams,
     pub opennode: ConnectorParams,
     pub payeezy: ConnectorParams,
+    pub payme: ConnectorParams,
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
     pub rapyd: ConnectorParams,
@@ -484,7 +488,7 @@ pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct ApiKeys {
     /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
@@ -496,6 +500,10 @@ pub struct ApiKeys {
     /// hashes of API keys
     #[cfg(not(feature = "kms"))]
     pub hash_key: String,
+
+    // Specifies the number of days before API key expiry when email reminders should be sent
+    #[cfg(feature = "email")]
+    pub expiry_reminder_days: Vec<u8>,
 }
 
 #[cfg(feature = "s3")]

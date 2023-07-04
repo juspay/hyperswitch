@@ -93,8 +93,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         &'a self,
         state: &'a AppState,
         payment_attempt: &storage::PaymentAttempt,
+        requeue: bool,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        helpers::add_domain_task_to_pt(self, state, payment_attempt).await
+        helpers::add_domain_task_to_pt(self, state, payment_attempt, requeue).await
     }
 
     async fn get_connector<'a>(
@@ -333,6 +334,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRetrieveRequest> for Payme
                 payment_id: request.resource_id.clone(),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }
