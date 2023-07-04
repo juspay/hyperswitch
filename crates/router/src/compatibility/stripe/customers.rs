@@ -9,8 +9,7 @@ use crate::{
     core::{customers, payment_methods::cards},
     routes,
     services::{api, authentication as auth},
-    types::api::customers as customer_types,
-    types::api::payment_methods,
+    types::api::{customers as customer_types, payment_methods},
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
@@ -189,12 +188,7 @@ pub async fn list_customer_payment_method_api(
         &req,
         payload,
         |state, auth, req| {
-            cards::list_customer_payment_method(
-                state,
-                auth.merchant_account,
-                auth.key_store,
-                req,
-            )
+            cards::list_customer_payment_method(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
     )
