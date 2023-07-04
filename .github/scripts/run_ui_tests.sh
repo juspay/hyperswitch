@@ -6,6 +6,7 @@ mkdir tests
 mv .github/testcases/ui_tests.json $HOME/target/test/connector_tests.json
 
 echo $GECKOWEBDRIVER
+ls -lth $GECKOWEBDRIVER
 
 firefox --version
 sh $GECKOWEBDRIVER
