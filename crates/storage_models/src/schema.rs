@@ -234,7 +234,7 @@ diesel::table! {
         card_fingerprint -> Varchar,
         #[max_length = 255]
         card_global_fingerprint -> Varchar,
-        #[max_length = 64]
+        #[max_length = 255]
         merchant_id -> Varchar,
         #[max_length = 255]
         card_number -> Varchar,
