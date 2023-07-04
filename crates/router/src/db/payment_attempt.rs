@@ -186,9 +186,9 @@ mod storage {
 
         async fn find_filters_for_payments(
             &self,
-            pi: &Vec<storage_models::payment_intent::PaymentIntent>,
+            pi: &[storage_models::payment_intent::PaymentIntent],
             merchant_id: &str,
-            storage_scheme: enums::MerchantStorageScheme,
+            _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_models::payment_attempt::PaymentListFilters, errors::StorageError>
         {
             let conn = connection::pg_connection_read(self).await?;
