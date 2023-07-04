@@ -10,7 +10,7 @@ use crate::{
     routes,
     services::{api, authentication as auth},
     types::api::customers as customer_types,
-    types::api::payment_methods::{self, PaymentMethodId},
+    types::api::payment_methods,
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]

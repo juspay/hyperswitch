@@ -1571,7 +1571,7 @@ pub async fn list_customer_payment_method(
         req.client_secret.clone(),
     )
     .await?;
-    let customer_id = payment_intent.and_then(|intent| (intent.customer_id)).ok_or(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+    let customer_id = payment_intent.and_then(|intent| (intent.customer_id)).ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
     db.find_customer_by_customer_id_merchant_id(
         customer_id.as_str(),
         &merchant_account.merchant_id,

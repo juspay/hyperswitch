@@ -105,7 +105,6 @@ pub async fn list_customer_payment_method_api(
     json_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
     let flow = Flow::CustomerPaymentMethodsList;
-    // let customer_id = customer_id.into_inner().0;
     let payload = json_payload.into_inner();
     let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
