@@ -202,6 +202,8 @@ pub enum StripeErrorCode {
     FileNotFound,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File not available")]
     FileNotAvailable,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Not Supported because provider is not Router")]
+    FileProviderNotSupported,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "There was an issue with processing webhooks")]
     WebhookProcessingError,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "payment_method_unactivated", message = "The operation cannot be performed as the payment method used has not been activated. Activate the payment method in the Dashboard, then try again.")]
@@ -523,6 +525,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::MerchantConnectorAccountDisabled
             }
             errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
+            errors::ApiErrorResponse::FileProviderNotSupported { .. } => {
+                Self::FileProviderNotSupported
+            }
             errors::ApiErrorResponse::WebhookBadRequest
             | errors::ApiErrorResponse::WebhookResourceNotFound
             | errors::ApiErrorResponse::WebhookProcessingFailure
@@ -590,6 +595,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::MissingDisputeId
             | Self::FileNotFound
             | Self::FileNotAvailable
+            | Self::FileProviderNotSupported
             | Self::PaymentMethodUnactivated => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::InternalServerError
