@@ -163,8 +163,12 @@ async fn should_void_authorized_payment() {
             }),
             get_default_payment_info(),
         )
-        .await;
-    assert_eq!(response.unwrap_err(), "Void flow not supported by Payme connector".to_string());
+        .await
+        .unwrap();
+    assert_eq!(
+        response.response.unwrap_err().message,
+        "Void flow not supported by Payme connector".to_string()
+    );
 }
 
 // Refunds a payment using the manual capture flow (Non 3DS).
@@ -449,9 +453,10 @@ async fn should_fail_void_payment_for_auto_capture() {
     assert_ne!(txn_id, None, "Empty connector transaction id");
     let void_response = CONNECTOR
         .void_payment(txn_id.unwrap(), None, get_default_payment_info())
-        .await;
+        .await
+        .unwrap();
     assert_eq!(
-        void_response.unwrap_err().message,
+        void_response.response.unwrap_err().message,
         "Void flow not supported by Payme connector"
     );
 }
