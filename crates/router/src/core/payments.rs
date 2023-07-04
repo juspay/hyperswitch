@@ -6,7 +6,7 @@ pub mod operations;
 pub mod tokenization;
 pub mod transformers;
 
-use std::{collections::HashMap, fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
+use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
 use api_models::payments::Metadata;
 use common_utils::pii;
@@ -1186,7 +1186,7 @@ pub async fn list_payments(
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    let collected_futures = payment_intents.iter().map(|pi| {
+    let collected_futures = payment_intents.into_iter().map(|pi| {
         async {
             match db
                 .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -1198,39 +1198,39 @@ pub async fn list_payments(
                 )
                 .await
             {
-                Ok(pa) => return Some((pi.payment_id.as_str(), pa)),
+                Ok(pa) => Some(Ok((pi, pa))),
                 Err(e) => {
-                    logger::warn!("Error getting payment_attempts using payment_id : {}", e);
-                    None
+                    if e.current_context().is_db_not_found() {
+                        logger::warn!(
+                            "payment_attempts missing for payment_id : {} | error : {}",
+                            pi.payment_id,
+                            e
+                        );
+                        return None;
+                    }
+                    Some(Err(e))
                 }
             }
         }
     });
 
-    //Collecting PaymentAttempt of each PaymentIntent in hashmap
-    let mut pi_pa_map = join_all(collected_futures)
-        .await
-        .into_iter()
-        .flatten()
-        .collect::<HashMap<&str, storage::PaymentAttempt>>();
+    //If any of the response are Err, we will get Result<Err(_)>
+    let pi_pa_tuple_vec: Result<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>, _> =
+        join_all(collected_futures)
+            .await
+            .into_iter()
+            .flatten() //Will ignore `None`, will only flatten 1 level
+            .collect::<Result<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>, _>>();
+    //Will collect responses in same order async, leading to sorted responses
 
-    //Iterating over sorted Intents and sorting Attempts
-    let pi_pa_tuple_vec: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = payment_intents
-        .iter()
-        .filter_map(|v| {
-            //usinf for_each to get ownership of values
-            match pi_pa_map.remove(v.payment_id.as_str()) {
-                Some(pa) => Some((v.clone(), pa)),
-                None => None,
-            }
-        })
-        .collect();
-
-    //Converting Intent-Attempt array to Response
-    let data: Vec<api::PaymentsResponse> = pi_pa_tuple_vec
-        .into_iter()
-        .map(ForeignFrom::foreign_from)
-        .collect();
+    //Converting Intent-Attempt array to Response if no error
+    let data: Vec<api::PaymentsResponse> = match pi_pa_tuple_vec {
+        Ok(vector) => vector.into_iter().map(ForeignFrom::foreign_from).collect(),
+        Err(e) => {
+            logger::error!("Internal server error : {}", e);
+            return RouterResponse::Err(errors::ApiErrorResponse::InternalServerError.into());
+        }
+    };
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {
