@@ -93,7 +93,7 @@ pub struct Verify;
 #[derive(Debug, Clone)]
 pub struct PreProcessing;
 
-pub(crate) trait PaymentIdTypeExt {
+pub trait PaymentIdTypeExt {
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError>;
 }
 
