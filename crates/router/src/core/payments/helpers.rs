@@ -2253,12 +2253,12 @@ impl AttemptType {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
 
         storage::PaymentAttemptNew {
-            payment_id: old_payment_attempt.payment_id.clone(),
-            merchant_id: old_payment_attempt.merchant_id,
             attempt_id: utils::get_payment_attempt_id(
-                old_payment_attempt.payment_id,
+                &old_payment_attempt.payment_id,
                 new_attempt_count,
             ),
+            payment_id: old_payment_attempt.payment_id,
+            merchant_id: old_payment_attempt.merchant_id,
 
             // A new payment attempt is getting created so, used the same function which is used to populate status in PaymentCreate Flow.
             status: payment_attempt_status_fsm(payment_method_data, Some(true)),
