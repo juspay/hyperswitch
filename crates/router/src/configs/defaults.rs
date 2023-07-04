@@ -947,3 +947,22 @@ impl Default for super::settings::RequiredFields {
         ]))
     }
 }
+
+#[allow(clippy::derivable_impls)]
+impl Default for super::settings::ApiKeys {
+    fn default() -> Self {
+        Self {
+            #[cfg(feature = "kms")]
+            kms_encrypted_hash_key: String::new(),
+
+            /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
+            /// hashes of API keys
+            #[cfg(not(feature = "kms"))]
+            hash_key: String::new(),
+
+            // Specifies the number of days before API key expiry when email reminders should be sent
+            #[cfg(feature = "email")]
+            expiry_reminder_days: vec![7, 3, 1],
+        }
+    }
+}
