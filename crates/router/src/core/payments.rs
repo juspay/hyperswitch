@@ -36,7 +36,7 @@ use crate::{
     db::StorageInterface,
     logger,
     routes::{metrics, AppState},
-    scheduler::utils as pt_utils,
+    scheduler::{utils as pt_utils, workflows::payment_sync},
     services::{self, api::Authenticate},
     types::{
         self, api, domain,
@@ -134,19 +134,6 @@ where
     .await?;
 
     if let Some(connector_details) = connector {
-        if should_add_task_to_process_tracker(&payment_data) {
-            operation
-                .to_domain()?
-                .add_task_to_process_tracker(
-                    state,
-                    &payment_data.payment_attempt,
-                    validate_result.requeue,
-                )
-                .await
-                .map_err(|error| logger::error!(process_tracker_error=?error))
-                .ok();
-        }
-
         payment_data = match connector_details {
             api::ConnectorCallType::Single(connector) => {
                 let router_data = call_connector_service(
@@ -160,6 +147,7 @@ where
                     call_connector_action,
                     tokenization_action,
                     updated_customer,
+                    validate_result.requeue,
                 )
                 .await?;
 
@@ -525,6 +513,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     call_connector_action: CallConnectorAction,
     tokenization_action: TokenizationAction,
     updated_customer: Option<storage::CustomerUpdate>,
+    requeue: bool,
 ) -> RouterResult<types::RouterData<F, RouterDReq, types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -539,6 +528,23 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, types::PaymentsResponseData>,
 {
     let stime_connector = Instant::now();
+
+    let should_add_task_to_process_tracker = should_add_task_to_process_tracker(payment_data);
+
+    let schedule_time = if should_add_task_to_process_tracker {
+        payment_sync::get_sync_process_schedule_time(
+            &*state.store,
+            connector.connector.id(),
+            &merchant_account.merchant_id,
+            0,
+        )
+        .await
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while getting process schedule time")?
+    } else {
+        None
+    };
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -595,6 +601,20 @@ where
     } else {
         (None, false)
     };
+
+    if should_add_task_to_process_tracker {
+        operation
+            .to_domain()?
+            .add_task_to_process_tracker(
+                state,
+                &payment_data.payment_attempt,
+                requeue,
+                schedule_time,
+            )
+            .await
+            .map_err(|error| logger::error!(process_tracker_error=?error))
+            .ok();
+    }
 
     // Update the payment trackers just before calling the connector
     // Since the request is already built in the previous step,

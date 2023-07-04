@@ -28,7 +28,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::{metrics, AppState},
-    scheduler::{metrics as scheduler_metrics, workflows::payment_sync},
+    scheduler::metrics as scheduler_metrics,
     services,
     types::{
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
@@ -764,27 +764,12 @@ pub async fn add_domain_task_to_pt<Op>(
     state: &AppState,
     payment_attempt: &storage::PaymentAttempt,
     requeue: bool,
+    schedule_time: Option<time::PrimitiveDateTime>,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
     Op: std::fmt::Debug,
 {
     if check_if_operation_confirm(operation) {
-        let connector_name = payment_attempt
-            .connector
-            .clone()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-
-        let schedule_time = payment_sync::get_sync_process_schedule_time(
-            &*state.store,
-            &connector_name,
-            &payment_attempt.merchant_id,
-            0,
-        )
-        .await
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while getting process schedule time")?;
-
         match schedule_time {
             Some(stime) => {
                 if !requeue {
