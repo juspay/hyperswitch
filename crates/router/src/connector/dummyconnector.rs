@@ -78,6 +78,9 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
             1 => "phonypay",
             2 => "fauxpay",
             3 => "pretendpay",
+            4 => "stripe_test",
+            5 => "adyen_test",
+            6 => "checkout_test",
             _ => "phonypay",
         }
     }
