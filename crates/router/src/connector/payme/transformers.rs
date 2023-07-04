@@ -442,6 +442,16 @@ pub struct WebhookEventDataResource {
     pub payme_transaction_id: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct WebhookEventDataResourceEvent {
+    pub notify_type: NotifyType,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WebhookEventDataResourceSignature {
+    pub payme_signature: Secret<String>,
+}
+
 impl TryFrom<WebhookEventDataResource> for PaymePaySaleResponse {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: WebhookEventDataResource) -> Result<Self, Self::Error> {

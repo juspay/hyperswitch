@@ -543,12 +543,32 @@ impl api::IncomingWebhook for Payme {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let resource: payme::WebhookEventDataResourceSignature = request
+            .body
+            .parse_struct("WebhookEvent")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(resource.payme_signature.expose().into_bytes())
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &str,
+        secret: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let resource: payme::WebhookEventDataResource =
             request
                 .body
                 .parse_struct("WebhookEvent")
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Ok(resource.payme_signature.expose().into_bytes())
+        Ok(format!(
+            "{}{}{}",
+            String::from_utf8_lossy(secret),
+            resource.payme_transaction_id,
+            resource.payme_sale_id
+        )
+        .as_bytes()
+        .to_vec())
     }
 
     fn get_webhook_object_reference_id(
@@ -585,11 +605,10 @@ impl api::IncomingWebhook for Payme {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let resource: payme::WebhookEventDataResource =
-            request
-                .body
-                .parse_struct("WebhookEvent")
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let resource: payme::WebhookEventDataResourceEvent = request
+            .body
+            .parse_struct("WebhookEvent")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let event_type = match resource.notify_type {
             transformers::NotifyType::SaleComplete => {
                 api::IncomingWebhookEvent::PaymentIntentSuccess
