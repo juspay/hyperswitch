@@ -46,6 +46,7 @@ pub enum Assert<'a> {
     Contains(Selector, &'a str),
     ContainsAny(Selector, Vec<&'a str>),
     IsPresent(&'a str),
+    IsElePresent(By),
     IsPresentNow(&'a str),
 }
 
@@ -104,6 +105,9 @@ pub trait SeleniumTest {
                     Assert::IsPresent(text) => {
                         assert!(is_text_present(driver, text).await?)
                     }
+                    Assert::IsElePresent(selector) => {
+                        assert!(is_element_present(driver, selector).await?)
+                    }
                     Assert::IsPresentNow(text) => {
                         assert!(is_text_present_now(driver, text).await?)
                     }
@@ -134,6 +138,11 @@ pub trait SeleniumTest {
                     }
                     Assert::IsPresent(text) => {
                         if is_text_present(driver, text).await.is_ok() {
+                            self.complete_actions(driver, events).await?;
+                        }
+                    }
+                    Assert::IsElePresent(text) => {
+                        if is_element_present(driver, text).await.is_ok() {
                             self.complete_actions(driver, events).await?;
                         }
                     }
@@ -189,6 +198,17 @@ pub trait SeleniumTest {
                         self.complete_actions(
                             driver,
                             if is_text_present(driver, text).await.is_ok() {
+                                success
+                            } else {
+                                failure
+                            },
+                        )
+                        .await?;
+                    }
+                    Assert::IsElePresent(by) => {
+                        self.complete_actions(
+                            driver,
+                            if is_element_present(driver, by).await.is_ok() {
                                 success
                             } else {
                                 failure
@@ -405,8 +425,9 @@ pub trait SeleniumTest {
             Event::RunIf(
                 Assert::IsPresent("Enter your email address to get started."),
                 vec![
-                Event::Trigger(Trigger::SendKeys(By::Id("email"), email)),
-                Event::Trigger(Trigger::Click(By::Id("btnNext")))]
+                    Event::Trigger(Trigger::SendKeys(By::Id("email"), email)),
+                    Event::Trigger(Trigger::Click(By::Id("btnNext"))),
+                ],
             ),
             Event::EitherOr(
                 Assert::IsPresent("Password"),
@@ -440,6 +461,10 @@ async fn is_text_present(driver: &WebDriver, key: &str) -> WebDriverResult<bool>
     xpath.push_str("')]");
     let result = driver.query(By::XPath(&xpath)).first().await?;
     result.is_present().await
+}
+async fn is_element_present(driver: &WebDriver, by: By) -> WebDriverResult<bool> {
+    let element = driver.query(by).first().await?;
+    element.is_present().await
 }
 
 #[macro_export]
