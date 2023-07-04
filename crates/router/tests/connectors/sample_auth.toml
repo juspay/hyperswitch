@@ -132,8 +132,8 @@ gmail_pass=""
 
 [payme]
 # Open api key
-api_key="MPLDEMO-MPLDEMO-MPLDEMO-1234567"
-key1="payme_key"
+api_key="seller payme id"
+key1="payme client key"
 
 [cryptopay]
 api_key = "api_key"

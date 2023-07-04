@@ -5,7 +5,9 @@ use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{
+        missing_field_err, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+    },
     core::errors,
     types::{self, api, storage::enums, MandateReference},
 };
@@ -55,7 +57,7 @@ pub struct GenerateSaleRequest {
     sale_return_url: String,
     seller_payme_id: Secret<String>,
     sale_callback_url: String,
-    sale_payment_method: SalePyamentMethod,
+    sale_payment_method: SalePaymentMethod,
 }
 
 #[derive(Debug, Deserialize)]
@@ -103,7 +105,7 @@ pub enum SaleType {
 }
 
 #[derive(Debug, Serialize)]
-pub enum SalePyamentMethod {
+pub enum SalePaymentMethod {
     #[serde(rename = "credit-card")]
     CreditCard,
 }
@@ -113,7 +115,12 @@ impl TryFrom<&types::PaymentsInitRouterData> for GenerateSaleRequest {
     fn try_from(item: &types::PaymentsInitRouterData) -> Result<Self, Self::Error> {
         let sale_type = SaleType::try_from(item)?;
         let seller_payme_id = PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
-        let product_name = item.request.get_order_details()?[0].product_name.clone();
+        let order_details = item.request.get_order_details()?;
+        let product_name = order_details
+            .first()
+            .ok_or_else(missing_field_err("order_details"))?
+            .product_name
+            .clone();
         Ok(Self {
             currency: item.request.currency,
             sale_type,
@@ -123,7 +130,7 @@ impl TryFrom<&types::PaymentsInitRouterData> for GenerateSaleRequest {
             sale_return_url: item.request.get_return_url()?,
             seller_payme_id,
             sale_callback_url: item.request.get_webhook_url()?,
-            sale_payment_method: SalePyamentMethod::try_from(&item.request.payment_method_data)?,
+            sale_payment_method: SalePaymentMethod::try_from(&item.request.payment_method_data)?,
         })
     }
 }
@@ -145,7 +152,7 @@ impl TryFrom<&types::PaymentsInitRouterData> for SaleType {
     }
 }
 
-impl TryFrom<&PaymentMethodData> for SalePyamentMethod {
+impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PaymentMethodData) -> Result<Self, Self::Error> {
         match item {
@@ -181,7 +188,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let seller_payme_id = PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
-        let product_name = item.request.get_order_details()?[0].product_name.clone();
+        let order_details = item.request.get_order_details()?;
+        let product_name = order_details
+            .first()
+            .ok_or_else(missing_field_err("order_details"))?
+            .product_name
+            .clone();
         Ok(Self {
             currency: item.request.currency,
             sale_price: item.request.amount,
@@ -344,7 +356,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
 // Type definition for RefundRequest
 #[derive(Debug, Serialize)]
 pub struct PaymeRefundRequest {
-    pub sale_refund_amount: i64,
+    sale_refund_amount: i64,
     payme_sale_id: String,
     seller_payme_id: Secret<String>,
     payme_client_key: Secret<String>,
