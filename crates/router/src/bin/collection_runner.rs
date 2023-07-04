@@ -1,8 +1,9 @@
 mod auth {
     include!("../../tests/connectors/connector_auth.rs");
 }
-use router::types::ConnectorAuthType;
 use std::{env, process::Command};
+
+use router::types::ConnectorAuthType;
 
 // Just by the name of the connector, this function generates the name of the collection
 // Example: CONNECTOR_NAME="stripe" -> OUTPUT: postman/stripe.postman_collection.json
@@ -12,7 +13,7 @@ fn path_generation(name: &str) -> String {
 
 // Removes double quotes
 fn trim(str: &str) -> String {
-    str.replace("\"", "")
+    str.replace('\"', "")
 }
 
 // runner starts here
@@ -128,10 +129,10 @@ fn main() {
     newman_command.arg("--delay-request").arg("5");
 
     // Execute the newman command
-    let output = newman_command
-        .spawn()
-        .expect("Failed to execute newman command")
-        .wait_with_output();
+    let output = newman_command.spawn().and_then(|child| {
+        let result = child.wait_with_output()?;
+        Ok(result)
+    });
 
     if output
         .as_ref()
@@ -139,20 +140,13 @@ fn main() {
         .unwrap_or_default()
     {
         // Command executed successfully
-        let stdout = output
-            .as_ref()
-            .map(|out| out.clone().stdout)
-            .expect("Failed to read stdout");
-        let stderr = output
-            .map(|err| err.stderr)
-            .expect("Failed to read the error response");
+        let stdout = output.as_ref().map(|out| out.clone().stdout);
+        let stderr = output.as_ref().map(|err| err.clone().stderr);
         println!("stdout: {:#?}", stdout);
         println!("stderr: {:#?}", stderr);
     } else {
         // Command execution failed
-        let stderr = output
-            .map(|err| err.stderr)
-            .expect("Failed to read the error response");
+        let stderr = output.as_ref().map(|err| err.clone().stderr);
         eprintln!("Command failed with error: {:#?}", stderr);
     }
 }

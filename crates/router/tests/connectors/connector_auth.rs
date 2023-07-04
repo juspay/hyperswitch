@@ -78,11 +78,11 @@ impl ConnectorAuthenticationMap {
 
         // Read the file contents to a JsonString
         let contents =
-            &std::fs::read_to_string(&path).expect("Failed to read connector authentication file");
+            &std::fs::read_to_string(path).expect("Failed to read connector authentication file");
 
         // Deserialize the JsonString to a HashMap
         let auth_config: HashMap<String, toml::Value> =
-            toml::from_str(&contents).expect("Failed to deserialize TOML file");
+            toml::from_str(contents).expect("Failed to deserialize TOML file");
 
         // auth_config contains the data in below given format:
         // {
@@ -150,7 +150,7 @@ impl ConnectorAuthenticationMap {
             })
             .collect();
 
-        ConnectorAuthenticationMap(auth_map)
+        Self(auth_map)
     }
 }
 
