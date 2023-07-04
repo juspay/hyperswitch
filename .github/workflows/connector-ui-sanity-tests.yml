@@ -6,6 +6,7 @@ on:
       - main
 
   pull_request:
+  workflow_dispatch:
 
   merge_group:
     types:
@@ -85,11 +86,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      
-      - name: Setup firefox
-        id: setup-firefox
-        uses: browser-actions/setup-firefox@v1
-      - run: firefox --version
 
       - name: Decrypt connector auth file
         env:
