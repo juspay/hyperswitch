@@ -120,9 +120,9 @@ impl TryFrom<&types::PaymentsInitRouterData> for GenerateSaleRequest {
             sale_price: item.request.amount,
             transaction_id: item.payment_id.clone(),
             product_name,
-            sale_return_url: "https://google.com".to_string(),
+            sale_return_url: item.request.get_return_url()?,
             seller_payme_id,
-            sale_callback_url: "https://google.com".to_string(),
+            sale_callback_url: item.request.get_webhook_url()?,
             sale_payment_method: SalePyamentMethod::try_from(&item.request.payment_method_data)?,
         })
     }
@@ -367,8 +367,7 @@ impl TryFrom<SaleStatus> for enums::RefundStatus {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(sale_status: SaleStatus) -> Result<Self, Self::Error> {
         match sale_status {
-            SaleStatus::Refunded => Ok(Self::Success),
-            SaleStatus::PartialRefund => Ok(Self::Pending),
+            SaleStatus::Refunded | SaleStatus::PartialRefund => Ok(Self::Success),
             SaleStatus::Failed => Ok(Self::Failure),
             SaleStatus::Initial
             | SaleStatus::Completed

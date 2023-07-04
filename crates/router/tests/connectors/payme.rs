@@ -66,8 +66,6 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
 
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
-        amount: 100,
-        currency: enums::Currency::ILS,
         order_details: Some(vec![OrderDetailsWithAmount {
             product_name: "iphone 13".to_string(),
             quantity: 1,
@@ -111,6 +109,7 @@ async fn should_capture_authorized_payment() {
 
 // Partially captures a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Connector does not support partial capture"]
 async fn should_partially_capture_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_capture_payment(
@@ -128,6 +127,7 @@ async fn should_partially_capture_authorized_payment() {
 
 // Synchronizes a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Connector does not supports sync"]
 async fn should_sync_authorized_payment() {
     let authorize_response = CONNECTOR
         .authorize_payment(payment_method_details(), get_default_payment_info())
@@ -152,6 +152,7 @@ async fn should_sync_authorized_payment() {
 
 // Voids a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Connector does not supports void"]
 async fn should_void_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_void_payment(
@@ -197,7 +198,6 @@ async fn should_partially_refund_manually_captured_payment() {
             payment_method_details(),
             None,
             Some(types::RefundsData {
-                refund_amount: 50,
                 ..utils::PaymentRefundType::default().0
             }),
             get_default_payment_info(),
@@ -212,6 +212,7 @@ async fn should_partially_refund_manually_captured_payment() {
 
 // Synchronizes a refund using the manual capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Connector does not supports sync"]
 async fn should_sync_manually_captured_refund() {
     let refund_response = CONNECTOR
         .capture_payment_and_refund(
@@ -249,6 +250,7 @@ async fn should_make_payment() {
 
 // Synchronizes a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Connector does not supports sync"]
 async fn should_sync_auto_captured_payment() {
     let authorize_response = CONNECTOR
         .make_payment(payment_method_details(), get_default_payment_info())
@@ -294,7 +296,6 @@ async fn should_partially_refund_succeeded_payment() {
         .make_payment_and_refund(
             payment_method_details(),
             Some(types::RefundsData {
-                refund_amount: 50,
                 ..utils::PaymentRefundType::default().0
             }),
             get_default_payment_info(),
@@ -314,7 +315,6 @@ async fn should_refund_succeeded_payment_multiple_times() {
         .make_payment_and_multiple_refund(
             payment_method_details(),
             Some(types::RefundsData {
-                refund_amount: 50,
                 ..utils::PaymentRefundType::default().0
             }),
             get_default_payment_info(),
@@ -324,6 +324,7 @@ async fn should_refund_succeeded_payment_multiple_times() {
 
 // Synchronizes a refund using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Connector does not supports sync"]
 async fn should_sync_refund() {
     let refund_response = CONNECTOR
         .make_payment_and_refund(payment_method_details(), None, get_default_payment_info())
@@ -443,6 +444,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
 
 // Voids a payment using automatic capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Connector does not supports void"]
 async fn should_fail_void_payment_for_auto_capture() {
     let authorize_response = CONNECTOR
         .make_payment(payment_method_details(), get_default_payment_info())

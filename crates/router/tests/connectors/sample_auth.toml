@@ -131,6 +131,7 @@ gmail_email=""
 gmail_pass=""
 
 [payme]
+# Open api key
 api_key="MPLDEMO-MPLDEMO-MPLDEMO-1234567"
 key1="payme_key"
 
