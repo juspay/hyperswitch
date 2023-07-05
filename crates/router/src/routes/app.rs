@@ -243,7 +243,9 @@ impl Refunds {
 
         #[cfg(feature = "olap")]
         {
-            route = route.service(web::resource("/list").route(web::get().to(refunds_list)));
+            route = route
+                .service(web::resource("/list").route(web::post().to(refunds_list)))
+                .service(web::resource("/filter").route(web::post().to(refunds_filter_list)));
         }
         #[cfg(feature = "oltp")]
         {
@@ -425,6 +427,7 @@ impl Configs {
     pub fn server(config: AppState) -> Scope {
         web::scope("/configs")
             .app_data(web::Data::new(config))
+            .service(web::resource("/").route(web::post().to(config_key_create)))
             .service(
                 web::resource("/{key}")
                     .route(web::get().to(config_key_retrieve))

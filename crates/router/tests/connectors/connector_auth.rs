@@ -1,5 +1,6 @@
 use std::env;
 
+use masking::Secret;
 use router::types::ConnectorAuthType;
 use serde::{Deserialize, Serialize};
 
@@ -16,6 +17,7 @@ pub struct ConnectorAuthentication {
     pub cashtocode: Option<BodyKey>,
     pub checkout: Option<SignatureKey>,
     pub coinbase: Option<HeaderKey>,
+    pub cryptopay: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,
     pub dlocal: Option<SignatureKey>,
     #[cfg(feature = "dummy_connector")]
@@ -30,6 +32,7 @@ pub struct ConnectorAuthentication {
     pub noon: Option<SignatureKey>,
     pub nmi: Option<HeaderKey>,
     pub nuvei: Option<SignatureKey>,
+    pub opayo: Option<HeaderKey>,
     pub opennode: Option<HeaderKey>,
     pub payeezy: Option<SignatureKey>,
     pub payme: Option<HeaderKey>,
@@ -62,7 +65,7 @@ impl ConnectorAuthentication {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct HeaderKey {
-    pub api_key: String,
+    pub api_key: Secret<String>,
 }
 
 impl From<HeaderKey> for ConnectorAuthType {
@@ -75,8 +78,8 @@ impl From<HeaderKey> for ConnectorAuthType {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BodyKey {
-    pub api_key: String,
-    pub key1: String,
+    pub api_key: Secret<String>,
+    pub key1: Secret<String>,
 }
 
 impl From<BodyKey> for ConnectorAuthType {
@@ -90,9 +93,9 @@ impl From<BodyKey> for ConnectorAuthType {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SignatureKey {
-    pub api_key: String,
-    pub key1: String,
-    pub api_secret: String,
+    pub api_key: Secret<String>,
+    pub key1: Secret<String>,
+    pub api_secret: Secret<String>,
 }
 
 impl From<SignatureKey> for ConnectorAuthType {
@@ -107,10 +110,10 @@ impl From<SignatureKey> for ConnectorAuthType {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MultiAuthKey {
-    pub api_key: String,
-    pub key1: String,
-    pub api_secret: String,
-    pub key2: String,
+    pub api_key: Secret<String>,
+    pub key1: Secret<String>,
+    pub api_secret: Secret<String>,
+    pub key2: Secret<String>,
 }
 
 impl From<MultiAuthKey> for ConnectorAuthType {
@@ -141,4 +144,5 @@ pub struct AutomationConfigs {
     pub bluesnap_gateway_merchant_id: Option<String>,
     pub globalpay_gateway_merchant_id: Option<String>,
     pub run_minimum_steps: Option<bool>,
+    pub airwallex_merchant_name: Option<String>,
 }

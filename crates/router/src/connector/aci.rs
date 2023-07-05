@@ -6,6 +6,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use transformers as aci;
 
+use super::utils::PaymentsAuthorizeRequestData;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -246,10 +247,17 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "v1/payments"))
+        match req.request.connector_mandate_id() {
+            Some(mandate_id) => Ok(format!(
+                "{}v1/registrations/{}/payments",
+                self.base_url(connectors),
+                mandate_id
+            )),
+            _ => Ok(format!("{}{}", self.base_url(connectors), "v1/payments")),
+        }
     }
 
     fn get_request_body(
