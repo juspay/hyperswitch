@@ -215,8 +215,6 @@ diesel::table! {
         file_upload_provider -> Nullable<Varchar>,
         available -> Bool,
         created_at -> Timestamp,
-        #[max_length = 255]
-        connector_label -> Nullable<Varchar>,
     }
 }
 
@@ -310,7 +308,7 @@ diesel::table! {
         #[max_length = 255]
         payment_response_hash_key -> Nullable<Varchar>,
         redirect_to_merchant_with_http_post -> Bool,
-        merchant_name -> Nullable<Bytea>,
+        merchant_name -> Bytea,
         merchant_details -> Nullable<Bytea>,
         webhook_details -> Nullable<Json>,
         sub_merchants_enabled -> Nullable<Bool>,
@@ -324,6 +322,8 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
         primary_business_details -> Json,
+        #[max_length = 128]
+        api_key -> Nullable<Varchar>,
         intent_fulfillment_time -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
@@ -367,7 +367,7 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     merchant_key_store (merchant_id) {
-        #[max_length = 64]
+        #[max_length = 255]
         merchant_id -> Varchar,
         key -> Bytea,
         created_at -> Timestamp,
@@ -478,6 +478,7 @@ diesel::table! {
         business_label -> Varchar,
         order_details -> Nullable<Array<Nullable<Jsonb>>>,
         udf -> Nullable<Jsonb>,
+        meta_data -> Nullable<Jsonb>,
         attempt_count -> Int2,
     }
 }
@@ -514,6 +515,7 @@ diesel::table! {
         created_at -> Timestamp,
         last_modified -> Timestamp,
         payment_method -> Varchar,
+        #[max_length = 64]
         payment_method_type -> Nullable<Varchar>,
         #[max_length = 128]
         payment_method_issuer -> Nullable<Varchar>,
