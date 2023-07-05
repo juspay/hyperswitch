@@ -81,9 +81,9 @@ pub enum AttemptStatus {
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticationType {
     /// If the card is enrolled for 3DS authentication, the 3DS based authentication will be activated. The liability of chargeback shift to the issuer
-    #[default]
     ThreeDs,
     /// 3DS based authentication will not be activated. The liability of chargeback stays with the merchant.
+    #[default]
     NoThreeDs,
 }
 
@@ -609,6 +609,26 @@ pub enum RetryAction {
     ManualRetry,
     /// Denotes that the payment is requeued
     Requeue,
+}
+
+/// Possible field type of required fields in payment_method_data
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FieldType {
+    Text,
+    DropDown { options: Vec<String> },
 }
 
 #[derive(
