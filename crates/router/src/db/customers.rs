@@ -5,10 +5,8 @@ use masking::PeekInterface;
 use super::{MockDb, Store};
 use crate::{
     connection,
-    core::{
-        customers::REDACTED,
-        errors::{self, CustomResult},
-    },
+    core::errors::{self, CustomResult},
+    customers::core::REDACTED,
     types::{
         domain::{
             self,

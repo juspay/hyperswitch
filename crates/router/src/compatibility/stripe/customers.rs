@@ -6,7 +6,8 @@ use router_env::{instrument, tracing, Flow};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
-    core::{customers, payment_methods::cards},
+    core::payment_methods::cards,
+    customers::core as customers,
     routes,
     services::{api, authentication as auth},
     types::api::customers as customer_types,

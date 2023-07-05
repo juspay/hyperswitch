@@ -3,7 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::customers::*,
+    customers::core::*,
     services::{api, authentication as auth},
     types::api::customers,
 };

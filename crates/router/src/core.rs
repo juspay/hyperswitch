@@ -3,7 +3,6 @@ pub mod api_keys;
 pub mod cache;
 pub mod cards_info;
 pub mod configs;
-pub mod customers;
 pub mod disputes;
 pub mod errors;
 pub mod files;
