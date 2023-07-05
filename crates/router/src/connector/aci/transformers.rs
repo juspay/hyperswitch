@@ -300,12 +300,11 @@ pub enum InstructionType {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "UPPERCASE")]
 pub enum InstructionSource {
-    // Cardholder initiated transaction
-    Cit,
-    // Merchant initiated transaction
-    Mit,
+    #[serde(rename = "CIT")]
+    CardholderInitiatedTransaction,
+    #[serde(rename = "MIT")]
+    MerchantInitiatedTransaction,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -370,7 +369,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
             api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Reward(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.payment_method),
                 connector: "Aci",
                 payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
@@ -519,14 +519,14 @@ fn get_instruction_details(item: &types::PaymentsAuthorizeRouterData) -> Option<
         return Some(Instruction {
             mode: InstructionMode::Initial,
             transaction_type: InstructionType::Unscheduled,
-            source: InstructionSource::Cit,
+            source: InstructionSource::CardholderInitiatedTransaction,
             create_registration: Some(true),
         });
     } else if item.request.mandate_id.is_some() {
         return Some(Instruction {
             mode: InstructionMode::Repeated,
             transaction_type: InstructionType::Unscheduled,
-            source: InstructionSource::Mit,
+            source: InstructionSource::MerchantInitiatedTransaction,
             create_registration: None,
         });
     }

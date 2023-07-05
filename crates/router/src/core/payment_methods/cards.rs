@@ -1,10 +1,13 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 use api_models::{
     admin::{self, PaymentMethodsEnabled},
     enums::{self as api_enums},
     payment_methods::{
-        CardNetworkTypes, PaymentExperienceTypes, RequestPaymentMethodTypes,
+        CardNetworkTypes, PaymentExperienceTypes, RequestPaymentMethodTypes, RequiredFieldInfo,
         ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
         ResponsePaymentMethodsEnabled,
     },
@@ -550,6 +553,7 @@ pub async fn mock_add_card_hs(
         payment_method_id,
         customer_id: customer_id.map(str::to_string),
         name_on_card: card.card_holder_name.to_owned().expose_option(),
+        nickname: card.nick_name.to_owned().map(masking::Secret::expose),
     };
 
     let response = db
@@ -590,6 +594,7 @@ pub async fn mock_add_card(
         payment_method_id,
         customer_id: customer_id.map(str::to_string),
         name_on_card: card.card_holder_name.to_owned().expose_option(),
+        nickname: card.nick_name.to_owned().map(masking::Secret::expose),
     };
     let response = db
         .insert_locker_mock_up(locker_mock_up)
@@ -858,10 +863,55 @@ pub async fn list_payment_methods(
     let mut bank_transfer_consolidated_hm =
         HashMap::<api_enums::PaymentMethodType, Vec<String>>::new();
 
+    let mut required_fields_hm = HashMap::<
+        api_enums::PaymentMethod,
+        HashMap<api_enums::PaymentMethodType, HashSet<RequiredFieldInfo>>,
+    >::new();
+
     for element in response.clone() {
         let payment_method = element.payment_method;
         let payment_method_type = element.payment_method_type;
         let connector = element.connector.clone();
+
+        let connector_variant = api_enums::Connector::from_str(connector.as_str())
+            .into_report()
+            .change_context(errors::ConnectorError::InvalidConnectorName)
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector",
+            })
+            .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))?;
+        state.conf.required_fields.0.get(&payment_method).map(
+            |required_fields_hm_for_each_payment_method_type| {
+                required_fields_hm_for_each_payment_method_type
+                    .0
+                    .get(&payment_method_type)
+                    .map(|required_fields_hm_for_each_connector| {
+                        required_fields_hm
+                            .entry(payment_method)
+                            .or_insert(HashMap::new());
+                        required_fields_hm_for_each_connector
+                            .fields
+                            .get(&connector_variant)
+                            .map(|required_fields_vec| {
+                                // If payment_method_type already exist in required_fields_hm, extend the required_fields hs to existing hs.
+                                let required_fields_hs =
+                                    HashSet::from_iter(required_fields_vec.iter().cloned());
+
+                                let existing_req_fields_hs = required_fields_hm
+                                    .get_mut(&payment_method)
+                                    .and_then(|inner_hm| inner_hm.get_mut(&payment_method_type));
+
+                                if let Some(inner_hs) = existing_req_fields_hs {
+                                    inner_hs.extend(required_fields_hs);
+                                } else {
+                                    required_fields_hm.get_mut(&payment_method).map(|inner_hm| {
+                                        inner_hm.insert(payment_method_type, required_fields_hs)
+                                    });
+                                }
+                            })
+                    })
+            },
+        );
 
         if let Some(payment_experience) = element.payment_experience {
             if let Some(payment_method_hm) =
@@ -991,6 +1041,11 @@ pub async fn list_payment_methods(
                 bank_names: None,
                 bank_debits: None,
                 bank_transfers: None,
+                // Required fields for PayLater payment method
+                required_fields: required_fields_hm
+                    .get(key.0)
+                    .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
+                    .cloned(),
             })
         }
 
@@ -1018,6 +1073,11 @@ pub async fn list_payment_methods(
                 bank_names: None,
                 bank_debits: None,
                 bank_transfers: None,
+                // Required fields for Card payment method
+                required_fields: required_fields_hm
+                    .get(key.0)
+                    .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
+                    .cloned(),
             })
         }
 
@@ -1041,6 +1101,11 @@ pub async fn list_payment_methods(
                 card_networks: None,
                 bank_debits: None,
                 bank_transfers: None,
+                // Required fields for BankRedirect payment method
+                required_fields: required_fields_hm
+                    .get(&api_enums::PaymentMethod::BankRedirect)
+                    .and_then(|inner_hm| inner_hm.get(key.0))
+                    .cloned(),
             }
         })
     }
@@ -1067,6 +1132,11 @@ pub async fn list_payment_methods(
                     eligible_connectors: connectors.clone(),
                 }),
                 bank_transfers: None,
+                // Required fields for BankDebit payment method
+                required_fields: required_fields_hm
+                    .get(&api_enums::PaymentMethod::BankDebit)
+                    .and_then(|inner_hm| inner_hm.get(key.0))
+                    .cloned(),
             }
         })
     }
@@ -1093,6 +1163,11 @@ pub async fn list_payment_methods(
                 bank_transfers: Some(api_models::payment_methods::BankTransferTypes {
                     eligible_connectors: connectors,
                 }),
+                // Required fields for BankTransfer payment method
+                required_fields: required_fields_hm
+                    .get(&api_enums::PaymentMethod::BankTransfer)
+                    .and_then(|inner_hm| inner_hm.get(key.0))
+                    .cloned(),
             }
         })
     }
@@ -1104,18 +1179,16 @@ pub async fn list_payment_methods(
         });
     }
 
-    response
-        .is_empty()
-        .then(|| Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)))
-        .unwrap_or(Ok(services::ApplicationResponse::Json(
-            api::PaymentMethodListResponse {
-                redirect_url: merchant_account.return_url,
-                payment_methods: payment_method_responses,
-                mandate_payment: payment_attempt
-                    .and_then(|inner| inner.mandate_details)
-                    .map(ForeignInto::foreign_into),
-            },
-        )))
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentMethodListResponse {
+            redirect_url: merchant_account.return_url,
+            merchant_name: merchant_account.merchant_name,
+            payment_methods: payment_method_responses,
+            mandate_payment: payment_attempt
+                .and_then(|inner| inner.mandate_details)
+                .map(ForeignInto::foreign_into),
+        },
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
