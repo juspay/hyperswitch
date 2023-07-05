@@ -6,7 +6,6 @@ on:
       - main
 
   pull_request:
-  workflow_dispatch:
 
   merge_group:
     types:
@@ -125,8 +124,6 @@ jobs:
         run: diesel migration run
 
       - name: Start server
-        env:
-          UI_TESTCASES_PATH: ${{ secrets.UI_TESTCASES_PATH }}
         shell: bash
         run: sh .github/scripts/run_ui_tests.sh ${{ matrix.connector }}
 
