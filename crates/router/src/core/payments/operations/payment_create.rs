@@ -55,7 +55,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_account).await;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
-
         let (payment_intent, payment_attempt, connector_response);
 
         let money @ (amount, currency) = payments_create_request_validation(request)?;
@@ -116,7 +115,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     payment_method_type,
                     request,
                     browser_info,
-                )?,
+                    db,
+                )
+                .await?,
                 storage_scheme,
             )
             .await
@@ -486,7 +487,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
 
 impl PaymentCreate {
     #[instrument(skip_all)]
-    fn make_payment_attempt(
+    #[allow(clippy::too_many_arguments)]
+    pub async fn make_payment_attempt(
         payment_id: &str,
         merchant_id: &str,
         money: (api::Amount, enums::Currency),
@@ -494,6 +496,7 @@ impl PaymentCreate {
         payment_method_type: Option<enums::PaymentMethodType>,
         request: &api::PaymentsRequest,
         browser_info: Option<serde_json::Value>,
+        db: &dyn StorageInterface,
     ) -> RouterResult<storage::PaymentAttemptNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
@@ -503,7 +506,10 @@ impl PaymentCreate {
         let additional_pm_data = request
             .payment_method_data
             .as_ref()
-            .map(api_models::payments::AdditionalPaymentData::from)
+            .async_map(|payment_method_data| async {
+                helpers::get_additional_payment_data(payment_method_data, db).await
+            })
+            .await
             .as_ref()
             .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
             .transpose()

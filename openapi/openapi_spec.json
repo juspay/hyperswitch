@@ -2764,6 +2764,21 @@
             ],
             "nullable": true
           },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
           "nick_name": {
             "type": "string",
             "description": "The card holder's nick name",

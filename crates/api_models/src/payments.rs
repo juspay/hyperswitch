@@ -551,6 +551,14 @@ pub struct Card {
     #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     pub card_network: Option<api_enums::CardNetwork>,
 
+    #[schema(example = "CREDIT")]
+    pub card_type: Option<String>,
+
+    #[schema(example = "INDIA")]
+    pub card_issuing_country: Option<String>,
+
+    #[schema(example = "JP_AMEX")]
+    pub bank_code: Option<String>,
     /// The card holder's nick name
     #[schema(value_type = Option<String>, example = "John Test")]
     pub nick_name: Option<Secret<String>>,
@@ -663,7 +671,10 @@ pub enum PaymentMethodData {
 pub enum AdditionalPaymentData {
     Card {
         card_issuer: Option<String>,
-        card_network: Option<String>,
+        card_network: Option<api_enums::CardNetwork>,
+        card_type: Option<String>,
+        card_issuing_country: Option<String>,
+        bank_code: Option<String>,
     },
     BankRedirect {
         bank_name: Option<api_enums::BankNames>,
@@ -676,37 +687,6 @@ pub enum AdditionalPaymentData {
     MandatePayment {},
     Reward {},
     Upi {},
-}
-
-impl From<&PaymentMethodData> for AdditionalPaymentData {
-    fn from(pm_data: &PaymentMethodData) -> Self {
-        match pm_data {
-            PaymentMethodData::Card(card_data) => Self::Card {
-                card_issuer: card_data.card_issuer.to_owned(),
-                card_network: card_data
-                    .card_network
-                    .as_ref()
-                    .map(|card_network| card_network.to_string()),
-            },
-            PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
-                BankRedirectData::Eps { bank_name, .. } => Self::BankRedirect {
-                    bank_name: bank_name.to_owned(),
-                },
-                BankRedirectData::Ideal { bank_name, .. } => Self::BankRedirect {
-                    bank_name: bank_name.to_owned(),
-                },
-                _ => Self::BankRedirect { bank_name: None },
-            },
-            PaymentMethodData::Wallet(_) => Self::Wallet {},
-            PaymentMethodData::PayLater(_) => Self::PayLater {},
-            PaymentMethodData::BankTransfer(_) => Self::BankTransfer {},
-            PaymentMethodData::Crypto(_) => Self::Crypto {},
-            PaymentMethodData::BankDebit(_) => Self::BankDebit {},
-            PaymentMethodData::MandatePayment => Self::MandatePayment {},
-            PaymentMethodData::Reward(_) => Self::Reward {},
-            PaymentMethodData::Upi(_) => Self::Upi {},
-        }
-    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]

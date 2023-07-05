@@ -1,14 +1,14 @@
 use diesel::{Identifiable, Queryable};
 use time::PrimitiveDateTime;
 
-use crate::schema::cards_info;
+use crate::{enums as storage_enums, schema::cards_info};
 
 #[derive(Clone, Debug, Queryable, Identifiable, serde::Deserialize, serde::Serialize)]
 #[diesel(table_name = cards_info, primary_key(card_iin))]
 pub struct CardInfo {
     pub card_iin: String,
     pub card_issuer: Option<String>,
-    pub card_network: Option<String>,
+    pub card_network: Option<storage_enums::CardNetwork>,
     pub card_type: Option<String>,
     pub card_subtype: Option<String>,
     pub card_issuing_country: Option<String>,

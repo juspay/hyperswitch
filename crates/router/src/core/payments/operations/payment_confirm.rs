@@ -397,7 +397,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let additional_pm_data = payment_data
             .payment_method_data
             .as_ref()
-            .map(api_models::payments::AdditionalPaymentData::from)
+            .async_map(|payment_method_data| async {
+                helpers::get_additional_payment_data(payment_method_data, db).await
+            })
+            .await
             .as_ref()
             .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
             .transpose()
