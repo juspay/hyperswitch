@@ -6,6 +6,7 @@ on:
       - main
 
   pull_request:
+  workflow_dispatch:
 
   merge_group:
     types:
@@ -71,16 +72,12 @@ jobs:
       fail-fast: false
       matrix:
         connector:
+          # do not use more than 8 runners, try to group less time taking connectors together
           - stripe
           - adyen_uk
-          - airwallex
-          - bluesnap
-          - checkout
-          - mollie
-          - paypal
-          - payu
-          - shift4
-          - worldline
+          - airwallex|bluesnap|checkout
+          - mollie|paypal|payu
+          - shift4|worldline 
 
     steps:
       - name: Checkout repository
@@ -130,4 +127,8 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
-          cargo test --package router --test connectors -- "${{ matrix.connector }}_ui::" --test-threads=1
+          IN="${{ matrix.connector }}"
+          connectors=(${IN//|/ })
+          for i in "${connectors[@]}"; do
+            cargo test --package router --test connectors -- "${i}_ui::" --test-threads=1
+          done
