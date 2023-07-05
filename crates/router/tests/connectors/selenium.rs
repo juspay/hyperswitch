@@ -58,8 +58,7 @@ pub trait SeleniumTest {
         if env_value.is_none() {
             return serde_json::json!("");
         }
-        let path =
-            env::var("CONNECTOR_TESTS_FILE_PATH").expect("connector tests file path not set");
+        let path = env_value.unwrap();
         let mut file = &std::fs::File::open(path).expect("Failed to open file");
         let mut contents = String::new();
         file.read_to_string(&mut contents)
