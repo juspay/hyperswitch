@@ -1,9 +1,18 @@
+#! /usr/bin/env bash
 sudo apt update
 apt install net-tools
 mkdir tests
 
 #download connector ui tests
-mv .github/testcases/ui_tests.json $HOME/target/test/connector_tests.json
+while [ ! -f $HOME/target/test/connector_tests.json ]
+do
+    if [ $SECONDS > 20 ]
+    then
+        exit 1
+    fi
+    sleep 2
+    wget $UI_TESTCASES_PATH && mv testcases $HOME/target/test/connector_tests.json
+done
 
 firefox --version
 $GECKOWEBDRIVER/geckodriver > tests/geckodriver.log 2>&1 &
