@@ -62,6 +62,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             card_cvc: Secret::new("123".to_string()),
             card_issuer: None,
             card_network: None,
+            nick_name: Some(masking::Secret::new("nick_name".into())),
         }),
         capture_method: Some(storage_models::enums::CaptureMethod::Manual),
         router_return_url: Some("https://google.com".to_string()),

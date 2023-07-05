@@ -834,6 +834,7 @@ pub(crate) async fn get_payment_method_create_request(
                         card_exp_month: card.card_exp_month.clone(),
                         card_exp_year: card.card_exp_year.clone(),
                         card_holder_name: Some(card.card_holder_name.clone()),
+                        nick_name: card.nick_name.clone(),
                     };
                     let customer_id = customer.customer_id.clone();
                     let payment_method_request = api::PaymentMethodCreate {
@@ -1906,6 +1907,7 @@ mod tests {
             business_label: "no".to_string(),
             order_details: None,
             udf: None,
+            attempt_count: 1,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -1947,6 +1949,7 @@ mod tests {
             business_label: "no".to_string(),
             order_details: None,
             udf: None,
+            attempt_count: 1,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -1988,6 +1991,7 @@ mod tests {
             business_label: "no".to_string(),
             order_details: None,
             udf: None,
+            attempt_count: 1,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2245,13 +2249,17 @@ impl AttemptType {
     fn make_new_payment_attempt(
         payment_method_data: &Option<api_models::payments::PaymentMethodData>,
         old_payment_attempt: storage::PaymentAttempt,
+        new_attempt_count: i16,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
 
         storage::PaymentAttemptNew {
+            attempt_id: utils::get_payment_attempt_id(
+                &old_payment_attempt.payment_id,
+                new_attempt_count,
+            ),
             payment_id: old_payment_attempt.payment_id,
             merchant_id: old_payment_attempt.merchant_id,
-            attempt_id: uuid::Uuid::new_v4().simple().to_string(),
 
             // A new payment attempt is getting created so, used the same function which is used to populate status in PaymentCreate Flow.
             status: payment_attempt_status_fsm(payment_method_data, Some(true)),
@@ -2313,11 +2321,13 @@ impl AttemptType {
         match self {
             Self::SameOld => Ok((fetched_payment_intent, fetched_payment_attempt)),
             Self::New => {
+                let new_attempt_count = fetched_payment_intent.attempt_count + 1;
                 let new_payment_attempt = db
                     .insert_payment_attempt(
                         Self::make_new_payment_attempt(
                             &request.payment_method_data,
                             fetched_payment_attempt,
+                            new_attempt_count,
                         ),
                         storage_scheme,
                     )
@@ -2335,6 +2345,7 @@ impl AttemptType {
                                 Some(true),
                             ),
                             active_attempt_id: new_payment_attempt.attempt_id.to_owned(),
+                            attempt_count: new_attempt_count,
                         },
                         storage_scheme,
                     )

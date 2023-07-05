@@ -8,22 +8,26 @@ use crate::{
     types::storage,
     utils::{OptionExt, StringExt},
 };
+#[cfg(feature = "email")]
+pub mod api_key_expiry;
+
 pub mod payment_sync;
 pub mod refund_router;
 pub mod tokenized_data;
 
 macro_rules! runners {
-    ($($body:tt),*) => {
+    ($(#[$attr:meta] $body:tt),*) => {
         as_item! {
             #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, EnumString)]
             #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
             #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
             pub enum PTRunner {
-                $($body),*
+                $(#[$attr] $body),*
             }
         }
 
         $( as_item! {
+            #[$attr]
             pub struct $body;
         } )*
 
@@ -32,7 +36,7 @@ macro_rules! runners {
             let runner = task.runner.clone().get_required_value("runner")?;
             let runner: Option<PTRunner> = runner.parse_enum("PTRunner").ok();
             Ok(match runner {
-                $( Some( PTRunner::$body ) => {
+                $( #[$attr] Some( PTRunner::$body ) => {
                     Some(Box::new($body))
                 } ,)*
                 None => {
@@ -50,9 +54,10 @@ macro_rules! as_item {
 }
 
 runners! {
-    PaymentsSyncWorkflow,
-    RefundWorkflowRouter,
-    DeleteTokenizeDataWorkflow
+    #[cfg(all())] PaymentsSyncWorkflow,
+    #[cfg(all())] RefundWorkflowRouter,
+    #[cfg(all())] DeleteTokenizeDataWorkflow,
+    #[cfg(feature = "email")] ApiKeyExpiryWorkflow
 }
 
 pub type WorkflowSelectorFn =

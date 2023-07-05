@@ -97,6 +97,7 @@ mod storage {
                         active_attempt_id: new.active_attempt_id.to_owned(),
                         order_details: new.order_details.clone(),
                         udf: new.udf.clone(),
+                        attempt_count: new.attempt_count,
                     };
 
                     match self
@@ -357,6 +358,7 @@ impl PaymentIntentInterface for MockDb {
             active_attempt_id: new.active_attempt_id.to_owned(),
             order_details: new.order_details,
             udf: new.udf,
+            attempt_count: new.attempt_count,
         };
         payment_intents.push(payment_intent.clone());
         Ok(payment_intent)
