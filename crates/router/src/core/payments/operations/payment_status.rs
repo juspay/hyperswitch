@@ -94,8 +94,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         state: &'a AppState,
         payment_attempt: &storage::PaymentAttempt,
         requeue: bool,
+        schedule_time: Option<time::PrimitiveDateTime>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        helpers::add_domain_task_to_pt(self, state, payment_attempt, requeue).await
+        helpers::add_domain_task_to_pt(self, state, payment_attempt, requeue, schedule_time).await
     }
 
     async fn get_connector<'a>(
