@@ -2865,6 +2865,7 @@
           "stripe_test",
           "adyen_test",
           "checkout_test",
+          "paypal_test",
           "bambora",
           "dlocal",
           "fiserv",

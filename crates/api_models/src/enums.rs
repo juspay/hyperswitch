@@ -632,6 +632,10 @@ pub enum Connector {
     #[serde(rename = "checkout_test")]
     #[strum(serialize = "checkout_test")]
     DummyConnector6,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "paypal_test")]
+    #[strum(serialize = "paypal_test")]
+    DummyConnector7,
     Bambora,
     Dlocal,
     Fiserv,
@@ -719,6 +723,10 @@ pub enum RoutableConnectors {
     #[serde(rename = "checkout_test")]
     #[strum(serialize = "checkout_test")]
     DummyConnector6,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "paypal_test")]
+    #[strum(serialize = "paypal_test")]
+    DummyConnector7,
     Aci,
     Adyen,
     Airwallex,
