@@ -30,6 +30,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        domain,
         storage::enums,
         ErrorResponse, Response,
     },
@@ -990,6 +991,7 @@ impl api::IncomingWebhook for Bluesnap {
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
         connector_label: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(request)
@@ -999,7 +1001,12 @@ impl api::IncomingWebhook for Bluesnap {
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let mut secret = self
-            .get_webhook_source_verification_merchant_secret(db, merchant_id, connector_label)
+            .get_webhook_source_verification_merchant_secret(
+                db,
+                merchant_id,
+                connector_label,
+                key_store,
+            )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let mut message = self

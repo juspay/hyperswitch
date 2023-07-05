@@ -12,6 +12,7 @@ use crate::{
     core::errors::{self, CustomResult},
     db::StorageInterface,
     services,
+    types::domain,
     utils::crypto,
 };
 
@@ -79,38 +80,21 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         db: &dyn StorageInterface,
         merchant_id: &str,
         connector_label: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let debug_suffix = format!(
             "For merchant_id: {}, and connector_label: {}",
             merchant_id, connector_label
         );
-        let key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                merchant_id,
-                &db.get_master_key().to_vec().into(),
-            )
-            .await
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
-            .attach_printable_lazy(|| {
-                crate::logger::warn!("Fetch  from MCA table failed {}", debug_suffix);
-                format!(
-                    "Fetch merchant_webhook_secret from MCA table failed {}",
-                    debug_suffix
-                )
-            })?;
         let merchant_connector_webhook_details = db
             .find_merchant_connector_account_by_merchant_id_connector_label(
                 merchant_id,
                 connector_label,
-                &key_store,
+                key_store,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable_lazy(|| {
-                crate::logger::warn!(
-                    "Fetch merchant_webhook_secret from MCA table failed {}",
-                    debug_suffix
-                );
                 format!(
                     "Fetch merchant_webhook_secret from MCA table failed {}",
                     debug_suffix
@@ -120,18 +104,11 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         let merchant_secret = merchant_connector_webhook_details
             .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
             .into_report()
-            .attach_printable_lazy(|| {
-                crate::logger::warn!("Merchant Secret not configured {}", debug_suffix);
-                format!("Merchant Secret not configured {}", debug_suffix)
-            })?
+            .attach_printable_lazy(|| format!("Merchant Secret not configured {}", debug_suffix))?
             .expose()
             .parse_value::<MerchantConnectorWebhookDetails>("MerchantConnectorWebhookDetails")
             .change_context_lazy(|| errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable_lazy(|| {
-                crate::logger::warn!(
-                    "Deserializing MerchantConnectorWebhookDetails failed {}",
-                    debug_suffix
-                );
                 format!(
                     "Deserializing MerchantConnectorWebhookDetails failed {}",
                     debug_suffix
@@ -165,6 +142,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         request: &IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
         connector_label: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(request)
@@ -174,7 +152,12 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret = self
-            .get_webhook_source_verification_merchant_secret(db, merchant_id, connector_label)
+            .get_webhook_source_verification_merchant_secret(
+                db,
+                merchant_id,
+                connector_label,
+                key_store,
+            )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let message = self

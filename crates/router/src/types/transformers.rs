@@ -616,16 +616,17 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
             business_label: item.business_label,
             business_sub_label: item.business_sub_label,
             frm_configs,
-            connector_webhook_details: match item.connector_webhook_details {
-                Some(webhook_details) => serde_json::Value::parse_value(
-                    webhook_details.expose(),
-                    "MerchantConnectorWebhookDetails",
-                )
-                .attach_printable("Unable to deserialize connector_webhook_details")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .map(Some)?,
-                None => None,
-            },
+            connector_webhook_details: item
+                .connector_webhook_details
+                .map(|webhook_details| {
+                    serde_json::Value::parse_value(
+                        webhook_details.expose(),
+                        "MerchantConnectorWebhookDetails",
+                    )
+                    .attach_printable("Unable to deserialize connector_webhook_details")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?,
         })
     }
 }

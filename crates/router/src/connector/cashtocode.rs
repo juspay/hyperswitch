@@ -19,6 +19,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        domain,
         storage::{self},
         ErrorResponse, Response,
     },
@@ -332,12 +333,18 @@ impl api::IncomingWebhook for Cashtocode {
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
         connector_label: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let signature = self
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret = self
-            .get_webhook_source_verification_merchant_secret(db, merchant_id, connector_label)
+            .get_webhook_source_verification_merchant_secret(
+                db,
+                merchant_id,
+                connector_label,
+                key_store,
+            )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret_auth = String::from_utf8(secret.to_vec())

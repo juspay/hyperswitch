@@ -26,7 +26,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        domain, ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -558,12 +558,18 @@ impl api::IncomingWebhook for Zen {
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
         connector_label: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self.get_webhook_source_verification_algorithm(request)?;
 
         let signature = self.get_webhook_source_verification_signature(request)?;
         let mut secret = self
-            .get_webhook_source_verification_merchant_secret(db, merchant_id, connector_label)
+            .get_webhook_source_verification_merchant_secret(
+                db,
+                merchant_id,
+                connector_label,
+                key_store,
+            )
             .await?;
         let mut message =
             self.get_webhook_source_verification_message(request, merchant_id, &secret)?;

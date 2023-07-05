@@ -723,6 +723,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
                 &request_details,
                 &merchant_account.merchant_id,
                 connector_label,
+                &key_store,
             )
             .await
             .switch()
