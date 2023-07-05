@@ -1506,9 +1506,11 @@ pub struct PaymentsResponse {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// additional data related to some connectors
+    #[schema(value_type = Option<ConnectorMetadata>)]
     pub connector_metadata: Option<serde_json::Value>,
 
     /// additional data that might be required by hyperswitch
+    #[schema(value_type = Option<FeatureMetadata>)]
     pub feature_metadata: Option<serde_json::Value>,
 }
 
