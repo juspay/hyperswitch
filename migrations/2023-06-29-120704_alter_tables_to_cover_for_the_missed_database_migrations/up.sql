@@ -14,6 +14,3 @@ ALTER TABLE payment_intent
 
 ALTER TABLE payment_methods
     ALTER COLUMN payment_method_type TYPE VARCHAR(64);
-
-ALTER TABLE prod_intent
-    ALTER COLUMN is_completed DROP NOT NULL;
