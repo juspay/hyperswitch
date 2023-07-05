@@ -74,10 +74,9 @@ jobs:
         connector:
           # do not use more than 8 runners, try to group less time taking connectors together
           - stripe
-          - adyen_uk
+          - adyen_uk|shift4|worldline 
           - airwallex|bluesnap|checkout
           - mollie|paypal|payu
-          - shift4|worldline 
 
     steps:
       - name: Checkout repository
@@ -122,7 +121,7 @@ jobs:
 
       - name: Start server
         shell: bash
-        run: sh .github/scripts/run_ui_tests.sh ${{ matrix.connector }}
+        run: sh .github/scripts/run_ui_tests.sh
 
       - name: Run tests
         shell: bash
