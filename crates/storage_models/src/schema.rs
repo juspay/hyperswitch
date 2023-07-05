@@ -480,6 +480,7 @@ diesel::table! {
         allowed_payment_method_types -> Nullable<Json>,
         connector_metadata -> Nullable<Json>,
         feature_metadata -> Nullable<Json>,
+        attempt_count -> Int2,
     }
 }
 

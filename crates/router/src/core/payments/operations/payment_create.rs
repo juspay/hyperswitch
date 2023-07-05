@@ -6,7 +6,6 @@ use error_stack::{self, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 use storage_models::ephemeral_key;
-use uuid::Uuid;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -29,7 +28,7 @@ use crate::{
         },
         transformers::ForeignInto,
     },
-    utils::OptionExt,
+    utils::{self, OptionExt},
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
@@ -513,7 +512,7 @@ impl PaymentCreate {
         Ok(storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            attempt_id: Uuid::new_v4().simple().to_string(),
+            attempt_id: utils::get_payment_attempt_id(payment_id, 1),
             status,
             currency,
             amount: amount.into(),
@@ -613,6 +612,7 @@ impl PaymentCreate {
             allowed_payment_method_types,
             connector_metadata,
             feature_metadata,
+            attempt_count: 1,
         })
     }
 

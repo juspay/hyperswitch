@@ -99,6 +99,7 @@ mod storage {
                         allowed_payment_method_types: new.allowed_payment_method_types.clone(),
                         connector_metadata: new.connector_metadata.clone(),
                         feature_metadata: new.feature_metadata.clone(),
+                        attempt_count: new.attempt_count,
                     };
 
                     match self
@@ -361,6 +362,7 @@ impl PaymentIntentInterface for MockDb {
             allowed_payment_method_types: new.allowed_payment_method_types,
             connector_metadata: new.connector_metadata,
             feature_metadata: new.feature_metadata,
+            attempt_count: new.attempt_count,
         };
         payment_intents.push(payment_intent.clone());
         Ok(payment_intent)
