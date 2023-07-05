@@ -131,7 +131,6 @@ impl
         req: &types::PaymentsPreProcessingRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req = stripe::StripeCreditTransferSourceRequest::try_from(req)?;
-        router_env::logger::info!(connector_request=?req);
         let pre_processing_request = types::RequestBody::log_and_get_request_body(
             &req,
             utils::Encode::<stripe::StripeCreditTransferSourceRequest>::url_encode,

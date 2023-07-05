@@ -341,7 +341,7 @@ pub struct AchCreditTransferSourceRequest {
     pub transfer_type: StripePaymentMethodType,
     #[serde(flatten)]
     pub payment_method_data: AchTransferData,
-    pub currency: String,
+    pub currency: enums::Currency,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -350,7 +350,7 @@ pub struct MultibancoCreditTransferSourceRequest {
     pub transfer_type: StripePaymentMethodType,
     #[serde(flatten)]
     pub payment_method_data: MultibancoTransferData,
-    pub currency: String,
+    pub currency: enums::Currency,
     pub amount: Option<i64>,
     #[serde(rename = "redirect[return_url]")]
     pub return_url: Option<String>,
@@ -2176,7 +2176,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
 impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSourceRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        let currency = item.request.get_currency()?.to_string();
+        let currency = item.request.get_currency()?;
 
         match &item.request.payment_method_data {
             Some(payments::PaymentMethodData::BankTransfer(bank_transfer_data)) => {
