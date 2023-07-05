@@ -673,6 +673,7 @@ pub enum MandateStatus {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodType {
     Ach,
+    Acss,
     Affirm,
     AfterpayClearpay,
     AliPay,

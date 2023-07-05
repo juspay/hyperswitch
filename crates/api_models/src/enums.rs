@@ -413,6 +413,7 @@ pub enum PaymentExperience {
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentMethodType {
     Ach,
+    Acss,
     Affirm,
     AfterpayClearpay,
     AliPay,
