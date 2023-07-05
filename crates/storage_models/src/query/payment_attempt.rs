@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use async_bb8_diesel::AsyncRunQueryDsl;
-use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl, Table};
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
@@ -185,7 +184,7 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         pi: &[PaymentIntent],
         merchant_id: &str,
-    ) -> CustomResult<PaymentListFilters, DatabaseError> {
+    ) -> StorageResult<PaymentListFilters> {
         let active_attempts: Vec<String> = pi
             .iter()
             .map(|payment_intent| payment_intent.clone().active_attempt_id)
