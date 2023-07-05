@@ -1662,10 +1662,13 @@ pub fn get_connector_metadata(
         .and_then(|next_action_response| match next_action_response {
             StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
                 let bank_instructions = response.financial_addresses.get(0);
-                let sepa_bank_instructions = bank_instructions
-                    .and_then(|financial_address| financial_address.iban.to_owned());
-                let bacs_bank_instructions = bank_instructions
-                    .and_then(|financial_address| financial_address.sort_code.to_owned());
+                let (sepa_bank_instructions, bacs_bank_instructions) =
+                    bank_instructions.map_or((None, None), |financial_address| {
+                        (
+                            financial_address.iban.to_owned(),
+                            financial_address.sort_code.to_owned(),
+                        )
+                    });
 
                 let bank_transfer_instructions = SepaAndBacsBankTransferInstructions {
                     sepa_bank_instructions,
