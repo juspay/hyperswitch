@@ -4,7 +4,6 @@ use std::collections::HashSet;
 use storage_models::{errors::DatabaseError, refund::RefundUpdateInternal};
 
 use super::MockDb;
-#[cfg(feature = "olap")]
 use crate::{
     core::errors::{self, CustomResult},
     types::storage::{self as storage_types, enums},
