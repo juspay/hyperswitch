@@ -9,7 +9,7 @@ use common_utils::{
 use error_stack::{report, IntoReport, ResultExt};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 use storage_models::{enums, payment_intent};
 use time::Duration;
 use uuid::Uuid;
@@ -763,6 +763,7 @@ pub async fn add_domain_task_to_pt<Op>(
     operation: &Op,
     state: &AppState,
     payment_attempt: &storage::PaymentAttempt,
+    requeue: bool,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
     Op: std::fmt::Debug,
@@ -786,12 +787,21 @@ where
 
         match schedule_time {
             Some(stime) => {
-                scheduler_metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
-                super::add_process_sync_task(&*state.store, payment_attempt, stime)
-                    .await
-                    .into_report()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while adding task to process tracker")
+                if !requeue {
+                    scheduler_metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                    super::add_process_sync_task(&*state.store, payment_attempt, stime)
+                        .await
+                        .into_report()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed while adding task to process tracker")
+                } else {
+                    scheduler_metrics::TASKS_RESET_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                    super::reset_process_sync_task(&*state.store, payment_attempt, stime)
+                        .await
+                        .into_report()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed while updating task in process tracker")
+                }
             }
             None => Ok(()),
         }
@@ -824,6 +834,7 @@ pub(crate) async fn get_payment_method_create_request(
                         card_exp_month: card.card_exp_month.clone(),
                         card_exp_year: card.card_exp_year.clone(),
                         card_holder_name: Some(card.card_holder_name.clone()),
+                        nick_name: card.nick_name.clone(),
                     };
                     let customer_id = customer.customer_id.clone();
                     let payment_method_request = api::PaymentMethodCreate {
@@ -1271,6 +1282,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::BankRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Crypto(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::BankDebit(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethodData::Upi(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Reward(_)), _) => Ok(pm.to_owned()),
         (pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
@@ -1895,6 +1907,7 @@ mod tests {
             business_label: "no".to_string(),
             order_details: None,
             udf: None,
+            attempt_count: 1,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -1936,6 +1949,7 @@ mod tests {
             business_label: "no".to_string(),
             order_details: None,
             udf: None,
+            attempt_count: 1,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -1977,6 +1991,7 @@ mod tests {
             business_label: "no".to_string(),
             order_details: None,
             udf: None,
+            attempt_count: 1,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2154,7 +2169,10 @@ pub fn get_attempt_type(
 ) -> RouterResult<AttemptType> {
     match payment_intent.status {
         enums::IntentStatus::Failed => {
-            if request.manual_retry {
+            if matches!(
+                request.retry_action,
+                Some(api_models::enums::RetryAction::ManualRetry)
+            ) {
                 match payment_attempt.status {
                     enums::AttemptStatus::Started
                     | enums::AttemptStatus::AuthenticationPending
@@ -2231,13 +2249,17 @@ impl AttemptType {
     fn make_new_payment_attempt(
         payment_method_data: &Option<api_models::payments::PaymentMethodData>,
         old_payment_attempt: storage::PaymentAttempt,
+        new_attempt_count: i16,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
 
         storage::PaymentAttemptNew {
+            attempt_id: utils::get_payment_attempt_id(
+                &old_payment_attempt.payment_id,
+                new_attempt_count,
+            ),
             payment_id: old_payment_attempt.payment_id,
             merchant_id: old_payment_attempt.merchant_id,
-            attempt_id: uuid::Uuid::new_v4().simple().to_string(),
 
             // A new payment attempt is getting created so, used the same function which is used to populate status in PaymentCreate Flow.
             status: payment_attempt_status_fsm(payment_method_data, Some(true)),
@@ -2299,11 +2321,13 @@ impl AttemptType {
         match self {
             Self::SameOld => Ok((fetched_payment_intent, fetched_payment_attempt)),
             Self::New => {
+                let new_attempt_count = fetched_payment_intent.attempt_count + 1;
                 let new_payment_attempt = db
                     .insert_payment_attempt(
                         Self::make_new_payment_attempt(
                             &request.payment_method_data,
                             fetched_payment_attempt,
+                            new_attempt_count,
                         ),
                         storage_scheme,
                     )
@@ -2321,6 +2345,7 @@ impl AttemptType {
                                 Some(true),
                             ),
                             active_attempt_id: new_payment_attempt.attempt_id.to_owned(),
+                            attempt_count: new_attempt_count,
                         },
                         storage_scheme,
                     )
@@ -2358,6 +2383,54 @@ impl AttemptType {
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
         }
+    }
+}
+
+#[inline(always)]
+pub fn is_manual_retry_allowed(
+    intent_status: &storage_enums::IntentStatus,
+    attempt_status: &storage_enums::AttemptStatus,
+) -> Option<bool> {
+    match intent_status {
+        enums::IntentStatus::Failed => match attempt_status {
+            enums::AttemptStatus::Started
+            | enums::AttemptStatus::AuthenticationPending
+            | enums::AttemptStatus::AuthenticationSuccessful
+            | enums::AttemptStatus::Authorized
+            | enums::AttemptStatus::Charged
+            | enums::AttemptStatus::Authorizing
+            | enums::AttemptStatus::CodInitiated
+            | enums::AttemptStatus::VoidInitiated
+            | enums::AttemptStatus::CaptureInitiated
+            | enums::AttemptStatus::Unresolved
+            | enums::AttemptStatus::Pending
+            | enums::AttemptStatus::ConfirmationAwaited
+            | enums::AttemptStatus::PartialCharged
+            | enums::AttemptStatus::Voided
+            | enums::AttemptStatus::AutoRefunded
+            | enums::AttemptStatus::PaymentMethodAwaited
+            | enums::AttemptStatus::DeviceDataCollectionPending => {
+                logger::error!("Payment Attempt should not be in this state because Attempt to Intent status mapping doesn't allow it");
+                None
+            }
+
+            storage_enums::AttemptStatus::VoidFailed
+            | storage_enums::AttemptStatus::RouterDeclined
+            | storage_enums::AttemptStatus::CaptureFailed => Some(false),
+
+            storage_enums::AttemptStatus::AuthenticationFailed
+            | storage_enums::AttemptStatus::AuthorizationFailed
+            | storage_enums::AttemptStatus::Failure => Some(true),
+        },
+        enums::IntentStatus::Cancelled
+        | enums::IntentStatus::RequiresCapture
+        | enums::IntentStatus::Processing
+        | enums::IntentStatus::Succeeded => Some(false),
+
+        enums::IntentStatus::RequiresCustomerAction
+        | enums::IntentStatus::RequiresMerchantAction
+        | enums::IntentStatus::RequiresPaymentMethod
+        | enums::IntentStatus::RequiresConfirmation => None,
     }
 }
 

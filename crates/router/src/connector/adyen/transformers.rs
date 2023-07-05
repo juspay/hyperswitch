@@ -261,6 +261,7 @@ pub enum AdyenPaymentMethod<'a> {
     AdyenPaypal(Box<AdyenPaypal>),
     AfterPay(Box<AdyenPayLaterData>),
     AliPay(Box<AliPayData>),
+    AliPayHk(Box<AliPayHkData>),
     ApplePay(Box<AdyenApplePay>),
     BancontactCard(Box<BancontactCardData>),
     Blik(Box<BlikRedirectionData>),
@@ -284,6 +285,7 @@ pub enum AdyenPaymentMethod<'a> {
     #[serde(rename = "sepadirectdebit")]
     SepaDirectDebit(Box<SepaDirectDebitData>),
     BacsDirectDebit(Box<BacsDirectDebitData>),
+    SamsungPay(Box<SamsungPayPmData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -358,6 +360,14 @@ pub struct MbwayData {
 pub struct WalleyData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SamsungPayPmData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+    #[serde(rename = "samsungPayToken")]
+    samsung_pay_token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -605,6 +615,12 @@ pub struct AliPayData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliPayHkData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
     #[serde(rename = "type")]
     payment_type: PaymentType,
@@ -657,6 +673,8 @@ pub enum PaymentType {
     Affirm,
     Afterpaytouch,
     Alipay,
+    #[serde(rename = "alipay_hk")]
+    AlipayHk,
     Applepay,
     Blik,
     Eps,
@@ -690,6 +708,7 @@ pub enum PaymentType {
     SepaDirectDebit,
     #[serde(rename = "directdebit_GB")]
     BacsDirectDebit,
+    Samsungpay,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -1078,6 +1097,12 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 };
                 Ok(AdyenPaymentMethod::AliPay(Box::new(alipay_data)))
             }
+            api_models::payments::WalletData::AliPayHkRedirect(_) => {
+                let alipay_hk_data = AliPayHkData {
+                    payment_type: PaymentType::AlipayHk,
+                };
+                Ok(AdyenPaymentMethod::AliPayHk(Box::new(alipay_hk_data)))
+            }
             api_models::payments::WalletData::MbWayRedirect(data) => {
                 let mbway_data = MbwayData {
                     payment_type: PaymentType::Mbway,
@@ -1096,6 +1121,13 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                     payment_type: PaymentType::WeChatPayWeb,
                 };
                 Ok(AdyenPaymentMethod::WeChatPayWeb(Box::new(data)))
+            }
+            api_models::payments::WalletData::SamsungPay(samsung_data) => {
+                let data = SamsungPayPmData {
+                    payment_type: PaymentType::Samsungpay,
+                    samsung_pay_token: samsung_data.token.to_owned(),
+                };
+                Ok(AdyenPaymentMethod::SamsungPay(Box::new(data)))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }

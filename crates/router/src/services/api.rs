@@ -581,7 +581,7 @@ pub enum AuthFlow {
     Merchant,
 }
 
-#[instrument(skip(request, payload, state, func, api_auth))]
+#[instrument(skip(request, payload, state, func, api_auth), fields(merchant_id))]
 pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
     state: &'b A,
@@ -606,7 +606,8 @@ where
         .authenticate_and_fetch(request.headers(), state)
         .await
         .switch()?;
-    let metric_merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
+    let merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
+    tracing::Span::current().record("merchant_id", &merchant_id);
 
     let output = func(state, auth_out, payload).await.switch();
 
@@ -615,11 +616,7 @@ where
         Err(err) => err.current_context().status_code().as_u16().into(),
     };
 
-    metrics::request::status_code_metrics(
-        status_code,
-        flow.to_string(),
-        metric_merchant_id.to_string(),
-    );
+    metrics::request::status_code_metrics(status_code, flow.to_string(), merchant_id.to_string());
 
     output
 }

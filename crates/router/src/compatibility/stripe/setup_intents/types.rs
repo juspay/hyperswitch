@@ -89,6 +89,7 @@ impl From<StripeCard> for payments::Card {
             card_cvc: card.cvc,
             card_issuer: None,
             card_network: None,
+            nick_name: None,
         }
     }
 }
@@ -125,6 +126,7 @@ impl From<Shipping> for payments::Address {
 pub struct StripeSetupIntentRequest {
     pub confirm: Option<bool>,
     pub customer: Option<String>,
+    pub connector: Option<Vec<api_enums::RoutableConnectors>>,
     pub description: Option<String>,
     pub currency: Option<String>,
     pub payment_method_data: Option<StripePaymentMethodData>,
@@ -165,6 +167,18 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             }
             None => (None, None),
         };
+        let routable_connector: Option<api_enums::RoutableConnectors> =
+            item.connector.and_then(|v| v.into_iter().next());
+
+        let routing = routable_connector
+            .map(api_types::RoutingAlgorithm::Single)
+            .map(|r| {
+                serde_json::to_value(r)
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("converting to routing failed")
+            })
+            .transpose()?;
         let ip_address = item
             .receipt_ipaddress
             .map(|ip| std::net::IpAddr::from_str(ip.as_str()))
@@ -228,6 +242,7 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             setup_future_usage: item.setup_future_usage,
             merchant_connector_details: item.merchant_connector_details,
             authentication_type,
+            routing,
             mandate_data: mandate_options,
             browser_info: Some(
                 serde_json::to_value(crate::types::BrowserInformation {
@@ -366,6 +381,7 @@ pub struct StripeSetupIntentResponse {
     pub object: String,
     pub status: StripeSetupStatus,
     pub client_secret: Option<masking::Secret<String>>,
+    pub metadata: Option<secret::SecretSerdeValue>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
     pub customer: Option<String>,
@@ -409,6 +425,7 @@ impl From<payments::PaymentsResponse> for StripeSetupIntentResponse {
             charges: payment_intent::Charges::new(),
             created: resp.created,
             customer: resp.customer_id,
+            metadata: resp.udf,
             id: resp.payment_id,
             refunds: resp
                 .refunds
