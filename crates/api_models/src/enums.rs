@@ -974,6 +974,26 @@ pub struct UnresolvedResponseReason {
     pub message: String,
 }
 
+/// Possible field type of required fields in payment_method_data
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FieldType {
+    Text,
+    DropDown { options: Vec<String> },
+}
+
 #[derive(
     Debug,
     serde::Deserialize,
