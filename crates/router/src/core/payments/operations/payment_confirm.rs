@@ -83,20 +83,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         payment_intent.order_details = request
-            .order_details
-            .as_ref()
-            .map(|od| {
-                od.iter()
-                    .map(|order| {
-                        Encode::<api_models::payments::OrderDetailsWithAmount>::encode_to_value(
-                            order,
-                        )
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .map(masking::Secret::new)
-                    })
-                    .collect::<Result<Vec<_>, _>>()
-            })
-            .transpose()?;
+            .get_order_details_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert order details to value")?
+            .or(payment_intent.order_details);
 
         let attempt_type =
             helpers::get_attempt_type(&payment_intent, &payment_attempt, request, "confirm")?;

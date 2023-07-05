@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use api_models::payments as api_models_payments;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::{self, ResultExt};
@@ -560,21 +559,9 @@ impl PaymentCreate {
         let (amount, currency) = (money.0, Some(money.1));
 
         let order_details = request
-            .order_details
-            .as_ref()
-            .map(|order_details| {
-                order_details
-                    .iter()
-                    .map(|order| {
-                        Encode::<api_models_payments::OrderDetailsWithAmount>::encode_to_value(
-                            order,
-                        )
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .map(masking::Secret::new)
-                    })
-                    .collect::<Result<Vec<_>, _>>()
-            })
-            .transpose()?;
+            .get_order_details_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert order details to value")?;
 
         let (business_country, business_label) = helpers::get_business_details(
             request.business_country,

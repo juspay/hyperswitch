@@ -327,6 +327,25 @@ impl PaymentsRequest {
             .map(Encode::<Vec<api_enums::PaymentMethodType>>::encode_to_value)
             .transpose()
     }
+
+    pub fn get_order_details_as_value(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Option<Vec<pii::SecretSerdeValue>>,
+        common_utils::errors::ParsingError,
+    > {
+        self.order_details
+            .as_ref()
+            .map(|od| {
+                od.iter()
+                    .map(|order| {
+                        Encode::<OrderDetailsWithAmount>::encode_to_value(order)
+                            .map(masking::Secret::new)
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()
+    }
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
