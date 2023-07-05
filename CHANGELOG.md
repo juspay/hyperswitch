@@ -2,6 +2,7 @@
 
 All notable changes to HyperSwitch will be documented here.
 
+- - -
 ## 1.0.3 (2023-07-04)
 
 ### Features
@@ -42,6 +43,8 @@ All notable changes to HyperSwitch will be documented here.
 
 - Update connector creds ([#1597](https://github.com/juspay/hyperswitch/pull/1597)) ([`d5b3f7c`](https://github.com/juspay/hyperswitch/commit/d5b3f7c0301b1cca809b37ce1288c939ee4a7277))
 
+- - -
+
 ## 1.0.2 (2023-06-30)
 
 ### Features
@@ -57,6 +60,8 @@ All notable changes to HyperSwitch will be documented here.
 - **connector:** Add tests for Paypal, Adyen and Airwallex ([#1290](https://github.com/juspay/hyperswitch/pull/1290)) ([`cd4dbcb`](https://github.com/juspay/hyperswitch/commit/cd4dbcb3f6aba9a4b40f28a1ac5f0bb00a21029e))
 
 **Full Changelog:** [`v1.0.1...v1.0.2`](https://github.com/juspay/hyperswitch/compare/v1.0.1...v1.0.2)
+
+- - -
 
 ## 1.0.1 (2023-06-28)
 
@@ -111,6 +116,8 @@ All notable changes to HyperSwitch will be documented here.
 
 **Full Changelog:** [`v1.0.0...v1.0.1`](https://github.com/juspay/hyperswitch/compare/v1.0.0...v1.0.1)
 
+- - -
+
 ## 1.0.0 (2023-06-23)
 
 ### Features
@@ -153,6 +160,8 @@ All notable changes to HyperSwitch will be documented here.
 - **deps:** Bump openssl from 0.10.54 to 0.10.55 ([#1503](https://github.com/juspay/hyperswitch/pull/1503)) ([`c4f9029`](https://github.com/juspay/hyperswitch/commit/c4f9029c8ba3ea2570688e00e551ea979859d3be))
 
 **Full Changelog:** [`v0.6.0...v1.0.0`](https://github.com/juspay/hyperswitch/compare/v0.6.0...v1.0.0)
+
+- - -
 
 ## 0.6.0 (2023-06-20)
 
@@ -335,6 +344,8 @@ All notable changes to HyperSwitch will be documented here.
 
 **Full Changelog:** [`v0.5.15...v0.6.0`](https://github.com/juspay/hyperswitch/compare/v0.5.15...v0.6.0)
 
+- - -
+
 ## 0.5.15 (2023-05-19)
 
 ### Features
@@ -390,6 +401,8 @@ All notable changes to HyperSwitch will be documented here.
 - **connector:** Fix stripe status to attempt status map ([#1179](https://github.com/juspay/hyperswitch/pull/1179)) ([`bd8868e`](https://github.com/juspay/hyperswitch/commit/bd8868efd00748cf64c46519c4ed7ba04ad06d5e))
 - Fix(connector): Added signifyd to routableconnectors for frm ([#1203](https://github.com/juspay/hyperswitch/pull/1203)) ([`dbc5bc5`](https://github.com/juspay/hyperswitch/commit/dbc5bc538a218ae287e96c44de0223c26c1583f0))
 
+- - -
+
 ## 0.5.14 (2023-05-16)
 
 ### Features
@@ -414,6 +427,8 @@ All notable changes to HyperSwitch will be documented here.
 ### Documentation
 
 - **CHANGELOG:** Add changelog for 0.5.13 ([#1166](https://github.com/juspay/hyperswitch/pull/1166)) ([`94fe1af`](https://github.com/juspay/hyperswitch/commit/94fe1af1b0bce3b4ecaef8665909fc8f5cd4bbbb))
+
+- - -
 
 ## 0.5.13 (2023-05-15)
 
@@ -440,6 +455,8 @@ All notable changes to HyperSwitch will be documented here.
   - [Adyen] fix status mapping for Adyen authorize, capture, refund API ([#1149](https://github.com/juspay/hyperswitch/pull/1149)) ([`2932a5f`](https://github.com/juspay/hyperswitch/commit/2932a5f0ff5aa8dabd69fc683b5c688a20c405f9))
   - Fix Stripe status to attempt status map ([#1132](https://github.com/juspay/hyperswitch/pull/1132)) ([`8b85647`](https://github.com/juspay/hyperswitch/commit/8b85647a169d1d3ea59d2b472eabb99482f71eda))
 - **mandate:** Allow card details to be provided in case of network transaction id ([#1138](https://github.com/juspay/hyperswitch/pull/1138)) ([`cc121d0`](https://github.com/juspay/hyperswitch/commit/cc121d0febcb397a989e512928d33a8cff2fbdee))
+
+- - -
 
 ## 0.5.12 (2023-05-11)
 
@@ -472,6 +489,8 @@ All notable changes to HyperSwitch will be documented here.
 ### Revert
 
 - Refactor(merchant_account): add back `api_key` field for backward compatibility ([#761](https://github.com/juspay/hyperswitch/pull/761)) ([#1062](https://github.com/juspay/hyperswitch/pull/1062)) ([`f481abb`](https://github.com/juspay/hyperswitch/commit/f481abb8551f3ec5e495cf9916d9d8a5cecd62da))
+
+- - -
 
 ## 0.5.11 (2023-05-10)
 
@@ -513,6 +532,8 @@ All notable changes to HyperSwitch will be documented here.
 
 - **CODEOWNERS:** Update CODEOWNERS ([#1076](https://github.com/juspay/hyperswitch/pull/1076)) ([`1456580`](https://github.com/juspay/hyperswitch/commit/1456580366c618300db4e0746db08a7466e04ea8))
 
+- - -
+
 ## 0.5.10 (2023-05-08)
 
 ### Features
@@ -550,6 +571,7 @@ All notable changes to HyperSwitch will be documented here.
   - Include payment method type in connector choice for session flow ([#1036](https://github.com/juspay/hyperswitch/pull/1036)) ([`73b8988`](https://github.com/juspay/hyperswitch/commit/73b8988322e3d15f90b2c4ca776d135d23e97710))
 - Use newtype pattern for email addresses ([#819](https://github.com/juspay/hyperswitch/pull/819)) ([`b8e2b1c`](https://github.com/juspay/hyperswitch/commit/b8e2b1c5f42dcd41a3d02e0d2422e1407b6a41de))
 
+- - -
 
 ## 0.5.9 (2023-05-04)
 
@@ -592,6 +614,8 @@ All notable changes to HyperSwitch will be documented here.
 ### Build System / Dependencies
 
 - **deps:** Make AWS dependencies optional ([#1030](https://github.com/juspay/hyperswitch/pull/1030)) ([`a4f6f3f`](https://github.com/juspay/hyperswitch/commit/a4f6f3fdaa23f7bd849eb44971de8311f9363ac3))
+
+- - -
 
 ## 0.5.8 (2023-04-25)
 
@@ -648,6 +672,7 @@ All notable changes to HyperSwitch will be documented here.
 * **db:**  remove `connector_transaction_id` from PaymentAttemptNew ([#949](https://github.com/juspay/orca/pull/949)) ([57327b82](https://github.com/juspay/orca/commit/57327b829776c58fa6c3569c5546c4706d2c66af))
 * **api_keys:**  use `merchant_id` and `key_id` to query the table ([#939](https://github.com/juspay/orca/pull/939)) ([40898c0a](https://github.com/juspay/orca/commit/40898c0ac9199258fbc6e8e12950d4fa54ec3339))
 
+- - -
 
 ## 0.5.7 (2023-04-18)
 
@@ -680,6 +705,8 @@ All notable changes to HyperSwitch will be documented here.
 *  derive `Serialize` and `Deserialize` to `Country` enum (#882) (456c16fb)
 * **storage_models, errors:**  impl StorageErrorExt for error_stack::Result<T, errors::StorageError> (#886) (b4020294)
 * **router:**  KMS decrypt secrets when kms feature is enabled  (#868) (8905e663)
+
+- - -
 
 ## 0.5.6 2023-04-14
 
@@ -717,6 +744,7 @@ All notable changes to HyperSwitch will be documented here.
 * **router_env:**  improve logging setup (#847) (1b94d25f)
 * **refund_type:** Feat/add copy derive (#849) (ccf03273)
 
+- - -
 
 ## 0.5.5 (2023-04-10)
 
@@ -739,6 +767,8 @@ All notable changes to HyperSwitch will be documented here.
 
 * **scheduler:**  remove scheduler options & adding graceful shutdown to producer (#840) (11df8436)
 * **router:**  refactor amount in PaymentsCaptureData from Option<i64> to i64 (#821) (b8bcba4e)
+
+- - -
 
 ## 0.5.4 (2023-04-04)
 
@@ -764,6 +794,8 @@ All notable changes to HyperSwitch will be documented here.
 
 * **drainer, router:**  KMS decrypt database password when `kms` feature is enabled (#733) (9d6e4ee3)
 
+- - -
+
 ## 0.5.3 (2023-03-29)
 
 ### Documentation Changes
@@ -784,6 +816,8 @@ All notable changes to HyperSwitch will be documented here.
 * **api_models:**  enhance accepted countries/currencies types (#807) (f9ef3135)
 * **services:**   make AppState impl generic using AppStateInfo (#805) (642c3f3a)
 
+- - -
+
 ## 0.5.2 (2023-03-24)
 
 ### Chores
@@ -801,6 +835,8 @@ All notable changes to HyperSwitch will be documented here.
 ### Refactors
 
 *  extract kms module to `external_services` crate (#793) (029e3894)
+
+- - -
 
 ## 0.5.1 (2023-03-21)
 
@@ -833,6 +869,8 @@ All notable changes to HyperSwitch will be documented here.
 ### Refactors
 
 *  get connection pool based on olap/oltp features (#743) (a392fb16)
+
+- - -
 
 ## 0.5.0 (2023-03-21)
 
@@ -902,6 +940,9 @@ All notable changes to HyperSwitch will be documented here.
 ### Tests
 
 * **masking:**  add suitable feature gates for basic tests (#745) (4859b6e4)
+
+- - -
+
 ## 0.3.0 (2023-03-05)
 
 ### Chores
@@ -988,6 +1029,8 @@ All notable changes to HyperSwitch will be documented here.
 * **connector-template:**  raise errors instead of using `todo!()` (#620) (b1a6be5a)
 * **redirection:**  `From` impl for redirection data for ease of use (#613) (e8255b4a)
 
+- - -
+
 ## 0.3.0 (2023-02-25)
 
 ### Build System / Dependencies
@@ -1049,6 +1092,8 @@ All notable changes to HyperSwitch will be documented here.
 *  send full payment object for payment sync (#526) (6c2a1fea)
 * **middleware:**  change visibility to `pub` (#587) (4884a24d)
 
+- - -
+
 ## 0.2.1 (2023-02-17)
 
 ### Fixes
@@ -1056,6 +1101,7 @@ All notable changes to HyperSwitch will be documented here.
 - Decide connector only when the payment method is confirm ([10ea4919ba07d3198a6bbe3f3d4d817a23605924](https://github.com/juspay/hyperswitch/commit/10ea4919ba07d3198a6bbe3f3d4d817a23605924))
 - Fix panics caused with empty diesel updates ([448595498114cd15158b4a78fc32d8e6dc1b67ee](https://github.com/juspay/hyperswitch/commit/448595498114cd15158b4a78fc32d8e6dc1b67ee))
 
+- - -
 
 ## 0.2.0 (2023-01-23) - Initial Release
 
