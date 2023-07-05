@@ -1136,18 +1136,16 @@ pub async fn filter_payment_methods(
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method);
         if let Ok(payment_methods_enabled) = parse_result {
             let payment_method = payment_methods_enabled.payment_method;
+
             let allowed_payment_method_types = payment_intent
-                .map(|payment_intent| {
+                .and_then(|payment_intent| {
                     payment_intent
                         .allowed_payment_method_types
                         .clone()
                         .parse_value("Vec<PaymentMethodType>")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Parsing  payment_intent.allowed_payment_method_types Failed",
-                        )
-                })
-                .transpose()?;
+                        .map_err(|error| logger::error!(%error, "Failed to deserialize PaymentIntent allowed_payment_method_types"))
+                        .ok()
+                });
 
             for payment_method_type_info in payment_methods_enabled
                 .payment_method_types
