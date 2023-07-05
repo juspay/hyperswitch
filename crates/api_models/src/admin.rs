@@ -86,9 +86,6 @@ pub struct MerchantAccountCreate {
 
     /// The id of the organization to which the merchant belongs to
     pub organization_id: Option<String>,
-
-    /// The name of the organization to which the merchant belongs to
-    pub organiation_name: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
