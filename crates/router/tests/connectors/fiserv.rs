@@ -51,6 +51,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             card_type: None,
             card_issuing_country: None,
             bank_code: None,
+            nick_name: Some(masking::Secret::new("nick_name".into())),
         }),
         capture_method: Some(storage_models::enums::CaptureMethod::Manual),
         ..utils::PaymentAuthorizeType::default().0

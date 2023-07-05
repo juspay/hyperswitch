@@ -492,6 +492,7 @@ impl Default for CCardType {
             card_type: None,
             card_issuing_country: None,
             bank_code: None,
+            nick_name: Some(masking::Secret::new("nick_name".into())),
         })
     }
 }

@@ -93,7 +93,7 @@ pub struct Verify;
 #[derive(Debug, Clone)]
 pub struct PreProcessing;
 
-pub(crate) trait PaymentIdTypeExt {
+pub trait PaymentIdTypeExt {
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError>;
 }
 
@@ -236,6 +236,7 @@ mod payments_test {
             bank_code: None,
             card_issuing_country: None,
             card_type: None,
+            nick_name: Some(masking::Secret::new("nick_name".into())),
         }
     }
 

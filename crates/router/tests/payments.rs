@@ -321,6 +321,7 @@ async fn payments_create_core() {
             card_type: None,
             card_issuing_country: None,
             bank_code: None,
+            nick_name: Some(masking::Secret::new("nick_name".into())),
         })),
         payment_method: Some(api_enums::PaymentMethod::Card),
         shipping: Some(api::Address {
@@ -481,6 +482,7 @@ async fn payments_create_core_adyen_no_redirect() {
             card_type: None,
             card_issuing_country: None,
             bank_code: None,
+            nick_name: Some(masking::Secret::new("nick_name".into())),
         })),
         payment_method: Some(api_enums::PaymentMethod::Card),
         shipping: Some(api::Address {

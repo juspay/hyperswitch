@@ -7,7 +7,6 @@ use error_stack::{self, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 use storage_models::ephemeral_key;
-use uuid::Uuid;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -30,7 +29,7 @@ use crate::{
         },
         transformers::ForeignInto,
     },
-    utils::OptionExt,
+    utils::{self, OptionExt},
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
@@ -313,6 +312,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         &'a self,
         _state: &'a AppState,
         _payment_attempt: &storage::PaymentAttempt,
+        _requeue: bool,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -489,6 +489,10 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
                 payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: matches!(
+                    request.retry_action,
+                    Some(api_models::enums::RetryAction::Requeue)
+                ),
             },
         ))
     }
@@ -528,7 +532,7 @@ impl PaymentCreate {
         Ok(storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            attempt_id: Uuid::new_v4().simple().to_string(),
+            attempt_id: utils::get_payment_attempt_id(payment_id, 1),
             status,
             currency,
             amount: amount.into(),
@@ -642,6 +646,7 @@ impl PaymentCreate {
             active_attempt_id,
             order_details: order_details_outside_value,
             udf: request.udf.clone(),
+            attempt_count: 1,
             ..storage::PaymentIntentNew::default()
         })
     }
