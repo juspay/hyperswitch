@@ -8,7 +8,6 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use api_models::payments::Metadata;
 use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -36,11 +35,11 @@ use crate::{
     db::StorageInterface,
     logger,
     routes::{metrics, AppState},
-    scheduler::utils as pt_utils,
+    scheduler::{utils as pt_utils, workflows::payment_sync},
     services::{self, api::Authenticate},
     types::{
         self, api, domain,
-        storage::{self, enums as storage_enums},
+        storage::{self, enums as storage_enums, ProcessTrackerExt},
     },
     utils::{Encode, OptionExt, ValueExt},
 };
@@ -120,6 +119,26 @@ where
     )
     .await?;
 
+    let schedule_time = match &connector {
+        Some(api::ConnectorCallType::Single(connector_data)) => {
+            if should_add_task_to_process_tracker(&payment_data) {
+                payment_sync::get_sync_process_schedule_time(
+                    &*state.store,
+                    connector_data.connector.id(),
+                    &merchant_account.merchant_id,
+                    0,
+                )
+                .await
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while getting process schedule time")?
+            } else {
+                None
+            }
+        }
+        _ => None,
+    };
+
     let (mut payment_data, tokenization_action) =
         get_connector_tokenization_action(state, &operation, payment_data, &validate_result)
             .await?;
@@ -134,15 +153,6 @@ where
     .await?;
 
     if let Some(connector_details) = connector {
-        if should_add_task_to_process_tracker(&payment_data) {
-            operation
-                .to_domain()?
-                .add_task_to_process_tracker(state, &payment_data.payment_attempt)
-                .await
-                .map_err(|error| logger::error!(process_tracker_error=?error))
-                .ok();
-        }
-
         payment_data = match connector_details {
             api::ConnectorCallType::Single(connector) => {
                 let router_data = call_connector_service(
@@ -156,6 +166,8 @@ where
                     call_connector_action,
                     tokenization_action,
                     updated_customer,
+                    validate_result.requeue,
+                    schedule_time,
                 )
                 .await?;
 
@@ -378,14 +390,11 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         let payment_confirm_req = api::PaymentsRequest {
             payment_id: Some(req.resource_id.clone()),
             merchant_id: req.merchant_id.clone(),
-            metadata: Some(Metadata {
-                order_details: None,
+            feature_metadata: Some(api_models::payments::FeatureMetadata {
                 redirect_response: Some(api_models::payments::RedirectResponse {
                     param: req.param.map(Secret::new),
                     json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
                 }),
-                allowed_payment_method_types: None,
-                order_category: None,
             }),
             ..Default::default()
         };
@@ -521,6 +530,8 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     call_connector_action: CallConnectorAction,
     tokenization_action: TokenizationAction,
     updated_customer: Option<storage::CustomerUpdate>,
+    requeue: bool,
+    schedule_time: Option<time::PrimitiveDateTime>,
 ) -> RouterResult<types::RouterData<F, RouterDReq, types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -591,6 +602,20 @@ where
     } else {
         (None, false)
     };
+
+    if should_add_task_to_process_tracker(payment_data) {
+        operation
+            .to_domain()?
+            .add_task_to_process_tracker(
+                state,
+                &payment_data.payment_attempt,
+                requeue,
+                schedule_time,
+            )
+            .await
+            .map_err(|error| logger::error!(process_tracker_error=?error))
+            .ok();
+    }
 
     // Update the payment trackers just before calling the connector
     // Since the request is already built in the previous step,
@@ -1234,16 +1259,36 @@ pub async fn add_process_sync_task(
         &payment_attempt.attempt_id,
         &payment_attempt.merchant_id,
     );
-    let process_tracker_entry =
-        <storage::ProcessTracker as storage::ProcessTrackerExt>::make_process_tracker_new(
-            process_tracker_id,
-            task,
-            runner,
-            tracking_data,
-            schedule_time,
-        )?;
+    let process_tracker_entry = <storage::ProcessTracker>::make_process_tracker_new(
+        process_tracker_id,
+        task,
+        runner,
+        tracking_data,
+        schedule_time,
+    )?;
 
     db.insert_process(process_tracker_entry).await?;
+    Ok(())
+}
+
+pub async fn reset_process_sync_task(
+    db: &dyn StorageInterface,
+    payment_attempt: &storage::PaymentAttempt,
+    schedule_time: time::PrimitiveDateTime,
+) -> Result<(), errors::ProcessTrackerError> {
+    let runner = "PAYMENTS_SYNC_WORKFLOW";
+    let task = "PAYMENTS_SYNC";
+    let process_tracker_id = pt_utils::get_process_tracker_id(
+        runner,
+        task,
+        &payment_attempt.attempt_id,
+        &payment_attempt.merchant_id,
+    );
+    let psync_process = db
+        .find_process_by_id(&process_tracker_id)
+        .await?
+        .ok_or(errors::ProcessTrackerError::ProcessFetchingFailed)?;
+    psync_process.reset(db, schedule_time).await?;
     Ok(())
 }
 
