@@ -4,7 +4,7 @@ use std::{
     str::FromStr,
 };
 
-use api_models::enums;
+use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 #[cfg(feature = "email")]
@@ -83,6 +83,7 @@ pub struct Settings {
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
     pub email: EmailSettings,
+    pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
 }
 
@@ -221,6 +222,17 @@ pub struct CurrencyCountryFlowFilter {
 #[serde(default)]
 pub struct NotAvailableFlows {
     pub capture_method: Option<enums::CaptureMethod>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct RequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct PaymentMethodType(pub HashMap<enums::PaymentMethodType, ConnectorFields>);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ConnectorFields {
+    pub fields: HashMap<enums::Connector, Vec<RequiredFieldInfo>>,
 }
 
 fn string_set_deser<'a, D>(

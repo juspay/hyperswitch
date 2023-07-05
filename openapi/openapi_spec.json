@@ -3877,6 +3877,39 @@
           }
         }
       },
+      "FieldType": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "text"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "drop_down"
+            ],
+            "properties": {
+              "drop_down": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "description": "Possible field type of required fields in payment_method_data"
+      },
       "FrmAction": {
         "type": "string",
         "enum": [
@@ -7792,6 +7825,28 @@
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
+          }
+        }
+      },
+      "RequiredFieldInfo": {
+        "type": "object",
+        "description": "Required fields info used while listing the payment_method_data",
+        "required": [
+          "required_field",
+          "display_name",
+          "field_type"
+        ],
+        "properties": {
+          "required_field": {
+            "type": "string",
+            "description": "Required field for a payment_method through a payment_method_type"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "Display name of the required field in the front-end"
+          },
+          "field_type": {
+            "$ref": "#/components/schemas/FieldType"
           }
         }
       },
