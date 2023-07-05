@@ -20,6 +20,8 @@ pub struct RapydPaymentsRequest {
     pub payment_method_options: Option<PaymentMethodOptions>,
     pub capture: Option<bool>,
     pub description: Option<String>,
+    pub complete_payment_url: Option<String>,
+    pub error_payment_url: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -125,6 +127,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
         .change_context(errors::ConnectorError::NotImplemented(
             "payment_method".to_owned(),
         ))?;
+        let complete_payment_url = Some(item.request.router_return_url.as_ref().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "return_url",
+            },
+        )?);
         Ok(Self {
             amount: item.request.amount,
             currency: item.request.currency,
@@ -132,6 +139,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
             capture,
             payment_method_options,
             description: None,
+            error_payment_url: complete_payment_url.cloned(),
+            complete_payment_url: complete_payment_url.cloned(),
         })
     }
 }
