@@ -76,7 +76,7 @@ jobs:
           - stripe
           - adyen_uk|shift4|worldline 
           - airwallex|bluesnap|checkout
-          - mollie|paypal|payu
+          - paypal|mollie|payu
 
     steps:
       - name: Checkout repository
