@@ -383,8 +383,7 @@ where
         for (connector, payment_method_type, business_sub_label) in
             connector_and_supporting_payment_method_type
         {
-            let connector_type =
-                get_connector_type_for_session_token(payment_method_type, request, &connector);
+            let connector_type = api::GetToken::from(payment_method_type);
             if let Ok(connector_data) =
                 api::ConnectorData::get_connector_by_name(connectors, &connector, connector_type)
                     .map_err(|err| {
@@ -414,28 +413,4 @@ impl From<api_models::enums::PaymentMethodType> for api::GetToken {
             _ => Self::Connector,
         }
     }
-}
-
-pub fn get_connector_type_for_session_token(
-    payment_method_type: api_models::enums::PaymentMethodType,
-    request: &api::PaymentsSessionRequest,
-    connector: &str,
-) -> api::GetToken {
-    if payment_method_type == api_models::enums::PaymentMethodType::ApplePay {
-        if is_apple_pay_get_token_connector(connector, request) {
-            api::GetToken::Connector
-        } else {
-            api::GetToken::ApplePayMetadata
-        }
-    } else {
-        api::GetToken::from(payment_method_type)
-    }
-}
-
-pub fn is_apple_pay_get_token_connector(
-    connector: &str,
-    _request: &api::PaymentsSessionRequest,
-) -> bool {
-    // Add connectors here, which all are required to hit connector for session call
-    matches!(connector, "bluesnap")
 }

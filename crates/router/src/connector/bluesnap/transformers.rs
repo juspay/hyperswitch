@@ -1,11 +1,11 @@
-use api_models::{enums as api_enums, payments};
+use api_models::enums as api_enums;
 use base64::Engine;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, StringExt, ValueExt},
     pii::Email,
 };
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 
@@ -17,11 +17,7 @@ use crate::{
     consts,
     core::errors,
     pii::Secret,
-    types::{
-        self, api,
-        storage::enums,
-        transformers::{ForeignInto, ForeignTryFrom},
-    },
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
     utils::{Encode, OptionExt},
 };
 
@@ -50,15 +46,6 @@ pub struct BluesnapCardHolderInfo {
 #[serde(rename_all = "camelCase")]
 pub struct TransactionFraudInfo {
     fraud_session_id: String,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BluesnapCreateWalletToken {
-    wallet_type: String,
-    validation_url: Secret<String>,
-    domain_name: String,
-    display_name: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -296,96 +283,6 @@ impl From<api_models::payments::ApplepayPaymentMethod> for ApplepayPaymentMethod
             network: item.network,
             pm_type: item.pm_type,
         }
-    }
-}
-
-impl TryFrom<&types::PaymentsSessionRouterData> for BluesnapCreateWalletToken {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
-        let apple_pay_metadata = item.get_connector_meta()?.expose();
-        let applepay_metadata = apple_pay_metadata
-            .parse_value::<api_models::payments::ApplepaySessionTokenData>(
-                "ApplepaySessionTokenData",
-            )
-            .change_context(errors::ConnectorError::ParsingFailed)?;
-        Ok(Self {
-            wallet_type: "APPLE_PAY".to_string(),
-            validation_url: consts::APPLEPAY_VALIDATION_URL.to_string().into(),
-            domain_name: applepay_metadata.data.session_token_data.initiative_context,
-            display_name: Some(applepay_metadata.data.session_token_data.display_name),
-        })
-    }
-}
-
-impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenResponse>>
-    for types::PaymentsSessionRouterData
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::PaymentsSessionResponseRouterData<BluesnapWalletTokenResponse>,
-    ) -> Result<Self, Self::Error> {
-        let response = &item.response;
-
-        let wallet_token = consts::BASE64_ENGINE
-            .decode(response.wallet_token.clone().expose())
-            .into_report()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-
-        let session_response: api_models::payments::NoThirdPartySdkSessionResponse =
-            wallet_token[..]
-                .parse_struct("NoThirdPartySdkSessionResponse")
-                .change_context(errors::ConnectorError::ParsingFailed)?;
-
-        let metadata = item.data.get_connector_meta()?.expose();
-        let applepay_metadata = metadata
-            .parse_value::<api_models::payments::ApplepaySessionTokenData>(
-                "ApplepaySessionTokenData",
-            )
-            .change_context(errors::ConnectorError::ParsingFailed)?;
-
-        Ok(Self {
-            response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: types::api::SessionToken::ApplePay(Box::new(
-                    api_models::payments::ApplepaySessionTokenResponse {
-                        session_token_data:
-                            api_models::payments::ApplePaySessionResponse::NoThirdPartySdk(
-                                session_response,
-                            ),
-                        payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
-                            country_code: item.data.get_billing_country()?,
-                            currency_code: item.data.request.currency.foreign_into(),
-                            total: api_models::payments::AmountInfo {
-                                label: applepay_metadata.data.payment_request_data.label,
-                                total_type: Some("final".to_string()),
-                                amount: item.data.request.amount.to_string(),
-                            },
-                            merchant_capabilities: applepay_metadata
-                                .data
-                                .payment_request_data
-                                .merchant_capabilities,
-                            supported_networks: applepay_metadata
-                                .data
-                                .payment_request_data
-                                .supported_networks,
-                            merchant_identifier: Some(
-                                applepay_metadata
-                                    .data
-                                    .session_token_data
-                                    .merchant_identifier,
-                            ),
-                        }),
-                        connector: "bluesnap".to_string(),
-                        delayed_session_token: false,
-                        sdk_next_action: {
-                            payments::SdkNextAction {
-                                next_action: payments::NextActionCall::Confirm,
-                            }
-                        },
-                    },
-                )),
-            }),
-            ..item.data
-        })
     }
 }
 
@@ -643,13 +540,6 @@ pub struct BluesnapPaymentsResponse {
     processing_info: ProcessingInfoResponse,
     transaction_id: String,
     card_transaction_type: BluesnapTxnType,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BluesnapWalletTokenResponse {
-    wallet_type: String,
-    wallet_token: Secret<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
