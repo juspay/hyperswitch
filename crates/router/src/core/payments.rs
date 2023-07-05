@@ -1224,13 +1224,11 @@ pub async fn list_payments(
     //Will collect responses in same order async, leading to sorted responses
 
     //Converting Intent-Attempt array to Response if no error
-    let data: Vec<api::PaymentsResponse> = match pi_pa_tuple_vec {
-        Ok(vector) => vector.into_iter().map(ForeignFrom::foreign_from).collect(),
-        Err(e) => {
-            logger::error!("Internal server error : {}", e);
-            return RouterResponse::Err(errors::ApiErrorResponse::InternalServerError.into());
-        }
-    };
+    let data: Vec<api::PaymentsResponse> = pi_pa_tuple_vec
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .into_iter()
+        .map(ForeignFrom::foreign_from)
+        .collect();
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {
