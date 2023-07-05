@@ -120,6 +120,26 @@ where
     )
     .await?;
 
+    let schedule_time = match &connector {
+        Some(api::ConnectorCallType::Single(connector_data)) => {
+            if should_add_task_to_process_tracker(&payment_data) {
+                payment_sync::get_sync_process_schedule_time(
+                    &*state.store,
+                    connector_data.connector.id(),
+                    &merchant_account.merchant_id,
+                    0,
+                )
+                .await
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while getting process schedule time")?
+            } else {
+                None
+            }
+        }
+        _ => None,
+    };
+
     let (mut payment_data, tokenization_action) =
         get_connector_tokenization_action(state, &operation, payment_data, &validate_result)
             .await?;
@@ -148,6 +168,7 @@ where
                     tokenization_action,
                     updated_customer,
                     validate_result.requeue,
+                    schedule_time,
                 )
                 .await?;
 
@@ -514,6 +535,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     tokenization_action: TokenizationAction,
     updated_customer: Option<storage::CustomerUpdate>,
     requeue: bool,
+    schedule_time: Option<time::PrimitiveDateTime>,
 ) -> RouterResult<types::RouterData<F, RouterDReq, types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -528,23 +550,6 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, types::PaymentsResponseData>,
 {
     let stime_connector = Instant::now();
-
-    let should_add_task_to_process_tracker = should_add_task_to_process_tracker(payment_data);
-
-    let schedule_time = if should_add_task_to_process_tracker {
-        payment_sync::get_sync_process_schedule_time(
-            &*state.store,
-            connector.connector.id(),
-            &merchant_account.merchant_id,
-            0,
-        )
-        .await
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while getting process schedule time")?
-    } else {
-        None
-    };
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -602,7 +607,7 @@ where
         (None, false)
     };
 
-    if should_add_task_to_process_tracker {
+    if should_add_task_to_process_tracker(payment_data) {
         operation
             .to_domain()?
             .add_task_to_process_tracker(
