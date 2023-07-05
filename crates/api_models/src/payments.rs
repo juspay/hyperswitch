@@ -8,6 +8,7 @@ use common_utils::{
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
+use url::Url;
 use utoipa::ToSchema;
 
 use crate::{
@@ -176,7 +177,7 @@ pub struct PaymentsRequest {
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
-    pub return_url: Option<url::Url>,
+    pub return_url: Option<Url>,
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
@@ -844,6 +845,8 @@ pub struct BankDebitBilling {
 pub enum WalletData {
     /// The wallet data for Ali Pay redirect
     AliPayRedirect(AliPayRedirection),
+    /// The wallet data for Ali Pay QrCode
+    Alipay(Box<AliPay>),
     /// The wallet data for Ali Pay HK redirect
     AliPayHkRedirect(AliPayHkRedirection),
     /// The wallet data for Apple pay
@@ -869,6 +872,8 @@ pub enum WalletData {
     SamsungPay(Box<SamsungPayWalletData>),
     /// The wallet data for WeChat Pay Redirection
     WeChatPayRedirect(Box<WeChatPayRedirection>),
+    /// The wallet data for WeChat Pay
+    WeChatPay(Box<WeChatPay>),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -909,6 +914,9 @@ pub struct ApplePayThirdPartySdkData {}
 pub struct WeChatPayRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct WeChatPay {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaypalRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -919,6 +927,9 @@ pub struct AliPayHkRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MobilePayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct AliPay {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MbWayRedirection {
@@ -1180,6 +1191,11 @@ pub enum NextActionData {
     },
     /// contains third party sdk session token response
     ThirdPartySdkSessionToken { session_token: Option<SessionToken> },
+    /// Contains url for Qr code image, this qr code has to be shown in sdk
+    QrCodeInformation {
+        #[schema(value_type = String)]
+        image_data_url: Url,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1189,6 +1205,11 @@ pub struct BankTransferNextStepsData {
     pub bank_transfer_instructions: BankTransferInstructions,
     /// The details received by the receiver
     pub receiver: ReceiverDetails,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct QrCodeNextStepsInstruction {
+    pub image_data_url: Url,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

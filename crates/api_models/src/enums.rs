@@ -625,6 +625,7 @@ pub enum Connector {
     Fiserv,
     Forte,
     Globalpay,
+    Globepay,
     Klarna,
     Mollie,
     Multisafepay,
@@ -683,6 +684,7 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
+    Globepay,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
