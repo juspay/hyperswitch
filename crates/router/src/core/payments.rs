@@ -1220,27 +1220,26 @@ pub async fn list_payments(
 }
 
 #[cfg(feature = "olap")]
-pub async fn filters_for_payments(
+pub async fn get_payment_filters(
     db: &dyn StorageInterface,
     merchant: domain::MerchantAccount,
-    constraints: api::TimeRange,
+    time_range: api::TimeRange,
 ) -> RouterResponse<api::PaymentListFilters> {
     use crate::types::transformers::ForeignFrom;
 
-    let merchant_id = &merchant.merchant_id;
     let pi = helpers::filter_by_time_range_constraint(
         db,
-        &constraints,
-        merchant_id,
+        &time_range,
+        &merchant.merchant_id,
         merchant.storage_scheme,
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let filters = db
-        .find_filters_for_payments(
+        .get_payment_filters(
             &pi,
-            merchant_id,
+            &merchant.merchant_id,
             // since OLAP doesn't have KV. Force to get the data from PSQL.
             storage_enums::MerchantStorageScheme::PostgresOnly,
         )

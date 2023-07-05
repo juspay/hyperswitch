@@ -1520,6 +1520,7 @@ pub struct PaymentListResponse {
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PaymentListFilters {
     /// The list of available connector filters
+    #[schema(value_type = Vec<api_enums::Connector>)]
     pub connector: Vec<String>,
     /// The list of available currency filters
     #[schema(value_type = Vec<Currency>)]

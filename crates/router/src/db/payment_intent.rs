@@ -40,7 +40,7 @@ pub trait PaymentIntentInterface {
     async fn filter_by_time_range_constraints(
         &self,
         merchant_id: &str,
-        pc: &api::TimeRange,
+        time_range: &api::TimeRange,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError>;
 }
@@ -249,13 +249,13 @@ mod storage {
         async fn filter_by_time_range_constraints(
             &self,
             merchant_id: &str,
-            pc: &api::TimeRange,
+            time_range: &api::TimeRange,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_read(self).await?;
-                    PaymentIntent::filter_by_time_constraints(&conn, merchant_id, pc)
+                    PaymentIntent::filter_by_time_constraints(&conn, merchant_id, time_range)
                         .await
                         .map_err(Into::into)
                         .into_report()
@@ -335,11 +335,11 @@ mod storage {
         async fn filter_by_time_range_constraints(
             &self,
             merchant_id: &str,
-            pc: &api::TimeRange,
+            time_range: &api::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            PaymentIntent::filter_by_time_constraints(&conn, merchant_id, pc)
+            PaymentIntent::filter_by_time_constraints(&conn, merchant_id, time_range)
                 .await
                 .map_err(Into::into)
                 .into_report()
@@ -363,7 +363,7 @@ impl PaymentIntentInterface for MockDb {
     async fn filter_by_time_range_constraints(
         &self,
         _merchant_id: &str,
-        _pc: &api::TimeRange,
+        _time_range: &api::TimeRange,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError> {
         // [#172]: Implement function for `MockDb`

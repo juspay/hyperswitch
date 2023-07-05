@@ -181,7 +181,7 @@ impl PaymentAttempt {
         )
         .await
     }
-    pub async fn find_filters_for_payments(
+    pub async fn get_payment_filters(
         conn: &PgPooledConn,
         pi: &[PaymentIntent],
         merchant_id: &str,
@@ -193,8 +193,7 @@ impl PaymentAttempt {
 
         let filter = <Self as HasTable>::table()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
-            .filter(dsl::attempt_id.eq_any(active_attempts))
-            .order(dsl::modified_at.desc());
+            .filter(dsl::attempt_id.eq_any(active_attempts));
 
         let intent_status: Vec<IntentStatus> = pi
             .iter()
@@ -207,7 +206,6 @@ impl PaymentAttempt {
             .clone()
             .select(dsl::connector)
             .distinct()
-            .order_by(dsl::connector.asc())
             .get_results_async::<Option<String>>(conn)
             .await
             .into_report()
@@ -221,7 +219,6 @@ impl PaymentAttempt {
             .clone()
             .select(dsl::currency)
             .distinct()
-            .order_by(dsl::currency.asc())
             .get_results_async::<Option<enums::Currency>>(conn)
             .await
             .into_report()
@@ -235,7 +232,6 @@ impl PaymentAttempt {
             .clone()
             .select(dsl::payment_method)
             .distinct()
-            .order_by(dsl::payment_method.asc())
             .get_results_async::<Option<enums::PaymentMethod>>(conn)
             .await
             .into_report()

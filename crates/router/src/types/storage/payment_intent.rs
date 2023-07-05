@@ -96,10 +96,12 @@ impl PaymentIntentDbExt for PaymentIntent {
     async fn filter_by_time_constraints(
         conn: &PgPooledConn,
         merchant_id: &str,
-        pc: &api::TimeRange,
+        time_range: &api::TimeRange,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
-        let start_time = pc.start_time;
-        let end_time = pc.end_time.unwrap_or_else(common_utils::date_time::now);
+        let start_time = time_range.start_time;
+        let end_time = time_range
+            .end_time
+            .unwrap_or_else(common_utils::date_time::now);
 
         //[#350]: Replace this with Boxable Expression and pass it into generic filter
         // when https://github.com/rust-lang/rust/issues/52662 becomes stable
