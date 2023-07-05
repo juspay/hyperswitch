@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use base64::Engine;
 use common_utils::{
-    ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
+    ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
 };
 // TODO : Evaluate all the helper functions ()
@@ -28,7 +28,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::{metrics, AppState},
-    scheduler::{metrics as scheduler_metrics, workflows::payment_sync},
+    scheduler::metrics as scheduler_metrics,
     services,
     types::{
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
@@ -764,27 +764,12 @@ pub async fn add_domain_task_to_pt<Op>(
     state: &AppState,
     payment_attempt: &storage::PaymentAttempt,
     requeue: bool,
+    schedule_time: Option<time::PrimitiveDateTime>,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
     Op: std::fmt::Debug,
 {
     if check_if_operation_confirm(operation) {
-        let connector_name = payment_attempt
-            .connector
-            .clone()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-
-        let schedule_time = payment_sync::get_sync_process_schedule_time(
-            &*state.store,
-            &connector_name,
-            &payment_attempt.merchant_id,
-            0,
-        )
-        .await
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while getting process schedule time")?;
-
         match schedule_time {
             Some(stime) => {
                 if !requeue {
@@ -1906,7 +1891,10 @@ mod tests {
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
             order_details: None,
-            udf: None,
+            allowed_payment_method_types: None,
+            connector_metadata: None,
+            feature_metadata: None,
+            attempt_count: 1,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -1947,7 +1935,10 @@ mod tests {
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
             order_details: None,
-            udf: None,
+            allowed_payment_method_types: None,
+            connector_metadata: None,
+            feature_metadata: None,
+            attempt_count: 1,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -1988,7 +1979,10 @@ mod tests {
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
             order_details: None,
-            udf: None,
+            allowed_payment_method_types: None,
+            connector_metadata: None,
+            feature_metadata: None,
+            attempt_count: 1,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2246,13 +2240,17 @@ impl AttemptType {
     fn make_new_payment_attempt(
         payment_method_data: &Option<api_models::payments::PaymentMethodData>,
         old_payment_attempt: storage::PaymentAttempt,
+        new_attempt_count: i16,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
 
         storage::PaymentAttemptNew {
+            attempt_id: utils::get_payment_attempt_id(
+                &old_payment_attempt.payment_id,
+                new_attempt_count,
+            ),
             payment_id: old_payment_attempt.payment_id,
             merchant_id: old_payment_attempt.merchant_id,
-            attempt_id: uuid::Uuid::new_v4().simple().to_string(),
 
             // A new payment attempt is getting created so, used the same function which is used to populate status in PaymentCreate Flow.
             status: payment_attempt_status_fsm(payment_method_data, Some(true)),
@@ -2314,11 +2312,13 @@ impl AttemptType {
         match self {
             Self::SameOld => Ok((fetched_payment_intent, fetched_payment_attempt)),
             Self::New => {
+                let new_attempt_count = fetched_payment_intent.attempt_count + 1;
                 let new_payment_attempt = db
                     .insert_payment_attempt(
                         Self::make_new_payment_attempt(
                             &request.payment_method_data,
                             fetched_payment_attempt,
+                            new_attempt_count,
                         ),
                         storage_scheme,
                     )
@@ -2336,6 +2336,7 @@ impl AttemptType {
                                 Some(true),
                             ),
                             active_attempt_id: new_payment_attempt.attempt_id.to_owned(),
+                            attempt_count: new_attempt_count,
                         },
                         storage_scheme,
                     )
@@ -2422,108 +2423,6 @@ pub fn is_manual_retry_allowed(
         | enums::IntentStatus::RequiresPaymentMethod
         | enums::IntentStatus::RequiresConfirmation => None,
     }
-}
-
-pub fn validate_and_add_order_details_to_payment_intent(
-    payment_intent: &mut storage::payment_intent::PaymentIntent,
-    request: &api::PaymentsRequest,
-) -> RouterResult<()> {
-    let parsed_metadata_db: Option<api_models::payments::Metadata> = payment_intent
-        .metadata
-        .as_ref()
-        .map(|metadata_value| {
-            metadata_value
-                .peek()
-                .clone()
-                .parse_value("metadata")
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "metadata",
-                })
-                .attach_printable("unable to parse metadata")
-        })
-        .transpose()?;
-    let order_details_metadata_db = parsed_metadata_db
-        .as_ref()
-        .and_then(|meta| meta.order_details.to_owned());
-    let order_details_outside_metadata_db = payment_intent.order_details.as_ref();
-    let order_details_outside_metadata_req = request.order_details.as_ref();
-    let order_details_metadata_req = request
-        .metadata
-        .as_ref()
-        .and_then(|meta| meta.order_details.to_owned());
-
-    if order_details_metadata_db
-        .as_ref()
-        .zip(order_details_outside_metadata_db.as_ref())
-        .is_some()
-    {
-        Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payment intent in db".to_string() })?
-    }
-    let order_details_outside = match order_details_outside_metadata_req {
-        Some(order) => match order_details_metadata_db {
-            Some(_) => Err(errors::ApiErrorResponse::NotSupported {
-                message: "order_details previously present inside of metadata".to_string(),
-            })?,
-            None => Some(order),
-        },
-        None => match order_details_metadata_req {
-            Some(_order) => match order_details_outside_metadata_db {
-                Some(_) => Err(errors::ApiErrorResponse::NotSupported {
-                    message: "order_details previously present outside of metadata".to_string(),
-                })?,
-                None => None,
-            },
-            None => None,
-        },
-    };
-    add_order_details_and_metadata_to_payment_intent(
-        payment_intent,
-        request,
-        parsed_metadata_db,
-        &order_details_outside.map(|data| data.to_owned()),
-    )
-}
-
-pub fn add_order_details_and_metadata_to_payment_intent(
-    mut payment_intent: &mut storage::payment_intent::PaymentIntent,
-    request: &api::PaymentsRequest,
-    parsed_metadata_db: Option<api_models::payments::Metadata>,
-    order_details_outside: &Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
-) -> RouterResult<()> {
-    let metadata_with_order_details = match request.metadata.as_ref() {
-        Some(meta) => {
-            let transformed_metadata = match parsed_metadata_db {
-                Some(meta_db) => api_models::payments::Metadata {
-                    order_details: meta.order_details.to_owned(),
-                    ..meta_db
-                },
-                None => meta.to_owned(),
-            };
-            let transformed_metadata_value =
-                Encode::<api_models::payments::Metadata>::encode_to_value(&transformed_metadata)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Encoding Metadata to value failed")?;
-            Some(masking::Secret::new(transformed_metadata_value))
-        }
-        None => None,
-    };
-    if let Some(order_details_outside_struct) = order_details_outside {
-        let order_details_outside_value = order_details_outside_struct
-            .iter()
-            .map(|order| {
-                Encode::<api_models::payments::OrderDetailsWithAmount>::encode_to_value(order)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .map(masking::Secret::new)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        payment_intent.order_details = Some(order_details_outside_value);
-    };
-
-    if metadata_with_order_details.is_some() {
-        payment_intent.metadata = metadata_with_order_details;
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]
