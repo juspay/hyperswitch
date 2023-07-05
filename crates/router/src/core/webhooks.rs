@@ -658,7 +658,9 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     let connector_name = connector_label
         .split('_') //connector_name will be the first string after splitting connector_label
         .next()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Failed to infer connector_name from connector_label")?;
 
     metrics::WEBHOOK_INCOMING_COUNT.add(
         &metrics::CONTEXT,
