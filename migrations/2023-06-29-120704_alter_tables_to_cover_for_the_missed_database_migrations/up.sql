@@ -1,7 +1,7 @@
 ALTER TABLE file_metadata
     DROP COLUMN connector_label;
 
-ALTER TABLE merchant_accoun
+ALTER TABLE merchant_account
     ALTER COLUMN merchant_name SET NOT NULL,
     ALTER COLUMN primary_business_details DROP DEFAULT;
 
