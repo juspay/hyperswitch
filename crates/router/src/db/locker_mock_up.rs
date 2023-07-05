@@ -152,6 +152,7 @@ mod tests {
                 card_cvc: Some("123".into()),
                 payment_method_id: Some("payment_method_id".into()),
                 customer_id: Some(locker_ids.customer_id),
+                nickname: Some("card_holder_nickname".into()),
             }
         }
 
