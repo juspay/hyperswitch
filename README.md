@@ -33,7 +33,7 @@
 
 HyperSwitch is an Open Source Financial Switch to make payments **Fast, Reliable
 and Affordable**.
-It lets you connect with multiple payment processors and route traffic
+It allows you to connect with multiple payment processors and route traffic
 effortlessly, all with a single API integration.
 Using HyperSwitch, you can:
 
