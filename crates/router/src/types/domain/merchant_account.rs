@@ -36,6 +36,7 @@ pub struct MerchantAccount {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub intent_fulfillment_time: Option<i64>,
+    pub organization_id: Option<String>,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -142,6 +143,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             modified_at: self.modified_at,
             intent_fulfillment_time: self.intent_fulfillment_time,
             frm_routing_algorithm: self.frm_routing_algorithm,
+            organization_id: self.organization_id,
         })
     }
 
@@ -181,6 +183,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 created_at: item.created_at,
                 modified_at: item.modified_at,
                 intent_fulfillment_time: item.intent_fulfillment_time,
+                organization_id: item.organization_id,
             })
         }
         .await
@@ -211,6 +214,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             modified_at: now,
             intent_fulfillment_time: self.intent_fulfillment_time,
             frm_routing_algorithm: self.frm_routing_algorithm,
+            organization_id: self.organization_id,
         })
     }
 }
