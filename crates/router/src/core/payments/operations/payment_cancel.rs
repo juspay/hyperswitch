@@ -34,8 +34,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsCancelRequest,
-        _mandate_type: Option<api::MandateTxnType>,
+        _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         PaymentData<F>,
@@ -62,7 +63,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                 enums::IntentStatus::Processing,
                 enums::IntentStatus::RequiresMerchantAction,
             ],
-            "cancelled",
+            "cancel",
         )?;
 
         let mut payment_attempt = db
@@ -80,15 +81,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
             None,
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
+            key_store,
         )
         .await?;
+
         let billing_address = helpers::get_address_for_payment_request(
             db,
             None,
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
+            key_store,
         )
         .await?;
 
@@ -134,6 +138,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                 amount,
                 email: None,
                 mandate_id: None,
+                mandate_connector: None,
                 setup_mandate: None,
                 token: None,
                 address: PaymentAddress {
@@ -165,11 +170,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCancelRequest>,
         PaymentData<F>,
@@ -230,6 +235,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCancelRequest> for Payment
                 payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }

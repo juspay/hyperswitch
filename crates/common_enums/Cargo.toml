@@ -1,9 +1,11 @@
 [package]
-name    = "common_enums"
+name = "common_enums"
+description = "Enums shared across the request/response types and database types"
 version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+edition.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+license.workspace = true
 
 [features]
 dummy_connector = []

@@ -497,15 +497,19 @@ pub enum PaymentMethodType {
     Affirm,
     AfterpayClearpay,
     AliPay,
+    AliPayHk,
     ApplePay,
     Bacs,
     BancontactCard,
     Becs,
     Blik,
+    #[serde(rename = "classic")]
+    ClassicReward,
     Credit,
     CryptoCurrency,
     Debit,
     Eps,
+    Evoucher,
     Giropay,
     GooglePay,
     Ideal,
@@ -520,10 +524,12 @@ pub enum PaymentMethodType {
     PayBright,
     Paypal,
     Przelewy24,
+    SamsungPay,
     Sepa,
     Sofort,
     Swish,
     Trustly,
+    UpiCollect,
     Walley,
     WeChatPay,
 }
@@ -554,6 +560,8 @@ pub enum PaymentMethod {
     BankTransfer,
     Crypto,
     BankDebit,
+    Reward,
+    Upi,
 }
 
 #[derive(
@@ -584,11 +592,32 @@ pub enum ProcessTrackerStatus {
 }
 
 #[derive(
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    Clone,
+    PartialEq,
+    Eq,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RetryAction {
+    /// Payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted
+    ManualRetry,
+    /// Denotes that the payment is requeued
+    Requeue,
+}
+
+#[derive(
     Clone,
     Copy,
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
     strum::Display,
     strum::EnumString,
@@ -767,23 +796,24 @@ pub enum Connector {
     Bitpay,
     Bluesnap,
     Braintree,
+    Cashtocode,
     Checkout,
     Coinbase,
+    Cryptopay,
     Cybersource,
     Iatapay,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector1")]
-    #[strum(serialize = "dummyconnector1")]
+    #[serde(rename = "phonypay")]
+    #[strum(serialize = "phonypay")]
     DummyConnector1,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector2")]
-    #[strum(serialize = "dummyconnector2")]
+    #[serde(rename = "fauxpay")]
+    #[strum(serialize = "fauxpay")]
     DummyConnector2,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector3")]
-    #[strum(serialize = "dummyconnector3")]
+    #[serde(rename = "pretendpay")]
+    #[strum(serialize = "pretendpay")]
     DummyConnector3,
-    Opennode,
     Bambora,
     Dlocal,
     Fiserv,
@@ -796,7 +826,10 @@ pub enum Connector {
     Nmi,
     Noon,
     Nuvei,
+    // Opayo, added as template code for future usage
+    Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
+    //Payme,
     Paypal,
     Payu,
     Rapyd,
@@ -843,16 +876,16 @@ impl Connector {
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector1")]
-    #[strum(serialize = "dummyconnector1")]
+    #[serde(rename = "phonypay")]
+    #[strum(serialize = "phonypay")]
     DummyConnector1,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector2")]
-    #[strum(serialize = "dummyconnector2")]
+    #[serde(rename = "fauxpay")]
+    #[strum(serialize = "fauxpay")]
     DummyConnector2,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector3")]
-    #[strum(serialize = "dummyconnector3")]
+    #[serde(rename = "pretendpay")]
+    #[strum(serialize = "pretendpay")]
     DummyConnector3,
     Aci,
     Adyen,
@@ -862,8 +895,10 @@ pub enum RoutableConnectors {
     Bambora,
     Bluesnap,
     Braintree,
+    Cashtocode,
     Checkout,
     Coinbase,
+    Cryptopay,
     Cybersource,
     Dlocal,
     Fiserv,
@@ -877,8 +912,10 @@ pub enum RoutableConnectors {
     Nmi,
     Noon,
     Nuvei,
+    // Opayo, added as template code for future usage
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
+    //Payme,
     Paypal,
     Payu,
     Rapyd,
@@ -1474,4 +1511,84 @@ pub enum FileUploadProvider {
     Router,
     Stripe,
     Checkout,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
+pub enum UsStatesAbbreviation {
+    AL,
+    AK,
+    AS,
+    AZ,
+    AR,
+    CA,
+    CO,
+    CT,
+    DE,
+    DC,
+    FM,
+    FL,
+    GA,
+    GU,
+    HI,
+    ID,
+    IL,
+    IN,
+    IA,
+    KS,
+    KY,
+    LA,
+    ME,
+    MH,
+    MD,
+    MA,
+    MI,
+    MN,
+    MS,
+    MO,
+    MT,
+    NE,
+    NV,
+    NH,
+    NJ,
+    NM,
+    NY,
+    NC,
+    ND,
+    MP,
+    OH,
+    OK,
+    OR,
+    PW,
+    PA,
+    PR,
+    RI,
+    SC,
+    SD,
+    TN,
+    TX,
+    UT,
+    VT,
+    VI,
+    VA,
+    WA,
+    WV,
+    WI,
+    WY,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
+pub enum CanadaStatesAbbreviation {
+    AB,
+    BC,
+    MB,
+    NB,
+    NL,
+    NT,
+    NS,
+    NU,
+    ON,
+    PE,
+    QC,
+    SK,
+    YT,
 }

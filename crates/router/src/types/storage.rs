@@ -27,7 +27,7 @@ pub mod kv;
 
 pub use self::{
     address::*, api_keys::*, cards_info::*, configs::*, connector_response::*, customers::*,
-    dispute::*, events::*, file::*, locker_mock_up::*, mandate::*, merchant_account::*,
-    merchant_connector_account::*, payment_attempt::*, payment_intent::*, payment_method::*,
-    process_tracker::*, refund::*, reverse_lookup::*,
+    dispute::*, ephemeral_key::*, events::*, file::*, locker_mock_up::*, mandate::*,
+    merchant_account::*, merchant_connector_account::*, payment_attempt::*, payment_intent::*,
+    payment_method::*, process_tracker::*, refund::*, reverse_lookup::*,
 };

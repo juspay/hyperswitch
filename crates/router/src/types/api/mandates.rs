@@ -51,9 +51,7 @@ impl MandateResponseExt for MandateResponse {
                 &payment_method.payment_method_id,
                 merchant_account.locker_id.clone(),
             )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting card from card vault")?;
+            .await?;
             let card_detail = payment_methods::transformers::get_card_detail(&payment_method, card)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while getting card details")?;
@@ -72,7 +70,7 @@ impl MandateResponseExt for MandateResponse {
                 },
                 accepted_at: mandate.customer_accepted_at,
                 online: Some(api::payments::OnlineMandate {
-                    ip_address: mandate.customer_ip_address.unwrap_or_default(),
+                    ip_address: mandate.customer_ip_address,
                     user_agent: mandate.customer_user_agent.unwrap_or_default(),
                 }),
             }),
