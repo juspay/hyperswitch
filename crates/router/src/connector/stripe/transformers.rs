@@ -1661,9 +1661,15 @@ pub fn get_connector_metadata(
     let next_action_response = next_action
         .and_then(|next_action_response| match next_action_response {
             StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
+                let bank_instructions = response.financial_addresses.get(0);
+                let sepa_bank_instructions = bank_instructions
+                    .and_then(|financial_address| financial_address.iban.to_owned());
+                let bacs_bank_instructions = bank_instructions
+                    .and_then(|financial_address| financial_address.sort_code.to_owned());
+
                 let bank_transfer_instructions = SepaAndBacsBankTransferInstructions {
-                    sepa_bank_instructions: response.financial_addresses[0].iban.to_owned(),
-                    bacs_bank_instructions: response.financial_addresses[0].sort_code.to_owned(),
+                    sepa_bank_instructions,
+                    bacs_bank_instructions,
                     receiver: SepaAndBacsReceiver {
                         amount_received: amount - response.amount_remaining,
                         amount_remaining: response.amount_remaining,
