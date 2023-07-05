@@ -1614,19 +1614,6 @@
           }
         }
       },
-      "MultibancoBillingDetails": {
-        "type": "object",
-        "required": [
-          "email"
-        ],
-        "properties": {
-          "email": {
-            "type": "string",
-            "description": "The Email ID for Multibanco billing",
-            "example": "example@me.com"
-          }
-        }
-      },
       "AchTransfer": {
         "type": "object",
         "required": [
@@ -1650,23 +1637,6 @@
           "swift_code": {
             "type": "string",
             "example": "234"
-          }
-        }
-      },
-      "MultibancoTransferInstructions": {
-        "type": "object",
-        "required": [
-          "reference",
-          "entity"
-        ],
-        "properties": {
-          "reference": {
-            "type": "string",
-            "example": "122385736258"
-          },
-          "entity": {
-            "type": "string",
-            "example": "12345"
           }
         }
       },
@@ -2655,6 +2625,25 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "multibanco_bank_transfer"
+            ],
+            "properties": {
+              "multibanco_bank_transfer": {
+                "type": "object",
+                "required": [
+                  "billing_details"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/MultibancoBillingDetails"
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -2690,6 +2679,17 @@
             "properties": {
               "bacs_bank_instructions": {
                 "$ref": "#/components/schemas/BacsBankTransferInstructions"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "multibanco"
+            ],
+            "properties": {
+              "multibanco": {
+                "$ref": "#/components/schemas/MultibancoTransferInstructions"
               }
             }
           }
@@ -5402,6 +5402,35 @@
       "MobilePayRedirection": {
         "type": "object"
       },
+      "MultibancoBillingDetails": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "example@me.com"
+          }
+        }
+      },
+      "MultibancoTransferInstructions": {
+        "type": "object",
+        "required": [
+          "reference",
+          "entity"
+        ],
+        "properties": {
+          "reference": {
+            "type": "string",
+            "example": "122385736258"
+          },
+          "entity": {
+            "type": "string",
+            "example": "12345"
+          }
+        }
+      },
       "NextActionCall": {
         "type": "string",
         "enum": [
@@ -6274,6 +6303,7 @@
           "klarna",
           "mb_way",
           "mobile_pay",
+          "multibanco",
           "online_banking_czech_republic",
           "online_banking_finland",
           "online_banking_poland",
