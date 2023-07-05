@@ -4,6 +4,7 @@ use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
+    connector::utils::PaymentsAuthorizeRequestData,
     consts,
     core::errors,
     pii::Secret,
@@ -127,11 +128,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
         .change_context(errors::ConnectorError::NotImplemented(
             "payment_method".to_owned(),
         ))?;
-        let complete_payment_url = Some(item.request.router_return_url.as_ref().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "return_url",
-            },
-        )?);
+        let return_url = item.request.get_return_url()?;
         Ok(Self {
             amount: item.request.amount,
             currency: item.request.currency,
@@ -139,8 +136,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
             capture,
             payment_method_options,
             description: None,
-            error_payment_url: complete_payment_url.cloned(),
-            complete_payment_url: complete_payment_url.cloned(),
+            error_payment_url: Some(return_url.clone()),
+            complete_payment_url: Some(return_url),
         })
     }
 }
