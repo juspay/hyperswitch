@@ -633,21 +633,7 @@ impl api::IncomingWebhook for Payme {
             .body
             .parse_struct("WebhookEvent")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let event_type = match resource.notify_type {
-            transformers::NotifyType::SaleComplete => {
-                api::IncomingWebhookEvent::PaymentIntentSuccess
-            }
-            transformers::NotifyType::SaleFailure => {
-                api::IncomingWebhookEvent::PaymentIntentFailure
-            }
-            transformers::NotifyType::Refund => api::IncomingWebhookEvent::RefundSuccess,
-            transformers::NotifyType::SaleAuthorized
-            | transformers::NotifyType::SaleChargeback
-            | transformers::NotifyType::SaleChargebackRefund => {
-                api::IncomingWebhookEvent::EventNotSupported
-            }
-        };
-        Ok(event_type)
+        Ok(api::IncomingWebhookEvent::from(resource.notify_type))
     }
 
     async fn get_webhook_source_verification_merchant_secret(

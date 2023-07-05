@@ -30,7 +30,7 @@ pub struct MandateRequest {
     sale_return_url: String,
     seller_payme_id: Secret<String>,
     sale_callback_url: String,
-    buyer_key: String,
+    buyer_key: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -105,8 +105,8 @@ pub enum SaleType {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum SalePaymentMethod {
-    #[serde(rename = "credit-card")]
     CreditCard,
 }
 
@@ -202,7 +202,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MandateRequest {
             sale_return_url: item.request.get_return_url()?,
             seller_payme_id,
             sale_callback_url: item.request.get_webhook_url()?,
-            buyer_key: item.request.get_connector_mandate_id()?,
+            buyer_key: Secret::new(item.request.get_connector_mandate_id()?),
         })
     }
 }
@@ -257,16 +257,14 @@ impl TryFrom<&types::ConnectorAuthType> for PaymeAuthType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "kebab-case")]
 pub enum SaleStatus {
     Initial,
     Completed,
     Refunded,
-    #[serde(rename = "partial-refund")]
     PartialRefund,
     Authorized,
     Voided,
-    #[serde(rename = "partial-void")]
     PartialVoid,
     Failed,
     Chargeback,
@@ -429,18 +427,13 @@ pub struct PaymeErrorResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum NotifyType {
-    #[serde(rename = "sale-complete")]
     SaleComplete,
-    #[serde(rename = "sale-authorized")]
     SaleAuthorized,
-    #[serde(rename = "refund")]
     Refund,
-    #[serde(rename = "sale-failure")]
     SaleFailure,
-    #[serde(rename = "sale-chargeback")]
     SaleChargeback,
-    #[serde(rename = "sale-chargeback-refund")]
     SaleChargebackRefund,
 }
 
@@ -473,5 +466,18 @@ impl TryFrom<WebhookEventDataResource> for PaymePaySaleResponse {
             payme_transaction_id: value.payme_transaction_id,
             buyer_key: value.buyer_key,
         })
+    }
+}
+
+impl From<NotifyType> for api::IncomingWebhookEvent {
+    fn from(value: NotifyType) -> Self {
+        match value {
+            NotifyType::SaleComplete => Self::PaymentIntentSuccess,
+            NotifyType::Refund => Self::RefundSuccess,
+            NotifyType::SaleFailure => Self::PaymentIntentFailure,
+            NotifyType::SaleAuthorized
+            | NotifyType::SaleChargeback
+            | NotifyType::SaleChargebackRefund => Self::EventNotSupported,
+        }
     }
 }
