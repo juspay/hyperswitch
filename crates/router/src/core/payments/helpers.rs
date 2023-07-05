@@ -2513,15 +2513,21 @@ pub async fn get_additional_payment_data(
                 let card_info = db
                     .get_card_info(&card_number.get_card_isin())
                     .await
-                    .map_err(|error| services::logger::error!(%error, "Failed to retrieve card information"))
-                    .transpose()
-                    .and_then(|card_info| (card_info).ok().map(|card_info| api_models::payments::AdditionalPaymentData::Card {
-                               card_issuer: card_info.card_issuer.as_ref().map(|issuer| issuer.to_string()),
-                                card_network: card_info.card_network.clone().map(|network| network.foreign_into()),
-                                bank_code: card_info.bank_code.as_ref().map(|bank_code| bank_code.to_string()),
-                                 card_type: card_info.card_type.as_ref().map(|card_type| card_type.to_string()),
-                               card_issuing_country: card_info.card_issuing_country.as_ref().map(|card_issuing_country| card_issuing_country.to_string()),
-                        }));
+                    .map_err(|error| services::logger::warn!(card_info_error=?error))
+                    .ok()
+                    .flatten()
+                    .map(
+                        |card_info| api_models::payments::AdditionalPaymentData::Card {
+                            card_issuer: card_info.card_issuer,
+                            card_network: card_info
+                                .card_network
+                                .clone()
+                                .map(|network| network.foreign_into()),
+                            bank_code: card_info.bank_code,
+                            card_type: card_info.card_type,
+                            card_issuing_country: card_info.card_issuing_country,
+                        },
+                    );
                 card_info.unwrap_or(api_models::payments::AdditionalPaymentData::Card {
                     card_issuer: None,
                     card_network: None,
