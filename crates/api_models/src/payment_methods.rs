@@ -1,5 +1,6 @@
 use cards::CardNumber;
 use common_utils::pii;
+use masking::Secret;
 use serde::de;
 use utoipa::ToSchema;
 
@@ -77,15 +78,15 @@ pub struct CardDetail {
 
     /// Card Expiry Month
     #[schema(value_type = String,example = "10")]
-    pub card_exp_month: masking::Secret<String>,
+    pub card_exp_month: Secret<String>,
 
     /// Card Expiry Year
     #[schema(value_type = String,example = "25")]
-    pub card_exp_year: masking::Secret<String>,
+    pub card_exp_year: Secret<String>,
 
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -146,19 +147,19 @@ pub struct CardDetailFromLocker {
     pub card_number: Option<CardNumber>,
 
     #[schema(value_type=Option<String>)]
-    pub expiry_month: Option<masking::Secret<String>>,
+    pub expiry_month: Option<Secret<String>>,
 
     #[schema(value_type=Option<String>)]
-    pub expiry_year: Option<masking::Secret<String>>,
+    pub expiry_year: Option<Secret<String>>,
 
     #[schema(value_type=Option<String>)]
-    pub card_token: Option<masking::Secret<String>>,
+    pub card_token: Option<Secret<String>>,
 
     #[schema(value_type=Option<String>)]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 
     #[schema(value_type=Option<String>)]
-    pub card_fingerprint: Option<masking::Secret<String>>,
+    pub card_fingerprint: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
@@ -629,19 +630,17 @@ pub struct TokenizedBankTransferValue2 {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct TokenizedBankValue1 {
-    pub bank_account_number: Option<String>,
-    pub bank_routing_number: Option<String>,
-    pub bic: Option<String>,
-    pub bank_sort_code: Option<String>,
-    pub blz: Option<String>,
-    pub bank_transit_number: Option<String>,
+pub struct TokenizedBankSensitiveValues {
+    pub bank_account_number: Option<Secret<String>>,
+    pub bank_routing_number: Option<Secret<String>>,
+    pub bic: Option<Secret<String>>,
+    pub bank_sort_code: Option<Secret<String>>,
+    pub iban: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct TokenizedBankValue2 {
+pub struct TokenizedBankInsensitiveValues {
     pub customer_id: Option<String>,
-    pub iban: Option<String>,
     pub bank_name: String,
     pub bank_country_code: api_enums::CountryAlpha2,
     pub bank_city: String,

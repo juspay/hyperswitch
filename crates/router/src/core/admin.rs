@@ -106,16 +106,6 @@ pub async fn create_merchant_account(
             })
             .transpose()?;
 
-    if let Some(ref routing_algorithm) = req.routing_algorithm {
-        let _: api::RoutingAlgorithm = routing_algorithm
-            .clone()
-            .parse_value("RoutingAlgorithm")
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "routing_algorithm",
-            })
-            .attach_printable("Invalid routing algorithm given")?;
-    }
-
     let key_store = merchant_key_store::MerchantKeyStore {
         merchant_id: req.merchant_id.clone(),
         key: domain_types::encrypt(key.to_vec().into(), master_key)
@@ -167,6 +157,7 @@ pub async fn create_merchant_account(
             modified_at: date_time::now(),
             frm_routing_algorithm: req.frm_routing_algorithm,
             intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
+            payout_routing_algorithm: req.payout_routing_algorithm,
             id: None,
         })
     }
@@ -221,16 +212,6 @@ pub async fn merchant_account_update(
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "parent_merchant_id",
         }))?;
-    }
-
-    if let Some(ref routing_algorithm) = req.routing_algorithm {
-        let _: api::RoutingAlgorithm = routing_algorithm
-            .clone()
-            .parse_value("RoutingAlgorithm")
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "routing_algorithm",
-            })
-            .attach_printable("Invalid routing algorithm given")?;
     }
 
     let primary_business_details = req
@@ -293,6 +274,7 @@ pub async fn merchant_account_update(
         primary_business_details,
         frm_routing_algorithm: req.frm_routing_algorithm,
         intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
+        payout_routing_algorithm: req.payout_routing_algorithm,
     };
 
     let response = db
