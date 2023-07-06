@@ -62,6 +62,11 @@ where
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
     })?;
 
+    let test_mode: Option<bool> = match &merchant_connector_account {
+        helpers::MerchantConnectorAccountType::DbVal(val) => val.test_mode,
+        helpers::MerchantConnectorAccountType::CacheVal(_) => None,
+    };
+
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -124,6 +129,7 @@ where
         payment_method_token: payment_data.pm_token,
         connector_customer: payment_data.connector_customer_id,
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
+        test_mode,
     };
 
     Ok(router_data)

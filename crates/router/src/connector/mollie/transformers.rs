@@ -248,7 +248,11 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
                         field_name: "browser_info.language",
                     })?
                     .language;
-                let testmode = true;
+                let testmode =
+                    item.test_mode
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "test_mode",
+                        })?;
                 let profile_token = auth.key1;
                 Ok(Self {
                     card_holder,

@@ -66,6 +66,10 @@ pub async fn construct_refund_router_data<'a, F>(
         &merchant_account.merchant_id,
         &connector_id.to_string(),
     ));
+    let test_mode: Option<bool> = match &merchant_connector_account {
+        helpers::MerchantConnectorAccountType::DbVal(val) => val.test_mode,
+        helpers::MerchantConnectorAccountType::CacheVal(_) => None,
+    };
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -107,6 +111,7 @@ pub async fn construct_refund_router_data<'a, F>(
         payment_method_token: None,
         connector_customer: None,
         preprocessing_id: None,
+        test_mode,
     };
 
     Ok(router_data)
@@ -259,6 +264,10 @@ pub async fn construct_accept_dispute_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = match &merchant_connector_account {
+        helpers::MerchantConnectorAccountType::DbVal(val) => val.test_mode,
+        helpers::MerchantConnectorAccountType::CacheVal(_) => None,
+    };
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -294,6 +303,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         connector_customer: None,
         customer_id: None,
         preprocessing_id: None,
+        test_mode,
     };
     Ok(router_data)
 }
@@ -323,6 +333,10 @@ pub async fn construct_submit_evidence_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = match &merchant_connector_account {
+        helpers::MerchantConnectorAccountType::DbVal(val) => val.test_mode,
+        helpers::MerchantConnectorAccountType::CacheVal(_) => None,
+    };
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -355,6 +369,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         connector_customer: None,
         customer_id: None,
         preprocessing_id: None,
+        test_mode,
     };
     Ok(router_data)
 }
@@ -380,6 +395,10 @@ pub async fn construct_upload_file_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = match &merchant_connector_account {
+        helpers::MerchantConnectorAccountType::DbVal(val) => val.test_mode,
+        helpers::MerchantConnectorAccountType::CacheVal(_) => None,
+    };
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -417,6 +436,7 @@ pub async fn construct_upload_file_router_data<'a>(
         connector_customer: None,
         customer_id: None,
         preprocessing_id: None,
+        test_mode,
     };
     Ok(router_data)
 }
@@ -446,6 +466,10 @@ pub async fn construct_defend_dispute_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = match &merchant_connector_account {
+        helpers::MerchantConnectorAccountType::DbVal(val) => val.test_mode,
+        helpers::MerchantConnectorAccountType::CacheVal(_) => None,
+    };
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -481,6 +505,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         customer_id: None,
         connector_customer: None,
         preprocessing_id: None,
+        test_mode,
     };
     Ok(router_data)
 }
@@ -507,6 +532,10 @@ pub async fn construct_retrieve_file_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = match &merchant_connector_account {
+        helpers::MerchantConnectorAccountType::DbVal(val) => val.test_mode,
+        helpers::MerchantConnectorAccountType::CacheVal(_) => None,
+    };
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -543,6 +572,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         reference_id: None,
         payment_method_token: None,
         preprocessing_id: None,
+        test_mode,
     };
     Ok(router_data)
 }

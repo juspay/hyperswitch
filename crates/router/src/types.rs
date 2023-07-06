@@ -204,6 +204,7 @@ pub struct RouterData<Flow, Request, Response> {
 
     /// Contains any error response that the connector returns.
     pub payment_method_id: Option<String>,
+    pub test_mode: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -811,6 +812,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_method_token: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
+            test_mode: data.test_mode,
         }
     }
 }
