@@ -365,6 +365,22 @@ pub trait SeleniumTest {
         url: &str,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
+        // To support failure retries
+        let result = self
+            .execute_gpay_steps(c.clone(), url, actions.clone())
+            .await;
+        if result.is_err() {
+            self.execute_gpay_steps(c, url, actions).await
+        } else {
+            result
+        }
+    }
+    async fn execute_gpay_steps(
+        &self,
+        c: WebDriver,
+        url: &str,
+        actions: Vec<Event<'_>>,
+    ) -> Result<(), WebDriverError> {
         let config = self.get_configs().automation_configs.unwrap();
         let (email, pass) = (&config.gmail_email.unwrap(), &config.gmail_pass.unwrap());
         let default_actions = vec![
@@ -396,7 +412,9 @@ pub trait SeleniumTest {
                     ),
                 ],
             ),
-            Event::Trigger(Trigger::SwitchFrame(By::Css(".bootstrapperIframeContainerElement iframe"))),
+            Event::Trigger(Trigger::SwitchFrame(By::Css(
+                ".bootstrapperIframeContainerElement iframe",
+            ))),
             Event::Assert(Assert::IsPresent("Gpay Tester")),
             Event::Trigger(Trigger::Click(By::ClassName("jfk-button-action"))),
             Event::Trigger(Trigger::SwitchTab(Position::Prev)),

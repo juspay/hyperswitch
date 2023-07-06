@@ -129,6 +129,12 @@ jobs:
           IN="${{ matrix.connector }}"
           connectors=(${IN//|/ })
           for i in "${connectors[@]}"; do
-            cargo test --package router --test connectors -- "${i}_ui::should_make_gpay_mandate_payment_test" --test-threads=1
+            cargo test --package router --test connectors -- "${i}_ui::" --test-threads=1 >> tests/test_results.log 2>&1
           done
-          sleep 1000
+
+      - name: Check test results
+        shell: bash
+        run:  |
+          if test "$( grep 'test result: FAILED' -r tests/test_results.log | wc -l )" -gt "0"; then
+            exit 1
+          fi

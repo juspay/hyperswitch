@@ -105,8 +105,8 @@ async fn should_make_adyen_klarna_mandate_payment(
     let conn = AdyenSeleniumTest {};
     conn.make_redirection_payment(web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/klarna-redirect?amount=70.00&country=SE&currency=SEK&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=SEK&return_url={CHEKOUT_BASE_URL}/payments"))),
-            Event::Trigger(Trigger::Click(By::Id("klarna-redirect-btn"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/195"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Id("klarna-apf-iframe"))),
             Event::Trigger(Trigger::Click(By::Id("signInWithBankId"))),
             Event::Assert(Assert::IsPresent("Klart att betala")),
@@ -122,8 +122,8 @@ async fn should_make_adyen_klarna_mandate_payment(
             Event::Assert(Assert::IsPresent("succeeded")),
             Event::Assert(Assert::IsPresent("Mandate ID")),
             Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
-            Event::Trigger(Trigger::Click(By::Id("pm-mandate-btn"))),
-            Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
+            Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
+        Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("succeeded")),
     ]).await?;
     Ok(())
@@ -172,7 +172,6 @@ fn should_make_adyen_gpay_zero_dollar_mandate_payment_test() {
 
 #[test]
 #[serial]
-#[ignore]
 fn should_make_adyen_klarna_mandate_payment_test() {
     tester!(should_make_adyen_klarna_mandate_payment);
 }
