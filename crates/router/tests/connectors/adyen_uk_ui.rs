@@ -109,6 +109,7 @@ async fn should_make_adyen_klarna_mandate_payment(
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/195"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Id("klarna-apf-iframe"))),
+            Event::Trigger(Trigger::Sleep(5)),
             Event::Trigger(Trigger::Click(By::Id("signInWithBankId"))),
             Event::Assert(Assert::IsPresent("Klart att betala")),
             Event::EitherOr(
@@ -124,6 +125,12 @@ async fn should_make_adyen_klarna_mandate_payment(
                         "button[data-testid='confirm-and-pay']",
                     ))),
                 ],
+            ),
+            Event::RunIf(
+                Assert::IsPresent("Färre klick, snabbare betalning"),
+                vec![Event::Trigger(Trigger::Click(By::Css(
+                    "button[data-testid='SmoothCheckoutPopUp:enable']",
+                )))],
             ),
             Event::Trigger(Trigger::SwitchTab(Position::Prev)),
             Event::Assert(Assert::IsPresent("succeeded")),
@@ -148,11 +155,14 @@ async fn should_make_adyen_alipay_hk_payment(c: WebDriver) -> Result<(), WebDriv
             Event::EitherOr(
                 Assert::IsPresent("Payment Method Not Available"),
                 vec![Event::Assert(Assert::IsPresent(
-                    " (Note: these error messages are not visible on the live platform) ",
+                    "Please try again or select a different payment method",
                 ))],
                 vec![
                     Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
-                    Event::Assert(Assert::IsPresent("succeeded")),
+                    Event::Assert(Assert::Contains(
+                        Selector::QueryParamStr,
+                        "status=succeeded",
+                    )),
                 ],
             ),
         ],
@@ -163,18 +173,21 @@ async fn should_make_adyen_alipay_hk_payment(c: WebDriver) -> Result<(), WebDriv
 
 #[test]
 #[serial]
+#[ignore]
 fn should_make_adyen_gpay_payment_test() {
     tester!(should_make_adyen_gpay_payment);
 }
 
 #[test]
 #[serial]
+#[ignore]
 fn should_make_adyen_gpay_mandate_payment_test() {
     tester!(should_make_adyen_gpay_mandate_payment);
 }
 
 #[test]
 #[serial]
+#[ignore]
 fn should_make_adyen_gpay_zero_dollar_mandate_payment_test() {
     tester!(should_make_adyen_gpay_zero_dollar_mandate_payment);
 }

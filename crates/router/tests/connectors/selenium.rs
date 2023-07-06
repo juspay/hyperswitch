@@ -365,15 +365,7 @@ pub trait SeleniumTest {
         url: &str,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
-        // To support failure retries
-        let result = self
-            .execute_gpay_steps(c.clone(), url, actions.clone())
-            .await;
-        if result.is_err() {
-            self.execute_gpay_steps(c, url, actions).await
-        } else {
-            result
-        }
+        self.execute_gpay_steps(c, url, actions).await
     }
     async fn execute_gpay_steps(
         &self,
@@ -556,13 +548,13 @@ pub fn make_capabilities(s: &str) -> Capabilities {
     match s {
         "firefox" => {
             let mut caps = DesiredCapabilities::firefox();
-            let ignore_profile = env::var("IGNORE_BROWSER_PROFILE").ok();
-            if ignore_profile.is_none() {
-                let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
-                caps.add_firefox_arg(profile_path).unwrap();
-            } else {
-                caps.add_firefox_arg("--headless").ok();
-            }
+            // let ignore_profile = env::var("IGNORE_BROWSER_PROFILE").ok();
+            // if ignore_profile.is_none() {
+            //     let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
+            //     caps.add_firefox_arg(profile_path).unwrap();
+            // } else {
+                // caps.add_firefox_arg("--headless").ok();
+            // }
             caps.into()
         }
         "chrome" => {
