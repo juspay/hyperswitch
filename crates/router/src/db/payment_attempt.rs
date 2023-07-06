@@ -63,7 +63,7 @@ pub trait PaymentAttemptInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
-    async fn find_filters_for_payments(
+    async fn get_filters_for_payments(
         &self,
         pi: &[storage_models::payment_intent::PaymentIntent],
         merchant_id: &str,
@@ -184,7 +184,7 @@ mod storage {
             .into_report()
         }
 
-        async fn find_filters_for_payments(
+        async fn get_filters_for_payments(
             &self,
             pi: &[storage_models::payment_intent::PaymentIntent],
             merchant_id: &str,
@@ -192,7 +192,7 @@ mod storage {
         ) -> CustomResult<storage_models::payment_attempt::PaymentListFilters, errors::StorageError>
         {
             let conn = connection::pg_connection_read(self).await?;
-            PaymentAttempt::find_filters_for_payments(&conn, pi, merchant_id)
+            PaymentAttempt::get_filters_for_payments(&conn, pi, merchant_id)
                 .await
                 .map_err(Into::into)
                 .into_report()
@@ -245,7 +245,7 @@ impl PaymentAttemptInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn find_filters_for_payments(
+    async fn get_filters_for_payments(
         &self,
         _pi: &[storage_models::payment_intent::PaymentIntent],
         _merchant_id: &str,
@@ -830,7 +830,7 @@ mod storage {
             }
         }
 
-        async fn find_filters_for_payments(
+        async fn get_filters_for_payments(
             &self,
             pi: &[storage_models::payment_intent::PaymentIntent],
             merchant_id: &str,
@@ -838,7 +838,7 @@ mod storage {
         ) -> CustomResult<storage_models::payment_attempt::PaymentListFilters, errors::StorageError>
         {
             let conn = connection::pg_connection_read(self).await?;
-            PaymentAttempt::find_filters_for_payments(&conn, pi, merchant_id)
+            PaymentAttempt::get_filters_for_payments(&conn, pi, merchant_id)
                 .await
                 .map_err(Into::into)
                 .into_report()

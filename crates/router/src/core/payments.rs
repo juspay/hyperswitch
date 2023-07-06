@@ -1243,7 +1243,7 @@ pub async fn list_payments(
 }
 
 #[cfg(feature = "olap")]
-pub async fn find_filters_for_payments(
+pub async fn get_filters_for_payments(
     db: &dyn StorageInterface,
     merchant: domain::MerchantAccount,
     time_range: api::TimeRange,
@@ -1260,7 +1260,7 @@ pub async fn find_filters_for_payments(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let filters = db
-        .find_filters_for_payments(
+        .get_filters_for_payments(
             &pi,
             &merchant.merchant_id,
             // since OLAP doesn't have KV. Force to get the data from PSQL.
