@@ -103,29 +103,38 @@ async fn should_make_adyen_klarna_mandate_payment(
     web_driver: WebDriver,
 ) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
-    conn.make_redirection_payment(web_driver,
+    conn.make_redirection_payment(
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/195"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Id("klarna-apf-iframe"))),
             Event::Trigger(Trigger::Click(By::Id("signInWithBankId"))),
             Event::Assert(Assert::IsPresent("Klart att betala")),
-            Event::EitherOr(Assert::IsPresent("Klart att betala"), vec![
-                Event::Trigger(Trigger::Click(By::Css("button[data-testid='confirm-and-pay']"))),
-            ],
-            vec![
-                Event::Trigger(Trigger::Click(By::Css("button[data-testid='SmoothCheckoutPopUp:skip']"))),
-                Event::Trigger(Trigger::Click(By::Css("button[data-testid='confirm-and-pay']"))),
-            ]
+            Event::EitherOr(
+                Assert::IsPresent("Klart att betala"),
+                vec![Event::Trigger(Trigger::Click(By::Css(
+                    "button[data-testid='confirm-and-pay']",
+                )))],
+                vec![
+                    Event::Trigger(Trigger::Click(By::Css(
+                        "button[data-testid='SmoothCheckoutPopUp:skip']",
+                    ))),
+                    Event::Trigger(Trigger::Click(By::Css(
+                        "button[data-testid='confirm-and-pay']",
+                    ))),
+                ],
             ),
             Event::Trigger(Trigger::SwitchTab(Position::Prev)),
             Event::Assert(Assert::IsPresent("succeeded")),
             Event::Assert(Assert::IsPresent("Mandate ID")),
-            Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
+            Event::Assert(Assert::IsPresent("man_")), // mandate id starting with man_
             Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
-        Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("succeeded")),
-    ]).await?;
+        ],
+    )
+    .await?;
     Ok(())
 }
 
