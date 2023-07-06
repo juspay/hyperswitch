@@ -293,3 +293,12 @@ refund_duration = 1000           # Fake delay duration for dummy connector refun
 refund_tolerance = 100           # Fake delay tolerance for dummy connector refund
 refund_retrieve_duration = 500   # Fake delay duration for dummy connector refund sync
 refund_retrieve_tolerance = 100  # Fake delay tolerance for dummy connector refund sync
+
+# Required fields info used while listing the payment_method_data
+[required_fields.pay_later] # payment_method = "pay_later"
+afterpay_clearpay = {fields = {stripe = [  # payment_method_type = afterpay_clearpay, connector = "stripe"
+            # Required fields vector with its respective display name in front-end and field_type
+            { required_field = "shipping.address.first_name", display_name = "first_name", field_type = "text" },
+            { required_field = "shipping.address.last_name", display_name = "last_name", field_type = "text" },
+            { required_field = "shipping.address.country", display_name = "country", field_type = { drop_down = { options = [ "US", "IN" ] } } },
+        ] } }
