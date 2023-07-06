@@ -923,6 +923,8 @@ impl Connector {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
+    strum::EnumVariantNames,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
