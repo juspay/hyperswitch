@@ -426,7 +426,6 @@ pub enum MerchantStorageScheme {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    //::LabelledGeneric,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
@@ -720,6 +719,7 @@ pub enum MandateStatus {
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum RefundType {
     InstantRefund,
     #[default]
@@ -836,6 +836,22 @@ pub enum Connector {
     #[serde(rename = "pretendpay")]
     #[strum(serialize = "pretendpay")]
     DummyConnector3,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "stripe_test")]
+    #[strum(serialize = "stripe_test")]
+    DummyConnector4,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "adyen_test")]
+    #[strum(serialize = "adyen_test")]
+    DummyConnector5,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "checkout_test")]
+    #[strum(serialize = "checkout_test")]
+    DummyConnector6,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "paypal_test")]
+    #[strum(serialize = "paypal_test")]
+    DummyConnector7,
     Bambora,
     Dlocal,
     Fiserv,
@@ -888,6 +904,7 @@ impl Connector {
     Copy,
     Debug,
     Eq,
+    Hash,
     PartialEq,
     serde::Serialize,
     serde::Deserialize,
@@ -909,6 +926,22 @@ pub enum RoutableConnectors {
     #[serde(rename = "pretendpay")]
     #[strum(serialize = "pretendpay")]
     DummyConnector3,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "stripe_test")]
+    #[strum(serialize = "stripe_test")]
+    DummyConnector4,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "adyen_test")]
+    #[strum(serialize = "adyen_test")]
+    DummyConnector5,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "checkout_test")]
+    #[strum(serialize = "checkout_test")]
+    DummyConnector6,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "paypal_test")]
+    #[strum(serialize = "paypal_test")]
+    DummyConnector7,
     Aci,
     Adyen,
     Airwallex,
@@ -1105,6 +1138,7 @@ pub enum BankNames {
     strum::EnumString,
     ToSchema,
 )]
+#[router_derive::diesel_enum(storage_type = "text")]
 pub enum CardNetwork {
     Visa,
     Mastercard,
