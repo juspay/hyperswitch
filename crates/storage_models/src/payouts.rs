@@ -16,7 +16,6 @@ pub struct Payouts {
     pub address_id: String,
     pub payout_type: storage_enums::PayoutType,
     pub payout_method_id: Option<String>,
-    pub payout_method_data: Option<pii::SecretSerdeValue>,
     pub amount: i64,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
@@ -44,7 +43,6 @@ impl Default for Payouts {
             address_id: String::default(),
             payout_type: storage_enums::PayoutType::default(),
             payout_method_id: Option::default(),
-            payout_method_data: Option::default(),
             amount: i64::default(),
             destination_currency: storage_enums::Currency::default(),
             source_currency: storage_enums::Currency::default(),
@@ -80,7 +78,6 @@ pub struct PayoutsNew {
     pub address_id: String,
     pub payout_type: storage_enums::PayoutType,
     pub payout_method_id: Option<String>,
-    pub payout_method_data: Option<pii::SecretSerdeValue>,
     pub amount: i64,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
@@ -109,11 +106,9 @@ pub enum PayoutsUpdate {
         entity_type: storage_enums::EntityType,
         metadata: Option<pii::SecretSerdeValue>,
         last_modified_at: Option<PrimitiveDateTime>,
-        payout_method_data: Option<pii::SecretSerdeValue>,
     },
-    PaymentMethodIdUpdate {
+    PayoutMethodIdUpdate {
         payout_method_id: Option<String>,
-        payout_method_data: Option<pii::SecretSerdeValue>,
     },
     RecurringUpdate {
         recurring: bool,
@@ -134,7 +129,6 @@ pub struct PayoutsUpdateInternal {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub last_modified_at: Option<PrimitiveDateTime>,
     pub payout_method_id: Option<String>,
-    pub payout_method_data: Option<pii::SecretSerdeValue>,
 }
 
 impl From<PayoutsUpdate> for PayoutsUpdateInternal {
@@ -151,7 +145,6 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 entity_type,
                 metadata,
                 last_modified_at,
-                payout_method_data,
             } => Self {
                 amount: Some(amount),
                 destination_currency: Some(destination_currency),
@@ -162,16 +155,11 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 return_url,
                 entity_type: Some(entity_type),
                 metadata,
-                payout_method_data,
                 last_modified_at,
                 ..Default::default()
             },
-            PayoutsUpdate::PaymentMethodIdUpdate {
+            PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id } => Self {
                 payout_method_id,
-                payout_method_data,
-            } => Self {
-                payout_method_id,
-                payout_method_data,
                 ..Default::default()
             },
             PayoutsUpdate::RecurringUpdate { recurring } => Self {

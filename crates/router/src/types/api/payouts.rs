@@ -1,7 +1,7 @@
 pub use api_models::payouts::{
-    Bank as BankPayout, Card as CardPayout, PayoutActionRequest, PayoutCreateRequest,
-    PayoutCreateResponse, PayoutMethodData, PayoutRequest, PayoutRetrieveBody,
-    PayoutRetrieveRequest,
+    AchBankTransfer, BacsBankTransfer, Bank as BankPayout, Card as CardPayout, PayoutActionRequest,
+    PayoutCreateRequest, PayoutCreateResponse, PayoutMethodData, PayoutRequest, PayoutRetrieveBody,
+    PayoutRetrieveRequest, SepaBankTransfer,
 };
 
 #[cfg(feature = "payouts")]
@@ -13,6 +13,7 @@ use crate::{services::api, types};
 #[derive(Debug, Clone)]
 pub struct PCancel;
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
 pub struct PCreate;
 
@@ -23,6 +24,14 @@ pub struct PEligibility;
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
 pub struct PFulfill;
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone)]
+pub struct PoQuote;
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone)]
+pub struct PoRecipient;
 
 #[cfg(feature = "payouts")]
 pub trait PayoutCancel:
@@ -49,8 +58,26 @@ pub trait PayoutFulfill:
 }
 
 #[cfg(feature = "payouts")]
+pub trait PayoutQuote:
+    api::ConnectorIntegration<PoQuote, types::PayoutsData, types::PayoutsResponseData>
+{
+}
+
+#[cfg(feature = "payouts")]
+pub trait PayoutRecipient:
+    api::ConnectorIntegration<PoRecipient, types::PayoutsData, types::PayoutsResponseData>
+{
+}
+
+#[cfg(feature = "payouts")]
 pub trait Payouts:
-    ConnectorCommon + PayoutCancel + PayoutCreate + PayoutEligibility + PayoutFulfill
+    ConnectorCommon
+    + PayoutCancel
+    + PayoutCreate
+    + PayoutEligibility
+    + PayoutFulfill
+    + PayoutQuote
+    + PayoutRecipient
 {
 }
 #[cfg(not(feature = "payouts"))]

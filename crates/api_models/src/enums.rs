@@ -627,6 +627,7 @@ pub enum Connector {
     Shift4,
     Stripe,
     Trustpay,
+    Wise,
     Worldline,
     Worldpay,
     Zen,
@@ -667,7 +668,30 @@ impl Connector {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[serde(untagged)]
 pub enum RoutableConnectors {
+    PaymentConnectors(RoutablePaymentConnectors),
+    #[cfg(feature = "payouts")]
+    PayoutConnectors(RoutablePayoutConnectors),
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RoutablePaymentConnectors {
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "dummyconnector1")]
     #[strum(serialize = "dummyconnector1")]
@@ -709,11 +733,35 @@ pub enum RoutableConnectors {
     Payu,
     Rapyd,
     Shift4,
+    #[default]
     Stripe,
     Trustpay,
     Worldline,
     Worldpay,
     Zen,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RoutablePayoutConnectors {
+    #[default]
+    Adyen,
+    Wise,
 }
 
 /// Name of banks supported by Hyperswitch

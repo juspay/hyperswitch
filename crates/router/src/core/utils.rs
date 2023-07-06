@@ -6,6 +6,7 @@ use common_utils::errors::CustomResult;
 use common_utils::{crypto::Encryptable, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
+use uuid::Uuid;
 
 use super::payments::{helpers, PaymentAddress};
 #[cfg(feature = "payouts")]
@@ -21,7 +22,7 @@ use crate::{
         storage::{self, enums},
         ErrorResponse,
     },
-    utils::{generate_id, OptionExt, ValueExt},
+    utils::{generate_id, generate_uuid, OptionExt, ValueExt},
 };
 
 #[cfg(feature = "payouts")]
@@ -110,12 +111,17 @@ pub async fn construct_payout_router_data<'a, F>(
     let payouts = &payout_data.payouts;
     let payout_attempt = &payout_data.payout_attempt;
     let customer_details = &payout_data.customer_details;
+    let connector_customer_id = customer_details
+        .as_ref()
+        .and_then(|c| c.connector_customer.as_ref())
+        .and_then(|cc| cc.get("id"))
+        .and_then(|id| serde_json::from_value::<String>(id.to_owned()).ok());
 
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.to_owned(),
         customer_id: None,
-        connector_customer: None,
+        connector_customer: connector_customer_id,
         connector: connector_id.to_string(),
         payment_id: "".to_string(),
         attempt_id: "".to_string(),
@@ -133,6 +139,7 @@ pub async fn construct_payout_router_data<'a, F>(
             payout_id: payouts.payout_id.to_owned(),
             amount: payouts.amount,
             connector_payout_id: Some(payout_attempt.connector_payout_id.to_owned()),
+            quote_id: None,
             destination_currency: payouts.destination_currency,
             source_currency: payouts.source_currency,
             entity_type: payouts.entity_type,
@@ -264,6 +271,14 @@ pub fn get_or_generate_id(
         .map_or(Ok(generate_id(consts::ID_LENGTH, prefix)), validate_id)
 }
 
+pub fn get_or_generate_uuid(
+    key: &str,
+    provided_id: &Option<String>,
+) -> Result<String, errors::ApiErrorResponse> {
+    let validate_id = |id: String| validate_uuid(id, key);
+    provided_id.clone().map_or(Ok(generate_uuid()), validate_id)
+}
+
 fn invalid_id_format_error(key: &str) -> errors::ApiErrorResponse {
     errors::ApiErrorResponse::InvalidDataFormat {
         field_name: key.to_string(),
@@ -279,6 +294,13 @@ pub fn validate_id(id: String, key: &str) -> Result<String, errors::ApiErrorResp
         Err(invalid_id_format_error(key))
     } else {
         Ok(id)
+    }
+}
+
+pub fn validate_uuid(uuid: String, key: &str) -> Result<String, errors::ApiErrorResponse> {
+    match (Uuid::parse_str(&uuid), uuid.len() > consts::MAX_ID_LENGTH) {
+        (Ok(_), false) => Ok(uuid),
+        (_, _) => Err(invalid_id_format_error(key)),
     }
 }
 
