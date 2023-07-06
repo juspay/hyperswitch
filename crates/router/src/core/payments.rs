@@ -8,7 +8,7 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use api_models::payments::Metadata;
+use api_models::{enums::RoutableConnectors, payments::Metadata};
 use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -1026,7 +1026,7 @@ where
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
     pub name: Option<Secret<String, masking::WithType>>,
@@ -1307,6 +1307,7 @@ where
         merchant_account,
         request_straight_through,
         &mut routing_data,
+        storage_enums::RouterOperation::Payment,
     )?;
 
     let encoded_algorithm = routing_data
@@ -1327,6 +1328,7 @@ pub fn decide_connector(
     merchant_account: &domain::MerchantAccount,
     request_straight_through: Option<api::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
+    routing_operation: storage_enums::RouterOperation,
 ) -> RouterResult<api::ConnectorCallType> {
     if let Some(ref connector_name) = routing_data.routed_through {
         let connector_data = api::ConnectorData::get_connector_by_name(
@@ -1342,7 +1344,12 @@ pub fn decide_connector(
 
     if let Some(routing_algorithm) = request_straight_through {
         let connector_name = match &routing_algorithm {
-            api::StraightThroughAlgorithm::Single(conn) => conn.to_string(),
+            api::StraightThroughAlgorithm::Single(RoutableConnectors::PaymentConnectors(p)) => {
+                p.to_string()
+            }
+            api::StraightThroughAlgorithm::Single(RoutableConnectors::PayoutConnectors(p)) => {
+                p.to_string()
+            }
         };
 
         let connector_data = api::ConnectorData::get_connector_by_name(
@@ -1360,7 +1367,12 @@ pub fn decide_connector(
 
     if let Some(ref routing_algorithm) = routing_data.algorithm {
         let connector_name = match routing_algorithm {
-            api::StraightThroughAlgorithm::Single(conn) => conn.to_string(),
+            api::StraightThroughAlgorithm::Single(RoutableConnectors::PaymentConnectors(p)) => {
+                p.to_string()
+            }
+            api::StraightThroughAlgorithm::Single(RoutableConnectors::PayoutConnectors(p)) => {
+                p.to_string()
+            }
         };
 
         let connector_data = api::ConnectorData::get_connector_by_name(
@@ -1375,19 +1387,21 @@ pub fn decide_connector(
         return Ok(api::ConnectorCallType::Single(connector_data));
     }
 
-    let routing_algorithm = merchant_account
-        .routing_algorithm
-        .clone()
-        .get_required_value("RoutingAlgorithm")
-        .change_context(errors::ApiErrorResponse::PreconditionFailed {
-            message: "no routing algorithm has been configured".to_string(),
-        })?
-        .parse_value::<api::RoutingAlgorithm>("RoutingAlgorithm")
-        .change_context(errors::ApiErrorResponse::InternalServerError) // Deserialization failed
-        .attach_printable("Unable to deserialize merchant routing algorithm")?;
+    let routing_algorithm = match routing_operation {
+        storage_enums::RouterOperation::Payment => merchant_account.routing_algorithm.clone(),
+        storage_enums::RouterOperation::Payout => merchant_account.payout_routing_algorithm.clone(),
+    }
+    .get_required_value("RoutingAlgorithm")
+    .change_context(errors::ApiErrorResponse::PreconditionFailed {
+        message: "no routing algorithm has been configured".to_string(),
+    })?
+    .parse_value::<api::RoutingAlgorithm>("RoutingAlgorithm")
+    .change_context(errors::ApiErrorResponse::InternalServerError) // Deserialization failed
+    .attach_printable("Unable to deserialize merchant routing algorithm")?;
 
     let connector_name = match routing_algorithm {
-        api::RoutingAlgorithm::Single(conn) => conn.to_string(),
+        api::RoutingAlgorithm::Single(RoutableConnectors::PaymentConnectors(p)) => p.to_string(),
+        api::RoutingAlgorithm::Single(RoutableConnectors::PayoutConnectors(p)) => p.to_string(),
     };
 
     let connector_data = api::ConnectorData::get_connector_by_name(

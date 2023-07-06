@@ -19,7 +19,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 
 use self::{api::payments, storage::enums as storage_enums};
-pub use crate::core::payments::PaymentAddress;
+pub use crate::core::payments::{CustomerDetails, PaymentAddress};
 use crate::{core::errors, services};
 
 pub type PaymentsAuthorizeRouterData =
@@ -127,16 +127,23 @@ pub type RefundSyncType =
     dyn services::ConnectorIntegration<api::RSync, RefundsData, RefundsResponseData>;
 
 #[cfg(feature = "payouts")]
+pub type PayoutCancelType =
+    dyn services::ConnectorIntegration<api::PCancel, PayoutsData, PayoutsResponseData>;
+#[cfg(feature = "payouts")]
 pub type PayoutCreateType =
     dyn services::ConnectorIntegration<api::PCreate, PayoutsData, PayoutsResponseData>;
-
 #[cfg(feature = "payouts")]
 pub type PayoutEligibilityType =
     dyn services::ConnectorIntegration<api::PEligibility, PayoutsData, PayoutsResponseData>;
-
 #[cfg(feature = "payouts")]
 pub type PayoutFulfillType =
     dyn services::ConnectorIntegration<api::PFulfill, PayoutsData, PayoutsResponseData>;
+#[cfg(feature = "payouts")]
+pub type PayoutRecipientType =
+    dyn services::ConnectorIntegration<api::PoRecipient, PayoutsData, PayoutsResponseData>;
+#[cfg(feature = "payouts")]
+pub type PayoutQuoteType =
+    dyn services::ConnectorIntegration<api::PoQuote, PayoutsData, PayoutsResponseData>;
 
 pub type RefreshTokenType =
     dyn services::ConnectorIntegration<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
@@ -239,14 +246,23 @@ pub struct PayoutsData {
     pub source_currency: storage_enums::Currency,
     pub payout_type: storage_enums::PayoutType,
     pub entity_type: storage_enums::EntityType,
+    pub country_code: storage_enums::CountryAlpha2,
+    pub customer_details: Option<CustomerDetails>,
+    pub quote_id: Option<String>,
 }
 
 #[cfg(feature = "payouts")]
 #[derive(Clone, Debug, Default)]
 pub struct PayoutsResponseData {
-    pub status: storage_enums::PayoutStatus,
+    pub status: Option<storage_enums::PayoutStatus>,
     pub connector_payout_id: String,
     pub payout_eligible: Option<bool>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct PayoutsFulfillResponseData {
+    pub status: Option<storage_enums::PayoutStatus>,
+    pub reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -698,7 +714,7 @@ pub struct Response {
     pub status_code: u16,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct ErrorResponse {
     pub code: String,
     pub message: String,
@@ -852,6 +868,51 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
             #[cfg(feature = "payouts")]
+            payout_method_data: data.payout_method_data.clone(),
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl<F1, F2>
+    From<(
+        &&mut RouterData<F1, PayoutsData, PayoutsResponseData>,
+        PayoutsData,
+    )> for RouterData<F2, PayoutsData, PayoutsResponseData>
+{
+    fn from(
+        item: (
+            &&mut RouterData<F1, PayoutsData, PayoutsResponseData>,
+            PayoutsData,
+        ),
+    ) -> Self {
+        let data = item.0;
+        let request = item.1;
+        Self {
+            flow: PhantomData,
+            request,
+            merchant_id: data.merchant_id.clone(),
+            connector: data.connector.clone(),
+            attempt_id: data.attempt_id.clone(),
+            status: data.status,
+            payment_method: data.payment_method,
+            connector_auth_type: data.connector_auth_type.clone(),
+            description: data.description.clone(),
+            return_url: data.return_url.clone(),
+            address: data.address.clone(),
+            auth_type: data.auth_type,
+            connector_meta_data: data.connector_meta_data.clone(),
+            amount_captured: data.amount_captured,
+            access_token: data.access_token.clone(),
+            response: data.response.clone(),
+            payment_method_id: data.payment_method_id.clone(),
+            payment_id: data.payment_id.clone(),
+            session_token: data.session_token.clone(),
+            reference_id: data.reference_id.clone(),
+            customer_id: data.customer_id.clone(),
+            payment_method_token: None,
+            preprocessing_id: None,
+            connector_customer: data.connector_customer.clone(),
             payout_method_data: data.payout_method_data.clone(),
         }
     }
