@@ -8,7 +8,7 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use api_models::payments::Metadata;
+use api_models::{enums::RoutableConnectors, payments::Metadata};
 use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -1344,7 +1344,12 @@ pub fn decide_connector(
 
     if let Some(routing_algorithm) = request_straight_through {
         let connector_name = match &routing_algorithm {
-            api::StraightThroughAlgorithm::Single(conn) => conn.to_string(),
+            api::StraightThroughAlgorithm::Single(RoutableConnectors::PaymentConnectors(p)) => {
+                p.to_string()
+            }
+            api::StraightThroughAlgorithm::Single(RoutableConnectors::PayoutConnectors(p)) => {
+                p.to_string()
+            }
         };
 
         let connector_data = api::ConnectorData::get_connector_by_name(
@@ -1362,7 +1367,12 @@ pub fn decide_connector(
 
     if let Some(ref routing_algorithm) = routing_data.algorithm {
         let connector_name = match routing_algorithm {
-            api::StraightThroughAlgorithm::Single(conn) => conn.to_string(),
+            api::StraightThroughAlgorithm::Single(RoutableConnectors::PaymentConnectors(p)) => {
+                p.to_string()
+            }
+            api::StraightThroughAlgorithm::Single(RoutableConnectors::PayoutConnectors(p)) => {
+                p.to_string()
+            }
         };
 
         let connector_data = api::ConnectorData::get_connector_by_name(
@@ -1390,7 +1400,8 @@ pub fn decide_connector(
     .attach_printable("Unable to deserialize merchant routing algorithm")?;
 
     let connector_name = match routing_algorithm {
-        api::RoutingAlgorithm::Single(conn) => conn.to_string(),
+        api::RoutingAlgorithm::Single(RoutableConnectors::PaymentConnectors(p)) => p.to_string(),
+        api::RoutingAlgorithm::Single(RoutableConnectors::PayoutConnectors(p)) => p.to_string(),
     };
 
     let connector_data = api::ConnectorData::get_connector_by_name(
