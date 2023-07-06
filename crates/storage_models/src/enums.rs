@@ -952,3 +952,22 @@ pub enum DisputeStatus {
     DisputeWon,
     DisputeLost,
 }
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RouterOperation {
+    Payment,
+    Payout,
+}

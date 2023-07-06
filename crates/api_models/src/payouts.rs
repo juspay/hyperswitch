@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 #[cfg(feature = "payouts")]
-use crate::{enums as api_enums, payments};
+use crate::{admin, enums as api_enums, payments};
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -56,6 +56,10 @@ pub struct PayoutCreateRequest {
         "type": "single",
         "data": "adyen"
     }))]
+    #[serde(
+        default,
+        deserialize_with = "admin::payout_routing_algorithm::deserialize_option"
+    )]
     pub routing: Option<serde_json::Value>,
 
     /// This allows the merchant to manually select a connector with which the payout can go through
@@ -132,6 +136,10 @@ pub struct PayoutCreateRequest {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<pii::SecretSerdeValue>)]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Provide a reference to a stored payment method
+    #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
+    pub payout_token: Option<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -171,7 +179,7 @@ pub struct Card {
 
 #[cfg(feature = "payouts")]
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
+#[serde(untagged)]
 pub enum Bank {
     Ach(AchBankTransfer),
     Bacs(BacsBankTransfer),
