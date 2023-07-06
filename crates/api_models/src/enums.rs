@@ -452,6 +452,7 @@ pub enum PaymentMethodType {
     UpiCollect,
     Walley,
     WeChatPay,
+    Babygiftcard,
 }
 
 #[derive(
@@ -482,6 +483,7 @@ pub enum PaymentMethod {
     BankDebit,
     Reward,
     Upi,
+    GiftCard,
 }
 
 #[derive(

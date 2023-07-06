@@ -664,6 +664,16 @@ pub enum PaymentMethodData {
     MandatePayment,
     Reward(RewardData),
     Upi(UpiData),
+    GiftCard(Box<GiftCardData>),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct GiftCardData {
+    /// The gift card number
+    pub number: Secret<String>,
+    /// The card verification code.
+    pub cvc: Secret<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -687,6 +697,7 @@ pub enum AdditionalPaymentData {
     MandatePayment {},
     Reward {},
     Upi {},
+    GiftCard {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1052,6 +1063,7 @@ pub enum PaymentMethodDataResponse {
     MandatePayment,
     Reward(RewardData),
     Upi(UpiData),
+    GiftCard(GiftCardData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1700,6 +1712,7 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             PaymentMethodData::MandatePayment => Self::MandatePayment,
             PaymentMethodData::Reward(reward_data) => Self::Reward(reward_data),
             PaymentMethodData::Upi(upi_data) => Self::Upi(upi_data),
+            PaymentMethodData::GiftCard(gift_card_data) => Self::GiftCard(*gift_card_data),
         }
     }
 }
