@@ -59,6 +59,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        helpers::validate_payment_status_against_not_allowed_statuses(
+            &payment_intent.status,
+            &[
+                storage_enums::IntentStatus::Cancelled,
+                storage_enums::IntentStatus::Succeeded,
+                storage_enums::IntentStatus::Processing,
+                storage_enums::IntentStatus::RequiresCapture,
+                storage_enums::IntentStatus::RequiresMerchantAction,
+            ],
+            "confirm",
+        )?;
+
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
