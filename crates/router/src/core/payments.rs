@@ -431,7 +431,8 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                     .and_then(|next_action_data| match next_action_data {
                         api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
                         api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
-                        api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None
+                        api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None,
+                        api_models::payments::NextActionData::QrCodeInformation{..} => None
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
@@ -838,7 +839,8 @@ where
     //TODO: For ACH transfers, if preprocessing_step is not required for connectors encountered in future, add the check
     let router_data_and_should_continue_payment = match payment_data.payment_method_data.clone() {
         Some(api_models::payments::PaymentMethodData::BankTransfer(data)) => match data.deref() {
-            api_models::payments::BankTransferData::AchBankTransfer { .. } => {
+            api_models::payments::BankTransferData::AchBankTransfer { .. }
+            | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
                 if payment_data.payment_attempt.preprocessing_step_id.is_none() {
                     (
                         router_data.preprocessing_steps(state, connector).await?,

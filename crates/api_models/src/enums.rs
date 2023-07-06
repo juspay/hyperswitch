@@ -436,6 +436,7 @@ pub enum PaymentMethodType {
     Klarna,
     MbWay,
     MobilePay,
+    Multibanco,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
     OnlineBankingPoland,
@@ -641,6 +642,7 @@ pub enum Connector {
     Fiserv,
     Forte,
     Globalpay,
+    // Globepay, added as template code for future usage
     Klarna,
     Mollie,
     Multisafepay,
@@ -744,6 +746,7 @@ pub enum RoutableConnectors {
     Fiserv,
     Forte,
     Globalpay,
+    // Globepay, added as template code for future usage
     Iatapay,
     Klarna,
     Mollie,

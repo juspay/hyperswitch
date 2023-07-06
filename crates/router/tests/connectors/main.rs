@@ -30,6 +30,7 @@ mod fiserv;
 mod forte;
 mod globalpay;
 mod globalpay_ui;
+mod globepay;
 mod iatapay;
 mod mollie;
 mod mollie_ui;
