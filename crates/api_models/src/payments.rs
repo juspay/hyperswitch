@@ -664,6 +664,7 @@ pub enum PaymentMethodData {
     MandatePayment,
     Reward(RewardData),
     Upi(UpiData),
+    Voucher(VoucherData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -687,6 +688,7 @@ pub enum AdditionalPaymentData {
     MandatePayment {},
     Reward {},
     Upi {},
+    Voucher {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -797,6 +799,14 @@ pub enum BankRedirectData {
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
         country: api_enums::CountryAlpha2,
+    },
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VoucherData {
+    BoletoBancario {
+        social_security_number: Option<String>,
     },
 }
 
@@ -1042,6 +1052,7 @@ pub enum PaymentMethodDataResponse {
     MandatePayment,
     Reward(RewardData),
     Upi(UpiData),
+    Voucher(VoucherData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1680,6 +1691,7 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             PaymentMethodData::MandatePayment => Self::MandatePayment,
             PaymentMethodData::Reward(reward_data) => Self::Reward(reward_data),
             PaymentMethodData::Upi(upi_data) => Self::Upi(upi_data),
+            PaymentMethodData::Voucher(voucher_data) => Self::Voucher(voucher_data),
         }
     }
 }

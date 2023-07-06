@@ -466,6 +466,7 @@ pub enum PaymentMethod {
     BankDebit,
     Reward,
     Upi,
+    Voucher,
 }
 
 #[derive(
@@ -682,6 +683,7 @@ pub enum PaymentMethodType {
     BancontactCard,
     Becs,
     Blik,
+    BoletoBancario,
     #[serde(rename = "classic")]
     ClassicReward,
     Credit,

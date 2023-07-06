@@ -141,7 +141,8 @@ fn get_pm_and_subsequent_auth_detail(
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::BankTransfer(_)
             | api::PaymentMethodData::Reward(_)
-            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_data),
                 connector: "AuthorizeDotNet",
                 payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),

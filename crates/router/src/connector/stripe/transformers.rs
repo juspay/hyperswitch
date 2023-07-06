@@ -2575,7 +2575,8 @@ impl
             api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::Reward(_)
-            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{pm_type:?}"),
                 connector: "Stripe",
                 payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),

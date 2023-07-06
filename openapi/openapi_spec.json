@@ -5933,7 +5933,8 @@
           "crypto",
           "bank_debit",
           "reward",
-          "upi"
+          "upi",
+          "voucher"
         ]
       },
       "PaymentMethodCreate": {
@@ -6098,6 +6099,17 @@
             "properties": {
               "upi": {
                 "$ref": "#/components/schemas/UpiData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "voucher"
+            ],
+            "properties": {
+              "voucher": {
+                "$ref": "#/components/schemas/VoucherData"
               }
             }
           }
@@ -6291,6 +6303,7 @@
           "bancontact_card",
           "becs",
           "blik",
+          "boleto_bancario",
           "classic",
           "credit",
           "crypto_currency",
@@ -8332,6 +8345,21 @@
             "nullable": true
           }
         }
+      },
+      "VoucherData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "boleto_bancario"
+            ],
+            "properties": {
+              "boleto_bancario": {
+                "type": "object"
+              }
+            }
+          }
+        ]
       },
       "WalletData": {
         "oneOf": [
