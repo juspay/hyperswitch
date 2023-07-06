@@ -83,7 +83,9 @@ impl QueueInterface for Store {
         ttl: i64,
     ) -> CustomResult<bool, RedisError> {
         let conn = self.redis_conn()?.clone();
-        let is_lock_acquired = conn.set_key_if_not_exist(lock_key, lock_val).await;
+        let is_lock_acquired = conn
+            .set_key_if_not_exists_with_expiry(lock_key, lock_val, None)
+            .await;
         Ok(match is_lock_acquired {
             Ok(SetnxReply::KeySet) => match conn.set_expiry(lock_key, ttl).await {
                 Ok(()) => true,
@@ -109,7 +111,7 @@ impl QueueInterface for Store {
     async fn release_pt_lock(&self, tag: &str, lock_key: &str) -> CustomResult<bool, RedisError> {
         let is_lock_released = self.redis_conn()?.delete_key(lock_key).await;
         Ok(match is_lock_released {
-            Ok(()) => true,
+            Ok(_del_reply) => true,
             Err(error) => {
                 logger::error!(error=%error.current_context(), %tag, "Error while releasing lock");
                 false

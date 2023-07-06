@@ -143,8 +143,8 @@ pub async fn delete_file_using_file_id(
             )
             .await
         }
-        _ => Err(errors::ApiErrorResponse::NotSupported {
-            message: "Not Supported if provider is not Router".to_owned(),
+        _ => Err(errors::ApiErrorResponse::FileProviderNotSupported {
+            message: "Not Supported because provider is not Router".to_string(),
         }
         .into()),
     }
@@ -154,6 +154,7 @@ pub async fn retrieve_file_from_connector(
     state: &AppState,
     file_metadata: storage_models::file::FileMetadata,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<Vec<u8>, errors::ApiErrorResponse> {
     let connector = &types::Connector::foreign_try_from(
         file_metadata
@@ -177,6 +178,7 @@ pub async fn retrieve_file_from_connector(
     let router_data = utils::construct_retrieve_file_router_data(
         state,
         merchant_account,
+        key_store,
         &file_metadata,
         connector,
     )
@@ -210,6 +212,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
     state: &AppState,
     file_id: Option<String>,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     is_connector_file_data_required: api::FileDataRequired,
 ) -> CustomResult<(Option<Vec<u8>>, Option<String>), errors::ApiErrorResponse> {
     match file_id {
@@ -249,6 +252,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                                 state,
                                 file_metadata_object,
                                 merchant_account,
+                                key_store,
                             )
                             .await?,
                         ),
@@ -265,6 +269,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
 pub async fn upload_and_get_provider_provider_file_id_connector_label(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     create_file_request: &api::CreateFileRequest,
     file_key: String,
 ) -> CustomResult<
@@ -327,6 +332,7 @@ pub async fn upload_and_get_provider_provider_file_id_connector_label(
                     &payment_intent,
                     &payment_attempt,
                     merchant_account,
+                    key_store,
                     create_file_request,
                     &dispute.connector,
                     file_key,

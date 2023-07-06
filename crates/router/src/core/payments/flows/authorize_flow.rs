@@ -27,6 +27,7 @@ impl
         state: &AppState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<
         types::RouterData<
@@ -40,6 +41,7 @@ impl
             self.clone(),
             connector_id,
             merchant_account,
+            key_store,
             customer,
         )
         .await
@@ -146,7 +148,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         state: &AppState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<Option<services::Request>> {
+    ) -> RouterResult<(Option<services::Request>, bool)> {
         match call_connector_action {
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedConnectorIntegration<
@@ -179,14 +181,17 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     self.decide_authentication_type();
                     logger::debug!(auth_type=?self.auth_type);
 
-                    connector_integration
-                        .build_request(self, &state.conf.connectors)
-                        .to_payment_failed_response()
+                    Ok((
+                        connector_integration
+                            .build_request(self, &state.conf.connectors)
+                            .to_payment_failed_response()?,
+                        true,
+                    ))
                 } else {
-                    Ok(None)
+                    Ok((None, false))
                 }
             }
-            _ => Ok(None),
+            _ => Ok((None, true)),
         }
     }
 }
@@ -337,9 +342,11 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
 
     fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            amount: Some(data.amount),
             email: data.email,
             currency: Some(data.currency),
-            amount: Some(data.amount),
+            payment_method_type: data.payment_method_type,
         })
     }
 }

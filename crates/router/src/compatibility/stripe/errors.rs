@@ -82,6 +82,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment method")]
     PaymentMethodNotFound,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "{message}")]
+    GenericNotFoundError { message: String },
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such merchant account")]
     MerchantAccountNotFound,
 
@@ -199,10 +202,14 @@ pub enum StripeErrorCode {
     FileNotFound,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File not available")]
     FileNotAvailable,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Not Supported because provider is not Router")]
+    FileProviderNotSupported,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "There was an issue with processing webhooks")]
     WebhookProcessingError,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "payment_method_unactivated", message = "The operation cannot be performed as the payment method used has not been activated. Activate the payment method in the Dashboard, then try again.")]
     PaymentMethodUnactivated,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "{entity} expired or invalid")]
+    HyperswitchUnprocessableEntity { entity: String },
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -379,12 +386,18 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                     param: field_name.to_string(),
                 }
             }
+            errors::ApiErrorResponse::UnprocessableEntity { entity } => {
+                Self::HyperswitchUnprocessableEntity { entity }
+            }
             errors::ApiErrorResponse::MissingRequiredFields { field_names } => {
                 // Instead of creating a new error variant in StripeErrorCode for MissingRequiredFields, converted vec<&str> to String
                 Self::ParameterMissing {
                     field_name: field_names.clone().join(", "),
                     param: field_names.clone().join(", "),
                 }
+            }
+            errors::ApiErrorResponse::GenericNotFoundError { message } => {
+                Self::GenericNotFoundError { message }
             }
             // parameter unknown, invalid request error // actually if we type wrong values in address we get this error. Stripe throws parameter unknown. I don't know if stripe is validating email and stuff
             errors::ApiErrorResponse::InvalidDataFormat {
@@ -416,6 +429,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::RefundFailed { data } => Self::RefundFailed, // Nothing at stripe to map
 
             errors::ApiErrorResponse::MandateUpdateFailed
+            | errors::ApiErrorResponse::MandateSerializationFailed
+            | errors::ApiErrorResponse::MandateDeserializationFailed
             | errors::ApiErrorResponse::InternalServerError => Self::InternalServerError, // not a stripe code
             errors::ApiErrorResponse::ExternalConnectorError {
                 code,
@@ -510,6 +525,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::MerchantConnectorAccountDisabled
             }
             errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
+            errors::ApiErrorResponse::FileProviderNotSupported { .. } => {
+                Self::FileProviderNotSupported
+            }
             errors::ApiErrorResponse::WebhookBadRequest
             | errors::ApiErrorResponse::WebhookResourceNotFound
             | errors::ApiErrorResponse::WebhookProcessingFailure
@@ -528,8 +546,10 @@ impl actix_web::ResponseError for StripeErrorCode {
 
         match self {
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
-            Self::InvalidRequestUrl => StatusCode::NOT_FOUND,
-            Self::ParameterUnknown { .. } => StatusCode::UNPROCESSABLE_ENTITY,
+            Self::InvalidRequestUrl | Self::GenericNotFoundError { .. } => StatusCode::NOT_FOUND,
+            Self::ParameterUnknown { .. } | Self::HyperswitchUnprocessableEntity { .. } => {
+                StatusCode::UNPROCESSABLE_ENTITY
+            }
             Self::ParameterMissing { .. }
             | Self::RefundAmountExceedsPaymentAmount { .. }
             | Self::PaymentIntentAuthenticationFailure { .. }
@@ -575,6 +595,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::MissingDisputeId
             | Self::FileNotFound
             | Self::FileNotAvailable
+            | Self::FileProviderNotSupported
             | Self::PaymentMethodUnactivated => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::InternalServerError

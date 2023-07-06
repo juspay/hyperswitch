@@ -5,18 +5,13 @@ use common_utils::{
     pii,
 };
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use storage_models::{
     encryption::Encryption, enums,
     merchant_connector_account::MerchantConnectorAccountUpdateInternal,
 };
 
-use super::{
-    behaviour,
-    types::{self, TypeEncryption},
-};
-use crate::db::StorageInterface;
-
+use super::{behaviour, types::TypeEncryption};
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccount {
     pub id: Option<i32>,
@@ -87,22 +82,15 @@ impl behaviour::Conversion for MerchantConnectorAccount {
 
     async fn convert_back(
         other: Self::DstType,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
+        key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError> {
-        let key = types::get_merchant_enc_key(db, merchant_id)
-            .await
-            .change_context(ValidationError::InvalidValue {
-                message: "Error while getting key from keystore".to_string(),
-            })?;
-
         Ok(Self {
             id: Some(other.id),
             merchant_id: other.merchant_id,
             connector_name: other.connector_name,
             connector_account_details: Encryptable::decrypt(
                 other.connector_account_details,
-                &key,
+                key.peek(),
                 GcmAes256,
             )
             .await

@@ -16,7 +16,7 @@ pub async fn is_stream_available(stream_index: u8, store: Arc<services::Store>) 
 
     match store
         .redis_conn
-        .set_key_if_not_exist(stream_key_flag.as_str(), true)
+        .set_key_if_not_exists_with_expiry(stream_key_flag.as_str(), true, None)
         .await
     {
         Ok(resp) => resp == redis::types::SetnxReply::KeySet,
@@ -96,11 +96,14 @@ pub async fn make_stream_available(
     stream_name_flag: &str,
     redis: &redis::RedisConnectionPool,
 ) -> errors::DrainerResult<()> {
-    redis
-        .delete_key(stream_name_flag)
-        .await
-        .map_err(DrainerError::from)
-        .into_report()
+    match redis.delete_key(stream_name_flag).await {
+        Ok(redis::DelReply::KeyDeleted) => Ok(()),
+        Ok(redis::DelReply::KeyNotDeleted) => {
+            logger::error!("Tried to unlock a stream which is already unlocked");
+            Ok(())
+        }
+        Err(error) => Err(DrainerError::from(error).into()),
+    }
 }
 
 pub fn parse_stream_entries<'a>(
