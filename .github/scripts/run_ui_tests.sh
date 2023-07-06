@@ -29,3 +29,9 @@ while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do
         sleep 10
     fi
 done
+
+connectors=(${INPUT//|/ })
+for i in "${connectors[@]}"; do
+    cargo test --package router --test connectors -- "${i}_ui::" --test-threads=1 >> tests/test_results.log 2>&1
+done
+cat tests/test_results.log

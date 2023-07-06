@@ -120,18 +120,9 @@ jobs:
       - name: Start server
         env:
           UI_TESTCASES_PATH: ${{ secrets.UI_TESTCASES_PATH }}
+          INPUT: ${{ matrix.connector }}
         shell: bash
         run: sh .github/scripts/run_ui_tests.sh
-
-      - name: Run tests
-        shell: bash
-        run: |
-          IN="${{ matrix.connector }}"
-          connectors=(${IN//|/ })
-          for i in "${connectors[@]}"; do
-            cargo test --package router --test connectors -- "${i}_ui::" --test-threads=1 >> tests/test_results.log 2>&1
-          done
-          cat tests/test_results.log
 
       - name: Check test results
         shell: bash
