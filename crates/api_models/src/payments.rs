@@ -1145,7 +1145,7 @@ pub struct AddressDetails {
     #[schema(value_type = Option<String>, max_length = 50, example = "Bridgewater")]
     pub line3: Option<Secret<String>>,
 
-    /// The zip for the address
+    /// The zip/postal code for the address
     #[schema(value_type = Option<String>, max_length = 50, example = "08807")]
     pub zip: Option<Secret<String>>,
 
@@ -1199,8 +1199,6 @@ pub struct PaymentsCaptureRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
-    pub metadata: Option<String>,
-    pub statement_descriptor: Option<String>
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Serialize)]
