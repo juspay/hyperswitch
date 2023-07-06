@@ -1,6 +1,5 @@
-use std::{collections::HashMap, env, path::MAIN_SEPARATOR, time::Duration};
+use std::{collections::HashMap, env, io::Read, path::MAIN_SEPARATOR, time::Duration};
 
-use actix_web::cookie::SameSite;
 use async_trait::async_trait;
 use thirtyfour::{components::SelectElement, prelude::*, WebDriver};
 
@@ -47,13 +46,27 @@ pub enum Assert<'a> {
     Contains(Selector, &'a str),
     ContainsAny(Selector, Vec<&'a str>),
     IsPresent(&'a str),
+    IsElePresent(By),
     IsPresentNow(&'a str),
 }
 
 pub static CHEKOUT_BASE_URL: &str = "https://hs-payments-test.netlify.app";
-pub static CHEKOUT_DOMAIN: &str = "hs-payments-test.netlify.app";
 #[async_trait]
 pub trait SeleniumTest {
+    fn get_saved_testcases(&self) -> serde_json::Value {
+        let env_value = env::var("CONNECTOR_TESTS_FILE_PATH").ok();
+        if env_value.is_none() {
+            return serde_json::json!("");
+        }
+        let path = env_value.unwrap();
+        let mut file = &std::fs::File::open(path).expect("Failed to open file");
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)
+            .expect("Failed to read file");
+
+        // Parse the JSON data
+        serde_json::from_str(&contents).expect("Failed to parse JSON")
+    }
     fn get_configs(&self) -> connector_auth::ConnectorAuthentication {
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
             .expect("connector authentication file path not set");
@@ -91,6 +104,9 @@ pub trait SeleniumTest {
                     Assert::IsPresent(text) => {
                         assert!(is_text_present(driver, text).await?)
                     }
+                    Assert::IsElePresent(selector) => {
+                        assert!(is_element_present(driver, selector).await?)
+                    }
                     Assert::IsPresentNow(text) => {
                         assert!(is_text_present_now(driver, text).await?)
                     }
@@ -121,6 +137,11 @@ pub trait SeleniumTest {
                     }
                     Assert::IsPresent(text) => {
                         if is_text_present(driver, text).await.is_ok() {
+                            self.complete_actions(driver, events).await?;
+                        }
+                    }
+                    Assert::IsElePresent(text) => {
+                        if is_element_present(driver, text).await.is_ok() {
                             self.complete_actions(driver, events).await?;
                         }
                     }
@@ -183,6 +204,17 @@ pub trait SeleniumTest {
                         )
                         .await?;
                     }
+                    Assert::IsElePresent(by) => {
+                        self.complete_actions(
+                            driver,
+                            if is_element_present(driver, by).await.is_ok() {
+                                success
+                            } else {
+                                failure
+                            },
+                        )
+                        .await?;
+                    }
                     Assert::IsPresentNow(text) => {
                         self.complete_actions(
                             driver,
@@ -197,7 +229,8 @@ pub trait SeleniumTest {
                 },
                 Event::Trigger(trigger) => match trigger {
                     Trigger::Goto(url) => {
-                        driver.goto(url).await?;
+                        let saved_tests =
+                            serde_json::to_string(&self.get_saved_testcases()).unwrap();
                         let conf = serde_json::to_string(&self.get_configs()).unwrap();
                         let hs_base_url = self
                             .get_configs()
@@ -218,6 +251,8 @@ pub trait SeleniumTest {
                             "localStorage.hs_api_keys=''",
                             format!("localStorage.base_url='{hs_base_url}'").as_str(),
                             format!("localStorage.hs_api_configs='{conf}'").as_str(),
+                            format!("localStorage.saved_payments=JSON.stringify({saved_tests})")
+                                .as_str(),
                             "localStorage.force_sync='true'",
                             format!(
                                 "localStorage.current_connector=\"{}\";",
@@ -226,11 +261,8 @@ pub trait SeleniumTest {
                             .as_str(),
                         ]
                         .join(";");
-
+                        driver.goto(url).await?;
                         driver.execute(script, Vec::new()).await?;
-                        driver
-                            .add_cookie(new_cookie("hs_base_url", hs_base_url).clone())
-                            .await?;
                     }
                     Trigger::Click(by) => {
                         let ele = driver.query(by).first().await?;
@@ -339,6 +371,7 @@ pub trait SeleniumTest {
                             Event::Trigger(Trigger::SendKeys(By::Name("Passwd"), pass)),
                             Event::Trigger(Trigger::Sleep(2)),
                             Event::Trigger(Trigger::Click(By::Id("passwordNext"))),
+                            Event::Trigger(Trigger::Sleep(10)),
                         ],
                         vec![
                             Event::Trigger(Trigger::SendKeys(By::Id("identifierId"), email)),
@@ -346,6 +379,7 @@ pub trait SeleniumTest {
                             Event::Trigger(Trigger::SendKeys(By::Name("Passwd"), pass)),
                             Event::Trigger(Trigger::Sleep(2)),
                             Event::Trigger(Trigger::Click(By::Id("passwordNext"))),
+                            Event::Trigger(Trigger::Sleep(10)),
                         ],
                     ),
                 ],
@@ -368,7 +402,7 @@ pub trait SeleniumTest {
             &c,
             vec![
                 Event::Trigger(Trigger::Goto(url)),
-                Event::Trigger(Trigger::Click(By::Id("pypl-redirect-btn"))),
+                Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             ],
         )
         .await?;
@@ -387,6 +421,13 @@ pub trait SeleniumTest {
                 .unwrap(),
         );
         let mut pypl_actions = vec![
+            Event::RunIf(
+                Assert::IsPresent("Enter your email address to get started."),
+                vec![
+                    Event::Trigger(Trigger::SendKeys(By::Id("email"), email)),
+                    Event::Trigger(Trigger::Click(By::Id("btnNext"))),
+                ],
+            ),
             Event::EitherOr(
                 Assert::IsPresent("Password"),
                 vec![
@@ -420,12 +461,9 @@ async fn is_text_present(driver: &WebDriver, key: &str) -> WebDriverResult<bool>
     let result = driver.query(By::XPath(&xpath)).first().await?;
     result.is_present().await
 }
-fn new_cookie(name: &str, value: String) -> Cookie<'_> {
-    let mut base_url_cookie = Cookie::new(name, value);
-    base_url_cookie.set_same_site(Some(SameSite::Lax));
-    base_url_cookie.set_domain(CHEKOUT_DOMAIN);
-    base_url_cookie.set_path("/");
-    base_url_cookie
+async fn is_element_present(driver: &WebDriver, by: By) -> WebDriverResult<bool> {
+    let element = driver.query(by).first().await?;
+    element.is_present().await
 }
 
 #[macro_export]
@@ -488,44 +526,37 @@ pub fn make_capabilities(s: &str) -> Capabilities {
     match s {
         "firefox" => {
             let mut caps = DesiredCapabilities::firefox();
-            let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
-            caps.add_firefox_arg(profile_path).unwrap();
-            // let mut prefs = FirefoxPreferences::new();
-            // prefs.set("-browser.link.open_newwindow", 3).unwrap();
-            // caps.set_preferences(prefs).unwrap();
+            let ignore_profile = env::var("IGNORE_BROWSER_PROFILE").ok();
+            if ignore_profile.is_none() {
+                let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
+                caps.add_firefox_arg(profile_path).unwrap();
+            } else {
+                caps.add_firefox_arg("--headless").ok();
+            }
             caps.into()
         }
         "chrome" => {
             let mut caps = DesiredCapabilities::chrome();
             let profile_path = &format!("user-data-dir={}", get_chrome_profile_path().unwrap());
             caps.add_chrome_arg(profile_path).unwrap();
-            // caps.set_headless().unwrap();
-            // caps.set_no_sandbox().unwrap();
-            // caps.set_disable_gpu().unwrap();
-            // caps.set_disable_dev_shm_usage().unwrap();
             caps.into()
         }
         &_ => DesiredCapabilities::safari().into(),
     }
 }
 fn get_chrome_profile_path() -> Result<String, WebDriverError> {
-    env::var("CHROME_PROFILE_PATH").map_or_else(
-        |_| -> Result<String, WebDriverError> {
-            let exe = env::current_exe()?;
-            let dir = exe.parent().expect("Executable must be in some directory");
-            let mut base_path = dir
-                .to_str()
-                .map(|str| {
-                    let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
-                    fp.truncate(3);
-                    fp.join(&MAIN_SEPARATOR.to_string())
-                })
-                .unwrap();
-            base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#);
-            Ok(base_path)
-        },
-        Ok,
-    )
+    let exe = env::current_exe()?;
+    let dir = exe.parent().expect("Executable must be in some directory");
+    let mut base_path = dir
+        .to_str()
+        .map(|str| {
+            let mut fp = str.split(MAIN_SEPARATOR).collect::<Vec<_>>();
+            fp.truncate(3);
+            fp.join(&MAIN_SEPARATOR.to_string())
+        })
+        .unwrap();
+    base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#); //Issue: 1573
+    Ok(base_path)
 }
 fn get_firefox_profile_path() -> Result<String, WebDriverError> {
     let exe = env::current_exe()?;
@@ -538,7 +569,7 @@ fn get_firefox_profile_path() -> Result<String, WebDriverError> {
             fp.join(&MAIN_SEPARATOR.to_string())
         })
         .unwrap();
-    base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#);
+    base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#); //Issue: 1573
     Ok(base_path)
 }
 
