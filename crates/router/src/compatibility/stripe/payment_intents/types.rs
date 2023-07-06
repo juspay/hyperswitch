@@ -128,11 +128,21 @@ impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct Shipping {
-    pub address: Option<payments::AddressDetails>,
-    pub name: Option<String>,
+    pub address: AddressDetails,
+    pub name: Option<Secret<String>>,
     pub carrier: Option<String>,
     pub phone: Option<pii::Secret<String>>,
     pub tracking_number: Option<pii::Secret<String>>,
+}
+
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+pub struct AddressDetails {
+    pub city: Option<String>,
+    pub country: Option<api_enums::CountryAlpha2>,
+    pub line1: Option<Secret<String>>,
+    pub line2: Option<Secret<String>>,
+    pub postal_code: Option<Secret<String>>,
+    pub state: Option<Secret<String>>,
 }
 
 impl From<Shipping> for payments::Address {
@@ -140,11 +150,19 @@ impl From<Shipping> for payments::Address {
         Self {
             phone: Some(payments::PhoneDetails {
                 number: details.phone,
-                country_code: details.address.as_ref().and_then(|address| {
-                    address.country.as_ref().map(|country| country.to_string())
-                }),
+                country_code: details.address.country.map(|country| country.to_string()),
             }),
-            address: details.address,
+            address: Some(payments::AddressDetails {
+                city: details.address.city.map(|city| city),
+                country: details.address.country.map(|country| country),
+                line1: details.address.line1.map(|line1| line1),
+                line2: details.address.line2.map(|line2| line2),
+                zip: details.address.postal_code.map(|postal_code| postal_code),
+                state: details.address.state.map(|state| state),
+                first_name: details.name.map(|name | name),
+                line3: None,
+                last_name: None,
+            })
         }
     }
 }
