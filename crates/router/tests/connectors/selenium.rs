@@ -396,7 +396,7 @@ pub trait SeleniumTest {
                     ),
                 ],
             ),
-            Event::Trigger(Trigger::SwitchFrame(By::Id("sM432dIframe"))),
+            Event::Trigger(Trigger::SwitchFrame(By::Css(".bootstrapperIframeContainerElement iframe"))),
             Event::Assert(Assert::IsPresent("Gpay Tester")),
             Event::Trigger(Trigger::Click(By::ClassName("jfk-button-action"))),
             Event::Trigger(Trigger::SwitchTab(Position::Prev)),
