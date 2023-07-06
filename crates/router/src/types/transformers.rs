@@ -236,8 +236,10 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::GooglePay
             | api_enums::PaymentMethodType::Paypal
             | api_enums::PaymentMethodType::AliPay
+            | api_enums::PaymentMethodType::AliPayHk
             | api_enums::PaymentMethodType::MbWay
             | api_enums::PaymentMethodType::MobilePay
+            | api_enums::PaymentMethodType::SamsungPay
             | api_enums::PaymentMethodType::WeChatPay => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::AfterpayClearpay
@@ -257,17 +259,17 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Przelewy24
             | api_enums::PaymentMethodType::Swish
             | api_enums::PaymentMethodType::Trustly
+            | api_enums::PaymentMethodType::UpiCollect // this should be moved to UPI payment method
             | api_enums::PaymentMethodType::Interac => Self::BankRedirect,
             api_enums::PaymentMethodType::CryptoCurrency => Self::Crypto,
             api_enums::PaymentMethodType::Ach
             | api_enums::PaymentMethodType::Sepa
             | api_enums::PaymentMethodType::Bacs
             | api_enums::PaymentMethodType::Becs => Self::BankDebit,
-            api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
-                Self::Card
-            }
+            api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => Self::Card,
             api_enums::PaymentMethodType::Evoucher
             | api_enums::PaymentMethodType::ClassicReward => Self::Reward,
+            api_enums::PaymentMethodType::Multibanco => Self::BankTransfer,
         }
     }
 }

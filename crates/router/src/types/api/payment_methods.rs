@@ -1,3 +1,4 @@
+use api_models::enums as api_enums;
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CustomerPaymentMethod, CustomerPaymentMethodsListResponse,
     DeleteTokenizeByDateRequest, DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest,
@@ -12,7 +13,6 @@ use crate::{
     core::errors::{self, RouterResult},
     types::transformers::ForeignFrom,
 };
-use api_models::enums as api_enums;
 
 pub(crate) trait PaymentMethodCreateExt {
     fn validate(&self) -> RouterResult<()>;
@@ -21,9 +21,8 @@ pub(crate) trait PaymentMethodCreateExt {
 // convert self.payment_method_type to payment_method and compare it against self.payment_method
 impl PaymentMethodCreateExt for PaymentMethodCreate {
     fn validate(&self) -> RouterResult<()> {
-        let payment_method: Option<api_enums::PaymentMethod> = self
-            .payment_method_type
-            .map(|payment_method_type| ForeignFrom::foreign_from(payment_method_type));
+        let payment_method: Option<api_enums::PaymentMethod> =
+            self.payment_method_type.map(ForeignFrom::foreign_from);
         if payment_method
             .map(|payment_method| payment_method == self.payment_method)
             .unwrap_or(false)
