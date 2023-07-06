@@ -1557,6 +1557,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Klarna => Self::PayLater,
             PaymentMethodType::MbWay => Self::Wallet,
             PaymentMethodType::MobilePay => Self::Wallet,
+            PaymentMethodType::Multibanco => Self::BankTransfer,
             PaymentMethodType::Interac => Self::BankRedirect,
             PaymentMethodType::OnlineBankingCzechRepublic => Self::BankRedirect,
             PaymentMethodType::OnlineBankingFinland => Self::BankRedirect,
