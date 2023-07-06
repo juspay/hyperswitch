@@ -8355,7 +8355,15 @@
             ],
             "properties": {
               "boleto_bancario": {
-                "type": "object"
+                "type": "object",
+                "required": [
+                  "social_security_number"
+                ],
+                "properties": {
+                  "social_security_number": {
+                    "$ref": "#/components/schemas/Secret"
+                  }
+                }
               }
             }
           }
