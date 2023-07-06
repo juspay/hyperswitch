@@ -13,30 +13,30 @@ fn path_generation(name: &String) -> String {
     format!("postman/{}.postman_collection.json", name)
 }
 
-#[derive(Debug, Parser)]
+#[derive(Parser)]
 #[command(author = "Me, PiX, I'll remove this, pinky promise!", version, about = "Postman collection runner using newman!", long_about = None)]
-struct Arguments {
+struct Args {
     /// Name of the connector
-    #[arg(long)]
+    #[arg(short, long = "connector_name")]
     connector_name: String,
     /// Base URL of the Hyperswitch environment
-    #[arg(long)]
+    #[arg(short, long = "base_url")]
     base_url: String,
     /// Admin API Key of the environment
-    #[arg(long)]
+    #[arg(short, long = "admin_api_key")]
     admin_api_key: String,
 }
 
 // runner starts here
 fn main() {
-    let args = Arguments::parse();
+    let args = Args::parse();
 
-    let c_name = args.connector_name;
-    let b_url = args.base_url;
-    let a_api_key = args.admin_api_key;
+    let connector_name = args.connector_name;
+    let base_url = args.base_url;
+    let admin_api_key = args.admin_api_key;
 
     // Function calls
-    let collection_path = path_generation(&c_name);
+    let collection_path = path_generation(&connector_name);
     let auth_map = ConnectorAuthenticationMap::new();
 
     let inner_map = &auth_map.0;
@@ -53,13 +53,13 @@ fn main() {
 
     newman_command
         .arg("--env-var")
-        .arg(format!("admin_api_key={a_api_key}"));
+        .arg(format!("admin_api_key={admin_api_key}"));
 
     newman_command
         .arg("--env-var")
-        .arg(format!("baseUrl={b_url}"));
+        .arg(format!("baseUrl={base_url}"));
 
-    if let Some(auth_type) = inner_map.get(&c_name) {
+    if let Some(auth_type) = inner_map.get(&connector_name) {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => {
                 newman_command
