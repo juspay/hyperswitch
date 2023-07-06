@@ -24,7 +24,7 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
         let payment_method: Option<api_enums::PaymentMethod> =
             self.payment_method_type.map(ForeignFrom::foreign_from);
         if payment_method
-            .map(|payment_method| payment_method == self.payment_method)
+            .map(|payment_method| payment_method != self.payment_method)
             .unwrap_or(false)
         {
             return Err(report!(errors::ApiErrorResponse::InvalidRequestData {

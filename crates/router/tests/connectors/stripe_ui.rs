@@ -136,6 +136,12 @@ async fn should_make_stripe_klarna_payment(c: WebDriver) -> Result<(), WebDriver
                 ],
             ),
             Event::RunIf(
+                Assert::IsPresent("We've updated our Shopping terms"),
+                vec![Event::Trigger(Trigger::Click(By::Css(
+                    "button[data-testid='kaf-button']",
+                )))],
+            ),
+            Event::RunIf(
                 Assert::IsPresent("Pick a plan"),
                 vec![Event::Trigger(Trigger::Click(By::Css(
                     "button[data-testid='pick-plan']",
@@ -400,14 +406,12 @@ fn should_make_3ds_mandate_with_zero_dollar_payment_test() {
 
 #[test]
 #[serial]
-#[ignore]
 fn should_make_gpay_payment_test() {
     tester!(should_make_gpay_payment);
 }
 
 #[test]
 #[serial]
-#[ignore]
 fn should_make_gpay_mandate_payment_test() {
     tester!(should_make_gpay_mandate_payment);
 }

@@ -259,8 +259,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Przelewy24
             | api_enums::PaymentMethodType::Swish
             | api_enums::PaymentMethodType::Trustly
-            | api_enums::PaymentMethodType::UpiCollect // this should be moved to UPI payment method
             | api_enums::PaymentMethodType::Interac => Self::BankRedirect,
+            api_enums::PaymentMethodType::UpiCollect => Self::Upi,
             api_enums::PaymentMethodType::CryptoCurrency => Self::Crypto,
             api_enums::PaymentMethodType::Ach
             | api_enums::PaymentMethodType::Sepa

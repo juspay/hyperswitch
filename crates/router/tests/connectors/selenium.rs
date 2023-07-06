@@ -339,11 +339,23 @@ pub trait SeleniumTest {
         c: WebDriver,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
+        // To support failure retries
+        let result = self.execute_steps(c.clone(), actions.clone()).await;
+        if result.is_err() {
+            self.execute_steps(c, actions).await
+        }
+        else {
+            result
+        } 
+    }
+    async fn execute_steps(&self,
+        c: WebDriver,
+        actions: Vec<Event<'_>>,
+    ) -> Result<(), WebDriverError> {
         let config = self.get_configs().automation_configs.unwrap();
         if config.run_minimum_steps.unwrap() {
             self.complete_actions(&c, actions[..3].to_vec()).await
         } else {
-            println!("Run all steps");
             self.complete_actions(&c, actions).await
         }
     }
