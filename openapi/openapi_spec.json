@@ -4083,6 +4083,38 @@
           "on_session"
         ]
       },
+      "GiftCardData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "baby_gift_card"
+            ],
+            "properties": {
+              "baby_gift_card": {
+                "$ref": "#/components/schemas/GiftCardPaymentData"
+              }
+            }
+          }
+        ]
+      },
+      "GiftCardPaymentData": {
+        "type": "object",
+        "required": [
+          "number",
+          "cvc"
+        ],
+        "properties": {
+          "number": {
+            "type": "string",
+            "description": "The gift card number"
+          },
+          "cvc": {
+            "type": "string",
+            "description": "The card verification code."
+          }
+        }
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -5992,7 +6024,8 @@
           "crypto",
           "bank_debit",
           "reward",
-          "upi"
+          "upi",
+          "gift_card"
         ]
       },
       "PaymentMethodCreate": {
@@ -6157,6 +6190,17 @@
             "properties": {
               "upi": {
                 "$ref": "#/components/schemas/UpiData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "gift_card"
+            ],
+            "properties": {
+              "gift_card": {
+                "$ref": "#/components/schemas/GiftCardData"
               }
             }
           }
@@ -6378,7 +6422,8 @@
           "trustly",
           "upi_collect",
           "walley",
-          "we_chat_pay"
+          "we_chat_pay",
+          "baby_gift_card"
         ]
       },
       "PaymentMethodUpdate": {

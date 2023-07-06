@@ -713,7 +713,7 @@ pub enum PaymentMethodType {
     UpiCollect,
     Walley,
     WeChatPay,
-    Babygiftcard,
+    BabyGiftCard,
 }
 
 #[derive(
