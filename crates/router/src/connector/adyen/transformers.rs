@@ -2130,9 +2130,9 @@ pub struct AdyenPayoutCreateRequest {
 #[serde(rename_all = "camelCase")]
 struct PayoutBankDetails {
     bank_name: String,
-    bic: Option<String>,
+    bic: Option<Secret<String>>,
     country_code: storage_enums::CountryAlpha2,
-    iban: Option<String>,
+    iban: Option<Secret<String>>,
     owner_name: Option<Secret<String>>,
     bank_city: String,
     tax_id: Option<String>,
@@ -2426,7 +2426,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
             },
             |pe| {
                 if pe {
-                    Some(storage_enums::PayoutStatus::RequiresCreation)
+                    Some(storage_enums::PayoutStatus::RequiresFulfillment)
                 } else {
                     Some(storage_enums::PayoutStatus::Ineligible)
                 }

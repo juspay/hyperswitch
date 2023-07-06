@@ -79,9 +79,16 @@ pub struct WiseRecipientCreateRequest {
 #[serde(rename_all = "snake_case")]
 #[allow(dead_code)]
 pub enum RecipientType {
+    Aba,
     Iban,
     SortCode,
     SwiftCode,
+}
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum AccountType {
+    Checking,
 }
 
 #[cfg(feature = "payouts")]
@@ -89,20 +96,21 @@ pub enum RecipientType {
 #[serde(rename_all = "camelCase")]
 pub struct WiseBankDetails {
     legal_type: LegalType,
+    account_type: Option<AccountType>,
     address: WiseAddressDetails,
     post_code: Option<String>,
     nationality: Option<String>,
     account_holder_name: Option<Secret<String>>,
     email: Option<Email>,
-    account_number: Option<String>,
+    account_number: Option<Secret<String>>,
     city: Option<String>,
-    sort_code: Option<String>,
-    iban: Option<String>,
-    bic: Option<String>,
-    transit_number: Option<String>,
-    routing_number: Option<String>,
-    abartn: Option<String>,
-    swift_code: Option<String>,
+    sort_code: Option<Secret<String>>,
+    iban: Option<Secret<String>>,
+    bic: Option<Secret<String>>,
+    transit_number: Option<Secret<String>>,
+    routing_number: Option<Secret<String>>,
+    abartn: Option<Secret<String>>,
+    swift_code: Option<Secret<String>>,
     payin_reference: Option<String>,
     psp_reference: Option<String>,
     tax_id: Option<String>,
@@ -220,7 +228,7 @@ pub struct WiseTransferDetails {
 #[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WisePayoutCreateResponse {
+pub struct WisePayoutResponse {
     id: i64,
     user: i64,
     target_account: i64,
@@ -275,6 +283,9 @@ pub enum WiseStatus {
     Pending,
     Rejected,
 
+    #[serde(rename = "cancelled")]
+    Cancelled,
+
     #[serde(rename = "processing")]
     #[default]
     Processing,
@@ -316,7 +327,8 @@ fn get_payout_bank_details(
             legal_type: LegalType::foreign_from(entity_type),
             address: wise_address_details,
             account_number: Some(b.bank_account_number.to_owned()),
-            routing_number: Some(b.bank_routing_number),
+            abartn: Some(b.bank_routing_number),
+            account_type: Some(AccountType::Checking),
             ..WiseBankDetails::default()
         }),
         PayoutMethodData::Bank(payouts::BankPayout::Bacs(b)) => Ok(WiseBankDetails {
@@ -350,7 +362,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
         let customer_details = request.customer_details;
         let payout_method_data = item.get_payout_method_data()?;
         let bank_details = get_payout_bank_details(
-            payout_method_data,
+            payout_method_data.to_owned(),
             &item.address.billing,
             item.request.entity_type,
         )?;
@@ -378,7 +390,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
                 Ok(Self {
                     profile: source_id,
                     currency: request.destination_currency.to_string(),
-                    recipient_type: RecipientType::SortCode, // TODO: Map it to BankType (added in future commit)
+                    recipient_type: RecipientType::try_from(payout_method_data)?,
                     account_holder_name,
                     details: bank_details,
                 })
@@ -497,18 +509,22 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutCreateRequest {
 
 // Payouts transfer creation response
 #[cfg(feature = "payouts")]
-impl<F> TryFrom<types::PayoutsResponseRouterData<F, WisePayoutCreateResponse>>
+impl<F> TryFrom<types::PayoutsResponseRouterData<F, WisePayoutResponse>>
     for types::PayoutsRouterData<F>
 {
     type Error = Error;
     fn try_from(
-        item: types::PayoutsResponseRouterData<F, WisePayoutCreateResponse>,
+        item: types::PayoutsResponseRouterData<F, WisePayoutResponse>,
     ) -> Result<Self, Self::Error> {
-        let response: WisePayoutCreateResponse = item.response;
+        let response: WisePayoutResponse = item.response;
+        let status = match storage_enums::PayoutStatus::foreign_from(response.status) {
+            storage_enums::PayoutStatus::Cancelled => storage_enums::PayoutStatus::Cancelled,
+            _ => storage_enums::PayoutStatus::RequiresFulfillment,
+        };
 
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
-                status: Some(storage_enums::PayoutStatus::RequiresFulfillment),
+                status: Some(status),
                 connector_payout_id: response.id.to_string(),
                 payout_eligible: None,
             }),
@@ -564,6 +580,7 @@ impl ForeignFrom<WiseStatus> for storage_enums::PayoutStatus {
         match wise_status {
             WiseStatus::Completed => Self::Success,
             WiseStatus::Rejected => Self::Failed,
+            WiseStatus::Cancelled => Self::Cancelled,
             WiseStatus::Pending | WiseStatus::Processing | WiseStatus::IncomingPaymentWaiting => {
                 Self::Pending
             }
@@ -577,6 +594,24 @@ impl ForeignFrom<EntityType> for LegalType {
         match entity_type {
             EntityType::Individual | EntityType::Personal | EntityType::NonProfit => Self::Private,
             EntityType::Company | EntityType::PublicSector | EntityType::Business => Self::Business,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<PayoutMethodData> for RecipientType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(payout_method_type: PayoutMethodData) -> Result<Self, Self::Error> {
+        match payout_method_type {
+            PayoutMethodData::Bank(api_models::payouts::Bank::Ach(_)) => Ok(Self::Aba),
+            PayoutMethodData::Bank(api_models::payouts::Bank::Bacs(_)) => Ok(Self::SortCode),
+            PayoutMethodData::Bank(api_models::payouts::Bank::Sepa(_)) => Ok(Self::Iban),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "Requested payout_method_type is not supported".to_string(),
+                connector: "Wise",
+                payment_experience: "".to_string(),
+            }
+            .into()),
         }
     }
 }

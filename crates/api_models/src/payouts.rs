@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 #[cfg(feature = "payouts")]
-use crate::{enums as api_enums, payments};
+use crate::{admin, enums as api_enums, payments};
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -51,8 +51,19 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<api_enums::Currency>,
 
+    /// Specifies routing algorithm for selecting a connector
+    #[schema(value_type = Option<RoutingAlgorithm>, example = json!({
+        "type": "single",
+        "data": "adyen"
+    }))]
+    #[serde(
+        default,
+        deserialize_with = "admin::payout_routing_algorithm::deserialize_option"
+    )]
+    pub routing: Option<serde_json::Value>,
+
     /// This allows the merchant to manually select a connector with which the payout can go through
-    #[schema(value_type = Option<Vec<Connector>>, max_length = 255, example = json!(["stripe", "adyen"]))]
+    #[schema(value_type = Option<Vec<Connector>>, max_length = 255, example = json!(["wise", "adyen"]))]
     pub connector: Option<Vec<api_enums::Connector>>,
 
     /// The boolean value to create payout with connector
@@ -125,6 +136,10 @@ pub struct PayoutCreateRequest {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<pii::SecretSerdeValue>)]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Provide a reference to a stored payment method
+    #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
+    pub payout_token: Option<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -164,7 +179,7 @@ pub struct Card {
 
 #[cfg(feature = "payouts")]
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
+#[serde(untagged)]
 pub enum Bank {
     Ach(AchBankTransfer),
     Bacs(BacsBankTransfer),
@@ -188,11 +203,11 @@ pub struct AchBankTransfer {
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "000123456")]
-    pub bank_account_number: String,
+    pub bank_account_number: Secret<String>,
 
     /// [9 digits] Routing number - used in USA for identifying a specific bank.
     #[schema(value_type = String, example = "110000000")]
-    pub bank_routing_number: String,
+    pub bank_routing_number: Secret<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -212,11 +227,11 @@ pub struct BacsBankTransfer {
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "000123456")]
-    pub bank_account_number: String,
+    pub bank_account_number: Secret<String>,
 
     /// [6 digits] Sort Code - used in UK and Ireland for identifying a bank and it's branches.
     #[schema(value_type = String, example = "98-76-54")]
-    pub bank_sort_code: String,
+    pub bank_sort_code: Secret<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -237,11 +252,11 @@ pub struct SepaBankTransfer {
 
     /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
     #[schema(value_type = String, example = "DE89370400440532013000")]
-    pub iban: String,
+    pub iban: Secret<String>,
 
     /// [8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches
     #[schema(value_type = String, example = "HSBCGB2LXXX")]
-    pub bic: Option<String>,
+    pub bic: Option<Secret<String>>,
 }
 
 #[cfg(feature = "payouts")]
