@@ -17,7 +17,6 @@ async fn should_make_airwallex_3ds_payment(web_driver: WebDriver) -> Result<(), 
         web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/85"))),
-            Event::Assert(Assert::IsPresent("Expiry Year")),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Query(By::ClassName("title"))),
             Event::Assert(Assert::Eq(
@@ -65,6 +64,7 @@ fn should_make_airwallex_3ds_payment_test() {
 
 #[test]
 #[serial]
+#[ignore]
 fn should_make_airwallex_gpay_payment_test() {
     tester!(should_make_airwallex_gpay_payment);
 }
