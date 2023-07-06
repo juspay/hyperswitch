@@ -19,6 +19,9 @@ use crate::{
     utils::{generate_id, OptionExt, ValueExt},
 };
 
+const SEND_PAYMENT_ID_AS_CONNECTOR_REQUEST_REFERENCE_ID: &str =
+    "send_payment_id_as_connector_request_reference_id";
+
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_refund_router_data<'a, F>(
@@ -585,7 +588,7 @@ pub async fn get_connector_request_reference_id(
     merchant_id: &str,
     payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
 ) -> String {
-    let lookup_key = "send_payment_id_as_connector_request_reference_id";
+    let lookup_key = SEND_PAYMENT_ID_AS_CONNECTOR_REQUEST_REFERENCE_ID;
     let option_config_map = match db.find_config_by_key(lookup_key).await {
         Ok(config) => serde_json::from_str::<std::collections::HashSet<String>>(&config.config)
             .map_err(|err| {
