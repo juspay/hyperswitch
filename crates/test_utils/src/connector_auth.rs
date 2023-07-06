@@ -51,7 +51,7 @@ pub struct ConnectorAuthentication {
 #[allow(dead_code)]
 impl ConnectorAuthentication {
     #[allow(clippy::expect_used)]
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
         // before running tests in shell
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
@@ -64,13 +64,13 @@ impl ConnectorAuthentication {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub(crate) struct ConnectorAuthenticationMap(pub(crate) HashMap<String, ConnectorAuthType>);
+pub struct ConnectorAuthenticationMap(pub HashMap<String, ConnectorAuthType>);
 
 // This is a temporary solution to avoid rust compiler from complaining about unused function
 #[allow(dead_code)]
 impl ConnectorAuthenticationMap {
     #[allow(clippy::expect_used)]
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
         // before running tests in shell
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
@@ -110,7 +110,7 @@ impl ConnectorAuthenticationMap {
         let auth_map = auth_config
             .into_iter()
             .map(|(connector_name, config)| {
-                let auth_type = match config {
+                let auth_type = match config.clone() {
                     toml::Value::Table(table) => {
                         match (
                             table.get("api_key"),
@@ -119,25 +119,25 @@ impl ConnectorAuthenticationMap {
                             table.get("key2"),
                         ) {
                             (Some(api_key), None, None, None) => ConnectorAuthType::HeaderKey {
-                                api_key: api_key.to_string(),
+                                api_key: api_key.as_str().unwrap_or_default().to_string(),
                             },
                             (Some(api_key), Some(key1), None, None) => ConnectorAuthType::BodyKey {
-                                api_key: api_key.to_string(),
-                                key1: key1.to_string(),
+                                api_key: api_key.as_str().unwrap_or_default().to_string(),
+                                key1: key1.as_str().unwrap_or_default().to_string(),
                             },
                             (Some(api_key), Some(key1), Some(api_secret), None) => {
                                 ConnectorAuthType::SignatureKey {
-                                    api_key: api_key.to_string(),
-                                    key1: key1.to_string(),
-                                    api_secret: api_secret.to_string(),
+                                    api_key: api_key.as_str().unwrap_or_default().to_string(),
+                                    key1: key1.as_str().unwrap_or_default().to_string(),
+                                    api_secret: api_secret.as_str().unwrap_or_default().to_string(),
                                 }
                             }
                             (Some(api_key), Some(key1), Some(api_secret), Some(key2)) => {
                                 ConnectorAuthType::MultiAuthKey {
-                                    api_key: api_key.to_string(),
-                                    key1: key1.to_string(),
-                                    api_secret: api_secret.to_string(),
-                                    key2: key2.to_string(),
+                                    api_key: api_key.as_str().unwrap_or_default().to_string(),
+                                    key1: key1.as_str().unwrap_or_default().to_string(),
+                                    api_secret: api_secret.as_str().unwrap_or_default().to_string(),
+                                    key2: key2.as_str().unwrap_or_default().to_string(),
                                 }
                             }
                             _ => ConnectorAuthType::NoKey,
@@ -145,7 +145,6 @@ impl ConnectorAuthenticationMap {
                     }
                     _ => ConnectorAuthType::NoKey,
                 };
-
                 (connector_name, auth_type)
             })
             .collect();

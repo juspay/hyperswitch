@@ -1312,6 +1312,7 @@ dependencies = [
  "anstyle",
  "bitflags 1.3.2",
  "clap_lex",
+ "once_cell",
 ]
 
 [[package]]
@@ -3819,6 +3820,7 @@ dependencies = [
  "signal-hook-tokio",
  "storage_models",
  "strum",
+ "test_utils",
  "thirtyfour",
  "thiserror",
  "time 0.3.22",
@@ -4529,6 +4531,19 @@ dependencies = [
  "quote",
  "syn 1.0.109",
  "test-case-core",
+]
+
+[[package]]
+name = "test_utils"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "clap",
+ "router",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "toml 0.7.4",
 ]
 
 [[package]]

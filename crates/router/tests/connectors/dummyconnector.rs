@@ -4,10 +4,8 @@ use cards::CardNumber;
 use masking::Secret;
 use router::types::{self, api, storage::enums};
 
-use crate::{
-    connector_auth,
-    utils::{self, ConnectorActions},
-};
+use crate::utils::{self, ConnectorActions};
+use test_utils::connector_auth;
 
 #[derive(Clone, Copy)]
 struct DummyConnectorTest;
