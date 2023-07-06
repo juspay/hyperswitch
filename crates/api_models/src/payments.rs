@@ -808,6 +808,12 @@ pub struct AchBillingDetails {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct MultibancoBillingDetails {
+    #[schema(value_type = String, example = "example@me.com")]
+    pub email: Email,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SepaAndBacsBillingDetails {
     /// The Email ID for SEPA and BACS billing
     #[schema(value_type = String, example = "example@me.com")]
@@ -865,6 +871,10 @@ pub enum BankTransferData {
     BacsBankTransfer {
         /// The billing details for SEPA
         billing_details: SepaAndBacsBillingDetails,
+    },
+    MultibancoBankTransfer {
+        /// The billing details for Multibanco
+        billing_details: MultibancoBillingDetails,
     },
 }
 
@@ -1241,6 +1251,8 @@ pub enum BankTransferInstructions {
     SepaBankInstructions(Box<SepaBankTransferInstructions>),
     /// The instructions for BACS bank transactions
     BacsBankInstructions(Box<BacsBankTransferInstructions>),
+    /// The instructions for Multibanco bank transactions
+    Multibanco(Box<MultibancoTransferInstructions>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1262,6 +1274,14 @@ pub struct BacsBankTransferInstructions {
     pub account_number: Secret<String>,
     #[schema(value_type = String, example = "012")]
     pub sort_code: Secret<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct MultibancoTransferInstructions {
+    #[schema(value_type = String, example = "122385736258")]
+    pub reference: Secret<String>,
+    #[schema(value_type = String, example = "12345")]
+    pub entity: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
