@@ -642,7 +642,7 @@ pub enum Connector {
     Fiserv,
     Forte,
     Globalpay,
-    // Globepay, added as template code for future usage
+    Globepay,
     Klarna,
     Mollie,
     Multisafepay,
@@ -746,7 +746,7 @@ pub enum RoutableConnectors {
     Fiserv,
     Forte,
     Globalpay,
-    // Globepay, added as template code for future usage
+    Globepay,
     Iatapay,
     Klarna,
     Mollie,
