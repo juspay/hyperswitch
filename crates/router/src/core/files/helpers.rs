@@ -143,8 +143,8 @@ pub async fn delete_file_using_file_id(
             )
             .await
         }
-        _ => Err(errors::ApiErrorResponse::NotSupported {
-            message: "Not Supported if provider is not Router".to_owned(),
+        _ => Err(errors::ApiErrorResponse::FileProviderNotSupported {
+            message: "Not Supported because provider is not Router".to_string(),
         }
         .into()),
     }
