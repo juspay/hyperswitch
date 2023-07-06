@@ -69,10 +69,13 @@ pub enum AttemptStatus {
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumVariantNames,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -93,10 +96,13 @@ pub enum AuthenticationType {
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumVariantNames,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -161,6 +167,7 @@ pub enum ConnectorType {
     strum::Display,
     strum::EnumString,
     strum::EnumIter,
+    strum::EnumVariantNames,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
@@ -487,6 +494,8 @@ pub enum PaymentExperience {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumVariantNames,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -546,6 +555,8 @@ pub enum PaymentMethodType {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumVariantNames,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -804,6 +815,8 @@ pub struct MandateAmountData {
     ToSchema,
     serde::Deserialize,
     serde::Serialize,
+    strum::EnumVariantNames,
+    strum::EnumIter,
     strum::Display,
     strum::EnumString,
     Hash,
@@ -1135,6 +1148,8 @@ pub enum BankNames {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumVariantNames,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -1294,7 +1309,20 @@ pub enum CountryAlpha3 {
     VEN, VNM, VGB, VIR, WLF, ESH, YEM, ZMB, ZWE
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    strum::Display,
+    strum::EnumVariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    Deserialize,
+    Serialize,
+)]
 pub enum Country {
     Afghanistan,
     AlandIslands,
