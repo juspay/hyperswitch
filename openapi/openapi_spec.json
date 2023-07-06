@@ -8361,7 +8361,8 @@
                 ],
                 "properties": {
                   "social_security_number": {
-                    "$ref": "#/components/schemas/Secret"
+                    "type": "string",
+                    "description": "The shopper's social security number"
                   }
                 }
               }
