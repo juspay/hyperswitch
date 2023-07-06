@@ -5530,7 +5530,7 @@
           },
           {
             "type": "object",
-            "description": "contains third party sdk session token response",
+            "description": "Contains third party sdk session token response",
             "required": [
               "type"
             ],
@@ -5547,6 +5547,25 @@
                 "type": "string",
                 "enum": [
                   "third_party_sdk_session_token"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Contains url for Qr code image, this qr code has to be shown in sdk",
+            "required": [
+              "image_data_url",
+              "type"
+            ],
+            "properties": {
+              "image_data_url": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "qr_code_information"
                 ]
               }
             }
@@ -8548,8 +8567,22 @@
                 "$ref": "#/components/schemas/WeChatPayRedirection"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "we_chat_pay"
+            ],
+            "properties": {
+              "we_chat_pay": {
+                "$ref": "#/components/schemas/WeChatPay"
+              }
+            }
           }
         ]
+      },
+      "WeChatPay": {
+        "type": "object"
       },
       "WeChatPayRedirection": {
         "type": "object"
