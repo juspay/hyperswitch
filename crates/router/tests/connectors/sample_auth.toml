@@ -140,3 +140,6 @@ api_key="API Key"
 [cashtocode]
 api_key="Classic PMT API Key"
 key1 = "Evoucher PMT API Key"
+
+[globepay]
+api_key="API Key"
