@@ -93,6 +93,8 @@ pub enum CaptureMethod {
     ManualMultiple,
     /// The capture can be scheduled to automatically get triggered at a specific date & time
     Scheduled,
+    /// Only for Stripe Compatibility Layer
+    AutomaticAsync
 }
 
 #[derive(

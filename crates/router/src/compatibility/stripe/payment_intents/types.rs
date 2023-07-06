@@ -3,6 +3,7 @@ use std::str::FromStr;
 use api_models::payments;
 use common_utils::{crypto::Encryptable, date_time, ext_traits::StringExt, pii as secret};
 use error_stack::{IntoReport, ResultExt};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -148,6 +149,34 @@ impl From<Shipping> for payments::Address {
     }
 }
 
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+pub struct MandateData {
+    pub customer_acceptance: CustomerAcceptance,
+}
+
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+pub struct CustomerAcceptance {
+    #[serde(rename = "type")]
+    pub stype: AcceptanceType,
+    pub accepted_at: Option<Secret<String>>,
+    pub online: Option<OnlineMandate>,
+}
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, PartialEq, Eq, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum AcceptanceType {
+    Online,
+    #[default]
+    Offline,
+}
+
+#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct OnlineMandate {
+    pub ip_address: Secret<String, secret::IpAddress>,
+    pub user_agent: String,
+}
+
 #[derive(Deserialize, Clone)]
 pub struct StripePaymentIntentRequest {
     pub id: Option<String>,
@@ -171,11 +200,17 @@ pub struct StripePaymentIntentRequest {
     pub client_secret: Option<pii::Secret<String>>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
-    pub mandate_id: Option<String>,
+    pub mandate: Option<String>,
     pub off_session: Option<bool>,
-    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+    pub payment_method_types: Option<api_enums::PaymentMethodType>,
     pub receipt_ipaddress: Option<String>,
     pub user_agent: Option<String>,
+    pub mandate_data: Option<MandateData>,
+    pub automatic_payment_methods: Option<secret::SecretSerdeValue>, // Not used
+    pub payment_method: Option<String>, // Not used
+    pub confirmation_method: Option<String>, //not used
+    pub error_on_requires_action: Option<String>, // not used
+    pub radar_options: Option<secret::SecretSerdeValue> // not used
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
@@ -266,9 +301,9 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             mandate_data: mandate_options,
             merchant_connector_details: item.merchant_connector_details,
             setup_future_usage: item.setup_future_usage,
-            mandate_id: item.mandate_id,
+            mandate_id: item.mandate,
             off_session: item.off_session,
-            payment_method_type: item.payment_method_type,
+            payment_method_type: item.payment_method_types,
             routing,
             browser_info: Some(
                 serde_json::to_value(crate::types::BrowserInformation {
@@ -280,6 +315,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("convert to browser info failed")?,
             ),
+            
             ..Self::default()
         });
         request
@@ -348,10 +384,15 @@ impl From<StripePaymentCancelRequest> for payments::PaymentsCancelRequest {
     }
 }
 
-#[derive(Default, PartialEq, Eq, Deserialize, Clone)]
-pub struct StripeCaptureRequest {
-    pub amount_to_capture: Option<i64>,
-}
+// #[derive(Default, PartialEq, Eq, Deserialize, Clone)]
+// pub struct StripeCaptureRequest {
+//     pub amount_to_capture: Option<i64>,
+//     pub metadata: Option<secret::SecretSerdeValue>,
+//     pub application_fee_amount: Option<i64>,
+//     pub statement_descriptor: Option<String>,
+//     pub statement_descriptor_suffix: Option<String>,
+//     pub transfer_data: Option<secret::SecretSerdeValue>
+// }
 
 #[derive(Default, Eq, PartialEq, Serialize, Debug)]
 pub struct StripePaymentIntentResponse {
@@ -366,7 +407,7 @@ pub struct StripePaymentIntentResponse {
     pub created: Option<i64>,
     pub customer: Option<String>,
     pub refunds: Option<Vec<stripe_refunds::StripeRefundResponse>>,
-    pub mandate_id: Option<String>,
+    pub mandate: Option<String>,
     pub metadata: Option<secret::SecretSerdeValue>,
     pub charges: Charges,
     pub connector: Option<String>,
@@ -423,7 +464,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             refunds: resp
                 .refunds
                 .map(|a| a.into_iter().map(Into::into).collect()),
-            mandate_id: resp.mandate_id,
+            mandate: resp.mandate_id,
             mandate_data: resp.mandate_data,
             setup_future_usage: resp.setup_future_usage,
             off_session: resp.off_session,
