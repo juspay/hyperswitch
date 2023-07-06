@@ -4084,21 +4084,6 @@
         ]
       },
       "GiftCardData": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "baby_gift_card"
-            ],
-            "properties": {
-              "baby_gift_card": {
-                "$ref": "#/components/schemas/GiftCardPaymentData"
-              }
-            }
-          }
-        ]
-      },
-      "GiftCardPaymentData": {
         "type": "object",
         "required": [
           "number",

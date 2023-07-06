@@ -267,7 +267,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::ephemeral_key::EphemeralKeyCreateResponse,
         api_models::payments::CustomerDetails,
         api_models::payments::GiftCardData,
-        api_models::payments::GiftCardPaymentData,
         crate::types::api::admin::MerchantAccountResponse,
         crate::types::api::admin::MerchantConnectorId,
         crate::types::api::admin::MerchantDetails,
