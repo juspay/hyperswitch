@@ -124,14 +124,6 @@ jobs:
         shell: bash
         run: sh .github/scripts/run_ui_tests.sh
       
-      - name: Run tests
-        shell: bash
-        run: |
-          IN="${{ matrix.connector }}"
-          for i in $(echo $IN | tr ";" "\n"); do
-              cargo test --package router --test connectors -- "${i}_ui::" --test-threads=1 >> tests/test_results.log 2>&1
-          done
-      
       - name: View test results
         shell: bash
         run: cat tests/test_results.log
