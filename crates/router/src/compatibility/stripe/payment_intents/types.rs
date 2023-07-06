@@ -5,6 +5,7 @@ use common_utils::{crypto::Encryptable, date_time, ext_traits::StringExt, pii as
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 use crate::{
     compatibility::stripe::refunds::types as stripe_refunds,
@@ -176,7 +177,7 @@ pub struct MandateData {
 pub struct CustomerAcceptance {
     #[serde(rename = "type")]
     pub stype: AcceptanceType,
-    pub accepted_at: Option<Secret<String>>,
+    pub accepted_at: Option<PrimitiveDateTime>,
     pub online: Option<OnlineMandate>,
 }
 
@@ -195,10 +196,28 @@ pub struct OnlineMandate {
     pub user_agent: String,
 }
 
+impl From<MandateData> for payments::MandateData {
+    fn from(mandate: MandateData) -> Self {
+        Self {
+            customer_acceptance: Some(payments::CustomerAcceptance {
+                acceptance_type: mandate.customer_acceptance.stype.into(),
+                accepted_at: mandate.customer_acceptance.accepted_at.map(|accepted_at| accepted_at),
+                online:mandate.customer_acceptance.online.map(|online| 
+                    payments::OnlineMandate {
+                        ip_address: Some(online.ip_address),
+                        user_agent: online.user_agent,
+                    }
+                ),
+            }),
+            mandate_type: None, // need to decide what should be done for this field
+        }
+    }
+}
+
 #[derive(Deserialize, Clone)]
 pub struct StripePaymentIntentRequest {
     pub id: Option<String>,
-    pub amount: Option<i64>, //amount in cents, hence passed as integer
+    pub amount: Option<i64>, // amount in cents, hence passed as integer
     pub connector: Option<Vec<api_enums::RoutableConnectors>>,
     pub currency: Option<String>,
     #[serde(rename = "amount_to_capture")]
@@ -224,8 +243,8 @@ pub struct StripePaymentIntentRequest {
     pub receipt_ipaddress: Option<String>,
     pub user_agent: Option<String>,
     pub mandate_data: Option<MandateData>,
-    pub automatic_payment_methods: Option<secret::SecretSerdeValue>, // Not used
-    pub payment_method: Option<String>, // Not used
+    pub automatic_payment_methods: Option<secret::SecretSerdeValue>, // not used
+    pub payment_method: Option<String>, // not used
     pub confirmation_method: Option<String>, //not used
     pub error_on_requires_action: Option<String>, // not used
     pub radar_options: Option<secret::SecretSerdeValue> // not used
@@ -388,6 +407,7 @@ impl ToString for CancellationReason {
         })
     }
 }
+
 #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
 pub struct StripePaymentCancelRequest {
     cancellation_reason: Option<CancellationReason>,
@@ -724,6 +744,15 @@ impl ForeignFrom<Option<Request3DS>> for api_models::enums::AuthenticationType {
         match item.unwrap_or_default() {
             Request3DS::Automatic => Self::NoThreeDs,
             Request3DS::Any => Self::ThreeDs,
+        }
+    }
+}
+
+impl From<AcceptanceType> for payments::AcceptanceType {
+    fn from(acceptance_type: AcceptanceType) -> Self {
+        match acceptance_type {
+            AcceptanceType::Online => Self::Online,
+            AcceptanceType::Offline => Self::Offline,
         }
     }
 }
