@@ -2,7 +2,6 @@
 
 mod utils;
 
-#[allow(dead_code)]
 use test_utils::connector_auth::ConnectorAuthentication;
 use utils::{mk_service, ApiKey, AppClient, MerchantId, PaymentId, Status};
 

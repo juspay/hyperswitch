@@ -14,7 +14,7 @@ fn path_generation(name: &String) -> String {
 }
 
 #[derive(Parser)]
-#[command(author = "Me, PiX, I'll remove this, pinky promise!", version, about = "Postman collection runner using newman!", long_about = None)]
+#[command(author, version, about = "Postman collection runner using newman!", long_about = None)]
 struct Args {
     /// Name of the connector
     #[arg(short, long = "connector_name")]

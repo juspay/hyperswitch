@@ -3,7 +3,7 @@ name: Postman Collection API test
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 0,12 * * *' # Run workflow at 6 AM and 6 PM IST
+    - cron: "30 0,12 * * *" # Run workflow at 6 AM and 6 PM IST
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -33,7 +33,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      
+
       - name: Decrypt connector auth file
         env:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
@@ -58,4 +58,4 @@ jobs:
           max_attempts: 3
           retry_on: error
           command: |
-            cargo run --package router --bin collection_runner ${{ matrix.connector }} $BASE_URL $ADMIN_API_KEY
+            cargo run --package test_utils --bin test_utils -- --connector_name=${{ matrix.connector }} --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY
