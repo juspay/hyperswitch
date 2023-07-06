@@ -895,7 +895,7 @@ pub struct CryptoData {
 #[serde(rename_all = "snake_case")]
 pub struct UpiData {
     #[schema(value_type = Option<String>, example = "successtest@iata")]
-    pub vpa_id: Option<Secret<String>>,
+    pub vpa_id: Option<Secret<String, UpiVpaMaskingStrategy>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]

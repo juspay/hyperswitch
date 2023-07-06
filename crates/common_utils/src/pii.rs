@@ -329,13 +329,36 @@ where
     }
 }
 
+/// Strategy for masking UPI VPA's
+
+#[derive(Debug)]
+pub struct UpiVpaMaskingStrategy;
+
+impl<T> Strategy<T> for UpiVpaMaskingStrategy
+where
+    T: AsRef<str> + std::fmt::Debug,
+{
+    fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let vpa_str: &str = val.as_ref();
+        match vpa_str.find('@') {
+            Some(at_index) => {
+                let user_identifier = &vpa_str[..at_index];
+                let domain = &vpa_str[at_index..];
+                let masked_user_identifier = "*".repeat(user_identifier.len());
+                write!(f, "{}{}", masked_user_identifier, domain)
+            }
+            None => WithType::fmt(val, f),
+        }
+    }
+}
+
 #[cfg(test)]
 mod pii_masking_strategy_tests {
     use std::str::FromStr;
 
     use masking::{ExposeInterface, Secret};
 
-    use super::{ClientSecret, Email, IpAddress};
+    use super::{ClientSecret, Email, IpAddress, UpiVpaMaskingStrategy};
     use crate::pii::{EmailStrategy, REDACTED};
 
     /*
@@ -433,6 +456,18 @@ mod pii_masking_strategy_tests {
     #[test]
     fn test_valid_phone_number_default_masking() {
         let secret: Secret<String> = Secret::new("+40712345678".to_string());
+        assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
+    }
+    
+    #[test]
+    fn test_valid_upi_vpa_masking() {
+        let secret: Secret<String, UpiVpaMaskingStrategy> = Secret::new("my_name@upi".to_string());
+        assert_eq!("*******@upi", format!("{secret:?}"));
+    }
+
+    #[test]
+    fn test_invalid_upi_vpa_masking() {
+        let secret: Secret<String, UpiVpaMaskingStrategy> = Secret::new("my_name_upi".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
     }
 }
