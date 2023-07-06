@@ -806,7 +806,7 @@ pub enum BankRedirectData {
 #[serde(rename_all = "snake_case")]
 pub enum VoucherData {
     BoletoBancario {
-        social_security_number: Option<String>,
+        social_security_number: Secret<String>,
     },
 }
 
