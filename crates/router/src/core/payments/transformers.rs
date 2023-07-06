@@ -905,6 +905,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             connector_name,
             payment_data.creds_identifier.as_deref(),
         ));
+        let browser_info: Option<types::BrowserInformation> = attempt
+            .browser_info
+            .clone()
+            .map(|b| b.parse_value("BrowserInformation"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })?;
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -919,6 +927,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             router_return_url,
             email: payment_data.email,
             return_url: payment_data.payment_intent.return_url,
+            browser_info,
             payment_method_type: attempt.payment_method_type.clone(),
         })
     }

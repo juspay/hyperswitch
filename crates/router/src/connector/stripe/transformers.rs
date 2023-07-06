@@ -1370,10 +1370,7 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
             metadata_txn_id,
             metadata_txn_uuid,
             payment_data,
-            return_url: item
-            .request
-            .router_return_url
-            .clone(),
+            return_url: item.request.router_return_url.clone(),
             off_session: item.request.off_session,
             usage: item.request.setup_future_usage,
             payment_method_options: None,

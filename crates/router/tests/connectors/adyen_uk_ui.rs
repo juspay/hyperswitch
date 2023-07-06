@@ -75,8 +75,8 @@ async fn should_make_adyen_gpay_mandate_payment(
         Event::Assert(Assert::IsPresent("succeeded")),
         Event::Assert(Assert::IsPresent("Mandate ID")),
         Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
-        Event::Trigger(Trigger::Click(By::Id("pm-mandate-btn"))),
-        Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
+        Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
+        Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
         Event::Assert(Assert::IsPresent("succeeded")),
     ]).await?;
     Ok(())
@@ -92,8 +92,8 @@ async fn should_make_adyen_gpay_zero_dollar_mandate_payment(
         Event::Assert(Assert::IsPresent("succeeded")),
         Event::Assert(Assert::IsPresent("Mandate ID")),
         Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
-        Event::Trigger(Trigger::Click(By::Id("pm-mandate-btn"))),
-        Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
+        Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
+        Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
         Event::Assert(Assert::IsPresent("succeeded")),
     ]).await?;
     Ok(())
@@ -154,27 +154,25 @@ async fn should_make_adyen_alipay_hk_payment(c: WebDriver) -> Result<(), WebDriv
 
 #[test]
 #[serial]
-#[ignore]
 fn should_make_adyen_gpay_payment_test() {
     tester!(should_make_adyen_gpay_payment);
 }
 
 #[test]
 #[serial]
-#[ignore]
 fn should_make_adyen_gpay_mandate_payment_test() {
     tester!(should_make_adyen_gpay_mandate_payment);
 }
 
 #[test]
 #[serial]
-#[ignore]
 fn should_make_adyen_gpay_zero_dollar_mandate_payment_test() {
     tester!(should_make_adyen_gpay_zero_dollar_mandate_payment);
 }
 
 #[test]
 #[serial]
+#[ignore]
 fn should_make_adyen_klarna_mandate_payment_test() {
     tester!(should_make_adyen_klarna_mandate_payment);
 }
@@ -193,7 +191,6 @@ fn should_make_adyen_3ds_payment_success_test() {
 
 #[test]
 #[serial]
-#[ignore]
 fn should_make_adyen_alipay_hk_payment_test() {
     tester!(should_make_adyen_alipay_hk_payment);
 }

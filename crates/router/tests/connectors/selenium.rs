@@ -343,12 +343,12 @@ pub trait SeleniumTest {
         let result = self.execute_steps(c.clone(), actions.clone()).await;
         if result.is_err() {
             self.execute_steps(c, actions).await
-        }
-        else {
+        } else {
             result
-        } 
+        }
     }
-    async fn execute_steps(&self,
+    async fn execute_steps(
+        &self,
         c: WebDriver,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
