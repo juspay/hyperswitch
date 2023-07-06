@@ -1,5 +1,6 @@
 use std::{collections::HashMap, env};
 
+use masking::{PeekInterface, Secret};
 use router::types::ConnectorAuthType;
 use serde::{Deserialize, Serialize};
 
@@ -71,7 +72,7 @@ impl ConnectorAuthentication {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct ConnectorAuthenticationMap(pub HashMap<String, ConnectorAuthType>);
+pub struct ConnectorAuthenticationMap(HashMap<String, ConnectorAuthType>);
 
 impl Default for ConnectorAuthenticationMap {
     fn default() -> Self {
@@ -82,6 +83,10 @@ impl Default for ConnectorAuthenticationMap {
 // This is a temporary solution to avoid rust compiler from complaining about unused function
 #[allow(dead_code)]
 impl ConnectorAuthenticationMap {
+    pub fn inner(&self) -> &HashMap<String, ConnectorAuthType> {
+        &self.0
+    }
+
     #[allow(clippy::expect_used)]
     pub fn new() -> Self {
         // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
@@ -168,64 +173,64 @@ impl ConnectorAuthenticationMap {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct HeaderKey {
-    pub api_key: String,
+    pub api_key: Secret<String>,
 }
 
 impl From<HeaderKey> for ConnectorAuthType {
     fn from(key: HeaderKey) -> Self {
         Self::HeaderKey {
-            api_key: key.api_key,
+            api_key: key.api_key.peek().to_string(),
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BodyKey {
-    pub api_key: String,
-    pub key1: String,
+    pub api_key: Secret<String>,
+    pub key1: Secret<String>,
 }
 
 impl From<BodyKey> for ConnectorAuthType {
     fn from(key: BodyKey) -> Self {
         Self::BodyKey {
-            api_key: key.api_key,
-            key1: key.key1,
+            api_key: key.api_key.peek().to_string(),
+            key1: key.key1.peek().to_string(),
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SignatureKey {
-    pub api_key: String,
-    pub key1: String,
-    pub api_secret: String,
+    pub api_key: Secret<String>,
+    pub key1: Secret<String>,
+    pub api_secret: Secret<String>,
 }
 
 impl From<SignatureKey> for ConnectorAuthType {
     fn from(key: SignatureKey) -> Self {
         Self::SignatureKey {
-            api_key: key.api_key,
-            key1: key.key1,
-            api_secret: key.api_secret,
+            api_key: key.api_key.peek().to_string(),
+            key1: key.key1.peek().to_string(),
+            api_secret: key.api_secret.peek().to_string(),
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MultiAuthKey {
-    pub api_key: String,
-    pub key1: String,
-    pub api_secret: String,
-    pub key2: String,
+    pub api_key: Secret<String>,
+    pub key1: Secret<String>,
+    pub api_secret: Secret<String>,
+    pub key2: Secret<String>,
 }
 
 impl From<MultiAuthKey> for ConnectorAuthType {
     fn from(key: MultiAuthKey) -> Self {
         Self::MultiAuthKey {
-            api_key: key.api_key,
-            key1: key.key1,
-            api_secret: key.api_secret,
-            key2: key.key2,
+            api_key: key.api_key.peek().to_string(),
+            key1: key.key1.peek().to_string(),
+            api_secret: key.api_secret.peek().to_string(),
+            key2: key.key2.peek().to_string(),
         }
     }
 }
