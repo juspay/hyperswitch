@@ -37,7 +37,7 @@ pub trait PaymentIntentInterface {
     ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError>;
 
     #[cfg(feature = "olap")]
-    async fn filter_by_time_range_constraints(
+    async fn filter_payment_intents_by_time_range_constraints(
         &self,
         merchant_id: &str,
         time_range: &api::TimeRange,
@@ -246,7 +246,7 @@ mod storage {
             }
         }
         #[cfg(feature = "olap")]
-        async fn filter_by_time_range_constraints(
+        async fn filter_payment_intents_by_time_range_constraints(
             &self,
             merchant_id: &str,
             time_range: &api::TimeRange,
@@ -332,7 +332,7 @@ mod storage {
                 .into_report()
         }
         #[cfg(feature = "olap")]
-        async fn filter_by_time_range_constraints(
+        async fn filter_payment_intents_by_time_range_constraints(
             &self,
             merchant_id: &str,
             time_range: &api::TimeRange,
@@ -360,7 +360,7 @@ impl PaymentIntentInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
     #[cfg(feature = "olap")]
-    async fn filter_by_time_range_constraints(
+    async fn filter_payment_intents_by_time_range_constraints(
         &self,
         _merchant_id: &str,
         _time_range: &api::TimeRange,

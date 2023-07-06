@@ -180,7 +180,7 @@ impl PaymentAttempt {
         )
         .await
     }
-    pub async fn get_payment_filters(
+    pub async fn find_filters_for_payments(
         conn: &PgPooledConn,
         pi: &[PaymentIntent],
         merchant_id: &str,

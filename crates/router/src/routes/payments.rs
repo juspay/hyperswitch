@@ -712,7 +712,7 @@ pub async fn payments_list(
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
-pub async fn get_payment_filters(
+pub async fn find_filters_for_payments(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     payload: web::Json<payment_types::TimeRange>,
@@ -724,7 +724,9 @@ pub async fn get_payment_filters(
         state.get_ref(),
         &req,
         payload,
-        |state, auth, req| payments::get_payment_filters(&*state.store, auth.merchant_account, req),
+        |state, auth, req| {
+            payments::find_filters_for_payments(&*state.store, auth.merchant_account, req)
+        },
         &auth::ApiKeyAuth,
     )
     .await

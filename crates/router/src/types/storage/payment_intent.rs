@@ -118,7 +118,7 @@ impl PaymentIntentDbExt for PaymentIntent {
             .get_results_async(conn)
             .await
             .into_report()
-            .change_context(errors::DatabaseError::NotFound)
-            .attach_printable_lazy(|| "Error filtering records by time range")
+            .change_context(errors::DatabaseError::Others)
+            .attach_printable("Error filtering records by time range")
     }
 }

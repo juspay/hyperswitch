@@ -149,7 +149,7 @@ impl Payments {
         {
             route = route
                 .service(web::resource("/list").route(web::get().to(payments_list)))
-                .service(web::resource("/filter").route(web::post().to(get_payment_filters)))
+                .service(web::resource("/filter").route(web::post().to(find_filters_for_payments)))
         }
         #[cfg(feature = "oltp")]
         {

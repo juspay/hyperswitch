@@ -63,7 +63,7 @@ pub trait PaymentAttemptInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
-    async fn get_payment_filters(
+    async fn find_filters_for_payments(
         &self,
         pi: &[storage_models::payment_intent::PaymentIntent],
         merchant_id: &str,
@@ -184,7 +184,7 @@ mod storage {
             .into_report()
         }
 
-        async fn get_payment_filters(
+        async fn find_filters_for_payments(
             &self,
             pi: &[storage_models::payment_intent::PaymentIntent],
             merchant_id: &str,
@@ -192,7 +192,7 @@ mod storage {
         ) -> CustomResult<storage_models::payment_attempt::PaymentListFilters, errors::StorageError>
         {
             let conn = connection::pg_connection_read(self).await?;
-            PaymentAttempt::get_payment_filters(&conn, pi, merchant_id)
+            PaymentAttempt::find_filters_for_payments(&conn, pi, merchant_id)
                 .await
                 .map_err(Into::into)
                 .into_report()
@@ -245,7 +245,7 @@ impl PaymentAttemptInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn get_payment_filters(
+    async fn find_filters_for_payments(
         &self,
         _pi: &[storage_models::payment_intent::PaymentIntent],
         _merchant_id: &str,
@@ -830,25 +830,18 @@ mod storage {
             }
         }
 
-        async fn get_payment_filters(
+        async fn find_filters_for_payments(
             &self,
             pi: &[storage_models::payment_intent::PaymentIntent],
             merchant_id: &str,
-            storage_scheme: enums::MerchantStorageScheme,
+            _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_models::payment_attempt::PaymentListFilters, errors::StorageError>
         {
-            let database_call = || async {
-                let conn = connection::pg_connection_read(self).await?;
-                PaymentAttempt::get_payment_filters(&conn, pi, merchant_id)
-                    .await
-                    .map_err(Into::into)
-                    .into_report()
-            };
-            match storage_scheme {
-                enums::MerchantStorageScheme::PostgresOnly => database_call().await,
-
-                enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
-            }
+            let conn = connection::pg_connection_read(self).await?;
+            PaymentAttempt::find_filters_for_payments(&conn, pi, merchant_id)
+                .await
+                .map_err(Into::into)
+                .into_report()
         }
     }
 

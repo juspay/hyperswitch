@@ -1425,19 +1425,6 @@ pub(super) async fn filter_by_constraints(
 }
 
 #[cfg(feature = "olap")]
-pub(super) async fn filter_by_time_range_constraint(
-    db: &dyn StorageInterface,
-    time_range: &api::TimeRange,
-    merchant_id: &str,
-    storage_scheme: storage_enums::MerchantStorageScheme,
-) -> CustomResult<Vec<storage::PaymentIntent>, errors::StorageError> {
-    let result = db
-        .filter_by_time_range_constraints(merchant_id, time_range, storage_scheme)
-        .await?;
-    Ok(result)
-}
-
-#[cfg(feature = "olap")]
 pub(super) fn validate_payment_list_request(
     req: &api::PaymentListConstraints,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
