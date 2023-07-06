@@ -6527,12 +6527,13 @@
             "nullable": true,
             "maxLength": 255
           },
-          "phone_country_code": {
-            "type": "string",
-            "description": "The country code for the customer phone number\nThis field will be deprecated soon, use the customer object instead",
-            "example": "+1",
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
+            "example": 6540,
             "nullable": true,
-            "maxLength": 255
+            "minimum": 0.0
           },
           "routing": {
             "allOf": [
@@ -6542,28 +6543,22 @@
             ],
             "nullable": true
           },
-          "card_cvc": {
-            "type": "string",
-            "description": "This is used when payment is to be confirmed and the card is not saved",
+          "connector": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Connector"
+            },
+            "description": "This allows the merchant to manually select a connector with which the payment can go through",
+            "example": [
+              "stripe",
+              "adyen"
+            ],
             "nullable": true
           },
-          "name": {
-            "type": "string",
-            "description": "description: The customer's name\nThis field will be deprecated soon, use the customer object instead",
-            "example": "John Test",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "business_label": {
-            "type": "string",
-            "description": "Business label of the merchant for this payment",
-            "example": "food",
-            "nullable": true
-          },
-          "routing": {
+          "currency": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/Currency"
               }
             ],
             "nullable": true
@@ -6661,7 +6656,7 @@
           "setup_future_usage": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CaptureMethod"
+                "$ref": "#/components/schemas/FutureUsage"
               }
             ],
             "nullable": true
@@ -6740,11 +6735,10 @@
             "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n    }]",
             "nullable": true
           },
-          "capture_on": {
+          "client_secret": {
             "type": "string",
-            "format": "date-time",
-            "description": "A timestamp (ISO 8601 code) that determines when the payment should be captured.\nProviding this field will automatically set `capture` to true",
-            "example": "2022-09-10T10:11:12Z",
+            "description": "It's a token used for client side verification.",
+            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo",
             "nullable": true
           },
           "mandate_data": {
@@ -6797,10 +6791,10 @@
             "example": "food",
             "nullable": true
           },
-          "payment_experience": {
+          "merchant_connector_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentExperience"
+                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
               }
             ],
             "nullable": true
@@ -6808,10 +6802,9 @@
           "allowed_payment_method_types": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/OrderDetailsWithAmount"
+              "$ref": "#/components/schemas/PaymentMethodType"
             },
-            "description": "Information about the product , quantity and amount for connectors. (e.g. Klarna)",
-            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n    }]",
+            "description": "Allowed Payment Method Types for a given PaymentIntent",
             "nullable": true
           },
           "business_sub_label": {
