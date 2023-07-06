@@ -48,6 +48,13 @@ pub struct ConnectorAuthentication {
     pub zen: Option<HeaderKey>,
     pub automation_configs: Option<AutomationConfigs>,
 }
+
+impl Default for ConnectorAuthentication {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[allow(dead_code)]
 impl ConnectorAuthentication {
     #[allow(clippy::expect_used)]
@@ -65,6 +72,12 @@ impl ConnectorAuthentication {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct ConnectorAuthenticationMap(pub HashMap<String, ConnectorAuthType>);
+
+impl Default for ConnectorAuthenticationMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 // This is a temporary solution to avoid rust compiler from complaining about unused function
 #[allow(dead_code)]
@@ -110,7 +123,7 @@ impl ConnectorAuthenticationMap {
         let auth_map = auth_config
             .into_iter()
             .map(|(connector_name, config)| {
-                let auth_type = match config.clone() {
+                let auth_type = match config {
                     toml::Value::Table(table) => {
                         match (
                             table.get("api_key"),

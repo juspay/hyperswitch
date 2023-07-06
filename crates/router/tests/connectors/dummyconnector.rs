@@ -3,9 +3,9 @@ use std::str::FromStr;
 use cards::CardNumber;
 use masking::Secret;
 use router::types::{self, api, storage::enums};
+use test_utils::connector_auth;
 
 use crate::utils::{self, ConnectorActions};
-use test_utils::connector_auth;
 
 #[derive(Clone, Copy)]
 struct DummyConnectorTest;
