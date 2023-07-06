@@ -16,7 +16,7 @@ impl utils::Connector for GlobepayTest {
         use router::connector::Globepay;
         types::api::ConnectorData {
             connector: Box::new(&Globepay),
-            connector_name: types::Connector::Globepay,
+            connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
         }
     }
