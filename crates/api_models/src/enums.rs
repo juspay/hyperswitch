@@ -436,6 +436,7 @@ pub enum PaymentMethodType {
     Klarna,
     MbWay,
     MobilePay,
+    Multibanco,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
     OnlineBankingPoland,
@@ -620,11 +621,28 @@ pub enum Connector {
     #[serde(rename = "pretendpay")]
     #[strum(serialize = "pretendpay")]
     DummyConnector3,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "stripe_test")]
+    #[strum(serialize = "stripe_test")]
+    DummyConnector4,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "adyen_test")]
+    #[strum(serialize = "adyen_test")]
+    DummyConnector5,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "checkout_test")]
+    #[strum(serialize = "checkout_test")]
+    DummyConnector6,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "paypal_test")]
+    #[strum(serialize = "paypal_test")]
+    DummyConnector7,
     Bambora,
     Dlocal,
     Fiserv,
     Forte,
     Globalpay,
+    // Globepay, added as template code for future usage
     Klarna,
     Mollie,
     Multisafepay,
@@ -695,6 +713,22 @@ pub enum RoutableConnectors {
     #[serde(rename = "pretendpay")]
     #[strum(serialize = "pretendpay")]
     DummyConnector3,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "stripe_test")]
+    #[strum(serialize = "stripe_test")]
+    DummyConnector4,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "adyen_test")]
+    #[strum(serialize = "adyen_test")]
+    DummyConnector5,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "checkout_test")]
+    #[strum(serialize = "checkout_test")]
+    DummyConnector6,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "paypal_test")]
+    #[strum(serialize = "paypal_test")]
+    DummyConnector7,
     Aci,
     Adyen,
     Airwallex,
@@ -712,6 +746,7 @@ pub enum RoutableConnectors {
     Fiserv,
     Forte,
     Globalpay,
+    // Globepay, added as template code for future usage
     Iatapay,
     Klarna,
     Mollie,
@@ -972,6 +1007,26 @@ pub struct UnresolvedResponseReason {
     pub code: String,
     /// A message to merchant to give hint on next action he/she should do to resolve
     pub message: String,
+}
+
+/// Possible field type of required fields in payment_method_data
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FieldType {
+    Text,
+    DropDown { options: Vec<String> },
 }
 
 #[derive(

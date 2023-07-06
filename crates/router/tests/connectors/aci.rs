@@ -42,6 +42,9 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                 card_cvc: Secret::new("999".to_string()),
                 card_issuer: None,
                 card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
                 nick_name: Some(masking::Secret::new("nick_name".into())),
             }),
             confirm: true,
@@ -188,6 +191,9 @@ async fn payments_create_failure() {
                 card_cvc: Secret::new("99".to_string()),
                 card_issuer: None,
                 card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
                 nick_name: Some(masking::Secret::new("nick_name".into())),
             });
 

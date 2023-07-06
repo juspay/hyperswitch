@@ -951,7 +951,10 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NuveiPaymentFlowRequest {
         Self::try_from(NuveiPaymentRequestData {
             client_request_id: item.attempt_id.clone(),
             connector_auth_type: item.connector_auth_type.clone(),
-            amount: item.request.amount_to_capture.to_string(),
+            amount: utils::to_currency_base_unit(
+                item.request.amount_to_capture,
+                item.request.currency,
+            )?,
             currency: item.request.currency,
             related_transaction_id: Some(item.request.connector_transaction_id.clone()),
             ..Default::default()
@@ -964,7 +967,10 @@ impl TryFrom<&types::RefundExecuteRouterData> for NuveiPaymentFlowRequest {
         Self::try_from(NuveiPaymentRequestData {
             client_request_id: item.attempt_id.clone(),
             connector_auth_type: item.connector_auth_type.clone(),
-            amount: item.request.refund_amount.to_string(),
+            amount: utils::to_currency_base_unit(
+                item.request.refund_amount,
+                item.request.currency,
+            )?,
             currency: item.request.currency,
             related_transaction_id: Some(item.request.connector_transaction_id.clone()),
             ..Default::default()
@@ -988,7 +994,10 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NuveiPaymentFlowRequest {
         Self::try_from(NuveiPaymentRequestData {
             client_request_id: item.attempt_id.clone(),
             connector_auth_type: item.connector_auth_type.clone(),
-            amount: item.request.get_amount()?.to_string(),
+            amount: utils::to_currency_base_unit(
+                item.request.get_amount()?,
+                item.request.get_currency()?,
+            )?,
             currency: item.request.get_currency()?,
             related_transaction_id: Some(item.request.connector_transaction_id.clone()),
             ..Default::default()
