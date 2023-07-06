@@ -47,16 +47,9 @@ fn main() {
 
     let mut newman_command = cmd::new("newman");
 
-    newman_command.arg("run");
-    newman_command.arg(&collection_path);
-
-    newman_command
-        .arg("--env-var")
-        .arg(format!("admin_api_key={admin_api_key}"));
-
-    newman_command
-        .arg("--env-var")
-        .arg(format!("baseUrl={base_url}"));
+    newman_command.args(["run", &collection_path]);
+    newman_command.args(["--env-var", &format!("admin_api_key={admin_api_key}")]);
+    newman_command.args(["--env-var", &format!("baseUrl={base_url}")]);
 
     if let Some(auth_type) = inner_map.get(&connector_name) {
         match auth_type {
