@@ -1,4 +1,4 @@
-use common_utils::{custom_serde, pii};
+use common_utils::pii;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
@@ -132,29 +132,28 @@ pub struct RefundListRequest {
     pub payment_id: Option<String>,
     /// Limit on the number of objects to return
     pub limit: Option<i64>,
-    /// The time at which refund is created
-    #[serde(default, with = "custom_serde::iso8601::option")]
-    pub created: Option<PrimitiveDateTime>,
-    /// Time less than the refund created time
-    #[serde(default, rename = "created.lt", with = "custom_serde::iso8601::option")]
-    pub created_lt: Option<PrimitiveDateTime>,
-    /// Time greater than the refund created time
-    #[serde(default, rename = "created.gt", with = "custom_serde::iso8601::option")]
-    pub created_gt: Option<PrimitiveDateTime>,
-    /// Time less than or equals to the refund created time
-    #[serde(
-        default,
-        rename = "created.lte",
-        with = "custom_serde::iso8601::option"
-    )]
-    pub created_lte: Option<PrimitiveDateTime>,
-    /// Time greater than or equals to the refund created time
-    #[serde(
-        default,
-        rename = "created.gte",
-        with = "custom_serde::iso8601::option"
-    )]
-    pub created_gte: Option<PrimitiveDateTime>,
+    /// The starting point within a list of objects
+    pub offset: Option<i64>,
+    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
+    pub time_range: Option<TimeRange>,
+    /// The list of connectors to filter refunds list
+    pub connector: Option<Vec<String>>,
+    /// The list of currencies to filter refunds list
+    #[schema(value_type = Option<Vec<Currency>>)]
+    pub currency: Option<Vec<enums::Currency>>,
+    /// The list of refund statuses to filter refunds list
+    #[schema(value_type = Option<Vec<RefundStatus>>)]
+    pub refund_status: Option<Vec<enums::RefundStatus>>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, ToSchema)]
+pub struct TimeRange {
+    /// The start time to filter refunds list or to get list of filters. To get list of filters start time is needed to be passed
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub start_time: PrimitiveDateTime,
+    /// The end time to filter refunds list or to get list of filters. If not passed the default time is now
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub end_time: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
@@ -165,9 +164,31 @@ pub struct RefundListResponse {
     pub data: Vec<RefundResponse>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, ToSchema)]
+pub struct RefundListMetaData {
+    /// The list of available connector filters
+    pub connector: Vec<String>,
+    /// The list of available currency filters
+    #[schema(value_type = Vec<Currency>)]
+    pub currency: Vec<enums::Currency>,
+    /// The list of available refund status filters
+    #[schema(value_type = Vec<RefundStatus>)]
+    pub status: Vec<enums::RefundStatus>,
+}
+
 /// The status for refunds
 #[derive(
-    Debug, Eq, Clone, Copy, PartialEq, Default, Deserialize, Serialize, ToSchema, strum::Display,
+    Debug,
+    Eq,
+    Clone,
+    Copy,
+    PartialEq,
+    Default,
+    Deserialize,
+    Serialize,
+    ToSchema,
+    strum::Display,
+    strum::EnumIter,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum RefundStatus {
