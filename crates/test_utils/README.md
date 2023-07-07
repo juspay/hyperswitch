@@ -4,7 +4,7 @@ The main part of running tests through `newman`.
 
 # Usage
 
-- Make sure you that you've the postman collection for the connector is ready in the `postman` dir with the name `<connector_name>.postman_collection.json`
+- Make sure you that you've the postman collection for the connector available in the `postman` dir with the name `<connector_name>.postman_collection.json`
 - Add the connector credentials to the `connector_auth.toml` / `auth.toml`
 - In terminal, execute:
   ```zsh

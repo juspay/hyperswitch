@@ -113,6 +113,8 @@ time = { version = "0.3.21", features = ["macros"] }
 tokio = "1.28.2"
 toml = "0.7.4"
 wiremock = "0.5"
+
+# First party dev-dependencies
 test_utils = { version = "0.1.0", path = "../test_utils" }
 
 [[bin]]
