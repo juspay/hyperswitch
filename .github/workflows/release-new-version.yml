@@ -1,0 +1,54 @@
+name: Release a new version
+
+on:
+  schedule:
+    - cron: "30 12 * * *" # Run workflow at 6 PM IST
+
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Allow more retries for network requests in cargo (downloading crates) and
+  # rustup (installing toolchains). This should help to reduce flaky CI failures
+  # from transient network timeouts or other issues.
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+
+jobs:
+  create-release:
+    name: Release a new version
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.AUTO_RELEASE_PAT }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Install cocogitto
+        uses: baptiste0928/cargo-install@v2.0.0
+        with:
+          crate: cocogitto
+          version: 5.4.0
+
+      - name: Update changelog and create tag
+        shell: bash
+        run: |
+          git config --local user.name 'github-actions[bot]'
+          git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          cog bump --auto
+
+      - name: Push created commit and tag
+        shell: bash
+        run: |
+          git push
+          git push --tags
