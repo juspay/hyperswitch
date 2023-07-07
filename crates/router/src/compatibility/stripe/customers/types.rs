@@ -1,6 +1,6 @@
 use std::{convert::From, default::Default};
 
-use api_models::payment_methods as api_types;
+use api_models::{payment_methods as api_types, customers};
 
 use common_utils::{
     crypto::Encryptable,
@@ -16,9 +16,11 @@ use crate::{
 
 use serde::{Deserialize, Serialize};
 
-use masking::Secret;
+use masking::{Secret, SerializableSecret};
 
 use crate::{logger, types::api};
+
+impl SerializableSecret for AddressDetails {}
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct Shipping {
@@ -45,7 +47,7 @@ pub struct CreateCustomerRequest {
     pub invoice_prefix: Option<String>,
     pub name: Option<Secret<String>>,
     pub phone: Option<Secret<String>>,
-    pub address: Option<Secret<serde_json::Value>>,
+    pub address: Option<Secret<AddressDetails>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub description: Option<String>,
     pub shipping: Option<Shipping>,
@@ -70,7 +72,7 @@ pub struct CustomerUpdateRequest {
     pub email: Option<Email>,
     pub phone: Option<Secret<String, masking::WithType>>,
     pub name: Option<Secret<String>>,
-    pub address: Option<Secret<serde_json::Value>>,
+    pub address: Option<Secret<AddressDetails>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub shipping: Option<Shipping>,
     pub payment_method: Option<String>, // not used
@@ -108,6 +110,22 @@ pub struct CustomerDeleteResponse {
     pub deleted: bool,
 }
 
+impl From<AddressDetails> for customers::AddressDetails {
+    fn from(address: AddressDetails) -> Self {
+        Self {
+            city: address.city,
+            country: address.country,
+            line1: address.line1,
+            line2: address.line2,
+            zip: address.postal_code,
+            state: address.state,
+            first_name: None,
+            line3: None,
+            last_name: None,
+        }
+    }
+}
+
 impl From<CreateCustomerRequest> for api::CustomerRequest {
     fn from(req: CreateCustomerRequest) -> Self {
         Self {
@@ -117,7 +135,7 @@ impl From<CreateCustomerRequest> for api::CustomerRequest {
             email: req.email,
             description: req.description,
             metadata: req.metadata,
-            address: req.address,
+            address: req.address.map(|s| s.map(Into::into)),
             ..Default::default()
         }
     }
@@ -131,6 +149,7 @@ impl From<CustomerUpdateRequest> for api::CustomerRequest {
             email: req.email,
             description: req.description,
             metadata: req.metadata,
+            address: req.address.map(|s| s.map(Into::into)),
             ..Default::default()
         }
     }
@@ -190,9 +209,9 @@ pub struct PaymentMethodData {
 pub struct CardDetails {
     pub country: Option<String>,
     pub last4: Option<String>,
-    pub exp_month: Option<masking::Secret<String>>,
-    pub exp_year: Option<masking::Secret<String>>,
-    pub fingerprint: Option<masking::Secret<String>>,
+    pub exp_month: Option<Secret<String>>,
+    pub exp_year: Option<Secret<String>>,
+    pub fingerprint: Option<Secret<String>>,
 }
 
 impl From<api::CustomerPaymentMethodsListResponse> for CustomerPaymentMethodListResponse {

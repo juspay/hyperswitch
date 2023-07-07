@@ -1,4 +1,5 @@
 use common_utils::{consts, crypto, custom_serde, pii};
+use masking::SerializableSecret;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -6,6 +7,8 @@ use utoipa::ToSchema;
 use crate::{
     enums as api_enums,
 };
+
+impl SerializableSecret for AddressDetails {}
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -75,7 +78,7 @@ pub struct CustomerRequest {
     pub phone_country_code: Option<String>,
     /// The address for the customer
     #[schema(value_type = Option<AddressDetails>)]
-    pub address: Option<AddressDetails>,
+    pub address: Option<Secret<AddressDetails>>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
     /// characters long. Metadata is useful for storing additional, structured information on an
     /// object.
@@ -105,7 +108,7 @@ pub struct CustomerResponse {
     pub description: Option<String>,
     /// The address for the customer
     #[schema(value_type = Option<AddressDetails>)]
-    pub address: Option<AddressDetails>,
+    pub address: Option<Secret<AddressDetails>>,
     ///  A timestamp (ISO 8601 code) that determines when the customer was created
     #[schema(value_type = PrimitiveDateTime,example = "2023-01-18T11:04:09.922Z")]
     #[serde(with = "custom_serde::iso8601")]
