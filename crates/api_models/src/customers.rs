@@ -7,8 +7,8 @@ use crate::{
     enums as api_enums,
 };
 
-#[serde(deny_unknown_fields)]
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AddressDetails {
     /// The address city
     #[schema(max_length = 50, example = "New York")]
@@ -74,17 +74,7 @@ pub struct CustomerRequest {
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
     /// The address for the customer
-    #[schema(value_type = Option<Object>,example = json!({
-    "city": "Bangalore",
-    "country": "IN",
-    "line1": "Hyperswitch router",
-    "line2": "Koramangala",
-    "line3": "Stallion",
-    "state": "Karnataka",
-    "zip": "560095",
-    "first_name": "John",
-    "last_name": "Doe"
-  }))]
+    #[schema(value_type = Option<AddressDetails>)]
     pub address: Option<AddressDetails>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
     /// characters long. Metadata is useful for storing additional, structured information on an
@@ -114,18 +104,8 @@ pub struct CustomerResponse {
     #[schema(max_length = 255, example = "First Customer")]
     pub description: Option<String>,
     /// The address for the customer
-    #[schema(value_type = Option<Object>,example = json!({
-    "city": "Bangalore",
-    "country": "IN",
-    "line1": "Hyperswitch router",
-    "line2": "Koramangala",
-    "line3": "Stallion",
-    "state": "Karnataka",
-    "zip": "560095",
-    "first_name": "John",
-    "last_name": "Doe"
-  }))]
-    pub address: Option<Secret<serde_json::Value>>,
+    #[schema(value_type = Option<AddressDetails>)]
+    pub address: Option<AddressDetails>,
     ///  A timestamp (ISO 8601 code) that determines when the customer was created
     #[schema(value_type = PrimitiveDateTime,example = "2023-01-18T11:04:09.922Z")]
     #[serde(with = "custom_serde::iso8601")]
