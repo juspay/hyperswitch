@@ -86,20 +86,26 @@ pub async fn add_payment_method(
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
     let response = match req.card.clone() {
-        Some(card) => add_card_to_locker(state, req, card, customer_id, merchant_account)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Add Card Failed"),
+        Some(card) => add_card_to_locker(
+            state,
+            req.clone(),
+            card,
+            customer_id.clone(),
+            merchant_account,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Card Failed"),
         None => {
             let pm_id = generate_id(consts::ID_LENGTH, "pm");
             let payment_method_response = api::PaymentMethodResponse {
                 merchant_id: merchant_id.to_string(),
-                customer_id: Some(customer_id),
+                customer_id: Some(customer_id.clone()),
                 payment_method_id: pm_id,
                 payment_method: req.payment_method,
                 payment_method_type: req.payment_method_type,
                 card: None,
-                metadata: req.metadata,
+                metadata: req.metadata.clone(),
                 created: Some(common_utils::date_time::now()),
                 recurring_enabled: false,           //[#219]
                 installment_payment_enabled: false, //[#219]
@@ -108,7 +114,27 @@ pub async fn add_payment_method(
             Ok((payment_method_response, false))
         }
     };
-    Ok(response?.0).map(services::ApplicationResponse::Json)
+
+    let (resp, is_duplicate) = response?;
+    if !is_duplicate {
+        let pm_metadata = resp
+            .metadata
+            .as_ref()
+            .map(|data| data.clone().expose());
+        create_payment_method(
+            &*state.store,
+            &req,
+            &customer_id.clone(),
+            &resp.payment_method_id,
+            &resp.merchant_id,
+            pm_metadata,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to Payment Method")?;
+    }
+
+    Ok(resp).map(services::ApplicationResponse::Json)
 }
 
 #[instrument(skip_all)]
