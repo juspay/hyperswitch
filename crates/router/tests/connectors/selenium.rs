@@ -336,40 +336,43 @@ pub trait SeleniumTest {
 
     async fn make_redirection_payment(
         &self,
-        c: WebDriver,
+        web_driver: WebDriver,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
         // To support failure retries
-        let result = self.execute_steps(c.clone(), actions.clone()).await;
+        let result = self
+            .execute_steps(web_driver.clone(), actions.clone())
+            .await;
         if result.is_err() {
-            self.execute_steps(c, actions).await
+            self.execute_steps(web_driver, actions).await
         } else {
             result
         }
     }
     async fn execute_steps(
         &self,
-        c: WebDriver,
+        web_driver: WebDriver,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
         let config = self.get_configs().automation_configs.unwrap();
         if config.run_minimum_steps.unwrap() {
-            self.complete_actions(&c, actions[..3].to_vec()).await
+            self.complete_actions(&web_driver, actions[..3].to_vec())
+                .await
         } else {
-            self.complete_actions(&c, actions).await
+            self.complete_actions(&web_driver, actions).await
         }
     }
     async fn make_gpay_payment(
         &self,
-        c: WebDriver,
+        web_driver: WebDriver,
         url: &str,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
-        self.execute_gpay_steps(c, url, actions).await
+        self.execute_gpay_steps(web_driver, url, actions).await
     }
     async fn execute_gpay_steps(
         &self,
-        c: WebDriver,
+        web_driver: WebDriver,
         url: &str,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
@@ -411,17 +414,17 @@ pub trait SeleniumTest {
             Event::Trigger(Trigger::Click(By::ClassName("jfk-button-action"))),
             Event::Trigger(Trigger::SwitchTab(Position::Prev)),
         ];
-        self.complete_actions(&c, default_actions).await?;
-        self.complete_actions(&c, actions).await
+        self.complete_actions(&web_driver, default_actions).await?;
+        self.complete_actions(&web_driver, actions).await
     }
     async fn make_paypal_payment(
         &self,
-        c: WebDriver,
+        web_driver: WebDriver,
         url: &str,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
         self.complete_actions(
-            &c,
+            &web_driver,
             vec![
                 Event::Trigger(Trigger::Goto(url)),
                 Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
@@ -466,7 +469,7 @@ pub trait SeleniumTest {
             Event::Trigger(Trigger::Click(By::Id("payment-submit-btn"))),
         ];
         pypl_actions.extend(actions);
-        self.complete_actions(&c, pypl_actions).await
+        self.complete_actions(&web_driver, pypl_actions).await
     }
 }
 async fn is_text_present_now(driver: &WebDriver, key: &str) -> WebDriverResult<bool> {
@@ -516,9 +519,9 @@ macro_rules! tester_inner {
             // make sure we close, even if an assertion fails
             let client = driver.clone();
             let x = runtime.block_on(async move {
-                let r = tokio::spawn($execute(driver)).await;
+                let run = tokio::spawn($execute(driver)).await;
                 let _ = client.quit().await;
-                r
+                run
             });
             drop(runtime);
             x.expect("test panicked")
@@ -544,8 +547,8 @@ pub fn get_browser() -> String {
     "firefox".to_string()
 }
 
-pub fn make_capabilities(s: &str) -> Capabilities {
-    match s {
+pub fn make_capabilities(browser: &str) -> Capabilities {
+    match browser {
         "firefox" => {
             let mut caps = DesiredCapabilities::firefox();
             let ignore_profile = env::var("IGNORE_BROWSER_PROFILE").ok();
@@ -566,6 +569,7 @@ pub fn make_capabilities(s: &str) -> Capabilities {
         &_ => DesiredCapabilities::safari().into(),
     }
 }
+
 fn get_chrome_profile_path() -> Result<String, WebDriverError> {
     let exe = env::current_exe()?;
     let dir = exe.parent().expect("Executable must be in some directory");
@@ -580,6 +584,7 @@ fn get_chrome_profile_path() -> Result<String, WebDriverError> {
     base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#); //Issue: 1573
     Ok(base_path)
 }
+
 fn get_firefox_profile_path() -> Result<String, WebDriverError> {
     let exe = env::current_exe()?;
     let dir = exe.parent().expect("Executable must be in some directory");
@@ -595,8 +600,8 @@ fn get_firefox_profile_path() -> Result<String, WebDriverError> {
     Ok(base_path)
 }
 
-pub fn make_url(s: &str) -> &'static str {
-    match s {
+pub fn make_url(browser: &str) -> &'static str {
+    match browser {
         "firefox" => "http://localhost:4444",
         "chrome" => "http://localhost:9515",
         &_ => "",
@@ -608,13 +613,13 @@ pub fn handle_test_error(
 ) -> bool {
     match res {
         Ok(Ok(_)) => true,
-        Ok(Err(e)) => {
-            eprintln!("test future failed to resolve: {:?}", e);
+        Ok(Err(web_driver_error)) => {
+            eprintln!("test future failed to resolve: {:?}", web_driver_error);
             false
         }
         Err(e) => {
-            if let Some(e) = e.downcast_ref::<WebDriverError>() {
-                eprintln!("test future panicked: {:?}", e);
+            if let Some(web_driver_error) = e.downcast_ref::<WebDriverError>() {
+                eprintln!("test future panicked: {:?}", web_driver_error);
             } else {
                 eprintln!("test future panicked; an assertion probably failed");
             }

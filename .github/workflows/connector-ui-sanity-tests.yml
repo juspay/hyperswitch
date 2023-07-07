@@ -72,9 +72,9 @@ jobs:
         connector:
           # do not use more than 8 runners, try to group less time taking connectors together
           - stripe
-          - adyen_uk;shift4;worldline 
-          - airwallex;bluesnap;checkout
-          - paypal;mollie;payu
+          - adyen_uk,shift4,worldline
+          - airwallex,bluesnap,checkout
+          - paypal,mollie,payu
 
     steps:
       - name: Checkout repository
@@ -101,8 +101,8 @@ jobs:
       - name: Install latest compiler
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: stable
-            override: true
+          toolchain: stable
+          override: true
       - uses: Swatinem/rust-cache@v2.4.0
 
       - uses: baptiste0928/cargo-install@v2.0.0
@@ -123,14 +123,14 @@ jobs:
           INPUT: ${{ matrix.connector }}
         shell: bash
         run: sh .github/scripts/run_ui_tests.sh
-      
+
       - name: View test results
         shell: bash
         run: cat tests/test_results.log
 
       - name: Check test results
         shell: bash
-        run:  |
+        run: |
           if test "$( grep 'test result: FAILED' -r tests/test_results.log | wc -l )" -gt "0"; then
             exit 1
           fi
