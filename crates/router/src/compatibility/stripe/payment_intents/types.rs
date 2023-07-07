@@ -5,7 +5,7 @@ use common_utils::{
     crypto::Encryptable,
     date_time,
     ext_traits::StringExt,
-    pii::{self as secret, IpAddress},
+    pii::{SecretSerdeValue, IpAddress},
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
@@ -85,7 +85,7 @@ pub struct StripePaymentMethodData {
     pub billing_details: Option<StripeBillingDetails>,
     #[serde(flatten)]
     pub payment_method_details: Option<StripePaymentMethodDetails>, // enum
-    pub metadata: Option<secret::SecretSerdeValue>,
+    pub metadata: Option<SecretSerdeValue>,
 }
 
 #[derive(PartialEq, Eq, Deserialize, Clone)]
@@ -239,7 +239,7 @@ pub struct StripePaymentIntentRequest {
     pub shipping: Option<Shipping>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    pub metadata: Option<secret::SecretSerdeValue>,
+    pub metadata: Option<SecretSerdeValue>,
     pub client_secret: Option<Secret<String>>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
@@ -249,11 +249,11 @@ pub struct StripePaymentIntentRequest {
     pub receipt_ipaddress: Option<String>,
     pub user_agent: Option<String>,
     pub mandate_data: Option<MandateData>,
-    pub automatic_payment_methods: Option<secret::SecretSerdeValue>, // not used
+    pub automatic_payment_methods: Option<SecretSerdeValue>, // not used
     pub payment_method: Option<String>,                              // not used
     pub confirmation_method: Option<String>,                         // not used
     pub error_on_requires_action: Option<String>,                    // not used
-    pub radar_options: Option<secret::SecretSerdeValue>,             // not used
+    pub radar_options: Option<SecretSerdeValue>,             // not used
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
@@ -442,7 +442,7 @@ pub struct StripePaymentIntentResponse {
     pub customer: Option<String>,
     pub refunds: Option<Vec<stripe_refunds::StripeRefundResponse>>,
     pub mandate: Option<String>,
-    pub metadata: Option<secret::SecretSerdeValue>,
+    pub metadata: Option<SecretSerdeValue>,
     pub charges: Charges,
     pub connector: Option<String>,
     pub description: Option<String>,
