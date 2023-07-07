@@ -3700,8 +3700,11 @@
             "maxLength": 255
           },
           "address": {
-            "type": "object",
-            "description": "The address for the customer",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
             "nullable": true
           },
           "metadata": {
@@ -3760,8 +3763,11 @@
             "maxLength": 255
           },
           "address": {
-            "type": "object",
-            "description": "The address for the customer",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
             "nullable": true
           },
           "created_at": {
