@@ -1,4 +1,4 @@
-name: Postman Collection API test
+name: Postman Collection Runner
 
 on:
   workflow_dispatch:
