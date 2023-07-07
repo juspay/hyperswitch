@@ -70,13 +70,13 @@ where
 fn get_globlepay_query_params(
     connector_auth_type: &types::ConnectorAuthType,
 ) -> CustomResult<String, errors::ConnectorError> {
-    let api_key = get_globepay_api_key(connector_auth_type)?;
+    let auth_type = globepay::GlobepayAuthType::try_from(connector_auth_type)?;
     let time = (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000).to_string();
     let nonce_str = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
     let valid_string = format!(
         "{}&{time}&{nonce_str}&{}",
-        api_key.partner_code.expose(),
-        api_key.credential_code.expose()
+        auth_type.partner_code.expose(),
+        auth_type.credential_code.expose()
     );
     let digest = crypto::Sha256
         .generate_digest(valid_string.as_bytes())
@@ -90,16 +90,8 @@ fn get_globlepay_query_params(
 fn get_partner_code(
     connector_auth_type: &types::ConnectorAuthType,
 ) -> CustomResult<String, errors::ConnectorError> {
-    let api_key = get_globepay_api_key(connector_auth_type)?;
-    Ok(api_key.partner_code.expose())
-}
-
-fn get_globepay_api_key(
-    connector_auth_type: &types::ConnectorAuthType,
-) -> CustomResult<globepay::GlobepayAuthType, errors::ConnectorError> {
-    let auth_type = globepay::GlobepayAuthType::try_from(connector_auth_type)
-        .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-    Ok(auth_type)
+    let auth_type = globepay::GlobepayAuthType::try_from(connector_auth_type)?;
+    Ok(auth_type.partner_code.expose())
 }
 
 impl ConnectorCommon for Globepay {
@@ -113,13 +105,6 @@ impl ConnectorCommon for Globepay {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.globepay.base_url.as_ref()
-    }
-
-    fn get_auth_header(
-        &self,
-        _auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![])
     }
 
     fn build_error_response(

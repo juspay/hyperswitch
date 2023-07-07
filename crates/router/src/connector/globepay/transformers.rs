@@ -29,11 +29,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobepayPaymentsRequest {
                 api::WalletData::AliPay(_) => GlobepayChannel::Alipay,
                 api::WalletData::WeChatPay(_) => GlobepayChannel::Wechat,
                 _ => Err(errors::ConnectorError::NotImplemented(
-                    "Payment methods".to_string(),
+                    "Payment method".to_string(),
                 ))?,
             },
             _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment methods".to_string(),
+                "Payment method".to_string(),
             ))?,
         };
         let description =
@@ -79,7 +79,7 @@ pub enum GlobepayPaymentStatus {
 impl From<GlobepayPaymentStatus> for enums::AttemptStatus {
     fn from(item: GlobepayPaymentStatus) -> Self {
         match item {
-            GlobepayPaymentStatus::Success => Self::AuthenticationPending,
+            GlobepayPaymentStatus::Success => Self::AuthenticationPending, // this connector only have redirection flows so "Success" is mapped to authenticatoin pending ,ref = "https://pay.globepay.co/docs/en/#api-QRCode-NewQRCode"
             GlobepayPaymentStatus::Exists => Self::Failure,
         }
     }
@@ -162,7 +162,7 @@ impl<F, T>
             })
         } else {
             Ok(Self {
-                status: enums::AttemptStatus::Failure,
+                status: enums::AttemptStatus::Failure, //As this connector gives 200 in failed scenarios . if return_code is not success status is mapped to failure. ref = "https://pay.globepay.co/docs/en/#api-QRCode-NewQRCode"
                 response: Err(types::ErrorResponse {
                     code: item.response.return_code.to_string(),
                     message: item.response.return_code.to_string(),
