@@ -47,6 +47,8 @@ jobs:
           git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
           cog bump --auto
 
-      - name: Push created tag
+      - name: Push created commit and tag
         shell: bash
-        run: git push --atomic --tags
+        run: |
+          git push
+          git push --tags
