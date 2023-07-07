@@ -131,7 +131,7 @@ pub async fn add_payment_method(
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to Payment Method")?;
+        .attach_printable("Failed to save Payment Method")?;
     }
 
     Ok(resp).map(services::ApplicationResponse::Json)
