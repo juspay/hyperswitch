@@ -4,17 +4,6 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
-## 1.1.1 (2023-07-07)
-
-### Bug Fixes
-
-- **release-new-version:** Temporarily whitelist branch to test ([`1fb1289`](https://github.com/juspay/hyperswitch/commit/1fb1289e1c9e2d2962752c1872df46466fca972f))
-
-**Full Changelog:** [`v1.1.0...v1.1.1`](https://github.com/juspay/hyperswitch/compare/v1.1.0...v1.1.1)
-
-- - -
-
-
 ## 1.1.0 (2023-07-07)
 
 ### Features
