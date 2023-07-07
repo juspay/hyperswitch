@@ -200,8 +200,12 @@ where
         };
 
         if should_delete_pm_from_locker(payment_data.payment_intent.status) {
-            vault::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token)
-                .await
+            let _ = vault::Vault::delete_locker_payment_method_by_lookup_key(
+                state,
+                &payment_data.token,
+                &payment_data.payment_attempt.payment_method,
+            )
+            .await;
         }
     } else {
         (_, payment_data) = operation
