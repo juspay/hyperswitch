@@ -1,12 +1,9 @@
 use common_utils::{consts, crypto, custom_serde, pii};
-use masking::SerializableSecret;
-use masking::Secret;
+use masking::{Secret, SerializableSecret};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{
-    enums as api_enums,
-};
+use crate::enums as api_enums;
 
 impl SerializableSecret for AddressDetails {}
 

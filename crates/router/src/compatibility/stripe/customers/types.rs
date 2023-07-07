@@ -1,24 +1,18 @@
 use std::{convert::From, default::Default};
 
-use api_models::{payment_methods as api_types, customers};
-
+use api_models::{customers, payment_methods as api_types};
 use common_utils::{
     crypto::Encryptable,
     date_time,
     pii::{self, Email},
 };
-
-use crate::{
-    types::{
-        api::{enums as api_enums},
-    },
-};
-
+use masking::{Secret, SerializableSecret};
 use serde::{Deserialize, Serialize};
 
-use masking::{Secret, SerializableSecret};
-
-use crate::{logger, types::api};
+use crate::{
+    logger,
+    types::{api, api::enums as api_enums},
+};
 
 impl SerializableSecret for AddressDetails {}
 
@@ -51,19 +45,19 @@ pub struct CreateCustomerRequest {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub description: Option<String>,
     pub shipping: Option<Shipping>,
-    pub payment_method: Option<String>, // not used
-    pub balance: Option<i64>, // not used
+    pub payment_method: Option<String>,              // not used
+    pub balance: Option<i64>,                        // not used
     pub cash_balance: Option<pii::SecretSerdeValue>, // not used
-    pub coupon: Option<String>, // not used
+    pub coupon: Option<String>,                      // not used
     pub invoice_settings: Option<pii::SecretSerdeValue>, // not used
-    pub next_invoice_sequence: Option<String>, // not used
-    pub preferred_locales: Option<String>, // not used
-    pub promotion_code: Option<String>, // not used
-    pub source: Option<String>, // not used
-    pub tax: Option<pii::SecretSerdeValue>, // not used
-    pub tax_exempt: Option<String>, // not used
-    pub tax_id_data: Option<String>, // not used
-    pub test_clock: Option<String>, // not used
+    pub next_invoice_sequence: Option<String>,       // not used
+    pub preferred_locales: Option<String>,           // not used
+    pub promotion_code: Option<String>,              // not used
+    pub source: Option<String>,                      // not used
+    pub tax: Option<pii::SecretSerdeValue>,          // not used
+    pub tax_exempt: Option<String>,                  // not used
+    pub tax_id_data: Option<String>,                 // not used
+    pub test_clock: Option<String>,                  // not used
 }
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -75,18 +69,18 @@ pub struct CustomerUpdateRequest {
     pub address: Option<Secret<AddressDetails>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub shipping: Option<Shipping>,
-    pub payment_method: Option<String>, // not used
-    pub balance: Option<i64>, // not used
+    pub payment_method: Option<String>,              // not used
+    pub balance: Option<i64>,                        // not used
     pub cash_balance: Option<pii::SecretSerdeValue>, // not used
-    pub coupon: Option<String>, // not used
-    pub default_source: Option<String>, // not used
+    pub coupon: Option<String>,                      // not used
+    pub default_source: Option<String>,              // not used
     pub invoice_settings: Option<pii::SecretSerdeValue>, // not used
-    pub next_invoice_sequence: Option<String>, // not used
-    pub preferred_locales: Option<String>, // not used
-    pub promotion_code: Option<String>, // not used
-    pub source: Option<String>, // not used
-    pub tax: Option<pii::SecretSerdeValue>, // not used
-    pub tax_exempt: Option<String>, // not used
+    pub next_invoice_sequence: Option<String>,       // not used
+    pub preferred_locales: Option<String>,           // not used
+    pub promotion_code: Option<String>,              // not used
+    pub source: Option<String>,                      // not used
+    pub tax: Option<pii::SecretSerdeValue>,          // not used
+    pub tax_exempt: Option<String>,                  // not used
 }
 
 #[derive(Default, Serialize, PartialEq, Eq)]

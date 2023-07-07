@@ -1,6 +1,4 @@
-use common_utils::{
-    crypto::{Encryptable, GcmAes256},
-};
+use common_utils::crypto::{Encryptable, GcmAes256};
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
