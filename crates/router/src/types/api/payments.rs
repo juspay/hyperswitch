@@ -2,12 +2,13 @@ pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
     CryptoData, CustomerAcceptance, MandateData, MandateTransactionType, MandateType,
     MandateValidationFields, NextActionType, OnlineMandate, PayLaterData, PaymentIdType,
-    PaymentListConstraints, PaymentListResponse, PaymentMethodData, PaymentMethodDataResponse,
-    PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsCancelRequest,
-    PaymentsCaptureRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRequest,
-    PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest,
-    PaymentsSessionResponse, PaymentsStartRequest, PgRedirectResponse, PhoneDetails,
-    RedirectionResponse, SessionToken, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
+    PaymentListConstraints, PaymentListFilters, PaymentListResponse, PaymentMethodData,
+    PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials,
+    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
+    PaymentsRedirectionResponse, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
+    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
+    VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
@@ -233,6 +234,9 @@ mod payments_test {
             card_cvc: "123".to_string().into(),
             card_issuer: Some("HDFC".to_string()),
             card_network: Some(api_models::enums::CardNetwork::Visa),
+            bank_code: None,
+            card_issuing_country: None,
+            card_type: None,
             nick_name: Some(masking::Secret::new("nick_name".into())),
         }
     }
