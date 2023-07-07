@@ -181,7 +181,7 @@ pub struct MandateData {
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct CustomerAcceptance {
     #[serde(rename = "type")]
-    pub stype: AcceptanceType,
+    pub acceptance_type: AcceptanceType,
     pub accepted_at: Option<PrimitiveDateTime>,
     pub online: Option<OnlineMandate>,
 }
@@ -205,7 +205,7 @@ impl From<MandateData> for payments::MandateData {
     fn from(mandate: MandateData) -> Self {
         Self {
             customer_acceptance: Some(payments::CustomerAcceptance {
-                acceptance_type: mandate.customer_acceptance.stype.into(),
+                acceptance_type: mandate.customer_acceptance.acceptance_type.into(),
                 accepted_at: mandate.customer_acceptance.accepted_at,
                 online: mandate
                     .customer_acceptance
