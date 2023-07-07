@@ -437,6 +437,7 @@ pub enum PaymentMethodType {
     Klarna,
     MbWay,
     MobilePay,
+    Multibanco,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
     OnlineBankingPoland,
@@ -643,6 +644,7 @@ pub enum Connector {
     Fiserv,
     Forte,
     Globalpay,
+    // Globepay, added as template code for future usage
     Klarna,
     Mollie,
     Multisafepay,
@@ -653,7 +655,7 @@ pub enum Connector {
     // Opayo, added as template code for future usage
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    // Payme,
+    Payme,
     Paypal,
     Payu,
     Rapyd,
@@ -746,6 +748,7 @@ pub enum RoutableConnectors {
     Fiserv,
     Forte,
     Globalpay,
+    // Globepay, added as template code for future usage
     Iatapay,
     Klarna,
     Mollie,
@@ -757,7 +760,7 @@ pub enum RoutableConnectors {
     // Opayo, added as template code for future usage
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    // Payme,
+    Payme,
     Paypal,
     Payu,
     Rapyd,

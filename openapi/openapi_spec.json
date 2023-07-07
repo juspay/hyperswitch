@@ -2648,6 +2648,25 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "multibanco_bank_transfer"
+            ],
+            "properties": {
+              "multibanco_bank_transfer": {
+                "type": "object",
+                "required": [
+                  "billing_details"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/MultibancoBillingDetails"
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -2683,6 +2702,17 @@
             "properties": {
               "bacs_bank_instructions": {
                 "$ref": "#/components/schemas/BacsBankTransferInstructions"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "multibanco"
+            ],
+            "properties": {
+              "multibanco": {
+                "$ref": "#/components/schemas/MultibancoTransferInstructions"
               }
             }
           }
@@ -2917,6 +2947,7 @@
           "noon",
           "nuvei",
           "opennode",
+          "payme",
           "paypal",
           "payu",
           "rapyd",
@@ -5422,6 +5453,35 @@
       "MobilePayRedirection": {
         "type": "object"
       },
+      "MultibancoBillingDetails": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "example@me.com"
+          }
+        }
+      },
+      "MultibancoTransferInstructions": {
+        "type": "object",
+        "required": [
+          "reference",
+          "entity"
+        ],
+        "properties": {
+          "reference": {
+            "type": "string",
+            "example": "122385736258"
+          },
+          "entity": {
+            "type": "string",
+            "example": "12345"
+          }
+        }
+      },
       "NextActionCall": {
         "type": "string",
         "enum": [
@@ -5471,7 +5531,7 @@
           },
           {
             "type": "object",
-            "description": "contains third party sdk session token response",
+            "description": "Contains third party sdk session token response",
             "required": [
               "type"
             ],
@@ -5488,6 +5548,25 @@
                 "type": "string",
                 "enum": [
                   "third_party_sdk_session_token"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Contains url for Qr code image, this qr code has to be shown in sdk",
+            "required": [
+              "image_data_url",
+              "type"
+            ],
+            "properties": {
+              "image_data_url": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "qr_code_information"
                 ]
               }
             }
@@ -6317,6 +6396,7 @@
           "klarna",
           "mb_way",
           "mobile_pay",
+          "multibanco",
           "online_banking_czech_republic",
           "online_banking_finland",
           "online_banking_poland",
@@ -8525,8 +8605,22 @@
                 "$ref": "#/components/schemas/WeChatPayRedirection"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "we_chat_pay"
+            ],
+            "properties": {
+              "we_chat_pay": {
+                "$ref": "#/components/schemas/WeChatPay"
+              }
+            }
           }
         ]
+      },
+      "WeChatPay": {
+        "type": "object"
       },
       "WeChatPayRedirection": {
         "type": "object"

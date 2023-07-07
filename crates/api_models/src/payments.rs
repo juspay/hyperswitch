@@ -9,6 +9,7 @@ use common_utils::{
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
+use url::Url;
 use utoipa::ToSchema;
 
 use crate::{
@@ -177,7 +178,7 @@ pub struct PaymentsRequest {
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
-    pub return_url: Option<url::Url>,
+    pub return_url: Option<Url>,
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
@@ -820,6 +821,12 @@ pub struct AchBillingDetails {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct MultibancoBillingDetails {
+    #[schema(value_type = String, example = "example@me.com")]
+    pub email: Email,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SepaAndBacsBillingDetails {
     /// The Email ID for SEPA and BACS billing
     #[schema(value_type = String, example = "example@me.com")]
@@ -878,6 +885,10 @@ pub enum BankTransferData {
         /// The billing details for SEPA
         billing_details: SepaAndBacsBillingDetails,
     },
+    MultibancoBankTransfer {
+        /// The billing details for Multibanco
+        billing_details: MultibancoBillingDetails,
+    },
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
@@ -922,6 +933,8 @@ pub enum WalletData {
     SamsungPay(Box<SamsungPayWalletData>),
     /// The wallet data for WeChat Pay Redirection
     WeChatPayRedirect(Box<WeChatPayRedirection>),
+    /// The wallet data for WeChat Pay
+    WeChatPay(Box<WeChatPay>),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -960,6 +973,9 @@ pub struct ApplePayThirdPartySdkData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct WeChatPayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct WeChatPay {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaypalRedirection {}
@@ -1232,8 +1248,13 @@ pub enum NextActionData {
     DisplayBankTransferInformation {
         bank_transfer_steps_and_charges_details: BankTransferNextStepsData,
     },
-    /// contains third party sdk session token response
+    /// Contains third party sdk session token response
     ThirdPartySdkSessionToken { session_token: Option<SessionToken> },
+    /// Contains url for Qr code image, this qr code has to be shown in sdk
+    QrCodeInformation {
+        #[schema(value_type = String)]
+        image_data_url: Url,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1245,6 +1266,11 @@ pub struct BankTransferNextStepsData {
     pub receiver: ReceiverDetails,
 }
 
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct QrCodeNextStepsInstruction {
+    pub image_data_url: Url,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferInstructions {
@@ -1254,6 +1280,8 @@ pub enum BankTransferInstructions {
     SepaBankInstructions(Box<SepaBankTransferInstructions>),
     /// The instructions for BACS bank transactions
     BacsBankInstructions(Box<BacsBankTransferInstructions>),
+    /// The instructions for Multibanco bank transactions
+    Multibanco(Box<MultibancoTransferInstructions>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1275,6 +1303,14 @@ pub struct BacsBankTransferInstructions {
     pub account_number: Secret<String>,
     #[schema(value_type = String, example = "012")]
     pub sort_code: Secret<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct MultibancoTransferInstructions {
+    #[schema(value_type = String, example = "122385736258")]
+    pub reference: Secret<String>,
+    #[schema(value_type = String, example = "12345")]
+    pub entity: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
