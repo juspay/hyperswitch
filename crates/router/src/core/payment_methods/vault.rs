@@ -464,9 +464,29 @@ impl Vault {
     pub async fn delete_locker_payment_method_by_lookup_key(
         state: &routes::AppState,
         lookup_key: &Option<String>,
-    ) {
-        if let Some(lookup_key) = lookup_key {
-            let delete_resp = delete_tokenized_data(state, lookup_key).await;
+        payment_method: &Option<storage_models::enums::PaymentMethod>,
+    ) -> RouterResult<()> {
+        let hyperswitch_token = if let Some(token) = lookup_key {
+            let redis_conn = state.store.get_redis_conn();
+            let key = format!(
+                "pm_token_{}_{}_hyperswitch",
+                token,
+                payment_method.get_required_value("payment_method")?,
+            );
+
+            let hyperswitch_token_option = redis_conn
+                .get_key::<Option<String>>(&key)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to fetch the token from redis")?;
+
+            hyperswitch_token_option.or(lookup_key.clone())
+        } else {
+            None
+        };
+
+        if let Some(lookup_key) = hyperswitch_token {
+            let delete_resp = delete_tokenized_data(state, lookup_key.as_str()).await;
             match delete_resp {
                 Ok(resp) => {
                     if resp == "Ok" {
@@ -478,6 +498,7 @@ impl Vault {
                 Err(err) => logger::error!("Err: Deleting Card From Locker : {:?}", err),
             }
         }
+        Ok(())
     }
 }
 
