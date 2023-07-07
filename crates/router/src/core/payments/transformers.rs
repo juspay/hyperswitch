@@ -4,7 +4,7 @@ use api_models::payments::OrderDetailsWithAmount;
 use common_utils::fp_utils;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
-use storage_models::ephemeral_key;
+use storage_models::{ephemeral_key, payment_attempt::PaymentListFilters};
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
@@ -566,6 +566,17 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_method: pa.payment_method,
             payment_method_type: pa.payment_method_type,
             ..Default::default()
+        }
+    }
+}
+
+impl ForeignFrom<PaymentListFilters> for api_models::payments::PaymentListFilters {
+    fn foreign_from(item: PaymentListFilters) -> Self {
+        Self {
+            connector: item.connector,
+            currency: item.currency.into_iter().collect(),
+            status: item.status.into_iter().collect(),
+            payment_method: item.payment_method.into_iter().collect(),
         }
     }
 }

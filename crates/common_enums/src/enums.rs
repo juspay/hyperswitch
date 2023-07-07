@@ -309,6 +309,7 @@ pub enum EventType {
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
     ToSchema,
     serde::Deserialize,
