@@ -1265,6 +1265,38 @@ pub async fn list_payments(
     ))
 }
 
+#[cfg(feature = "olap")]
+pub async fn get_filters_for_payments(
+    db: &dyn StorageInterface,
+    merchant: domain::MerchantAccount,
+    time_range: api::TimeRange,
+) -> RouterResponse<api::PaymentListFilters> {
+    use crate::types::transformers::ForeignFrom;
+
+    let pi = db
+        .filter_payment_intents_by_time_range_constraints(
+            &merchant.merchant_id,
+            &time_range,
+            merchant.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let filters = db
+        .get_filters_for_payments(
+            &pi,
+            &merchant.merchant_id,
+            // since OLAP doesn't have KV. Force to get the data from PSQL.
+            storage_enums::MerchantStorageScheme::PostgresOnly,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let filters: api::PaymentListFilters = ForeignFrom::foreign_from(filters);
+
+    Ok(services::ApplicationResponse::Json(filters))
+}
+
 pub async fn add_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,

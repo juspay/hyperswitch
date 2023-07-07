@@ -145,3 +145,7 @@ key1 = "Evoucher PMT API Key"
 
 [globepay]
 api_key="API Key"
+
+
+[powertranz]
+api_key="API Key"
