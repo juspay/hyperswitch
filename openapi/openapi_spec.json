@@ -4992,9 +4992,7 @@
             "$ref": "#/components/schemas/ConnectorType"
           },
           "connector_name": {
-            "type": "string",
-            "description": "Name of the Connector",
-            "example": "stripe"
+            "$ref": "#/components/schemas/Connector"
           },
           "connector_label": {
             "type": "string",
