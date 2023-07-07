@@ -2,7 +2,10 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, schema::payment_attempt};
+use crate::{
+    enums::{self as storage_enums},
+    schema::payment_attempt,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_attempt)]
@@ -54,6 +57,13 @@ pub struct PaymentAttempt {
 
 #[cfg(feature = "kv_store")]
 impl crate::utils::storage_partitioning::KvStorePartition for PaymentAttempt {}
+#[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
+pub struct PaymentListFilters {
+    pub connector: Vec<String>,
+    pub currency: Vec<storage_enums::Currency>,
+    pub status: Vec<storage_enums::IntentStatus>,
+    pub payment_method: Vec<storage_enums::PaymentMethod>,
+}
 
 #[derive(
     Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,

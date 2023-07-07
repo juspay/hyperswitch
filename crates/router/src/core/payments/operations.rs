@@ -71,6 +71,7 @@ pub struct ValidateResult<'a> {
     pub payment_id: api::PaymentIdType,
     pub mandate_type: Option<api::MandateTransactionType>,
     pub storage_scheme: enums::MerchantStorageScheme,
+    pub requeue: bool,
 }
 
 #[allow(clippy::type_complexity)]
@@ -119,6 +120,8 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         &'a self,
         _db: &'a AppState,
         _payment_attempt: &storage::PaymentAttempt,
+        _requeue: bool,
+        _schedule_time: Option<time::PrimitiveDateTime>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }

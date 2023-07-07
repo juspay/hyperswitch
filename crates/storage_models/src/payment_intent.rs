@@ -38,7 +38,10 @@ pub struct PaymentIntent {
     pub business_label: String,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
-    pub udf: Option<pii::SecretSerdeValue>,
+    pub allowed_payment_method_types: Option<serde_json::Value>,
+    pub connector_metadata: Option<serde_json::Value>,
+    pub feature_metadata: Option<serde_json::Value>,
+    pub attempt_count: i16,
 }
 
 #[cfg(feature = "kv_store")]
@@ -86,7 +89,10 @@ pub struct PaymentIntentNew {
     pub business_label: String,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
-    pub udf: Option<pii::SecretSerdeValue>,
+    pub allowed_payment_method_types: Option<serde_json::Value>,
+    pub connector_metadata: Option<serde_json::Value>,
+    pub feature_metadata: Option<serde_json::Value>,
+    pub attempt_count: i16,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -130,7 +136,6 @@ pub enum PaymentIntentUpdate {
         statement_descriptor_suffix: Option<String>,
         order_details: Option<Vec<pii::SecretSerdeValue>>,
         metadata: Option<pii::SecretSerdeValue>,
-        udf: Option<pii::SecretSerdeValue>,
     },
     PaymentAttemptUpdate {
         active_attempt_id: String,
@@ -138,6 +143,7 @@ pub enum PaymentIntentUpdate {
     StatusAndAttemptUpdate {
         status: storage_enums::IntentStatus,
         active_attempt_id: String,
+        attempt_count: i16,
     },
 }
 
@@ -166,7 +172,7 @@ pub struct PaymentIntentUpdateInternal {
     pub statement_descriptor_suffix: Option<String>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
-    pub udf: Option<pii::SecretSerdeValue>,
+    pub attempt_count: Option<i16>,
 }
 
 impl PaymentIntentUpdate {
@@ -219,7 +225,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_suffix,
                 order_details,
                 metadata,
-                udf,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -238,7 +243,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_suffix,
                 order_details,
                 metadata,
-                udf,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate { metadata } => Self {
@@ -305,9 +309,11 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
                 active_attempt_id,
+                attempt_count,
             } => Self {
                 status: Some(status),
                 active_attempt_id: Some(active_attempt_id),
+                attempt_count: Some(attempt_count),
                 ..Default::default()
             },
         }

@@ -36,6 +36,12 @@ pub struct ConfigUpdateInternal {
     config: Option<String>,
 }
 
+impl ConfigUpdateInternal {
+    pub fn create_config(self, source: Config) -> Config {
+        Config { ..source }
+    }
+}
+
 impl From<ConfigUpdate> for ConfigUpdateInternal {
     fn from(config_update: ConfigUpdate) -> Self {
         match config_update {

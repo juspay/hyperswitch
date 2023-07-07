@@ -1,13 +1,19 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
-use error_stack::IntoReport;
+use std::collections::HashSet;
+
+use async_bb8_diesel::AsyncRunQueryDsl;
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl, Table};
+use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
-    enums, errors,
+    enums::{self, IntentStatus},
+    errors::{self, DatabaseError},
     payment_attempt::{
         PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
+        PaymentListFilters,
     },
+    payment_intent::PaymentIntent,
     schema::payment_attempt::dsl,
     PgPooledConn, StorageResult,
 };
@@ -41,7 +47,7 @@ impl PaymentAttempt {
         .await
         {
             Err(error) => match error.current_context() {
-                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
+                DatabaseError::NoFieldsToUpdate => Ok(self),
                 _ => Err(error),
             },
             result => result,
@@ -104,7 +110,7 @@ impl PaymentAttempt {
         .await?
         .into_iter()
         .fold(
-            Err(errors::DatabaseError::NotFound).into_report(),
+            Err(DatabaseError::NotFound).into_report(),
             |acc, cur| match acc {
                 Ok(value) if value.modified_at > cur.modified_at => Ok(value),
                 _ => Ok(cur),
@@ -173,5 +179,74 @@ impl PaymentAttempt {
             ),
         )
         .await
+    }
+    pub async fn get_filters_for_payments(
+        conn: &PgPooledConn,
+        pi: &[PaymentIntent],
+        merchant_id: &str,
+    ) -> StorageResult<PaymentListFilters> {
+        let active_attempts: Vec<String> = pi
+            .iter()
+            .map(|payment_intent| payment_intent.clone().active_attempt_id)
+            .collect();
+
+        let filter = <Self as HasTable>::table()
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(dsl::attempt_id.eq_any(active_attempts));
+
+        let intent_status: Vec<IntentStatus> = pi
+            .iter()
+            .map(|payment_intent| payment_intent.status)
+            .collect::<HashSet<IntentStatus>>()
+            .into_iter()
+            .collect();
+
+        let filter_connector = filter
+            .clone()
+            .select(dsl::connector)
+            .distinct()
+            .get_results_async::<Option<String>>(conn)
+            .await
+            .into_report()
+            .change_context(errors::DatabaseError::Others)
+            .attach_printable("Error filtering records by connector")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<String>>();
+
+        let filter_currency = filter
+            .clone()
+            .select(dsl::currency)
+            .distinct()
+            .get_results_async::<Option<enums::Currency>>(conn)
+            .await
+            .into_report()
+            .change_context(DatabaseError::Others)
+            .attach_printable("Error filtering records by currency")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<enums::Currency>>();
+
+        let filter_payment_method = filter
+            .clone()
+            .select(dsl::payment_method)
+            .distinct()
+            .get_results_async::<Option<enums::PaymentMethod>>(conn)
+            .await
+            .into_report()
+            .change_context(DatabaseError::Others)
+            .attach_printable("Error filtering records by payment method")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<enums::PaymentMethod>>();
+
+        let filters = PaymentListFilters {
+            connector: filter_connector,
+            currency: filter_currency,
+            status: intent_status,
+            payment_method: filter_payment_method,
+        };
+
+        Ok(filters)
     }
 }

@@ -22,6 +22,9 @@ aci = "aci"                   # Name of a connector
 encrypter = "encrypter"       # Used by the `ring` crate
 nin = "nin"                   # National identification number, a field used by PayU connector
 substituters = "substituters" # Present in `flake.nix`
+unsuccess = "unsuccess"       # Used in cryptopay request
+ba = "ba" # ignore minor commit conversions
+ede = "ede" # ignore minor commit conversions
 
 [files]
 extend-exclude = [

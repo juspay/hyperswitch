@@ -9,6 +9,7 @@ use quick_xml::de;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    crypto,
     errors::{self, CustomResult},
     fp_utils::when,
 };
@@ -254,6 +255,15 @@ where
         T: serde::de::DeserializeOwned,
     {
         self.expose().parse_value(type_name)
+    }
+}
+
+impl<E: ValueExt + Clone> ValueExt for crypto::Encryptable<E> {
+    fn parse_value<T>(self, type_name: &'static str) -> CustomResult<T, errors::ParsingError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        self.into_inner().parse_value(type_name)
     }
 }
 
