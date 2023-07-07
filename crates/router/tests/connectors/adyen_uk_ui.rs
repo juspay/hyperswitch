@@ -44,11 +44,7 @@ async fn should_make_adyen_3ds_payment_success(
             Event::Trigger(Trigger::SendKeys(By::ClassName("input-field"), "password")),
             Event::Trigger(Trigger::Click(By::Id("buttonSubmit"))),
             Event::Trigger(Trigger::Sleep(5)),
-            Event::Assert(Assert::IsPresent("Google")),
-            Event::Assert(Assert::Contains(
-                Selector::QueryParamStr,
-                "status=succeeded",
-            )),
+            Event::Assert(Assert::IsPresent("succeeded")),
         ],
     )
     .await?;
@@ -103,36 +99,45 @@ async fn should_make_adyen_klarna_mandate_payment(
     web_driver: WebDriver,
 ) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
-    conn.make_redirection_payment(web_driver,
+    conn.make_redirection_payment(
+        web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/klarna-redirect?amount=70.00&country=SE&currency=SEK&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=SEK&return_url={CHEKOUT_BASE_URL}/payments"))),
-            Event::Trigger(Trigger::Click(By::Id("klarna-redirect-btn"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/195"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Id("klarna-apf-iframe"))),
             Event::Trigger(Trigger::Click(By::Id("signInWithBankId"))),
             Event::Assert(Assert::IsPresent("Klart att betala")),
-            Event::EitherOr(Assert::IsPresent("Klart att betala"), vec![
-                Event::Trigger(Trigger::Click(By::Css("button[data-testid='confirm-and-pay']"))),
-            ],
-            vec![
-                Event::Trigger(Trigger::Click(By::Css("button[data-testid='SmoothCheckoutPopUp:skip']"))),
-                Event::Trigger(Trigger::Click(By::Css("button[data-testid='confirm-and-pay']"))),
-            ]
+            Event::EitherOr(
+                Assert::IsPresent("Klart att betala"),
+                vec![Event::Trigger(Trigger::Click(By::Css(
+                    "button[data-testid='confirm-and-pay']",
+                )))],
+                vec![
+                    Event::Trigger(Trigger::Click(By::Css(
+                        "button[data-testid='SmoothCheckoutPopUp:skip']",
+                    ))),
+                    Event::Trigger(Trigger::Click(By::Css(
+                        "button[data-testid='confirm-and-pay']",
+                    ))),
+                ],
             ),
             Event::Trigger(Trigger::SwitchTab(Position::Prev)),
             Event::Assert(Assert::IsPresent("succeeded")),
             Event::Assert(Assert::IsPresent("Mandate ID")),
-            Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
+            Event::Assert(Assert::IsPresent("man_")), // mandate id starting with man_
             Event::Trigger(Trigger::Click(By::Id("pm-mandate-btn"))),
             Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
             Event::Assert(Assert::IsPresent("succeeded")),
-    ]).await?;
+        ],
+    )
+    .await?;
     Ok(())
 }
 
-async fn should_make_adyen_alipay_hk_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_adyen_alipay_hk_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/162"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
@@ -146,6 +151,261 @@ async fn should_make_adyen_alipay_hk_payment(c: WebDriver) -> Result<(), WebDriv
                     Event::Assert(Assert::IsPresent("succeeded")),
                 ],
             ),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_paypal_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_paypal_payment(
+        web_driver,
+        &format!("{CHEKOUT_BASE_URL}/paypal-redirect?amount=10.00&country=DE&currency=EUR"),
+        vec![
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=processing"],
+            )),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_ach_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/58"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("succeeded")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_sepa_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/51"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("succeeded")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_bacs_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/54"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("processing")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_ideal_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/52"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::Click(By::ClassName("btnLink"))),
+            Event::Assert(Assert::IsPresent("succeeded")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_eps_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/61"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
+            Event::Assert(Assert::IsPresent("succeeded")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_blik_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/64"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("processing")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_bancontact_card_payment(
+    web_driver: WebDriver,
+) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/68"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::SendKeys(By::Id("username"), "admin")),
+            Event::Trigger(Trigger::SendKeys(By::Id("password"), "Juspay@123")),
+            Event::Trigger(Trigger::Click(By::ClassName("button"))),
+            Event::Assert(Assert::IsPresent("failed")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_wechatpay_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/75"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
+            Event::Assert(Assert::IsPresent("succeeded")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_mbway_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/196"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("processing")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_ebanking_fi_payment(
+    web_driver: WebDriver,
+) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/78"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::Click(By::ClassName("css-ns0tbt"))),
+            Event::Assert(Assert::IsPresent("succeeded")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_onlinebanking_pl_payment(
+    web_driver: WebDriver,
+) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/197"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::Click(By::Id("user_account_pbl_correct"))),
+            Event::Assert(Assert::IsPresent("succeeded")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+#[ignore]
+async fn should_make_adyen_giropay_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/70"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::SendKeys(
+                By::Css("input[id='tags']"),
+                "Testbank Fiducia 44448888 GENODETT488",
+            )),
+            Event::Trigger(Trigger::Click(By::Css("input[id='tags']"))),
+            Event::Trigger(Trigger::Sleep(3)),
+            Event::Trigger(Trigger::Click(By::Id("ui-id-3"))),
+            Event::Trigger(Trigger::Click(By::ClassName("blueButton"))),
+            Event::Trigger(Trigger::SendKeys(By::Name("sc"), "10")),
+            Event::Trigger(Trigger::SendKeys(By::Name("extensionSc"), "4000")),
+            Event::Trigger(Trigger::SendKeys(By::Name("customerName1"), "Hopper")),
+            Event::Trigger(Trigger::SendKeys(
+                By::Name("customerIBAN"),
+                "DE36444488881234567890",
+            )),
+            Event::Trigger(Trigger::Click(By::Css("input[value='Absenden']"))),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=processing"],
+            )),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_walley_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/198"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("Teknikmössor AB")),
+            Event::Trigger(Trigger::SwitchFrame(By::ClassName(
+                "collector-checkout-iframe",
+            ))),
+            Event::Assert(Assert::IsPresent("Identifisering")),
+            Event::Trigger(Trigger::Click(By::Id("purchase"))),
+            Event::Trigger(Trigger::SwitchTab(Position::Next)),
+            Event::Trigger(Trigger::Click(By::Id("optionLoggInnMedBankId"))),
+            Event::Trigger(Trigger::SwitchFrame(By::Css("iframe[title='BankID']"))),
+            Event::Assert(Assert::IsPresent("Engangskode")),
+            Event::Trigger(Trigger::SendKeys(By::Css("input[type='password']"), "otp")),
+            Event::Trigger(Trigger::Sleep(4)),
+            Event::Trigger(Trigger::Click(By::Css("button[title='Neste']"))),
+            Event::Assert(Assert::IsPresent("Ditt BankID-passord")),
+            Event::Trigger(Trigger::Sleep(4)),
+            Event::Trigger(Trigger::SendKeys(
+                By::Css("input[type='password']"),
+                "qwer1234",
+            )),
+            Event::Trigger(Trigger::Click(By::Css("button[title='Neste']"))),
+            Event::Trigger(Trigger::SwitchTab(Position::Prev)),
+            Event::Assert(Assert::IsPresent("succeeded")),
         ],
     )
     .await?;
@@ -196,6 +456,91 @@ fn should_make_adyen_3ds_payment_success_test() {
 #[ignore]
 fn should_make_adyen_alipay_hk_payment_test() {
     tester!(should_make_adyen_alipay_hk_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_paypal_payment_test() {
+    tester!(should_make_adyen_paypal_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_ach_payment_test() {
+    tester!(should_make_adyen_ach_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_sepa_payment_test() {
+    tester!(should_make_adyen_sepa_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_bacs_payment_test() {
+    tester!(should_make_adyen_bacs_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_ideal_payment_test() {
+    tester!(should_make_adyen_ideal_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_eps_payment_test() {
+    tester!(should_make_adyen_eps_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_blik_payment_test() {
+    tester!(should_make_adyen_blik_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_bancontact_card_payment_test() {
+    tester!(should_make_adyen_bancontact_card_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_wechatpay_payment_test() {
+    tester!(should_make_adyen_wechatpay_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_mbway_payment_test() {
+    tester!(should_make_adyen_mbway_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_ebanking_fi_payment_test() {
+    tester!(should_make_adyen_ebanking_fi_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_onlinebanking_pl_payment_test() {
+    tester!(should_make_adyen_onlinebanking_pl_payment);
+}
+
+#[ignore]
+#[test]
+#[serial]
+fn should_make_adyen_giropay_payment_test() {
+    tester!(should_make_adyen_giropay_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_walley_payment_test() {
+    tester!(should_make_adyen_walley_payment);
 }
 
 // https://hs-payments-test.netlify.app/paypal-redirect?amount=70.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD&apikey=dev_uFpxA0r6jjbVaxHSY3X0BZLL3erDUzvg3i51abwB1Bknu3fdiPxw475DQgnByn1z
