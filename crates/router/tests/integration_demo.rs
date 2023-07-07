@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 
 mod utils;
-
+use masking::PeekInterface;
 use test_utils::connector_auth::ConnectorAuthentication;
 use utils::{mk_service, ApiKey, AppClient, MerchantId, PaymentId, Status};
 
@@ -72,7 +72,7 @@ async fn partial_refund() {
             &server,
             &merchant_id,
             "stripe",
-            &authentication.checkout.unwrap().api_key,
+            &authentication.checkout.unwrap().api_key.peek(),
         )
         .await;
 
@@ -138,7 +138,7 @@ async fn exceed_refund() {
             &server,
             &merchant_id,
             "stripe",
-            &authentication.checkout.unwrap().api_key,
+            authentication.checkout.unwrap().api_key.peek(),
         )
         .await;
 
