@@ -4,7 +4,7 @@ use std::{
     str::FromStr,
 };
 
-use api_models::enums;
+use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 #[cfg(feature = "email")]
@@ -83,6 +83,7 @@ pub struct Settings {
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
     pub email: EmailSettings,
+    pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
 }
 
@@ -221,6 +222,17 @@ pub struct CurrencyCountryFlowFilter {
 #[serde(default)]
 pub struct NotAvailableFlows {
     pub capture_method: Option<enums::CaptureMethod>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct RequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct PaymentMethodType(pub HashMap<enums::PaymentMethodType, ConnectorFields>);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ConnectorFields {
+    pub fields: HashMap<enums::Connector, Vec<RequiredFieldInfo>>,
 }
 
 fn string_set_deser<'a, D>(
@@ -396,6 +408,7 @@ pub struct Connectors {
     pub fiserv: ConnectorParams,
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
+    pub globepay: ConnectorParams,
     pub iatapay: ConnectorParams,
     pub klarna: ConnectorParams,
     pub mollie: ConnectorParams,
@@ -488,7 +501,7 @@ pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct ApiKeys {
     /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
@@ -500,6 +513,10 @@ pub struct ApiKeys {
     /// hashes of API keys
     #[cfg(not(feature = "kms"))]
     pub hash_key: String,
+
+    // Specifies the number of days before API key expiry when email reminders should be sent
+    #[cfg(feature = "email")]
+    pub expiry_reminder_days: Vec<u8>,
 }
 
 #[cfg(feature = "s3")]
