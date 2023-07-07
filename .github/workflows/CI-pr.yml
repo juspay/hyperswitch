@@ -184,7 +184,7 @@ jobs:
       - name: Cargo hack redis_interface
         if: env.redis_interface_changes_exist == 'true'
         shell: bash
-        run: cargo hack check --each-feature --no-dev-deps
+        run: cargo hack check --each-feature --no-dev-deps -p redis_interface
 
       - name: Cargo hack router
         if: env.router_changes_exist == 'true'
