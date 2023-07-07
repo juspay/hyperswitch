@@ -159,13 +159,13 @@ impl From<Shipping> for payments::Address {
                 country_code: details.address.country.map(|country| country.to_string()),
             }),
             address: Some(payments::AddressDetails {
-                city: details.address.city.map(|city| city),
-                country: details.address.country.map(|country| country),
-                line1: details.address.line1.map(|line1| line1),
-                line2: details.address.line2.map(|line2| line2),
-                zip: details.address.postal_code.map(|postal_code| postal_code),
-                state: details.address.state.map(|state| state),
-                first_name: details.name.map(|name| name),
+                city: details.address.city,
+                country: details.address.country,
+                line1: details.address.line1,
+                line2: details.address.line2,
+                zip: details.address.postal_code,
+                state: details.address.state,
+                first_name: details.name,
                 line3: None,
                 last_name: None,
             }),
@@ -206,10 +206,7 @@ impl From<MandateData> for payments::MandateData {
         Self {
             customer_acceptance: Some(payments::CustomerAcceptance {
                 acceptance_type: mandate.customer_acceptance.stype.into(),
-                accepted_at: mandate
-                    .customer_acceptance
-                    .accepted_at
-                    .map(|accepted_at| accepted_at),
+                accepted_at: mandate.customer_acceptance.accepted_at,
                 online: mandate
                     .customer_acceptance
                     .online
@@ -254,7 +251,7 @@ pub struct StripePaymentIntentRequest {
     pub mandate_data: Option<MandateData>,
     pub automatic_payment_methods: Option<secret::SecretSerdeValue>, // not used
     pub payment_method: Option<String>,                              // not used
-    pub confirmation_method: Option<String>,                         //not used
+    pub confirmation_method: Option<String>,                         // not used
     pub error_on_requires_action: Option<String>,                    // not used
     pub radar_options: Option<secret::SecretSerdeValue>,             // not used
 }
