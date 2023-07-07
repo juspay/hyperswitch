@@ -5,7 +5,7 @@ use common_utils::{
     crypto::Encryptable,
     date_time,
     ext_traits::StringExt,
-    pii::{SecretSerdeValue, IpAddress},
+    pii::{IpAddress, SecretSerdeValue},
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
@@ -250,9 +250,9 @@ pub struct StripePaymentIntentRequest {
     pub user_agent: Option<String>,
     pub mandate_data: Option<MandateData>,
     pub automatic_payment_methods: Option<SecretSerdeValue>, // not used
-    pub payment_method: Option<String>,                              // not used
-    pub confirmation_method: Option<String>,                         // not used
-    pub error_on_requires_action: Option<String>,                    // not used
+    pub payment_method: Option<String>,                      // not used
+    pub confirmation_method: Option<String>,                 // not used
+    pub error_on_requires_action: Option<String>,            // not used
     pub radar_options: Option<SecretSerdeValue>,             // not used
 }
 
