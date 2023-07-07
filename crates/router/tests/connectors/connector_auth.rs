@@ -24,6 +24,7 @@ pub struct ConnectorAuthentication {
     pub fiserv: Option<SignatureKey>,
     pub forte: Option<MultiAuthKey>,
     pub globalpay: Option<BodyKey>,
+    pub globepay: Option<HeaderKey>,
     pub iatapay: Option<SignatureKey>,
     pub mollie: Option<HeaderKey>,
     pub multisafepay: Option<HeaderKey>,
@@ -144,4 +145,5 @@ pub struct AutomationConfigs {
     pub bluesnap_gateway_merchant_id: Option<String>,
     pub globalpay_gateway_merchant_id: Option<String>,
     pub run_minimum_steps: Option<bool>,
+    pub airwallex_merchant_name: Option<String>,
 }

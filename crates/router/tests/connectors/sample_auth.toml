@@ -144,3 +144,6 @@ key1 = "Evoucher PMT API Key"
 
 [tsys]
 api_key="API Key"
+
+[globepay]
+api_key="API Key"
