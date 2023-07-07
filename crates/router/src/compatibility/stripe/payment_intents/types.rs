@@ -431,16 +431,6 @@ impl From<StripePaymentCancelRequest> for payments::PaymentsCancelRequest {
     }
 }
 
-// #[derive(Default, PartialEq, Eq, Deserialize, Clone)]
-// pub struct StripeCaptureRequest {
-//     pub amount_to_capture: Option<i64>,
-//     pub metadata: Option<secret::SecretSerdeValue>,
-//     pub application_fee_amount: Option<i64>,
-//     pub statement_descriptor: Option<String>,
-//     pub statement_descriptor_suffix: Option<String>,
-//     pub transfer_data: Option<secret::SecretSerdeValue>
-// }
-
 #[derive(Default, Eq, PartialEq, Serialize, Debug)]
 pub struct StripePaymentIntentResponse {
     pub id: Option<String>,
