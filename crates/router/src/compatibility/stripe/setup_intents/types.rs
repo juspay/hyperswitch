@@ -89,6 +89,10 @@ impl From<StripeCard> for payments::Card {
             card_cvc: card.cvc,
             card_issuer: None,
             card_network: None,
+            bank_code: None,
+            card_issuing_country: None,
+            card_type: None,
+            nick_name: None,
         }
     }
 }
@@ -236,7 +240,6 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             statement_descriptor_name: item.statement_descriptor,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             metadata: metadata_object,
-            udf: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
             setup_future_usage: item.setup_future_usage,
             merchant_connector_details: item.merchant_connector_details,
@@ -418,7 +421,7 @@ impl From<payments::PaymentsResponse> for StripeSetupIntentResponse {
             charges: payment_intent::Charges::new(),
             created: resp.created,
             customer: resp.customer_id,
-            metadata: resp.udf,
+            metadata: resp.metadata,
             id: resp.payment_id,
             refunds: resp
                 .refunds
