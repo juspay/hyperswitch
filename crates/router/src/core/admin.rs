@@ -462,7 +462,7 @@ pub async fn create_payment_connector(
         business_country,
         &business_label,
         req.business_sub_label.as_ref(),
-        &req.connector_name,
+        &req.connector_name.to_string(),
     );
 
     let mut vec = Vec::new();
@@ -504,7 +504,7 @@ pub async fn create_payment_connector(
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
         connector_type: req.connector_type.foreign_into(),
-        connector_name: req.connector_name.clone(),
+        connector_name: req.connector_name.to_string(),
         merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
         connector_account_details: domain_types::encrypt(
             req.connector_account_details.ok_or(
