@@ -193,7 +193,7 @@ impl super::RedisConnectionPool {
                     seconds.unwrap_or(self.config.default_ttl.into()),
                 )),
                 Some(SetOptions::NX),
-                true,
+                false,
             )
             .await
             .into_report()

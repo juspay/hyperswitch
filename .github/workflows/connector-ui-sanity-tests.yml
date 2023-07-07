@@ -1,0 +1,133 @@
+name: Connector UI Sanity Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+  merge_group:
+    types:
+      - checks_requested
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Disable incremental compilation.
+  #
+  # Incremental compilation is useful as part of an edit-build-test-edit cycle,
+  # as it lets the compiler avoid recompiling code that hasn't changed. However,
+  # on CI, we're not making small edits; we're almost always building the entire
+  # project from scratch. Thus, incremental compilation on CI actually
+  # introduces *additional* overhead to support making future builds
+  # faster...but no future builds will ever occur in any given CI environment.
+  #
+  # See https://matklad.github.io/2021/09/04/fast-rust-builds.html#ci-workflow
+  # for details.
+  CARGO_INCREMENTAL: 1
+  # Allow more retries for network requests in cargo (downloading crates) and
+  # rustup (installing toolchains). This should help to reduce flaky CI failures
+  # from transient network timeouts or other issues.
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+  # Don't emit giant backtraces in the CI logs.
+  RUST_BACKTRACE: short
+  # Use cargo's sparse index protocol
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
+jobs:
+  test_connectors:
+    name: Run tests on stable toolchain for connectors
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      postgres:
+        image: postgres:14.5
+        env:
+          POSTGRES_USER: db_user
+          POSTGRES_PASSWORD: db_pass
+          POSTGRES_DB: hyperswitch_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    strategy:
+      fail-fast: false
+      matrix:
+        connector:
+          # do not use more than 8 runners, try to group less time taking connectors together
+          - stripe
+          - adyen_uk|shift4|worldline 
+          - airwallex|bluesnap|checkout
+          - paypal|mollie|payu
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Decrypt connector auth file
+        env:
+          CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
+        shell: bash
+        run: ./scripts/decrypt_connector_auth.sh
+
+      - name: Set connector auth file path in env
+        shell: bash
+        run: echo "CONNECTOR_AUTH_FILE_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
+
+      - name: Set connector tests file path in env
+        shell: bash
+        run: echo "CONNECTOR_TESTS_FILE_PATH=$HOME/target/test/connector_tests.json" >> $GITHUB_ENV
+
+      - name: Set ignore_browser_profile usage in env
+        shell: bash
+        run: echo "IGNORE_BROWSER_PROFILE=true" >> $GITHUB_ENV
+
+      - name: Install latest compiler
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            override: true
+      - uses: Swatinem/rust-cache@v2.4.0
+
+      - uses: baptiste0928/cargo-install@v2.0.0
+        with:
+          crate: diesel_cli
+          features: postgres
+          args: "--no-default-features"
+
+      - name: diesel migration run
+        shell: bash
+        env:
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
+        run: diesel migration run
+
+      - name: Start server
+        env:
+          UI_TESTCASES_PATH: ${{ secrets.UI_TESTCASES_PATH }}
+        shell: bash
+        run: sh .github/scripts/run_ui_tests.sh
+
+      - name: Run tests
+        shell: bash
+        run: |
+          IN="${{ matrix.connector }}"
+          connectors=(${IN//|/ })
+          for i in "${connectors[@]}"; do
+            cargo test --package router --test connectors -- "${i}_ui::" --test-threads=1
+          done
