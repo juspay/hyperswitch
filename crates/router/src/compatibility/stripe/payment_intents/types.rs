@@ -1,7 +1,12 @@
 use std::str::FromStr;
 
 use api_models::payments;
-use common_utils::{crypto::Encryptable, date_time, ext_traits::StringExt, pii as secret};
+use common_utils::{
+    crypto::Encryptable,
+    date_time,
+    ext_traits::StringExt,
+    pii::{self as secret, IpAddress},
+};
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -11,7 +16,7 @@ use crate::{
     compatibility::stripe::refunds::types as stripe_refunds,
     consts,
     core::errors,
-    pii::{self, Email, PeekInterface},
+    pii::{Email, PeekInterface},
     types::{
         api::{admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignTryFrom},
@@ -23,7 +28,7 @@ pub struct StripeBillingDetails {
     pub address: Option<payments::AddressDetails>,
     pub email: Option<Email>,
     pub name: Option<String>,
-    pub phone: Option<pii::Secret<String>>,
+    pub phone: Option<Secret<String>>,
 }
 
 impl From<StripeBillingDetails> for payments::Address {
@@ -44,10 +49,10 @@ impl From<StripeBillingDetails> for payments::Address {
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct StripeCard {
     pub number: cards::CardNumber,
-    pub exp_month: pii::Secret<String>,
-    pub exp_year: pii::Secret<String>,
-    pub cvc: pii::Secret<String>,
-    pub holder_name: Option<pii::Secret<String>>,
+    pub exp_month: Secret<String>,
+    pub exp_year: Secret<String>,
+    pub cvc: Secret<String>,
+    pub holder_name: Option<Secret<String>>,
 }
 
 #[derive(Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -132,8 +137,8 @@ pub struct Shipping {
     pub address: AddressDetails,
     pub name: Option<Secret<String>>,
     pub carrier: Option<String>,
-    pub phone: Option<pii::Secret<String>>,
-    pub tracking_number: Option<pii::Secret<String>>,
+    pub phone: Option<Secret<String>>,
+    pub tracking_number: Option<Secret<String>>,
 }
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -160,10 +165,10 @@ impl From<Shipping> for payments::Address {
                 line2: details.address.line2.map(|line2| line2),
                 zip: details.address.postal_code.map(|postal_code| postal_code),
                 state: details.address.state.map(|state| state),
-                first_name: details.name.map(|name | name),
+                first_name: details.name.map(|name| name),
                 line3: None,
                 last_name: None,
-            })
+            }),
         }
     }
 }
@@ -192,7 +197,7 @@ pub enum AcceptanceType {
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct OnlineMandate {
-    pub ip_address: Secret<String, secret::IpAddress>,
+    pub ip_address: Secret<String, IpAddress>,
     pub user_agent: String,
 }
 
@@ -201,13 +206,17 @@ impl From<MandateData> for payments::MandateData {
         Self {
             customer_acceptance: Some(payments::CustomerAcceptance {
                 acceptance_type: mandate.customer_acceptance.stype.into(),
-                accepted_at: mandate.customer_acceptance.accepted_at.map(|accepted_at| accepted_at),
-                online:mandate.customer_acceptance.online.map(|online| 
-                    payments::OnlineMandate {
+                accepted_at: mandate
+                    .customer_acceptance
+                    .accepted_at
+                    .map(|accepted_at| accepted_at),
+                online: mandate
+                    .customer_acceptance
+                    .online
+                    .map(|online| payments::OnlineMandate {
                         ip_address: Some(online.ip_address),
                         user_agent: online.user_agent,
-                    }
-                ),
+                    }),
             }),
             mandate_type: None, // need to decide what should be done for this field
         }
@@ -234,7 +243,7 @@ pub struct StripePaymentIntentRequest {
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: Option<secret::SecretSerdeValue>,
-    pub client_secret: Option<pii::Secret<String>>,
+    pub client_secret: Option<Secret<String>>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     pub mandate: Option<String>,
@@ -244,10 +253,10 @@ pub struct StripePaymentIntentRequest {
     pub user_agent: Option<String>,
     pub mandate_data: Option<MandateData>,
     pub automatic_payment_methods: Option<secret::SecretSerdeValue>, // not used
-    pub payment_method: Option<String>, // not used
-    pub confirmation_method: Option<String>, //not used
-    pub error_on_requires_action: Option<String>, // not used
-    pub radar_options: Option<secret::SecretSerdeValue> // not used
+    pub payment_method: Option<String>,                              // not used
+    pub confirmation_method: Option<String>,                         //not used
+    pub error_on_requires_action: Option<String>,                    // not used
+    pub radar_options: Option<secret::SecretSerdeValue>,             // not used
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
@@ -352,7 +361,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("convert to browser info failed")?,
             ),
-            
+
             ..Self::default()
         });
         request
@@ -441,7 +450,7 @@ pub struct StripePaymentIntentResponse {
     pub amount_capturable: Option<i64>,
     pub currency: String,
     pub status: StripePaymentStatus,
-    pub client_secret: Option<masking::Secret<String>>,
+    pub client_secret: Option<Secret<String>>,
     pub created: Option<i64>,
     pub customer: Option<String>,
     pub refunds: Option<Vec<stripe_refunds::StripeRefundResponse>>,
@@ -461,14 +470,14 @@ pub struct StripePaymentIntentResponse {
     pub shipping: Option<payments::Address>,
     pub billing: Option<payments::Address>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub capture_on: Option<time::PrimitiveDateTime>,
+    pub capture_on: Option<PrimitiveDateTime>,
     pub payment_token: Option<String>,
     pub email: Option<Email>,
-    pub phone: Option<masking::Secret<String>>,
+    pub phone: Option<Secret<String>>,
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub capture_method: Option<api_models::enums::CaptureMethod>,
-    pub name: Option<masking::Secret<String>>,
+    pub name: Option<Secret<String>>,
     pub last_payment_error: Option<LastPaymentError>,
 }
 
@@ -622,7 +631,7 @@ impl TryFrom<StripePaymentListConstraints> for payments::PaymentListConstraints 
 #[inline]
 fn from_timestamp_to_datetime(
     time: Option<i64>,
-) -> Result<Option<time::PrimitiveDateTime>, errors::ApiErrorResponse> {
+) -> Result<Option<PrimitiveDateTime>, errors::ApiErrorResponse> {
     if let Some(time) = time {
         let time = time::OffsetDateTime::from_unix_timestamp(time).map_err(|_| {
             errors::ApiErrorResponse::InvalidRequestData {
@@ -674,15 +683,15 @@ pub enum StripeMandateType {
 #[derive(PartialEq, Eq, Clone, Default, Deserialize, Serialize, Debug)]
 pub struct MandateOption {
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
-    pub accepted_at: Option<time::PrimitiveDateTime>,
+    pub accepted_at: Option<PrimitiveDateTime>,
     pub user_agent: Option<String>,
-    pub ip_address: Option<pii::Secret<String, common_utils::pii::IpAddress>>,
+    pub ip_address: Option<Secret<String, IpAddress>>,
     pub mandate_type: Option<StripeMandateType>,
     pub amount: Option<i64>,
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
-    pub start_date: Option<time::PrimitiveDateTime>,
+    pub start_date: Option<PrimitiveDateTime>,
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
-    pub end_date: Option<time::PrimitiveDateTime>,
+    pub end_date: Option<PrimitiveDateTime>,
 }
 
 impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments::MandateData> {
