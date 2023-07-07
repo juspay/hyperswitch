@@ -1327,7 +1327,7 @@ impl<'a>
         let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
-        let channel = get_channel_type(&item.request.payment_method_type);
+        let channel = None;
         let payment_method = match mandate_ref_id {
             payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
                 let adyen_mandate = AdyenMandate {
@@ -1400,7 +1400,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::Card)> for AdyenPay
             get_recurring_processing_model(item)?;
         let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
-        let channel = get_channel_type(&item.request.payment_method_type);
+        let channel = None;
         let return_url = item.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(card_data)?;
         Ok(AdyenPaymentRequest {
@@ -1450,7 +1450,7 @@ impl<'a>
         let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
-        let channel = get_channel_type(&item.request.payment_method_type);
+        let channel = None;
         let payment_method = AdyenPaymentMethod::try_from(bank_debit_data)?;
         let country_code = get_country_code(item);
         let request = AdyenPaymentRequest {
@@ -1501,7 +1501,7 @@ impl<'a>
         let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
-        let channel = get_channel_type(&item.request.payment_method_type);
+        let channel = None;
         let payment_method = AdyenPaymentMethod::try_from(bank_redirect_data)?;
         let (shopper_locale, country) = get_sofort_extra_details(item);
         let line_items = Some(get_line_items(item));
@@ -1619,7 +1619,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::PayLaterData)>
         let billing_address = get_address_info(item.address.billing.as_ref());
         let delivery_address = get_address_info(item.address.shipping.as_ref());
         let country_code = get_country_code(item);
-        let channel = get_channel_type(&item.request.payment_method_type);
+        let channel = None;
         let line_items = Some(get_line_items(item));
         let telephone_number = get_telephone_number(item);
         Ok(AdyenPaymentRequest {
