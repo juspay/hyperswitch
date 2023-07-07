@@ -1025,6 +1025,20 @@ pub struct UnresolvedResponseReason {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
+    UserFullName,
+    UserEmailAddress,
+    UserPhoneNumber,
+    UserCountry { options: Vec<String> },
+    UserAddressline1,
+    UserAddressline2,
+    UserAddressCity,
+    UserAddressPincode,
+    UserAddressState,
+    UserAddressCountry,
+    UserBlikCode,
+    FieldsComplete,
+    UserBillingName,
+    UserBank,
     Text,
     DropDown { options: Vec<String> },
 }
