@@ -1,6 +1,5 @@
 use common_utils::{
     crypto::{Encryptable, GcmAes256},
-    ext_traits::ValueExt,
 };
 use error_stack::ResultExt;
 use masking::ExposeInterface;
