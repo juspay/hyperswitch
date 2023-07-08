@@ -344,6 +344,7 @@ pub enum EventType {
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
@@ -696,6 +697,7 @@ pub enum PaymentMethodType {
     Klarna,
     MbWay,
     MobilePay,
+    Multibanco,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
     OnlineBankingPoland,
@@ -805,6 +807,33 @@ pub enum BankNames {
     VolkswagenBank,
     AliorBank,
     Boz,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum CardNetwork {
+    Visa,
+    Mastercard,
+    AmericanExpress,
+    JCB,
+    DinersClub,
+    Discover,
+    CartesBancaires,
+    UnionPay,
+    Interac,
+    RuPay,
+    Maestro,
 }
 
 #[derive(

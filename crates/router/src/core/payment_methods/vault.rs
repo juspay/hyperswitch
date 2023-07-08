@@ -106,6 +106,9 @@ impl Vaultable for api::Card {
             card_cvc: value2.card_security_code.unwrap_or_default().into(),
             card_issuer: None,
             card_network: None,
+            bank_code: None,
+            card_issuing_country: None,
+            card_type: None,
             nick_name: value1.nickname.map(masking::Secret::new),
         };
 
