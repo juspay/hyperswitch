@@ -1,0 +1,56 @@
+{# Using a literal newline to set the newline variable -#}
+{% set newline = "
+" -%}
+
+{% set commit_base_url = repository_url ~ "/commit/" -%}
+{% set compare_base_url = repository_url ~ "/compare/" -%}
+{% set pr_base_url = repository_url ~ "/pull/" -%}
+
+{% if version.tag -%}
+    ## {{ version.tag | trim_start_matches(pat="v") }} ({{ date | date(format="%Y-%m-%d") }})
+{% else -%}
+    {% set from = from.id -%}
+    {% set to = version.id -%}
+
+    {% set from_shorthand = from.id | truncate(length=7, end="") -%}
+    {% set to_shorthand = version.id | truncate(length=7, end="") -%}
+
+    ## Unreleased ([`{{ from_shorthand ~ ".." ~ to_shorthand }}`]({{ compare_base_url ~ from_shorthand ~ ".." ~ to_shorthand }}))
+{% endif -%}
+
+{% for type, typed_commits in commits | sort(attribute="type") | group_by(attribute="type") %}
+{# The `striptags` removes the HTML comments added while grouping -#}
+### {{ type | striptags | trim | upper_first }}
+{% for scope, scoped_commits in typed_commits | group_by(attribute="scope") %}
+- {{ "**" ~ scope ~ ":" ~ "**" -}}
+    {% for commit in scoped_commits | sort(attribute="date") -%}
+    {% set shorthand = commit.id | truncate(length=7, end="") -%}
+    {% set commit_link = commit_base_url ~ commit.id -%}
+    {# Replace PR numbers in commit message with PR link -#}
+    {% set pr_number = commit.summary | split(pat="(#") | last | trim_end_matches(pat=")") -%}
+    {% set pr_link = "[#" ~ pr_number ~ "](" ~  pr_base_url ~ pr_number ~ ")" -%}
+    {% if scoped_commits | length != 1 %}{{ newline ~ "  - " }}{% else %}{{ " " }}{% endif -%}
+    {{ commit.summary | upper_first | trim | replace(from="#" ~ pr_number, to=pr_link) }} ([`{{ shorthand }}`]({{ commit_link }}))
+    {%- endfor -%}
+{% endfor -%}
+
+{% for commit in typed_commits | unscoped | sort(attribute="date") -%}
+    {% set shorthand = commit.id | truncate(length=7, end="") -%}
+    {% set commit_link = commit_base_url ~ commit.id -%}
+    {# Replace PR numbers in commit message with PR link -#}
+    {% set pr_number = commit.summary | split(pat="(#") | last | trim_end_matches(pat=")") -%}
+    {% set pr_link = "[#" ~ pr_number ~ "](" ~  pr_base_url ~ pr_number ~ ")" -%}
+    {{ newline ~ "- "}}{{ commit.summary | upper_first | trim | replace(from="#" ~ pr_number, to=pr_link) }} ([`{{ shorthand  }}`]({{ commit_link }}))
+{%- endfor %}
+{% endfor %}
+{% if version.tag and from.tag -%}
+    **Full Changelog:** [`{{ from.tag ~ "..." ~ version.tag }}`]({{ compare_base_url ~ from.tag ~ "..." ~ version.tag }})
+{%- elif version.tag and from.id -%}
+    **Full Changelog:** [`{{ from.id ~ "..." ~ version.tag }}`]({{ compare_base_url ~ from.id ~ "..." ~ version.tag }})
+{%- else -%}
+    {% set from = from.id -%}
+    {% set to = version.id -%}
+    {% set from_shorthand = from.id | truncate(length=7, end="") -%}
+    {% set to_shorthand = version.id | truncate(length=7, end="") -%}
+    **Full Changelog:** [`{{ from_shorthand ~ "..." ~ to_shorthand }}`]({{ compare_base_url ~ from_shorthand ~ "..." ~ to_shorthand }})
+{%- endif %}

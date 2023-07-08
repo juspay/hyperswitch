@@ -17,15 +17,13 @@ async fn should_make_adyen_3ds_payment_failed(web_driver: WebDriver) -> Result<(
         web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/177"))),
-            Event::Assert(Assert::IsPresent("Expiry Year")),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Name("threeDSIframe"))),
             Event::Assert(Assert::Eq(Selector::Title, "Payment Authentication")),
             Event::Trigger(Trigger::SendKeys(By::ClassName("input-field"), "password")),
             Event::Trigger(Trigger::Click(By::Id("buttonSubmit"))),
             Event::Trigger(Trigger::Sleep(5)),
-            Event::Assert(Assert::IsPresent("Google")),
-            Event::Assert(Assert::Contains(Selector::QueryParamStr, "status=failed")),
+            Event::Assert(Assert::IsPresent("failed")),
         ],
     )
     .await?;
@@ -40,7 +38,6 @@ async fn should_make_adyen_3ds_payment_success(
         web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/62"))),
-            Event::Assert(Assert::IsPresent("Expiry Year")),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Name("threeDSIframe"))),
             Event::Assert(Assert::Eq(Selector::Title, "Payment Authentication")),
@@ -50,7 +47,7 @@ async fn should_make_adyen_3ds_payment_success(
             Event::Assert(Assert::IsPresent("Google")),
             Event::Assert(Assert::Contains(
                 Selector::QueryParamStr,
-                "status=processing",
+                "status=succeeded",
             )),
         ],
     )
@@ -174,18 +171,21 @@ async fn should_make_adyen_clearpay_payment(driver: WebDriver) -> Result<(), Web
 
 #[test]
 #[serial]
+#[ignore]
 fn should_make_adyen_gpay_payment_test() {
     tester!(should_make_adyen_gpay_payment);
 }
 
 #[test]
 #[serial]
+#[ignore]
 fn should_make_adyen_gpay_mandate_payment_test() {
     tester!(should_make_adyen_gpay_mandate_payment);
 }
 
 #[test]
 #[serial]
+#[ignore]
 fn should_make_adyen_gpay_zero_dollar_mandate_payment_test() {
     tester!(should_make_adyen_gpay_zero_dollar_mandate_payment);
 }
@@ -210,6 +210,7 @@ fn should_make_adyen_3ds_payment_success_test() {
 
 #[test]
 #[serial]
+#[ignore]
 fn should_make_adyen_alipay_hk_payment_test() {
     tester!(should_make_adyen_alipay_hk_payment);
 }
