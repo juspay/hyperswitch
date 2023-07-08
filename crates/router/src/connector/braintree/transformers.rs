@@ -1,6 +1,6 @@
 use api_models::payments;
 use base64::Engine;
-use masking::{ExposeInterface, Secret};
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -152,8 +152,8 @@ impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
         {
             let auth_key = format!(
                 "{}:{}",
-                public_key.to_owned().expose(),
-                private_key.to_owned().expose()
+                public_key.to_owned().peek(),
+                private_key.to_owned().peek()
             );
             let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
             Ok(Self {

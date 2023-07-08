@@ -5,7 +5,7 @@ use common_utils::{
     pii::Email,
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, Secret};
+use masking::{PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -366,9 +366,7 @@ pub enum LiabilityShift {
     Failed,
 }
 
-fn encode_payload(
-    payload: Vec<String>,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+fn encode_payload(payload: &[&str]) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let data = payload.join("");
     let digest = crypto::Sha256
         .generate_digest(data.as_bytes())
@@ -393,12 +391,12 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRe
             merchant_site_id: merchant_site_id.clone(),
             client_request_id: client_request_id.clone(),
             time_stamp: time_stamp.clone(),
-            checksum: encode_payload(vec![
-                merchant_id.expose(),
-                merchant_site_id.expose(),
-                client_request_id,
-                time_stamp.to_string(),
-                merchant_secret.expose(),
+            checksum: encode_payload(&[
+                merchant_id.peek(),
+                merchant_site_id.peek(),
+                &client_request_id,
+                &time_stamp.to_string(),
+                merchant_secret.peek(),
             ])?,
         })
     }
@@ -884,14 +882,14 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentsRequest {
                 .capture_method
                 .map(TransactionType::from)
                 .unwrap_or_default(),
-            checksum: encode_payload(vec![
-                merchant_id.expose(),
-                merchant_site_id.expose(),
-                client_request_id,
-                request.amount.clone(),
-                request.currency.clone().to_string(),
-                time_stamp,
-                merchant_secret.expose(),
+            checksum: encode_payload(&[
+                merchant_id.peek(),
+                merchant_site_id.peek(),
+                &client_request_id,
+                &request.amount.clone(),
+                &request.currency.to_string(),
+                &time_stamp,
+                merchant_secret.peek(),
             ])?,
             amount: request.amount,
             currency: request.currency,
@@ -917,15 +915,15 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentFlowRequest {
             merchant_site_id: merchant_site_id.to_owned(),
             client_request_id: client_request_id.clone(),
             time_stamp: time_stamp.clone(),
-            checksum: encode_payload(vec![
-                merchant_id.expose(),
-                merchant_site_id.expose(),
-                client_request_id,
-                request.amount.clone(),
-                request.currency.clone().to_string(),
-                request.related_transaction_id.clone().unwrap_or_default(),
-                time_stamp,
-                merchant_secret.expose(),
+            checksum: encode_payload(&[
+                merchant_id.peek(),
+                merchant_site_id.peek(),
+                &client_request_id,
+                &request.amount.clone(),
+                &request.currency.to_string(),
+                &request.related_transaction_id.clone().unwrap_or_default(),
+                &time_stamp,
+                merchant_secret.peek(),
             ])?,
             amount: request.amount,
             currency: request.currency,

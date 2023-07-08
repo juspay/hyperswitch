@@ -3,7 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::PeekInterface;
 use transformers as payu;
 
 use crate::{
@@ -46,7 +46,7 @@ where
 
         let auth_header = (
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", access_token.token.expose()).into_masked(),
+            format!("Bearer {}", access_token.token.peek()).into_masked(),
         );
 
         headers.push(auth_header);

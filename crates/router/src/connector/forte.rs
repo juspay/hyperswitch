@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface};
 use transformers as forte;
 
 use crate::{
@@ -93,8 +93,8 @@ impl ConnectorCommon for Forte {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let raw_basic_token = format!(
             "{}:{}",
-            auth.api_access_id.expose(),
-            auth.api_secret_key.expose()
+            auth.api_access_id.peek(),
+            auth.api_secret_key.peek()
         );
         let basic_token = format!("Basic {}", consts::BASE64_ENGINE.encode(raw_basic_token));
         Ok(vec![

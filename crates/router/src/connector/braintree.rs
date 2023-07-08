@@ -3,7 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface};
 
 use self::transformers as braintree;
 use crate::{
@@ -112,7 +112,7 @@ impl
         Ok(format!(
             "{}/merchants/{}/client_token",
             self.base_url(connectors),
-            auth_type.merchant_id.expose(),
+            auth_type.merchant_id.peek(),
         ))
     }
 

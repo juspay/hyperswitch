@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{date_time, ext_traits::StringExt};
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface};
 use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
 use transformers as rapyd;
@@ -47,8 +47,8 @@ impl Rapyd {
         } = auth;
         let to_sign = format!(
             "{http_method}{url_path}{salt}{timestamp}{}{}{body}",
-            access_key.to_owned().expose(),
-            secret_key.to_owned().expose()
+            access_key.to_owned().peek(),
+            secret_key.to_owned().peek()
         );
         let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.to_owned().expose().as_bytes());
         let tag = hmac::sign(&key, to_sign.as_bytes());
@@ -772,8 +772,8 @@ impl api::IncomingWebhook for Rapyd {
             .attach_printable("Could not convert body to UTF-8")?;
         let to_sign = format!(
             "{url_path}{salt}{timestamp}{}{}{body_string}",
-            access_key.expose(),
-            secret_key.expose()
+            access_key.peek(),
+            secret_key.peek()
         );
 
         Ok(to_sign.into_bytes())
@@ -804,7 +804,7 @@ impl api::IncomingWebhook for Rapyd {
             .parse_struct("RapydAuthType")
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret_key = auth.secret_key;
-        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.expose().as_bytes());
+        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.peek().as_bytes());
         let tag = hmac::sign(&key, &message);
         let hmac_sign = hex::encode(tag);
         Ok(hmac_sign.as_bytes().eq(&signature))

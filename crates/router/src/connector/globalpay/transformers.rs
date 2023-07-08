@@ -1,6 +1,6 @@
 use common_utils::crypto::{self, GenerateDigest};
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, Secret};
+use masking::{PeekInterface, Secret};
 use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -142,7 +142,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for GlobalpayRefreshTokenRequest {
             .attach_printable("Could not convert connector_auth to globalpay_auth")?;
 
         let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
-        let nonce_with_api_key = format!("{}{}", nonce, globalpay_auth.key.expose());
+        let nonce_with_api_key = format!("{}{}", nonce, globalpay_auth.key.peek());
         let secret_vec = crypto::Sha512
             .generate_digest(nonce_with_api_key.as_bytes())
             .change_context(errors::ConnectorError::RequestEncodingFailed)
