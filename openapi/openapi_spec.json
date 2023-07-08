@@ -5568,6 +5568,25 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "Contains the download url and the reference number for transaction",
+            "required": [
+              "voucher_details",
+              "type"
+            ],
+            "properties": {
+              "voucher_details": {
+                "$ref": "#/components/schemas/VoucherNextStepData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "display_voucher_information"
+                ]
+              }
+            }
           }
         ],
         "discriminator": {
