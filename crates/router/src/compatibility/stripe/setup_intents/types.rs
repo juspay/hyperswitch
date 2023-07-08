@@ -378,7 +378,6 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::DisplayVoucherInformation { .. } => {
             StripeNextAction::DisplayVoucherInformation
         }
-
     })
 }
 

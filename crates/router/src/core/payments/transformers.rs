@@ -668,17 +668,16 @@ pub fn voucher_next_steps_check(
 ) -> RouterResult<Option<api_models::payments::VoucherNextStepData>> {
     let voucher_next_step = if let Some(storage_models::enums::PaymentMethod::Voucher) =
         payment_attempt.payment_method
-    {   
-        let voucher_next_steps: Option<api_models::payments::VoucherNextStepData> =
-            payment_attempt
-                .connector_metadata
-                .map(|metadata| {
-                    metadata
-                        .parse_value("NextStepsRequirements")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse the Value to NextRequirements struct")
-                })
-                .transpose()?;
+    {
+        let voucher_next_steps: Option<api_models::payments::VoucherNextStepData> = payment_attempt
+            .connector_metadata
+            .map(|metadata| {
+                metadata
+                    .parse_value("NextStepsRequirements")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse the Value to NextRequirements struct")
+            })
+            .transpose()?;
         voucher_next_steps
     } else {
         None

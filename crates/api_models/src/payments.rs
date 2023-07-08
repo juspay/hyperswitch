@@ -1259,7 +1259,7 @@ pub enum NextActionData {
     /// Contains the download url and the reference number for transaction
     DisplayVoucherInformation {
         voucher_details: VoucherNextStepData,
-    }
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

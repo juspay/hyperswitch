@@ -159,11 +159,9 @@ impl ForeignFrom<(bool, AdyenStatus)> for storage_enums::AttemptStatus {
                 false => Self::Charged,
             },
             AdyenStatus::Cancelled => Self::Voided,
-            AdyenStatus::ChallengeShopper 
+            AdyenStatus::ChallengeShopper
             | AdyenStatus::RedirectShopper
-            | AdyenStatus::PresentToShopper => {
-                Self::AuthenticationPending
-            }
+            | AdyenStatus::PresentToShopper => Self::AuthenticationPending,
             AdyenStatus::Error | AdyenStatus::Refused => Self::Failure,
             AdyenStatus::Pending => Self::Pending,
             AdyenStatus::Received => Self::Started,
@@ -206,9 +204,9 @@ pub struct AdyenThreeDS {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum AdyenPaymentResponse {
-    AdyenResponse(AdyenResponse),
-    AdyenPresentToShopperResponse(AdyenPTSResponse),
-    AdyenRedirectResponse(AdyenRedirectionResponse),
+    Direct(AdyenResponse),
+    PresentToShopper(AdyenPTSResponse),
+    Redirect(AdyenRedirectionResponse),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1021,11 +1019,13 @@ fn get_country_code(item: &types::PaymentsAuthorizeRouterData) -> Option<api_enu
         .and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
 }
 
-fn get_social_security_number(voucher_data: &api_models::payments::VoucherData) -> Option<Secret<String>> {
+fn get_social_security_number(
+    voucher_data: &api_models::payments::VoucherData,
+) -> Option<Secret<String>> {
     match voucher_data {
-        payments::VoucherData::BoletoBancario { social_security_number } => {
-            Some(social_security_number.clone())
-        }
+        payments::VoucherData::BoletoBancario {
+            social_security_number,
+        } => Some(social_security_number.clone()),
     }
 }
 
@@ -1090,15 +1090,13 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
 
 impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> {
     type Error = Error;
-    fn try_from(
-        voucher_data: &api_models::payments::VoucherData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(voucher_data: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
         match voucher_data {
-            payments::VoucherData::BoletoBancario { .. } => Ok(AdyenPaymentMethod::BoletoBancario(Box::new(
-                AdyenVoucherData {
+            payments::VoucherData::BoletoBancario { .. } => Ok(AdyenPaymentMethod::BoletoBancario(
+                Box::new(AdyenVoucherData {
                     payment_type: PaymentType::BoletoBancario,
-                }
-            )))
+                }),
+            )),
         }
     }
 }
@@ -1834,7 +1832,6 @@ pub fn get_redirection_response(
     ),
     errors::ConnectorError,
 > {
-
     let status =
         storage_enums::AttemptStatus::foreign_from((is_manual_capture, response.result_code));
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
@@ -1926,7 +1923,6 @@ pub fn get_present_to_shopper_response(
         network_txn_id: None,
     };
 
-    
     Ok((status, error, payments_response_data))
 }
 
@@ -1946,15 +1942,15 @@ impl<F, Req>
         let item = items.0;
         let is_manual_capture = items.1;
         let (status, error, payment_response_data) = match item.response {
-            AdyenPaymentResponse::AdyenResponse(response) => {
+            AdyenPaymentResponse::Direct(response) => {
                 get_adyen_response(response, is_manual_capture, item.http_code)?
             }
-            AdyenPaymentResponse::AdyenPresentToShopperResponse(response) => {
+            AdyenPaymentResponse::PresentToShopper(response) => {
                 get_present_to_shopper_response(response, is_manual_capture, item.http_code)?
             }
-            AdyenPaymentResponse::AdyenRedirectResponse(response) => {
+            AdyenPaymentResponse::Redirect(response) => {
                 get_redirection_response(response, is_manual_capture, item.http_code)?
-            } 
+            }
         };
 
         Ok(Self {
