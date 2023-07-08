@@ -8560,23 +8560,23 @@
           {
             "type": "object",
             "required": [
-              "we_chat_pay_redirect"
-            ],
-            "properties": {
-              "we_chat_pay_redirect": {
-                "$ref": "#/components/schemas/WeChatPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
               "twint_redirect"
             ],
             "properties": {
               "twint_redirect": {
                 "type": "object",
                 "description": "Wallet data for Twint Redirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "we_chat_pay_redirect"
+            ],
+            "properties": {
+              "we_chat_pay_redirect": {
+                "$ref": "#/components/schemas/WeChatPayRedirection"
               }
             }
           },
