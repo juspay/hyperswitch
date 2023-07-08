@@ -1258,6 +1258,7 @@ pub enum NextActionData {
     },
     /// Contains the download url and the reference number for transaction
     DisplayVoucherInformation {
+        #[schema(value_type = String)]
         voucher_details: VoucherNextStepData,
     },
 }

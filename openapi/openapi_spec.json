@@ -5578,7 +5578,7 @@
             ],
             "properties": {
               "voucher_details": {
-                "$ref": "#/components/schemas/VoucherNextStepData"
+                "type": "string"
               },
               "type": {
                 "type": "string",
