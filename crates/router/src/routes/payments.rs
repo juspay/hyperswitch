@@ -692,7 +692,6 @@ pub async fn payments_cancel(
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
-// #[get("/list")]
 pub async fn payments_list(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -706,6 +705,28 @@ pub async fn payments_list(
         &req,
         payload,
         |state, auth, req| payments::list_payments(&*state.store, auth.merchant_account, req),
+        &auth::ApiKeyAuth,
+    )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[cfg(feature = "olap")]
+pub async fn get_filters_for_payments(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Json<payment_types::TimeRange>,
+) -> impl Responder {
+    let flow = Flow::PaymentsList;
+    let payload = payload.into_inner();
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        |state, auth, req| {
+            payments::get_filters_for_payments(&*state.store, auth.merchant_account, req)
+        },
         &auth::ApiKeyAuth,
     )
     .await
