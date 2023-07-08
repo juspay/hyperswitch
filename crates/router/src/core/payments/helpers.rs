@@ -2539,3 +2539,16 @@ pub async fn get_additional_payment_data(
         }
     }
 }
+
+pub fn validate_customer_access(
+    auth_flow: services::AuthFlow,
+    request: &api::PaymentsRequest,
+) -> Result<(), errors::ApiErrorResponse> {
+    if auth_flow == services::AuthFlow::Client && request.customer_id.is_some() {
+        return Err(errors::ApiErrorResponse::GenericUnauthorized {
+            message: "Unauthorised access to update customer".to_string(),
+        });
+    }
+
+    Ok(())
+}

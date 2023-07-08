@@ -15,6 +15,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         self,
         api::{self, PaymentIdTypeExt},
@@ -499,12 +500,13 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
         &'b self,
         request: &api::PaymentsRequest,
         merchant_account: &'a domain::MerchantAccount,
+        auth_flow: services::AuthFlow,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
-
+        helpers::validate_customer_access(auth_flow, request)?;
         let given_payment_id = match &request.payment_id {
             Some(id_type) => Some(
                 id_type

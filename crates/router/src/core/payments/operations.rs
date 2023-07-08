@@ -26,6 +26,7 @@ use crate::{
     core::errors::{self, CustomResult, RouterResult},
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         self, api, domain,
         storage::{self, enums},
@@ -80,6 +81,7 @@ pub trait ValidateRequest<F, R> {
         &'b self,
         request: &R,
         merchant_account: &'a domain::MerchantAccount,
+        _auth_flow: services::AuthFlow,
     ) -> RouterResult<(BoxedOperation<'b, F, R>, ValidateResult<'a>)>;
 }
 

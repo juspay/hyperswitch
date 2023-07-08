@@ -15,6 +15,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         api::{self, PaymentIdTypeExt},
         domain,
@@ -223,6 +224,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
         &'b self,
         request: &api::PaymentsSessionRequest,
         merchant_account: &'a domain::MerchantAccount,
+        _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         operations::ValidateResult<'a>,

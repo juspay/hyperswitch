@@ -16,6 +16,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         self,
         api::{self, enums as api_enums, PaymentIdTypeExt},
@@ -36,6 +37,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
         &'b self,
         request: &api::VerifyRequest,
         merchant_account: &'a domain::MerchantAccount,
+        _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::VerifyRequest>,
         operations::ValidateResult<'a>,
