@@ -8573,6 +8573,18 @@
           {
             "type": "object",
             "required": [
+              "vipps_redirect"
+            ],
+            "properties": {
+              "vipps_redirect": {
+                "type": "object",
+                "description": "Wallet data for Vipps Redirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "we_chat_pay_redirect"
             ],
             "properties": {
@@ -8589,30 +8601,6 @@
             "properties": {
               "we_chat_pay": {
                 "$ref": "#/components/schemas/WeChatPay"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "twint_redirect"
-            ],
-            "properties": {
-              "twint_redirect": {
-                "type": "object",
-                "description": "Wallet data for Twint Redirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "vipps_redirect"
-            ],
-            "properties": {
-              "vipps_redirect": {
-                "type": "object",
-                "description": "Wallet data for Vipps Redirection"
               }
             }
           }
