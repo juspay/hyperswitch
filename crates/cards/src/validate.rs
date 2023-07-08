@@ -1,6 +1,6 @@
 use std::{fmt, ops::Deref, str::FromStr};
 
-use masking::{Strategy, StrongSecret, WithType};
+use masking::{PeekInterface, Strategy, StrongSecret, WithType};
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
@@ -17,6 +17,12 @@ impl From<core::convert::Infallible> for CCValError {
 /// Card number
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CardNumber(StrongSecret<String, CardNumberStrategy>);
+
+impl CardNumber {
+    pub fn get_card_isin(self) -> String {
+        self.0.peek().chars().take(6).collect::<String>()
+    }
+}
 
 impl FromStr for CardNumber {
     type Err = CCValError;
