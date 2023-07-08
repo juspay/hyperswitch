@@ -1255,6 +1255,10 @@ pub enum NextActionData {
         #[schema(value_type = String)]
         image_data_url: Url,
     },
+    /// Contains the download url and the reference number for transaction
+    DisplayVoucherInformation {
+        voucher_details: VoucherNextStepData,
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1264,6 +1268,14 @@ pub struct BankTransferNextStepsData {
     pub bank_transfer_instructions: BankTransferInstructions,
     /// The details received by the receiver
     pub receiver: ReceiverDetails,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct VoucherNextStepData {
+    // Reference number required for the transaction
+    reference: String,
+    // Url to download the payment instruction
+    download_url: Option<Url>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]

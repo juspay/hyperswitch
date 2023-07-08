@@ -325,6 +325,8 @@ where
                 let next_action_containing_qr_code =
                     qr_code_next_steps_check(payment_attempt.clone())?;
 
+                let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
+
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                     || bank_transfer_next_steps.is_some()
                 {
@@ -337,6 +339,11 @@ where
                         .or(next_action_containing_qr_code.map(|qr_code_data| {
                             api_models::payments::NextActionData::QrCodeInformation {
                                 image_data_url: qr_code_data.image_data_url,
+                            }
+                        }))
+                        .or(next_action_voucher.map(|voucher_data| {
+                            api_models::payments::NextActionData::DisplayVoucherInformation {
+                                voucher_details: voucher_data,
                             }
                         }))
                         .or(Some(api_models::payments::NextActionData::RedirectToUrl {
@@ -631,6 +638,29 @@ pub fn bank_transfer_next_steps_check(
         None
     };
     Ok(bank_transfer_next_step)
+}
+
+pub fn voucher_next_steps_check(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::VoucherNextStepData>> {
+    let voucher_next_step = if let Some(storage_models::enums::PaymentMethod::Voucher) =
+        payment_attempt.payment_method
+    {   
+        let voucher_next_steps: Option<api_models::payments::VoucherNextStepData> =
+            payment_attempt
+                .connector_metadata
+                .map(|metadata| {
+                    metadata
+                        .parse_value("NextStepsRequirements")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse the Value to NextRequirements struct")
+                })
+                .transpose()?;
+        voucher_next_steps
+    } else {
+        None
+    };
+    Ok(voucher_next_step)
 }
 
 pub fn change_order_details_to_new_type(

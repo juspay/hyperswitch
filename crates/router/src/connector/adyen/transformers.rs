@@ -110,6 +110,7 @@ pub struct AdyenPaymentRequest<'a> {
     shopper_name: Option<ShopperName>,
     shopper_locale: Option<String>,
     shopper_email: Option<Email>,
+    social_security_number: Option<Secret<String>>,
     telephone_number: Option<Secret<String>>,
     billing_address: Option<Address>,
     delivery_address: Option<Address>,
@@ -142,6 +143,7 @@ pub enum AdyenStatus {
     Received,
     RedirectShopper,
     Refused,
+    PresentToShopper,
 }
 
 /// This implementation will be used only in Authorize, Automatic capture flow.
@@ -157,7 +159,9 @@ impl ForeignFrom<(bool, AdyenStatus)> for storage_enums::AttemptStatus {
                 false => Self::Charged,
             },
             AdyenStatus::Cancelled => Self::Voided,
-            AdyenStatus::ChallengeShopper | AdyenStatus::RedirectShopper => {
+            AdyenStatus::ChallengeShopper 
+            | AdyenStatus::RedirectShopper
+            | AdyenStatus::PresentToShopper => {
                 Self::AuthenticationPending
             }
             AdyenStatus::Error | AdyenStatus::Refused => Self::Failure,
@@ -203,6 +207,7 @@ pub struct AdyenThreeDS {
 #[serde(untagged)]
 pub enum AdyenPaymentResponse {
     AdyenResponse(AdyenResponse),
+    AdyenPresentToShopperResponse(AdyenPTSResponse),
     AdyenRedirectResponse(AdyenRedirectionResponse),
 }
 
@@ -227,6 +232,16 @@ pub struct AdyenRedirectionResponse {
     refusal_reason_code: Option<String>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenPTSResponse {
+    psp_reference: String,
+    result_code: AdyenStatus,
+    action: AdyenPTSAction,
+    refusal_reason: Option<String>,
+    refusal_reason_code: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenRedirectionAction {
@@ -240,10 +255,25 @@ pub struct AdyenRedirectionAction {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenPTSAction {
+    reference: String,
+    download_url: Option<Url>,
+    payment_method_type: Option<String>,
+    expires_at: Option<String>,
+    initial_amount: Option<Amount>,
+    pass_creation_token: Option<String>,
+    total_amount: Option<Amount>,
+    #[serde(rename = "type")]
+    type_of_response: Option<ActionType>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ActionType {
     Redirect,
     Await,
+    Voucher,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -265,6 +295,7 @@ pub enum AdyenPaymentMethod<'a> {
     ApplePay(Box<AdyenApplePay>),
     BancontactCard(Box<BancontactCardData>),
     Blik(Box<BlikRedirectionData>),
+    BoletoBancario(Box<AdyenVoucherData>),
     Eps(Box<BankRedirectionWithIssuer<'a>>),
     Giropay(Box<BankRedirectionPMData>),
     Gpay(Box<AdyenGPay>),
@@ -642,6 +673,12 @@ pub struct AdyenPayLaterData {
     payment_type: PaymentType,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct AdyenVoucherData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+}
+
 // Refunds Request and Response
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -677,6 +714,8 @@ pub enum PaymentType {
     AlipayHk,
     Applepay,
     Blik,
+    #[serde(rename = "boletobancario")]
+    BoletoBancario,
     Eps,
     Giropay,
     Googlepay,
@@ -814,6 +853,9 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
                 }
                 api_models::payments::PaymentMethodData::BankDebit(ref bank_debit) => {
                     AdyenPaymentRequest::try_from((item, bank_debit))
+                }
+                api_models::payments::PaymentMethodData::Voucher(ref voucher_data) => {
+                    AdyenPaymentRequest::try_from((item, voucher_data))
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.request.payment_method_type),
@@ -979,6 +1021,14 @@ fn get_country_code(item: &types::PaymentsAuthorizeRouterData) -> Option<api_enu
         .and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
 }
 
+fn get_social_security_number(voucher_data: &api_models::payments::VoucherData) -> Option<Secret<String>> {
+    match voucher_data {
+        payments::VoucherData::BoletoBancario { social_security_number } => {
+            Some(social_security_number.clone())
+        }
+    }
+}
+
 impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a> {
     type Error = Error;
     fn try_from(
@@ -1034,6 +1084,21 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
                 },
             ))),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+        }
+    }
+}
+
+impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> {
+    type Error = Error;
+    fn try_from(
+        voucher_data: &api_models::payments::VoucherData,
+    ) -> Result<Self, Self::Error> {
+        match voucher_data {
+            payments::VoucherData::BoletoBancario { .. } => Ok(AdyenPaymentMethod::BoletoBancario(Box::new(
+                AdyenVoucherData {
+                    payment_type: PaymentType::BoletoBancario,
+                }
+            )))
         }
     }
 }
@@ -1351,6 +1416,7 @@ impl<'a>
             shopper_name: None,
             shopper_email: None,
             shopper_locale: None,
+            social_security_number: None,
             billing_address: None,
             delivery_address: None,
             country_code: None,
@@ -1389,6 +1455,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::Card)> for AdyenPay
             shopper_name: None,
             shopper_email: None,
             shopper_locale: None,
+            social_security_number: None,
             billing_address: None,
             delivery_address: None,
             country_code: None,
@@ -1436,10 +1503,61 @@ impl<'a>
             shopper_name: None,
             shopper_locale: None,
             shopper_email: item.request.email.clone(),
+            social_security_number: None,
             telephone_number: None,
             billing_address: None,
             delivery_address: None,
             country_code,
+            line_items: None,
+            shopper_reference: None,
+            store_payment_method: None,
+        };
+        Ok(request)
+    }
+}
+
+impl<'a>
+    TryFrom<(
+        &types::PaymentsAuthorizeRouterData,
+        &api_models::payments::VoucherData,
+    )> for AdyenPaymentRequest<'a>
+{
+    type Error = Error;
+
+    fn try_from(
+        value: (
+            &types::PaymentsAuthorizeRouterData,
+            &api_models::payments::VoucherData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, voucher_data) = value;
+        let amount = get_amount_data(item);
+        let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+        let shopper_interaction = AdyenShopperInteraction::from(item);
+        let recurring_processing_model = get_recurring_processing_model(item)?.0;
+        let browser_info = get_browser_info(item)?;
+        let additional_data = get_additional_data(item);
+        let payment_method = AdyenPaymentMethod::try_from(voucher_data)?;
+        let return_url = item.request.get_return_url()?;
+        let social_security_number = get_social_security_number(voucher_data);
+        let request = AdyenPaymentRequest {
+            amount,
+            merchant_account: auth_type.merchant_account,
+            payment_method,
+            reference: item.payment_id.to_string(),
+            return_url,
+            browser_info,
+            shopper_interaction,
+            recurring_processing_model,
+            additional_data,
+            shopper_name: None,
+            shopper_locale: None,
+            shopper_email: item.request.email.clone(),
+            social_security_number,
+            telephone_number: None,
+            billing_address: None,
+            delivery_address: None,
+            country_code: None,
             line_items: None,
             shopper_reference: None,
             store_payment_method: None,
@@ -1488,6 +1606,7 @@ impl<'a>
             shopper_name: None,
             shopper_email: item.request.email.clone(),
             shopper_locale,
+            social_security_number: None,
             billing_address: None,
             delivery_address: None,
             country_code: country,
@@ -1552,6 +1671,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)>
             shopper_name: None,
             shopper_email: None,
             shopper_locale: None,
+            social_security_number: None,
             billing_address: None,
             delivery_address: None,
             country_code: None,
@@ -1600,6 +1720,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::PayLaterData)>
             shopper_name,
             shopper_email,
             shopper_locale: None,
+            social_security_number: None,
             billing_address,
             delivery_address,
             country_code,
@@ -1713,6 +1834,7 @@ pub fn get_redirection_response(
     ),
     errors::ConnectorError,
 > {
+
     let status =
         storage_enums::AttemptStatus::foreign_from((is_manual_capture, response.result_code));
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
@@ -1752,6 +1874,59 @@ pub fn get_redirection_response(
         connector_metadata: None,
         network_txn_id: None,
     };
+
+    Ok((status, error, payments_response_data))
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdyenMetaData {
+    download_url: Option<Url>,
+    reference: String,
+}
+
+pub fn get_present_to_shopper_response(
+    response: AdyenPTSResponse,
+    is_manual_capture: bool,
+    status_code: u16,
+) -> errors::CustomResult<
+    (
+        storage_enums::AttemptStatus,
+        Option<types::ErrorResponse>,
+        types::PaymentsResponseData,
+    ),
+    errors::ConnectorError,
+> {
+    let status =
+        storage_enums::AttemptStatus::foreign_from((is_manual_capture, response.result_code));
+    let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
+        Some(types::ErrorResponse {
+            code: response
+                .refusal_reason_code
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .refusal_reason
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: None,
+            status_code,
+        })
+    } else {
+        None
+    };
+
+    let metadata = serde_json::json!(AdyenMetaData {
+        download_url: response.action.download_url,
+        reference: response.action.reference,
+    });
+
+    let payments_response_data = types::PaymentsResponseData::TransactionResponse {
+        resource_id: types::ResponseId::ConnectorTransactionId(response.psp_reference),
+        redirection_data: None,
+        mandate_reference: None,
+        connector_metadata: Some(metadata),
+        network_txn_id: None,
+    };
+
+    
     Ok((status, error, payments_response_data))
 }
 
@@ -1774,9 +1949,12 @@ impl<F, Req>
             AdyenPaymentResponse::AdyenResponse(response) => {
                 get_adyen_response(response, is_manual_capture, item.http_code)?
             }
+            AdyenPaymentResponse::AdyenPresentToShopperResponse(response) => {
+                get_present_to_shopper_response(response, is_manual_capture, item.http_code)?
+            }
             AdyenPaymentResponse::AdyenRedirectResponse(response) => {
                 get_redirection_response(response, is_manual_capture, item.http_code)?
-            }
+            } 
         };
 
         Ok(Self {
