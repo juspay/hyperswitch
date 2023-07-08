@@ -1,11 +1,10 @@
 pub mod transformers;
 pub mod utils;
 
-use common_utils::{crypto::SignMessage, ext_traits};
+use common_utils::{crypto::SignMessage, errors::ErrorSwitch, ext_traits};
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
-use utils::WebhookApiErrorSwitch;
 
 use super::{errors::StorageErrorExt, metrics};
 use crate::{
