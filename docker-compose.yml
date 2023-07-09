@@ -164,7 +164,7 @@ services:
       start_period: 30s
       timeout: 10s
 
-  redis-queue:
+  redis-cluster:
     image: redis:7
     deploy:
       replicas: ${REDIS_CLUSTER_COUNT:-3}
@@ -179,10 +179,19 @@ services:
       - "6379"
       - "16379"
 
+  redis-standalone:
+    image: redis:7
+    labels:
+      - redis
+    networks:
+      - router_net
+    ports:
+      - "6379"
+
   redis-init:
     image: redis:7
     depends_on:
-      - redis-queue
+      - redis-cluster
     networks:
       - router_net
     command: "bash -c 'export COUNT=${REDIS_CLUSTER_COUNT:-3}
@@ -203,7 +212,7 @@ services:
 
       \ do
 
-      \ NODE=$COMPOSE_PROJECT_NAME-redis-queue-$$c:6379
+      \ NODE=$COMPOSE_PROJECT_NAME-redis-cluster-$$c:6379
 
       \ echo $$NODE
 
