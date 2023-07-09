@@ -23,6 +23,7 @@ pub enum PaymentOp {
     Confirm,
 }
 
+use crate::enums;
 #[derive(serde::Deserialize)]
 pub struct BankData {
     pub payment_method_type: api_enums::PaymentMethodType,
@@ -1600,6 +1601,34 @@ pub struct PaymentListResponse {
     pub size: usize,
     // The list of payments response objects
     pub data: Vec<PaymentsResponse>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct PaymentListFilters {
+    /// The list of available connector filters
+    #[schema(value_type = Vec<api_enums::Connector>)]
+    pub connector: Vec<String>,
+    /// The list of available currency filters
+    #[schema(value_type = Vec<Currency>)]
+    pub currency: Vec<enums::Currency>,
+    /// The list of available payment status filters
+    #[schema(value_type = Vec<IntentStatus>)]
+    pub status: Vec<enums::IntentStatus>,
+    /// The list of available payment method filters
+    #[schema(value_type = Vec<PaymentMethod>)]
+    pub payment_method: Vec<enums::PaymentMethod>,
+}
+
+#[derive(
+    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
+)]
+pub struct TimeRange {
+    /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub start_time: PrimitiveDateTime,
+    /// The end time to filter payments list or to get list of filters. If not passed the default time is now
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub end_time: Option<PrimitiveDateTime>,
 }
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize)]
