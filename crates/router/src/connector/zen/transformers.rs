@@ -41,7 +41,7 @@ pub struct ApiRequest {
     payment_channel: ZenPaymentChannels,
     amount: String,
     currency: enums::Currency,
-    payment_specific_data: ZenPaymentData,
+    payment_specific_data: ZenPaymentSpecificData,
     customer: ZenCustomerDetails,
     custom_ipn_url: String,
     items: Vec<ZenItemObject>,
@@ -75,6 +75,14 @@ pub enum ZenPaymentChannels {
     PclCard,
     PclGooglepay,
     PclApplepay,
+    PclBoacompraBoleto,
+    PclBoacompraEfecty,
+    PclBoacompraMultibanco,
+    PclBoacompraPagoefectivo,
+    PclBoacompraPix,
+    PclBoacompraPse,
+    PclBoacompraRedcompra,
+    PclBoacompraRedpagos,
 }
 
 #[derive(Debug, Serialize)]
@@ -82,6 +90,13 @@ pub enum ZenPaymentChannels {
 pub struct ZenCustomerDetails {
     email: pii::Email,
     ip: Secret<String, pii::IpAddress>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum ZenPaymentSpecificData {
+    ZenOnetimePayment(ZenPaymentData),
+    ZenGeneralPayment(ZenGeneralPaymentData),
 }
 
 #[derive(Debug, Serialize)]
@@ -96,6 +111,14 @@ pub struct ZenPaymentData {
     card: Option<ZenCardDetails>,
     descriptor: String,
     return_verify_url: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ZenGeneralPaymentData {
+    #[serde(rename = "type")]
+    payment_type: ZenPaymentTypes,
+    return_url: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -116,6 +139,7 @@ pub struct ZenBrowserDetails {
 #[serde(rename_all = "snake_case")]
 pub enum ZenPaymentTypes {
     Onetime,
+    General,
 }
 
 #[derive(Debug, Serialize)]
@@ -155,7 +179,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &Card)> for ZenPaymentsReques
         let ip = browser_info.get_ip_address()?;
         let browser_details = get_browser_details(&browser_info)?;
         let amount = utils::to_currency_base_unit(item.request.amount, item.request.currency)?;
-        let payment_specific_data = ZenPaymentData {
+        let payment_specific_data = ZenPaymentSpecificData::ZenOnetimePayment(ZenPaymentData {
             browser_details,
             //Connector Specific for cards
             payment_type: ZenPaymentTypes::Onetime,
@@ -167,10 +191,106 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &Card)> for ZenPaymentsReques
             }),
             descriptor: item.get_description()?.chars().take(24).collect(),
             return_verify_url: item.request.router_return_url.clone(),
-        };
+        });
         Ok(Self::ApiRequest(Box::new(ApiRequest {
             merchant_transaction_id: item.attempt_id.clone(),
             payment_channel: ZenPaymentChannels::PclCard,
+            currency: item.request.currency,
+            payment_specific_data,
+            customer: get_customer(item, ip)?,
+            custom_ipn_url: item.request.get_webhook_url()?,
+            items: get_item_object(item, amount.clone())?,
+            amount,
+        })))
+    }
+}
+
+impl
+    TryFrom<(
+        &types::PaymentsAuthorizeRouterData,
+        &api_models::payments::RewardData,
+    )> for ZenPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        value: (
+            &types::PaymentsAuthorizeRouterData,
+            &api_models::payments::RewardData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, reward_data) = value;
+        let browser_info = item.request.get_browser_info()?;
+        let ip = browser_info.get_ip_address()?;
+        let amount = get_amount(item.request.amount, item.request.currency)?;
+        let payment_specific_data =
+            ZenPaymentSpecificData::ZenGeneralPayment(ZenGeneralPaymentData {
+                //Connector Specific for Latam Methods
+                payment_type: ZenPaymentTypes::General,
+                return_url: item.request.get_router_return_url()?,
+            });
+        let payment_channel = match reward_data {
+            api_models::payments::RewardData::Boleto => ZenPaymentChannels::PclBoacompraBoleto,
+            api_models::payments::RewardData::Efecty => ZenPaymentChannels::PclBoacompraEfecty,
+            api_models::payments::RewardData::PagoEfectivo => {
+                ZenPaymentChannels::PclBoacompraPagoefectivo
+            }
+            api_models::payments::RewardData::Pix => ZenPaymentChannels::PclBoacompraPix,
+            api_models::payments::RewardData::Pse => ZenPaymentChannels::PclBoacompraPse,
+            api_models::payments::RewardData::RedCompra => {
+                ZenPaymentChannels::PclBoacompraRedcompra
+            }
+            api_models::payments::RewardData::RedPagos => ZenPaymentChannels::PclBoacompraRedpagos,
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "payment method".to_string(),
+            ))?,
+        };
+        Ok(Self::ApiRequest(Box::new(ApiRequest {
+            merchant_transaction_id: item.attempt_id.clone(),
+            payment_channel,
+            currency: item.request.currency,
+            payment_specific_data,
+            customer: get_customer(item, ip)?,
+            custom_ipn_url: item.request.get_webhook_url()?,
+            items: get_item_object(item, amount.clone())?,
+            amount,
+        })))
+    }
+}
+
+impl
+    TryFrom<(
+        &types::PaymentsAuthorizeRouterData,
+        &Box<api_models::payments::BankTransferData>,
+    )> for ZenPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        value: (
+            &types::PaymentsAuthorizeRouterData,
+            &Box<api_models::payments::BankTransferData>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, bank_transfer_data) = value;
+        let browser_info = item.request.get_browser_info()?;
+        let ip = browser_info.get_ip_address()?;
+        let amount = get_amount(item.request.amount, item.request.currency)?;
+        let payment_specific_data =
+            ZenPaymentSpecificData::ZenGeneralPayment(ZenGeneralPaymentData {
+                //Connector Specific for Latam Methods
+                payment_type: ZenPaymentTypes::General,
+                return_url: item.request.get_router_return_url()?,
+            });
+        let payment_channel = match **bank_transfer_data {
+            api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
+                ZenPaymentChannels::PclBoacompraMultibanco
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "payment method".to_string(),
+            ))?,
+        };
+        Ok(Self::ApiRequest(Box::new(ApiRequest {
+            merchant_transaction_id: item.attempt_id.clone(),
+            payment_channel,
             currency: item.request.currency,
             payment_specific_data,
             customer: get_customer(item, ip)?,
@@ -317,6 +437,16 @@ impl
     }
 }
 
+fn get_amount(
+    amount: i64,
+    currency: storage_models::enums::Currency,
+) -> CustomResult<String, errors::ConnectorError> {
+    match currency {
+        storage_models::enums::Currency::CLP => utils::check_and_remove_decimal(amount, currency),
+        _ => utils::to_currency_base_unit(amount, currency),
+    }
+}
+
 fn get_checkout_signature(
     checkout_request: &CheckoutRequest,
     session: &WalletSessionData,
@@ -339,6 +469,14 @@ fn get_signature_data(checkout_request: &CheckoutRequest) -> String {
         ZenPaymentChannels::PclCard => "pcl_card",
         ZenPaymentChannels::PclGooglepay => "pcl_googlepay",
         ZenPaymentChannels::PclApplepay => "pcl_applepay",
+        ZenPaymentChannels::PclBoacompraBoleto => "pcl_boacompra_boleto",
+        ZenPaymentChannels::PclBoacompraEfecty => "pcl_boacompra_efecty",
+        ZenPaymentChannels::PclBoacompraMultibanco => "pcl_boacompra_multibanco",
+        ZenPaymentChannels::PclBoacompraPagoefectivo => "pcl_boacompra_pagoefectivo",
+        ZenPaymentChannels::PclBoacompraPix => "pcl_boacompra_pix",
+        ZenPaymentChannels::PclBoacompraPse => "pcl_boacompra_pse",
+        ZenPaymentChannels::PclBoacompraRedcompra => "pcl_boacompra_redcompra",
+        ZenPaymentChannels::PclBoacompraRedpagos => "pcl_boacompra_redpagos",
     };
     let mut signature_data = vec![
         format!("amount={}", checkout_request.amount),
@@ -402,7 +540,7 @@ fn get_item_object(
             Ok(ZenItemObject {
                 name: data.product_name.clone(),
                 quantity: data.quantity,
-                price: utils::to_currency_base_unit(data.amount, item.request.currency)?,
+                price: get_amount(data.amount, item.request.currency)?,
                 line_amount_total: (f64::from(data.quantity)
                     * utils::to_currency_base_unit_asf64(data.amount, item.request.currency)?)
                 .to_string(),
@@ -457,6 +595,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
             api_models::payments::PaymentMethodData::Card(card) => Self::try_from((item, card)),
             api_models::payments::PaymentMethodData::Wallet(wallet_data) => {
                 Self::try_from((item, wallet_data))
+            }
+            api_models::payments::PaymentMethodData::Reward(reward_data) => {
+                Self::try_from((item, reward_data))
+            }
+            api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+                Self::try_from((item, bank_transfer_data))
             }
             _ => Err(errors::ConnectorError::NotImplemented(
                 "payment method".to_string(),

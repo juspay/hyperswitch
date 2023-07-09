@@ -204,7 +204,7 @@ adyen = { banks = "e_platby_vub,postova_banka,sporo_pay,tatra_pay,viamo" }
 
 # Bank redirect configs for allowed banks through online_banking_poland payment method
 [bank_config.online_banking_poland]
-adyen = { banks = "blik_psp,place_zipko,m_bank,pay_with_ing,santander_przelew24,bank_pekaosa,bank_millennium,pay_with_alior_bank,banki_spoldzielcze,pay_with_inteligo,bnp_paribas_poland,bank_nowy_sa,credit_agricole,pay_with_bos,pay_with_citi_handlowy,pay_with_plus_bank,toyota_bank,velo_bank,e_transfer_pocztowy24"}
+adyen = { banks = "blik_psp,place_zipko,m_bank,pay_with_ing,santander_przelew24,bank_pekaosa,bank_millennium,pay_with_alior_bank,banki_spoldzielcze,pay_with_inteligo,bnp_paribas_poland,bank_nowy_sa,credit_agricole,pay_with_bos,pay_with_citi_handlowy,pay_with_plus_bank,toyota_bank,velo_bank,e_transfer_pocztowy24" }
 
 # Bank redirect configs for allowed banks through przelewy24 payment method
 [bank_config.przelewy24]
@@ -275,8 +275,8 @@ region = "" # The AWS region used by the KMS SDK for decrypting data.
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]
 from_email = "notify@example.com" # Sender email
-aws_region = "" # AWS region used by AWS SES
-base_url = "" # Base url used when adding links that should redirect to self
+aws_region = ""                   # AWS region used by AWS SES
+base_url = ""                     # Base url used when adding links that should redirect to self
 
 [dummy_connector]
 payment_ttl = 172800             # Time to live for dummy connector payment in redis
@@ -292,9 +292,12 @@ refund_retrieve_tolerance = 100  # Fake delay tolerance for dummy connector refu
 
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"
-afterpay_clearpay = {fields = {stripe = [  # payment_method_type = afterpay_clearpay, connector = "stripe"
-            # Required fields vector with its respective display name in front-end and field_type
-            { required_field = "shipping.address.first_name", display_name = "first_name", field_type = "text" },
-            { required_field = "shipping.address.last_name", display_name = "last_name", field_type = "text" },
-            { required_field = "shipping.address.country", display_name = "country", field_type = { drop_down = { options = [ "US", "IN" ] } } },
-        ] } }
+afterpay_clearpay = { fields = { stripe = [ # payment_method_type = afterpay_clearpay, connector = "stripe"
+    # Required fields vector with its respective display name in front-end and field_type
+    { required_field = "shipping.address.first_name", display_name = "first_name", field_type = "text" },
+    { required_field = "shipping.address.last_name", display_name = "last_name", field_type = "text" },
+    { required_field = "shipping.address.country", display_name = "country", field_type = { drop_down = { options = [
+        "US",
+        "IN",
+    ] } } },
+] } }
