@@ -357,13 +357,8 @@ pub async fn get_token_for_recurring_mandate(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let token = Uuid::new_v4().to_string();
-    let locker_id = merchant_account
-        .locker_id
-        .to_owned()
-        .get_required_value("locker_id")?;
     if let storage_models::enums::PaymentMethod::Card = payment_method.payment_method {
-        let _ =
-            cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
+        let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method).await?;
         if let Some(payment_method_from_request) = req.payment_method {
             let pm: storage_enums::PaymentMethod = payment_method_from_request.foreign_into();
             if pm != payment_method.payment_method {
