@@ -57,10 +57,10 @@ vault_encryption_key = ""
 vault_private_key = ""
 
 [redis]
-host = "redis-queue"
+host = "redis-standalone"
 port = 6379
-cluster_enabled = true
-cluster_urls = ["redis-queue:6379"]
+cluster_enabled = false
+cluster_urls = ["redis-cluster:6379"]
 
 [refund]
 max_attempts = 10
