@@ -84,5 +84,6 @@ jobs:
         # Need to consider commits inclusive of previous tag to generate diff link between versions.
         # This would also then require us to remove the last few lines from the changelog.
         run: |
-          git-cliff --config .github/git-cliff-release.toml "${PREVIOUS_TAG}^..${NEW_TAG}" | changelog-gh-usernames | head --lines -8 > release-notes.md
+          git-cliff --config .github/git-cliff-release.toml "${PREVIOUS_TAG}^..${NEW_TAG}" | changelog-gh-usernames | head --lines -8 \
+            | sed -E 's/([[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+ \([[:digit:]]{4}-[[:digit:]]{2}-[[:digit:]]{2}+\))/[TEST] \1\n\n**NOTE:** This is a release to test automated releases/' > release-notes.md
           gh release create "${NEW_TAG}" --notes-file release-notes.md --verify-tag --title "Hyperswitch ${NEW_TAG}"
