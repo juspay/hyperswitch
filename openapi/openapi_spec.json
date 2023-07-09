@@ -3997,18 +3997,28 @@
           {
             "type": "string",
             "enum": [
-              "text", "user_full_name", "user_email_address", "user_phone_number", "user_address_line1",
-              "user_address_line2", "user_address_city", "user_address_pincode", "user_address_state", "user_address_country",
-              "user_blik_code", "fields_complete", "user_billing_name", "user_bank"
+              "user_full_name"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_email_address"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_phone_number"
             ]
           },
           {
             "type": "object",
             "required": [
-              "drop_down", "user_country"
+              "user_country"
             ],
             "properties": {
-              "drop_down": {
+              "user_country": {
                 "type": "object",
                 "required": [
                   "options"
@@ -4021,8 +4031,82 @@
                     }
                   }
                 }
-              },
-              "user_country":{
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_addressline1"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_addressline2"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_address_city"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_address_pincode"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_address_state"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_address_country"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_blik_code"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "fields_complete"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_billing_name"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "text"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "drop_down"
+            ],
+            "properties": {
+              "drop_down": {
                 "type": "object",
                 "required": [
                   "options"
