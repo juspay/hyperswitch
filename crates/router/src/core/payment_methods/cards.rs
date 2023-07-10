@@ -121,7 +121,7 @@ pub async fn add_payment_method(
         create_payment_method(
             &*state.store,
             &req,
-            &customer_id.clone(),
+            &customer_id,
             &resp.payment_method_id,
             &resp.merchant_id,
             pm_metadata,
