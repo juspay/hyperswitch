@@ -263,6 +263,7 @@ pub fn generate_aes256_key() -> CustomResult<[u8; 32], common_utils::errors::Cry
 #[derive(Clone)]
 pub struct MockDb {
     pub addresses: Arc<Mutex<Vec<storage::Address>>>,
+    pub configs: Arc<Mutex<Vec<storage::Config>>>,
     pub merchant_accounts: Arc<Mutex<Vec<storage::MerchantAccount>>>,
     pub merchant_connector_accounts: Arc<Mutex<Vec<storage::MerchantConnectorAccount>>>,
     pub payment_attempts: Arc<Mutex<Vec<storage::PaymentAttempt>>>,
@@ -286,6 +287,7 @@ impl MockDb {
     pub async fn new(redis: &crate::configs::settings::Settings) -> Self {
         Self {
             addresses: Default::default(),
+            configs: Default::default(),
             merchant_accounts: Default::default(),
             merchant_connector_accounts: Default::default(),
             payment_attempts: Default::default(),

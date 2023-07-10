@@ -250,6 +250,12 @@ pub trait ProcessTrackerExt {
     where
         T: Serialize;
 
+    async fn reset(
+        self,
+        db: &dyn SchedulerInterface,
+        schedule_time: PrimitiveDateTime,
+    ) -> Result<(), sch_errors::ProcessTrackerError>;
+
     async fn retry(
         self,
         db: &dyn SchedulerInterface,
@@ -296,6 +302,23 @@ impl ProcessTrackerExt for storage::ProcessTracker {
             created_at: current_time,
             updated_at: current_time,
         })
+    }
+
+    async fn reset(
+        self,
+        db: &dyn SchedulerInterface,
+        schedule_time: PrimitiveDateTime,
+    ) -> Result<(), sch_errors::ProcessTrackerError> {
+        db.update_process_tracker(
+            self.clone(),
+            storage::ProcessTrackerUpdate::StatusRetryUpdate {
+                status: storage_enums::ProcessTrackerStatus::New,
+                retry_count: 0,
+                schedule_time,
+            },
+        )
+        .await?;
+        Ok(())
     }
 
     async fn retry(

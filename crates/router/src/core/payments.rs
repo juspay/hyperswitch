@@ -13,7 +13,7 @@ use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
 use router_env::{instrument, tracing};
-use scheduler::{errors as sch_errors, utils as pt_utils, db::process_tracker::ProcessTrackerExt};
+use scheduler::{db::process_tracker::ProcessTrackerExt, errors as sch_errors, utils as pt_utils};
 use storage_models::ephemeral_key;
 use time;
 
@@ -41,7 +41,8 @@ use crate::{
         self, api, domain,
         storage::{self, enums as storage_enums},
     },
-    utils::{Encode, OptionExt, ValueExt}, workflows::payment_sync,
+    utils::{Encode, OptionExt, ValueExt},
+    workflows::payment_sync,
 };
 
 #[instrument(skip_all, fields(payment_id, merchant_id))]
@@ -1345,7 +1346,9 @@ pub async fn reset_process_sync_task(
         .find_process_by_id(&process_tracker_id)
         .await?
         .ok_or(errors::ProcessTrackerError::ProcessFetchingFailed)?;
-    psync_process.reset(db.as_scheduler(), schedule_time).await?;
+    psync_process
+        .reset(db.as_scheduler(), schedule_time)
+        .await?;
     Ok(())
 }
 

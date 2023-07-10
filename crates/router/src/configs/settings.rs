@@ -30,16 +30,6 @@ pub enum Subcommand {
     GenerateOpenapiSpec,
 }
 
-#[cfg(feature = "kms")]
-/// Store the decrypted kms secret values for active use in the application
-/// Currently using `StrongSecret` won't have any effect as this struct have smart pointers to heap
-/// allocations.
-/// note: we can consider adding such behaviour in the future with custom implementation
-#[derive(Clone)]
-pub struct ActiveKmsSecrets {
-    pub jwekey: masking::Secret<Jwekey>,
-}
-
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentMethodTokenFilter {
     #[serde(deserialize_with = "pm_deser")]
@@ -109,15 +99,6 @@ pub struct ConnectorParamsWithFileUploadUrl {
     pub base_url_file_upload: String,
 }
 
-#[cfg(feature = "s3")]
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
-pub struct FileUploadConfig {
-    /// The AWS region to send file uploads
-    pub region: String,
-    /// The AWS s3 bucket to send file uploads
-    pub bucket_name: String,
-}
 #[cfg(test)]
 mod payment_method_deserialization_test {
     #![allow(clippy::unwrap_used)]
