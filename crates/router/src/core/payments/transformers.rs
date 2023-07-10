@@ -123,13 +123,13 @@ where
         reference_id: None,
         payment_method_token: payment_data.pm_token,
         connector_customer: payment_data.connector_customer_id,
-        preprocessing_id: payment_data.payment_attempt.preprocessing_step_id.clone(),
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &*state.store,
             &merchant_account.merchant_id,
             &payment_data.payment_attempt,
         )
         .await,
+        preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
     };
 
     Ok(router_data)

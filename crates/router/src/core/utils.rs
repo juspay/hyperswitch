@@ -21,6 +21,10 @@ use crate::{
 
 const SEND_PAYMENT_ID_AS_CONNECTOR_REQUEST_REFERENCE_ID: &str =
     "send_payment_id_as_connector_request_reference_id";
+const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
+    "irrelevant_connector_request_reference_id_in_dispute_flow";
+const IRRELEVANT_PAYMENT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_payment_id_in_dispute_flow";
+const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_dispute_flow";
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
@@ -551,8 +555,8 @@ pub async fn construct_retrieve_file_router_data<'a>(
         connector: connector_id.to_string(),
         customer_id: None,
         connector_customer: None,
-        payment_id: "irrelevant_payment_id_in_dispute_flow".to_string(),
-        attempt_id: "irrelevant_attempt_id_in_dispute_flow".to_string(),
+        payment_id: IRRELEVANT_PAYMENT_ID_IN_DISPUTE_FLOW.to_string(),
+        attempt_id: IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW.to_string(),
         status: storage_models::enums::AttemptStatus::default(),
         payment_method: storage_models::enums::PaymentMethod::default(),
         connector_auth_type: auth_type,
@@ -577,7 +581,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         reference_id: None,
         payment_method_token: None,
         preprocessing_id: None,
-        connector_request_reference_id: "irrelevant_connector_request_reference_id_in_dispute_flow"
+        connector_request_reference_id: IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW
             .to_string(),
     };
     Ok(router_data)
@@ -589,7 +593,7 @@ pub async fn get_connector_request_reference_id(
     payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
 ) -> String {
     let lookup_key = SEND_PAYMENT_ID_AS_CONNECTOR_REQUEST_REFERENCE_ID;
-    let option_config_map = match db.find_config_by_key(lookup_key).await {
+    let option_config_map = match db.find_config_by_key_cached(lookup_key).await {
         Ok(config) => serde_json::from_str::<std::collections::HashSet<String>>(&config.config)
             .map_err(|err| {
                 crate::logger::warn!(
