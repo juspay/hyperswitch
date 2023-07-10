@@ -4,26 +4,6 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
-## 1.2.0 (2023-07-10)
-
-### Features
-
-- **connector:** [PowerTranz] Add template code for PowerTranz connector ([#1650](https://github.com/juspay/hyperswitch/pull/1650)) ([`f56f9d6`](https://github.com/juspay/hyperswitch/commit/f56f9d643451b9a7ff961b21fc6ec0eefac0ebdf))
-
-### Bug Fixes
-
-- **release-new-version:** Temporarily whitelist branch to test ([`ab01c89`](https://github.com/juspay/hyperswitch/commit/ab01c89e05f9cd375cdab724b7ddaf1dbd31669b))
-- **router:** Use `Connector` enum for `connector_name` field in `MerchantConnectorCreate` ([#1637](https://github.com/juspay/hyperswitch/pull/1637)) ([`e750a73`](https://github.com/juspay/hyperswitch/commit/e750a7332376a60843dde9e71adfa76ce48fd154))
-
-### Miscellaneous Tasks
-
-- Update `git-cliff` templates to ignore version bump commits ([`45f8e45`](https://github.com/juspay/hyperswitch/commit/45f8e450cb6397987d5cabb9f4db37fc1f047a8d))
-
-**Full Changelog:** [`v1.1.0...v1.2.0`](https://github.com/juspay/hyperswitch/compare/v1.1.0...v1.2.0)
-
-- - -
-
-
 ## 1.1.0 (2023-07-07)
 
 ### Features
