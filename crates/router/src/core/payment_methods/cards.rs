@@ -239,11 +239,15 @@ pub async fn add_card_hs(
     let db = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
 
-    let request =
-        payment_methods::mk_add_card_request_hs(jwekey, locker, &card, &customer_id, merchant_id)
-            .await?;
-
     let stored_card_response = if !locker.mock_locker {
+        let request = payment_methods::mk_add_card_request_hs(
+            jwekey,
+            locker,
+            &card,
+            &customer_id,
+            merchant_id,
+        )
+        .await?;
         let response = services::call_connector_api(state, request)
             .await
             .change_context(errors::VaultError::SaveCardFailed);
@@ -309,17 +313,17 @@ pub async fn get_card_from_hs_locker<'a>(
     #[cfg(feature = "kms")]
     let jwekey = &state.kms_secrets;
 
-    let request = payment_methods::mk_get_card_request_hs(
-        jwekey,
-        locker,
-        customer_id,
-        merchant_id,
-        card_reference,
-    )
-    .await
-    .change_context(errors::VaultError::FetchCardFailed)
-    .attach_printable("Making get card request failed")?;
     if !locker.mock_locker {
+        let request = payment_methods::mk_get_card_request_hs(
+            jwekey,
+            locker,
+            customer_id,
+            merchant_id,
+            card_reference,
+        )
+        .await
+        .change_context(errors::VaultError::FetchCardFailed)
+        .attach_printable("Making get card request failed")?;
         let response = services::call_connector_api(state, request)
             .await
             .change_context(errors::VaultError::FetchCardFailed)
