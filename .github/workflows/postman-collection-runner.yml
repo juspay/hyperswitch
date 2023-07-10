@@ -34,6 +34,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@v2.4.0
+
       - name: Decrypt connector auth file
         env:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
@@ -48,7 +55,7 @@ jobs:
         env:
           ADMIN_API_KEY: ${{ secrets.INTEG_ADMIN_API_KEY }}
           BASE_URL: ${{ secrets.INTEG_BASE_URL }}
-          CONNECTOR_CONFIG_PATH: ${{ env.CONNECTOR_CONFIG_PATH }}
+          CONNECTOR_AUTH_FILE_PATH: ${{ env.CONNECTOR_CONFIG_PATH }}
           GATEWAY_MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
           GPAY_CERTIFICATE: ${{ secrets.STRIPE_GPAY_CERTIFICATE }}
           GPAY_CERTIFICATE_KEYS: ${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
