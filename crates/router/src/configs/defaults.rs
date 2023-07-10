@@ -903,7 +903,7 @@ impl Default for super::settings::RequiredFields {
                         fields: HashMap::from([(
                             enums::Connector::Cryptopay,
                             vec![RequiredFieldInfo {
-                                required_field: "currency".to_string(),
+                                required_field: "payment_method_data.crypto.pay_currency".to_string(),
                                 display_name: "currency".to_string(),
                                 field_type: enums::FieldType::Currency {
                                     options: vec![
