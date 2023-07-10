@@ -113,6 +113,7 @@ pub enum GlobepayReturnCode {
     NotPermitted,
     InvalidChannel,
     DuplicateOrderId,
+    OrderNotPaid,
 }
 
 impl<F, T>
@@ -250,74 +251,119 @@ impl<F, T>
 
 #[derive(Debug, Serialize)]
 pub struct GlobepayRefundRequest {
-    pub amount: i64,
+    pub fee: i64,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for GlobepayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.refund_amount,
+            fee: item.request.refund_amount,
         })
     }
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
+#[derive(Debug, Deserialize)]
+pub enum GlobepayRefundStatus {
+    Waiting,
+    CreateFailed,
     Failed,
-    #[default]
-    Processing,
+    Success,
+    Finished,
+    Change,
 }
 
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+impl From<GlobepayRefundStatus> for enums::RefundStatus {
+    fn from(item: GlobepayRefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
+            GlobepayRefundStatus::Finished => Self::Success, //FINISHED: Refund success(funds has already been returned to user's account)
+            GlobepayRefundStatus::Failed
+            | GlobepayRefundStatus::CreateFailed
+            | GlobepayRefundStatus::Change => Self::Failure, //CHANGE: Refund can not return to user's account. Manual operation is required
+            GlobepayRefundStatus::Waiting | GlobepayRefundStatus::Success => Self::Pending, // SUCCESS: Submission succeeded, but refund is not yet complete. Waiting = Submission succeeded, but refund is not yet complete.
         }
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
+#[derive(Debug, Deserialize)]
+pub struct GlobepayRefundResponse {
+    pub result_code: Option<GlobepayRefundStatus>,
+    pub refund_id: Option<String>,
+    pub return_code: GlobepayReturnCode,
+    pub return_msg: Option<String>,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
+impl TryFrom<types::RefundsResponseRouterData<api::Execute, GlobepayRefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::Execute, GlobepayRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
+        if item.response.return_code == GlobepayReturnCode::Success {
+            let globepay_refund_id = item
+                .response
+                .refund_id
+                .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+            let globepay_refund_status = item
+                .response
+                .result_code
+                .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+            Ok(Self {
+                response: Ok(types::RefundsResponseData {
+                    connector_refund_id: globepay_refund_id,
+                    refund_status: enums::RefundStatus::from(globepay_refund_status),
+                }),
+                ..item.data
+            })
+        } else {
+            Ok(Self {
+                response: Err(types::ErrorResponse {
+                    code: item.response.return_code.to_string(),
+                    message: item.response.return_code.to_string(),
+                    reason: item.response.return_msg,
+                    status_code: item.http_code,
+                }),
+                ..item.data
+            })
+        }
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, GlobepayRefundResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, GlobepayRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
+        if item.response.return_code == GlobepayReturnCode::Success {
+            let globepay_refund_id = item
+                .response
+                .refund_id
+                .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+            let globepay_refund_status = item
+                .response
+                .result_code
+                .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+            Ok(Self {
+                response: Ok(types::RefundsResponseData {
+                    connector_refund_id: globepay_refund_id,
+                    refund_status: enums::RefundStatus::from(globepay_refund_status),
+                }),
+                ..item.data
+            })
+        } else {
+            Ok(Self {
+                response: Err(types::ErrorResponse {
+                    code: item.response.return_code.to_string(),
+                    message: item.response.return_code.to_string(),
+                    reason: item.response.return_msg,
+                    status_code: item.http_code,
+                }),
+                ..item.data
+            })
+        }
     }
 }
 
@@ -327,3 +373,18 @@ pub struct GlobepayErrorResponse {
     pub return_code: GlobepayReturnCode,
     pub message: String,
 }
+
+// fn get_refund_id(res : &GlobepayRefundResponse) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+//     Ok(res.refund_id.ok_or(errors::ConnectorError::ResponseHandlingFailed)?)
+// }
+
+// fn get_refund_status (res : &GlobepayRefundResponse) -> Result<GlobepayRefundStatus, error_stack::Report<errors::ConnectorError>> {
+//     Ok(res.result_code.ok_or(errors::ConnectorError::ResponseHandlingFailed))
+// }
+
+// fn get_success_response(globepay_refund_id: String,globepay_refund_status :GlobepayRefundStatus )-> types::RefundsResponseData {
+//     Ok(types::RefundsResponseData {
+//         connector_refund_id: globepay_refund_id,
+//         refund_status: enums::RefundStatus::from(globepay_refund_status),
+//     })
+// }
