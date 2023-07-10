@@ -253,7 +253,7 @@ where
             .payment_attempt
             .connector
             .clone()
-            .map(|connector_name| connector_name == "bluesnap".to_string())
+            .map(|connector_name| connector_name == *"bluesnap".to_string())
             .unwrap_or(false)
         {
             helpers::make_pm_data(Box::new(self), state, payment_data).await
