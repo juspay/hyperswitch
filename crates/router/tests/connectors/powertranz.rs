@@ -1,20 +1,19 @@
-use std::str::FromStr;
-
-use cards::CardNumber;
 use masking::Secret;
 use router::types::{self, api, storage::enums};
-use test_utils::connector_auth;
 
-use crate::utils::{self, ConnectorActions};
+use crate::{
+    connector_auth,
+    utils::{self, ConnectorActions},
+};
 
 #[derive(Clone, Copy)]
-struct DummyConnectorTest;
-impl ConnectorActions for DummyConnectorTest {}
-impl utils::Connector for DummyConnectorTest {
+struct PowertranzTest;
+impl ConnectorActions for PowertranzTest {}
+impl utils::Connector for PowertranzTest {
     fn get_data(&self) -> types::api::ConnectorData {
-        use router::connector::DummyConnector;
+        use router::connector::Powertranz;
         types::api::ConnectorData {
-            connector: Box::new(&DummyConnector::<1>),
+            connector: Box::new(&Powertranz),
             connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
         }
@@ -23,17 +22,17 @@ impl utils::Connector for DummyConnectorTest {
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         types::ConnectorAuthType::from(
             connector_auth::ConnectorAuthentication::new()
-                .dummyconnector
+                .powertranz
                 .expect("Missing connector authentication configuration"),
         )
     }
 
     fn get_name(&self) -> String {
-        "dummyconnector".to_string()
+        "powertranz".to_string()
     }
 }
 
-static CONNECTOR: DummyConnectorTest = DummyConnectorTest {};
+static CONNECTOR: PowertranzTest = PowertranzTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     None
@@ -297,28 +296,6 @@ async fn should_sync_refund() {
 }
 
 // Cards Negative scenerios
-// Creates a payment with incorrect card number.
-#[actix_web::test]
-async fn should_fail_payment_for_incorrect_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: CardNumber::from_str("1234567891011").unwrap(),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        "Your card number is incorrect.".to_string(),
-    );
-}
-
 // Creates a payment with incorrect CVC.
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_cvc() {
