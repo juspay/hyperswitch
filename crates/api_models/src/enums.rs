@@ -653,9 +653,10 @@ pub enum Connector {
     // Opayo, added as template code for future usage
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    // Payme,
+    Payme,
     Paypal,
     Payu,
+    //Powertranz,
     Rapyd,
     Shift4,
     Stripe,
@@ -759,9 +760,10 @@ pub enum RoutableConnectors {
     // Opayo, added as template code for future usage
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    // Payme,
+    Payme,
     Paypal,
     Payu,
+    //Powertranz,
     Rapyd,
     Shift4,
     Stripe,

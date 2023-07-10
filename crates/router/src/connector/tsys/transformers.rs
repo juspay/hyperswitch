@@ -1,3 +1,4 @@
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -224,6 +225,38 @@ impl<F, T>
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TsysPSyncRequest {
+    #[serde(rename = "deviceID")]
+    device_id: Secret<String>,
+    transaction_key: Secret<String>,
+    #[serde(rename = "transactionID")]
+    transaction_id: String,
+    #[serde(rename = "developerID")]
+    developer_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct TsysPaymentsSyncRequest {
+    search_transaction: TsysPSyncRequest,
+}
+
+impl TryFrom<&types::PaymentsSyncRouterData> for TsysPaymentsSyncRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
+        let connector_auth: TsysAuthType = TsysAuthType::try_from(&item.connector_auth_type)?;
+        let search_transaction = TsysPSyncRequest {
+            device_id: connector_auth.device_id,
+            transaction_key: connector_auth.transaction_key,
+            transaction_id: item.request.connector_transaction_id.get_connector_transaction_id().change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
+            developer_id: connector_auth.developer_id,
+        };
+        Ok(Self { search_transaction })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TsysCancelRequest {
     #[serde(rename = "deviceID")]
     device_id: Secret<String>,
@@ -386,48 +419,72 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<TsysPaymentCaptureResponse
 
 // REFUND :
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TsysReturnRequest {
+    #[serde(rename = "deviceID")]
+    device_id: Secret<String>,
+    transaction_key: Secret<String>,
+    transaction_amount: String,
+    #[serde(rename = "transactionID")]
+    transaction_id: String,
+}
+
+#[derive( Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct TsysRefundRequest {
-    pub amount: i64,
+    #[serde(rename = "Return")]
+    return_request: TsysReturnRequest,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for TsysRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        let connector_auth: TsysAuthType = TsysAuthType::try_from(&item.connector_auth_type)?;
+        let return_request = TsysReturnRequest {
+            device_id: connector_auth.device_id,
+            transaction_key: connector_auth.transaction_key,
+            transaction_amount: item.request.refund_amount.to_string(),
+            transaction_id: item.request.connector_transaction_id.clone(),
+        };
         Ok(Self {
-            amount: item.request.refund_amount,
+            return_request,
         })
     }
 }
 
 // Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+    Pass,
+    Fail
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            RefundStatus::Pass => Self::Success,
+            RefundStatus::Fail => Self::Failure,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TsysReturnResponse {
+    #[serde(rename = "transactionID")]
+    transaction_id: String,
     status: RefundStatus,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct RefundResponse {
+    return_response: TsysReturnResponse,
+}
+
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
@@ -438,8 +495,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.return_response.transaction_id.to_string(),
+                refund_status: enums::RefundStatus::from(item.response.return_response.status),
             }),
             ..item.data
         })
@@ -455,8 +512,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.return_response.transaction_id.to_string(),
+                refund_status: enums::RefundStatus::from(item.response.return_response.status),
             }),
             ..item.data
         })
@@ -464,10 +521,42 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct TsysErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+// #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+// pub struct TsysErrorResponse {
+//     pub status_code: u16,
+//     pub code: String,
+//     pub message: String,
+//     pub reason: Option<String>,
+// }
+// "status": "FAIL",
+//         "responseCode": "F9901",
+//         "responseMessage": "The value of element 'expirationDate' is not vali
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ErrorResponse {
+    status : TsysPaymentStatus,
+    response_code: String,
+    response_message: String
+
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct TsysAuthErrorResponse {
+    auth_response: ErrorResponse
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct TsysSaleErrorResponse {
+    sale_response: ErrorResponse
+}
+
+#[derive( Debug,Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum TsysErrorResponse {
+    AuthErrorResponse(TsysAuthErrorResponse),
+    SaleErrorResponse(TsysSaleErrorResponse),
+
+
 }

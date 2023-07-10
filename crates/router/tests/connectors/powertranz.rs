@@ -1,6 +1,3 @@
-use std::{str::FromStr, time::Duration};
-
-use cards::CardNumber;
 use masking::Secret;
 use router::types::{self, api, storage::enums};
 
@@ -10,14 +7,14 @@ use crate::{
 };
 
 #[derive(Clone, Copy)]
-struct TsysTest;
-impl ConnectorActions for TsysTest {}
-impl utils::Connector for TsysTest {
+struct PowertranzTest;
+impl ConnectorActions for PowertranzTest {}
+impl utils::Connector for PowertranzTest {
     fn get_data(&self) -> types::api::ConnectorData {
-        use router::connector::Tsys;
+        use router::connector::Powertranz;
         types::api::ConnectorData {
-            connector: Box::new(&Tsys),
-            connector_name: types::Connector::Tsys,
+            connector: Box::new(&Powertranz),
+            connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
         }
     }
@@ -25,30 +22,24 @@ impl utils::Connector for TsysTest {
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         types::ConnectorAuthType::from(
             connector_auth::ConnectorAuthentication::new()
-                .tsys
+                .powertranz
                 .expect("Missing connector authentication configuration"),
         )
     }
 
     fn get_name(&self) -> String {
-        "tsys".to_string()
+        "powertranz".to_string()
     }
 }
 
-static CONNECTOR: TsysTest = TsysTest {};
+static CONNECTOR: PowertranzTest = PowertranzTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     None
 }
 
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
-    Some(types::PaymentsAuthorizeData {
-        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-            card_number: CardNumber::from_str("4111111111111111").unwrap(),
-            ..utils::CCardType::default().0
-        }),
-        ..utils::PaymentAuthorizeType::default().0
-    })
+    None
 }
 
 // Cards Positive Tests
@@ -97,7 +88,6 @@ async fn should_sync_authorized_payment() {
         .await
         .expect("Authorize payment response");
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
-    tokio::time::sleep(Duration::from_secs(10)).await;
     let response = CONNECTOR
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
