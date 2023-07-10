@@ -905,7 +905,7 @@ impl Default for super::settings::RequiredFields {
                             vec![RequiredFieldInfo {
                                 required_field: "payment_method_data.crypto.pay_currency".to_string(),
                                 display_name: "currency".to_string(),
-                                field_type: enums::FieldType::Currency {
+                                field_type: enums::FieldType::DropDown {
                                     options: vec![
                                         "BTC".to_string(),
                                         "LTC".to_string(),
