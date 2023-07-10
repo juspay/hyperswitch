@@ -118,7 +118,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}servlets/Transnox_API_server",
+            "{}servlets/transnox_api_server",
             self.base_url(connectors)
         ))
     }
@@ -127,27 +127,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let capture_method = req.request.is_auto_capture()?;
-        match capture_method {
-            true => {
-                let req_obj = tsys::TsysSalePaymentsRequest::try_from(req)?;
-                let tsys_req = types::RequestBody::log_and_get_request_body(
-                    &req_obj,
-                    utils::Encode::<tsys::TsysSalePaymentsRequest>::encode_to_string_of_json,
-                )
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                Ok(Some(tsys_req))
-            }
-            false => {
-                let req_obj = tsys::TsysAuthPaymentsRequest::try_from(req)?;
-                let tsys_req = types::RequestBody::log_and_get_request_body(
-                    &req_obj,
-                    utils::Encode::<tsys::TsysAuthPaymentsRequest>::encode_to_string_of_json,
-                )
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                Ok(Some(tsys_req))
-            }
-        }
+        let req_obj = tsys::TsysPaymentsRequest::try_from(req)?;
+        let tsys_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<tsys::TsysPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(tsys_req))
     }
 
     fn build_request(
@@ -175,31 +161,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let capture_method = data.request.is_auto_capture()?;
-        match capture_method {
-            true => {
-                let response: tsys::TsysPaymentsSaleResponse = res
-                    .response
-                    .parse_struct("Tsys PaymentsAuthorizeResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-            }
-            false => {
-                let response: tsys::TsysPaymentsAuthResponse = res
-                    .response
-                    .parse_struct("Tsys PaymentsAuthorizeResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-            }
-        }
+        let response: tsys::TsysPaymentsResponse = res
+            .response
+            .parse_struct("Tsys PaymentsAuthorizeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
@@ -270,7 +240,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: tsys::TsysPaymentsSaleResponse = res
+        let response: tsys::TsysPaymentsResponse = res
             .response
             .parse_struct("tsys PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
