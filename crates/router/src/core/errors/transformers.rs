@@ -8,10 +8,6 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
     fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
         use api_models::errors::types::{ApiError, ApiErrorResponse as AER};
 
-        let error_message = self.error_message();
-        let error_codes = self.error_code();
-        let error_type = self.error_type();
-
         match self {
             Self::NotImplemented { message } => {
                 AER::NotImplemented(ApiError::new("IR", 0, format!("{message:?}"), None))
@@ -246,17 +242,13 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
 impl ErrorSwitch<ApiErrorResponse> for ConnectorError {
     fn switch(&self) -> ApiErrorResponse {
         match self {
-            ConnectorError::WebhookSourceVerificationFailed => {
-                ApiErrorResponse::WebhookAuthenticationFailed
-            }
-            ConnectorError::WebhookSignatureNotFound
-            | ConnectorError::WebhookReferenceIdNotFound
-            | ConnectorError::WebhookResourceObjectNotFound
-            | ConnectorError::WebhookBodyDecodingFailed
-            | ConnectorError::WebhooksNotImplemented => ApiErrorResponse::WebhookBadRequest,
-            ConnectorError::WebhookEventTypeNotFound => {
-                ApiErrorResponse::WebhookUnprocessableEntity
-            }
+            Self::WebhookSourceVerificationFailed => ApiErrorResponse::WebhookAuthenticationFailed,
+            Self::WebhookSignatureNotFound
+            | Self::WebhookReferenceIdNotFound
+            | Self::WebhookResourceObjectNotFound
+            | Self::WebhookBodyDecodingFailed
+            | Self::WebhooksNotImplemented => ApiErrorResponse::WebhookBadRequest,
+            Self::WebhookEventTypeNotFound => ApiErrorResponse::WebhookUnprocessableEntity,
             _ => ApiErrorResponse::InternalServerError,
         }
     }
