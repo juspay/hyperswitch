@@ -49,6 +49,7 @@ mod paypal;
 mod paypal_ui;
 mod payu;
 mod payu_ui;
+mod powertranz;
 mod rapyd;
 mod selenium;
 mod shift4;

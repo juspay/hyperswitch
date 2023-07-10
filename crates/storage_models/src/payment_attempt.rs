@@ -2,7 +2,10 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, schema::payment_attempt};
+use crate::{
+    enums::{self as storage_enums},
+    schema::payment_attempt,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_attempt)]
@@ -50,6 +53,14 @@ pub struct PaymentAttempt {
     // providing a location to store mandate details intermediately for transaction
     pub mandate_details: Option<storage_enums::MandateDataType>,
     pub error_reason: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
+pub struct PaymentListFilters {
+    pub connector: Vec<String>,
+    pub currency: Vec<storage_enums::Currency>,
+    pub status: Vec<storage_enums::IntentStatus>,
+    pub payment_method: Vec<storage_enums::PaymentMethod>,
 }
 
 #[derive(
