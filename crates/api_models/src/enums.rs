@@ -453,6 +453,7 @@ pub enum PaymentMethodType {
     Walley,
     WeChatPay,
     BabyGiftCard,
+    Givex,
 }
 
 #[derive(
