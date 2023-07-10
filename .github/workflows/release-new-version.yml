@@ -2,7 +2,7 @@ name: Release a new version
 
 on:
   schedule:
-    - cron: "30 12 * * *" # Run workflow at 6 PM IST
+    - cron: "30 12 * * 2-4" # Run workflow at 6 PM IST every Tuesday, Wednesday, Thursday
 
   workflow_dispatch:
 
@@ -47,6 +47,8 @@ jobs:
           git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
           cog bump --auto
 
-      - name: Push created tag
+      - name: Push created commit and tag
         shell: bash
-        run: git push --atomic --tags
+        run: |
+          git push
+          git push --tags
