@@ -302,3 +302,6 @@ refund_retrieve_tolerance = 100
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay"
+
+[connector_request_reference_id_config]
+merchant_ids_send_payment_id_as_connector_request_id = []
