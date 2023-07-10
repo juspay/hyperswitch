@@ -291,12 +291,12 @@ refund_retrieve_duration = 500   # Fake delay duration for dummy connector refun
 refund_retrieve_tolerance = 100  # Fake delay tolerance for dummy connector refund sync
 
 # Mandate supported payment method data for card
-[supported_payment_methods_for_mandate.card]
-credit = {connector_list = "stripe,adyen"}
+[supported_payment_methods_for_mandate]
+card.credit = {connector_list = "stripe,adyen"}
 
 # Mandate supported payment method data for pay_later
-[supported_payment_methods_for_mandate.pay_later]
-klarna = {connector_list = "adyen"}
+[supported_payment_methods_for_mandate]
+pay_later.klarna = {connector_list = "adyen"}
 
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"
