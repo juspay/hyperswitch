@@ -9,6 +9,7 @@ use common_utils::{
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
+use url::Url;
 use utoipa::ToSchema;
 
 use crate::{
@@ -22,6 +23,7 @@ pub enum PaymentOp {
     Confirm,
 }
 
+use crate::enums;
 #[derive(serde::Deserialize)]
 pub struct BankData {
     pub payment_method_type: api_enums::PaymentMethodType,
@@ -177,7 +179,7 @@ pub struct PaymentsRequest {
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
-    pub return_url: Option<url::Url>,
+    pub return_url: Option<Url>,
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
@@ -932,6 +934,8 @@ pub enum WalletData {
     SamsungPay(Box<SamsungPayWalletData>),
     /// The wallet data for WeChat Pay Redirection
     WeChatPayRedirect(Box<WeChatPayRedirection>),
+    /// The wallet data for WeChat Pay
+    WeChatPay(Box<WeChatPay>),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -970,6 +974,9 @@ pub struct ApplePayThirdPartySdkData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct WeChatPayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct WeChatPay {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaypalRedirection {}
@@ -1242,8 +1249,13 @@ pub enum NextActionData {
     DisplayBankTransferInformation {
         bank_transfer_steps_and_charges_details: BankTransferNextStepsData,
     },
-    /// contains third party sdk session token response
+    /// Contains third party sdk session token response
     ThirdPartySdkSessionToken { session_token: Option<SessionToken> },
+    /// Contains url for Qr code image, this qr code has to be shown in sdk
+    QrCodeInformation {
+        #[schema(value_type = String)]
+        image_data_url: Url,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1253,6 +1265,11 @@ pub struct BankTransferNextStepsData {
     pub bank_transfer_instructions: BankTransferInstructions,
     /// The details received by the receiver
     pub receiver: ReceiverDetails,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct QrCodeNextStepsInstruction {
+    pub image_data_url: Url,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1594,6 +1611,34 @@ pub struct PaymentListResponse {
     pub data: Vec<PaymentsResponse>,
 }
 
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct PaymentListFilters {
+    /// The list of available connector filters
+    #[schema(value_type = Vec<api_enums::Connector>)]
+    pub connector: Vec<String>,
+    /// The list of available currency filters
+    #[schema(value_type = Vec<Currency>)]
+    pub currency: Vec<enums::Currency>,
+    /// The list of available payment status filters
+    #[schema(value_type = Vec<IntentStatus>)]
+    pub status: Vec<enums::IntentStatus>,
+    /// The list of available payment method filters
+    #[schema(value_type = Vec<PaymentMethod>)]
+    pub payment_method: Vec<enums::PaymentMethod>,
+}
+
+#[derive(
+    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
+)]
+pub struct TimeRange {
+    /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub start_time: PrimitiveDateTime,
+    /// The end time to filter payments list or to get list of filters. If not passed the default time is now
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub end_time: Option<PrimitiveDateTime>,
+}
+
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize)]
 pub struct VerifyResponse {
     pub verify_id: Option<String>,
@@ -1759,6 +1804,8 @@ pub struct PaymentsRetrieveRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+    /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
+    pub client_secret: Option<String>,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -2150,6 +2197,8 @@ pub struct PaymentRetrieveBody {
     pub merchant_id: Option<String>,
     /// Decider to enable or disable the connector call for retrieve request
     pub force_sync: Option<bool>,
+    /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
+    pub client_secret: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
