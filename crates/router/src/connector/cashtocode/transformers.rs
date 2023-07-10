@@ -36,14 +36,9 @@ fn get_mid(
     payment_method_data: &api::payments::PaymentMethodData,
 ) -> Result<String, errors::ConnectorError> {
     match payment_method_data {
-        api_models::payments::PaymentMethodData::Reward(reward_data) => match reward_data {
-            api_models::payments::RewardData::Cashtocode(cash_to_code_data) => {
-                Ok(cash_to_code_data.merchant_id.to_string())
-            }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment methods".to_string(),
-            )),
-        },
+        api_models::payments::PaymentMethodData::Reward(
+            api_models::payments::RewardData::Cashtocode(cash_to_code_data),
+        ) => Ok(cash_to_code_data.merchant_id.to_string()),
         _ => Err(errors::ConnectorError::NotImplemented(
             "Payment methods".to_string(),
         )),

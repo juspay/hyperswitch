@@ -95,7 +95,7 @@ pub struct ZenCustomerDetails {
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum ZenPaymentSpecificData {
-    ZenOnetimePayment(ZenPaymentData),
+    ZenOnetimePayment(Box<ZenPaymentData>),
     ZenGeneralPayment(ZenGeneralPaymentData),
 }
 
@@ -179,19 +179,21 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &Card)> for ZenPaymentsReques
         let ip = browser_info.get_ip_address()?;
         let browser_details = get_browser_details(&browser_info)?;
         let amount = utils::to_currency_base_unit(item.request.amount, item.request.currency)?;
-        let payment_specific_data = ZenPaymentSpecificData::ZenOnetimePayment(ZenPaymentData {
-            browser_details,
-            //Connector Specific for cards
-            payment_type: ZenPaymentTypes::Onetime,
-            token: None,
-            card: Some(ZenCardDetails {
-                number: ccard.card_number.clone(),
-                expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("".to_owned()),
-                cvv: ccard.card_cvc.clone(),
-            }),
-            descriptor: item.get_description()?.chars().take(24).collect(),
-            return_verify_url: item.request.router_return_url.clone(),
-        });
+        let payment_specific_data =
+            ZenPaymentSpecificData::ZenOnetimePayment(Box::new(ZenPaymentData {
+                browser_details,
+                //Connector Specific for cards
+                payment_type: ZenPaymentTypes::Onetime,
+                token: None,
+                card: Some(ZenCardDetails {
+                    number: ccard.card_number.clone(),
+                    expiry_date: ccard
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_owned()),
+                    cvv: ccard.card_cvc.clone(),
+                }),
+                descriptor: item.get_description()?.chars().take(24).collect(),
+                return_verify_url: item.request.router_return_url.clone(),
+            }));
         Ok(Self::ApiRequest(Box::new(ApiRequest {
             merchant_transaction_id: item.attempt_id.clone(),
             payment_channel: ZenPaymentChannels::PclCard,
