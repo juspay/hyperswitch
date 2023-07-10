@@ -54,6 +54,7 @@ pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
                     connector: None,
                     param: None,
                     merchant_connector_details: None,
+                    client_secret: None,
                 },
                 services::AuthFlow::Merchant,
                 consume_or_trigger_flow,
