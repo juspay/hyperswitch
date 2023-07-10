@@ -265,12 +265,11 @@ pub trait SeleniumTest {
                         driver.execute(script, Vec::new()).await?;
                     }
                     Trigger::Click(by) => {
-                        let ele = driver.query(by).first().await?;
-                        ele.wait_until().enabled().await?;
-                        ele.wait_until().displayed().await?;
-                        ele.wait_until().clickable().await?;
-                        ele.scroll_into_view().await?;
-                        ele.click().await?;
+                        let res = self.click_element(driver, by.clone()).await;
+                        if res.is_err() {
+                            tokio::time::sleep(Duration::from_secs(5)).await;
+                            self.click_element(driver, by).await?;
+                        }
                     }
                     Trigger::ClickNth(by, n) => {
                         let ele = driver.query(by).all().await?.into_iter().nth(n).unwrap();
@@ -332,6 +331,15 @@ pub trait SeleniumTest {
             }
         }
         Ok(())
+    }
+
+    async fn click_element(&self, driver: &WebDriver, by: By) -> Result<(), WebDriverError> {
+        let ele = driver.query(by).first().await?;
+        ele.wait_until().enabled().await?;
+        ele.wait_until().displayed().await?;
+        ele.wait_until().clickable().await?;
+        ele.scroll_into_view().await?;
+        ele.click().await
     }
 
     async fn make_redirection_payment(
@@ -423,6 +431,18 @@ pub trait SeleniumTest {
         url: &str,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
+        let pypl_url =  url.to_string();
+        // To support failure retries
+        self
+            .execute_paypal_steps(web_driver.clone(), &pypl_url, actions.clone())
+            .await
+    }
+    async fn execute_paypal_steps(
+        &self,
+        web_driver: WebDriver,
+        url: &str,
+        actions: Vec<Event<'_>>,
+    ) -> Result<(), WebDriverError> {
         self.complete_actions(
             &web_driver,
             vec![
@@ -446,27 +466,31 @@ pub trait SeleniumTest {
                 .unwrap(),
         );
         let mut pypl_actions = vec![
-            Event::RunIf(
-                Assert::IsPresent("Enter your email address to get started."),
+            Event::EitherOr(
+                Assert::IsPresent("Forgot email?"),
                 vec![
                     Event::Trigger(Trigger::SendKeys(By::Id("email"), email)),
                     Event::Trigger(Trigger::Click(By::Id("btnNext"))),
+                    Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
+                    Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
                 ],
+                vec![
+                    Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
+                    Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
+                ]
             ),
             Event::EitherOr(
-                Assert::IsPresent("Password"),
+                Assert::IsPresent("See Offers and Apply for PayPal Credit"),
                 vec![
-                    Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
-                    Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
+                    Event::RunIf(Assert::IsElePresent(By::Id("spinner")), vec![
+                        Event::Trigger(Trigger::Sleep(5))
+                    ]),
+                    Event::Trigger(Trigger::Click(By::Css(".reviewButton"))),
                 ],
                 vec![
-                    Event::Trigger(Trigger::SendKeys(By::Id("email"), email)),
-                    Event::Trigger(Trigger::Click(By::Id("btnNext"))),
-                    Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
-                    Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
+                    Event::Trigger(Trigger::Click(By::Id("payment-submit-btn"))),
                 ],
             ),
-            Event::Trigger(Trigger::Click(By::Id("payment-submit-btn"))),
         ];
         pypl_actions.extend(actions);
         self.complete_actions(&web_driver, pypl_actions).await
