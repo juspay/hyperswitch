@@ -105,8 +105,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2.4.0
 
-      - name: Install Postgres with no default features
-        uses: baptiste0928/cargo-install@v2.0.0
+      - uses: baptiste0928/cargo-install@v2.0.0
         with:
           crate: diesel_cli
           features: postgres

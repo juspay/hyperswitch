@@ -1,6 +1,4 @@
 #! /usr/bin/env bash
-set -euo pipefail
-
 sudo apt update
 apt install net-tools
 mkdir tests
