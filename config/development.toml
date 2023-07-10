@@ -307,13 +307,13 @@ refund_retrieve_tolerance = 100
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay"
 
-[supported_payment_methods_for_mandate.pay_later]
-klarna = {connector_list = "adyen"}
+[supported_payment_methods_for_mandate]
+pay_later.klarna = {connector_list = "adyen"}
 
-[supported_payment_methods_for_mandate.wallet]
-google_pay = {connector_list = "stripe,adyen"}
-apple_pay = {connector_list = "stripe,adyen"}
+[supported_payment_methods_for_mandate]
+wallet.google_pay = {connector_list = "stripe,adyen"}
+wallet.apple_pay = {connector_list = "stripe,adyen"}
 
-[supported_payment_methods_for_mandate.card]
-credit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
-debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
+[supported_payment_methods_for_mandate]
+card.credit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
+card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
