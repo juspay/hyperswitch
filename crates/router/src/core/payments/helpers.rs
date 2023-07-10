@@ -2055,6 +2055,13 @@ impl MerchantConnectorAccountType {
             Self::CacheVal(_) => false,
         }
     }
+
+    pub fn is_test_mode_on(&self) -> Option<bool> {
+        match self {
+            Self::DbVal(val) => val.test_mode,
+            Self::CacheVal(_) => None,
+        }
+    }
 }
 
 pub async fn get_merchant_connector_account(
