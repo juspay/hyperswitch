@@ -1,16 +1,6 @@
-name: CI
+name: CI-pr
 
 on:
-  push:
-    branches:
-      - main
-    # paths:
-    #   - ".github/workflows/**"
-    #   - "crates/**"
-    #   - "examples/**"
-    #   - "Cargo.lock"
-    #   - "Cargo.toml"
-
   pull_request:
     # paths:
     #   - ".github/workflows/**"

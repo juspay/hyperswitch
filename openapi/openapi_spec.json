@@ -6460,6 +6460,11 @@
             "type": "boolean",
             "description": "Decider to enable or disable the connector call for retrieve request",
             "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
           }
         }
       },
@@ -7576,6 +7581,11 @@
                 "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
               }
             ],
+            "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
             "nullable": true
           }
         }
