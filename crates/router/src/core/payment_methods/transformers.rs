@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use common_utils::{ext_traits::StringExt, pii::Email};
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use josekit::jwe;
 use serde::{Deserialize, Serialize};
 
@@ -20,6 +20,7 @@ pub struct StoreCardReq<'a> {
     pub merchant_id: &'a str,
     pub merchant_customer_id: String,
     pub card: Card,
+    pub enc_card_data: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -65,7 +66,7 @@ pub struct RetrieveCardResp {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RetrieveCardRespPayload {
     pub card: Option<Card>,
-    pub enc_card_data: Option<String>,
+    pub enc_card_data: Option<Secret<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -104,6 +105,24 @@ pub struct AddCardResponse {
     pub nickname: Option<String>,
     pub customer_id: Option<String>,
     pub duplicate: Option<bool>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddPaymentMethodResponse {
+    pub payment_method_id: String,
+    pub external_id: String,
+    #[serde(rename = "merchant_id")]
+    pub merchant_id: Option<String>,
+    pub nickname: Option<String>,
+    pub customer_id: Option<String>,
+    pub duplicate: Option<bool>,
+    pub payment_method_data: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GetPaymentMethodResponse {
+    pub payment_method: AddPaymentMethodResponse,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -233,6 +252,57 @@ pub async fn mk_basilisk_req(
     Ok(jwe_body)
 }
 
+pub async fn mk_add_generic_request_hs(
+    #[cfg(not(feature = "kms"))] jwekey: &settings::Jwekey,
+    #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
+    locker: &settings::Locker,
+    enc_value: &str,
+    customer_id: &str,
+    merchant_id: &str,
+) -> CustomResult<services::Request, errors::VaultError> {
+    let merchant_customer_id = customer_id.to_owned();
+    let store_req = StoreCardReq {
+        merchant_id,
+        merchant_customer_id,
+        enc_card_data: Some(enc_value.to_string()),
+        card: Card {
+            card_number: cards::CardNumber::from_str("4111111111111111")
+                .into_report()
+                .change_context(errors::VaultError::RequestEncodingFailed)?,
+            card_brand: None,
+            name_on_card: None,
+            card_isin: None,
+            card_exp_month: Secret::new("10".to_string()),
+            card_exp_year: Secret::new("55".to_string()),
+            nick_name: None,
+        },
+    };
+
+    let payload = utils::Encode::<StoreCardReq<'_>>::encode_to_vec(&store_req)
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    #[cfg(feature = "kms")]
+    let private_key = jwekey.jwekey.peek().vault_private_key.clone();
+
+    #[cfg(not(feature = "kms"))]
+    let private_key = jwekey.vault_private_key.to_owned();
+
+    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
+        .await
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let jwe_payload = mk_basilisk_req(jwekey, &jws).await?;
+
+    let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+    let mut url = locker.host.to_owned();
+    url.push_str("/cards/add");
+    let mut request = services::Request::new(services::Method::Post, &url);
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.set_body(body.to_string());
+    Ok(request)
+}
+
 pub async fn mk_add_card_request_hs(
     #[cfg(not(feature = "kms"))] jwekey: &settings::Jwekey,
     #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
@@ -255,6 +325,7 @@ pub async fn mk_add_card_request_hs(
         merchant_id,
         merchant_customer_id,
         card,
+        enc_card_data: None,
     };
     let payload = utils::Encode::<StoreCardReq<'_>>::encode_to_vec(&store_card_req)
         .change_context(errors::VaultError::RequestEncodingFailed)?;

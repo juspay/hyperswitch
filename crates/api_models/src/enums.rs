@@ -125,6 +125,8 @@ pub enum ConnectorType {
     BankingEntities,
     /// All types of non-banking financial institutions including Insurance, Credit / Lending etc
     NonBankingFinance,
+    /// Payout facilitators, Acquirers, Gateways etc
+    PayoutProcessor,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -588,6 +590,36 @@ pub enum MandateStatus {
     ToSchema,
     serde::Deserialize,
     serde::Serialize,
+    frunk::LabelledGeneric,
+    Hash,
+)]
+#[serde(rename_all = "snake_case")]
+#[serde(untagged)]
+pub enum Connectors {
+    PaymentConnectors(PaymentConnectors),
+    #[cfg(feature = "payouts")]
+    PayoutConnectors(PayoutConnectors),
+}
+
+impl ToString for Connectors {
+    fn to_string(&self) -> String {
+        match self {
+            Self::PaymentConnectors(conn) => conn.to_string(),
+            #[cfg(feature = "payouts")]
+            Self::PayoutConnectors(conn) => conn.to_string(),
+        }
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
@@ -596,19 +628,6 @@ pub enum MandateStatus {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
-    Aci,
-    Adyen,
-    Airwallex,
-    Authorizedotnet,
-    Bitpay,
-    Bluesnap,
-    Braintree,
-    Cashtocode,
-    Checkout,
-    Coinbase,
-    Cryptopay,
-    Cybersource,
-    Iatapay,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
@@ -637,12 +656,25 @@ pub enum Connector {
     #[serde(rename = "paypal_test")]
     #[strum(serialize = "paypal_test")]
     DummyConnector7,
+    Aci,
+    Adyen,
+    Airwallex,
+    Authorizedotnet,
+    Bitpay,
     Bambora,
+    Bluesnap,
+    Braintree,
+    Cashtocode,
+    Checkout,
+    Coinbase,
+    Cryptopay,
+    Cybersource,
     Dlocal,
     Fiserv,
     Forte,
     Globalpay,
     // Globepay, added as template code for future usage
+    Iatapay,
     Klarna,
     Mollie,
     Multisafepay,
@@ -767,9 +799,186 @@ pub enum RoutableConnectors {
     Shift4,
     Stripe,
     Trustpay,
+    Wise,
     Worldline,
     Worldpay,
     Zen,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PaymentConnectors {
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "phonypay")]
+    #[strum(serialize = "phonypay")]
+    DummyConnector1,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "fauxpay")]
+    #[strum(serialize = "fauxpay")]
+    DummyConnector2,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "pretendpay")]
+    #[strum(serialize = "pretendpay")]
+    DummyConnector3,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "stripe_test")]
+    #[strum(serialize = "stripe_test")]
+    DummyConnector4,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "adyen_test")]
+    #[strum(serialize = "adyen_test")]
+    DummyConnector5,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "checkout_test")]
+    #[strum(serialize = "checkout_test")]
+    DummyConnector6,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "paypal_test")]
+    #[strum(serialize = "paypal_test")]
+    DummyConnector7,
+    Aci,
+    Adyen,
+    Airwallex,
+    Authorizedotnet,
+    Bitpay,
+    Bambora,
+    Bluesnap,
+    Braintree,
+    Cashtocode,
+    Checkout,
+    Coinbase,
+    Cryptopay,
+    Cybersource,
+    Dlocal,
+    Fiserv,
+    Forte,
+    Globalpay,
+    // Globepay, added as template code for future usage
+    Iatapay,
+    Klarna,
+    Mollie,
+    Multisafepay,
+    Nexinets,
+    Nmi,
+    Noon,
+    Nuvei,
+    // Opayo, added as template code for future usage
+    Opennode,
+    // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
+    Payme,
+    Paypal,
+    Payu,
+    //Powertranz,
+    Rapyd,
+    Shift4,
+    Stripe,
+    Trustpay,
+    Worldline,
+    Worldpay,
+    Zen,
+}
+
+impl From<PaymentConnectors> for RoutableConnectors {
+    fn from(value: PaymentConnectors) -> Self {
+        match value {
+            #[cfg(feature = "dummy_connector")]
+            PaymentConnectors::DummyConnector1 => Self::DummyConnector1,
+            #[cfg(feature = "dummy_connector")]
+            PaymentConnectors::DummyConnector2 => Self::DummyConnector2,
+            #[cfg(feature = "dummy_connector")]
+            PaymentConnectors::DummyConnector3 => Self::DummyConnector3,
+            #[cfg(feature = "dummy_connector")]
+            PaymentConnectors::DummyConnector4 => Self::DummyConnector4,
+            #[cfg(feature = "dummy_connector")]
+            PaymentConnectors::DummyConnector5 => Self::DummyConnector5,
+            #[cfg(feature = "dummy_connector")]
+            PaymentConnectors::DummyConnector6 => Self::DummyConnector6,
+            #[cfg(feature = "dummy_connector")]
+            PaymentConnectors::DummyConnector7 => Self::DummyConnector7,
+            PaymentConnectors::Aci => Self::Aci,
+            PaymentConnectors::Adyen => Self::Adyen,
+            PaymentConnectors::Airwallex => Self::Airwallex,
+            PaymentConnectors::Authorizedotnet => Self::Authorizedotnet,
+            PaymentConnectors::Bitpay => Self::Bitpay,
+            PaymentConnectors::Bambora => Self::Bambora,
+            PaymentConnectors::Bluesnap => Self::Bluesnap,
+            PaymentConnectors::Braintree => Self::Braintree,
+            PaymentConnectors::Cashtocode => Self::Cashtocode,
+            PaymentConnectors::Checkout => Self::Checkout,
+            PaymentConnectors::Coinbase => Self::Coinbase,
+            PaymentConnectors::Cryptopay => Self::Cryptopay,
+            PaymentConnectors::Cybersource => Self::Cybersource,
+            PaymentConnectors::Dlocal => Self::Dlocal,
+            PaymentConnectors::Fiserv => Self::Fiserv,
+            PaymentConnectors::Forte => Self::Forte,
+            PaymentConnectors::Globalpay => Self::Globalpay,
+            PaymentConnectors::Iatapay => Self::Iatapay,
+            PaymentConnectors::Klarna => Self::Klarna,
+            PaymentConnectors::Mollie => Self::Mollie,
+            PaymentConnectors::Multisafepay => Self::Multisafepay,
+            PaymentConnectors::Nexinets => Self::Nexinets,
+            PaymentConnectors::Nmi => Self::Nmi,
+            PaymentConnectors::Noon => Self::Noon,
+            PaymentConnectors::Nuvei => Self::Nuvei,
+            PaymentConnectors::Opennode => Self::Opennode,
+            PaymentConnectors::Payme => Self::Payme,
+            PaymentConnectors::Paypal => Self::Paypal,
+            PaymentConnectors::Payu => Self::Payu,
+            PaymentConnectors::Rapyd => Self::Rapyd,
+            PaymentConnectors::Shift4 => Self::Shift4,
+            PaymentConnectors::Stripe => Self::Stripe,
+            PaymentConnectors::Trustpay => Self::Trustpay,
+            PaymentConnectors::Worldline => Self::Worldline,
+            PaymentConnectors::Worldpay => Self::Worldpay,
+            PaymentConnectors::Zen => Self::Zen,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutConnectors {
+    Adyen,
+    Wise,
+}
+
+#[cfg(feature = "payouts")]
+impl From<PayoutConnectors> for RoutableConnectors {
+    fn from(value: PayoutConnectors) -> Self {
+        match value {
+            PayoutConnectors::Adyen => Self::Adyen,
+            PayoutConnectors::Wise => Self::Wise,
+        }
+    }
 }
 
 /// Name of banks supported by Hyperswitch
@@ -1088,9 +1297,9 @@ pub enum PayoutStatus {
     Cancelled,
     Pending,
     Ineligible,
+    #[default]
     RequiresCreation,
     RequiresPayoutMethodData,
-    #[default]
     RequiresFulfillment,
 }
 

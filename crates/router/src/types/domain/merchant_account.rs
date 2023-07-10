@@ -36,6 +36,7 @@ pub struct MerchantAccount {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub intent_fulfillment_time: Option<i64>,
+    pub payout_routing_algorithm: Option<serde_json::Value>,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -58,6 +59,7 @@ pub enum MerchantAccountUpdate {
         primary_business_details: Option<serde_json::Value>,
         intent_fulfillment_time: Option<i64>,
         frm_routing_algorithm: Option<serde_json::Value>,
+        payout_routing_algorithm: Option<serde_json::Value>,
     },
     StorageSchemeUpdate {
         storage_scheme: enums::MerchantStorageScheme,
@@ -84,6 +86,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 primary_business_details,
                 intent_fulfillment_time,
                 frm_routing_algorithm,
+                payout_routing_algorithm,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
@@ -102,6 +105,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 primary_business_details,
                 modified_at: Some(date_time::now()),
                 intent_fulfillment_time,
+                payout_routing_algorithm,
                 ..Default::default()
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
@@ -142,6 +146,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             modified_at: self.modified_at,
             intent_fulfillment_time: self.intent_fulfillment_time,
             frm_routing_algorithm: self.frm_routing_algorithm,
+            payout_routing_algorithm: self.payout_routing_algorithm,
         })
     }
 
@@ -181,6 +186,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 created_at: item.created_at,
                 modified_at: item.modified_at,
                 intent_fulfillment_time: item.intent_fulfillment_time,
+                payout_routing_algorithm: item.payout_routing_algorithm,
             })
         }
         .await
@@ -211,6 +217,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             modified_at: now,
             intent_fulfillment_time: self.intent_fulfillment_time,
             frm_routing_algorithm: self.frm_routing_algorithm,
+            payout_routing_algorithm: self.payout_routing_algorithm,
         })
     }
 }

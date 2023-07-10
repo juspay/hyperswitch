@@ -1,0 +1,1 @@
+ALTER TYPE "ConnectorType" ADD VALUE 'payout_processor';

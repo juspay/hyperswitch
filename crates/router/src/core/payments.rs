@@ -1091,7 +1091,7 @@ where
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
     pub name: Option<Secret<String, masking::WithType>>,

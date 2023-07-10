@@ -209,8 +209,8 @@ pub struct OnlineMandate {
 #[derive(Deserialize, Clone)]
 pub struct StripePaymentIntentRequest {
     pub id: Option<String>,
-    pub amount: Option<i64>, // amount in cents, hence passed as integer
-    pub connector: Option<Vec<api_enums::RoutableConnectors>>,
+    pub amount: Option<i64>, //amount in cents, hence passed as integer
+    pub connector: Option<Vec<api_enums::PaymentConnectors>>,
     pub currency: Option<String>,
     #[serde(rename = "amount_to_capture")]
     pub amount_capturable: Option<i64>,
@@ -246,7 +246,11 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripePaymentIntentRequest) -> errors::RouterResult<Self> {
         let routable_connector: Option<api_enums::RoutableConnectors> =
-            item.connector.and_then(|v| v.into_iter().next());
+            item.connector.and_then(|v| {
+                v.into_iter()
+                    .next()
+                    .map(api_enums::RoutableConnectors::from)
+            });
 
         let routing = routable_connector
             .map(crate::types::api::RoutingAlgorithm::Single)

@@ -18,8 +18,9 @@ use common_utils::{
     ext_traits::{AsyncExt, BytesExt, StringExt, ValueExt},
     generate_id,
 };
-use diesel_models::{enums as storage_enums, payment_method};
+use diesel_models::{encryption::Encryption, enums as storage_enums, payment_method};
 use error_stack::{report, IntoReport, ResultExt};
+use masking::Secret;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "basilisk")]
@@ -43,7 +44,7 @@ use crate::{
     services,
     types::{
         api::{self, PaymentMethodCreateExt},
-        domain::{self},
+        domain::{self, types::decrypt},
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -268,6 +269,122 @@ pub async fn add_card_hs(
         payment_method_resp,
         store_card_payload.duplicate.unwrap_or(false),
     ))
+}
+
+#[instrument(skip_all)]
+pub async fn call_to_generic_hs(
+    state: &routes::AppState,
+    enc_value: &str,
+    customer_id: &str,
+    merchant_account: &domain::MerchantAccount,
+) -> errors::CustomResult<payment_methods::StoreCardRespPayload, errors::VaultError> {
+    let locker = &state.conf.locker;
+    #[cfg(not(feature = "kms"))]
+    let jwekey = &state.conf.jwekey;
+    #[cfg(feature = "kms")]
+    let jwekey = &state.kms_secrets;
+
+    let db = &*state.store;
+    let merchant_id = &merchant_account.merchant_id;
+
+    let request = payment_methods::mk_add_generic_request_hs(
+        jwekey,
+        locker,
+        enc_value,
+        customer_id,
+        merchant_id,
+    )
+    .await?;
+
+    let stored_card_response = if !locker.mock_locker {
+        let response = services::call_connector_api(state, request)
+            .await
+            .change_context(errors::VaultError::SavePaymentMethodFailed);
+
+        let jwe_body: services::JweBody = response
+            .get_response_inner("JweBody")
+            .change_context(errors::VaultError::FetchCardFailed)?;
+
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body)
+            .await
+            .change_context(errors::VaultError::SavePaymentMethodFailed)
+            .attach_printable("Error getting decrypted response payload")?;
+        let stored_card_resp: payment_methods::StoreCardResp = decrypted_payload
+            .parse_struct("StoreCardResp")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)?;
+        stored_card_resp
+    } else {
+        let payment_method_id = generate_id(consts::ID_LENGTH, "payment_method");
+        mock_add_generic_hs(
+            db,
+            &payment_method_id,
+            enc_value,
+            None,
+            Some(customer_id),
+            &merchant_account.merchant_id,
+        )
+        .await?
+    };
+
+    let stored_card = stored_card_response
+        .payload
+        .get_required_value("StoreCardRespPayload")
+        .change_context(errors::VaultError::SavePaymentMethodFailed)?;
+    Ok(stored_card)
+}
+
+#[instrument(skip_all)]
+pub async fn get_payment_method_from_hs_locker<'a>(
+    state: &'a routes::AppState,
+    key_store: &domain::MerchantKeyStore,
+    customer_id: &str,
+    merchant_id: &str,
+    payment_method_reference: &'a str,
+) -> errors::CustomResult<Secret<String>, errors::VaultError> {
+    let locker = &state.conf.locker;
+    #[cfg(not(feature = "kms"))]
+    let jwekey = &state.conf.jwekey;
+    #[cfg(feature = "kms")]
+    let jwekey = &state.kms_secrets;
+
+    let request = payment_methods::mk_get_card_request_hs(
+        jwekey,
+        locker,
+        customer_id,
+        merchant_id,
+        payment_method_reference,
+    )
+    .await
+    .change_context(errors::VaultError::FetchPaymentMethodFailed)
+    .attach_printable("Making get payment method request failed")?;
+    if !locker.mock_locker {
+        let response = services::call_connector_api(state, request)
+            .await
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)
+            .attach_printable("Failed while executing call_connector_api for get_card");
+        let jwe_body: services::JweBody = response
+            .get_response_inner("JweBody")
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body)
+            .await
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)
+            .attach_printable("Error getting decrypted response payload for get card")?;
+        let get_card_resp: payment_methods::RetrieveCardResp = decrypted_payload
+            .parse_struct("RetrieveCardResp")
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
+        let retrieve_card_resp = get_card_resp
+            .payload
+            .get_required_value("RetrieveCardRespPayload")
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
+        retrieve_card_resp
+            .enc_card_data
+            .get_required_value("enc_card_data")
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)
+    } else {
+        let get_card_resp =
+            mock_get_payment_method(&*state.store, key_store, payment_method_reference).await?;
+        Ok(get_card_resp.payment_method.payment_method_data)
+    }
 }
 
 #[instrument(skip_all)]
@@ -565,12 +682,55 @@ pub async fn mock_add_card_hs(
         customer_id: customer_id.map(str::to_string),
         name_on_card: card.card_holder_name.to_owned().expose_option(),
         nickname: card.nick_name.to_owned().map(masking::Secret::expose),
+        enc_card_data: None,
     };
 
     let response = db
         .insert_locker_mock_up(locker_mock_up)
         .await
         .change_context(errors::VaultError::SaveCardFailed)?;
+    let payload = payment_methods::StoreCardRespPayload {
+        card_reference: response.card_id,
+        duplicate: Some(false),
+    };
+    Ok(payment_methods::StoreCardResp {
+        status: "SUCCESS".to_string(),
+        error_code: None,
+        error_message: None,
+        payload: Some(payload),
+    })
+}
+
+// Mock API for local testing
+pub async fn mock_add_generic_hs(
+    db: &dyn db::StorageInterface,
+    id: &str,
+    enc_value: &str,
+    payment_method_id: Option<String>,
+    customer_id: Option<&str>,
+    merchant_id: &str,
+) -> errors::CustomResult<payment_methods::StoreCardResp, errors::VaultError> {
+    let locker_mock_up = storage::LockerMockUpNew {
+        card_id: id.to_string(),
+        external_id: "".to_string(),
+        card_fingerprint: "".to_string(),
+        card_global_fingerprint: "".to_string(),
+        merchant_id: merchant_id.to_string(),
+        card_number: "".to_string(),
+        card_exp_year: "".to_string(),
+        card_exp_month: "".to_string(),
+        card_cvc: None,
+        payment_method_id,
+        customer_id: customer_id.map(str::to_string),
+        name_on_card: None,
+        nickname: None,
+        enc_card_data: Some(enc_value.to_string()),
+    };
+
+    let response = db
+        .insert_locker_mock_up(locker_mock_up)
+        .await
+        .change_context(errors::VaultError::SavePaymentMethodFailed)?;
     let payload = payment_methods::StoreCardRespPayload {
         card_reference: response.card_id,
         duplicate: Some(false),
@@ -606,6 +766,7 @@ pub async fn mock_add_card(
         customer_id: customer_id.map(str::to_string),
         name_on_card: card.card_holder_name.to_owned().expose_option(),
         nickname: card.nick_name.to_owned().map(masking::Secret::expose),
+        enc_card_data: None,
     };
     let response = db
         .insert_locker_mock_up(locker_mock_up)
@@ -670,6 +831,51 @@ pub async fn mock_get_card<'a>(
         },
         locker_mock_up.card_cvc,
     ))
+}
+
+#[instrument(skip_all)]
+pub async fn mock_get_payment_method<'a>(
+    db: &dyn db::StorageInterface,
+    key_store: &domain::MerchantKeyStore,
+    card_id: &'a str,
+) -> errors::CustomResult<payment_methods::GetPaymentMethodResponse, errors::VaultError> {
+    let locker_mock_up = db
+        .find_locker_by_card_id(card_id)
+        .await
+        .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
+    let dec_data = if let Some(e) = locker_mock_up.enc_card_data {
+        // Fetch key
+        let key = key_store.key.get_inner().peek();
+        // Decode
+        let decoded_bytes = hex::decode(e)
+            .into_report()
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Failed to decode hex string into bytes")?;
+        // Decrypt
+        async { decrypt(Some(Encryption::new(decoded_bytes.into())), key).await }
+            .await
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)?
+            .map_or(
+                Err(report!(errors::VaultError::FetchPaymentMethodFailed)),
+                |d| Ok(d.into_inner()),
+            )
+    } else {
+        Err(report!(errors::VaultError::FetchPaymentMethodFailed))
+    }?;
+    let payment_method_response = payment_methods::AddPaymentMethodResponse {
+        payment_method_id: locker_mock_up
+            .payment_method_id
+            .unwrap_or(locker_mock_up.card_id),
+        external_id: locker_mock_up.external_id,
+        merchant_id: Some(locker_mock_up.merchant_id),
+        nickname: locker_mock_up.nickname,
+        customer_id: locker_mock_up.customer_id,
+        duplicate: locker_mock_up.duplicate,
+        payment_method_data: dec_data,
+    };
+    Ok(payment_methods::GetPaymentMethodResponse {
+        payment_method: payment_method_response,
+    })
 }
 
 #[instrument(skip_all)]

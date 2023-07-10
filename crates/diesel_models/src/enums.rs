@@ -139,6 +139,8 @@ pub enum ConnectorType {
     BankingEntities,
     /// All types of non-banking financial institutions including Insurance, Credit / Lending etc
     NonBankingFinance,
+    /// Payout facilitators, Acquirers, Gateways etc
+    PayoutProcessor,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -491,9 +493,9 @@ pub enum PayoutStatus {
     Cancelled,
     Pending,
     Ineligible,
+    #[default]
     RequiresCreation,
     RequiresPayoutMethodData,
-    #[default]
     RequiresFulfillment,
 }
 
@@ -990,4 +992,23 @@ pub enum DisputeStatus {
     DisputeChallenged,
     DisputeWon,
     DisputeLost,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RouterOperation {
+    Payment,
+    Payout,
 }

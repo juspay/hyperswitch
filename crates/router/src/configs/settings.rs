@@ -98,6 +98,8 @@ pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
 pub struct ConnectorCustomer {
     #[serde(deserialize_with = "connector_deser")]
     pub connector_list: HashSet<api_models::enums::Connector>,
+    #[cfg(feature = "payouts")]
+    pub payout_connector_list: HashSet<api_models::enums::PayoutConnectors>,
 }
 
 fn connector_deser<'a, D>(
@@ -434,6 +436,7 @@ pub struct Connectors {
     pub shift4: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
     pub trustpay: ConnectorParamsWithMoreUrls,
+    pub wise: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub zen: ConnectorParams,

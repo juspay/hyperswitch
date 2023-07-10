@@ -308,6 +308,8 @@ pub enum ConnectorError {
     FileValidationFailed { reason: String },
     #[error("Missing 3DS redirection payload: {field_name}")]
     MissingConnectorRedirectionPayload { field_name: &'static str },
+    #[error("Failed at connector's end with code '{code}'")]
+    FailedAtConnector { message: String, code: String },
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -332,6 +334,10 @@ pub enum VaultError {
     UnexpectedResponseError(bytes::Bytes),
     #[error("Failed to update in PMD table")]
     UpdateInPaymentMethodDataTableFailed,
+    #[error("Failed to save payment method in vault")]
+    FetchPaymentMethodFailed,
+    #[error("Failed to fetch payment method in vault")]
+    SavePaymentMethodFailed,
 }
 
 #[derive(Debug, thiserror::Error)]
