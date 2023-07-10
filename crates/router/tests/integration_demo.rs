@@ -78,7 +78,7 @@ async fn partial_refund() {
             &server,
             &merchant_id,
             "stripe",
-            &authentication.checkout.unwrap().api_key.peek(),
+            authentication.checkout.unwrap().api_key.peek(),
         )
         .await;
 
@@ -144,7 +144,7 @@ async fn exceed_refund() {
             &server,
             &merchant_id,
             "stripe",
-            &authentication.checkout.unwrap().api_key.peek(),
+            authentication.checkout.unwrap().api_key.peek(),
         )
         .await;
 
