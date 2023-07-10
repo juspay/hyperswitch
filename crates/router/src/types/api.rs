@@ -221,6 +221,14 @@ impl ConnectorData {
                 enums::Connector::DummyConnector2 => Ok(Box::new(&connector::DummyConnector::<2>)),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector3 => Ok(Box::new(&connector::DummyConnector::<3>)),
+                #[cfg(feature = "dummy_connector")]
+                enums::Connector::DummyConnector4 => Ok(Box::new(&connector::DummyConnector::<4>)),
+                #[cfg(feature = "dummy_connector")]
+                enums::Connector::DummyConnector5 => Ok(Box::new(&connector::DummyConnector::<5>)),
+                #[cfg(feature = "dummy_connector")]
+                enums::Connector::DummyConnector6 => Ok(Box::new(&connector::DummyConnector::<6>)),
+                #[cfg(feature = "dummy_connector")]
+                enums::Connector::DummyConnector7 => Ok(Box::new(&connector::DummyConnector::<7>)),
                 enums::Connector::Fiserv => Ok(Box::new(&connector::Fiserv)),
                 enums::Connector::Forte => Ok(Box::new(&connector::Forte)),
                 enums::Connector::Globalpay => Ok(Box::new(&connector::Globalpay)),
@@ -232,8 +240,9 @@ impl ConnectorData {
                 enums::Connector::Nuvei => Ok(Box::new(&connector::Nuvei)),
                 enums::Connector::Opennode => Ok(Box::new(&connector::Opennode)),
                 // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
-                //enums::Connector::Payme => Ok(Box::new(&connector::Payme)),
+                enums::Connector::Payme => Ok(Box::new(&connector::Payme)),
                 enums::Connector::Payu => Ok(Box::new(&connector::Payu)),
+                //enums::Connector::Powertranz => Ok(Box::new(&connector::powertranz)),
                 enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
                 enums::Connector::Shift4 => Ok(Box::new(&connector::Shift4)),
                 enums::Connector::Stripe => Ok(Box::new(&connector::Stripe)),
