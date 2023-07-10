@@ -905,7 +905,7 @@ impl Default for super::settings::RequiredFields {
                             vec![RequiredFieldInfo {
                                 required_field: "currency".to_string(),
                                 display_name: "currency".to_string(),
-                                field_type: enums::FieldType::DropDown {
+                                field_type: enums::FieldType::Currency {
                                     options: vec![
                                         "BTC".to_string(),
                                         "LTC".to_string(),
@@ -936,14 +936,6 @@ impl Default for super::settings::RequiredFields {
                     enums::PaymentMethodType::Ach,
                     ConnectorFields {
                         fields: HashMap::from([
-                            (
-                                enums::Connector::Stripe,
-                                vec![RequiredFieldInfo {
-                                    required_field: "currency".to_string(),
-                                    display_name: "currency".to_string(),
-                                    field_type: enums::FieldType::Text,
-                                }],
-                            ),
                             (
                                 enums::Connector::Adyen,
                                 vec![RequiredFieldInfo {

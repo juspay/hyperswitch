@@ -4095,6 +4095,28 @@
             ]
           },
           {
+            "type": "object",
+            "required": [
+              "currency"
+            ],
+            "properties": {
+              "currency": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
             "type": "string",
             "enum": [
               "text"

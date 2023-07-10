@@ -1041,6 +1041,7 @@ pub enum FieldType {
     FieldsComplete,
     UserBillingName,
     UserBank,
+    Currency { options: Vec<String> },
     Text,
     DropDown { options: Vec<String> },
 }
