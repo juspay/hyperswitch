@@ -247,7 +247,9 @@ impl ForeignFrom<(PaypalOrderStatus, PaypalPaymentIntent)> for storage_enums::At
                 }
             }
             PaypalOrderStatus::Voided => Self::Voided,
-            PaypalOrderStatus::Created | PaypalOrderStatus::Saved | PaypalOrderStatus::Pending => Self::Pending,
+            PaypalOrderStatus::Created | PaypalOrderStatus::Saved | PaypalOrderStatus::Pending => {
+                Self::Pending
+            }
             PaypalOrderStatus::Approved => Self::AuthenticationSuccessful,
             PaypalOrderStatus::PayerActionRequired => Self::AuthenticationPending,
         }

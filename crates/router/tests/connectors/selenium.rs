@@ -431,10 +431,9 @@ pub trait SeleniumTest {
         url: &str,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
-        let pypl_url =  url.to_string();
+        let pypl_url = url.to_string();
         // To support failure retries
-        self
-            .execute_paypal_steps(web_driver.clone(), &pypl_url, actions.clone())
+        self.execute_paypal_steps(web_driver.clone(), &pypl_url, actions.clone())
             .await
     }
     async fn execute_paypal_steps(
@@ -477,19 +476,18 @@ pub trait SeleniumTest {
                 vec![
                     Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
                     Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
-                ]
+                ],
             ),
             Event::EitherOr(
                 Assert::IsPresent("See Offers and Apply for PayPal Credit"),
                 vec![
-                    Event::RunIf(Assert::IsElePresent(By::Id("spinner")), vec![
-                        Event::Trigger(Trigger::Sleep(5))
-                    ]),
+                    Event::RunIf(
+                        Assert::IsElePresent(By::Id("spinner")),
+                        vec![Event::Trigger(Trigger::Sleep(5))],
+                    ),
                     Event::Trigger(Trigger::Click(By::Css(".reviewButton"))),
                 ],
-                vec![
-                    Event::Trigger(Trigger::Click(By::Id("payment-submit-btn"))),
-                ],
+                vec![Event::Trigger(Trigger::Click(By::Id("payment-submit-btn")))],
             ),
         ];
         pypl_actions.extend(actions);
