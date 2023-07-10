@@ -83,7 +83,7 @@ pub struct Settings {
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
     pub email: EmailSettings,
-    pub supported_payment_methods_for_mandate: SupportedPaymentMethodsForMandate,
+    pub mandates: Mandates,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
 }
@@ -125,6 +125,11 @@ pub struct DummyConnector {
     pub refund_tolerance: u64,
     pub refund_retrieve_duration: u64,
     pub refund_retrieve_tolerance: u64,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Mandates {
+    pub supported_payment_methods: SupportedPaymentMethodsForMandate,
 }
 
 #[derive(Debug, Deserialize, Clone)]

@@ -838,7 +838,7 @@ pub async fn list_payment_methods(
             address.as_ref(),
             mca.connector_name,
             pm_config_mapping,
-            &state.conf.supported_payment_methods_for_mandate,
+            &state.conf.mandates.supported_payment_methods,
         )
         .await?;
     }

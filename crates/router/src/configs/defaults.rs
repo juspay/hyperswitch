@@ -144,83 +144,85 @@ impl Default for super::settings::DrainerSettings {
 }
 
 use super::settings::{
-    SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
+    Mandates, SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
     SupportedPaymentMethodsForMandate,
 };
 
-impl Default for SupportedPaymentMethodsForMandate {
+impl Default for Mandates {
     fn default() -> Self {
-        Self(HashMap::from([
-            (
-                enums::PaymentMethod::PayLater,
-                SupportedPaymentMethodTypesForMandate(HashMap::from([(
-                    enums::PaymentMethodType::Klarna,
-                    SupportedConnectorsForMandate {
-                        connector_list: HashSet::from([enums::Connector::Adyen]),
-                    },
-                )])),
-            ),
-            (
-                enums::PaymentMethod::Wallet,
-                SupportedPaymentMethodTypesForMandate(HashMap::from([
-                    (
-                        enums::PaymentMethodType::GooglePay,
+        Self {
+            supported_payment_methods: SupportedPaymentMethodsForMandate(HashMap::from([
+                (
+                    enums::PaymentMethod::PayLater,
+                    SupportedPaymentMethodTypesForMandate(HashMap::from([(
+                        enums::PaymentMethodType::Klarna,
                         SupportedConnectorsForMandate {
-                            connector_list: HashSet::from([
-                                enums::Connector::Stripe,
-                                enums::Connector::Adyen,
-                            ]),
+                            connector_list: HashSet::from([enums::Connector::Adyen]),
                         },
-                    ),
-                    (
-                        enums::PaymentMethodType::ApplePay,
-                        SupportedConnectorsForMandate {
-                            connector_list: HashSet::from([
-                                enums::Connector::Stripe,
-                                enums::Connector::Adyen,
-                            ]),
-                        },
-                    ),
-                ])),
-            ),
-            (
-                enums::PaymentMethod::Card,
-                SupportedPaymentMethodTypesForMandate(HashMap::from([
-                    (
-                        enums::PaymentMethodType::Credit,
-                        SupportedConnectorsForMandate {
-                            connector_list: HashSet::from([
-                                enums::Connector::Stripe,
-                                enums::Connector::Adyen,
-                                enums::Connector::Authorizedotnet,
-                                enums::Connector::Globalpay,
-                                enums::Connector::Worldpay,
-                                enums::Connector::Multisafepay,
-                                enums::Connector::Nmi,
-                                enums::Connector::Nexinets,
-                                enums::Connector::Noon,
-                            ]),
-                        },
-                    ),
-                    (
-                        enums::PaymentMethodType::Debit,
-                        SupportedConnectorsForMandate {
-                            connector_list: HashSet::from([
-                                enums::Connector::Stripe,
-                                enums::Connector::Adyen,
-                                enums::Connector::Authorizedotnet,
-                                enums::Connector::Globalpay,
-                                enums::Connector::Worldpay,
-                                enums::Connector::Multisafepay,
-                                enums::Connector::Nmi,
-                                enums::Connector::Nexinets,
-                                enums::Connector::Noon,
-                            ]),
-                        },
-                    ),
-                ])),
-            ),
-        ]))
+                    )])),
+                ),
+                (
+                    enums::PaymentMethod::Wallet,
+                    SupportedPaymentMethodTypesForMandate(HashMap::from([
+                        (
+                            enums::PaymentMethodType::GooglePay,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([
+                                    enums::Connector::Stripe,
+                                    enums::Connector::Adyen,
+                                ]),
+                            },
+                        ),
+                        (
+                            enums::PaymentMethodType::ApplePay,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([
+                                    enums::Connector::Stripe,
+                                    enums::Connector::Adyen,
+                                ]),
+                            },
+                        ),
+                    ])),
+                ),
+                (
+                    enums::PaymentMethod::Card,
+                    SupportedPaymentMethodTypesForMandate(HashMap::from([
+                        (
+                            enums::PaymentMethodType::Credit,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([
+                                    enums::Connector::Stripe,
+                                    enums::Connector::Adyen,
+                                    enums::Connector::Authorizedotnet,
+                                    enums::Connector::Globalpay,
+                                    enums::Connector::Worldpay,
+                                    enums::Connector::Multisafepay,
+                                    enums::Connector::Nmi,
+                                    enums::Connector::Nexinets,
+                                    enums::Connector::Noon,
+                                ]),
+                            },
+                        ),
+                        (
+                            enums::PaymentMethodType::Debit,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([
+                                    enums::Connector::Stripe,
+                                    enums::Connector::Adyen,
+                                    enums::Connector::Authorizedotnet,
+                                    enums::Connector::Globalpay,
+                                    enums::Connector::Worldpay,
+                                    enums::Connector::Multisafepay,
+                                    enums::Connector::Nmi,
+                                    enums::Connector::Nexinets,
+                                    enums::Connector::Noon,
+                                ]),
+                            },
+                        ),
+                    ])),
+                ),
+            ])),
+        }
     }
 }
 
