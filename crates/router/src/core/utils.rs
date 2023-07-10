@@ -7,9 +7,9 @@ use router_env::{instrument, tracing};
 
 use super::payments::{helpers, PaymentAddress};
 use crate::{
+    configs::settings,
     consts,
     core::errors::{self, RouterResult},
-    db,
     routes::AppState,
     types::{
         self, domain,
@@ -19,8 +19,6 @@ use crate::{
     utils::{generate_id, OptionExt, ValueExt},
 };
 
-const SEND_PAYMENT_ID_AS_CONNECTOR_REQUEST_REFERENCE_ID: &str =
-    "send_payment_id_as_connector_request_reference_id";
 const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_dispute_flow";
 const IRRELEVANT_PAYMENT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_payment_id_in_dispute_flow";
@@ -116,11 +114,10 @@ pub async fn construct_refund_router_data<'a, F>(
         connector_customer: None,
         preprocessing_id: None,
         connector_request_reference_id: get_connector_request_reference_id(
-            &*state.store,
+            &state.conf,
             &merchant_account.merchant_id,
             payment_attempt,
-        )
-        .await,
+        ),
     };
 
     Ok(router_data)
@@ -309,11 +306,10 @@ pub async fn construct_accept_dispute_router_data<'a>(
         customer_id: None,
         preprocessing_id: None,
         connector_request_reference_id: get_connector_request_reference_id(
-            &*state.store,
+            &state.conf,
             &merchant_account.merchant_id,
             payment_attempt,
-        )
-        .await,
+        ),
     };
     Ok(router_data)
 }
@@ -376,11 +372,10 @@ pub async fn construct_submit_evidence_router_data<'a>(
         customer_id: None,
         preprocessing_id: None,
         connector_request_reference_id: get_connector_request_reference_id(
-            &*state.store,
+            &state.conf,
             &merchant_account.merchant_id,
             payment_attempt,
-        )
-        .await,
+        ),
     };
     Ok(router_data)
 }
@@ -444,11 +439,10 @@ pub async fn construct_upload_file_router_data<'a>(
         customer_id: None,
         preprocessing_id: None,
         connector_request_reference_id: get_connector_request_reference_id(
-            &*state.store,
+            &state.conf,
             &merchant_account.merchant_id,
             payment_attempt,
-        )
-        .await,
+        ),
     };
     Ok(router_data)
 }
@@ -514,11 +508,10 @@ pub async fn construct_defend_dispute_router_data<'a>(
         connector_customer: None,
         preprocessing_id: None,
         connector_request_reference_id: get_connector_request_reference_id(
-            &*state.store,
+            &state.conf,
             &merchant_account.merchant_id,
             payment_attempt,
-        )
-        .await,
+        ),
     };
     Ok(router_data)
 }
@@ -587,33 +580,23 @@ pub async fn construct_retrieve_file_router_data<'a>(
     Ok(router_data)
 }
 
-pub async fn get_connector_request_reference_id(
-    db: &dyn db::StorageInterface,
+pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
+    conf: &settings::Settings,
+    merchant_id: &str,
+) -> bool {
+    let config_map = &conf
+        .connector_request_reference_id_config
+        .merchant_ids_send_payment_id_as_connector_request_id;
+    config_map.contains(merchant_id)
+}
+
+pub fn get_connector_request_reference_id(
+    conf: &settings::Settings,
     merchant_id: &str,
     payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
 ) -> String {
-    let lookup_key = SEND_PAYMENT_ID_AS_CONNECTOR_REQUEST_REFERENCE_ID;
-    let option_config_map = match db.find_config_by_key_cached(lookup_key).await {
-        Ok(config) => serde_json::from_str::<std::collections::HashSet<String>>(&config.config)
-            .map_err(|err| {
-                crate::logger::warn!(
-                    "Failed to parse connector_request_reference_id merchant config: {:#?}",
-                    err
-                )
-            })
-            .ok(),
-        Err(e) => {
-            crate::logger::warn!(
-                "Unable to fetch connector_request_reference_id merchant config from DB: {:#?}",
-                e
-            );
-            None
-        }
-    };
-    let is_config_enabled_for_merchant = match option_config_map {
-        Some(config_map) => config_map.contains(merchant_id),
-        None => false,
-    };
+    let is_config_enabled_for_merchant =
+        is_merchant_enabled_for_payment_id_as_connector_request_id(conf, merchant_id);
     // Send payment_id if config is enabled for a merchant, else send attempt_id
     if is_config_enabled_for_merchant {
         payment_attempt.payment_id.clone()

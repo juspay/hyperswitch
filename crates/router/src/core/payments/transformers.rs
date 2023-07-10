@@ -124,11 +124,10 @@ where
         payment_method_token: payment_data.pm_token,
         connector_customer: payment_data.connector_customer_id,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
-            &*state.store,
+            &state.conf,
             &merchant_account.merchant_id,
             &payment_data.payment_attempt,
-        )
-        .await,
+        ),
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
     };
 
