@@ -94,7 +94,7 @@ async fn should_fetch_pay_url_classic() {
                 Some(enums::PaymentMethodType::ClassicReward),
                 api_models::payments::PaymentMethodData::Reward(
                     api_models::payments::RewardData::Cashtocode(
-                        api_models::payments::RewardData::CashtoCodeData {
+                        api_models::payments::CashtoCodeData {
                             merchant_id: "1bc20b0a".to_owned(),
                         },
                     ),
@@ -118,7 +118,7 @@ async fn should_fetch_pay_url_evoucher() {
                 Some(enums::PaymentMethodType::Evoucher),
                 api_models::payments::PaymentMethodData::Reward(
                     api_models::payments::RewardData::Cashtocode(
-                        api_models::payments::RewardData::CashtoCodeData {
+                        api_models::payments::CashtoCodeData {
                             merchant_id: "1bc20b0a".to_owned(),
                         },
                     ),
