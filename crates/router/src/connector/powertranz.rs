@@ -112,8 +112,8 @@ impl ConnectorCommon for Powertranz {
             .parse_struct("PowertranzErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let first_error = response.errors.first();
-        let code = first_error.map(|error| error.code);
-        let message = first_error.map(|error| error.message);
+        let code = first_error.map(|error| error.code.clone());
+        let message = first_error.map(|error| error.message.clone());
 
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -163,11 +163,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             true => "/Sale",
             false => "/Auth",
         };
-        Ok(format!(
-            "{}{}",
-            self.base_url(connectors),
-            endpoint.to_string()
-        ))
+        Ok(format!("{}{}", self.base_url(connectors), endpoint))
     }
 
     fn get_request_body(
@@ -232,8 +228,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 {
     fn build_request(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::PaymentsSyncRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Payment Sync".to_string(),
@@ -450,8 +446,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 {
     fn build_request(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::RefundSyncRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Refund Sync".to_string(),
