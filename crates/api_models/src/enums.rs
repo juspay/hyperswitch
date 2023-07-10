@@ -661,6 +661,7 @@ pub enum Connector {
     Shift4,
     Stripe,
     Trustpay,
+    Wise,
     Worldline,
     Worldpay,
     Zen,
@@ -770,6 +771,27 @@ pub enum RoutableConnectors {
     Worldline,
     Worldpay,
     Zen,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutConnectors {
+    Adyen,
+    Wise,
 }
 
 /// Name of banks supported by Hyperswitch
@@ -1074,9 +1096,9 @@ pub enum PayoutStatus {
     Cancelled,
     Pending,
     Ineligible,
+    #[default]
     RequiresCreation,
     RequiresPayoutMethodData,
-    #[default]
     RequiresFulfillment,
 }
 

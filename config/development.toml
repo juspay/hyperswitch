@@ -41,14 +41,14 @@ basilisk_host = ""
 locker_setup = "legacy_locker"
 
 [jwekey]
-locker_key_identifier1 = ""
-locker_key_identifier2 = ""
-locker_encryption_key1 = ""
-locker_encryption_key2 = ""
-locker_decryption_key1 = ""
-locker_decryption_key2 = ""
-vault_encryption_key = ""
-vault_private_key = ""
+locker_key_identifier1 = "locker_key_identifier1"
+locker_key_identifier2 = "locker_key_identifier2"
+locker_encryption_key1 = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuog+8eqR9yLIlL48muDm\n7dBDv9457pMZnVJeaSga4dW7WHwhuGTvBzia0LWXu/4R7SWxJwZAX8GA4nA8jjuj\nrtO9EyLaPE0ULn3yhohmSQUbK7Eydy2pQVeBMkEmDa1t5AfGQVvPYdJSKczUcjvY\ndgNYQ0a6ak8D0dONKvbvRxeBcdYgo0/jdVRT5zj4DqWHZHuINTuqTvcdxER4VgP+\nPHf1SSWlvv0hVCY9TPlgAtISPDfoVHQ/Hk6BZTjkFRzdICciHwumDgti0FW5QaCZ\n/cdE27VpJLBKpHn//e8YnRXt/01jn0FbXbsWzweRuscpVuwJTFY4lKjxPIIIpJ+u\n9QIDAQAB\n-----END PUBLIC KEY-----"
+locker_encryption_key2 = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwf4Fb4lQgvlec7hlxCd6\nT3EFPzeLGGK3/xYMMN3dCb9D/8ox4gDWhbo5nirqJFACb2fOqsDVZuJ6Rd5dmMek\nJRI2YaaEc9vJB7ts6LUi5GaQQCO/wR6JXBHEtYYoH+ma6V6tHBKwIWFQIAH4aSE8\nKmhw8i94yZovN86jairD8zgFJP/cWuXk6oJlaLjqxhO+Z5+TH7jPlO85KRpZKhBH\nmxCbMJ+iiHMJYXpNIqZryZPtp3qMWHzPSRvJyedYDwSg7e9e983LYYS++jqvOIzI\nIanlB6qD445iMePspVzLmwhd1XRQQFyv0lP9FEaMgXfrfvxOW+gg5kCyahnUQ+Tw\n7wIDAQAB\n-----END PUBLIC KEY-----"
+locker_decryption_key1 = "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC6iD7x6pH3IsiU\nvjya4Obt0EO/3jnukxmdUl5pKBrh1btYfCG4ZO8HOJrQtZe7/hHtJbEnBkBfwYDi\ncDyOO6Ou070TIto8TRQuffKGiGZJBRsrsTJ3LalBV4EyQSYNrW3kB8ZBW89h0lIp\nzNRyO9h2A1hDRrpqTwPR040q9u9HF4Fx1iCjT+N1VFPnOPgOpYdke4g1O6pO9x3E\nRHhWA/48d/VJJaW+/SFUJj1M+WAC0hI8N+hUdD8eToFlOOQVHN0gJyIfC6YOC2LQ\nVblBoJn9x0TbtWkksEqkef/97xidFe3/TWOfQVtduxbPB5G6xylW7AlMVjiUqPE8\nggikn671AgMBAAECggEAHuFGVmNIZdruzN0PiG5aHJ2hUaa2/X2BvI8xzQPUK3Xo\nLXZjWLTw80eWLZ4acAdYLWPTh4vb5V5R+WquQ7ew2dT41K2s5lW2VRoJp+b10/nR\n7TJJEfzPq98SJuEtLQ98hUcaNaC+3MlmS8A6nWy14ZedKYoQe1/4WGjG0omNxD1i\nGLONIs0aQteN9JBzsFzyBsFToS3XbTKPchnnLfAR25NkU+jFN1MQfilUFYkKgkms\n4Py8/j1kwvbXXOkZs1SUi6OxV3mFcwY2xHZLhoT8p0xD7R/IORS8s4pmRXpRx2X9\n6GQ1A+mDWVDXGgE+5LHxSDidQ43cDuT49Xppg165UQKBgQDaOKGlIxi6wfg7Ym//\n2DzyK7S6XJ/AX0/wc1gNq6jFwnimACNHPqs8/DtYFS/2L8Refe/H6lreZeKOztIO\ngKrVvHQiWEWQDlndd9zWXAo6EBXMbubvULU6Q/ErwKWvgaz9H4cXCrcM8yJYqRZH\nf+FSXF2bnymq9XHlKsP0Asi67QKBgQDa0y+mME2w913SslakpDUQigsLj2eNguzN\n20GK9bDppvPnTeQm7nUTxudKkGWda48erK076mQOxsDoUUeFNwwue2s+1+tPSali\npOiWhbrrj25P6f/phVZxYjgc87ay+shdrQ2hdmJsdSOv6XV8iYWnK5cispYX7t92\nwf4YdbXbKQKBgQCdvj4q7znbFofn9XpciOVVcX6NEJNyLfPNLrPB/gpcGf24kXTu\n9UA3L2V+gKJQ5aqfW43PB3t0NFYXQS3ayeuz4SxZ/1EZlyYiz5hVY+cIncQEKU7K\nQ58dZSuaowGh4q03tGikoVw9Aiwbxu6R9MDeFmKcMeue5xnTvJw1cSXE6QKBgQCB\nYLOfcpe8tcSHOmH33g5xxOxa3WLATFRuMeBCpJkAzHEQpQDr87jNBKDjeRRbSqjH\n3hhegGrAQcr0kHnUzYMqSFZURZ0et9KqPA44UMD/XUI/hX6FNwyw5P2AQKgYkiW9\nHQAeIrx2m5uJ+mI4S6b1+9PT8/rCE72TnYb6Nz5aYQKBgEUu1Cap7Sm+FsbDoS5z\n0fPodQAg8JYDj/ul3o2tM1F9Jmo4ywSls2vhBCAPqLKkrZ5SNJiNoXprb2KlEpiy\nhMTVPJZTHgWwpkuFOFR5wBR4CwPv6kfn6u2UMs5xiLGZYq7arzEdLjLyCNER5IiX\nLPblYtmP7FNmyZX/9iM1SKdf\n-----END PRIVATE KEY-----"
+locker_decryption_key2 = "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDB/gVviVCC+V5z\nuGXEJ3pPcQU/N4sYYrf/Fgww3d0Jv0P/yjHiANaFujmeKuokUAJvZ86qwNVm4npF\n3l2Yx6QlEjZhpoRz28kHu2zotSLkZpBAI7/BHolcEcS1higf6ZrpXq0cErAhYVAg\nAfhpITwqaHDyL3jJmi83zqNqKsPzOAUk/9xa5eTqgmVouOrGE75nn5MfuM+U7zkp\nGlkqEEebEJswn6KIcwlhek0ipmvJk+2neoxYfM9JG8nJ51gPBKDt7173zcthhL76\nOq84jMghqeUHqoPjjmIx4+ylXMubCF3VdFBAXK/SU/0URoyBd+t+/E5b6CDmQLJq\nGdRD5PDvAgMBAAECggEANwYzSoC7WnsbBF3QV8QO2EupflXl2UPfBradPJshoCsl\nQX97iKxOLN42i5uGkEg1eJ4MK7jIjwc8QWciSzyNXYp97FLMDQTRT6Uk7hi6zegd\nkGPTdxaPRZMwpYBpDyw2qW0WUvkmBkHQ9VM5v7ASncDEEJ3Qd/aI4B53kZyRugGx\nqOG45cR9SW7cXCMSWZYPyN74PDsYXUXDnjrBfr9b66WUkqA2TjsO3fVdO8a7++b1\ng2FDmdY+upY7H0Cp/oO7r7WgKKyw5yYaOBIU/0z0xCyS8k625U3wtfmxL3IyxR/0\n2fnJ0vAOb+iIu+oR86ym8xqYgkTCGSAzUNsgGb1ReQKBgQDIXI1tU9JPXRGl7wqH\nRts2+qzOwO+aHlvp+JBbd8tcDNUklVI3pAmYkB5kRXEq7GiSyN35BbFYezT/jXG2\nEkBK626U6MQAu9LQmuGsIH160+aDI+o2VGJSSRggJouZddM7KGBjw4SyZ/Hf/JV+\nsqY3naGCIAvCkuLclPCI/4jaOwKBgQD33K+cMRMS6pNb2gj4sHLVMdSM/fCLysz4\n87fzWNMk1N+lJtpUUIOJWEMlSrhZMIeQU4IGLVMNIyJpQ4b7R6WUzVco27MpDb1C\nlVQDFrX2+07b/XsuOojCK4AGfFG5Hb9DyK5Y6kY9dDPqNtFuynkIWEPKcgVR8lPt\nbDAuLuzk3QKBgERVBErH7o7wj8dGqhGOwc6TWYI93Ll0Jya5hgob5fgjzEFox5yA\nTmGArUzHPhxEejmtVb7LCTvC8UVCqQhOWyzx9EnGxKn3ZKOOXu7EOec9A32wLv2O\nc+XaVecJHk0dGQgw8ga0NLpfpuccDqQiK3wGP4HQihI25DYUeaBPfg3nAoGBAMXb\nMYeyGPLBtA3fV8gFOjV7SJuf3lQI+GRGUPH9VtcQ4tI32JLzjnylqzvqkIwJ1D1e\nm+2IYsKa6E407FxMDh5haBEih7rez9SF1YF9sJXOeF3d02XMrfypstH6jVYDK/nV\nCW/K23UU/JgbWEVjdQg3RS4mpJ6MnXhqI2/KX6o1AoGAbfJTnRMZvaTL/WiXXEQm\n8RfQaz5+AasUUXNF5koWr7ocsewxr3VwF2EdMKON+bCAyzpR0LUMzXOVw0RqkkCD\np+Eu059JHB4CZoMHH8fsYxLtuXaobitJKCNx4kaFOIiRp6y4NMEZFujPEKv76pRV\nuK5codpDNav8SnrDKhQJFps=\n-----END PRIVATE KEY-----"
+vault_encryption_key = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1aP0hNdM/EpVkpqIXJUw\nNRFLBDLxxHxhRTfgvpwvTRqa3lSs8dOnUEpikTzC9qs0C+UkO7QUwlODs7RwneZn\nJN81T2yGP39q891PQZOYUYYFAyoQfa5D1BeYvHd0d3PwP8lYhuFhA4wzQqcyMyV7\nqv2AkaCzC7p0YXMBH7cRf7zP/EwgXdwWAz/LIfPhjt3Ct4rZLdGA3P4ja4PNOW+V\nz50fdUlXblmmPzjWrQUZ0SW85ZEHGeCK0X4QYLX9XM+6nvPIphmm6mZDZgM10GCI\n0Q6O+JsaPu1tkcQJnnY1vB6MQ5RFEz6HHpkuM29ATaSCJf2T8boveYkfuo84ensh\n1QIDAQAB\n-----END PUBLIC KEY-----"
+vault_private_key = "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDVo/SE10z8SlWS\nmohclTA1EUsEMvHEfGFFN+C+nC9NGpreVKzx06dQSmKRPML2qzQL5SQ7tBTCU4Oz\ntHCd5mck3zVPbIY/f2rz3U9Bk5hRhgUDKhB9rkPUF5i8d3R3c/A/yViG4WEDjDNC\npzIzJXuq/YCRoLMLunRhcwEftxF/vM/8TCBd3BYDP8sh8+GO3cK3itkt0YDc/iNr\ng805b5XPnR91SVduWaY/ONatBRnRJbzlkQcZ4IrRfhBgtf1cz7qe88imGabqZkNm\nAzXQYIjRDo74mxo+7W2RxAmedjW8HoxDlEUTPocemS4zb0BNpIIl/ZPxui95iR+6\njzh6eyHVAgMBAAECggEAYjouoG9vjaZN3wifPtY3Yobvc2BLCfjYLl+pPWqJUw2y\n/Bt5ovyaNo/k7vs9dvWzie6SsMK1Mr38VYFWsDrx3KGmHLz8orBeh/6OxMtsYrtY\njaJnD6oytI8e4jSYP532bhWQ1v9EQEHThcdjDOIkkLNazFpTSEaz4ORkNWVSLeTW\noUmhVEQJHw/hTxphPOwD9xvUhmw/ok15LFDUyXs9uq+dBw+MWEfOGQ1CHcF6IE06\nFF93tAS0GNyFiucfuynaWnwoGV1w9XieXdw4k+kbb9dK1FfYTsXsvWpZ3IfF5OKB\n2IE6KlaxCQGbdCwFvFDQLR1KH8Z+iqkOiEKGrS8dhwKBgQDipIN8hkD1EuIew8MG\n5DIOZYVtXNFHx+DIGBQxRfG2j622Q8jXrZ1xiIPjIVkxeW2T1EUZY9j7+wlwQNDN\nvGB5dV1TVLFQNKF9Bg5sueG1ou+3IMv86+/ZY18JZgTmx+NUf5MQEfXRV+UKYLQC\ngD//n2dQ55oJERCDz7letaT8ywKBgQDxUEnJv0VX2uJdwIlnMX0TegaDAOo35ZnX\ngKI2rsO8Tp4HGWlT1/7Uwkzz5NAhZwNZbvD2mQi70GFLSTwFRLV30CkmhOipMlRN\n835iWM/n7n5QOA+TQf0LIeaShgm3JBw8ZDoBHK8pgAwL4kQl3vlqfvZWxlc78qnD\noNhH78An3wKBgQC0Y4CL4kddSFRVbDaUC5iTwNX7/35LBZmxaQjZVvRV+/GlOjpm\n/7ZqoN9oLijRqfY/TRpaZRBVLq+Keuw2dBLNWU6YfrZKQjmuSt28SA6QBUmKlj4F\n5rwWaHNCBcMs9DfKD2g7yC/BGZYhNmrP+sf1ayhOSqhdQwnD/9dovGa/FQKBgAFo\nFGYGpWLTtcoSGzrswOviJDOTR8o3nmPxLgDfl+h7FNS5wzFn6uZWk5hAVy46qXxV\n9zWYwsJFfquvq5fkRKKEJhlBYRHLZ05lAvGTzvJtI3NYQE79bXopImzsNxZIMZnw\ng54KCsNVKbzP/tGxsQZ74veyhEOnMHIhd+FDdn1FAoGAJsQ0zpAzKjiw8s3c2mSn\nNnQRanYV8DCYZUPRMTk+PxX5NwHFu9LBazBYzb3mLEwnz76hB4Vx/CktT+/9kTVA\n9oWnrGcPrtEpBE1TsGauLl+efJN4Lz4qvp0ZkweYJ/cr6D3aUmcvRJUw9bvpbcJZ\nSkqjGdz4BYjbYjFbe5IlSZs=\n-----END PRIVATE KEY-----"
 tunnel_private_key = ""
 
 [connectors.supported]
@@ -90,6 +90,7 @@ cards = [
     "shift4",
     "stripe",
     "trustpay",
+    "wise",
     "worldline",
     "worldpay",
     "zen",
@@ -149,6 +150,7 @@ rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
+wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
@@ -291,7 +293,7 @@ stripe = { long_lived_token = false, payment_method = "wallet", payment_method_t
 checkout = { long_lived_token = false, payment_method = "wallet" }
 
 [connector_customer]
-connector_list = "bluesnap,stripe"
+connector_list = "bluesnap,stripe,wise"
 
 [dummy_connector]
 payment_ttl = 172800

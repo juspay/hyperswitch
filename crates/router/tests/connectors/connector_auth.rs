@@ -6,7 +6,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConnectorAuthentication {
     pub aci: Option<BodyKey>,
+    #[cfg(not(feature = "payouts"))]
     pub adyen: Option<BodyKey>,
+    #[cfg(feature = "payouts")]
+    pub adyen: Option<SignatureKey>,
     pub adyen_uk: Option<BodyKey>,
     pub airwallex: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
@@ -45,6 +48,7 @@ pub struct ConnectorAuthentication {
     pub stripe_au: Option<HeaderKey>,
     pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,
+    pub wise: Option<BodyKey>,
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
     pub zen: Option<HeaderKey>,

@@ -255,6 +255,7 @@ impl ConnectorData {
                 enums::Connector::Nexinets => Ok(Box::new(&connector::Nexinets)),
                 enums::Connector::Paypal => Ok(Box::new(&connector::Paypal)),
                 enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
+                enums::Connector::Wise => Ok(Box::new(&connector::Wise)),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
