@@ -252,6 +252,7 @@ where
         if payment_data
             .payment_attempt
             .connector
+            .clone()
             .map(|connector_name| connector_name == "bluesnap".to_string())
             .unwrap_or(false)
         {
