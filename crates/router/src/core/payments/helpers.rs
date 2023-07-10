@@ -2202,7 +2202,7 @@ pub fn get_attempt_type(
             } else {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                         message:
-                            format!("You cannot {action} this payment because it has status {}, you can pass manual_retry as true in request to try this payment again", payment_intent.status)
+                            format!("You cannot {action} this payment because it has status {}, you can pass `retry_action` as `manual_retry` in request to try this payment again", payment_intent.status)
                         }
                     ))
             }

@@ -4,7 +4,7 @@ use api_models::payments::OrderDetailsWithAmount;
 use common_utils::fp_utils;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
-use storage_models::ephemeral_key;
+use storage_models::{ephemeral_key, payment_attempt::PaymentListFilters};
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
@@ -322,6 +322,9 @@ where
                 let bank_transfer_next_steps =
                     bank_transfer_next_steps_check(payment_attempt.clone())?;
 
+                let next_action_containing_qr_code =
+                    qr_code_next_steps_check(payment_attempt.clone())?;
+
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                     || bank_transfer_next_steps.is_some()
                 {
@@ -331,6 +334,11 @@ where
                                 bank_transfer_steps_and_charges_details: bank_transfer,
                             }
                         })
+                        .or(next_action_containing_qr_code.map(|qr_code_data| {
+                            api_models::payments::NextActionData::QrCodeInformation {
+                                image_data_url: qr_code_data.image_data_url,
+                            }
+                        }))
                         .or(Some(api_models::payments::NextActionData::RedirectToUrl {
                             redirect_to_url: helpers::create_startpay_url(
                                 server,
@@ -554,6 +562,18 @@ where
     }
 }
 
+pub fn qr_code_next_steps_check(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::QrCodeNextStepsInstruction>> {
+    let qr_code_steps: Option<Result<api_models::payments::QrCodeNextStepsInstruction, _>> =
+        payment_attempt
+            .connector_metadata
+            .map(|metadata| metadata.parse_value("QrCodeNextStepsInstruction"));
+
+    let qr_code_instructions = qr_code_steps.transpose().ok().flatten();
+    Ok(qr_code_instructions)
+}
+
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
     fn foreign_from(item: (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         let pi = item.0;
@@ -575,6 +595,29 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_method: pa.payment_method.map(ForeignInto::foreign_into),
             payment_method_type: pa.payment_method_type.map(ForeignInto::foreign_into),
             ..Default::default()
+        }
+    }
+}
+
+impl ForeignFrom<PaymentListFilters> for api_models::payments::PaymentListFilters {
+    fn foreign_from(item: PaymentListFilters) -> Self {
+        Self {
+            connector: item.connector,
+            currency: item
+                .currency
+                .into_iter()
+                .map(ForeignInto::foreign_into)
+                .collect(),
+            status: item
+                .status
+                .into_iter()
+                .map(ForeignInto::foreign_into)
+                .collect(),
+            payment_method: item
+                .payment_method
+                .into_iter()
+                .map(ForeignInto::foreign_into)
+                .collect(),
         }
     }
 }
@@ -951,7 +994,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
+        let payment_method_data = payment_data.payment_method_data;
+
         Ok(Self {
+            payment_method_data,
             email: payment_data.email,
             currency: Some(payment_data.currency),
             amount: Some(payment_data.amount.into()),
