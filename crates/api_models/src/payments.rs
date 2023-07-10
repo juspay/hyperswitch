@@ -668,7 +668,6 @@ pub enum PaymentMethodData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
 pub struct GiftCardData {
     /// The gift card number
     #[schema(value_type = String)]
