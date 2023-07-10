@@ -27,7 +27,7 @@ jobs:
             BINARY=router
           context: .
           push: true
-          tags: juspaydotin/orca:${{ github.ref_name }}
+          tags: juspaydotin/orca:${{ github.ref_name }}, juspaydotin/hyperswitch-router:${{ github.ref_name }}
 
       - name: Build and push consumer Docker image
         uses: docker/build-push-action@v4
@@ -37,7 +37,7 @@ jobs:
             SCHEDULER_FLOW=consumer
           context: .
           push: true
-          tags: juspaydotin/orca-consumer:${{ github.ref_name }}
+          tags: juspaydotin/orca-consumer:${{ github.ref_name }}, juspaydotin/hyperswitch-consumer:${{ github.ref_name }}
 
       - name: Build and push producer Docker image
         uses: docker/build-push-action@v4
@@ -47,7 +47,7 @@ jobs:
             SCHEDULER_FLOW=producer
           context: .
           push: true
-          tags: juspaydotin/orca-producer:${{ github.ref_name }}
+          tags: juspaydotin/orca-producer:${{ github.ref_name }}, juspaydotin/hyperswitch-producer:${{ github.ref_name }}
 
       - name: Build and push drainer Docker image
         uses: docker/build-push-action@v4
@@ -56,4 +56,4 @@ jobs:
             BINARY=drainer
           context: .
           push: true
-          tags: juspaydotin/orca:drainer-${{ github.ref_name }}
+          tags: juspaydotin/orca:drainer-${{ github.ref_name }}, juspaydotin/hyperswitch-drainer:${{ github.ref_name }}
