@@ -3,6 +3,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    connector::utils::RouterData,
     core::errors,
     types::{self, api, storage::enums},
 };
@@ -36,12 +37,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobepayPaymentsRequest {
                 "Payment method".to_string(),
             ))?,
         };
-        let description =
-            item.description
-                .clone()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "description",
-                })?;
+        let description = item.get_description()?;
         Ok(Self {
             price: item.request.amount,
             description,
@@ -163,12 +159,11 @@ impl<F, T>
         } else {
             Ok(Self {
                 status: enums::AttemptStatus::Failure, //As this connector gives 200 in failed scenarios . if return_code is not success status is mapped to failure. ref = "https://pay.globepay.co/docs/en/#api-QRCode-NewQRCode"
-                response: Err(types::ErrorResponse {
-                    code: item.response.return_code.to_string(),
-                    message: item.response.return_code.to_string(),
-                    reason: item.response.return_msg,
-                    status_code: item.http_code,
-                }),
+                response: Err(get_error_response(
+                    item.response.return_code,
+                    item.response.return_msg,
+                    item.http_code,
+                )),
                 ..item.data
             })
         }
@@ -235,16 +230,28 @@ impl<F, T>
             })
         } else {
             Ok(Self {
-                status: enums::AttemptStatus::Failure,
-                response: Err(types::ErrorResponse {
-                    code: item.response.return_code.to_string(),
-                    message: item.response.return_code.to_string(),
-                    reason: item.response.return_msg,
-                    status_code: item.http_code,
-                }),
+                status: enums::AttemptStatus::Failure, //As this connector gives 200 in failed scenarios . if return_code is not success status is mapped to failure. ref = "https://pay.globepay.co/docs/en/#api-QRCode-NewQRCode"
+                response: Err(get_error_response(
+                    item.response.return_code,
+                    item.response.return_msg,
+                    item.http_code,
+                )),
                 ..item.data
             })
         }
+    }
+}
+
+fn get_error_response(
+    return_code: GlobepayReturnCode,
+    return_msg: Option<String>,
+    status_code: u16,
+) -> types::ErrorResponse {
+    types::ErrorResponse {
+        code: return_code.to_string(),
+        message: return_code.to_string(),
+        reason: return_msg,
+        status_code,
     }
 }
 
