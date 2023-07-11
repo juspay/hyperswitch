@@ -186,7 +186,7 @@ pub struct MandateData {
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct CustomerAcceptance {
     #[serde(rename = "type")]
-    pub acceptance_type: AcceptanceType,
+    pub acceptance_type: Option<AcceptanceType>,
     pub accepted_at: Option<PrimitiveDateTime>,
     pub online: Option<OnlineMandate>,
 }
@@ -720,15 +720,6 @@ impl ForeignFrom<Option<Request3DS>> for api_models::enums::AuthenticationType {
         match item.unwrap_or_default() {
             Request3DS::Automatic => Self::NoThreeDs,
             Request3DS::Any => Self::ThreeDs,
-        }
-    }
-}
-
-impl From<AcceptanceType> for payments::AcceptanceType {
-    fn from(acceptance_type: AcceptanceType) -> Self {
-        match acceptance_type {
-            AcceptanceType::Online => Self::Online,
-            AcceptanceType::Offline => Self::Offline,
         }
     }
 }
