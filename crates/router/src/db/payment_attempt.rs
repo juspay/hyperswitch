@@ -228,9 +228,9 @@ mod storage {
             merchant_id: &str,
             payment_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<Vec<types::PaymentAttempt>, errors::StorageError> {
+        ) -> CustomResult<Vec<PaymentAttempt>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            storage::PaymentAttempt::find_by_merchant_id_payment_id(&conn, merchant_id, payment_id)
+            PaymentAttempt::find_by_merchant_id_payment_id(&conn, merchant_id, payment_id)
                 .await
                 .map_err(Into::into)
                 .into_report()
