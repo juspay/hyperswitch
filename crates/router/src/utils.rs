@@ -162,15 +162,8 @@ pub fn get_payment_attempt_id(payment_id: impl std::fmt::Display, attempt_count:
 #[derive(Debug)]
 pub struct QrImage;
 
-pub trait CreateQrImageUrlFromQrData {
-    fn create_image_data_source_url(
-        &self,
-        _qr_code_data: String,
-    ) -> Result<String, error_stack::Report<common_utils::errors::QrCodeError>>;
-}
-
-impl CreateQrImageUrlFromQrData for QrImage {
-    fn create_image_data_source_url(
+impl QrImage {
+    pub fn create_image_data_source_url(
         &self,
         qr_code_data: String,
     ) -> Result<String, error_stack::Report<common_utils::errors::QrCodeError>> {
@@ -182,26 +175,28 @@ impl CreateQrImageUrlFromQrData for QrImage {
         let qrcode_image_buffer = qr_code.render::<Luma<u8>>().build();
         let qrcode_dynamic_image = image::DynamicImage::ImageLuma8(qrcode_image_buffer);
 
-        let mut image_bytes: Vec<u8> = Vec::new();
+        let mut image_bytes = Vec::new();
 
         // Encodes qrcode_dynamic_image and write it to image_bytes
         let _ = qrcode_dynamic_image.write_to(&mut image_bytes, image::ImageOutputFormat::Png);
 
-        let mut image_data_source = consts::QR_IMAGE_DATA_SOURCE_STRING.to_string();
-        image_data_source.push_str(consts::BASE64_ENGINE.encode(image_bytes).as_str());
-
+        let image_data_source = format!(
+            "{},{}",
+            consts::QR_IMAGE_DATA_SOURCE_STRING,
+            consts::BASE64_ENGINE.encode(image_bytes)
+        );
         Ok(image_data_source)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{utils, utils::CreateQrImageUrlFromQrData};
+    use crate::utils;
     #[test]
     fn test_image_data_source_url() {
         let qr_image_data_source_url = utils::QrImage::create_image_data_source_url(
             &utils::QrImage,
-            "DahshYUJQf4wJSQWYGBUue55Wy8TiV7t_r5vC".to_string(),
+            "Hyperswitch".to_string(),
         );
         assert!(qr_image_data_source_url.is_ok());
     }

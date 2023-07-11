@@ -35,4 +35,4 @@ pub(crate) const APPLEPAY_VALIDATION_URL: &str =
 
 // Qr Image data source starts with this string
 // The base64 image data will be appended to it to image data source
-pub(crate) const QR_IMAGE_DATA_SOURCE_STRING: &str = "data:image/png;base64,";
+pub(crate) const QR_IMAGE_DATA_SOURCE_STRING: &str = "data:image/png;base64";
