@@ -32,7 +32,7 @@ pub struct CustomerRequest {
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
     /// The address for the customer
-    #[schema(value_type = Option<payments::AddressDetails>)]
+    #[schema(value_type = Option<AddressDetails>)]
     pub address: Option<payments::AddressDetails>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
     /// characters long. Metadata is useful for storing additional, structured information on an
@@ -62,7 +62,7 @@ pub struct CustomerResponse {
     #[schema(max_length = 255, example = "First Customer")]
     pub description: Option<String>,
     /// The address for the customer
-    #[schema(value_type = Option<payments::AddressDetails>)]
+    #[schema(value_type = Option<AddressDetails>)]
     pub address: Option<payments::AddressDetails>,
     ///  A timestamp (ISO 8601 code) that determines when the customer was created
     #[schema(value_type = PrimitiveDateTime,example = "2023-01-18T11:04:09.922Z")]
