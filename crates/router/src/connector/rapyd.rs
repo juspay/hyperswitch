@@ -47,10 +47,10 @@ impl Rapyd {
         } = auth;
         let to_sign = format!(
             "{http_method}{url_path}{salt}{timestamp}{}{}{body}",
-            access_key.to_owned().peek(),
-            secret_key.to_owned().peek()
+            access_key.peek(),
+            secret_key.peek()
         );
-        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.to_owned().expose().as_bytes());
+        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.peek().as_bytes());
         let tag = hmac::sign(&key, to_sign.as_bytes());
         let hmac_sign = hex::encode(tag);
         let signature_value = consts::BASE64_ENGINE_URL_SAFE.encode(hmac_sign);

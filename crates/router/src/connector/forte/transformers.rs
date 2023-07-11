@@ -129,8 +129,8 @@ impl TryFrom<&types::ConnectorAuthType> for ForteAuthType {
                 key2,
             } => Ok(Self {
                 api_access_id: api_key.to_owned(),
-                organization_id: Secret::new(format!("org_{}", key1.to_owned().peek())),
-                location_id: Secret::new(format!("org_{}", key2.to_owned().peek())),
+                organization_id: Secret::new(format!("org_{}", key1.peek())),
+                location_id: Secret::new(format!("org_{}", key2.peek())),
                 api_secret_key: api_secret.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,

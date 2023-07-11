@@ -3,7 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, PeekInterface};
+use masking::PeekInterface;
 
 use self::transformers as braintree;
 use crate::{
@@ -266,7 +266,7 @@ impl
         Ok(format!(
             "{}/merchants/{}/transactions/{}",
             self.base_url(connectors),
-            auth_type.merchant_id.expose(),
+            auth_type.merchant_id.peek(),
             connector_payment_id
         ))
     }
@@ -370,7 +370,7 @@ impl
         Ok(format!(
             "{}merchants/{}/transactions",
             self.base_url(connectors),
-            auth_type.merchant_id.expose()
+            auth_type.merchant_id.peek()
         ))
     }
 
@@ -486,7 +486,7 @@ impl
         Ok(format!(
             "{}merchants/{}/transactions/{}/void",
             self.base_url(connectors),
-            auth_type.merchant_id.expose(),
+            auth_type.merchant_id.peek(),
             req.request.connector_transaction_id
         ))
     }
@@ -594,7 +594,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         Ok(format!(
             "{}merchants/{}/transactions/{}",
             self.base_url(connectors),
-            auth_type.merchant_id.expose(),
+            auth_type.merchant_id.peek(),
             connector_payment_id
         ))
     }

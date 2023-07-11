@@ -150,11 +150,7 @@ impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
             api_secret: private_key,
         } = item
         {
-            let auth_key = format!(
-                "{}:{}",
-                public_key.to_owned().peek(),
-                private_key.to_owned().peek()
-            );
+            let auth_key = format!("{}:{}", public_key.peek(), private_key.peek());
             let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
             Ok(Self {
                 auth_header,

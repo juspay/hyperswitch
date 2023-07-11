@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, PeekInterface};
+use masking::PeekInterface;
 use transformers as forte;
 
 use crate::{
@@ -169,8 +169,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions",
             self.base_url(connectors),
-            auth.organization_id.expose(),
-            auth.location_id.expose()
+            auth.organization_id.peek(),
+            auth.location_id.peek()
         ))
     }
 
@@ -257,8 +257,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions/{}",
             self.base_url(connectors),
-            auth.organization_id.expose(),
-            auth.location_id.expose(),
+            auth.organization_id.peek(),
+            auth.location_id.peek(),
             txn_id
         ))
     }
@@ -325,8 +325,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions",
             self.base_url(connectors),
-            auth.organization_id.expose(),
-            auth.location_id.expose()
+            auth.organization_id.peek(),
+            auth.location_id.peek()
         ))
     }
 
@@ -408,8 +408,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions/{}",
             self.base_url(connectors),
-            auth.organization_id.expose(),
-            auth.location_id.expose(),
+            auth.organization_id.peek(),
+            auth.location_id.peek(),
             req.request.connector_transaction_id
         ))
     }
@@ -488,8 +488,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions",
             self.base_url(connectors),
-            auth.organization_id.expose(),
-            auth.location_id.expose()
+            auth.organization_id.peek(),
+            auth.location_id.peek()
         ))
     }
 
@@ -569,8 +569,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions/{}",
             self.base_url(connectors),
-            auth.organization_id.expose(),
-            auth.location_id.expose(),
+            auth.organization_id.peek(),
+            auth.location_id.peek(),
             req.request.get_connector_refund_id()?
         ))
     }
