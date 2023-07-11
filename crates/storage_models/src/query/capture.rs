@@ -4,9 +4,10 @@ use router_env::{instrument, tracing};
 use super::generics;
 use crate::{
     capture::{Capture, CaptureNew, CaptureUpdate, CaptureUpdateInternal},
+    enums::CaptureStatus,
     errors,
     schema::captures::dsl,
-    PgPooledConn, StorageResult, enums::CaptureStatus,
+    PgPooledConn, StorageResult,
 };
 
 impl CaptureNew {
@@ -75,7 +76,7 @@ impl Capture {
     pub async fn find_all_by_authorized_attempt_id(
         authorized_attempt_id: &str,
         conn: &PgPooledConn,
-    ) -> StorageResult<Vec<Capture>> {
+    ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
             _,
@@ -83,8 +84,7 @@ impl Capture {
             _,
         >(
             conn,
-            dsl::authorized_attempt_id
-                .eq(authorized_attempt_id.to_owned()),
+            dsl::authorized_attempt_id.eq(authorized_attempt_id.to_owned()),
             None,
             None,
             None,
@@ -96,7 +96,7 @@ impl Capture {
     pub async fn find_all_charged_by_authorized_attempt_id(
         authorized_attempt_id: &str,
         conn: &PgPooledConn,
-    ) -> StorageResult<Vec<Capture>> {
+    ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
             _,
@@ -113,5 +113,4 @@ impl Capture {
         )
         .await
     }
-
 }
