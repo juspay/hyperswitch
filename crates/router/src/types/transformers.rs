@@ -626,3 +626,39 @@ impl ForeignFrom<storage_models::enums::CardNetwork> for api_models::enums::Card
         frunk::labelled_convert_from(source)
     }
 }
+
+impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttemptResponse {
+    fn foreign_from(payment_attempt: storage::PaymentAttempt) -> Self {
+        Self {
+            attempt_id: payment_attempt.attempt_id,
+            status: payment_attempt.status.foreign_into(),
+            amount: payment_attempt.amount,
+            currency: payment_attempt
+                .currency
+                .map(|currency| currency.foreign_into()),
+            connector: payment_attempt.connector,
+            error_message: payment_attempt.error_reason,
+            payment_method: payment_attempt
+                .payment_method
+                .map(|payment_method| payment_method.foreign_into()),
+            connector_transaction_id: payment_attempt.connector_transaction_id,
+            capture_method: payment_attempt
+                .capture_method
+                .map(|capture_method| capture_method.foreign_into()),
+            authentication_type: payment_attempt
+                .authentication_type
+                .map(|authentication_type| authentication_type.foreign_into()),
+            cancellation_reason: payment_attempt.cancellation_reason,
+            mandate_id: payment_attempt.mandate_id,
+            error_code: payment_attempt.error_code,
+            payment_token: payment_attempt.payment_token,
+            connector_metadata: payment_attempt.connector_metadata,
+            payment_experience: payment_attempt
+                .payment_experience
+                .map(|payment_experience| payment_experience.foreign_into()),
+            payment_method_type: payment_attempt
+                .payment_method_type
+                .map(|payment_method_type| payment_method_type.foreign_into()),
+        }
+    }
+}

@@ -487,6 +487,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 }
             }),
             client_secret: None,
+            expand_attempts: None,
         };
         payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
             state,
@@ -1089,6 +1090,7 @@ where
     pub payment_method_data: Option<api::PaymentMethodData>,
     pub refunds: Vec<storage::Refund>,
     pub disputes: Vec<storage::Dispute>,
+    pub attempts: Option<Vec<storage::PaymentAttempt>>,
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<Secret<String>>,
     pub email: Option<pii::Email>,

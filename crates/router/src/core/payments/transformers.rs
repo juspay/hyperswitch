@@ -162,6 +162,7 @@ where
             payment_data.payment_intent,
             payment_data.refunds,
             payment_data.disputes,
+            payment_data.attempts,
             payment_data.payment_method_data,
             customer,
             auth_flow,
@@ -254,6 +255,7 @@ pub fn payments_to_payments_response<R, Op>(
     payment_intent: storage::PaymentIntent,
     refunds: Vec<storage::Refund>,
     disputes: Vec<storage::Dispute>,
+    option_attempts: Option<Vec<storage::PaymentAttempt>>,
     payment_method_data: Option<api::PaymentMethodData>,
     customer: Option<domain::Customer>,
     auth_flow: services::AuthFlow,
@@ -291,6 +293,21 @@ where
                 .map(ForeignInto::foreign_into)
                 .collect(),
         )
+    };
+    let attempts_response = match option_attempts {
+        Some(attempts) => {
+            if attempts.is_empty() {
+                None
+            } else {
+                Some(
+                    attempts
+                        .into_iter()
+                        .map(ForeignInto::foreign_into)
+                        .collect(),
+                )
+            }
+        }
+        None => None,
     };
     let merchant_id = payment_attempt.merchant_id.to_owned();
     let payment_method_type = payment_attempt
@@ -403,6 +420,7 @@ where
                         .set_description(payment_intent.description)
                         .set_refunds(refunds_response) // refunds.iter().map(refund_to_refund_response),
                         .set_disputes(disputes_response)
+                        .set_attempts(attempts_response)
                         .set_payment_method(
                             payment_attempt
                                 .payment_method
@@ -483,6 +501,7 @@ where
             description: payment_intent.description,
             refunds: refunds_response,
             disputes: disputes_response,
+            attempts: attempts_response,
             payment_method: payment_attempt
                 .payment_method
                 .map(ForeignInto::foreign_into),
