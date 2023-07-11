@@ -8,7 +8,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["kv_store", "dummy_connector", "email", "kms", "s3"]
+default = ["kv_store", "dummy_connector", "email", "s3", "olap"]
 email = ["external_services/email", "dep:aws-config"]
 kms = ["external_services/kms", "dep:aws-config"]
 dummy_connector = ["api_models/dummy_connector"]
