@@ -491,20 +491,7 @@ pub async fn create_payment_connector(
             expected_format: "auth_type and api_key".to_string(),
         })?;
 
-    let frm_configs = match req.frm_configs {
-        Some(frm_value) => {
-            let configs_for_frm_value: Vec<Secret<serde_json::Value>> = frm_value
-                .iter()
-                .map(|config| {
-                    utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&config)
-                        .change_context(errors::ApiErrorResponse::ConfigNotFound)
-                        .map(masking::Secret::new)
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            Some(configs_for_frm_value)
-        }
-        None => None,
-    };
+    let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
@@ -663,20 +650,7 @@ pub async fn update_payment_connector(
             .collect::<Vec<serde_json::Value>>()
     });
 
-    let frm_configs = match req.frm_configs.as_ref() {
-        Some(frm_value) => {
-            let configs_for_frm_value: Vec<Secret<serde_json::Value>> = frm_value
-                .iter()
-                .map(|config| {
-                    utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&config)
-                        .change_context(errors::ApiErrorResponse::ConfigNotFound)
-                        .map(masking::Secret::new)
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            Some(configs_for_frm_value)
-        }
-        None => None,
-    };
+    let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: None,
@@ -827,4 +801,24 @@ pub async fn check_merchant_account_kv_status(
             kv_enabled: kv_status,
         },
     ))
+}
+
+pub fn get_frm_config_as_secret(
+    frm_configs: Option<Vec<api_models::admin::FrmConfigs>>,
+) -> Option<Vec<Secret<serde_json::Value>>> {
+    match frm_configs.as_ref() {
+        Some(frm_value) => {
+            let configs_for_frm_value: Vec<Secret<serde_json::Value>> = frm_value
+                .iter()
+                .map(|config| {
+                    utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&config)
+                        .change_context(errors::ApiErrorResponse::ConfigNotFound)
+                        .map(masking::Secret::new)
+                })
+                .collect::<Result<Vec<_>, _>>()
+                .ok()?;
+            Some(configs_for_frm_value)
+        }
+        None => None,
+    }
 }

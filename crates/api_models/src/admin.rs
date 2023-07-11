@@ -448,28 +448,7 @@ pub struct MerchantConnectorCreate {
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
     /// contains the frm configs for the merchant connector
-    #[schema(example = json!([{
-        "gateway": "stripe",
-        "payment_methods": [{
-            "payment_method": "card",
-            "payment_method_types": [{
-                    "payment_method_type": "credit",
-                    "card_networks": [
-                        "Visa"
-                    ],
-                    "flow": "pre",
-                    "action": "cancel_txn"
-                },
-                {
-                    "payment_method_type": "debit",
-                    "card_networks": [
-                        "Visa"
-                    ],
-                    "flow": "pre"
-                }
-            ]
-        }]
-    }]))]
+    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// Business Country of the connector
@@ -568,28 +547,7 @@ pub struct MerchantConnectorResponse {
     pub business_sub_label: Option<String>,
 
     /// contains the frm configs for the merchant connector
-    #[schema(example = json!([{
-        "gateway": "stripe",
-        "payment_methods": [{
-            "payment_method": "card",
-            "payment_method_types": [{
-                    "payment_method_type": "credit",
-                    "card_networks": [
-                        "Visa"
-                    ],
-                    "flow": "pre",
-                    "action": "cancel_txn"
-                },
-                {
-                    "payment_method_type": "debit",
-                    "card_networks": [
-                        "Visa"
-                    ],
-                    "flow": "pre"
-                }
-            ]
-        }]
-    }]))]
+    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 }
 
@@ -650,28 +608,7 @@ pub struct MerchantConnectorUpdate {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// contains the frm configs for the merchant connector
-    #[schema(example = json!([{
-        "gateway": "stripe",
-        "payment_methods": [{
-            "payment_method": "card",
-            "payment_method_types": [{
-                    "payment_method_type": "credit",
-                    "card_networks": [
-                        "Visa"
-                    ],
-                    "flow": "pre",
-                    "action": "cancel_txn"
-                },
-                {
-                    "payment_method_type": "debit",
-                    "card_networks": [
-                        "Visa"
-                    ],
-                    "flow": "pre"
-                }
-            ]
-        }]
-    }]))]
+    #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 }
 
