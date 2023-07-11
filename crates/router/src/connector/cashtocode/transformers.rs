@@ -129,7 +129,12 @@ pub struct CashtocodePaymentsResponse {
     pub pay_url: String,
 }
 
-pub struct CashtocodePaymentsSyncResponse {}
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CashtocodePaymentsSyncResponse {
+    pub transaction_id: String,
+    pub amount: i64,
+}
 
 impl<F, T>
     TryFrom<
@@ -196,6 +201,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
             }),
+            amount_captured: Some(item.response.amount),
             ..item.data
         })
     }
@@ -216,11 +222,5 @@ pub struct CashtocodeIncomingWebhook {
     pub foreign_transaction_id: String,
     #[serde(rename = "type")]
     pub event_type: String,
-    pub transaction_id: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CashtocodeObjectId {
     pub transaction_id: String,
 }
