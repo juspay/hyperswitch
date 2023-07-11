@@ -160,14 +160,15 @@ pub fn get_payment_attempt_id(payment_id: impl std::fmt::Display, attempt_count:
 }
 
 #[derive(Debug)]
-pub struct QrImage;
+pub struct QrImage {
+    pub data: String,
+}
 
 impl QrImage {
-    pub fn create_image_data_source_url(
-        &self,
-        qr_code_data: String,
-    ) -> Result<String, error_stack::Report<common_utils::errors::QrCodeError>> {
-        let qr_code = qrcode::QrCode::new(qr_code_data.as_bytes())
+    pub fn new_from_data(
+        data: String,
+    ) -> Result<Self, error_stack::Report<common_utils::errors::QrCodeError>> {
+        let qr_code = qrcode::QrCode::new(data.as_bytes())
             .into_report()
             .change_context(common_utils::errors::QrCodeError::FailedToCreateQrCode)?;
 
@@ -185,7 +186,9 @@ impl QrImage {
             consts::QR_IMAGE_DATA_SOURCE_STRING,
             consts::BASE64_ENGINE.encode(image_bytes)
         );
-        Ok(image_data_source)
+        Ok(Self {
+            data: image_data_source,
+        })
     }
 }
 
@@ -194,10 +197,7 @@ mod tests {
     use crate::utils;
     #[test]
     fn test_image_data_source_url() {
-        let qr_image_data_source_url = utils::QrImage::create_image_data_source_url(
-            &utils::QrImage,
-            "Hyperswitch".to_string(),
-        );
+        let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
         assert!(qr_image_data_source_url.is_ok());
     }
 }
