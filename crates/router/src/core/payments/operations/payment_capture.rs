@@ -249,7 +249,9 @@ impl PaymentCapture {
             merchant_id: authorized_attempt.merchant_id.clone(),
             attempt_id: format!("{}_1", authorized_attempt.attempt_id), //todo: suffix must be dynamic for mutiple partial capture
             status: enums::CaptureStatus::Started,
-            amount: authorized_attempt.amount,
+            amount: authorized_attempt
+                .amount_to_capture
+                .unwrap_or(authorized_attempt.amount),
             currency: authorized_attempt.currency,
             connector: authorized_attempt.connector.clone(),
             error_message: None,
