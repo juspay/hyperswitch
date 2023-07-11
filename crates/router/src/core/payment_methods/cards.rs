@@ -1692,8 +1692,10 @@ pub async fn list_customer_payment_method(
         )
         .await?;
         let current_datetime_utc = common_utils::date_time::now();
-        let time_eslapsed = current_datetime_utc - payment_intent.map(|intent| intent.created_at).unwrap();
-
+        let time_eslapsed = current_datetime_utc
+            - payment_intent
+                .map(|intent| intent.created_at)
+                .unwrap_or_else(common_utils::date_time::now);
         redis_conn
             .set_key_with_expiry(
                 &key_for_hyperswitch_token,
@@ -1723,7 +1725,11 @@ pub async fn list_customer_payment_method(
                     parent_payment_method_token, pma.payment_method, pm_metadata.0
                 );
                 redis_conn
-                    .set_key_with_expiry(&key, pm_metadata.1, consts::TOKEN_TTL - time_eslapsed.whole_seconds())
+                    .set_key_with_expiry(
+                        &key,
+                        pm_metadata.1,
+                        consts::TOKEN_TTL - time_eslapsed.whole_seconds(),
+                    )
                     .await
                     .map_err(|error| {
                         logger::error!(connector_payment_method_token_kv_error=?error);
