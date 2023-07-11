@@ -395,7 +395,7 @@ pub struct MerchantConnectorCreate {
     pub connector_type: api_enums::ConnectorType,
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
-    pub connector_name: api_enums::Connector,
+    pub connector_name: Connector,
     // /// Connector label for specific country and Business
     #[serde(skip_deserializing)]
     #[schema(example = "stripe_US_travel")]
