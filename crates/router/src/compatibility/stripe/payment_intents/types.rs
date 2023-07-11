@@ -8,7 +8,6 @@ use common_utils::{
     pii::{IpAddress, SecretSerdeValue},
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -28,7 +27,7 @@ pub struct StripeBillingDetails {
     pub address: Option<payments::AddressDetails>,
     pub email: Option<Email>,
     pub name: Option<String>,
-    pub phone: Option<Secret<String>>,
+    pub phone: Option<masking::Secret<String>>,
 }
 
 impl From<StripeBillingDetails> for payments::Address {
@@ -49,10 +48,10 @@ impl From<StripeBillingDetails> for payments::Address {
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct StripeCard {
     pub number: cards::CardNumber,
-    pub exp_month: Secret<String>,
-    pub exp_year: Secret<String>,
-    pub cvc: Secret<String>,
-    pub holder_name: Option<Secret<String>>,
+    pub exp_month: masking::Secret<String>,
+    pub exp_year: masking::Secret<String>,
+    pub cvc: masking::Secret<String>,
+    pub holder_name: Option<masking::Secret<String>>,
 }
 
 #[derive(Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -135,20 +134,20 @@ impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct Shipping {
     pub address: AddressDetails,
-    pub name: Option<Secret<String>>,
+    pub name: Option<masking::Secret<String>>,
     pub carrier: Option<String>,
-    pub phone: Option<Secret<String>>,
-    pub tracking_number: Option<Secret<String>>,
+    pub phone: Option<masking::Secret<String>>,
+    pub tracking_number: Option<masking::Secret<String>>,
 }
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct AddressDetails {
     pub city: Option<String>,
     pub country: Option<api_enums::CountryAlpha2>,
-    pub line1: Option<Secret<String>>,
-    pub line2: Option<Secret<String>>,
-    pub postal_code: Option<Secret<String>>,
-    pub state: Option<Secret<String>>,
+    pub line1: Option<masking::Secret<String>>,
+    pub line2: Option<masking::Secret<String>>,
+    pub postal_code: Option<masking::Secret<String>>,
+    pub state: Option<masking::Secret<String>>,
 }
 
 impl From<Shipping> for payments::Address {
@@ -203,7 +202,7 @@ pub enum AcceptanceType {
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct OnlineMandate {
-    pub ip_address: Secret<String, IpAddress>,
+    pub ip_address: masking::Secret<String, IpAddress>,
     pub user_agent: String,
 }
 
@@ -227,7 +226,7 @@ pub struct StripePaymentIntentRequest {
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: Option<SecretSerdeValue>,
-    pub client_secret: Option<Secret<String>>,
+    pub client_secret: Option<masking::Secret<String>>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     pub mandate: Option<String>,
@@ -419,7 +418,7 @@ pub struct StripePaymentIntentResponse {
     pub amount_capturable: Option<i64>,
     pub currency: String,
     pub status: StripePaymentStatus,
-    pub client_secret: Option<Secret<String>>,
+    pub client_secret: Option<masking::Secret<String>>,
     pub created: Option<i64>,
     pub customer: Option<String>,
     pub refunds: Option<Vec<stripe_refunds::StripeRefundResponse>>,
@@ -442,11 +441,11 @@ pub struct StripePaymentIntentResponse {
     pub capture_on: Option<PrimitiveDateTime>,
     pub payment_token: Option<String>,
     pub email: Option<Email>,
-    pub phone: Option<Secret<String>>,
+    pub phone: Option<masking::Secret<String>>,
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub capture_method: Option<api_models::enums::CaptureMethod>,
-    pub name: Option<Secret<String>>,
+    pub name: Option<masking::Secret<String>>,
     pub last_payment_error: Option<LastPaymentError>,
 }
 
@@ -653,7 +652,7 @@ pub struct MandateOption {
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
     pub accepted_at: Option<PrimitiveDateTime>,
     pub user_agent: Option<String>,
-    pub ip_address: Option<Secret<String, IpAddress>>,
+    pub ip_address: Option<masking::Secret<String, IpAddress>>,
     pub mandate_type: Option<StripeMandateType>,
     pub amount: Option<i64>,
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
