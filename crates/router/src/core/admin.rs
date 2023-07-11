@@ -52,7 +52,7 @@ pub async fn create_merchant_account(
     let publishable_key = Some(create_merchant_publishable_key());
 
     let primary_business_details = utils::Encode::<Vec<PrimaryBusinessDetails>>::encode_to_value(
-        &req.primary_business_details,
+        &req.primary_business_details.unwrap_or_default(),
     )
     .change_context(errors::ApiErrorResponse::InvalidDataValue {
         field_name: "primary_business_details",
