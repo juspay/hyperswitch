@@ -245,7 +245,6 @@ pub struct StripePaymentIntentRequest {
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripePaymentIntentRequest) -> errors::RouterResult<Self> {
-
         let routable_connector: Option<api_enums::RoutableConnectors> =
             item.connector.and_then(|v| v.into_iter().next());
 
@@ -314,8 +313,8 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                         request_three_d_secure,
                     }: StripePaymentMethodOptions = pmo;
                     Some(api_enums::AuthenticationType::foreign_from(
-                            request_three_d_secure,
-                        ))
+                        request_three_d_secure,
+                    ))
                 }
                 None => None,
             },
@@ -697,10 +696,13 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
             customer_acceptance: Some(payments::CustomerAcceptance {
                 acceptance_type: payments::AcceptanceType::Online,
                 accepted_at: mandate.customer_acceptance.accepted_at,
-                online: mandate.customer_acceptance.online.map(|online| payments::OnlineMandate {
-                    ip_address: Some(online.ip_address),
-                    user_agent: online.user_agent,
-                }),
+                online: mandate
+                    .customer_acceptance
+                    .online
+                    .map(|online| payments::OnlineMandate {
+                        ip_address: Some(online.ip_address),
+                        user_agent: online.user_agent,
+                    }),
             }),
         });
         Ok(mandate_data)
@@ -774,7 +776,7 @@ pub(crate) fn into_stripe_next_action(
     })
 }
 
-#[derive(Deserialize, Clone)]		
- pub struct StripePaymentRetrieveBody {		
-     pub client_secret: Option<String>,		
- }
+#[derive(Deserialize, Clone)]
+pub struct StripePaymentRetrieveBody {
+    pub client_secret: Option<String>,
+}

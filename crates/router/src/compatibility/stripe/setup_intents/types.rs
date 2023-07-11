@@ -147,7 +147,7 @@ pub struct StripeSetupIntentRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     pub receipt_ipaddress: Option<String>,
     pub user_agent: Option<String>,
-    pub mandate_data: Option<payment_intent::MandateData>
+    pub mandate_data: Option<payment_intent::MandateData>,
 }
 
 impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
