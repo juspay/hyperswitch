@@ -15,7 +15,7 @@ use crate::{
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct Shipping {
-    pub address: AddressDetails,
+    pub address: StripeAddressDetails,
     pub name: Option<masking::Secret<String>>,
     pub carrier: Option<String>,
     pub phone: Option<masking::Secret<String>>,
@@ -23,7 +23,7 @@ pub struct Shipping {
 }
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
-pub struct AddressDetails {
+pub struct StripeAddressDetails {
     pub city: Option<String>,
     pub country: Option<api_enums::CountryAlpha2>,
     pub line1: Option<masking::Secret<String>>,
@@ -38,7 +38,7 @@ pub struct CreateCustomerRequest {
     pub invoice_prefix: Option<String>,
     pub name: Option<masking::Secret<String>>,
     pub phone: Option<masking::Secret<String>>,
-    pub address: Option<AddressDetails>,
+    pub address: Option<StripeAddressDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub description: Option<String>,
     pub shipping: Option<Shipping>,
@@ -63,7 +63,7 @@ pub struct CustomerUpdateRequest {
     pub email: Option<Email>,
     pub phone: Option<masking::Secret<String, masking::WithType>>,
     pub name: Option<masking::Secret<String>>,
-    pub address: Option<AddressDetails>,
+    pub address: Option<StripeAddressDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub shipping: Option<Shipping>,
     pub payment_method: Option<String>,              // not used
@@ -101,8 +101,8 @@ pub struct CustomerDeleteResponse {
     pub deleted: bool,
 }
 
-impl From<AddressDetails> for payments::AddressDetails {
-    fn from(address: AddressDetails) -> Self {
+impl From<StripeAddressDetails> for payments::AddressDetails {
+    fn from(address: StripeAddressDetails) -> Self {
         Self {
             city: address.city,
             country: address.country,
