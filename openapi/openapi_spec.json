@@ -3702,7 +3702,7 @@
           "address": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/AddressDetails"
+                "$ref": "#/components/schemas/payments.AddressDetails"
               }
             ],
             "nullable": true
@@ -3765,7 +3765,7 @@
           "address": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/AddressDetails"
+                "$ref": "#/components/schemas/payments.AddressDetails"
               }
             ],
             "nullable": true
