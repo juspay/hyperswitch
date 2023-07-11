@@ -229,7 +229,7 @@ mod storage {
 mod storage {
     use error_stack::IntoReport;
 
-    use super::PaymentAttemptInterface;
+    use super::CaptureInterface;
     use crate::{
         connection,
         core::errors::{self, CustomResult},
@@ -241,9 +241,9 @@ mod storage {
     impl CaptureInterface for Store {
         async fn insert_capture(
             &self,
-            capture: types::CaptureNew,
-            storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<types::Capture, errors::StorageError> {
+            capture: CaptureNew,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Capture, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
             capture
                 .insert(&conn)
@@ -255,8 +255,8 @@ mod storage {
             &self,
             payment_id: &str,
             merchant_id: &str,
-            storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<types::Capture, errors::StorageError> {
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Capture, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             Capture::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
                 .await
@@ -265,10 +265,10 @@ mod storage {
         }
         async fn update_capture_with_attempt_id(
             &self,
-            this: types::Capture,
-            capture: types::CaptureUpdate,
-            storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<types::Capture, errors::StorageError> {
+            this: Capture,
+            capture: CaptureUpdate,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Capture, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
             this.update_with_attempt_id(&conn, capture)
                 .await
