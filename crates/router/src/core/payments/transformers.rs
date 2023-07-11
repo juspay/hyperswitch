@@ -580,9 +580,9 @@ impl ForeignFrom<PaymentListFilters> for api_models::payments::PaymentListFilter
     fn foreign_from(item: PaymentListFilters) -> Self {
         Self {
             connector: item.connector,
-            currency: item.currency.into_iter().collect(),
-            status: item.status.into_iter().collect(),
-            payment_method: item.payment_method.into_iter().collect(),
+            currency: item.currency,
+            status: item.status,
+            payment_method: item.payment_method,
         }
     }
 }
