@@ -1,20 +1,18 @@
 use std::{convert::From, default::Default};
 
-use api_models::{customers, payment_methods as api_types};
+use api_models::{payments, payment_methods as api_types};
 use common_utils::{
     crypto::Encryptable,
     date_time,
     pii::{self, Email},
 };
-use masking::{Secret, SerializableSecret};
+use masking::{Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     logger,
     types::{api, api::enums as api_enums},
 };
-
-impl SerializableSecret for AddressDetails {}
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct Shipping {
@@ -41,7 +39,7 @@ pub struct CreateCustomerRequest {
     pub invoice_prefix: Option<String>,
     pub name: Option<Secret<String>>,
     pub phone: Option<Secret<String>>,
-    pub address: Option<Secret<AddressDetails>>,
+    pub address: Option<AddressDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub description: Option<String>,
     pub shipping: Option<Shipping>,
@@ -66,7 +64,7 @@ pub struct CustomerUpdateRequest {
     pub email: Option<Email>,
     pub phone: Option<Secret<String, masking::WithType>>,
     pub name: Option<Secret<String>>,
-    pub address: Option<Secret<AddressDetails>>,
+    pub address: Option<AddressDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub shipping: Option<Shipping>,
     pub payment_method: Option<String>,              // not used
@@ -104,7 +102,7 @@ pub struct CustomerDeleteResponse {
     pub deleted: bool,
 }
 
-impl From<AddressDetails> for customers::AddressDetails {
+impl From<AddressDetails> for payments::AddressDetails {
     fn from(address: AddressDetails) -> Self {
         Self {
             city: address.city,
@@ -129,7 +127,7 @@ impl From<CreateCustomerRequest> for api::CustomerRequest {
             email: req.email,
             description: req.description,
             metadata: req.metadata,
-            address: req.address.map(|s| s.map(Into::into)),
+            address: req.address.map(|s|s.into()),
             ..Default::default()
         }
     }
@@ -143,7 +141,7 @@ impl From<CustomerUpdateRequest> for api::CustomerRequest {
             email: req.email,
             description: req.description,
             metadata: req.metadata,
-            address: req.address.map(|s| s.map(Into::into)),
+            address: req.address.map(|s|s.into()),
             ..Default::default()
         }
     }
