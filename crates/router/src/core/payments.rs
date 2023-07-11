@@ -486,6 +486,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                     encoded_data: None,
                 }
             }),
+            client_secret: None,
         };
         payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
             state,

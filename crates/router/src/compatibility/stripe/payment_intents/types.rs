@@ -802,3 +802,8 @@ pub(crate) fn into_stripe_next_action(
         }
     })
 }
+
+#[derive(Deserialize, Clone)]
+pub struct StripePaymentRetrieveBody {
+    pub client_secret: Option<String>,
+}
