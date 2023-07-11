@@ -233,8 +233,6 @@ impl PaymentCapture {
         authorized_payment_attempt: &storage::PaymentAttempt,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::Capture, errors::StorageError> {
-        println!("\n\n\n\n");
-        dbg!(&authorized_payment_attempt);
         state
             .store
             .insert_capture(
