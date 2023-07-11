@@ -160,8 +160,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = match req.request.is_auto_capture()? {
-            true => "/Sale",
-            false => "/Auth",
+            true => "sale",
+            false => "auth",
         };
         Ok(format!("{}{}", self.base_url(connectors), endpoint))
     }
@@ -258,7 +258,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         _req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/capture", self.base_url(connectors)))
+        Ok(format!("{}capture", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -319,12 +319,20 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Powertranz
 {
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
     fn get_url(
         &self,
         _req: &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/void", self.base_url(connectors)))
+        Ok(format!("{}void", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -356,6 +364,22 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         })
     }
 
+    fn build_request(
+        &self,
+        req: &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+                .body(types::PaymentsVoidType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
     fn get_error_response(
         &self,
         res: Response,
@@ -384,7 +408,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         _req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/refund", self.base_url(connectors)))
+        Ok(format!("{}refund", self.base_url(connectors)))
     }
 
     fn get_request_body(

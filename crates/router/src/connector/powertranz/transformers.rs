@@ -3,14 +3,17 @@ use common_utils::pii::Email;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use storage_models::enums::RefundStatus;
+use uuid::Uuid;
 
 use crate::{
     connector::utils::{self, CardData},
+    consts,
     core::errors,
     types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct PowertranzPaymentsRequest {
     transaction_identifier: String,
     total_amount: f64,
@@ -29,6 +32,7 @@ pub enum Source {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct PowertranzCard {
     cardholder_name: Secret<String>,
     card_pan: cards::CardNumber,
@@ -37,6 +41,7 @@ pub struct PowertranzCard {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct PowertranzAddressDetails {
     first_name: Option<Secret<String>>,
     last_name: Option<Secret<String>>,
@@ -62,7 +67,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
         let billing_address = get_address_details(&item.address.billing, &item.request.email);
         let shiping_address = get_address_details(&item.address.shipping, &item.request.email);
         Ok(Self {
-            transaction_identifier: item.attempt_id.clone(),
+            transaction_identifier: Uuid::new_v4().to_string(),
             total_amount: utils::to_currency_base_unit_asf64(
                 item.request.amount,
                 item.request.currency,
@@ -228,7 +233,7 @@ impl From<&Card> for Source {
         let card = PowertranzCard {
             cardholder_name: card.card_holder_name.clone(),
             card_pan: card.card_number.clone(),
-            card_expiration: card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+            card_expiration: card.get_expiry_date_as_yymm(),
             card_cvv: card.card_cvc.clone(),
         };
         Self::Card(card)
@@ -256,43 +261,41 @@ impl TryFrom<&types::ConnectorAuthType> for PowertranzAuthType {
 
 // Common struct used in Payment, Capture, Void, Refund
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct PowertranzBaseResponse {
-    transaction_type: TransactionType,
+    transaction_type: u8,
     approved: bool,
     transaction_identifier: String,
+    original_trxn_identifier: Option<String>,
+    errors: Option<Vec<Error>>,
 }
 
-#[derive(Debug, Deserialize)]
-pub enum TransactionType {
-    #[serde(rename = "1")]
-    Auth,
-    #[serde(rename = "2")]
-    Sale,
-    #[serde(rename = "3")]
-    Capture,
-    #[serde(rename = "4")]
-    Void,
-    #[serde(rename = "5")]
-    Refund,
-}
-
-impl ForeignFrom<(TransactionType, bool)> for enums::AttemptStatus {
-    fn foreign_from((transaction_type, approved): (TransactionType, bool)) -> Self {
+impl ForeignFrom<(u8, bool)> for enums::AttemptStatus {
+    fn foreign_from((transaction_type, approved): (u8, bool)) -> Self {
         match transaction_type {
-            TransactionType::Auth => match approved {
+            // Auth
+            1 => match approved {
                 true => Self::Authorized,
                 false => Self::Failure,
             },
-            TransactionType::Sale | TransactionType::Capture => match approved {
+            // Sale or Capture
+            2 | 3 => match approved {
                 true => Self::Charged,
                 false => Self::Failure,
             },
-            TransactionType::Void => match approved {
+            // Void
+            4 => match approved {
                 true => Self::Voided,
                 false => Self::VoidFailed,
             },
-            TransactionType::Refund => match approved {
+            // Refund
+            5 => match approved {
                 true => Self::AutoRefunded,
+                false => Self::Failure,
+            },
+            // Risk Management
+            _ => match approved {
+                true => Self::Pending,
                 false => Self::Failure,
             },
         }
@@ -307,20 +310,28 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, PowertranzBaseResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::foreign_from((
-                item.response.transaction_type,
-                item.response.approved,
-            )),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.transaction_identifier,
-                ),
+        let error_response = build_error_response(&item.response, item.http_code);
+        // original_trxn_identifier will be present only in capture and void
+        let connector_transaction_id = item
+            .response
+            .original_trxn_identifier
+            .unwrap_or(item.response.transaction_identifier);
+        let response = error_response.map_or(
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(connector_transaction_id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
             }),
+            Err,
+        );
+        Ok(Self {
+            status: enums::AttemptStatus::foreign_from((
+                item.response.transaction_type,
+                item.response.approved,
+            )),
+            response,
             ..item.data
         })
     }
@@ -328,6 +339,7 @@ impl<F, T>
 
 // Type definition for Capture, Void, Refund Request
 #[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct PowertranzBaseRequest {
     transaction_identifier: String,
     total_amount: Option<f64>,
@@ -368,7 +380,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PowertranzBaseRequest {
             item.request.currency,
         )?);
         Ok(Self {
-            transaction_identifier: item.request.refund_id.clone(),
+            transaction_identifier: item.request.connector_transaction_id.clone(),
             total_amount,
             refund: Some(true),
         })
@@ -382,25 +394,52 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PowertranzBaseRespon
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, PowertranzBaseResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+        let error_response = build_error_response(&item.response, item.http_code);
+        let response = error_response.map_or(
+            Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.transaction_identifier.to_string(),
                 refund_status: match item.response.approved {
                     true => RefundStatus::Success,
                     false => RefundStatus::Failure,
                 },
             }),
+            Err,
+        );
+        Ok(Self {
+            response,
             ..item.data
         })
     }
 }
 
+fn build_error_response(
+    item: &PowertranzBaseResponse,
+    status_code: u16,
+) -> Option<types::ErrorResponse> {
+    item.errors.as_ref().map(|errors| {
+        let first_error = errors.first();
+        let code = first_error.map(|error| error.code.clone());
+        let message = first_error.map(|error| error.message.clone());
+
+        types::ErrorResponse {
+            status_code,
+            code: code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: message
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: message,
+        }
+    })
+}
+
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct PowertranzErrorResponse {
     pub errors: Vec<Error>,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct Error {
     pub code: String,
     pub message: String,
