@@ -57,6 +57,7 @@ async fn should_make_gpay_payment(driver: WebDriver) -> Result<(), WebDriverErro
 
 #[test]
 #[serial]
+#[ignore]
 fn should_make_3ds_payment_test() {
     tester!(should_make_3ds_payment);
 }

@@ -13,6 +13,7 @@ use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
+        utils as core_utils,
     },
     routes::{metrics, AppState},
     services::{self, RedirectForm},
@@ -122,6 +123,11 @@ where
         reference_id: None,
         payment_method_token: payment_data.pm_token,
         connector_customer: payment_data.connector_customer_id,
+        connector_request_reference_id: core_utils::get_connector_request_reference_id(
+            &state.conf,
+            &merchant_account.merchant_id,
+            &payment_data.payment_attempt,
+        ),
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
     };
 
@@ -928,6 +934,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             connector_name,
             payment_data.creds_identifier.as_deref(),
         ));
+        let browser_info: Option<types::BrowserInformation> = attempt
+            .browser_info
+            .clone()
+            .map(|b| b.parse_value("BrowserInformation"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })?;
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -942,6 +956,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             router_return_url,
             email: payment_data.email,
             return_url: payment_data.payment_intent.return_url,
+            browser_info,
             payment_method_type: attempt.payment_method_type.clone(),
         })
     }
