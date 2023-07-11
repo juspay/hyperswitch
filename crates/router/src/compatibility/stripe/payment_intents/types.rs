@@ -134,7 +134,7 @@ impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct Shipping {
-    pub address: StripeAddressDetails,
+    pub address: AddressDetails,
     pub name: Option<Secret<String>>,
     pub carrier: Option<String>,
     pub phone: Option<Secret<String>>,
@@ -142,7 +142,7 @@ pub struct Shipping {
 }
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
-pub struct StripeAddressDetails {
+pub struct AddressDetails {
     pub city: Option<String>,
     pub country: Option<api_enums::CountryAlpha2>,
     pub line1: Option<Secret<String>>,
@@ -176,6 +176,12 @@ impl From<Shipping> for payments::Address {
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct MandateData {
     pub customer_acceptance: CustomerAcceptance,
+    pub mandate_type: Option<StripeMandateType>,
+    pub amount: Option<i64>,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub start_date: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub end_date: Option<PrimitiveDateTime>,
 }
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -199,25 +205,6 @@ pub enum AcceptanceType {
 pub struct OnlineMandate {
     pub ip_address: Secret<String, IpAddress>,
     pub user_agent: String,
-}
-
-impl From<MandateData> for payments::MandateData {
-    fn from(mandate: MandateData) -> Self {
-        Self {
-            customer_acceptance: Some(payments::CustomerAcceptance {
-                acceptance_type: mandate.customer_acceptance.acceptance_type.into(),
-                accepted_at: mandate.customer_acceptance.accepted_at,
-                online: mandate
-                    .customer_acceptance
-                    .online
-                    .map(|online| payments::OnlineMandate {
-                        ip_address: Some(online.ip_address),
-                        user_agent: online.user_agent,
-                    }),
-            }),
-            mandate_type: None, // need to decide what should be done for this field
-        }
-    }
 }
 
 #[derive(Deserialize, Clone)]
@@ -259,24 +246,6 @@ pub struct StripePaymentIntentRequest {
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripePaymentIntentRequest) -> errors::RouterResult<Self> {
-        let (mandate_options, authentication_type) = match item.payment_method_options {
-            Some(pmo) => {
-                let StripePaymentMethodOptions::Card {
-                    request_three_d_secure,
-                    mandate_options,
-                }: StripePaymentMethodOptions = pmo;
-                (
-                    Option::<payments::MandateData>::foreign_try_from((
-                        mandate_options,
-                        item.currency.to_owned(),
-                    ))?,
-                    Some(api_enums::AuthenticationType::foreign_from(
-                        request_three_d_secure,
-                    )),
-                )
-            }
-            None => (None, None),
-        };
 
         let routable_connector: Option<api_enums::RoutableConnectors> =
             item.connector.and_then(|v| v.into_iter().next());
@@ -340,8 +309,21 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             metadata: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
-            authentication_type,
-            mandate_data: mandate_options,
+            authentication_type: match item.payment_method_options {
+                Some(pmo) => {
+                    let StripePaymentMethodOptions::Card {
+                        request_three_d_secure,
+                    }: StripePaymentMethodOptions = pmo;
+                    Some(api_enums::AuthenticationType::foreign_from(
+                            request_three_d_secure,
+                        ))
+                }
+                None => None,
+            },
+            mandate_data: ForeignTryFrom::foreign_try_from((
+                item.mandate_data,
+                item.currency.to_owned(),
+            ))?,
             merchant_connector_details: item.merchant_connector_details,
             setup_future_usage: item.setup_future_usage,
             mandate_id: item.mandate,
@@ -656,7 +638,6 @@ impl From<payments::PaymentListResponse> for StripePaymentIntentListResponse {
 pub enum StripePaymentMethodOptions {
     Card {
         request_three_d_secure: Option<Request3DS>,
-        mandate_options: Option<MandateOption>,
     },
 }
 
@@ -681,10 +662,10 @@ pub struct MandateOption {
     pub end_date: Option<PrimitiveDateTime>,
 }
 
-impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments::MandateData> {
+impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::MandateData> {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(
-        (mandate_options, currency): (Option<MandateOption>, Option<String>),
+        (mandate_data, currency): (Option<MandateData>, Option<String>),
     ) -> errors::RouterResult<Self> {
         let currency = currency
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
@@ -698,7 +679,7 @@ impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments
                     },
                 )
             })?;
-        let mandate_data = mandate_options.map(|mandate| payments::MandateData {
+        let mandate_data = mandate_data.map(|mandate| payments::MandateData {
             mandate_type: match mandate.mandate_type {
                 Some(item) => match item {
                     StripeMandateType::SingleUse => Some(payments::MandateType::SingleUse(
@@ -716,10 +697,10 @@ impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments
             },
             customer_acceptance: Some(payments::CustomerAcceptance {
                 acceptance_type: payments::AcceptanceType::Online,
-                accepted_at: mandate.accepted_at,
-                online: Some(payments::OnlineMandate {
-                    ip_address: mandate.ip_address,
-                    user_agent: mandate.user_agent.unwrap_or_default(),
+                accepted_at: mandate.customer_acceptance.accepted_at,
+                online: mandate.customer_acceptance.online.map(|online| payments::OnlineMandate {
+                    ip_address: Some(online.ip_address),
+                    user_agent: online.user_agent,
                 }),
             }),
         });
@@ -801,9 +782,4 @@ pub(crate) fn into_stripe_next_action(
             StripeNextAction::QrCodeInformation { image_data_url }
         }
     })
-}
-
-#[derive(Deserialize, Clone)]
-pub struct StripePaymentRetrieveBody {
-    pub client_secret: Option<String>,
 }
