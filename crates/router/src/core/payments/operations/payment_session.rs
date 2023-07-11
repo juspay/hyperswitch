@@ -176,6 +176,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 connector_customer_id: None,
                 ephemeral_key: None,
                 redirect_response: None,
+                capture: None,
             },
             Some(customer_details),
         ))

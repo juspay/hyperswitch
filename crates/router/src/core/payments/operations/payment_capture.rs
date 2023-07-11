@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use common_utils::ext_traits::AsyncExt;
+use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
@@ -133,6 +133,11 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             .await
             .transpose()?;
 
+        let capture = Self::create_capture(state, &payment_attempt, storage_scheme)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to create capture in DB")?;
+
         Ok((
             Box::new(self),
             payments::PaymentData {
@@ -163,6 +168,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 connector_customer_id: None,
                 ephemeral_key: None,
                 redirect_response: None,
+                capture: Some(capture),
             },
             None,
         ))
@@ -218,5 +224,42 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest> for Paymen
                 requeue: false,
             },
         ))
+    }
+}
+
+impl PaymentCapture {
+    async fn create_capture(
+        state: &AppState,
+        authorized_payment_attempt: &storage::PaymentAttempt,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<storage::Capture, errors::StorageError> {
+        println!("\n\n\n\n");
+        dbg!(&authorized_payment_attempt);
+        state
+            .store
+            .insert_capture(
+                Self::make_capture(authorized_payment_attempt),
+                storage_scheme,
+            )
+            .await
+    }
+    fn make_capture(authorized_attempt: &storage::PaymentAttempt) -> storage::CaptureNew {
+        storage::CaptureNew {
+            payment_id: authorized_attempt.payment_id.clone(),
+            merchant_id: authorized_attempt.merchant_id.clone(),
+            attempt_id: format!("{}_1", authorized_attempt.attempt_id), //todo: suffix must be dynamic for mutiple partial capture
+            status: enums::CaptureStatus::Started,
+            amount: authorized_attempt.amount,
+            currency: authorized_attempt.currency,
+            connector: authorized_attempt.connector.clone(),
+            error_message: None,
+            tax_amount: None,
+            created_at: Some(common_utils::date_time::now()),
+            modified_at: Some(common_utils::date_time::now()),
+            error_code: None,
+            error_reason: None,
+            authorized_attempt_id: authorized_attempt.attempt_id.clone(),
+            capture_sequence: 1, //todo: This needs to be dynamic for multiple partial capture
+        }
     }
 }

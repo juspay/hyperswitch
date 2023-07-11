@@ -485,6 +485,24 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+    payment_data.capture = if let Some((capture_status, capture)) =
+        router_data.capture_status.zip(payment_data.capture.clone())
+    {
+        let capture = db
+            .update_capture_with_attempt_id(
+                capture,
+                storage::CaptureUpdate::StatusUpdate {
+                    status: capture_status,
+                },
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        Some(capture)
+    } else {
+        payment_data.capture
+    };
+
     // When connector requires redirection for mandate creation it can update the connector mandate_id during Psync
     mandate::update_connector_mandate_id(
         db,

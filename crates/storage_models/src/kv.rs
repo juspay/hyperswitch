@@ -2,6 +2,7 @@ use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    capture::{Capture, CaptureNew, CaptureUpdate},
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
     payment_intent::{PaymentIntent, PaymentIntentNew, PaymentIntentUpdate},
@@ -38,6 +39,7 @@ impl TypedSql {
 pub enum Insertable {
     PaymentIntent(PaymentIntentNew),
     PaymentAttempt(PaymentAttemptNew),
+    Capture(Box<CaptureNew>),
     Refund(RefundNew),
 }
 
@@ -46,6 +48,7 @@ pub enum Insertable {
 pub enum Updateable {
     PaymentIntentUpdate(PaymentIntentUpdateMems),
     PaymentAttemptUpdate(PaymentAttemptUpdateMems),
+    CaptureUpdate(Box<CaptureUpdateMems>),
     RefundUpdate(RefundUpdateMems),
 }
 
@@ -59,6 +62,12 @@ pub struct PaymentIntentUpdateMems {
 pub struct PaymentAttemptUpdateMems {
     pub orig: PaymentAttempt,
     pub update_data: PaymentAttemptUpdate,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CaptureUpdateMems {
+    pub orig: Capture,
+    pub update_data: CaptureUpdate,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

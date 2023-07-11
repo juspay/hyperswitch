@@ -182,6 +182,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub payment_id: String,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
+    pub capture_status: Option<storage_enums::CaptureStatus>,
     pub payment_method: storage_enums::PaymentMethod,
     pub connector_auth_type: ConnectorAuthType,
     pub description: Option<String>,
@@ -810,6 +811,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_method_token: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
+            capture_status: data.capture_status,
         }
     }
 }

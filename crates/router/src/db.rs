@@ -1,6 +1,7 @@
 pub mod address;
 pub mod api_keys;
 pub mod cache;
+pub mod capture;
 pub mod cards_info;
 pub mod configs;
 pub mod connector_response;
@@ -46,6 +47,7 @@ pub trait StorageInterface:
     + address::AddressInterface
     + api_keys::ApiKeyInterface
     + configs::ConfigInterface
+    + capture::CaptureInterface
     + connector_response::ConnectorResponseInterface
     + customers::CustomerInterface
     + dispute::DisputeInterface
@@ -116,6 +118,7 @@ pub struct MockDb {
     disputes: Arc<Mutex<Vec<storage::Dispute>>>,
     lockers: Arc<Mutex<Vec<storage::LockerMockUp>>>,
     mandates: Arc<Mutex<Vec<storage::Mandate>>>,
+    captures: Arc<Mutex<Vec<storage::Capture>>>,
 }
 
 impl MockDb {
@@ -140,6 +143,7 @@ impl MockDb {
             disputes: Default::default(),
             lockers: Default::default(),
             mandates: Default::default(),
+            captures: Default::default(),
         }
     }
 }

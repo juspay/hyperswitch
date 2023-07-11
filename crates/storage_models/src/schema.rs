@@ -57,6 +57,38 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    captures (id) {
+        id -> Int4,
+        #[max_length = 255]
+        payment_id -> Varchar,
+        #[max_length = 255]
+        merchant_id -> Varchar,
+        #[max_length = 255]
+        attempt_id -> Varchar,
+        status -> CaptureStatus,
+        amount -> Int8,
+        currency -> Nullable<Currency>,
+        #[max_length = 255]
+        connector -> Nullable<Varchar>,
+        #[max_length = 255]
+        error_message -> Nullable<Varchar>,
+        #[max_length = 255]
+        error_code -> Nullable<Varchar>,
+        #[max_length = 255]
+        error_reason -> Nullable<Varchar>,
+        tax_amount -> Nullable<Int8>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+        #[max_length = 255]
+        authorized_attempt_id -> Varchar,
+        capture_sequence -> Int4,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     cards_info (card_iin) {
         #[max_length = 16]
         card_iin -> Varchar,
@@ -610,6 +642,7 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
+    captures,
     cards_info,
     configs,
     connector_response,
