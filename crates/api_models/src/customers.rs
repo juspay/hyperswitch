@@ -1,51 +1,9 @@
 use common_utils::{consts, crypto, custom_serde, pii};
-use masking::{Secret, SerializableSecret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::enums as api_enums;
-
-impl SerializableSecret for AddressDetails {}
-
-#[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct AddressDetails {
-    /// The address city
-    #[schema(max_length = 50, example = "New York")]
-    pub city: Option<String>,
-
-    /// The two-letter ISO country code for the address
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
-    pub country: Option<api_enums::CountryAlpha2>,
-
-    /// The first line of the address
-    #[schema(value_type = Option<String>, max_length = 200, example = "123, King Street")]
-    pub line1: Option<Secret<String>>,
-
-    /// The second line of the address
-    #[schema(value_type = Option<String>, max_length = 50, example = "Powelson Avenue")]
-    pub line2: Option<Secret<String>>,
-
-    /// The third line of the address
-    #[schema(value_type = Option<String>, max_length = 50, example = "Bridgewater")]
-    pub line3: Option<Secret<String>>,
-
-    /// The zip/postal code for the address
-    #[schema(value_type = Option<String>, max_length = 50, example = "08807")]
-    pub zip: Option<Secret<String>>,
-
-    /// The address state
-    #[schema(value_type = Option<String>, example = "New York")]
-    pub state: Option<Secret<String>>,
-
-    /// The first name for the address
-    #[schema(value_type = Option<String>, max_length = 255, example = "John")]
-    pub first_name: Option<Secret<String>>,
-
-    /// The last name for the address
-    #[schema(value_type = Option<String>, max_length = 255, example = "Doe")]
-    pub last_name: Option<Secret<String>>,
-}
+use crate::payments;
 
 /// The customer details
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
@@ -74,8 +32,8 @@ pub struct CustomerRequest {
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
     /// The address for the customer
-    #[schema(value_type = Option<AddressDetails>)]
-    pub address: Option<Secret<AddressDetails>>,
+    #[schema(value_type = Option<payments::AddressDetails>)]
+    pub address: Option<payments::AddressDetails>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
     /// characters long. Metadata is useful for storing additional, structured information on an
     /// object.
@@ -104,8 +62,8 @@ pub struct CustomerResponse {
     #[schema(max_length = 255, example = "First Customer")]
     pub description: Option<String>,
     /// The address for the customer
-    #[schema(value_type = Option<AddressDetails>)]
-    pub address: Option<Secret<AddressDetails>>,
+    #[schema(value_type = Option<payments::AddressDetails>)]
+    pub address: Option<payments::AddressDetails>,
     ///  A timestamp (ISO 8601 code) that determines when the customer was created
     #[schema(value_type = PrimitiveDateTime,example = "2023-01-18T11:04:09.922Z")]
     #[serde(with = "custom_serde::iso8601")]
