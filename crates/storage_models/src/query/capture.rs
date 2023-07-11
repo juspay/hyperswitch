@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 use router_env::{instrument, tracing};
 
 use super::generics;
@@ -6,7 +6,7 @@ use crate::{
     capture::{Capture, CaptureNew, CaptureUpdate, CaptureUpdateInternal},
     errors,
     schema::captures::dsl,
-    PgPooledConn, StorageResult,
+    PgPooledConn, StorageResult, enums::CaptureStatus,
 };
 
 impl CaptureNew {
@@ -70,4 +70,48 @@ impl Capture {
             result => result,
         }
     }
+
+    #[instrument(skip(conn))]
+    pub async fn find_all_by_authorized_attempt_id(
+        authorized_attempt_id: &str,
+        conn: &PgPooledConn,
+    ) -> StorageResult<Vec<Capture>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::authorized_attempt_id
+                .eq(authorized_attempt_id.to_owned()),
+            None,
+            None,
+            None,
+        )
+        .await
+    }
+
+    #[instrument(skip(conn))]
+    pub async fn find_all_charged_by_authorized_attempt_id(
+        authorized_attempt_id: &str,
+        conn: &PgPooledConn,
+    ) -> StorageResult<Vec<Capture>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::authorized_attempt_id
+                .eq(authorized_attempt_id.to_owned())
+                .and(dsl::status.eq(CaptureStatus::Charged)),
+            None,
+            None,
+            None,
+        )
+        .await
+    }
+
 }
