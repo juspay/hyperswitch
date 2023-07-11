@@ -1,6 +1,6 @@
 use std::{convert::From, default::Default};
 
-use api_models::{payments, payment_methods as api_types};
+use api_models::{payment_methods as api_types, payments};
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -126,7 +126,7 @@ impl From<CreateCustomerRequest> for api::CustomerRequest {
             email: req.email,
             description: req.description,
             metadata: req.metadata,
-            address: req.address.map(|s|s.into()),
+            address: req.address.map(|s| s.into()),
             ..Default::default()
         }
     }
@@ -140,7 +140,7 @@ impl From<CustomerUpdateRequest> for api::CustomerRequest {
             email: req.email,
             description: req.description,
             metadata: req.metadata,
-            address: req.address.map(|s|s.into()),
+            address: req.address.map(|s| s.into()),
             ..Default::default()
         }
     }

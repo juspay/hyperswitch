@@ -39,7 +39,7 @@ pub async fn create_customer(
 
     let key = key_store.key.get_inner().peek();
     if let Some(addr) = &customer_data.address {
-        let customer_address = addr.peek().clone();
+        let customer_address: api_models::payments::AddressDetails = addr.clone();
 
         let address = async {
             Ok(domain::Address {
@@ -326,7 +326,7 @@ pub async fn update_customer(
     let key = key_store.key.get_inner().peek();
 
     if let Some(addr) = &update_customer.address {
-        let customer_address = addr.peek().clone();
+        let customer_address: api_models::payments::AddressDetails = addr.clone();
         let update_address = async {
             Ok(storage::AddressUpdate::Update {
                 city: customer_address.city,
