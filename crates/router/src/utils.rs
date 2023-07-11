@@ -5,6 +5,7 @@ pub mod ext_traits;
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
 
+use base64::Engine;
 pub use common_utils::{
     crypto,
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
@@ -12,7 +13,9 @@ pub use common_utils::{
     validation::validate_email,
 };
 use error_stack::{IntoReport, ResultExt};
+use image::Luma;
 use nanoid::nanoid;
+use qrcode;
 use serde::de::DeserializeOwned;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
@@ -154,4 +157,52 @@ pub fn to_currency_base_unit_asf64(
 #[inline]
 pub fn get_payment_attempt_id(payment_id: impl std::fmt::Display, attempt_count: i16) -> String {
     format!("{payment_id}_{attempt_count}")
+}
+
+#[derive(Debug)]
+pub struct QrImage;
+
+pub trait CreateQrImageUrlFromQrData {
+    fn create_image_data_source_url(
+        &self,
+        _qr_code_data: String,
+    ) -> Result<String, error_stack::Report<common_utils::errors::QrCodeError>>;
+}
+
+impl CreateQrImageUrlFromQrData for QrImage {
+    fn create_image_data_source_url(
+        &self,
+        qr_code_data: String,
+    ) -> Result<String, error_stack::Report<common_utils::errors::QrCodeError>> {
+        let qr_code = qrcode::QrCode::new(qr_code_data.as_bytes())
+            .into_report()
+            .change_context(common_utils::errors::QrCodeError::FailedToCreateQrCode)?;
+
+        // Renders the QR code into an image.
+        let qrcode_image_buffer = qr_code.render::<Luma<u8>>().build();
+        let qrcode_dynamic_image = image::DynamicImage::ImageLuma8(qrcode_image_buffer);
+
+        let mut image_bytes: Vec<u8> = Vec::new();
+
+        // Encodes qrcode_dynamic_image and write it to image_bytes
+        let _ = qrcode_dynamic_image.write_to(&mut image_bytes, image::ImageOutputFormat::Png);
+
+        let mut image_data_source = consts::QR_IMAGE_DATA_SOURCE_STRING.to_string();
+        image_data_source.push_str(consts::BASE64_ENGINE.encode(image_bytes).as_str());
+
+        Ok(image_data_source)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{utils, utils::CreateQrImageUrlFromQrData};
+    #[test]
+    fn test_image_data_source_url() {
+        let qr_image_data_source_url = utils::QrImage::create_image_data_source_url(
+            &utils::QrImage,
+            "DahshYUJQf4wJSQWYGBUue55Wy8TiV7t_r5vC".to_string(),
+        );
+        assert!(qr_image_data_source_url.is_ok());
+    }
 }
