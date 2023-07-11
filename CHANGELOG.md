@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.1.1 (2023-07-11)
+
+### Features
+
+- **pm_list:** Add required field info for crypto pay ([#1655](https://github.com/juspay/hyperswitch/pull/1655)) ([`c3f737d`](https://github.com/juspay/hyperswitch/commit/c3f737d751156c0a853fb4be6ada48ac29f58d12))
+
+### Bug Fixes
+
+- **cog:** Remove branch whitelist ([`3b6482e`](https://github.com/juspay/hyperswitch/commit/3b6482e92427635900d9e474cd629c4c78cbdb61))
+- **core:** Add Payment_Method_data in Redirection Form ([#1668](https://github.com/juspay/hyperswitch/pull/1668)) ([`90682c6`](https://github.com/juspay/hyperswitch/commit/90682c646604fc49a33f162df28537e4934098fe))
+
+**Full Changelog:** [`v1.1.0...v1.1.1`](https://github.com/juspay/hyperswitch/compare/v1.1.0...v1.1.1)
+
+- - -
+
+
 ## 1.1.0 (2023-07-07)
 
 ### Features
