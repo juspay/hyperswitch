@@ -171,7 +171,7 @@ async fn should_make_adyen_paypal_payment(web_driver: WebDriver) -> Result<(), W
     let conn = AdyenSeleniumTest {};
     conn.make_paypal_payment(
         web_driver,
-        &format!("{CHEKOUT_BASE_URL}/paypal-redirect?amount=10.00&country=DE&currency=EUR"),
+        &format!("{CHEKOUT_BASE_URL}/saved/202"),
         vec![
             Event::Assert(Assert::IsPresent("Google")),
             Event::Assert(Assert::ContainsAny(
