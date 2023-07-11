@@ -17,6 +17,7 @@ mod bambora_ui;
 mod bitpay;
 mod bluesnap;
 mod bluesnap_ui;
+mod boku;
 mod cashtocode;
 mod checkout;
 mod checkout_ui;

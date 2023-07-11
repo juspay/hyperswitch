@@ -206,6 +206,7 @@ impl ConnectorData {
                 enums::Connector::Airwallex => Ok(Box::new(&connector::Airwallex)),
                 enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
                 enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
+                enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
                 enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
                 enums::Connector::Braintree => Ok(Box::new(&connector::Braintree)),
