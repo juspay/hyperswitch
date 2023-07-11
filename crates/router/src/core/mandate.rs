@@ -157,7 +157,7 @@ where
                     .store
                     .find_mandate_by_merchant_id_mandate_id(resp.merchant_id.as_ref(), mandate_id)
                     .await
-                    .change_context(errors::ApiErrorResponse::MandateNotFound)?;
+                    .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
                 let mandate = match mandate.mandate_type {
                     storage_enums::MandateType::SingleUse => state
                         .store
@@ -210,7 +210,9 @@ where
                     let mandate_ids = mandate_reference
                         .map(|md| {
                             Encode::<types::MandateReference>::encode_to_value(&md)
-                                .change_context(errors::ApiErrorResponse::MandateNotFound)
+                                .change_context(
+                                    errors::ApiErrorResponse::MandateSerializationFailed,
+                                )
                                 .map(masking::Secret::new)
                         })
                         .transpose()?;
@@ -238,7 +240,7 @@ where
                                     .parse_value::<api_models::payments::ConnectorMandateReferenceId>(
                                         "ConnectorMandateId",
                                     )
-                                    .change_context(errors::ApiErrorResponse::MandateNotFound)
+                                    .change_context(errors::ApiErrorResponse::MandateDeserializationFailed)
                             })
                             .transpose()?
                             .map_or(

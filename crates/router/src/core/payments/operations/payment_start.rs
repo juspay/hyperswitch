@@ -203,6 +203,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentS
                 payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }
@@ -249,7 +250,17 @@ where
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
         Option<api::PaymentMethodData>,
     )> {
-        helpers::make_pm_data(Box::new(self), state, payment_data).await
+        if payment_data
+            .payment_attempt
+            .connector
+            .clone()
+            .map(|connector_name| connector_name == *"bluesnap".to_string())
+            .unwrap_or(false)
+        {
+            helpers::make_pm_data(Box::new(self), state, payment_data).await
+        } else {
+            Ok((Box::new(self), None))
+        }
     }
 
     async fn get_connector<'a>(

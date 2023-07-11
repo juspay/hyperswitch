@@ -98,6 +98,7 @@ impl StorageError {
                 err.current_context(),
                 storage_errors::DatabaseError::NotFound
             ),
+            Self::ValueNotFound(_) => true,
             _ => false,
         }
     }
@@ -267,6 +268,8 @@ pub enum ConnectorError {
     FlowNotSupported { flow: String, connector: String },
     #[error("Capture method not supported")]
     CaptureMethodNotSupported,
+    #[error("Missing connector mandate ID")]
+    MissingConnectorMandateID,
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]
@@ -385,6 +388,8 @@ pub enum ProcessTrackerError {
     EParsingError(error_stack::Report<ParsingError>),
     #[error("Validation Error Received: {0}")]
     EValidationError(error_stack::Report<ValidationError>),
+    #[error("Type Conversion error")]
+    TypeConversionError,
 }
 
 macro_rules! error_to_process_tracker_error {

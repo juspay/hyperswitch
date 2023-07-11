@@ -7,6 +7,7 @@ use router_env::{instrument, tracing};
 
 use super::payments::{helpers, PaymentAddress};
 use crate::{
+    configs::settings,
     consts,
     core::errors::{self, RouterResult},
     routes::AppState,
@@ -17,6 +18,11 @@ use crate::{
     },
     utils::{generate_id, OptionExt, ValueExt},
 };
+
+const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
+    "irrelevant_connector_request_reference_id_in_dispute_flow";
+const IRRELEVANT_PAYMENT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_payment_id_in_dispute_flow";
+const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_dispute_flow";
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
@@ -108,6 +114,11 @@ pub async fn construct_refund_router_data<'a, F>(
         connector_customer: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        connector_request_reference_id: get_connector_request_reference_id(
+            &state.conf,
+            &merchant_account.merchant_id,
+            payment_attempt,
+        ),
     };
 
     Ok(router_data)
@@ -296,6 +307,11 @@ pub async fn construct_accept_dispute_router_data<'a>(
         customer_id: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        connector_request_reference_id: get_connector_request_reference_id(
+            &state.conf,
+            &merchant_account.merchant_id,
+            payment_attempt,
+        ),
     };
     Ok(router_data)
 }
@@ -358,6 +374,11 @@ pub async fn construct_submit_evidence_router_data<'a>(
         customer_id: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        connector_request_reference_id: get_connector_request_reference_id(
+            &state.conf,
+            &merchant_account.merchant_id,
+            payment_attempt,
+        ),
     };
     Ok(router_data)
 }
@@ -421,6 +442,11 @@ pub async fn construct_upload_file_router_data<'a>(
         customer_id: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        connector_request_reference_id: get_connector_request_reference_id(
+            &state.conf,
+            &merchant_account.merchant_id,
+            payment_attempt,
+        ),
     };
     Ok(router_data)
 }
@@ -486,6 +512,11 @@ pub async fn construct_defend_dispute_router_data<'a>(
         connector_customer: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        connector_request_reference_id: get_connector_request_reference_id(
+            &state.conf,
+            &merchant_account.merchant_id,
+            payment_attempt,
+        ),
     };
     Ok(router_data)
 }
@@ -522,8 +553,8 @@ pub async fn construct_retrieve_file_router_data<'a>(
         connector: connector_id.to_string(),
         customer_id: None,
         connector_customer: None,
-        payment_id: "irrelevant_payment_id_in_dispute_flow".to_string(),
-        attempt_id: "irrelevant_attempt_id_in_dispute_flow".to_string(),
+        payment_id: IRRELEVANT_PAYMENT_ID_IN_DISPUTE_FLOW.to_string(),
+        attempt_id: IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW.to_string(),
         status: storage_models::enums::AttemptStatus::default(),
         payment_method: storage_models::enums::PaymentMethod::default(),
         connector_auth_type: auth_type,
@@ -549,6 +580,33 @@ pub async fn construct_retrieve_file_router_data<'a>(
         payment_method_token: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        connector_request_reference_id: IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW
+            .to_string(),
     };
     Ok(router_data)
+}
+
+pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
+    conf: &settings::Settings,
+    merchant_id: &str,
+) -> bool {
+    let config_map = &conf
+        .connector_request_reference_id_config
+        .merchant_ids_send_payment_id_as_connector_request_id;
+    config_map.contains(merchant_id)
+}
+
+pub fn get_connector_request_reference_id(
+    conf: &settings::Settings,
+    merchant_id: &str,
+    payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
+) -> String {
+    let is_config_enabled_for_merchant =
+        is_merchant_enabled_for_payment_id_as_connector_request_id(conf, merchant_id);
+    // Send payment_id if config is enabled for a merchant, else send attempt_id
+    if is_config_enabled_for_merchant {
+        payment_attempt.payment_id.clone()
+    } else {
+        payment_attempt.attempt_id.clone()
+    }
 }

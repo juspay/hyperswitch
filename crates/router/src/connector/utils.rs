@@ -170,11 +170,25 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 
 pub trait PaymentsPreProcessingData {
     fn get_email(&self) -> Result<Email, Error>;
+    fn get_payment_method_type(&self) -> Result<storage_models::enums::PaymentMethodType, Error>;
+    fn get_currency(&self) -> Result<storage_models::enums::Currency, Error>;
+    fn get_amount(&self) -> Result<i64, Error>;
 }
 
 impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_payment_method_type(&self) -> Result<storage_models::enums::PaymentMethodType, Error> {
+        self.payment_method_type
+            .to_owned()
+            .ok_or_else(missing_field_err("payment_method_type"))
+    }
+    fn get_currency(&self) -> Result<storage_models::enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
+    }
+    fn get_amount(&self) -> Result<i64, Error> {
+        self.amount.ok_or_else(missing_field_err("amount"))
     }
 }
 
@@ -191,6 +205,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<storage_models::enums::PaymentMethodType, Error>;
+    fn get_connector_mandate_id(&self) -> Result<String, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -263,6 +278,11 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .to_owned()
             .ok_or_else(missing_field_err("payment_method_type"))
     }
+
+    fn get_connector_mandate_id(&self) -> Result<String, Error> {
+        self.connector_mandate_id()
+            .ok_or_else(missing_field_err("connector_mandate_id"))
+    }
 }
 
 pub trait BrowserInformationData {
@@ -328,6 +348,7 @@ impl BrowserInformationData for types::BrowserInformation {
 
 pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_email(&self) -> Result<Email, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
@@ -337,6 +358,9 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
             Some(storage_models::enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
+    }
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
     }
 }
 
@@ -591,6 +615,19 @@ impl ApplePay for payments::ApplePayWalletData {
         Ok(token)
     }
 }
+
+pub trait CryptoData {
+    fn get_pay_currency(&self) -> Result<String, Error>;
+}
+
+impl CryptoData for api::CryptoData {
+    fn get_pay_currency(&self) -> Result<String, Error> {
+        self.pay_currency
+            .clone()
+            .ok_or_else(missing_field_err("crypto_data.pay_currency"))
+    }
+}
+
 pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
@@ -612,6 +649,7 @@ impl PhoneDetailsData for api::PhoneDetails {
 pub trait AddressDetailsData {
     fn get_first_name(&self) -> Result<&Secret<String>, Error>;
     fn get_last_name(&self) -> Result<&Secret<String>, Error>;
+    fn get_full_name(&self) -> Result<Secret<String>, Error>;
     fn get_line1(&self) -> Result<&Secret<String>, Error>;
     fn get_city(&self) -> Result<&String, Error>;
     fn get_line2(&self) -> Result<&Secret<String>, Error>;
@@ -633,6 +671,13 @@ impl AddressDetailsData for api::AddressDetails {
         self.last_name
             .as_ref()
             .ok_or_else(missing_field_err("address.last_name"))
+    }
+
+    fn get_full_name(&self) -> Result<Secret<String>, Error> {
+        let first_name = self.get_first_name()?.peek().to_owned();
+        let last_name = self.get_last_name()?.peek().to_owned();
+        let full_name = format!("{} {}", first_name, last_name).trim().to_string();
+        Ok(Secret::new(full_name))
     }
 
     fn get_line1(&self) -> Result<&Secret<String>, Error> {

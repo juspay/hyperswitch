@@ -1,13 +1,14 @@
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
-    CustomerAcceptance, MandateData, MandateTransactionType, MandateType, MandateValidationFields,
-    NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
-    PaymentListResponse, PaymentMethodData, PaymentMethodDataResponse, PaymentOp,
-    PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsCancelRequest,
-    PaymentsCaptureRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRequest,
-    PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest,
-    PaymentsSessionResponse, PaymentsStartRequest, PgRedirectResponse, PhoneDetails,
-    RedirectionResponse, SessionToken, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
+    CryptoData, CustomerAcceptance, MandateData, MandateTransactionType, MandateType,
+    MandateValidationFields, NextActionType, OnlineMandate, PayLaterData, PaymentIdType,
+    PaymentListConstraints, PaymentListFilters, PaymentListResponse, PaymentMethodData,
+    PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials,
+    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
+    PaymentsRedirectionResponse, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
+    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
+    VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
@@ -93,7 +94,7 @@ pub struct Verify;
 #[derive(Debug, Clone)]
 pub struct PreProcessing;
 
-pub(crate) trait PaymentIdTypeExt {
+pub trait PaymentIdTypeExt {
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError>;
 }
 
@@ -233,6 +234,10 @@ mod payments_test {
             card_cvc: "123".to_string().into(),
             card_issuer: Some("HDFC".to_string()),
             card_network: Some(api_models::enums::CardNetwork::Visa),
+            bank_code: None,
+            card_issuing_country: None,
+            card_type: None,
+            nick_name: Some(masking::Secret::new("nick_name".into())),
         }
     }
 

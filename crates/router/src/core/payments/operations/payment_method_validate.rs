@@ -5,7 +5,6 @@ use common_utils::{date_time, errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
-use uuid::Uuid;
 
 use super::{BoxedOperation, Domain, GetTracker, PaymentCreate, UpdateTracker, ValidateRequest};
 use crate::{
@@ -56,6 +55,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
                 payment_id: api::PaymentIdType::PaymentIntentId(validation_id),
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }
@@ -96,6 +96,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                     merchant_id,
                     request.payment_method,
                     request,
+                    state,
                 ),
                 storage_scheme,
             )
@@ -300,14 +301,23 @@ impl PaymentMethodValidate {
         merchant_id: &str,
         payment_method: Option<api_enums::PaymentMethod>,
         _request: &api::VerifyRequest,
+        state: &AppState,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
         let status = storage_enums::AttemptStatus::Pending;
+        let attempt_id = if core_utils::is_merchant_enabled_for_payment_id_as_connector_request_id(
+            &state.conf,
+            merchant_id,
+        ) {
+            payment_id.to_string()
+        } else {
+            utils::get_payment_attempt_id(payment_id, 1)
+        };
 
         storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            attempt_id: Uuid::new_v4().simple().to_string(),
+            attempt_id,
             status,
             // Amount & Currency will be zero in this case
             amount: 0,
@@ -347,6 +357,7 @@ impl PaymentMethodValidate {
             setup_future_usage: request.setup_future_usage.map(ForeignInto::foreign_into),
             off_session: request.off_session,
             active_attempt_id,
+            attempt_count: 1,
             ..Default::default()
         }
     }

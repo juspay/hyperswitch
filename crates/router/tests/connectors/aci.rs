@@ -42,6 +42,10 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                 card_cvc: Secret::new("999".to_string()),
                 card_issuer: None,
                 card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
+                nick_name: Some(masking::Secret::new("nick_name".into())),
             }),
             confirm: true,
             statement_descriptor_suffix: None,
@@ -77,6 +81,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         connector_customer: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
     }
 }
 
@@ -122,6 +127,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         connector_customer: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
     }
 }
 
@@ -189,6 +195,10 @@ async fn payments_create_failure() {
                 card_cvc: Secret::new("99".to_string()),
                 card_issuer: None,
                 card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
+                nick_name: Some(masking::Secret::new("nick_name".into())),
             });
 
         let response = services::api::execute_connector_processing_step(

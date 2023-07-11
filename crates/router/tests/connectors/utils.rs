@@ -404,6 +404,7 @@ pub trait ConnectorActions: Connector {
             connector_customer: None,
             recurring_mandate_payment_data: None,
             preprocessing_id: None,
+            connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
         }
     }
 
@@ -490,6 +491,10 @@ impl Default for CCardType {
             card_cvc: Secret::new("999".to_string()),
             card_issuer: None,
             card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            nick_name: Some(masking::Secret::new("nick_name".into())),
         })
     }
 }
