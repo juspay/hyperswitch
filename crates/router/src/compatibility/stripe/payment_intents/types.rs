@@ -134,7 +134,7 @@ impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct Shipping {
-    pub address: AddressDetails,
+    pub address: StripeAddressDetails,
     pub name: Option<Secret<String>>,
     pub carrier: Option<String>,
     pub phone: Option<Secret<String>>,
@@ -142,7 +142,7 @@ pub struct Shipping {
 }
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
-pub struct AddressDetails {
+pub struct StripeAddressDetails {
     pub city: Option<String>,
     pub country: Option<api_enums::CountryAlpha2>,
     pub line1: Option<Secret<String>>,
