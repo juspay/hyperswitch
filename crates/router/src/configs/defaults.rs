@@ -819,20 +819,11 @@ impl Default for super::settings::RequiredFields {
                         ConnectorFields {
                             fields: HashMap::from([(
                                 enums::Connector::Globepay,
-                                vec![
-                                    RequiredFieldInfo {
-                                        required_field: "description".to_string(),
-                                        display_name: "description".to_string(),
-                                        field_type: enums::FieldType::Text,
-                                    },
-                                    RequiredFieldInfo {
-                                        required_field: "currency".to_string(),
-                                        display_name: "currency".to_string(),
-                                        field_type: enums::FieldType::DropDown {
-                                            options: vec!["GBP".to_string(), "CNY".to_string()],
-                                        },
-                                    },
-                                ],
+                                vec![RequiredFieldInfo {
+                                    required_field: "description".to_string(),
+                                    display_name: "description".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
                             )]),
                         },
                     ),
@@ -841,20 +832,11 @@ impl Default for super::settings::RequiredFields {
                         ConnectorFields {
                             fields: HashMap::from([(
                                 enums::Connector::Globepay,
-                                vec![
-                                    RequiredFieldInfo {
-                                        required_field: "description".to_string(),
-                                        display_name: "description".to_string(),
-                                        field_type: enums::FieldType::Text,
-                                    },
-                                    RequiredFieldInfo {
-                                        required_field: "currency".to_string(),
-                                        display_name: "currency".to_string(),
-                                        field_type: enums::FieldType::DropDown {
-                                            options: vec!["GBP".to_string(), "CNY".to_string()],
-                                        },
-                                    },
-                                ],
+                                vec![RequiredFieldInfo {
+                                    required_field: "description".to_string(),
+                                    display_name: "description".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
                             )]),
                         },
                     ),
