@@ -242,14 +242,24 @@ where
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
-        _state: &'a AppState,
-        _payment_data: &mut PaymentData<F>,
+        state: &'a AppState,
+        payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
         Option<api::PaymentMethodData>,
     )> {
-        Ok((Box::new(self), None))
+        if payment_data
+            .payment_attempt
+            .connector
+            .clone()
+            .map(|connector_name| connector_name == *"bluesnap".to_string())
+            .unwrap_or(false)
+        {
+            helpers::make_pm_data(Box::new(self), state, payment_data).await
+        } else {
+            Ok((Box::new(self), None))
+        }
     }
 
     async fn get_connector<'a>(
