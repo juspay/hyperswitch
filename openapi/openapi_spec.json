@@ -4593,7 +4593,8 @@
       "MerchantAccountCreate": {
         "type": "object",
         "required": [
-          "merchant_id"
+          "merchant_id",
+          "primary_business_details"
         ],
         "properties": {
           "merchant_id": {
@@ -4687,12 +4688,7 @@
             "nullable": true
           },
           "primary_business_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PrimaryBusinessDetails"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PrimaryBusinessDetails"
           },
           "frm_routing_algorithm": {
             "type": "object",
@@ -4978,7 +4974,9 @@
         "required": [
           "connector_type",
           "connector_name",
-          "connector_label"
+          "connector_label",
+          "business_country",
+          "business_label"
         ],
         "properties": {
           "connector_type": {
@@ -5076,16 +5074,10 @@
             "nullable": true
           },
           "business_country": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CountryAlpha2"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/CountryAlpha2"
           },
           "business_label": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "business_sub_label": {
             "type": "string",
