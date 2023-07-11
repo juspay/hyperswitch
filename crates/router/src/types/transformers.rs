@@ -174,6 +174,7 @@ impl ForeignFrom<api_models::payments::MandateType> for storage_enums::MandateDa
         }
     }
 }
+
 impl ForeignFrom<storage_enums::MandateDataType> for api_models::payments::MandateType {
     fn foreign_from(from: storage_enums::MandateDataType) -> Self {
         match from {
@@ -224,6 +225,53 @@ impl ForeignTryFrom<api_enums::IntentStatus> for storage_enums::EventType {
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "intent_status",
             }),
+        }
+    }
+}
+
+impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
+    fn foreign_from(payment_method_type: api_enums::PaymentMethodType) -> Self {
+        match payment_method_type {
+            api_enums::PaymentMethodType::ApplePay
+            | api_enums::PaymentMethodType::GooglePay
+            | api_enums::PaymentMethodType::Paypal
+            | api_enums::PaymentMethodType::AliPay
+            | api_enums::PaymentMethodType::AliPayHk
+            | api_enums::PaymentMethodType::MbWay
+            | api_enums::PaymentMethodType::MobilePay
+            | api_enums::PaymentMethodType::SamsungPay
+            | api_enums::PaymentMethodType::WeChatPay => Self::Wallet,
+            api_enums::PaymentMethodType::Affirm
+            | api_enums::PaymentMethodType::AfterpayClearpay
+            | api_enums::PaymentMethodType::Klarna
+            | api_enums::PaymentMethodType::PayBright
+            | api_enums::PaymentMethodType::Walley => Self::PayLater,
+            api_enums::PaymentMethodType::Giropay
+            | api_enums::PaymentMethodType::Ideal
+            | api_enums::PaymentMethodType::Sofort
+            | api_enums::PaymentMethodType::Eps
+            | api_enums::PaymentMethodType::BancontactCard
+            | api_enums::PaymentMethodType::Blik
+            | api_enums::PaymentMethodType::OnlineBankingCzechRepublic
+            | api_enums::PaymentMethodType::OnlineBankingFinland
+            | api_enums::PaymentMethodType::OnlineBankingPoland
+            | api_enums::PaymentMethodType::OnlineBankingSlovakia
+            | api_enums::PaymentMethodType::Przelewy24
+            | api_enums::PaymentMethodType::Swish
+            | api_enums::PaymentMethodType::Trustly
+            | api_enums::PaymentMethodType::Interac => Self::BankRedirect,
+            api_enums::PaymentMethodType::UpiCollect => Self::Upi,
+            api_enums::PaymentMethodType::CryptoCurrency => Self::Crypto,
+            api_enums::PaymentMethodType::Ach
+            | api_enums::PaymentMethodType::Sepa
+            | api_enums::PaymentMethodType::Bacs
+            | api_enums::PaymentMethodType::Becs => Self::BankDebit,
+            api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
+                Self::Card
+            }
+            api_enums::PaymentMethodType::Evoucher
+            | api_enums::PaymentMethodType::ClassicReward => Self::Reward,
+            api_enums::PaymentMethodType::Multibanco => Self::BankTransfer,
         }
     }
 }
@@ -572,7 +620,7 @@ impl ForeignFrom<storage_models::cards_info::CardInfo>
             card_iin: item.card_iin,
             card_type: item.card_type,
             card_sub_type: item.card_subtype,
-            card_network: item.card_network,
+            card_network: item.card_network.map(|x| x.to_string()),
             card_issuer: item.card_issuer,
             card_issuing_country: item.card_issuing_country,
         }
@@ -617,5 +665,11 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
             business_sub_label: item.business_sub_label,
             frm_configs,
         })
+    }
+}
+
+impl ForeignFrom<storage_models::enums::CardNetwork> for api_models::enums::CardNetwork {
+    fn foreign_from(source: storage_models::enums::CardNetwork) -> Self {
+        frunk::labelled_convert_from(source)
     }
 }

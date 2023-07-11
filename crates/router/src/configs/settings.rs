@@ -4,7 +4,7 @@ use std::{
     str::FromStr,
 };
 
-use api_models::enums;
+use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 #[cfg(feature = "email")]
@@ -83,7 +83,9 @@ pub struct Settings {
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
     pub email: EmailSettings,
+    pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
+    pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -221,6 +223,17 @@ pub struct CurrencyCountryFlowFilter {
 #[serde(default)]
 pub struct NotAvailableFlows {
     pub capture_method: Option<enums::CaptureMethod>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct RequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct PaymentMethodType(pub HashMap<enums::PaymentMethodType, ConnectorFields>);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ConnectorFields {
+    pub fields: HashMap<enums::Connector, Vec<RequiredFieldInfo>>,
 }
 
 fn string_set_deser<'a, D>(
@@ -396,6 +409,7 @@ pub struct Connectors {
     pub fiserv: ConnectorParams,
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
+    pub globepay: ConnectorParams,
     pub iatapay: ConnectorParams,
     pub klarna: ConnectorParams,
     pub mollie: ConnectorParams,
@@ -410,6 +424,7 @@ pub struct Connectors {
     pub payme: ConnectorParams,
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
+    pub powertranz: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
@@ -520,6 +535,11 @@ pub struct FileUploadConfig {
 pub struct DelayedSessionConfig {
     #[serde(deserialize_with = "delayed_session_deser")]
     pub connectors_with_delayed_session_response: HashSet<api_models::enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ConnectorRequestReferenceIdConfig {
+    pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
 }
 
 fn delayed_session_deser<'a, D>(

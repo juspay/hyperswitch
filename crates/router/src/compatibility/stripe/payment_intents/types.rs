@@ -14,7 +14,6 @@ use crate::{
         api::{admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignTryFrom},
     },
-    utils::OptionExt,
 };
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -99,6 +98,9 @@ impl From<StripeCard> for payments::Card {
             card_cvc: card.cvc,
             card_issuer: None,
             card_network: None,
+            bank_code: None,
+            card_issuing_country: None,
+            card_type: None,
             nick_name: None,
         }
     }
@@ -220,13 +222,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 field_name: "receipt_ipaddress".to_string(),
                 expected_format: "127.0.0.1".to_string(),
             })?;
-        let metadata_object = item
-            .metadata
-            .clone()
-            .parse_value("metadata")
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "metadata mapping failed",
-            })?;
+
         let request = Ok(Self {
             payment_id: item.id.map(payments::PaymentIdType::PaymentIntentId),
             amount: item.amount.map(|amount| amount.into()),
@@ -264,8 +260,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 .and_then(|pmd| pmd.billing_details.map(payments::Address::from)),
             statement_descriptor_name: item.statement_descriptor,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
-            metadata: metadata_object,
-            udf: item.metadata,
+            metadata: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
             authentication_type,
             mandate_data: mandate_options,
@@ -447,7 +442,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             statement_descriptor_suffix: resp.statement_descriptor_suffix,
             next_action: into_stripe_next_action(resp.next_action, resp.return_url),
             cancellation_reason: resp.cancellation_reason,
-            metadata: resp.udf,
+            metadata: resp.metadata,
             charges: Charges::new(),
             last_payment_error: resp.error_code.map(|code| LastPaymentError {
                 charge: None,
@@ -692,6 +687,9 @@ pub enum StripeNextAction {
     ThirdPartySdkSessionToken {
         session_token: Option<payments::SessionToken>,
     },
+    QrCodeInformation {
+        image_data_url: url::Url,
+    },
 }
 
 pub(crate) fn into_stripe_next_action(
@@ -715,5 +713,13 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::ThirdPartySdkSessionToken { session_token } => {
             StripeNextAction::ThirdPartySdkSessionToken { session_token }
         }
+        payments::NextActionData::QrCodeInformation { image_data_url } => {
+            StripeNextAction::QrCodeInformation { image_data_url }
+        }
     })
+}
+
+#[derive(Deserialize, Clone)]
+pub struct StripePaymentRetrieveBody {
+    pub client_secret: Option<String>,
 }
