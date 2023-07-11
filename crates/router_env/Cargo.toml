@@ -8,6 +8,7 @@ readme = "README.md"
 license.workspace = true
 
 [dependencies]
+cargo_metadata = "0.15.4"
 config = { version = "0.13.3", features = ["toml"] }
 gethostname = "0.4.3"
 once_cell = "1.18.0"
