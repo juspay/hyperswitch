@@ -4,7 +4,7 @@ use api_models::payments::{FrmMessage, OrderDetailsWithAmount};
 use common_utils::fp_utils;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
-use storage_models::ephemeral_key;
+use storage_models::{ephemeral_key, payment_attempt::PaymentListFilters};
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
@@ -13,6 +13,7 @@ use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
+        utils as core_utils,
     },
     routes::{metrics, AppState},
     services::{self, RedirectForm},
@@ -122,6 +123,11 @@ where
         reference_id: None,
         payment_method_token: payment_data.pm_token,
         connector_customer: payment_data.connector_customer_id,
+        connector_request_reference_id: core_utils::get_connector_request_reference_id(
+            &state.conf,
+            &merchant_account.merchant_id,
+            &payment_data.payment_attempt,
+        ),
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
     };
 
@@ -603,6 +609,29 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
     }
 }
 
+impl ForeignFrom<PaymentListFilters> for api_models::payments::PaymentListFilters {
+    fn foreign_from(item: PaymentListFilters) -> Self {
+        Self {
+            connector: item.connector,
+            currency: item
+                .currency
+                .into_iter()
+                .map(ForeignInto::foreign_into)
+                .collect(),
+            status: item
+                .status
+                .into_iter()
+                .map(ForeignInto::foreign_into)
+                .collect(),
+            payment_method: item
+                .payment_method
+                .into_iter()
+                .map(ForeignInto::foreign_into)
+                .collect(),
+        }
+    }
+}
+
 impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralKeyCreateResponse {
     fn foreign_from(from: ephemeral_key::EphemeralKey) -> Self {
         Self {
@@ -909,6 +938,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             connector_name,
             payment_data.creds_identifier.as_deref(),
         ));
+        let browser_info: Option<types::BrowserInformation> = attempt
+            .browser_info
+            .clone()
+            .map(|b| b.parse_value("BrowserInformation"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })?;
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -923,6 +960,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             router_return_url,
             email: payment_data.email,
             return_url: payment_data.payment_intent.return_url,
+            browser_info,
             payment_method_type: attempt.payment_method_type.clone(),
         })
     }

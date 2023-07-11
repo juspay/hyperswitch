@@ -642,6 +642,7 @@ pub enum Connector {
     Fiserv,
     Forte,
     Globalpay,
+    // Globepay, added as template code for future usage
     Klarna,
     Mollie,
     Multisafepay,
@@ -652,9 +653,10 @@ pub enum Connector {
     // Opayo, added as template code for future usage
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    // Payme,
+    Payme,
     Paypal,
     Payu,
+    //Powertranz,
     Rapyd,
     Shift4,
     Stripe,
@@ -745,6 +747,7 @@ pub enum RoutableConnectors {
     Fiserv,
     Forte,
     Globalpay,
+    // Globepay, added as template code for future usage
     Iatapay,
     Klarna,
     Mollie,
@@ -756,9 +759,10 @@ pub enum RoutableConnectors {
     // Opayo, added as template code for future usage
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    // Payme,
+    Payme,
     Paypal,
     Payu,
+    //Powertranz,
     Rapyd,
     Shift4,
     Stripe,
@@ -1023,6 +1027,20 @@ pub struct UnresolvedResponseReason {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
+    UserFullName,
+    UserEmailAddress,
+    UserPhoneNumber,
+    UserCountry { options: Vec<String> },
+    UserAddressline1,
+    UserAddressline2,
+    UserAddressCity,
+    UserAddressPincode,
+    UserAddressState,
+    UserAddressCountry,
+    UserBlikCode,
+    FieldsComplete,
+    UserBillingName,
+    UserBank,
     Text,
     DropDown { options: Vec<String> },
 }
