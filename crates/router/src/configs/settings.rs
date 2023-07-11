@@ -86,6 +86,7 @@ pub struct Settings {
     pub mandates: Mandates,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
+    pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -556,6 +557,11 @@ pub struct FileUploadConfig {
 pub struct DelayedSessionConfig {
     #[serde(deserialize_with = "delayed_session_deser")]
     pub connectors_with_delayed_session_response: HashSet<api_models::enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ConnectorRequestReferenceIdConfig {
+    pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
 }
 
 fn delayed_session_deser<'a, D>(

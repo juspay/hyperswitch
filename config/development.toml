@@ -313,3 +313,6 @@ wallet.google_pay = {connector_list = "stripe,adyen"}
 wallet.apple_pay = {connector_list = "stripe,adyen"}
 card.credit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
 card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
+
+[connector_request_reference_id_config]
+merchant_ids_send_payment_id_as_connector_request_id = []

@@ -238,9 +238,9 @@ impl Default for super::settings::RequiredFields {
                             (
                                 enums::Connector::Aci,
                                 vec![RequiredFieldInfo {
-                                    required_field: "card.card_holder_name".to_string(),
+                                    required_field: "payment_method_data.card.card_holder_name".to_string(),
                                     display_name: "card_holder_name".to_string(),
-                                    field_type: enums::FieldType::Text,
+                                    field_type: enums::FieldType::UserFullName,
                                 }],
                             ),
                             (
@@ -249,17 +249,17 @@ impl Default for super::settings::RequiredFields {
                                     RequiredFieldInfo {
                                         required_field: "email".to_string(),
                                         display_name: "email".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserEmailAddress,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.first_name".to_string(),
                                         display_name: "first_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.last_name".to_string(),
                                         display_name: "last_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     },
                                 ],
                             ),
@@ -268,7 +268,7 @@ impl Default for super::settings::RequiredFields {
                                 vec![RequiredFieldInfo {
                                     required_field: "card.card_holder_name".to_string(),
                                     display_name: "card_holder_name".to_string(),
-                                    field_type: enums::FieldType::Text,
+                                    field_type: enums::FieldType::UserFullName,
                                 }],
                             ),
                             (
@@ -277,54 +277,54 @@ impl Default for super::settings::RequiredFields {
                                     RequiredFieldInfo {
                                         required_field: "email".to_string(),
                                         display_name: "email".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserEmailAddress,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.phone.number".to_string(),
                                         display_name: "phone_number".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserPhoneNumber,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.phone.country_code".to_string(),
                                         display_name: "country".to_string(),
-                                        field_type: enums::FieldType::DropDown {
+                                        field_type: enums::FieldType::UserCountry {
                                             options: vec!["US".to_string(), "IN".to_string()],
                                         },
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.first_name".to_string(),
                                         display_name: "first_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.last_name".to_string(),
                                         display_name: "last_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.line1".to_string(),
                                         display_name: "line1".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserAddressline1,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.city".to_string(),
                                         display_name: "city".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserAddressCity,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.state".to_string(),
                                         display_name: "state".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserAddressState,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.zip".to_string(),
                                         display_name: "zip".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserAddressPincode,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.country".to_string(),
                                         display_name: "country".to_string(),
-                                        field_type: enums::FieldType::DropDown {
+                                        field_type: enums::FieldType::UserCountry {
                                             options: vec!["US".to_string(), "IN".to_string()],
                                         },
                                     },
@@ -336,29 +336,29 @@ impl Default for super::settings::RequiredFields {
                                     RequiredFieldInfo {
                                         required_field: "card.card_holder_name".to_string(),
                                         display_name: "card_holder_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserFullName,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "email".to_string(),
                                         display_name: "email".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserEmailAddress,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.country".to_string(),
                                         display_name: "country".to_string(),
-                                        field_type: enums::FieldType::DropDown {
+                                        field_type: enums::FieldType::UserCountry {
                                             options: vec!["US".to_string(), "IN".to_string()],
                                         },
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.first_name".to_string(),
                                         display_name: "first_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.last_name".to_string(),
                                         display_name: "last_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     },
                                 ],
                             ),
@@ -368,17 +368,17 @@ impl Default for super::settings::RequiredFields {
                                     RequiredFieldInfo {
                                         required_field: "card.card_holder_name".to_string(),
                                         display_name: "card_holder_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserFullName,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.first_name".to_string(),
                                         display_name: "first_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.last_name".to_string(),
                                         display_name: "last_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     },
                                 ],
                             ),
@@ -387,7 +387,7 @@ impl Default for super::settings::RequiredFields {
                                 vec![RequiredFieldInfo {
                                     required_field: "billing.address.country".to_string(),
                                     display_name: "country".to_string(),
-                                    field_type: enums::FieldType::DropDown {
+                                    field_type: enums::FieldType::UserCountry {
                                         options: vec!["US".to_string(), "IN".to_string()],
                                     },
                                 }],
@@ -397,7 +397,7 @@ impl Default for super::settings::RequiredFields {
                                 vec![RequiredFieldInfo {
                                     required_field: "billing.address.country".to_string(),
                                     display_name: "country".to_string(),
-                                    field_type: enums::FieldType::DropDown {
+                                    field_type: enums::FieldType::UserCountry {
                                         options: vec!["US".to_string(), "IN".to_string()],
                                     },
                                 }],
@@ -408,37 +408,37 @@ impl Default for super::settings::RequiredFields {
                                     RequiredFieldInfo {
                                         required_field: "billing.address.first_name".to_string(),
                                         display_name: "first_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.last_name".to_string(),
                                         display_name: "last_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.line1".to_string(),
                                         display_name: "line1".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserAddressline1,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.line2".to_string(),
                                         display_name: "line2".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserAddressline2,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.city".to_string(),
                                         display_name: "city".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserAddressCity,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.zip".to_string(),
                                         display_name: "zip".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserAddressPincode,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.country".to_string(),
                                         display_name: "country".to_string(),
-                                        field_type: enums::FieldType::DropDown {
+                                        field_type: enums::FieldType::UserCountry{
                                             options: vec!["US".to_string(), "IN".to_string()],
                                         },
                                     },
@@ -449,7 +449,7 @@ impl Default for super::settings::RequiredFields {
                                 vec![RequiredFieldInfo {
                                     required_field: "card.card_holder_name".to_string(),
                                     display_name: "card_holder_name".to_string(),
-                                    field_type: enums::FieldType::Text,
+                                    field_type: enums::FieldType::UserFullName,
                                 }],
                             ),
                             (
@@ -473,7 +473,7 @@ impl Default for super::settings::RequiredFields {
                                 vec![RequiredFieldInfo {
                                     required_field: "card.card_holder_name".to_string(),
                                     display_name: "card_holder_name".to_string(),
-                                    field_type: enums::FieldType::Text,
+                                    field_type: enums::FieldType::UserFullName,
                                 }],
                             ),
                             (
@@ -481,7 +481,7 @@ impl Default for super::settings::RequiredFields {
                                 vec![RequiredFieldInfo {
                                     required_field: "card.card_holder_name".to_string(),
                                     display_name: "card_holder_name".to_string(),
-                                    field_type: enums::FieldType::Text,
+                                    field_type: enums::FieldType::UserFullName,
                                 }],
                             ),
                             (
@@ -490,34 +490,34 @@ impl Default for super::settings::RequiredFields {
                                     RequiredFieldInfo {
                                         required_field: "card.card_holder_name".to_string(),
                                         display_name: "card_holder_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserFullName,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.line1".to_string(),
                                         display_name: "line1".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserAddressline1,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.city".to_string(),
                                         display_name: "city".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserAddressCity,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.zip".to_string(),
                                         display_name: "zip".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserAddressPincode,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.country".to_string(),
                                         display_name: "country".to_string(),
-                                        field_type: enums::FieldType::DropDown {
+                                        field_type: enums::FieldType::UserCountry {
                                             options: vec!["US".to_string(), "IN".to_string()],
                                         },
                                     },
                                     RequiredFieldInfo {
                                         required_field: "email".to_string(),
                                         display_name: "email".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserEmailAddress,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "browser_info".to_string(),
@@ -531,7 +531,7 @@ impl Default for super::settings::RequiredFields {
                                 vec![RequiredFieldInfo {
                                     required_field: "card.card_holder_name".to_string(),
                                     display_name: "card_holder_name".to_string(),
-                                    field_type: enums::FieldType::Text,
+                                    field_type: enums::FieldType::UserFullName,
                                 }],
                             ),
                             (
@@ -540,7 +540,7 @@ impl Default for super::settings::RequiredFields {
                                     RequiredFieldInfo {
                                         required_field: "email".to_string(),
                                         display_name: "email".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserEmailAddress,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "browser_info".to_string(),
@@ -567,37 +567,14 @@ impl Default for super::settings::RequiredFields {
                 enums::PaymentMethod::BankRedirect,
                 PaymentMethodType(HashMap::from([
                     (
-                        enums::PaymentMethodType::Ach,
-                        ConnectorFields {
-                            fields: HashMap::from([
-                                (
-                                    enums::Connector::Stripe,
-                                    vec![RequiredFieldInfo {
-                                        required_field: "currency".to_string(),
-                                        display_name: "currency".to_string(),
-                                        field_type: enums::FieldType::Text,
-                                    }],
-                                ),
-                                (
-                                    enums::Connector::Adyen,
-                                    vec![RequiredFieldInfo {
-                                        required_field: "card_holder_name".to_string(),
-                                        display_name: "card_holder_name".to_string(),
-                                        field_type: enums::FieldType::Text,
-                                    }],
-                                ),
-                            ]),
-                        },
-                    ),
-                    (
                         enums::PaymentMethodType::Przelewy24,
                         ConnectorFields {
                             fields: HashMap::from([(
                                 enums::Connector::Stripe,
                                 vec![RequiredFieldInfo {
-                                    required_field: "bank_name".to_string(),
+                                    required_field: "payment_method_data.bank_redirect.przelewy24.bank_name".to_string(),
                                     display_name: "bank_name".to_string(),
-                                    field_type: enums::FieldType::Text,
+                                    field_type: enums::FieldType::UserBank,
                                 }],
                             )]),
                         },
@@ -609,67 +586,41 @@ impl Default for super::settings::RequiredFields {
                                 (
                                     enums::Connector::Stripe,
                                     vec![RequiredFieldInfo {
-                                        required_field: "bancontact_card.billing_name".to_string(),
+                                        required_field: "payment_method_data.bank_redirect.bancontact_card.billing_details.billing_name".to_string(),
                                         display_name: "billing_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     }],
                                 ),
                                 (
                                     enums::Connector::Adyen,
                                     vec![
                                         RequiredFieldInfo {
-                                            required_field: "bancontact_card.card_number"
+                                            required_field: "payment_method_data.bank_redirect.bancontact_card.card_number"
                                                 .to_string(),
                                             display_name: "card_number".to_string(),
                                             field_type: enums::FieldType::Text,
                                         },
                                         RequiredFieldInfo {
-                                            required_field: "bancontact_card.card_exp_month"
+                                            required_field: "payment_method_data.bank_redirect.bancontact_card.card_exp_month"
                                                 .to_string(),
                                             display_name: "card_exp_month".to_string(),
                                             field_type: enums::FieldType::Text,
                                         },
                                         RequiredFieldInfo {
-                                            required_field: "bancontact_card.card_exp_year"
+                                            required_field: "payment_method_data.bank_redirect.bancontact_card.card_exp_year"
                                                 .to_string(),
                                             display_name: "card_exp_year".to_string(),
                                             field_type: enums::FieldType::Text,
                                         },
                                         RequiredFieldInfo {
-                                            required_field: "bancontact_card.card_holder_name"
+                                            required_field: "payment_method_data.bank_redirect.bancontact_card.card_holder_name"
                                                 .to_string(),
                                             display_name: "card_holder_name".to_string(),
-                                            field_type: enums::FieldType::Text,
+                                            field_type: enums::FieldType::UserFullName,
                                         },
                                     ],
                                 ),
                             ]),
-                        },
-                    ),
-                    (
-                        enums::PaymentMethodType::Sepa,
-                        ConnectorFields {
-                            fields: HashMap::from([(
-                                enums::Connector::Adyen,
-                                vec![RequiredFieldInfo {
-                                    required_field: "bank_account_holder_name".to_string(),
-                                    display_name: "bank_account_holder_name".to_string(),
-                                    field_type: enums::FieldType::Text,
-                                }],
-                            )]),
-                        },
-                    ),
-                    (
-                        enums::PaymentMethodType::Bacs,
-                        ConnectorFields {
-                            fields: HashMap::from([(
-                                enums::Connector::Adyen,
-                                vec![RequiredFieldInfo {
-                                    required_field: "bank_account_holder_name".to_string(),
-                                    display_name: "bank_account_holder_name".to_string(),
-                                    field_type: enums::FieldType::Text,
-                                }],
-                            )]),
                         },
                     ),
                     (
@@ -679,10 +630,10 @@ impl Default for super::settings::RequiredFields {
                                 (
                                     enums::Connector::Worldline,
                                     vec![RequiredFieldInfo {
-                                        required_field: "giropay.billing_details.billing_name"
+                                        required_field: "payment_method_data.bank_redirect.giropay.billing_details.billing_name"
                                             .to_string(),
                                         display_name: "billing_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     }],
                                 ),
                                 (
@@ -691,12 +642,12 @@ impl Default for super::settings::RequiredFields {
                                         RequiredFieldInfo {
                                             required_field: "email".to_string(),
                                             display_name: "email".to_string(),
-                                            field_type: enums::FieldType::Text,
+                                            field_type: enums::FieldType::UserEmailAddress,
                                         },
                                         RequiredFieldInfo {
                                             required_field: "billing.address.country".to_string(),
                                             display_name: "country".to_string(),
-                                            field_type: enums::FieldType::DropDown {
+                                            field_type: enums::FieldType::UserCountry {
                                                 options: vec!["US".to_string(), "IN".to_string()],
                                             },
                                         },
@@ -712,39 +663,39 @@ impl Default for super::settings::RequiredFields {
                                 (
                                     enums::Connector::Worldline,
                                     vec![RequiredFieldInfo {
-                                        required_field: "ideal.bank_name".to_string(),
+                                        required_field: "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
                                         display_name: "bank_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBank,
                                     }],
                                 ),
                                 (
                                     enums::Connector::Nuvei,
                                     vec![
                                         RequiredFieldInfo {
-                                            required_field: "ideal.bank_name".to_string(),
+                                            required_field: "payment_method_data.bank_redirect.ideal.bank_name".to_string(),
                                             display_name: "bank_name".to_string(),
-                                            field_type: enums::FieldType::Text,
+                                            field_type: enums::FieldType::UserBank,
                                         },
                                         RequiredFieldInfo {
                                             required_field: "billing.address.first_name"
                                                 .to_string(),
                                             display_name: "first_name".to_string(),
-                                            field_type: enums::FieldType::Text,
+                                            field_type: enums::FieldType::UserBillingName,
                                         },
                                         RequiredFieldInfo {
                                             required_field: "billing.address.last_name".to_string(),
                                             display_name: "last_name".to_string(),
-                                            field_type: enums::FieldType::Text,
+                                            field_type: enums::FieldType::UserBillingName,
                                         },
                                         RequiredFieldInfo {
                                             required_field: "email".to_string(),
                                             display_name: "email".to_string(),
-                                            field_type: enums::FieldType::Text,
+                                            field_type: enums::FieldType::UserEmailAddress,
                                         },
                                         RequiredFieldInfo {
                                             required_field: "billing.address.country".to_string(),
                                             display_name: "country".to_string(),
-                                            field_type: enums::FieldType::DropDown {
+                                            field_type: enums::FieldType::UserCountry {
                                                 options: vec!["US".to_string(), "IN".to_string()],
                                             },
                                         },
@@ -762,22 +713,22 @@ impl Default for super::settings::RequiredFields {
                                     RequiredFieldInfo {
                                         required_field: "billing.address.first_name".to_string(),
                                         display_name: "first_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.last_name".to_string(),
                                         display_name: "last_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "email".to_string(),
                                         display_name: "email".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserEmailAddress,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.country".to_string(),
                                         display_name: "country".to_string(),
-                                        field_type: enums::FieldType::DropDown {
+                                        field_type: enums::FieldType::UserCountry {
                                             options: vec!["US".to_string(), "IN".to_string()],
                                         },
                                     },
@@ -794,22 +745,22 @@ impl Default for super::settings::RequiredFields {
                                     RequiredFieldInfo {
                                         required_field: "billing.address.first_name".to_string(),
                                         display_name: "first_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.last_name".to_string(),
                                         display_name: "last_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "email".to_string(),
                                         display_name: "email".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserEmailAddress,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.country".to_string(),
                                         display_name: "country".to_string(),
-                                        field_type: enums::FieldType::DropDown {
+                                        field_type: enums::FieldType::UserCountry {
                                             options: vec!["US".to_string(), "IN".to_string()],
                                         },
                                     },
@@ -870,12 +821,12 @@ impl Default for super::settings::RequiredFields {
                                         RequiredFieldInfo {
                                             required_field: "email".to_string(),
                                             display_name: "email".to_string(),
-                                            field_type: enums::FieldType::Text,
+                                            field_type: enums::FieldType::UserEmailAddress,
                                         },
                                         RequiredFieldInfo {
                                             required_field: "billing.address.country".to_string(),
                                             display_name: "country".to_string(),
-                                            field_type: enums::FieldType::DropDown {
+                                            field_type: enums::FieldType::UserCountry {
                                                 options: vec!["US".to_string(), "IN".to_string()],
                                             },
                                         },
@@ -969,22 +920,22 @@ impl Default for super::settings::RequiredFields {
                                             required_field: "billing.address.first_name"
                                                 .to_string(),
                                             display_name: "first_name".to_string(),
-                                            field_type: enums::FieldType::Text,
+                                            field_type: enums::FieldType::UserBillingName,
                                         },
                                         RequiredFieldInfo {
                                             required_field: "billing.address.last_name".to_string(),
                                             display_name: "last_name".to_string(),
-                                            field_type: enums::FieldType::Text,
+                                            field_type: enums::FieldType::UserBillingName,
                                         },
                                         RequiredFieldInfo {
                                             required_field: "email".to_string(),
                                             display_name: "email".to_string(),
-                                            field_type: enums::FieldType::Text,
+                                            field_type: enums::FieldType::UserEmailAddress,
                                         },
                                         RequiredFieldInfo {
                                             required_field: "billing.address.country".to_string(),
                                             display_name: "country".to_string(),
-                                            field_type: enums::FieldType::DropDown {
+                                            field_type: enums::FieldType::UserCountry {
                                                 options: vec!["US".to_string(), "IN".to_string()],
                                             },
                                         },
@@ -1002,26 +953,106 @@ impl Default for super::settings::RequiredFields {
                                     RequiredFieldInfo {
                                         required_field: "billing.address.first_name".to_string(),
                                         display_name: "first_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.last_name".to_string(),
                                         display_name: "last_name".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserBillingName,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "email".to_string(),
                                         display_name: "email".to_string(),
-                                        field_type: enums::FieldType::Text,
+                                        field_type: enums::FieldType::UserEmailAddress,
                                     },
                                     RequiredFieldInfo {
                                         required_field: "billing.address.country".to_string(),
                                         display_name: "country".to_string(),
-                                        field_type: enums::FieldType::DropDown {
+                                        field_type: enums::FieldType::UserCountry {
                                             options: vec!["US".to_string(), "IN".to_string()],
                                         },
                                     },
                                 ],
+                            )]),
+                        },
+                    ),
+                ])),
+            ),
+            (
+                enums::PaymentMethod::Crypto,
+                PaymentMethodType(HashMap::from([(
+                    enums::PaymentMethodType::CryptoCurrency,
+                    ConnectorFields {
+                        fields: HashMap::from([(
+                            enums::Connector::Cryptopay,
+                            vec![RequiredFieldInfo {
+                                required_field: "payment_method_data.crypto.pay_currency".to_string(),
+                                display_name: "currency".to_string(),
+                                field_type: enums::FieldType::DropDown {
+                                    options: vec![
+                                        "BTC".to_string(),
+                                        "LTC".to_string(),
+                                        "ETH".to_string(),
+                                        "XRP".to_string(),
+                                        "XLM".to_string(),
+                                        "BCH".to_string(),
+                                        "ADA".to_string(),
+                                        "SOL".to_string(),
+                                        "SHIB".to_string(),
+                                        "TRX".to_string(),
+                                        "DOGE".to_string(),
+                                        "BNB".to_string(),
+                                        "BUSD".to_string(),
+                                        "USDT".to_string(),
+                                        "USDC".to_string(),
+                                        "DAI".to_string(),
+                                    ],
+                                },
+                            }],
+                        )]),
+                    },
+                )])),
+            ),
+            (
+                enums::PaymentMethod::BankDebit,
+                PaymentMethodType(HashMap::from([(
+                    enums::PaymentMethodType::Ach,
+                    ConnectorFields {
+                        fields: HashMap::from([
+                            (
+                                enums::Connector::Adyen,
+                                vec![RequiredFieldInfo {
+                                    required_field: "card_holder_name".to_string(),
+                                    display_name: "card_holder_name".to_string(),
+                                    field_type: enums::FieldType::UserFullName,
+                                }],
+                            ),
+                        ]),
+                    },
+                ),
+                (
+                        enums::PaymentMethodType::Sepa,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Adyen,
+                                vec![RequiredFieldInfo {
+                                    required_field: "payment_method_data.bank_debit.sepa_bank_debit.bank_account_holder_name".to_string(),
+                                    display_name: "bank_account_holder_name".to_string(),
+                                    field_type: enums::FieldType::UserFullName,
+                                }],
+                            )]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::Bacs,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Adyen,
+                                vec![RequiredFieldInfo {
+                                    required_field: "payment_method_data.bank_debit.bacs_bank_debit.bank_account_holder_name".to_string(),
+                                    display_name: "bank_account_holder_name".to_string(),
+                                    field_type: enums::FieldType::UserFullName,
+                                }],
                             )]),
                         },
                     ),
