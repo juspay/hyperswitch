@@ -115,7 +115,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     payment_method_type,
                     request,
                     browser_info,
-                    db,
+                    state,
                 )
                 .await?,
                 storage_scheme,
@@ -496,7 +496,7 @@ impl PaymentCreate {
         payment_method_type: Option<enums::PaymentMethodType>,
         request: &api::PaymentsRequest,
         browser_info: Option<serde_json::Value>,
-        db: &dyn StorageInterface,
+        state: &AppState,
     ) -> RouterResult<storage::PaymentAttemptNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
@@ -507,7 +507,7 @@ impl PaymentCreate {
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, db).await
+                helpers::get_additional_payment_data(payment_method_data, &*state.store).await
             })
             .await
             .as_ref()
@@ -515,11 +515,19 @@ impl PaymentCreate {
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
+        let attempt_id = if core_utils::is_merchant_enabled_for_payment_id_as_connector_request_id(
+            &state.conf,
+            merchant_id,
+        ) {
+            payment_id.to_string()
+        } else {
+            utils::get_payment_attempt_id(payment_id, 1)
+        };
 
         Ok(storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            attempt_id: utils::get_payment_attempt_id(payment_id, 1),
+            attempt_id,
             status,
             currency,
             amount: amount.into(),

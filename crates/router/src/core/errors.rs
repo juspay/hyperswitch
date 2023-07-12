@@ -98,6 +98,7 @@ impl StorageError {
                 err.current_context(),
                 storage_errors::DatabaseError::NotFound
             ),
+            Self::ValueNotFound(_) => true,
             _ => false,
         }
     }
