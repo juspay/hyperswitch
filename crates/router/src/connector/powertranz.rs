@@ -163,7 +163,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             true => "sale",
             false => "auth",
         };
-        Ok(format!("{}{}", self.base_url(connectors), endpoint))
+        Ok(format!("{}{endpoint}", self.base_url(connectors)))
     }
 
     fn get_request_body(
