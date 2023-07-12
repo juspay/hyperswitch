@@ -20,7 +20,7 @@ All notable changes to HyperSwitch will be documented here.
   - Fix wallet payments throwing `Invalid 'payment_method_type' provided` and UI test issues ([#1633](https://github.com/juspay/hyperswitch/pull/1633)) ([`307a470`](https://github.com/juspay/hyperswitch/commit/307a470f7d838dc53df07a004ab89045ee0048ff))
   - Add Payment_Method_data in Redirection Form  ([#1668](https://github.com/juspay/hyperswitch/pull/1668)) ([`b043ce6`](https://github.com/juspay/hyperswitch/commit/b043ce6130bf27f6279401ec98237aa91632480a))
 - **locker:** Remove delete_locker_payment_method_by_lookup_key from payments_operation_core ([#1636](https://github.com/juspay/hyperswitch/pull/1636)) ([`b326c18`](https://github.com/juspay/hyperswitch/commit/b326c18f45703724b1c22c69debd15ada841bf2e))
-- **middleware:** Inlcude `x-request-id` header in `access-control-expose-headers` header value ([#1673](https://github.com/juspay/hyperswitch/pull/1673)) ([`b1ae981`](https://github.com/juspay/hyperswitch/commit/b1ae981f82697f788d64bed146fd989a6eca16fe))
+- **middleware:** Include `x-request-id` header in `access-control-expose-headers` header value ([#1673](https://github.com/juspay/hyperswitch/pull/1673)) ([`b1ae981`](https://github.com/juspay/hyperswitch/commit/b1ae981f82697f788d64bed146fd989a6eca16fe))
 - **router:**
   - Use `Connector` enum for `connector_name` field in `MerchantConnectorCreate` ([#1637](https://github.com/juspay/hyperswitch/pull/1637)) ([`e750a73`](https://github.com/juspay/hyperswitch/commit/e750a7332376a60843dde9e71adfa76ce48fd154))
   - Remove requires_customer_action status to payment confirm ([#1624](https://github.com/juspay/hyperswitch/pull/1624)) ([`69454ec`](https://github.com/juspay/hyperswitch/commit/69454ec55c1392aee7a5215f7dc0c834fd6613d2))
