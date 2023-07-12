@@ -1726,6 +1726,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "diesel_models"
+version = "0.1.0"
+dependencies = [
+ "async-bb8-diesel",
+ "common_enums",
+ "common_utils",
+ "diesel",
+ "error-stack",
+ "frunk",
+ "frunk_core",
+ "masking",
+ "router_derive",
+ "router_env",
+ "serde",
+ "serde_json",
+ "strum",
+ "thiserror",
+ "time 0.3.22",
+]
+
+[[package]]
 name = "diesel_table_macro_syntax"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1787,6 +1808,7 @@ dependencies = [
  "common_utils",
  "config",
  "diesel",
+ "diesel_models",
  "error-stack",
  "external_services",
  "once_cell",
@@ -1795,7 +1817,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_path_to_error",
- "storage_models",
  "thiserror",
  "tokio",
 ]
@@ -3949,6 +3970,7 @@ dependencies = [
  "crc32fast",
  "derive_deref",
  "diesel",
+ "diesel_models",
  "dyn-clone",
  "encoding_rs",
  "error-stack",
@@ -3988,7 +4010,6 @@ dependencies = [
  "serial_test",
  "signal-hook",
  "signal-hook-tokio",
- "storage_models",
  "strum",
  "test_utils",
  "thirtyfour",
@@ -4552,27 +4573,6 @@ name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
-
-[[package]]
-name = "storage_models"
-version = "0.1.0"
-dependencies = [
- "async-bb8-diesel",
- "common_enums",
- "common_utils",
- "diesel",
- "error-stack",
- "frunk",
- "frunk_core",
- "masking",
- "router_derive",
- "router_env",
- "serde",
- "serde_json",
- "strum",
- "thiserror",
- "time 0.3.22",
-]
 
 [[package]]
 name = "stringmatch"

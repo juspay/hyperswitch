@@ -1,1 +1,1 @@
-pub use storage_models::reverse_lookup::{ReverseLookup, ReverseLookupNew};
+pub use diesel_models::reverse_lookup::{ReverseLookup, ReverseLookupNew};

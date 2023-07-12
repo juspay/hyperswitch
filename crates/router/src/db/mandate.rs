@@ -201,7 +201,7 @@ impl MandateInterface for MockDb {
                 checker &= mandate.connector == *connector;
             }
             if let Some(mandate_status) = mandate_constraints.mandate_status {
-                let storage_mandate_status: storage_models::enums::MandateStatus =
+                let storage_mandate_status: diesel_models::enums::MandateStatus =
                     mandate_status.foreign_into();
                 checker &= mandate.mandate_status == storage_mandate_status;
             }
