@@ -562,8 +562,8 @@ impl MerchantConnectorAccountInterface for MockDb {
 mod merchant_connector_account_cache_tests {
     use api_models::enums::CountryAlpha2;
     use common_utils::date_time;
+    use diesel_models::enums::ConnectorType;
     use error_stack::ResultExt;
-    use storage_models::enums::ConnectorType;
 
     use crate::{
         cache::{CacheKind, ACCOUNTS_CACHE},

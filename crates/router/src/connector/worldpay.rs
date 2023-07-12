@@ -5,8 +5,8 @@ mod transformers;
 use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt};
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
-use storage_models::enums;
 use transformers as worldpay;
 
 use self::{requests::*, response::*};

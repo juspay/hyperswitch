@@ -206,7 +206,7 @@ impl mandate::MandateBehaviour for types::VerifyRequestData {
         0
     }
 
-    fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage> {
+    fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
         self.setup_future_usage
     }
 
