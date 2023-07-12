@@ -920,7 +920,7 @@ impl services::ConnectorRedirectResponse for Globalpay {
             |status| match status {
                 response::GlobalpayPaymentStatus::Captured => {
                     payments::CallConnectorAction::StatusUpdate {
-                        status: storage_models::enums::AttemptStatus::from(status),
+                        status: diesel_models::enums::AttemptStatus::from(status),
                         error_code: None,
                         error_message: None,
                     }
