@@ -117,14 +117,14 @@ pub async fn add_payment_method(
 
     let (resp, is_duplicate) = response?;
     if !is_duplicate {
-        let pm_metadata = resp.metadata.as_ref().map(|data| data.clone().expose());
+        let pm_metadata = resp.metadata.as_ref().map(|data| data.peek());
         create_payment_method(
             &*state.store,
             &req,
             &customer_id,
             &resp.payment_method_id,
             &resp.merchant_id,
-            pm_metadata,
+            pm_metadata.cloned(),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
