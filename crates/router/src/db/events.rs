@@ -95,7 +95,7 @@ impl EventInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
-    use storage_models::enums;
+    use diesel_models::enums;
 
     use crate::{
         db::{events::EventInterface, MockDb},
