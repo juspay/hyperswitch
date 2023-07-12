@@ -215,6 +215,8 @@ diesel::table! {
         file_upload_provider -> Nullable<Varchar>,
         available -> Bool,
         created_at -> Timestamp,
+        #[max_length = 255]
+        connector_label -> Nullable<Varchar>,
     }
 }
 
@@ -322,8 +324,6 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
         primary_business_details -> Json,
-        #[max_length = 128]
-        api_key -> Nullable<Varchar>,
         intent_fulfillment_time -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
@@ -477,11 +477,10 @@ diesel::table! {
         #[max_length = 64]
         business_label -> Varchar,
         order_details -> Nullable<Array<Nullable<Jsonb>>>,
-        meta_data -> Nullable<Jsonb>,
-        attempt_count -> Int2,
         allowed_payment_method_types -> Nullable<Json>,
         connector_metadata -> Nullable<Json>,
         feature_metadata -> Nullable<Json>,
+        attempt_count -> Int2,
     }
 }
 

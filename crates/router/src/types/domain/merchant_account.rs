@@ -1,5 +1,5 @@
 use common_utils::{
-    crypto::{OptionalEncryptableName, OptionalEncryptableValue, Encryptable, self},
+    crypto::{self, Encryptable, OptionalEncryptableName, OptionalEncryptableValue},
     date_time, pii,
 };
 use error_stack::ResultExt;
@@ -8,12 +8,11 @@ use storage_models::{
     encryption::Encryption, enums, merchant_account::MerchantAccountUpdateInternal,
 };
 
+use super::types::TypeEncryption;
 use crate::{
     errors::{CustomResult, ValidationError},
     types::domain::types::{self, AsyncLift},
 };
-
-use super::types::TypeEncryption;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantAccount {
@@ -162,7 +161,12 @@ impl super::behaviour::Conversion for MerchantAccount {
                 enable_payment_response_hash: item.enable_payment_response_hash,
                 payment_response_hash_key: item.payment_response_hash_key,
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-                merchant_name: crypto::Encryptable::decrypt(item.merchant_name, key.peek(), crypto::GcmAes256).await?,
+                merchant_name: crypto::Encryptable::decrypt(
+                    item.merchant_name,
+                    key.peek(),
+                    crypto::GcmAes256,
+                )
+                .await?,
                 merchant_details: item
                     .merchant_details
                     .async_lift(|inner| types::decrypt(inner, key.peek()))
