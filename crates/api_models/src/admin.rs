@@ -19,7 +19,7 @@ pub struct MerchantAccountCreate {
 
     /// Name of the Merchant Account
     #[schema(value_type= Option<String>,example = "NewAge Retailer")]
-    pub merchant_name: Option<Secret<String>>,
+    pub merchant_name: Secret<String>,
 
     /// Merchant related details
     pub merchant_details: Option<MerchantDetails>,

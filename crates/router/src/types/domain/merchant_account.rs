@@ -1,5 +1,5 @@
 use common_utils::{
-    crypto::{OptionalEncryptableName, OptionalEncryptableValue},
+    crypto::{OptionalEncryptableName, OptionalEncryptableValue, Encryptable, self},
     date_time, pii,
 };
 use error_stack::ResultExt;
@@ -13,6 +13,8 @@ use crate::{
     types::domain::types::{self, AsyncLift},
 };
 
+use super::types::TypeEncryption;
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantAccount {
     pub id: Option<i32>,
@@ -21,7 +23,7 @@ pub struct MerchantAccount {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub merchant_name: OptionalEncryptableName,
+    pub merchant_name: Encryptable<Secret<String>>,
     pub merchant_details: OptionalEncryptableValue,
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
@@ -127,7 +129,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             enable_payment_response_hash: self.enable_payment_response_hash,
             payment_response_hash_key: self.payment_response_hash_key,
             redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
-            merchant_name: self.merchant_name.map(|name| name.into()),
+            merchant_name: self.merchant_name.into(),
             merchant_details: self.merchant_details.map(|details| details.into()),
             webhook_details: self.webhook_details,
             sub_merchants_enabled: self.sub_merchants_enabled,
@@ -160,10 +162,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 enable_payment_response_hash: item.enable_payment_response_hash,
                 payment_response_hash_key: item.payment_response_hash_key,
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-                merchant_name: item
-                    .merchant_name
-                    .async_lift(|inner| types::decrypt(inner, key.peek()))
-                    .await?,
+                merchant_name: crypto::Encryptable::decrypt(item.merchant_name, key.peek(), crypto::GcmAes256).await?,
                 merchant_details: item
                     .merchant_details
                     .async_lift(|inner| types::decrypt(inner, key.peek()))
@@ -193,7 +192,7 @@ impl super::behaviour::Conversion for MerchantAccount {
         let now = date_time::now();
         Ok(storage_models::merchant_account::MerchantAccountNew {
             merchant_id: self.merchant_id,
-            merchant_name: self.merchant_name.map(Encryption::from),
+            merchant_name: self.merchant_name.into(),
             merchant_details: self.merchant_details.map(Encryption::from),
             return_url: self.return_url,
             webhook_details: self.webhook_details,

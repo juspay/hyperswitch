@@ -18,7 +18,7 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
 
         Ok(Self {
             merchant_id: item.merchant_id,
-            merchant_name: item.merchant_name,
+            merchant_name: Some(item.merchant_name),
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
             payment_response_hash_key: item.payment_response_hash_key,

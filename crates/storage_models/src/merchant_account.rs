@@ -20,7 +20,7 @@ pub struct MerchantAccount {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub merchant_name: Option<Encryption>,
+    pub merchant_name: Encryption,
     pub merchant_details: Option<Encryption>,
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
@@ -41,7 +41,7 @@ pub struct MerchantAccount {
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccountNew {
     pub merchant_id: String,
-    pub merchant_name: Option<Encryption>,
+    pub merchant_name: Encryption,
     pub merchant_details: Option<Encryption>,
     pub return_url: Option<String>,
     pub webhook_details: Option<serde_json::Value>,
