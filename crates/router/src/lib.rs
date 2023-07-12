@@ -10,6 +10,7 @@ pub mod connector;
 pub(crate) mod consts;
 pub mod core;
 pub mod cors;
+pub mod customers;
 pub mod db;
 pub mod env;
 pub(crate) mod macros;
