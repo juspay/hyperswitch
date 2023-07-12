@@ -143,7 +143,7 @@ impl super::settings::Connectors {
         self.shift4.validate()?;
         self.stripe.validate()?;
         self.worldpay.validate()?;
-
+        self.nmi.validate()?;
         self.supported.validate()?;
 
         Ok(())
