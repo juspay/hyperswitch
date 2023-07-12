@@ -33,6 +33,7 @@ impl api::PaymentSession for Powertranz {}
 impl api::ConnectorAccessToken for Powertranz {}
 impl api::PreVerify for Powertranz {}
 impl api::PaymentAuthorize for Powertranz {}
+impl api::PaymentsCompleteAuthorize for Powertranz {}
 impl api::PaymentSync for Powertranz {}
 impl api::PaymentCapture for Powertranz {}
 impl api::PaymentVoid for Powertranz {}
@@ -214,6 +215,85 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let response: powertranz::PowertranzBaseResponse = res
             .response
             .parse_struct("Powertranz PaymentsAuthorizeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl
+    ConnectorIntegration<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    > for Powertranz
+{
+    fn get_headers(
+        &self,
+        _req: &types::PaymentsCompleteAuthorizeRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        let headers = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsCompleteAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        Ok(headers)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}spi/payment", self.base_url(connectors)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                    self, req,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCompleteAuthorizeRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
+        let response: powertranz::PowertranzBaseResponse = res
+            .response
+            .parse_struct("Powertranz PaymentsCompleteAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
