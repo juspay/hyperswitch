@@ -1,8 +1,8 @@
 use api_models::payments::{Address, Card};
 use common_utils::pii::Email;
+use diesel_models::enums::RefundStatus;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
-use storage_models::enums::RefundStatus;
 use uuid::Uuid;
 
 use crate::{
