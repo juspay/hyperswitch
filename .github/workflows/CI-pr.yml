@@ -1,16 +1,6 @@
-name: CI
+name: CI-pr
 
 on:
-  push:
-    branches:
-      - main
-    # paths:
-    #   - ".github/workflows/**"
-    #   - "crates/**"
-    #   - "examples/**"
-    #   - "Cargo.lock"
-    #   - "Cargo.toml"
-
   pull_request:
     # paths:
     #   - ".github/workflows/**"
@@ -103,7 +93,7 @@ jobs:
           save-if: ${{ github.event_name == 'push' }}
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.0.0
+        uses: baptiste0928/cargo-install@v2.1.0
         with:
           crate: cargo-hack
 
@@ -268,12 +258,12 @@ jobs:
           components: clippy
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.0.0
+        uses: baptiste0928/cargo-install@v2.1.0
         with:
           crate: cargo-hack
 
       # - name: Install cargo-nextest
-      #   uses: baptiste0928/cargo-install@v2.0.0
+      #   uses: baptiste0928/cargo-install@v2.1.0
       #   with:
       #     crate: cargo-nextest
 
