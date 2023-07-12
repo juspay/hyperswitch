@@ -16,6 +16,7 @@ pub struct FileMetadataNew {
     pub provider_file_id: Option<String>,
     pub file_upload_provider: Option<common_enums::FileUploadProvider>,
     pub available: bool,
+    pub connector_label: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
@@ -32,6 +33,7 @@ pub struct FileMetadata {
     pub available: bool,
     #[serde(with = "custom_serde::iso8601")]
     pub created_at: time::PrimitiveDateTime,
+    pub connector_label: Option<String>,
 }
 
 #[derive(Debug)]
@@ -40,6 +42,7 @@ pub enum FileMetadataUpdate {
         provider_file_id: Option<String>,
         file_upload_provider: Option<common_enums::FileUploadProvider>,
         available: bool,
+        connector_label: Option<String>,
     },
 }
 
@@ -49,6 +52,7 @@ pub struct FileMetadataUpdateInternal {
     provider_file_id: Option<String>,
     file_upload_provider: Option<common_enums::FileUploadProvider>,
     available: bool,
+    connector_label: Option<String>,
 }
 
 impl From<FileMetadataUpdate> for FileMetadataUpdateInternal {
@@ -58,10 +62,12 @@ impl From<FileMetadataUpdate> for FileMetadataUpdateInternal {
                 provider_file_id,
                 file_upload_provider,
                 available,
+                connector_label,
             } => Self {
                 provider_file_id,
                 file_upload_provider,
                 available,
+                connector_label,
             },
         }
     }
