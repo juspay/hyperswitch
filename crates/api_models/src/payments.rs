@@ -666,6 +666,7 @@ pub enum PaymentMethodData {
     MandatePayment,
     Reward(RewardData),
     Upi(UpiData),
+    Voucher(VoucherData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -689,6 +690,7 @@ pub enum AdditionalPaymentData {
     MandatePayment {},
     Reward {},
     Upi {},
+    Voucher {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1046,7 +1048,16 @@ pub struct CashtoCodeData {
 #[serde(rename_all = "snake_case")]
 pub enum RewardData {
     Cashtocode(CashtoCodeData),
-    Boleto,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VoucherData {
+    Boleto {
+        /// The shopper's social security number
+        #[schema(value_type = String)]
+        social_security_number: Option<Secret<String>>,
+    },
     Efecty,
     PagoEfectivo,
     Pix,
@@ -1070,6 +1081,7 @@ pub enum PaymentMethodDataResponse {
     MandatePayment,
     Reward(RewardData),
     Upi(UpiData),
+    Voucher(VoucherData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1756,6 +1768,7 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             PaymentMethodData::MandatePayment => Self::MandatePayment,
             PaymentMethodData::Reward(reward_data) => Self::Reward(reward_data),
             PaymentMethodData::Upi(upi_data) => Self::Upi(upi_data),
+            PaymentMethodData::Voucher(voucher_data) => Self::Voucher(voucher_data),
         }
     }
 }

@@ -3365,6 +3365,7 @@
           "BZD",
           "CAD",
           "CHF",
+          "CLP",
           "CNY",
           "COP",
           "CRC",
@@ -6010,7 +6011,8 @@
           "crypto",
           "bank_debit",
           "reward",
-          "upi"
+          "upi",
+          "voucher"
         ]
       },
       "PaymentMethodCreate": {
@@ -6175,6 +6177,17 @@
             "properties": {
               "upi": {
                 "$ref": "#/components/schemas/UpiData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "voucher"
+            ],
+            "properties": {
+              "voucher": {
+                "$ref": "#/components/schemas/VoucherData"
               }
             }
           }
@@ -6368,10 +6381,12 @@
           "bancontact_card",
           "becs",
           "blik",
+          "boleto",
           "classic",
           "credit",
           "crypto_currency",
           "debit",
+          "efecty",
           "eps",
           "evoucher",
           "giropay",
@@ -6386,9 +6401,14 @@
           "online_banking_finland",
           "online_banking_poland",
           "online_banking_slovakia",
+          "pago_efectivo",
           "pay_bright",
           "paypal",
+          "pix",
           "przelewy24",
+          "pse",
+          "red_compra",
+          "red_pagos",
           "samsung_pay",
           "sepa",
           "sofort",
@@ -8102,16 +8122,19 @@
         }
       },
       "RewardData": {
-        "type": "object",
-        "required": [
-          "merchant_id"
-        ],
-        "properties": {
-          "merchant_id": {
-            "type": "string",
-            "description": "The merchant ID with which we have to call the connector"
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "cashtocode"
+            ],
+            "properties": {
+              "cashtocode": {
+                "$ref": "#/components/schemas/CashtoCodeData"
+              }
+            }
           }
-        }
+        ]
       },
       "RoutingAlgorithm": {
         "type": "string",
@@ -8410,6 +8433,66 @@
             "nullable": true
           }
         }
+      },
+      "VoucherData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "boleto"
+            ],
+            "properties": {
+              "boleto": {
+                "type": "object",
+                "required": [
+                  "social_security_number"
+                ],
+                "properties": {
+                  "social_security_number": {
+                    "type": "string",
+                    "description": "The shopper's social security number"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "efecty"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "pago_efectivo"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "pix"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "pse"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "red_compra"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "red_pagos"
+            ]
+          }
+        ]
       },
       "WalletData": {
         "oneOf": [

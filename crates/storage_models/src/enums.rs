@@ -468,6 +468,7 @@ pub enum PaymentMethod {
     BankDebit,
     Reward,
     Upi,
+    Voucher,
 }
 
 #[derive(

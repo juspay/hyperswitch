@@ -210,17 +210,17 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &Card)> for ZenPaymentsReques
 impl
     TryFrom<(
         &types::PaymentsAuthorizeRouterData,
-        &api_models::payments::RewardData,
+        &api_models::payments::VoucherData,
     )> for ZenPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         value: (
             &types::PaymentsAuthorizeRouterData,
-            &api_models::payments::RewardData,
+            &api_models::payments::VoucherData,
         ),
     ) -> Result<Self, Self::Error> {
-        let (item, reward_data) = value;
+        let (item, voucher_data) = value;
         let browser_info = item.request.get_browser_info()?;
         let ip = browser_info.get_ip_address()?;
         let amount = get_amount(item.request.amount, item.request.currency)?;
@@ -230,21 +230,20 @@ impl
                 payment_type: ZenPaymentTypes::General,
                 return_url: item.request.get_router_return_url()?,
             });
-        let payment_channel = match reward_data {
-            api_models::payments::RewardData::Boleto => ZenPaymentChannels::PclBoacompraBoleto,
-            api_models::payments::RewardData::Efecty => ZenPaymentChannels::PclBoacompraEfecty,
-            api_models::payments::RewardData::PagoEfectivo => {
+        let payment_channel = match voucher_data {
+            api_models::payments::VoucherData::Boleto { .. } => {
+                ZenPaymentChannels::PclBoacompraBoleto
+            }
+            api_models::payments::VoucherData::Efecty => ZenPaymentChannels::PclBoacompraEfecty,
+            api_models::payments::VoucherData::PagoEfectivo => {
                 ZenPaymentChannels::PclBoacompraPagoefectivo
             }
-            api_models::payments::RewardData::Pix => ZenPaymentChannels::PclBoacompraPix,
-            api_models::payments::RewardData::Pse => ZenPaymentChannels::PclBoacompraPse,
-            api_models::payments::RewardData::RedCompra => {
+            api_models::payments::VoucherData::Pix => ZenPaymentChannels::PclBoacompraPix,
+            api_models::payments::VoucherData::Pse => ZenPaymentChannels::PclBoacompraPse,
+            api_models::payments::VoucherData::RedCompra => {
                 ZenPaymentChannels::PclBoacompraRedcompra
             }
-            api_models::payments::RewardData::RedPagos => ZenPaymentChannels::PclBoacompraRedpagos,
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "payment method".to_string(),
-            ))?,
+            api_models::payments::VoucherData::RedPagos => ZenPaymentChannels::PclBoacompraRedpagos,
         };
         Ok(Self::ApiRequest(Box::new(ApiRequest {
             merchant_transaction_id: item.attempt_id.clone(),
@@ -598,8 +597,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
             api_models::payments::PaymentMethodData::Wallet(wallet_data) => {
                 Self::try_from((item, wallet_data))
             }
-            api_models::payments::PaymentMethodData::Reward(reward_data) => {
-                Self::try_from((item, reward_data))
+            api_models::payments::PaymentMethodData::Voucher(voucher_data) => {
+                Self::try_from((item, voucher_data))
             }
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 Self::try_from((item, bank_transfer_data))
