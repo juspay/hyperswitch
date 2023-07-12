@@ -240,6 +240,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::MbWay
             | api_enums::PaymentMethodType::MobilePay
             | api_enums::PaymentMethodType::SamsungPay
+            | api_enums::PaymentMethodType::Swish
             | api_enums::PaymentMethodType::WeChatPay => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::AfterpayClearpay
@@ -257,7 +258,6 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::OnlineBankingPoland
             | api_enums::PaymentMethodType::OnlineBankingSlovakia
             | api_enums::PaymentMethodType::Przelewy24
-            | api_enums::PaymentMethodType::Swish
             | api_enums::PaymentMethodType::Trustly
             | api_enums::PaymentMethodType::Interac => Self::BankRedirect,
             api_enums::PaymentMethodType::UpiCollect => Self::Upi,

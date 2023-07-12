@@ -19,8 +19,9 @@ use crate::{
         api::{self, enums as api_enums},
         storage::enums as storage_enums,
         transformers::ForeignFrom,
-    },
+    }, utils::QrImage,
 };
+
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -202,13 +203,23 @@ pub struct AdyenThreeDS {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum AdyenPaymentResponse {
-    AdyenResponse(AdyenResponse),
-    AdyenRedirectResponse(AdyenRedirectionResponse),
+    DirectResponse(DirectResponse),
+    QrCodeResponse(QrCodeResponse),
+    RedirectResponse(RedirectResponse),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenResponse {
+pub struct QrCodeResponse {
+    result_code: AdyenStatus,
+    action: AdyenQrCodeAction,
+    refusal_reason: Option<String>,
+    refusal_reason_code: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectResponse {
     psp_reference: String,
     result_code: AdyenStatus,
     amount: Option<Amount>,
@@ -220,11 +231,23 @@ pub struct AdyenResponse {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenRedirectionResponse {
+pub struct RedirectResponse {
     result_code: AdyenStatus,
     action: AdyenRedirectionAction,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenQrCodeAction {
+    payment_data: Option<String>,
+    payment_method_type: String,
+    #[serde(rename = "url")]
+    mobile_redirect_url: Option<Url>,
+    qr_code_data: String,
+    #[serde(rename = "type")]
+    type_of_response: ActionType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -244,6 +267,8 @@ pub struct AdyenRedirectionAction {
 pub enum ActionType {
     Redirect,
     Await,
+    #[serde(rename = "qrCode")]
+    QrCode,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -254,6 +279,7 @@ pub struct Amount {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
+#[serde(rename_all = "snake_case")]
 pub enum AdyenPaymentMethod<'a> {
     AdyenAffirm(Box<AdyenPayLaterData>),
     AdyenCard(Box<AdyenCard>),
@@ -286,6 +312,7 @@ pub enum AdyenPaymentMethod<'a> {
     SepaDirectDebit(Box<SepaDirectDebitData>),
     BacsDirectDebit(Box<BacsDirectDebitData>),
     SamsungPay(Box<SamsungPayPmData>),
+    Swish(Box<SwishData>)
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -621,6 +648,10 @@ pub struct AliPayHkData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SwishData {
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
     #[serde(rename = "type")]
     payment_type: PaymentType,
@@ -709,6 +740,7 @@ pub enum PaymentType {
     #[serde(rename = "directdebit_GB")]
     BacsDirectDebit,
     Samsungpay,
+    Swish,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -1128,6 +1160,10 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                     samsung_pay_token: samsung_data.token.to_owned(),
                 };
                 Ok(AdyenPaymentMethod::SamsungPay(Box::new(data)))
+            }
+            api_models::payments::WalletData::Swish(_) => {
+                let swish_data: SwishData = SwishData {};
+                Ok(AdyenPaymentMethod::Swish(Box::new(swish_data)))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
@@ -1652,7 +1688,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
 }
 
 pub fn get_adyen_response(
-    response: AdyenResponse,
+    response: DirectResponse,
     is_capture_manual: bool,
     status_code: u16,
 ) -> errors::CustomResult<
@@ -1702,7 +1738,7 @@ pub fn get_adyen_response(
 }
 
 pub fn get_redirection_response(
-    response: AdyenRedirectionResponse,
+    response: RedirectResponse,
     is_manual_capture: bool,
     status_code: u16,
 ) -> errors::CustomResult<
@@ -1755,6 +1791,65 @@ pub fn get_redirection_response(
     Ok((status, error, payments_response_data))
 }
 
+pub fn get_qr_code_response(
+    response: QrCodeResponse,
+    is_manual_capture: bool,
+    status_code: u16,
+) -> errors::CustomResult<
+    (
+        storage_enums::AttemptStatus,
+        Option<types::ErrorResponse>,
+        types::PaymentsResponseData,
+    ),
+    errors::ConnectorError,
+> {
+    let status =
+        storage_enums::AttemptStatus::foreign_from((is_manual_capture, response.result_code.clone()));
+    let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
+        Some(types::ErrorResponse {
+            code: response
+                .refusal_reason_code
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .refusal_reason
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: None,
+            status_code,
+        })
+    } else {
+        None
+    };
+
+    let connector_metadata = get_qr_connector_metadata(&response).or(Err(errors::ConnectorError::NoConnectorMetaData))?;
+
+    // We don't get connector transaction id for redirections in Adyen.
+    let payments_response_data = types::PaymentsResponseData::TransactionResponse {
+        resource_id: types::ResponseId::NoResponseId,
+        redirection_data: None,
+        mandate_reference: None,
+        connector_metadata,
+        network_txn_id: None,
+    };
+    Ok((status, error, payments_response_data))
+}
+
+pub fn get_qr_connector_metadata(
+    next_action: &QrCodeResponse,
+) -> Result<Option<serde_json::Value>, error_stack::Report<common_utils::errors::QrCodeError>> {
+    let qr_code_data = match next_action.action.type_of_response {
+        ActionType::QrCode => {
+            Some(serde_json::json!(
+            QrCodeNextStepData {
+                image_data_source: QrImage::new_from_data(next_action.action.qr_code_data.clone())?.data,
+                mobile_redirection_url: next_action.action.mobile_redirect_url.clone(),
+            }))},
+            _ => None,
+        };
+    Ok(qr_code_data)
+}         
+
 impl<F, Req>
     TryFrom<(
         types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
@@ -1771,11 +1866,17 @@ impl<F, Req>
         let item = items.0;
         let is_manual_capture = items.1;
         let (status, error, payment_response_data) = match item.response {
-            AdyenPaymentResponse::AdyenResponse(response) => {
+            AdyenPaymentResponse::DirectResponse(response) => {
+                crate::logger::debug!("AAAAAAAAAAAAA1");
                 get_adyen_response(response, is_manual_capture, item.http_code)?
             }
-            AdyenPaymentResponse::AdyenRedirectResponse(response) => {
+            AdyenPaymentResponse::RedirectResponse(response) => {
+                crate::logger::debug!("AAAAAAAAAAAAA2{:?}", response);
                 get_redirection_response(response, is_manual_capture, item.http_code)?
+            }
+            AdyenPaymentResponse::QrCodeResponse(response) => {
+                crate::logger::debug!("AAAAAAAAAAAAA3");
+                get_qr_code_response(response, is_manual_capture, item.http_code)?
             }
         };
 
@@ -1955,6 +2056,12 @@ pub enum DisputeStatus {
     Won,
 }
 
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct QrCodeNextStepData {
+    pub image_data_source: String,
+    pub mobile_redirection_url: Option<Url>,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenAdditionalDataWH {
@@ -2081,7 +2188,7 @@ pub struct AdyenIncomingWebhook {
     pub notification_items: Vec<AdyenItemObjectWH>,
 }
 
-impl From<AdyenNotificationRequestItemWH> for AdyenResponse {
+impl From<AdyenNotificationRequestItemWH> for DirectResponse {
     fn from(notif: AdyenNotificationRequestItemWH) -> Self {
         Self {
             psp_reference: notif.psp_reference,

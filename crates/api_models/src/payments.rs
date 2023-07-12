@@ -794,7 +794,6 @@ pub enum BankRedirectData {
         #[schema(example = "en")]
         preferred_language: String,
     },
-    Swish {},
     Trustly {
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
@@ -924,6 +923,8 @@ pub enum WalletData {
     WeChatPayRedirect(Box<WeChatPayRedirection>),
     /// The wallet data for WeChat Pay
     WeChatPay(Box<WeChatPay>),
+    // The wallet data for Swish
+    Swish(SwishWalletData)
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -999,6 +1000,9 @@ pub struct PayPalWalletData {
     /// Token generated for the Apple pay
     pub token: String,
 }
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SwishWalletData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GpayTokenizationData {
@@ -1241,7 +1245,11 @@ pub enum NextActionData {
     /// Contains url for Qr code image, this qr code has to be shown in sdk
     QrCodeInformation {
         #[schema(value_type = String)]
-        image_data_url: Url,
+        image_data_source: Option<String>,
+        #[schema(value_type = String)]
+        image_data_url: Option<Url>,
+        #[schema(value_type = String)]
+        mobile_redirection_url: Option<Url>,
     },
 }
 
@@ -1256,7 +1264,9 @@ pub struct BankTransferNextStepsData {
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct QrCodeNextStepsInstruction {
-    pub image_data_url: Url,
+    pub image_data_source: Option<String>,
+    pub image_data_url: Option<Url>,
+    pub mobile_redirection_url: Option<Url>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

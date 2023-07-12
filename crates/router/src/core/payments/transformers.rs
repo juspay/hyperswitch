@@ -332,7 +332,7 @@ where
                     qr_code_next_steps_check(payment_attempt.clone())?;
 
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
-                    || bank_transfer_next_steps.is_some()
+                    || bank_transfer_next_steps.is_some() || next_action_containing_qr_code.is_some() 
                 {
                     next_action_response = bank_transfer_next_steps
                         .map(|bank_transfer| {
@@ -342,7 +342,9 @@ where
                         })
                         .or(next_action_containing_qr_code.map(|qr_code_data| {
                             api_models::payments::NextActionData::QrCodeInformation {
+                                image_data_source: qr_code_data.image_data_source,
                                 image_data_url: qr_code_data.image_data_url,
+                                mobile_redirection_url: qr_code_data.mobile_redirection_url,
                             }
                         }))
                         .or(Some(api_models::payments::NextActionData::RedirectToUrl {
