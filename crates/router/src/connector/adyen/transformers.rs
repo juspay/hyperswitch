@@ -1054,6 +1054,21 @@ impl<'a> TryFrom<&api::Card> for AdyenPaymentMethod<'a> {
     }
 }
 
+impl TryFrom<storage_enums::PaymentMethodType> for PaymentType {
+    type Error = Error;
+    fn try_from(item: storage_enums::PaymentMethodType) -> Result<Self, Self::Error> {
+        match item {
+            storage_enums::PaymentMethodType::Credit | storage_enums::PaymentMethodType::Debit => {
+                Ok(Self::Scheme)
+            }
+            storage_enums::PaymentMethodType::Paypal => Ok(Self::Paypal),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment Method Type".to_string(),
+            ))?,
+        }
+    }
+}
+
 impl TryFrom<&utils::CardIssuer> for CardBrand {
     type Error = Error;
     fn try_from(card_issuer: &utils::CardIssuer) -> Result<Self, Self::Error> {
@@ -1302,10 +1317,15 @@ impl<'a>
         let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
+        let payment_method_type = item
+            .request
+            .payment_method_type
+            .clone()
+            .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
         let payment_method = match mandate_ref_id {
             payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
                 let adyen_mandate = AdyenMandate {
-                    payment_type: PaymentType::Scheme,
+                    payment_type: PaymentType::try_from(payment_method_type)?,
                     stored_payment_method_id: connector_mandate_ids.get_connector_mandate_id()?,
                 };
                 Ok::<AdyenPaymentMethod<'_>, Self::Error>(AdyenPaymentMethod::Mandate(Box::new(
@@ -1550,7 +1570,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)>
             additional_data,
             telephone_number: None,
             shopper_name: None,
-            shopper_email: None,
+            shopper_email: item.request.email.clone(),
             shopper_locale: None,
             billing_address: None,
             delivery_address: None,
