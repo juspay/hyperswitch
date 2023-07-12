@@ -1,1 +1,1 @@
-pub use storage_models::ephemeral_key::{EphemeralKey, EphemeralKeyNew};
+pub use diesel_models::ephemeral_key::{EphemeralKey, EphemeralKeyNew};

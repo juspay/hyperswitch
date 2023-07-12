@@ -198,10 +198,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
 impl types::PaymentsAuthorizeRouterData {
     fn decide_authentication_type(&mut self) {
-        if self.auth_type == storage_models::enums::AuthenticationType::ThreeDs
+        if self.auth_type == diesel_models::enums::AuthenticationType::ThreeDs
             && !self.request.enrolled_for_3ds
         {
-            self.auth_type = storage_models::enums::AuthenticationType::NoThreeDs
+            self.auth_type = diesel_models::enums::AuthenticationType::NoThreeDs
         }
     }
 
@@ -226,7 +226,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
         self.payment_method_data.clone()
     }
-    fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage> {
+    fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
         self.setup_future_usage
     }
     fn get_setup_mandate_details(&self) -> Option<&api_models::payments::MandateData> {

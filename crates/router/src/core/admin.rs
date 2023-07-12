@@ -4,9 +4,9 @@ use common_utils::{
     date_time,
     ext_traits::ValueExt,
 };
+use diesel_models::enums;
 use error_stack::{report, FutureExt, ResultExt};
 use masking::{PeekInterface, Secret};
-use storage_models::enums;
 use uuid::Uuid;
 
 use crate::{
@@ -165,7 +165,7 @@ pub async fn create_merchant_account(
             publishable_key,
             locker_id: req.locker_id,
             metadata: req.metadata,
-            storage_scheme: storage_models::enums::MerchantStorageScheme::PostgresOnly,
+            storage_scheme: diesel_models::enums::MerchantStorageScheme::PostgresOnly,
             primary_business_details,
             created_at: date_time::now(),
             modified_at: date_time::now(),

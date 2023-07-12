@@ -9,11 +9,11 @@ pub mod transformers;
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
 use common_utils::pii;
+use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
 use router_env::{instrument, tracing};
-use storage_models::ephemeral_key;
 use time;
 
 pub use self::operations::{

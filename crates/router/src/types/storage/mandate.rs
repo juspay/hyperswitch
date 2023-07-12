@@ -1,11 +1,11 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
-use error_stack::{IntoReport, ResultExt};
-pub use storage_models::mandate::{
+pub use diesel_models::mandate::{
     Mandate, MandateNew, MandateUpdate, MandateUpdateInternal, SingleUseMandate,
 };
-use storage_models::{errors, schema::mandate::dsl};
+use diesel_models::{errors, schema::mandate::dsl};
+use error_stack::{IntoReport, ResultExt};
 
 use crate::{connection::PgPooledConn, logger};
 

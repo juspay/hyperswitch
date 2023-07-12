@@ -1,8 +1,8 @@
 use common_utils::{ext_traits::Encode, pii};
+use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use futures::future;
 use router_env::{instrument, logger, tracing};
-use storage_models::enums as storage_enums;
 
 use super::payments::helpers;
 use crate::{
@@ -305,7 +305,7 @@ impl ForeignTryFrom<Result<types::PaymentsResponseData, types::ErrorResponse>>
 
 pub trait MandateBehaviour {
     fn get_amount(&self) -> i64;
-    fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage>;
+    fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage>;
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds>;
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>);
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData;

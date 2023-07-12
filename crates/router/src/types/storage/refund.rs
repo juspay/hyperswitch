@@ -1,15 +1,15 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
-use error_stack::{IntoReport, ResultExt};
-pub use storage_models::refund::{
+pub use diesel_models::refund::{
     Refund, RefundCoreWorkflow, RefundNew, RefundUpdate, RefundUpdateInternal,
 };
-use storage_models::{
+use diesel_models::{
     enums::{Currency, RefundStatus},
     errors,
     schema::refund::dsl,
 };
+use error_stack::{IntoReport, ResultExt};
 
 use crate::{connection::PgPooledConn, logger};
 

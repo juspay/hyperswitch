@@ -1,8 +1,8 @@
 use api_models::enums as api_enums;
 use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
+use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use masking::PeekInterface;
-use storage_models::enums as storage_enums;
 
 use super::domain;
 use crate::{
@@ -300,13 +300,13 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
 
 impl
     ForeignFrom<(
-        storage_models::api_keys::ApiKey,
+        diesel_models::api_keys::ApiKey,
         crate::core::api_keys::PlaintextApiKey,
     )> for api_models::api_keys::CreateApiKeyResponse
 {
     fn foreign_from(
         item: (
-            storage_models::api_keys::ApiKey,
+            diesel_models::api_keys::ApiKey,
             crate::core::api_keys::PlaintextApiKey,
         ),
     ) -> Self {
@@ -325,10 +325,8 @@ impl
     }
 }
 
-impl ForeignFrom<storage_models::api_keys::ApiKey>
-    for api_models::api_keys::RetrieveApiKeyResponse
-{
-    fn foreign_from(api_key: storage_models::api_keys::ApiKey) -> Self {
+impl ForeignFrom<diesel_models::api_keys::ApiKey> for api_models::api_keys::RetrieveApiKeyResponse {
+    fn foreign_from(api_key: diesel_models::api_keys::ApiKey) -> Self {
         Self {
             key_id: api_key.key_id,
             merchant_id: api_key.merchant_id,
@@ -342,7 +340,7 @@ impl ForeignFrom<storage_models::api_keys::ApiKey>
 }
 
 impl ForeignFrom<api_models::api_keys::UpdateApiKeyRequest>
-    for storage_models::api_keys::ApiKeyUpdate
+    for diesel_models::api_keys::ApiKeyUpdate
 {
     fn foreign_from(api_key: api_models::api_keys::UpdateApiKeyRequest) -> Self {
         Self::Update {
@@ -434,10 +432,8 @@ impl ForeignFrom<storage::FileMetadata> for api_models::files::FileMetadataRespo
     }
 }
 
-impl ForeignFrom<storage_models::cards_info::CardInfo>
-    for api_models::cards_info::CardInfoResponse
-{
-    fn foreign_from(item: storage_models::cards_info::CardInfo) -> Self {
+impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info::CardInfoResponse {
+    fn foreign_from(item: diesel_models::cards_info::CardInfo) -> Self {
         Self {
             card_iin: item.card_iin,
             card_type: item.card_type,
