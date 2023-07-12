@@ -5951,7 +5951,7 @@
           },
           "error_code": {
             "type": "string",
-            "description": "/// If there was an error while calling the connectors the code is received here",
+            "description": "If there was an error while calling the connectors the code is received here",
             "nullable": true
           },
           "payment_token": {
