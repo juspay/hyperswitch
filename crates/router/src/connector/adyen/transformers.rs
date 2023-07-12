@@ -1541,6 +1541,24 @@ fn get_sofort_extra_details(
     }
 }
 
+fn get_shopper_email(
+    email: Option<Email>,
+    payment_method_type: storage_enums::PaymentMethodType,
+) -> errors::CustomResult<Option<Email>, errors::ConnectorError> {
+    match payment_method_type {
+        storage_enums::PaymentMethodType::Paypal => {
+            if let Some(email) = email {
+                Ok(Some(email))
+            } else {
+                Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "email",
+                })?
+            }
+        }
+        _ => Ok(email),
+    }
+}
+
 impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)>
     for AdyenPaymentRequest<'a>
 {
@@ -1558,6 +1576,12 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)>
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item)?;
         let return_url = item.request.get_return_url()?;
+        let payment_method_type = item
+            .request
+            .payment_method_type
+            .clone()
+            .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
+        let shopper_email = get_shopper_email(item.request.email.clone(), payment_method_type)?;
         Ok(AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -1570,7 +1594,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)>
             additional_data,
             telephone_number: None,
             shopper_name: None,
-            shopper_email: item.request.email.clone(),
+            shopper_email,
             shopper_locale: None,
             billing_address: None,
             delivery_address: None,
