@@ -22,7 +22,7 @@ pub struct PowertranzPaymentsRequest {
     source: Source,
     order_identifier: String,
     billing_address: Option<PowertranzAddressDetails>,
-    shiping_address: Option<PowertranzAddressDetails>,
+    shipping_address: Option<PowertranzAddressDetails>,
 }
 
 #[derive(Debug, Serialize)]
@@ -65,7 +65,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
             )),
         }?;
         let billing_address = get_address_details(&item.address.billing, &item.request.email);
-        let shiping_address = get_address_details(&item.address.shipping, &item.request.email);
+        let shipping_address = get_address_details(&item.address.shipping, &item.request.email);
         Ok(Self {
             transaction_identifier: Uuid::new_v4().to_string(),
             total_amount: utils::to_currency_base_unit_asf64(
@@ -77,7 +77,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
             source,
             order_identifier: item.payment_id.clone(),
             billing_address,
-            shiping_address,
+            shipping_address,
         })
     }
 }
