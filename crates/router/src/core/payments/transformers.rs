@@ -322,11 +322,13 @@ where
                 let bank_transfer_next_steps =
                     bank_transfer_next_steps_check(payment_attempt.clone())?;
 
-                let next_action_containing_qr_code =
+                let next_action_containing_qr_code_url =
                     qr_code_next_steps_check(payment_attempt.clone())?;
 
+                let next_action_containing_wait_screen = wait_screen_next_steps_check(payment_attempt.clone())?;
+                
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
-                    || bank_transfer_next_steps.is_some()
+                    || bank_transfer_next_steps.is_some() || next_action_containing_wait_screen.is_some()
                 {
                     next_action_response = bank_transfer_next_steps
                         .map(|bank_transfer| {
@@ -334,9 +336,15 @@ where
                                 bank_transfer_steps_and_charges_details: bank_transfer,
                             }
                         })
-                        .or(next_action_containing_qr_code.map(|qr_code_data| {
+                        .or(next_action_containing_qr_code_url.map(|qr_code_data| {
                             api_models::payments::NextActionData::QrCodeInformation {
                                 image_data_url: qr_code_data.image_data_url,
+                            }
+                        }))
+                        .or(next_action_containing_wait_screen.map(|wait_screen_data| {
+                            api_models::payments::NextActionData::WaitScreenInformation {
+                                display_from: wait_screen_data.display_from,
+                                display_to: wait_screen_data.display_to,
                             }
                         }))
                         .or(Some(api_models::payments::NextActionData::RedirectToUrl {
@@ -573,6 +581,20 @@ pub fn qr_code_next_steps_check(
     let qr_code_instructions = qr_code_steps.transpose().ok().flatten();
     Ok(qr_code_instructions)
 }
+
+pub fn wait_screen_next_steps_check(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::WaitScreenInstructions>> {
+    let display_info_with_timer_steps: Option<Result<api_models::payments::WaitScreenInstructions, _>> =
+        payment_attempt
+            .connector_metadata
+            .map(|metadata| metadata.parse_value("WaitScreenInstructions"));
+
+    let display_info_with_timer_instructions = display_info_with_timer_steps.transpose().ok().flatten();
+    Ok(display_info_with_timer_instructions)
+}
+
+
 
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
     fn foreign_from(item: (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {

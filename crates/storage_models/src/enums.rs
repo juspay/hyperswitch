@@ -858,6 +858,7 @@ pub enum PaymentExperience {
     OneClick,
     LinkWallet,
     InvokePaymentApp,
+    DisplayWaitScreen,
 }
 
 #[derive(

@@ -393,6 +393,8 @@ pub enum PaymentExperience {
     LinkWallet,
     /// Contains the data for invoking the sdk client for completing the payment.
     InvokePaymentApp,
+    /// A wait screen is displayed to the customer
+    DisplayWaitScreen
 }
 
 #[derive(

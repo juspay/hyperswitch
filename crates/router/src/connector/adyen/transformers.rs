@@ -4,6 +4,7 @@ use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
+use time::{OffsetDateTime, Duration};
 
 use crate::{
     connector::utils::{
@@ -203,7 +204,7 @@ pub struct AdyenThreeDS {
 #[serde(untagged)]
 pub enum AdyenPaymentResponse {
     AdyenResponse(AdyenResponse),
-    AdyenRedirectResponse(AdyenRedirectionResponse),
+    AdyenNextActionResponse(AdyenNextActionResponse),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -220,7 +221,7 @@ pub struct AdyenResponse {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenRedirectionResponse {
+pub struct AdyenNextActionResponse {
     result_code: AdyenStatus,
     action: AdyenRedirectionAction,
     refusal_reason: Option<String>,
@@ -230,7 +231,7 @@ pub struct AdyenRedirectionResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenRedirectionAction {
-    payment_method_type: String,
+    payment_method_type: PaymentType,
     url: Option<Url>,
     method: Option<services::Method>,
     #[serde(rename = "type")]
@@ -1702,7 +1703,7 @@ pub fn get_adyen_response(
 }
 
 pub fn get_redirection_response(
-    response: AdyenRedirectionResponse,
+    response: AdyenNextActionResponse,
     is_manual_capture: bool,
     status_code: u16,
 ) -> errors::CustomResult<
@@ -1714,14 +1715,16 @@ pub fn get_redirection_response(
     errors::ConnectorError,
 > {
     let status =
-        storage_enums::AttemptStatus::foreign_from((is_manual_capture, response.result_code));
+        storage_enums::AttemptStatus::foreign_from((is_manual_capture, response.result_code.clone()));
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
         Some(types::ErrorResponse {
             code: response
                 .refusal_reason_code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .refusal_reason
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
@@ -1730,8 +1733,8 @@ pub fn get_redirection_response(
         None
     };
 
-    let redirection_data = response.action.url.map(|url| {
-        let form_fields = response.action.data.unwrap_or_else(|| {
+    let redirection_data = response.clone().action.url.map(|url| {
+        let form_fields = response.action.data.clone().unwrap_or_else(|| {
             std::collections::HashMap::from_iter(
                 url.query_pairs()
                     .map(|(key, value)| (key.to_string(), value.to_string())),
@@ -1739,21 +1742,44 @@ pub fn get_redirection_response(
         });
         services::RedirectForm::Form {
             endpoint: url.to_string(),
-            method: response.action.method.unwrap_or(services::Method::Get),
+            method: response.clone().action.method.unwrap_or(services::Method::Get),
             form_fields,
         }
     });
+
+    let connector_metadata = get_connector_metadata(&response.action);
 
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::NoResponseId,
         redirection_data,
         mandate_reference: None,
-        connector_metadata: None,
+        connector_metadata,
         network_txn_id: None,
     };
     Ok((status, error, payments_response_data))
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WaitScreenData {
+    display_from: i128,
+    display_to: Option<i128>,
+}
+
+pub fn get_connector_metadata(
+    next_action: &AdyenRedirectionAction,
+) -> Option<serde_json::Value> {
+    match next_action.payment_method_type {
+        PaymentType::Blik => {
+            let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+            Some(serde_json::json!(WaitScreenData {
+            display_from: current_time,
+            display_to: Some(current_time + Duration::minutes(1).whole_nanoseconds())
+        }))},
+        _ => None
+    }         
+}
+
 
 impl<F, Req>
     TryFrom<(
@@ -1774,7 +1800,7 @@ impl<F, Req>
             AdyenPaymentResponse::AdyenResponse(response) => {
                 get_adyen_response(response, is_manual_capture, item.http_code)?
             }
-            AdyenPaymentResponse::AdyenRedirectResponse(response) => {
+            AdyenPaymentResponse::AdyenNextActionResponse(response) => {
                 get_redirection_response(response, is_manual_capture, item.http_code)?
             }
         };
