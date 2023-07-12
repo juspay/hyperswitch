@@ -326,7 +326,7 @@ pub struct PaymentAttemptResponse {
     pub cancellation_reason: Option<String>,
     /// A unique identifier to link the payment to a mandate, can be use instead of payment_method_data
     pub mandate_id: Option<String>,
-    /// /// If there was an error while calling the connectors the code is received here
+    /// If there was an error while calling the connectors the code is received here
     pub error_code: Option<String>,
     /// Provide a reference to a stored payment method
     pub payment_token: Option<String>,

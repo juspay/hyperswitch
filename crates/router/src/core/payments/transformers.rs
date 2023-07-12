@@ -294,21 +294,12 @@ where
                 .collect(),
         )
     };
-    let attempts_response = match option_attempts {
-        Some(attempts) => {
-            if attempts.is_empty() {
-                None
-            } else {
-                Some(
-                    attempts
-                        .into_iter()
-                        .map(ForeignInto::foreign_into)
-                        .collect(),
-                )
-            }
-        }
-        None => None,
-    };
+    let attempts_response = option_attempts.map(|attempts| {
+        attempts
+            .into_iter()
+            .map(ForeignInto::foreign_into)
+            .collect()
+    });
     let merchant_id = payment_attempt.merchant_id.to_owned();
     let payment_method_type = payment_attempt
         .payment_method_type
