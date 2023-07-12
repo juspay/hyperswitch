@@ -1985,6 +1985,7 @@ pub async fn delete_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+    let mut resp: Option<errors::RouterResponse<api::PaymentMethodDeleteResponse>> = None;
     if pm.payment_method == enums::PaymentMethod::Card {
         let response = delete_card_from_locker(
             state,
@@ -1992,18 +1993,32 @@ pub async fn delete_payment_method(
             &pm.merchant_id,
             &pm_id.payment_method_id,
         )
-        .await?;
-        if response.status == "SUCCESS" {
-            print!("Card From locker deleted Successfully")
+        .await;
+        if response
+            .as_ref()
+            .map(|del_card_resp| del_card_resp.status.clone())
+            .unwrap_or_default()
+            == "SUCCESS"
+        {
+            resp = Some(Ok(services::ApplicationResponse::Json(
+                api::PaymentMethodDeleteResponse {
+                    payment_method_id: pm.payment_method_id,
+                    deleted: true,
+                },
+            )))
         } else {
-            print!("Error: Deleting Card From Locker")
+            let err = response
+                .map(|err_msg| err_msg.error_message.unwrap_or_default())
+                .unwrap_or_default();
+            resp = Some(Err(errors::ApiErrorResponse::NotSupported {
+                message: err,
+            })?)
         }
     };
 
-    Ok(services::ApplicationResponse::Json(
-        api::PaymentMethodDeleteResponse {
-            payment_method_id: pm.payment_method_id,
-            deleted: true,
-        },
-    ))
+    resp.unwrap_or_else(|| {
+        Err(errors::ApiErrorResponse::NotSupported {
+            message: "Payment Method is not supported!".to_string(),
+        })?
+    })
 }
