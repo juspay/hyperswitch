@@ -126,7 +126,7 @@ impl<E> ConnectorResponseExt
 /// Convert the amount to its base denomination based on Currency and return String
 pub fn to_currency_base_unit(
     amount: i64,
-    currency: storage_models::enums::Currency,
+    currency: diesel_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ValidationError>> {
     let amount_f64 = to_currency_base_unit_asf64(amount, currency)?;
     Ok(format!("{amount_f64:.2}"))
@@ -135,7 +135,7 @@ pub fn to_currency_base_unit(
 /// Convert the amount to its base denomination based on Currency and return f64
 pub fn to_currency_base_unit_asf64(
     amount: i64,
-    currency: storage_models::enums::Currency,
+    currency: diesel_models::enums::Currency,
 ) -> Result<f64, error_stack::Report<errors::ValidationError>> {
     let amount_u32 = u32::try_from(amount).into_report().change_context(
         errors::ValidationError::InvalidValue {
@@ -144,11 +144,11 @@ pub fn to_currency_base_unit_asf64(
     )?;
     let amount_f64 = f64::from(amount_u32);
     let amount = match currency {
-        storage_models::enums::Currency::JPY | storage_models::enums::Currency::KRW => amount_f64,
-        storage_models::enums::Currency::BHD
-        | storage_models::enums::Currency::JOD
-        | storage_models::enums::Currency::KWD
-        | storage_models::enums::Currency::OMR => amount_f64 / 1000.00,
+        diesel_models::enums::Currency::JPY | diesel_models::enums::Currency::KRW => amount_f64,
+        diesel_models::enums::Currency::BHD
+        | diesel_models::enums::Currency::JOD
+        | diesel_models::enums::Currency::KWD
+        | diesel_models::enums::Currency::OMR => amount_f64 / 1000.00,
         _ => amount_f64 / 100.00,
     };
     Ok(amount)

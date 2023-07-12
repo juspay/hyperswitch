@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.3.0 (2023-07-12)
+
+### Features
+
+- **payments:** Dont delete client secret on success status ([#1692](https://github.com/juspay/hyperswitch/pull/1692)) ([`5216d22`](https://github.com/juspay/hyperswitch/commit/5216d22efcd291f7e460d1461ef16cef69ad6bd9))
+- Convert QrData into Qr data image source url ([#1674](https://github.com/juspay/hyperswitch/pull/1674)) ([`55ff761`](https://github.com/juspay/hyperswitch/commit/55ff761e9eca313327f67c1d271ea1672d12c339))
+
+### Refactors
+
+- Include binary name in `crates_to_filter` for logging ([#1689](https://github.com/juspay/hyperswitch/pull/1689)) ([`123b34c`](https://github.com/juspay/hyperswitch/commit/123b34c7dca543194b230bc9e46e14758f8bfb34))
+
+**Full Changelog:** [`v1.2.0...v1.3.0`](https://github.com/juspay/hyperswitch/compare/v1.2.0...v1.3.0)
+
+- - -
+
+
 ## 1.2.0 (2023-07-11)
 
 ### Features
