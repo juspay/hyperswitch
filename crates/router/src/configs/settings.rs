@@ -85,6 +85,7 @@ pub struct Settings {
     pub email: EmailSettings,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
+    pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -408,6 +409,7 @@ pub struct Connectors {
     pub fiserv: ConnectorParams,
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
+    pub globepay: ConnectorParams,
     pub iatapay: ConnectorParams,
     pub klarna: ConnectorParams,
     pub mollie: ConnectorParams,
@@ -422,6 +424,7 @@ pub struct Connectors {
     pub payme: ConnectorParams,
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
+    pub powertranz: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
@@ -532,6 +535,11 @@ pub struct FileUploadConfig {
 pub struct DelayedSessionConfig {
     #[serde(deserialize_with = "delayed_session_deser")]
     pub connectors_with_delayed_session_response: HashSet<api_models::enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ConnectorRequestReferenceIdConfig {
+    pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
 }
 
 fn delayed_session_deser<'a, D>(

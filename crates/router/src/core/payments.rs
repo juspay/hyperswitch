@@ -28,10 +28,7 @@ use self::{
 use super::errors::StorageErrorExt;
 use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
-    core::{
-        errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::vault,
-    },
+    core::errors::{self, CustomResult, RouterResponse, RouterResult},
     db::StorageInterface,
     logger,
     routes::{metrics, AppState},
@@ -198,11 +195,6 @@ where
                 .await?
             }
         };
-
-        if should_delete_pm_from_locker(payment_data.payment_intent.status) {
-            vault::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token)
-                .await
-        }
     } else {
         (_, payment_data) = operation
             .to_update_tracker()?
@@ -431,7 +423,8 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                     .and_then(|next_action_data| match next_action_data {
                         api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
                         api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
-                        api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None
+                        api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None,
+                        api_models::payments::NextActionData::QrCodeInformation{..} => None
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
@@ -485,6 +478,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                     encoded_data: None,
                 }
             }),
+            client_secret: None,
         };
         payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
             state,
@@ -838,7 +832,8 @@ where
     //TODO: For ACH transfers, if preprocessing_step is not required for connectors encountered in future, add the check
     let router_data_and_should_continue_payment = match payment_data.payment_method_data.clone() {
         Some(api_models::payments::PaymentMethodData::BankTransfer(data)) => match data.deref() {
-            api_models::payments::BankTransferData::AchBankTransfer { .. } => {
+            api_models::payments::BankTransferData::AchBankTransfer { .. }
+            | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
                 if payment_data.payment_attempt.preprocessing_step_id.is_none() {
                     (
                         router_data.preprocessing_steps(state, connector).await?,
@@ -1185,13 +1180,6 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
     }
 }
 
-pub fn should_delete_pm_from_locker(status: storage_enums::IntentStatus) -> bool {
-    !matches!(
-        status,
-        storage_models::enums::IntentStatus::RequiresCustomerAction
-    )
-}
-
 pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
     matches!(format!("{operation:?}").as_str(), "PaymentConfirm")
 }
@@ -1202,8 +1190,6 @@ pub async fn list_payments(
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
-    use futures::stream::StreamExt;
-
     use crate::types::transformers::ForeignFrom;
 
     helpers::validate_payment_list_request(&constraints)?;
@@ -1213,9 +1199,9 @@ pub async fn list_payments(
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    let pi = futures::stream::iter(payment_intents)
-        .filter_map(|pi| async {
-            let pa = db
+    let collected_futures = payment_intents.into_iter().map(|pi| {
+        async {
+            match db
                 .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                     &pi.payment_id,
                     merchant_id,
@@ -1224,13 +1210,38 @@ pub async fn list_payments(
                     storage_enums::MerchantStorageScheme::PostgresOnly,
                 )
                 .await
-                .ok()?;
-            Some((pi, pa))
-        })
-        .collect::<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>>()
-        .await;
+            {
+                Ok(pa) => Some(Ok((pi, pa))),
+                Err(e) => {
+                    if e.current_context().is_db_not_found() {
+                        logger::warn!(
+                            "payment_attempts missing for payment_id : {} | error : {}",
+                            pi.payment_id,
+                            e
+                        );
+                        return None;
+                    }
+                    Some(Err(e))
+                }
+            }
+        }
+    });
 
-    let data: Vec<api::PaymentsResponse> = pi.into_iter().map(ForeignFrom::foreign_from).collect();
+    //If any of the response are Err, we will get Result<Err(_)>
+    let pi_pa_tuple_vec: Result<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>, _> =
+        join_all(collected_futures)
+            .await
+            .into_iter()
+            .flatten() //Will ignore `None`, will only flatten 1 level
+            .collect::<Result<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>, _>>();
+    //Will collect responses in same order async, leading to sorted responses
+
+    //Converting Intent-Attempt array to Response if no error
+    let data: Vec<api::PaymentsResponse> = pi_pa_tuple_vec
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .into_iter()
+        .map(ForeignFrom::foreign_from)
+        .collect();
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {
@@ -1238,6 +1249,38 @@ pub async fn list_payments(
             data,
         },
     ))
+}
+
+#[cfg(feature = "olap")]
+pub async fn get_filters_for_payments(
+    db: &dyn StorageInterface,
+    merchant: domain::MerchantAccount,
+    time_range: api::TimeRange,
+) -> RouterResponse<api::PaymentListFilters> {
+    use crate::types::transformers::ForeignFrom;
+
+    let pi = db
+        .filter_payment_intents_by_time_range_constraints(
+            &merchant.merchant_id,
+            &time_range,
+            merchant.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let filters = db
+        .get_filters_for_payments(
+            &pi,
+            &merchant.merchant_id,
+            // since OLAP doesn't have KV. Force to get the data from PSQL.
+            storage_enums::MerchantStorageScheme::PostgresOnly,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let filters: api::PaymentListFilters = ForeignFrom::foreign_from(filters);
+
+    Ok(services::ApplicationResponse::Json(filters))
 }
 
 pub async fn add_process_sync_task(
