@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface};
 use ring::{digest, hmac};
 use time::OffsetDateTime;
 use transformers as cybersource;
@@ -61,7 +61,7 @@ impl Cybersource {
         };
         let signature_string = format!(
             "host: {host}\ndate: {date}\n{request_target}v-c-merchant-id: {}",
-            merchant_account.expose()
+            merchant_account.peek()
         );
         let key_value = consts::BASE64_ENGINE
             .decode(api_secret.expose())
@@ -72,7 +72,7 @@ impl Cybersource {
             consts::BASE64_ENGINE.encode(hmac::sign(&key, signature_string.as_bytes()).as_ref());
         let signature_header = format!(
             r#"keyid="{}", algorithm="HmacSHA256", headers="{headers}", signature="{signature_value}""#,
-            api_key.expose()
+            api_key.peek()
         );
 
         Ok(signature_header)

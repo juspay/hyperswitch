@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt};
 use error_stack::ResultExt;
-use masking::ExposeInterface;
+use masking::PeekInterface;
 use transformers as bitpay;
 
 use self::bitpay::BitpayWebhookDetails;
@@ -248,7 +248,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             "{}/invoices/{}?token={}",
             self.base_url(connectors),
             connector_id,
-            auth.api_key.expose(),
+            auth.api_key.peek(),
         ))
     }
 

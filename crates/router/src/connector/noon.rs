@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::PeekInterface;
 use transformers as noon;
 
 use super::utils::PaymentsSyncRequestData;
@@ -109,7 +109,7 @@ impl ConnectorCommon for Noon {
             });
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Key_Test {}", encoded_api_key.expose()).into_masked(),
+            format!("Key_Test {}", encoded_api_key.peek()).into_masked(),
         )])
     }
 

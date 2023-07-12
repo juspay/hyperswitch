@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
 use storage_models::enums;
 use time::{format_description, OffsetDateTime};
@@ -59,7 +59,7 @@ impl Worldline {
         let key = hmac::Key::new(hmac::HMAC_SHA256, api_secret.expose().as_bytes());
         let signed_data = consts::BASE64_ENGINE.encode(hmac::sign(&key, signature_data.as_bytes()));
 
-        Ok(format!("GCS v1HMAC:{}:{signed_data}", api_key.expose()))
+        Ok(format!("GCS v1HMAC:{}:{signed_data}", api_key.peek()))
     }
 
     pub fn get_current_date_time() -> CustomResult<String, errors::ConnectorError> {

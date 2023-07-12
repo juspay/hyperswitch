@@ -3,7 +3,7 @@ mod transformers;
 use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use storage_models::enums;
 
@@ -56,7 +56,7 @@ impl ConnectorCommon for Stripe {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key.expose()).into_masked(),
+            format!("Bearer {}", auth.api_key.peek()).into_masked(),
         )])
     }
 }

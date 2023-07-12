@@ -3,7 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::PeekInterface;
 use transformers as aci;
 
 use super::utils::PaymentsAuthorizeRequestData;
@@ -153,7 +153,7 @@ impl
                 .get_connector_transaction_id()
                 .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
             "?entityId=",
-            auth.entity_id.expose()
+            auth.entity_id.peek()
         ))
     }
 

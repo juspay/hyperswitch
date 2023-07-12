@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
 use time::OffsetDateTime;
 use transformers as fiserv;
@@ -43,7 +43,7 @@ impl Fiserv {
             api_secret,
             ..
         } = auth;
-        let raw_signature = format!("{}{request_id}{timestamp}{payload}", api_key.expose());
+        let raw_signature = format!("{}{request_id}{timestamp}{payload}", api_key.peek());
 
         let key = hmac::Key::new(hmac::HMAC_SHA256, api_secret.expose().as_bytes());
         let signature_value =
@@ -75,7 +75,7 @@ where
             .generate_authorization_signature(
                 auth,
                 &client_request_id,
-                &types::RequestBody::get_inner_value(fiserv_req).expose(),
+                types::RequestBody::get_inner_value(fiserv_req).peek(),
                 timestamp,
             )
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
