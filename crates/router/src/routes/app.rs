@@ -27,9 +27,9 @@ pub struct AppState {
     pub store: Box<dyn StorageInterface>,
     pub conf: settings::Settings,
     #[cfg(feature = "email")]
-    pub email_client: Option<Box<dyn EmailClient>>,
+    pub email_client: Box<dyn EmailClient>,
     #[cfg(feature = "kms")]
-    pub kms_secrets: Option<settings::ActiveKmsSecrets>,
+    pub kms_secrets: settings::ActiveKmsSecrets,
 }
 
 pub trait AppStateInfo {
@@ -37,7 +37,7 @@ pub trait AppStateInfo {
     fn flow_name(&self) -> String;
     fn store(&self) -> Box<dyn StorageInterface>;
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Option<Box<dyn EmailClient>>;
+    fn email_client(&self) -> Box<dyn EmailClient>;
 }
 
 impl AppStateInfo for AppState {
@@ -51,7 +51,7 @@ impl AppStateInfo for AppState {
         self.store.to_owned()
     }
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Option<Box<dyn EmailClient>> {
+    fn email_client(&self) -> Box<dyn EmailClient> {
         self.email_client.to_owned()
     }
 }
@@ -89,9 +89,9 @@ impl AppState {
             store,
             conf,
             #[cfg(feature = "email")]
-            email_client: Some(email_client),
+            email_client: email_client,
             #[cfg(feature = "kms")]
-            kms_secrets: Some(kms_secrets),
+            kms_secrets: kms_secrets,
         }
     }
 

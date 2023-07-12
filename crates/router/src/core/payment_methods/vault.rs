@@ -506,15 +506,10 @@ pub async fn create_tokenize(
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let (public_key, private_key) = get_locker_jwe_keys(
-        &state
-            .kms_secrets
-            .clone()
-            .ok_or(errors::ApiErrorResponse::ConfigNotFound)?,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error getting Encryption key")?;
+    let (public_key, private_key) = get_locker_jwe_keys(&state.kms_secrets.clone())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting Encryption key")?;
     let encrypted_payload = services::encrypt_jwe(payload.as_bytes(), public_key)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -588,15 +583,10 @@ pub async fn get_tokenized_data(
     let payload = serde_json::to_string(&payload_to_be_encrypted)
         .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
 
-    let (public_key, private_key) = get_locker_jwe_keys(
-        &state
-            .kms_secrets
-            .clone()
-            .ok_or(errors::ApiErrorResponse::ConfigNotFound)?,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error getting Encryption key")?;
+    let (public_key, private_key) = get_locker_jwe_keys(&state.kms_secrets.clone())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting Encryption key")?;
     let encrypted_payload = services::encrypt_jwe(payload.as_bytes(), public_key)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -672,15 +662,10 @@ pub async fn delete_tokenized_data(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error serializing api::DeleteTokenizeByTokenRequest")?;
 
-    let (public_key, _private_key) = get_locker_jwe_keys(
-        &state
-            .kms_secrets
-            .clone()
-            .ok_or(errors::ApiErrorResponse::ConfigNotFound)?,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error getting Encryption key")?;
+    let (public_key, _private_key) = get_locker_jwe_keys(&state.kms_secrets.clone())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting Encryption key")?;
     let encrypted_payload = services::encrypt_jwe(payload.as_bytes(), public_key)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -2077,14 +2077,7 @@ pub async fn get_merchant_connector_account(
                 )?;
 
             #[cfg(feature = "kms")]
-            let private_key = state
-                .kms_secrets
-                .as_ref()
-                .ok_or(errors::ApiErrorResponse::ConfigNotFound)?
-                .jwekey
-                .peek()
-                .tunnel_private_key
-                .clone();
+            let private_key = state.kms_secrets.jwekey.peek().tunnel_private_key.clone();
 
             #[cfg(not(feature = "kms"))]
             let private_key = state.conf.jwekey.tunnel_private_key.to_owned();

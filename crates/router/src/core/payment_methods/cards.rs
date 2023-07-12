@@ -260,12 +260,7 @@ pub async fn add_card_hs(
     #[cfg(not(feature = "kms"))]
     let jwekey = &state.conf.jwekey;
     #[cfg(feature = "kms")]
-    let jwekey = &state
-        .kms_secrets
-        .as_ref()
-        .ok_or(errors::VaultError::MissingRequiredField {
-            field_name: "kms_secrets",
-        })?;
+    let jwekey = &state.kms_secrets;
 
     let db = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
@@ -391,12 +386,7 @@ pub async fn get_card_from_hs_locker<'a>(
     #[cfg(not(feature = "kms"))]
     let jwekey = &state.conf.jwekey;
     #[cfg(feature = "kms")]
-    let jwekey = &state
-        .kms_secrets
-        .as_ref()
-        .ok_or(errors::VaultError::MissingRequiredField {
-            field_name: "kms_secrets",
-        })?;
+    let jwekey = &state.kms_secrets;
 
     let request = payment_methods::mk_get_card_request_hs(
         jwekey,
@@ -478,10 +468,7 @@ pub async fn delete_card_from_hs_locker<'a>(
     #[cfg(not(feature = "kms"))]
     let jwekey = &state.conf.jwekey;
     #[cfg(feature = "kms")]
-    let jwekey = &state
-        .kms_secrets
-        .as_ref()
-        .ok_or(errors::ApiErrorResponse::ConfigNotFound)?;
+    let jwekey = &state.kms_secrets;
 
     let request = payment_methods::mk_delete_card_request_hs(
         jwekey,
