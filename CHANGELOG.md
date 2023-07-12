@@ -686,7 +686,7 @@ All notable changes to HyperSwitch will be documented here.
 
 - **refund_list:** Updated refund list response status code when no refunds found. ([#974](https://github.com/juspay/hyperswitch/pull/974)) ([`4e0489c`](https://github.com/juspay/hyperswitch/commit/4e0489cf1cb7c17e55cffabeb0067c380ba41ff4))
 - **refund_sync:** Add validation for missing `connector_refund_id` ([#1013](https://github.com/juspay/hyperswitch/pull/1013)) ([`4397c8e`](https://github.com/juspay/hyperswitch/commit/4397c8e19977974510f7c24daa8c3ef7f2ab907b))
-- **storage_models:** Fix incorrect field order in `MerchantConnectorAccount` ([#976](https://github.com/juspay/hyperswitch/pull/976)) ([`c9e8a9b`](https://github.com/juspay/hyperswitch/commit/c9e8a9b4b721612ff2c771f4849fbad0c18bb7f2))
+- **diesel_models:** Fix incorrect field order in `MerchantConnectorAccount` ([#976](https://github.com/juspay/hyperswitch/pull/976)) ([`c9e8a9b`](https://github.com/juspay/hyperswitch/commit/c9e8a9b4b721612ff2c771f4849fbad0c18bb7f2))
 - Fix internal server errors on merchant connector account creation ([#1026](https://github.com/juspay/hyperswitch/pull/1026)) ([`c31b4b4`](https://github.com/juspay/hyperswitch/commit/c31b4b41c22c9c622d75f0f8421ec67a416d5b70))
 - Remove old data while deserialization error from cache ([#1010](https://github.com/juspay/hyperswitch/pull/1010)) ([`23b5647`](https://github.com/juspay/hyperswitch/commit/23b5647290a7baa12107abd88359507aa3c31444))
 - Passing connector_name instead of ConnectorCallType ([#1050](https://github.com/juspay/hyperswitch/pull/1050)) ([`c888635`](https://github.com/juspay/hyperswitch/commit/c888635166be08e826f8a21f5c0c3262cc0918f9))
@@ -797,7 +797,7 @@ All notable changes to HyperSwitch will be documented here.
 
 *  use lowercase names for run environment and config files (#801) (ffaa8da0)
 *  derive `Serialize` and `Deserialize` to `Country` enum (#882) (456c16fb)
-* **storage_models, errors:**  impl StorageErrorExt for error_stack::Result<T, errors::StorageError> (#886) (b4020294)
+* **diesel_models, errors:**  impl StorageErrorExt for error_stack::Result<T, errors::StorageError> (#886) (b4020294)
 * **router:**  KMS decrypt secrets when kms feature is enabled  (#868) (8905e663)
 
 - - -
@@ -883,7 +883,7 @@ All notable changes to HyperSwitch will be documented here.
 * **common_utils:**  put the signals module behind a feature flag (#814) (fb4ec431)
 * **core:**  replace string with enum for country (#735) (e18bfb2a)
 * **api_models:**  put the errors module behind a feature flag (#815) (f14f87a1)
-* **storage_models:**  delete client secret when status is succeeded, failed, cancelled (#724) (a05059b7)
+* **diesel_models:**  delete client secret when status is succeeded, failed, cancelled (#724) (a05059b7)
 ### Refactors
 
 * **drainer, router:**  KMS decrypt database password when `kms` feature is enabled (#733) (9d6e4ee3)
