@@ -42,7 +42,7 @@ where
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => {
+            diesel_models::enums::PaymentMethod::BankRedirect => {
                 let token = req
                     .access_token
                     .clone()
@@ -285,7 +285,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.clone();
         match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => Ok(format!(
+            diesel_models::enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}{}/{}",
                 connectors.trustpay.base_url_bank_redirects,
                 "api/Payments/Payment",
@@ -485,7 +485,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => Ok(format!(
+            diesel_models::enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}{}",
                 connectors.trustpay.base_url_bank_redirects, "api/Payments/Payment"
             )),
@@ -503,7 +503,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = trustpay::TrustpayPaymentsRequest::try_from(req)?;
         let trustpay_req_string = match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => {
+            diesel_models::enums::PaymentMethod::BankRedirect => {
                 types::RequestBody::log_and_get_request_body(
                     &connector_req,
                     utils::Encode::<trustpay::PaymentRequestBankRedirect>::encode_to_string_of_json,
@@ -589,7 +589,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => Ok(format!(
+            diesel_models::enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}{}{}{}",
                 connectors.trustpay.base_url_bank_redirects,
                 "api/Payments/Payment/",
@@ -606,7 +606,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = trustpay::TrustpayRefundRequest::try_from(req)?;
         let trustpay_req_string = match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => {
+            diesel_models::enums::PaymentMethod::BankRedirect => {
                 types::RequestBody::log_and_get_request_body(
                     &connector_req,
                     utils::Encode::<trustpay::TrustpayRefundRequestBankRedirect>::encode_to_string_of_json,
@@ -689,7 +689,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .to_owned()
             .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
         match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => Ok(format!(
+            diesel_models::enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}{}/{}",
                 connectors.trustpay.base_url_bank_redirects, "api/Payments/Payment", id
             )),
@@ -915,7 +915,7 @@ impl services::ConnectorRedirectResponse for Trustpay {
             payments::CallConnectorAction::Trigger,
             |status| match status.as_str() {
                 "SuccessOk" => payments::CallConnectorAction::StatusUpdate {
-                    status: storage_models::enums::AttemptStatus::Charged,
+                    status: diesel_models::enums::AttemptStatus::Charged,
                     error_code: None,
                     error_message: None,
                 },

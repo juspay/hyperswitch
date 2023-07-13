@@ -2,9 +2,9 @@ use std::{fmt::Debug, marker::PhantomData};
 
 use api_models::payments::OrderDetailsWithAmount;
 use common_utils::fp_utils;
+use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
-use storage_models::ephemeral_key;
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
@@ -13,6 +13,7 @@ use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
+        utils as core_utils,
     },
     routes::{metrics, AppState},
     services::{self, RedirectForm},
@@ -84,6 +85,7 @@ where
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            connector_response_reference_id: None,
         });
 
     let additional_data = PaymentAdditionalData {
@@ -122,6 +124,11 @@ where
         reference_id: None,
         payment_method_token: payment_data.pm_token,
         connector_customer: payment_data.connector_customer_id,
+        connector_request_reference_id: core_utils::get_connector_request_reference_id(
+            &state.conf,
+            &merchant_account.merchant_id,
+            &payment_data.payment_attempt,
+        ),
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
     };
 
@@ -322,6 +329,9 @@ where
                 let bank_transfer_next_steps =
                     bank_transfer_next_steps_check(payment_attempt.clone())?;
 
+                let next_action_containing_qr_code =
+                    qr_code_next_steps_check(payment_attempt.clone())?;
+
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                     || bank_transfer_next_steps.is_some()
                 {
@@ -331,6 +341,11 @@ where
                                 bank_transfer_steps_and_charges_details: bank_transfer,
                             }
                         })
+                        .or(next_action_containing_qr_code.map(|qr_code_data| {
+                            api_models::payments::NextActionData::QrCodeInformation {
+                                image_data_url: qr_code_data.image_data_url,
+                            }
+                        }))
                         .or(Some(api_models::payments::NextActionData::RedirectToUrl {
                             redirect_to_url: helpers::create_startpay_url(
                                 server,
@@ -457,6 +472,7 @@ where
                         .set_connector_transaction_id(payment_attempt.connector_transaction_id)
                         .set_feature_metadata(payment_intent.feature_metadata)
                         .set_connector_metadata(payment_intent.connector_metadata)
+                        .set_reference_id(payment_attempt.connector_response_reference_id)
                         .to_owned(),
                 )
             }
@@ -508,6 +524,7 @@ where
             feature_metadata: payment_intent.feature_metadata,
             connector_metadata: payment_intent.connector_metadata,
             allowed_payment_method_types: payment_intent.allowed_payment_method_types,
+            reference_id: payment_attempt.connector_response_reference_id,
             ..Default::default()
         }),
     });
@@ -543,7 +560,7 @@ where
                 if is_connector_supports_third_party_sdk {
                     payment_attempt
                         .payment_method
-                        .map(|pm| matches!(pm, storage_models::enums::PaymentMethod::Wallet))
+                        .map(|pm| matches!(pm, diesel_models::enums::PaymentMethod::Wallet))
                 } else {
                     Some(false)
                 }
@@ -552,6 +569,18 @@ where
     } else {
         false
     }
+}
+
+pub fn qr_code_next_steps_check(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::QrCodeNextStepsInstruction>> {
+    let qr_code_steps: Option<Result<api_models::payments::QrCodeNextStepsInstruction, _>> =
+        payment_attempt
+            .connector_metadata
+            .map(|metadata| metadata.parse_value("QrCodeNextStepsInstruction"));
+
+    let qr_code_instructions = qr_code_steps.transpose().ok().flatten();
+    Ok(qr_code_instructions)
 }
 
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
@@ -579,6 +608,29 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
     }
 }
 
+impl ForeignFrom<PaymentListFilters> for api_models::payments::PaymentListFilters {
+    fn foreign_from(item: PaymentListFilters) -> Self {
+        Self {
+            connector: item.connector,
+            currency: item
+                .currency
+                .into_iter()
+                .map(ForeignInto::foreign_into)
+                .collect(),
+            status: item
+                .status
+                .into_iter()
+                .map(ForeignInto::foreign_into)
+                .collect(),
+            payment_method: item
+                .payment_method
+                .into_iter()
+                .map(ForeignInto::foreign_into)
+                .collect(),
+        }
+    }
+}
+
 impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralKeyCreateResponse {
     fn foreign_from(from: ephemeral_key::EphemeralKey) -> Self {
         Self {
@@ -593,7 +645,7 @@ impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralK
 pub fn bank_transfer_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::BankTransferNextStepsData>> {
-    let bank_transfer_next_step = if let Some(storage_models::enums::PaymentMethod::BankTransfer) =
+    let bank_transfer_next_step = if let Some(diesel_models::enums::PaymentMethod::BankTransfer) =
         payment_attempt.payment_method
     {
         let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
@@ -885,6 +937,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             connector_name,
             payment_data.creds_identifier.as_deref(),
         ));
+        let browser_info: Option<types::BrowserInformation> = attempt
+            .browser_info
+            .clone()
+            .map(|b| b.parse_value("BrowserInformation"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })?;
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -899,6 +959,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             router_return_url,
             email: payment_data.email,
             return_url: payment_data.payment_intent.return_url,
+            browser_info,
             payment_method_type: attempt.payment_method_type.clone(),
         })
     }
@@ -951,7 +1012,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
+        let payment_method_data = payment_data.payment_method_data;
+
         Ok(Self {
+            payment_method_data,
             email: payment_data.email,
             currency: Some(payment_data.currency),
             amount: Some(payment_data.amount.into()),

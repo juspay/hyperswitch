@@ -147,7 +147,9 @@ impl Payments {
 
         #[cfg(feature = "olap")]
         {
-            route = route.service(web::resource("/list").route(web::get().to(payments_list)));
+            route = route
+                .service(web::resource("/list").route(web::get().to(payments_list)))
+                .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
         }
         #[cfg(feature = "oltp")]
         {

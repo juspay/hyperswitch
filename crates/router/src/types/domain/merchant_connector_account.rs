@@ -4,12 +4,12 @@ use common_utils::{
     errors::{CustomResult, ValidationError},
     pii,
 };
-use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
-use storage_models::{
+use diesel_models::{
     encryption::Encryption, enums,
     merchant_connector_account::MerchantConnectorAccountUpdateInternal,
 };
+use error_stack::ResultExt;
+use masking::{PeekInterface, Secret};
 
 use super::{behaviour, types::TypeEncryption};
 #[derive(Clone, Debug)]
@@ -53,12 +53,12 @@ pub enum MerchantConnectorAccountUpdate {
 
 #[async_trait::async_trait]
 impl behaviour::Conversion for MerchantConnectorAccount {
-    type DstType = storage_models::merchant_connector_account::MerchantConnectorAccount;
-    type NewDstType = storage_models::merchant_connector_account::MerchantConnectorAccountNew;
+    type DstType = diesel_models::merchant_connector_account::MerchantConnectorAccount;
+    type NewDstType = diesel_models::merchant_connector_account::MerchantConnectorAccountNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(
-            storage_models::merchant_connector_account::MerchantConnectorAccount {
+            diesel_models::merchant_connector_account::MerchantConnectorAccount {
                 id: self.id.ok_or(ValidationError::MissingRequiredField {
                     field_name: "id".to_string(),
                 })?,

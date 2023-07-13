@@ -1,5 +1,6 @@
 use api_models::enums as api_enums;
 use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
+use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
 use storage_models::enums as storage_enums;
@@ -174,6 +175,7 @@ impl ForeignFrom<api_models::payments::MandateType> for storage_enums::MandateDa
         }
     }
 }
+
 impl ForeignFrom<storage_enums::MandateDataType> for api_models::payments::MandateType {
     fn foreign_from(from: storage_enums::MandateDataType) -> Self {
         match from {
@@ -224,6 +226,53 @@ impl ForeignTryFrom<api_enums::IntentStatus> for storage_enums::EventType {
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "intent_status",
             }),
+        }
+    }
+}
+
+impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
+    fn foreign_from(payment_method_type: api_enums::PaymentMethodType) -> Self {
+        match payment_method_type {
+            api_enums::PaymentMethodType::ApplePay
+            | api_enums::PaymentMethodType::GooglePay
+            | api_enums::PaymentMethodType::Paypal
+            | api_enums::PaymentMethodType::AliPay
+            | api_enums::PaymentMethodType::AliPayHk
+            | api_enums::PaymentMethodType::MbWay
+            | api_enums::PaymentMethodType::MobilePay
+            | api_enums::PaymentMethodType::SamsungPay
+            | api_enums::PaymentMethodType::WeChatPay => Self::Wallet,
+            api_enums::PaymentMethodType::Affirm
+            | api_enums::PaymentMethodType::AfterpayClearpay
+            | api_enums::PaymentMethodType::Klarna
+            | api_enums::PaymentMethodType::PayBright
+            | api_enums::PaymentMethodType::Walley => Self::PayLater,
+            api_enums::PaymentMethodType::Giropay
+            | api_enums::PaymentMethodType::Ideal
+            | api_enums::PaymentMethodType::Sofort
+            | api_enums::PaymentMethodType::Eps
+            | api_enums::PaymentMethodType::BancontactCard
+            | api_enums::PaymentMethodType::Blik
+            | api_enums::PaymentMethodType::OnlineBankingCzechRepublic
+            | api_enums::PaymentMethodType::OnlineBankingFinland
+            | api_enums::PaymentMethodType::OnlineBankingPoland
+            | api_enums::PaymentMethodType::OnlineBankingSlovakia
+            | api_enums::PaymentMethodType::Przelewy24
+            | api_enums::PaymentMethodType::Swish
+            | api_enums::PaymentMethodType::Trustly
+            | api_enums::PaymentMethodType::Interac => Self::BankRedirect,
+            api_enums::PaymentMethodType::UpiCollect => Self::Upi,
+            api_enums::PaymentMethodType::CryptoCurrency => Self::Crypto,
+            api_enums::PaymentMethodType::Ach
+            | api_enums::PaymentMethodType::Sepa
+            | api_enums::PaymentMethodType::Bacs
+            | api_enums::PaymentMethodType::Becs => Self::BankDebit,
+            api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
+                Self::Card
+            }
+            api_enums::PaymentMethodType::Evoucher
+            | api_enums::PaymentMethodType::ClassicReward => Self::Reward,
+            api_enums::PaymentMethodType::Multibanco => Self::BankTransfer,
         }
     }
 }
@@ -382,31 +431,27 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
     }
 }
 
-impl ForeignFrom<api_models::enums::PaymentMethodType>
-    for storage_models::enums::PaymentMethodType
-{
+impl ForeignFrom<api_models::enums::PaymentMethodType> for diesel_models::enums::PaymentMethodType {
     fn foreign_from(payment_method_type: api_models::enums::PaymentMethodType) -> Self {
         frunk::labelled_convert_from(payment_method_type)
     }
 }
 
-impl ForeignFrom<storage_models::enums::PaymentMethodType>
-    for api_models::enums::PaymentMethodType
-{
-    fn foreign_from(payment_method_type: storage_models::enums::PaymentMethodType) -> Self {
+impl ForeignFrom<diesel_models::enums::PaymentMethodType> for api_models::enums::PaymentMethodType {
+    fn foreign_from(payment_method_type: diesel_models::enums::PaymentMethodType) -> Self {
         frunk::labelled_convert_from(payment_method_type)
     }
 }
 
 impl
     ForeignFrom<(
-        storage_models::api_keys::ApiKey,
+        diesel_models::api_keys::ApiKey,
         crate::core::api_keys::PlaintextApiKey,
     )> for api_models::api_keys::CreateApiKeyResponse
 {
     fn foreign_from(
         item: (
-            storage_models::api_keys::ApiKey,
+            diesel_models::api_keys::ApiKey,
             crate::core::api_keys::PlaintextApiKey,
         ),
     ) -> Self {
@@ -425,10 +470,8 @@ impl
     }
 }
 
-impl ForeignFrom<storage_models::api_keys::ApiKey>
-    for api_models::api_keys::RetrieveApiKeyResponse
-{
-    fn foreign_from(api_key: storage_models::api_keys::ApiKey) -> Self {
+impl ForeignFrom<diesel_models::api_keys::ApiKey> for api_models::api_keys::RetrieveApiKeyResponse {
+    fn foreign_from(api_key: diesel_models::api_keys::ApiKey) -> Self {
         Self {
             key_id: api_key.key_id,
             merchant_id: api_key.merchant_id,
@@ -442,7 +485,7 @@ impl ForeignFrom<storage_models::api_keys::ApiKey>
 }
 
 impl ForeignFrom<api_models::api_keys::UpdateApiKeyRequest>
-    for storage_models::api_keys::ApiKeyUpdate
+    for diesel_models::api_keys::ApiKeyUpdate
 {
     fn foreign_from(api_key: api_models::api_keys::UpdateApiKeyRequest) -> Self {
         Self::Update {
@@ -564,15 +607,13 @@ impl ForeignFrom<storage::FileMetadata> for api_models::files::FileMetadataRespo
     }
 }
 
-impl ForeignFrom<storage_models::cards_info::CardInfo>
-    for api_models::cards_info::CardInfoResponse
-{
-    fn foreign_from(item: storage_models::cards_info::CardInfo) -> Self {
+impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info::CardInfoResponse {
+    fn foreign_from(item: diesel_models::cards_info::CardInfo) -> Self {
         Self {
             card_iin: item.card_iin,
             card_type: item.card_type,
             card_sub_type: item.card_subtype,
-            card_network: item.card_network,
+            card_network: item.card_network.map(|x| x.to_string()),
             card_issuer: item.card_issuer,
             card_issuing_country: item.card_issuing_country,
         }
@@ -628,5 +669,11 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
                 })
                 .transpose()?,
         })
+    }
+}
+
+impl ForeignFrom<diesel_models::enums::CardNetwork> for api_models::enums::CardNetwork {
+    fn foreign_from(source: diesel_models::enums::CardNetwork) -> Self {
+        frunk::labelled_convert_from(source)
     }
 }
