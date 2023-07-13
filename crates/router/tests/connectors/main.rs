@@ -57,6 +57,7 @@ mod shift4_ui;
 mod stripe;
 mod stripe_ui;
 mod trustpay;
+mod trustpay_3ds_ui;
 mod utils;
 mod worldline;
 mod worldline_ui;
