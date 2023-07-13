@@ -305,14 +305,14 @@ pub struct PaymentAttemptResponse {
     /// The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     pub amount: i64,
     /// The currency of the amount of the payment attempt
-    #[schema(value_type = Currency, example = "usd")]
+    #[schema(value_type = Option<Currency>, example = "usd")]
     pub currency: Option<enums::Currency>,
     /// The connector used for the payment
     pub connector: Option<String>,
     /// If there was an error while calling the connector the error message is received here
     pub error_message: Option<String>,
     /// The payment method that is to be used
-    #[schema(value_type = PaymentMethod, example = "bank_transfer")]
+    #[schema(value_type = Option<PaymentMethod>, example = "bank_transfer")]
     pub payment_method: Option<enums::PaymentMethod>,
     /// A unique identifier for a payment provided by the connector
     pub connector_transaction_id: Option<String>,

@@ -5996,9 +5996,7 @@
         "required": [
           "attempt_id",
           "status",
-          "amount",
-          "currency",
-          "payment_method"
+          "amount"
         ],
         "properties": {
           "attempt_id": {
@@ -6014,7 +6012,12 @@
             "description": "The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,"
           },
           "currency": {
-            "$ref": "#/components/schemas/Currency"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
           },
           "connector": {
             "type": "string",
@@ -6027,7 +6030,12 @@
             "nullable": true
           },
           "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethod"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethod"
+              }
+            ],
+            "nullable": true
           },
           "connector_transaction_id": {
             "type": "string",
