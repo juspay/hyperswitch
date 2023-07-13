@@ -14,7 +14,7 @@ use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
 use router_env::{instrument, tracing};
-use scheduler::{errors as sch_errors, utils as pt_utils};
+use scheduler::{db::process_tracker::ProcessTrackerExt, errors as sch_errors, utils as pt_utils};
 use time;
 
 pub use self::operations::{
@@ -36,7 +36,7 @@ use crate::{
     services::{self, api::Authenticate},
     types::{
         self, api, domain,
-        storage::{self, enums as storage_enums, ProcessTrackerExt},
+        storage::{self, enums as storage_enums},
     },
     utils::{Encode, OptionExt, ValueExt},
     workflows::payment_sync,
