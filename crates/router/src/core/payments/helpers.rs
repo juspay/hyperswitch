@@ -5,12 +5,12 @@ use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
 };
+use diesel_models::{enums, payment_intent};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use router_env::{instrument, logger, tracing};
-use storage_models::{enums, payment_intent};
 use time::Duration;
 use uuid::Uuid;
 
@@ -76,7 +76,7 @@ pub fn create_identity_from_certificate_and_key(
 
 pub fn filter_mca_based_on_business_details(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    payment_intent: Option<&storage_models::payment_intent::PaymentIntent>,
+    payment_intent: Option<&diesel_models::payment_intent::PaymentIntent>,
 ) -> Vec<domain::MerchantConnectorAccount> {
     if let Some(payment_intent) = payment_intent {
         merchant_connector_accounts
@@ -361,7 +361,7 @@ pub async fn get_token_for_recurring_mandate(
         .locker_id
         .to_owned()
         .get_required_value("locker_id")?;
-    if let storage_models::enums::PaymentMethod::Card = payment_method.payment_method {
+    if let diesel_models::enums::PaymentMethod::Card = payment_method.payment_method {
         let _ =
             cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
         if let Some(payment_method_from_request) = req.payment_method {
@@ -2162,6 +2162,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         customer_id: router_data.customer_id,
         connector_customer: router_data.connector_customer,
         preprocessing_id: router_data.preprocessing_id,
+        connector_request_reference_id: router_data.connector_request_reference_id,
     }
 }
 
