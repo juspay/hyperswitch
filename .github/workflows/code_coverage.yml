@@ -25,6 +25,10 @@ jobs:
 
       - name: Run tests and generate coverage report
         run: cargo tarpaulin --all --ciserver github-actions --coveralls ${{ github.event.pull_request.head.ref }}
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Publish code coverage comment on PR
         uses: mikepenz/action-github-comment@v2
