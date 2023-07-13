@@ -40,7 +40,7 @@ pub trait ConnectorAccessToken:
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     fn connector_transaction_id(
         &self,
-        payment_attempt: storage_models::payment_attempt::PaymentAttempt,
+        payment_attempt: diesel_models::payment_attempt::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
         Ok(payment_attempt.connector_transaction_id)
     }
@@ -232,6 +232,7 @@ impl ConnectorData {
                 enums::Connector::Fiserv => Ok(Box::new(&connector::Fiserv)),
                 enums::Connector::Forte => Ok(Box::new(&connector::Forte)),
                 enums::Connector::Globalpay => Ok(Box::new(&connector::Globalpay)),
+                enums::Connector::Globepay => Ok(Box::new(&connector::Globepay)),
                 enums::Connector::Iatapay => Ok(Box::new(&connector::Iatapay)),
                 enums::Connector::Klarna => Ok(Box::new(&connector::Klarna)),
                 enums::Connector::Mollie => Ok(Box::new(&connector::Mollie)),
