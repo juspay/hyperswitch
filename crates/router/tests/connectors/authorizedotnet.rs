@@ -55,7 +55,7 @@ async fn should_only_authorize_payment() {
             Some(types::PaymentsAuthorizeData {
                 amount: 300,
                 payment_method_data: types::api::PaymentMethodData::Card(get_payment_method_data()),
-                capture_method: Some(storage_models::enums::CaptureMethod::Manual),
+                capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,
@@ -90,7 +90,7 @@ async fn should_capture_authorized_payment() {
             Some(types::PaymentsAuthorizeData {
                 amount: 301,
                 payment_method_data: types::api::PaymentMethodData::Card(get_payment_method_data()),
-                capture_method: Some(storage_models::enums::CaptureMethod::Manual),
+                capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,
@@ -152,7 +152,7 @@ async fn should_partially_capture_authorized_payment() {
             Some(types::PaymentsAuthorizeData {
                 amount: 302,
                 payment_method_data: types::api::PaymentMethodData::Card(get_payment_method_data()),
-                capture_method: Some(storage_models::enums::CaptureMethod::Manual),
+                capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,
@@ -214,7 +214,7 @@ async fn should_sync_authorized_payment() {
             Some(types::PaymentsAuthorizeData {
                 amount: 303,
                 payment_method_data: types::api::PaymentMethodData::Card(get_payment_method_data()),
-                capture_method: Some(storage_models::enums::CaptureMethod::Manual),
+                capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,
@@ -248,7 +248,7 @@ async fn should_void_authorized_payment() {
             Some(types::PaymentsAuthorizeData {
                 amount: 304,
                 payment_method_data: types::api::PaymentMethodData::Card(get_payment_method_data()),
-                capture_method: Some(storage_models::enums::CaptureMethod::Manual),
+                capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,
@@ -297,7 +297,7 @@ async fn should_make_payment() {
             Some(types::PaymentsAuthorizeData {
                 amount: 310,
                 payment_method_data: types::api::PaymentMethodData::Card(get_payment_method_data()),
-                capture_method: Some(storage_models::enums::CaptureMethod::Manual),
+                capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,
@@ -335,7 +335,7 @@ async fn should_sync_auto_captured_payment() {
             Some(types::PaymentsAuthorizeData {
                 amount: 311,
                 payment_method_data: types::api::PaymentMethodData::Card(get_payment_method_data()),
-                capture_method: Some(storage_models::enums::CaptureMethod::Manual),
+                capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,
@@ -479,7 +479,7 @@ async fn should_fail_void_payment_for_auto_capture() {
             Some(types::PaymentsAuthorizeData {
                 amount: 307,
                 payment_method_data: types::api::PaymentMethodData::Card(get_payment_method_data()),
-                capture_method: Some(storage_models::enums::CaptureMethod::Manual),
+                capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,

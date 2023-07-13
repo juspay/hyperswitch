@@ -1,5 +1,5 @@
+use diesel_models::configs::ConfigUpdateInternal;
 use error_stack::IntoReport;
-use storage_models::configs::ConfigUpdateInternal;
 
 use super::{cache, MockDb, Store};
 use crate::{
