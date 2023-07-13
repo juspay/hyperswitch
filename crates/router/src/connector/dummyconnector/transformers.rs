@@ -1,10 +1,12 @@
 use diesel_models::enums::Currency;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
     core::errors,
+    services,
     types::{self, api, storage::enums},
 };
 
@@ -99,6 +101,7 @@ pub struct PaymentsResponse {
     currency: Currency,
     created: String,
     payment_method_type: String,
+    next_action: Option<DummyConnectorNextAction>,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentsResponse, T, types::PaymentsResponseData>>
@@ -108,17 +111,38 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentsResponse, T, types::Paym
     fn try_from(
         item: types::ResponseRouterData<F, PaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let redirection_data = item
+            .response
+            .next_action
+            .and_then(|redirection_data| redirection_data.get_url())
+            .map(|redirection_url| {
+                services::RedirectForm::from((redirection_url, services::Method::Get))
+            });
+        println!("redirection_data: {:#?}", redirection_data);
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
+                redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
             }),
             ..item.data
         })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum DummyConnectorNextAction {
+    RedirectToUrl(Url),
+}
+
+impl DummyConnectorNextAction {
+    fn get_url(&self) -> Option<Url> {
+        match self {
+            Self::RedirectToUrl(redirect_to_url) => Some(redirect_to_url.to_owned()),
+        }
     }
 }
 

@@ -71,7 +71,12 @@ pub struct DummyConnectorPaymentData {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
     pub payment_method_type: PaymentMethodType,
-    pub redirect_url: Option<String>,
+    pub next_action: Option<DummyConnectorNextAction>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub enum DummyConnectorNextAction {
+    RedirectToUrl(String),
 }
 
 impl DummyConnectorPaymentData {
@@ -83,7 +88,7 @@ impl DummyConnectorPaymentData {
         currency: Currency,
         created: PrimitiveDateTime,
         payment_method_type: PaymentMethodType,
-        redirect_url: Option<String>,
+        redirect_url: Option<DummyConnectorNextAction>,
     ) -> Self {
         Self {
             payment_id,
@@ -93,7 +98,7 @@ impl DummyConnectorPaymentData {
             currency,
             created,
             payment_method_type,
-            redirect_url,
+            next_action: redirect_url,
         }
     }
 }
@@ -107,7 +112,7 @@ pub struct DummyConnectorPaymentResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
     pub payment_method_type: PaymentMethodType,
-    pub redirect_url: Option<String>,
+    pub next_action: Option<DummyConnectorNextAction>,
 }
 
 impl From<DummyConnectorPaymentData> for DummyConnectorPaymentResponse {
@@ -119,7 +124,7 @@ impl From<DummyConnectorPaymentData> for DummyConnectorPaymentResponse {
             currency: value.currency,
             created: value.created,
             payment_method_type: value.payment_method_type,
-            redirect_url: value.redirect_url
+            next_action: value.next_action
         }
     }
 }

@@ -65,20 +65,24 @@ pub async fn payment(
                         req.currency,
                         timestamp,
                         types::PaymentMethodType::Card,
-                        Some("http://google.com".to_string()),
+                        Some(types::DummyConnectorNextAction::RedirectToUrl(
+                            "http://google.com".to_string(),
+                        )),
                     );
                     utils::store_data_in_redis(
                         redis_conn.clone(),
                         payment_id.clone(),
                         payment_data.clone(),
                         state.conf.dummy_connector.payment_ttl,
-                    ).await?;
+                    )
+                    .await?;
                     utils::store_data_in_redis(
                         redis_conn,
                         attempt_id.clone(),
                         payment_id.clone(),
-                        state.conf.dummy_connector.authroize_ttl,
-                    ).await?;
+                        state.conf.dummy_connector.authorize_ttl,
+                    )
+                    .await?;
                     Ok(api::ApplicationResponse::Json(payment_data.into()))
                 }
             }
