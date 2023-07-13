@@ -119,7 +119,14 @@ impl ConnectorCommon for Powertranz {
             status_code: res.status_code,
             code: code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: message.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: Some(
+                response
+                    .errors
+                    .iter()
+                    .map(|error| format!("{} : {}", error.code, error.message))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            ),
         })
     }
 }

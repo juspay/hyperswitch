@@ -18,7 +18,7 @@ pub struct PowertranzPaymentsRequest {
     transaction_identifier: String,
     total_amount: f64,
     currency_code: String,
-    three_d_s_ecure: bool,
+    three_d_secure: bool,
     source: Source,
     order_identifier: String,
     billing_address: Option<PowertranzAddressDetails>,
@@ -61,7 +61,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
         let source = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(card) => Ok(Source::from(&card)),
             _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment methods".to_string(),
+                "Payment method".to_string(),
             )),
         }?;
         let billing_address = get_address_details(&item.address.billing, &item.request.email);
@@ -73,7 +73,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
                 item.request.currency,
             )?,
             currency_code: String::foreign_from(item.request.currency),
-            three_d_s_ecure: false,
+            three_d_secure: false,
             source,
             order_identifier: item.payment_id.clone(),
             billing_address,
@@ -310,10 +310,14 @@ fn build_error_response(
         types::ErrorResponse {
             status_code,
             code: code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: message
-                .clone()
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: message,
+            message: message.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: Some(
+                errors
+                    .iter()
+                    .map(|error| format!("{} : {}", error.code, error.message))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            ),
         }
     })
 }
