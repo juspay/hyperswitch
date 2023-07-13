@@ -2,8 +2,8 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
-use storage_models::enums;
 use transformers as dummyconnector;
 
 use super::utils::RefundsRequestData;
@@ -78,6 +78,10 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
             1 => "phonypay",
             2 => "fauxpay",
             3 => "pretendpay",
+            4 => "stripe_test",
+            5 => "adyen_test",
+            6 => "checkout_test",
+            7 => "paypal_test",
             _ => "phonypay",
         }
     }

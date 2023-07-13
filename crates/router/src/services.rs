@@ -5,9 +5,9 @@ pub mod logger;
 
 use std::sync::Arc;
 
+use diesel_models::services as storage;
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
-use storage_models::services as storage;
 
 pub use self::{api::*, encryption::*, storage::*};
 use crate::{

@@ -1,7 +1,7 @@
 use common_utils::ext_traits::ConfigExt;
+use diesel_models::errors::ApplicationError;
+pub use diesel_models::settings::SchedulerSettings;
 use serde::Deserialize;
-use storage_models::errors::ApplicationError;
-pub use storage_models::settings::SchedulerSettings;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ProducerSettings {

@@ -261,6 +261,7 @@ pub enum AdyenPaymentMethod<'a> {
     AdyenPaypal(Box<AdyenPaypal>),
     AfterPay(Box<AdyenPayLaterData>),
     AliPay(Box<AliPayData>),
+    AliPayHk(Box<AliPayHkData>),
     ApplePay(Box<AdyenApplePay>),
     BancontactCard(Box<BancontactCardData>),
     Blik(Box<BlikRedirectionData>),
@@ -614,6 +615,12 @@ pub struct AliPayData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliPayHkData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
     #[serde(rename = "type")]
     payment_type: PaymentType,
@@ -666,6 +673,8 @@ pub enum PaymentType {
     Affirm,
     Afterpaytouch,
     Alipay,
+    #[serde(rename = "alipay_hk")]
+    AlipayHk,
     Applepay,
     Blik,
     Eps,
@@ -874,7 +883,7 @@ fn get_browser_info(
 
 fn get_additional_data(item: &types::PaymentsAuthorizeRouterData) -> Option<AdditionalData> {
     match item.request.capture_method {
-        Some(storage_models::enums::CaptureMethod::Manual) => Some(AdditionalData {
+        Some(diesel_models::enums::CaptureMethod::Manual) => Some(AdditionalData {
             authorisation_type: Some(AuthType::PreAuth),
             manual_capture: Some(true),
             network_tx_reference: None,
@@ -1087,6 +1096,12 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                     payment_type: PaymentType::Alipay,
                 };
                 Ok(AdyenPaymentMethod::AliPay(Box::new(alipay_data)))
+            }
+            api_models::payments::WalletData::AliPayHkRedirect(_) => {
+                let alipay_hk_data = AliPayHkData {
+                    payment_type: PaymentType::AlipayHk,
+                };
+                Ok(AdyenPaymentMethod::AliPayHk(Box::new(alipay_hk_data)))
             }
             api_models::payments::WalletData::MbWayRedirect(data) => {
                 let mbway_data = MbwayData {
@@ -1630,6 +1645,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -1682,6 +1698,7 @@ pub fn get_adyen_response(
         mandate_reference,
         connector_metadata: None,
         network_txn_id,
+        connector_response_reference_id: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -1736,6 +1753,7 @@ pub fn get_redirection_response(
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
+        connector_response_reference_id: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -1823,6 +1841,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             amount_captured: Some(item.response.amount.value),
             ..item.data

@@ -16,8 +16,8 @@ pub mod merchant_connector_account;
 pub mod payment_attempt;
 pub mod payment_intent;
 pub mod payment_method;
+pub use diesel_models::{ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate};
 pub use scheduler::db::process_tracker;
-pub use storage_models::{ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate};
 pub mod reverse_lookup;
 
 mod query;

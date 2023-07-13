@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use common_utils::errors::CustomResult;
-use storage_models::services::{MockDb, Store};
+use diesel_models::services::{MockDb, Store};
 use tokio::sync::mpsc;
 
 use super::env::logger::error;

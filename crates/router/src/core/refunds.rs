@@ -25,6 +25,7 @@ use crate::{
     utils::{self, OptionExt},
     workflows::payment_sync,
 };
+
 // ********************************************** REFUND EXECUTE **********************************************
 
 #[instrument(skip_all)]
@@ -207,7 +208,7 @@ pub async fn trigger_refund_to_gateway(
             refund_error_code: Some(err.code),
         },
         Ok(response) => {
-            if response.refund_status == storage_models::enums::RefundStatus::Success {
+            if response.refund_status == diesel_models::enums::RefundStatus::Success {
                 metrics::SUCCESSFUL_REFUND.add(
                     &metrics::CONTEXT,
                     1,
@@ -344,7 +345,7 @@ pub async fn refund_retrieve_core(
     Ok(response)
 }
 
-fn should_call_refund(refund: &storage_models::refund::Refund, force_sync: bool) -> bool {
+fn should_call_refund(refund: &diesel_models::refund::Refund, force_sync: bool) -> bool {
     // This implies, we cannot perform a refund sync & `the connector_refund_id`
     // doesn't exist
     let predicate1 = refund.connector_refund_id.is_some();
@@ -354,7 +355,7 @@ fn should_call_refund(refund: &storage_models::refund::Refund, force_sync: bool)
     let predicate2 = force_sync
         || !matches!(
             refund.refund_status,
-            storage_models::enums::RefundStatus::Failure
+            diesel_models::enums::RefundStatus::Failure
         );
 
     predicate1 && predicate2
@@ -647,26 +648,49 @@ pub async fn refund_list(
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
     let limit = validator::validate_refund_list(req.limit)?;
+    let offset = req.offset.unwrap_or_default();
+
     let refund_list = db
         .filter_refund_by_constraints(
             &merchant_account.merchant_id,
             &req,
             merchant_account.storage_scheme,
             limit,
+            offset,
         )
         .await
-        .change_context(errors::ApiErrorResponse::RefundNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
 
     let data: Vec<refunds::RefundResponse> = refund_list
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect();
+
     Ok(services::ApplicationResponse::Json(
         api_models::refunds::RefundListResponse {
             size: data.len(),
             data,
         },
     ))
+}
+
+#[instrument(skip_all)]
+#[cfg(feature = "olap")]
+pub async fn refund_filter_list(
+    db: &dyn db::StorageInterface,
+    merchant_account: domain::MerchantAccount,
+    req: api_models::refunds::TimeRange,
+) -> RouterResponse<api_models::refunds::RefundListMetaData> {
+    let filter_list = db
+        .filter_refund_by_meta_constraints(
+            &merchant_account.merchant_id,
+            &req,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
+
+    Ok(services::ApplicationResponse::Json(filter_list))
 }
 
 impl ForeignFrom<storage::Refund> for api::RefundResponse {

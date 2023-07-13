@@ -2,6 +2,7 @@
 use std::sync::Arc;
 
 use common_utils::ext_traits::{OptionExt, StringExt};
+use diesel_models::process_tracker as storage;
 use router::{
     configs::settings::{CmdLineConf, Settings},
     core::errors::{self, CustomResult},
@@ -9,7 +10,6 @@ use router::{
 };
 use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors as sch_errors};
 use serde::{Deserialize, Serialize};
-use storage_models::process_tracker as storage;
 use strum::EnumString;
 use tokio::sync::{mpsc, oneshot};
 
@@ -33,7 +33,7 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
         redis_shutdown_signal_rx,
         tx.clone(),
     ));
-    let _guard = logger::setup(&state.conf.log);
+    let _guard = logger::setup(&state.conf.log, [router_env::service_name!()]);
 
     logger::debug!(startup_config=?state.conf);
 

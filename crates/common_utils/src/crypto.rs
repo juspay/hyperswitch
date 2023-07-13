@@ -154,6 +154,34 @@ impl DecodeMessage for NoAlgorithm {
     }
 }
 
+/// Represents the HMAC-SHA-1 algorithm
+#[derive(Debug)]
+pub struct HmacSha1;
+
+impl SignMessage for HmacSha1 {
+    fn sign_message(
+        &self,
+        secret: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let key = hmac::Key::new(hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY, secret);
+        Ok(hmac::sign(&key, msg).as_ref().to_vec())
+    }
+}
+
+impl VerifySignature for HmacSha1 {
+    fn verify_signature(
+        &self,
+        secret: &[u8],
+        signature: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<bool, errors::CryptoError> {
+        let key = hmac::Key::new(hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY, secret);
+
+        Ok(hmac::verify(&key, msg, signature).is_ok())
+    }
+}
+
 /// Represents the HMAC-SHA-256 algorithm
 #[derive(Debug)]
 pub struct HmacSha256;

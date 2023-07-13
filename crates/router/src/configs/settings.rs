@@ -5,9 +5,9 @@ use std::{
 };
 
 use api_models::enums;
+use diesel_models::settings as storage_settings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use serde::{de::Error, Deserialize, Deserializer};
-use storage_models::settings as storage_settings;
 
 pub use self::storage_settings::*;
 
@@ -43,14 +43,14 @@ pub struct ActiveKmsSecrets {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentMethodTokenFilter {
     #[serde(deserialize_with = "pm_deser")]
-    pub payment_method: HashSet<storage_models::enums::PaymentMethod>,
+    pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
 }
 
 fn pm_deser<'a, D>(
     deserializer: D,
-) -> Result<HashSet<storage_models::enums::PaymentMethod>, D::Error>
+) -> Result<HashSet<diesel_models::enums::PaymentMethod>, D::Error>
 where
     D: Deserializer<'a>,
 {
@@ -58,7 +58,7 @@ where
     value
         .trim()
         .split(',')
-        .map(storage_models::enums::PaymentMethod::from_str)
+        .map(diesel_models::enums::PaymentMethod::from_str)
         .collect::<Result<_, _>>()
         .map_err(D::Error::custom)
 }

@@ -416,6 +416,7 @@ pub enum PaymentMethodType {
     Affirm,
     AfterpayClearpay,
     AliPay,
+    AliPayHk,
     ApplePay,
     Bacs,
     BancontactCard,
@@ -435,6 +436,7 @@ pub enum PaymentMethodType {
     Klarna,
     MbWay,
     MobilePay,
+    Multibanco,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
     OnlineBankingPoland,
@@ -447,6 +449,7 @@ pub enum PaymentMethodType {
     Sofort,
     Swish,
     Trustly,
+    UpiCollect,
     Walley,
     WeChatPay,
 }
@@ -478,6 +481,7 @@ pub enum PaymentMethod {
     Crypto,
     BankDebit,
     Reward,
+    Upi,
 }
 
 #[derive(
@@ -507,10 +511,13 @@ pub enum WalletIssuer {
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    serde::Deserialize,
+    serde::Serialize,
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum RefundStatus {
@@ -599,6 +606,7 @@ pub enum Connector {
     Cashtocode,
     Checkout,
     Coinbase,
+    Cryptopay,
     Cybersource,
     Iatapay,
     #[cfg(feature = "dummy_connector")]
@@ -613,12 +621,28 @@ pub enum Connector {
     #[serde(rename = "pretendpay")]
     #[strum(serialize = "pretendpay")]
     DummyConnector3,
-    Opennode,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "stripe_test")]
+    #[strum(serialize = "stripe_test")]
+    DummyConnector4,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "adyen_test")]
+    #[strum(serialize = "adyen_test")]
+    DummyConnector5,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "checkout_test")]
+    #[strum(serialize = "checkout_test")]
+    DummyConnector6,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "paypal_test")]
+    #[strum(serialize = "paypal_test")]
+    DummyConnector7,
     Bambora,
     Dlocal,
     Fiserv,
     Forte,
     Globalpay,
+    Globepay,
     Klarna,
     Mollie,
     Multisafepay,
@@ -626,10 +650,13 @@ pub enum Connector {
     Nmi,
     Noon,
     Nuvei,
+    // Opayo, added as template code for future usage
+    Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    // Payme,
+    Payme,
     Paypal,
     Payu,
+    //Powertranz,
     Rapyd,
     Shift4,
     Stripe,
@@ -687,6 +714,22 @@ pub enum RoutableConnectors {
     #[serde(rename = "pretendpay")]
     #[strum(serialize = "pretendpay")]
     DummyConnector3,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "stripe_test")]
+    #[strum(serialize = "stripe_test")]
+    DummyConnector4,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "adyen_test")]
+    #[strum(serialize = "adyen_test")]
+    DummyConnector5,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "checkout_test")]
+    #[strum(serialize = "checkout_test")]
+    DummyConnector6,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "paypal_test")]
+    #[strum(serialize = "paypal_test")]
+    DummyConnector7,
     Aci,
     Adyen,
     Airwallex,
@@ -698,11 +741,13 @@ pub enum RoutableConnectors {
     Cashtocode,
     Checkout,
     Coinbase,
+    Cryptopay,
     Cybersource,
     Dlocal,
     Fiserv,
     Forte,
     Globalpay,
+    Globepay,
     Iatapay,
     Klarna,
     Mollie,
@@ -711,11 +756,13 @@ pub enum RoutableConnectors {
     Nmi,
     Noon,
     Nuvei,
+    // Opayo, added as template code for future usage
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    // Payme,
+    Payme,
     Paypal,
     Payu,
+    //Powertranz,
     Rapyd,
     Shift4,
     Stripe,
@@ -962,4 +1009,58 @@ pub struct UnresolvedResponseReason {
     pub code: String,
     /// A message to merchant to give hint on next action he/she should do to resolve
     pub message: String,
+}
+
+/// Possible field type of required fields in payment_method_data
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FieldType {
+    UserFullName,
+    UserEmailAddress,
+    UserPhoneNumber,
+    UserCountry { options: Vec<String> },
+    UserAddressline1,
+    UserAddressline2,
+    UserAddressCity,
+    UserAddressPincode,
+    UserAddressState,
+    UserAddressCountry,
+    UserBlikCode,
+    FieldsComplete,
+    UserBillingName,
+    UserBank,
+    Text,
+    DropDown { options: Vec<String> },
+}
+
+#[derive(
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    Clone,
+    PartialEq,
+    Eq,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RetryAction {
+    /// Payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted
+    ManualRetry,
+    /// Denotes that the payment is requeued
+    Requeue,
 }

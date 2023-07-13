@@ -28,9 +28,9 @@ use actix_web::{
     dev::{Server, ServerHandle, ServiceFactory, ServiceRequest},
     middleware::ErrorHandlers,
 };
+use diesel_models::errors::ApplicationResult;
 use http::StatusCode;
 use routes::AppState;
-use storage_models::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
 
 pub use self::env::logger;
@@ -223,7 +223,7 @@ pub fn get_application_builder(
             errors::error_handlers::custom_error_handlers,
         ))
         .wrap(middleware::default_response_headers())
-        .wrap(cors::cors())
         .wrap(middleware::RequestId)
+        .wrap(cors::cors())
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }

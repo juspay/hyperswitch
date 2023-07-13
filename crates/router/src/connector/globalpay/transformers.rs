@@ -220,6 +220,7 @@ fn get_payment_response(
             mandate_reference,
             connector_metadata: None,
             network_txn_id: None,
+            connector_response_reference_id: None,
         }),
     }
 }

@@ -140,7 +140,8 @@ fn get_pm_and_subsequent_auth_detail(
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Reward(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_data),
                 connector: "AuthorizeDotNet",
                 payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
@@ -482,6 +483,7 @@ impl<F, T>
                             mandate_reference: None,
                             connector_metadata: metadata,
                             network_txn_id: transaction_response.network_trans_id.clone(),
+                            connector_response_reference_id: None,
                         }),
                     },
                     ..item.data
@@ -545,6 +547,7 @@ impl<F, T>
                             mandate_reference: None,
                             connector_metadata: metadata,
                             network_txn_id: transaction_response.network_trans_id.clone(),
+                            connector_response_reference_id: None,
                         }),
                     },
                     ..item.data
@@ -830,6 +833,7 @@ impl<F, Req>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        connector_response_reference_id: None,
                     }),
                     status: payment_status,
                     ..item.data

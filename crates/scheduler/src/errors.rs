@@ -1,6 +1,6 @@
 pub use common_utils::errors::{ParsingError, ValidationError};
+pub use diesel_models::errors::StorageError;
 pub use redis_interface::errors::RedisError;
-pub use storage_models::errors::StorageError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProcessTrackerError {

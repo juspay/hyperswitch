@@ -18,7 +18,7 @@ pub async fn get_evidence_request_data(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     evidence_request: api_models::disputes::SubmitEvidenceRequest,
-    dispute: &storage_models::dispute::Dispute,
+    dispute: &diesel_models::dispute::Dispute,
 ) -> CustomResult<SubmitEvidenceRequestData, errors::ApiErrorResponse> {
     let (cancellation_policy, cancellation_policy_provider_file_id) =
         retrieve_file_and_provider_file_id_from_file_id(

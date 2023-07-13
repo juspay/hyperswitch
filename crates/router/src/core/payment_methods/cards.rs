@@ -1,10 +1,13 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 use api_models::{
     admin::{self, PaymentMethodsEnabled},
     enums::{self as api_enums},
     payment_methods::{
-        CardNetworkTypes, PaymentExperienceTypes, RequestPaymentMethodTypes,
+        CardNetworkTypes, PaymentExperienceTypes, RequestPaymentMethodTypes, RequiredFieldInfo,
         ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
         ResponsePaymentMethodsEnabled,
     },
@@ -15,9 +18,9 @@ use common_utils::{
     ext_traits::{AsyncExt, BytesExt, StringExt, ValueExt},
     generate_id,
 };
+use diesel_models::{enums as storage_enums, payment_method};
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
-use storage_models::{enums as storage_enums, payment_method};
 
 use crate::{
     configs::settings,
@@ -81,20 +84,26 @@ pub async fn add_payment_method(
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
     let response = match req.card.clone() {
-        Some(card) => add_card_to_locker(state, req, card, customer_id, merchant_account)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Add Card Failed"),
+        Some(card) => add_card_to_locker(
+            state,
+            req.clone(),
+            card,
+            customer_id.clone(),
+            merchant_account,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Card Failed"),
         None => {
             let pm_id = generate_id(consts::ID_LENGTH, "pm");
             let payment_method_response = api::PaymentMethodResponse {
                 merchant_id: merchant_id.to_string(),
-                customer_id: Some(customer_id),
+                customer_id: Some(customer_id.clone()),
                 payment_method_id: pm_id,
                 payment_method: req.payment_method,
                 payment_method_type: req.payment_method_type,
                 card: None,
-                metadata: req.metadata,
+                metadata: req.metadata.clone(),
                 created: Some(common_utils::date_time::now()),
                 recurring_enabled: false,           //[#219]
                 installment_payment_enabled: false, //[#219]
@@ -103,7 +112,24 @@ pub async fn add_payment_method(
             Ok((payment_method_response, false))
         }
     };
-    Ok(response?.0).map(services::ApplicationResponse::Json)
+
+    let (resp, is_duplicate) = response?;
+    if !is_duplicate {
+        let pm_metadata = resp.metadata.as_ref().map(|data| data.peek());
+        create_payment_method(
+            &*state.store,
+            &req,
+            &customer_id,
+            &resp.payment_method_id,
+            &resp.merchant_id,
+            pm_metadata.cloned(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to save Payment Method")?;
+    }
+
+    Ok(resp).map(services::ApplicationResponse::Json)
 }
 
 #[instrument(skip_all)]
@@ -548,6 +574,7 @@ pub async fn mock_add_card_hs(
         payment_method_id,
         customer_id: customer_id.map(str::to_string),
         name_on_card: card.card_holder_name.to_owned().expose_option(),
+        nickname: card.nick_name.to_owned().map(masking::Secret::expose),
     };
 
     let response = db
@@ -588,6 +615,7 @@ pub async fn mock_add_card(
         payment_method_id,
         customer_id: customer_id.map(str::to_string),
         name_on_card: card.card_holder_name.to_owned().expose_option(),
+        nickname: card.nick_name.to_owned().map(masking::Secret::expose),
     };
     let response = db
         .insert_locker_mock_up(locker_mock_up)
@@ -856,10 +884,55 @@ pub async fn list_payment_methods(
     let mut bank_transfer_consolidated_hm =
         HashMap::<api_enums::PaymentMethodType, Vec<String>>::new();
 
+    let mut required_fields_hm = HashMap::<
+        api_enums::PaymentMethod,
+        HashMap<api_enums::PaymentMethodType, HashSet<RequiredFieldInfo>>,
+    >::new();
+
     for element in response.clone() {
         let payment_method = element.payment_method;
         let payment_method_type = element.payment_method_type;
         let connector = element.connector.clone();
+
+        let connector_variant = api_enums::Connector::from_str(connector.as_str())
+            .into_report()
+            .change_context(errors::ConnectorError::InvalidConnectorName)
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector",
+            })
+            .attach_printable_lazy(|| format!("unable to parse connector name {connector:?}"))?;
+        state.conf.required_fields.0.get(&payment_method).map(
+            |required_fields_hm_for_each_payment_method_type| {
+                required_fields_hm_for_each_payment_method_type
+                    .0
+                    .get(&payment_method_type)
+                    .map(|required_fields_hm_for_each_connector| {
+                        required_fields_hm
+                            .entry(payment_method)
+                            .or_insert(HashMap::new());
+                        required_fields_hm_for_each_connector
+                            .fields
+                            .get(&connector_variant)
+                            .map(|required_fields_vec| {
+                                // If payment_method_type already exist in required_fields_hm, extend the required_fields hs to existing hs.
+                                let required_fields_hs =
+                                    HashSet::from_iter(required_fields_vec.iter().cloned());
+
+                                let existing_req_fields_hs = required_fields_hm
+                                    .get_mut(&payment_method)
+                                    .and_then(|inner_hm| inner_hm.get_mut(&payment_method_type));
+
+                                if let Some(inner_hs) = existing_req_fields_hs {
+                                    inner_hs.extend(required_fields_hs);
+                                } else {
+                                    required_fields_hm.get_mut(&payment_method).map(|inner_hm| {
+                                        inner_hm.insert(payment_method_type, required_fields_hs)
+                                    });
+                                }
+                            })
+                    })
+            },
+        );
 
         if let Some(payment_experience) = element.payment_experience {
             if let Some(payment_method_hm) =
@@ -989,6 +1062,11 @@ pub async fn list_payment_methods(
                 bank_names: None,
                 bank_debits: None,
                 bank_transfers: None,
+                // Required fields for PayLater payment method
+                required_fields: required_fields_hm
+                    .get(key.0)
+                    .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
+                    .cloned(),
             })
         }
 
@@ -1016,6 +1094,11 @@ pub async fn list_payment_methods(
                 bank_names: None,
                 bank_debits: None,
                 bank_transfers: None,
+                // Required fields for Card payment method
+                required_fields: required_fields_hm
+                    .get(key.0)
+                    .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
+                    .cloned(),
             })
         }
 
@@ -1039,6 +1122,11 @@ pub async fn list_payment_methods(
                 card_networks: None,
                 bank_debits: None,
                 bank_transfers: None,
+                // Required fields for BankRedirect payment method
+                required_fields: required_fields_hm
+                    .get(&api_enums::PaymentMethod::BankRedirect)
+                    .and_then(|inner_hm| inner_hm.get(key.0))
+                    .cloned(),
             }
         })
     }
@@ -1065,6 +1153,11 @@ pub async fn list_payment_methods(
                     eligible_connectors: connectors.clone(),
                 }),
                 bank_transfers: None,
+                // Required fields for BankDebit payment method
+                required_fields: required_fields_hm
+                    .get(&api_enums::PaymentMethod::BankDebit)
+                    .and_then(|inner_hm| inner_hm.get(key.0))
+                    .cloned(),
             }
         })
     }
@@ -1091,6 +1184,11 @@ pub async fn list_payment_methods(
                 bank_transfers: Some(api_models::payment_methods::BankTransferTypes {
                     eligible_connectors: connectors,
                 }),
+                // Required fields for BankTransfer payment method
+                required_fields: required_fields_hm
+                    .get(&api_enums::PaymentMethod::BankTransfer)
+                    .and_then(|inner_hm| inner_hm.get(key.0))
+                    .cloned(),
             }
         })
     }
@@ -1102,18 +1200,16 @@ pub async fn list_payment_methods(
         });
     }
 
-    response
-        .is_empty()
-        .then(|| Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)))
-        .unwrap_or(Ok(services::ApplicationResponse::Json(
-            api::PaymentMethodListResponse {
-                redirect_url: merchant_account.return_url,
-                payment_methods: payment_method_responses,
-                mandate_payment: payment_attempt
-                    .and_then(|inner| inner.mandate_details)
-                    .map(ForeignInto::foreign_into),
-            },
-        )))
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentMethodListResponse {
+            redirect_url: merchant_account.return_url,
+            merchant_name: merchant_account.merchant_name,
+            payment_methods: payment_method_responses,
+            mandate_payment: payment_attempt
+                .and_then(|inner| inner.mandate_details)
+                .map(ForeignInto::foreign_into),
+        },
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1131,26 +1227,17 @@ pub async fn filter_payment_methods(
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method);
         if let Ok(payment_methods_enabled) = parse_result {
             let payment_method = payment_methods_enabled.payment_method;
+
             let allowed_payment_method_types = payment_intent
-                .map(|payment_intent|
+                .and_then(|payment_intent| {
                     payment_intent
-                        .metadata
-                        .as_ref()
-                        .and_then(|masked_metadata| {
-                            let metadata = masked_metadata.peek().clone();
-                            let parsed_metadata: Option<api_models::payments::Metadata> =
-                                serde_json::from_value(metadata)
-                                    .map_err(|error| logger::error!(%error, "Failed to deserialize PaymentIntent metadata"))
-                                    .ok();
-                            parsed_metadata.and_then(|pm| {
-                                logger::info!(
-                                    "Only given PaymentMethodTypes will be allowed {:?}",
-                                    pm.allowed_payment_method_types
-                                );
-                                pm.allowed_payment_method_types
-                            })
-                }))
-                .and_then(|a| a);
+                        .allowed_payment_method_types
+                        .clone()
+                        .parse_value("Vec<PaymentMethodType>")
+                        .map_err(|error| logger::error!(%error, "Failed to deserialize PaymentIntent allowed_payment_method_types"))
+                        .ok()
+                });
+
             for payment_method_type_info in payment_methods_enabled
                 .payment_method_types
                 .unwrap_or_default()

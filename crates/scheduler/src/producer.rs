@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use common_utils::errors::CustomResult;
+use diesel_models::enums::ProcessTrackerStatus;
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
-use storage_models::enums::ProcessTrackerStatus;
 use time::Duration;
 use tokio::sync::mpsc;
 
