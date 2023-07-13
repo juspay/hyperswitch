@@ -1,14 +1,10 @@
-use api_models::enums::{DisputeStage, DisputeStatus};
 use error_stack::IntoReport;
 
 use super::{MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    types::{
-        storage::{self, DisputeDbExt},
-        transformers::ForeignFrom,
-    },
+    types::storage::{self, DisputeDbExt},
 };
 
 #[async_trait::async_trait]
@@ -226,12 +222,12 @@ impl DisputeInterface for MockDb {
                     && dispute_constraints
                         .dispute_status
                         .as_ref()
-                        .map(|status| status == &DisputeStatus::foreign_from(d.dispute_status))
+                        .map(|status| status == &d.dispute_status)
                         .unwrap_or(true)
                     && dispute_constraints
                         .dispute_stage
                         .as_ref()
-                        .map(|stage| stage == &DisputeStage::foreign_from(d.dispute_stage))
+                        .map(|stage| stage == &d.dispute_stage)
                         .unwrap_or(true)
                     && dispute_constraints
                         .reason

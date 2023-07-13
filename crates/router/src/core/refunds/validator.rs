@@ -157,7 +157,6 @@ pub fn validate_for_valid_refunds(
         | diesel_models::enums::PaymentMethod::Wallet => {
             let payment_method_type = payment_attempt
                 .payment_method_type
-                .clone()
                 .get_required_value("payment_method_type")?;
 
             utils::when(

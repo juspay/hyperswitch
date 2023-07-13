@@ -888,7 +888,7 @@ fn is_payment_method_type_allowed_for_connector(
     current_pm_type: &Option<storage::enums::PaymentMethodType>,
     pm_type_filter: Option<PaymentMethodTypeTokenFilter>,
 ) -> bool {
-    match current_pm_type.clone().zip(pm_type_filter) {
+    match (*current_pm_type).zip(pm_type_filter) {
         Some((pm_type, type_filter)) => match type_filter {
             PaymentMethodTypeTokenFilter::AllAccepted => true,
             PaymentMethodTypeTokenFilter::EnableOnly(enabled) => enabled.contains(&pm_type),
