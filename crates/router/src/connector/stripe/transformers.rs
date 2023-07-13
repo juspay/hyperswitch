@@ -762,21 +762,21 @@ fn infer_stripe_bank_redirect_issuer(
     payment_method_type: Option<&enums::PaymentMethodType>,
 ) -> Result<StripePaymentMethodType, errors::ConnectorError> {
     match payment_method_type {
-        Some(storage_models::enums::PaymentMethodType::Giropay) => {
+        Some(diesel_models::enums::PaymentMethodType::Giropay) => {
             Ok(StripePaymentMethodType::Giropay)
         }
-        Some(storage_models::enums::PaymentMethodType::Ideal) => Ok(StripePaymentMethodType::Ideal),
-        Some(storage_models::enums::PaymentMethodType::Sofort) => {
+        Some(diesel_models::enums::PaymentMethodType::Ideal) => Ok(StripePaymentMethodType::Ideal),
+        Some(diesel_models::enums::PaymentMethodType::Sofort) => {
             Ok(StripePaymentMethodType::Sofort)
         }
 
-        Some(storage_models::enums::PaymentMethodType::BancontactCard) => {
+        Some(diesel_models::enums::PaymentMethodType::BancontactCard) => {
             Ok(StripePaymentMethodType::Bancontact)
         }
-        Some(storage_models::enums::PaymentMethodType::Przelewy24) => {
+        Some(diesel_models::enums::PaymentMethodType::Przelewy24) => {
             Ok(StripePaymentMethodType::Przelewy24)
         }
-        Some(storage_models::enums::PaymentMethodType::Eps) => Ok(StripePaymentMethodType::Eps),
+        Some(diesel_models::enums::PaymentMethodType::Eps) => Ok(StripePaymentMethodType::Eps),
         None => Err(errors::ConnectorError::MissingRequiredField {
             field_name: "payment_method_type",
         }),
@@ -1694,6 +1694,7 @@ impl<F, T>
                 mandate_reference,
                 connector_metadata,
                 network_txn_id,
+                connector_response_reference_id: None,
             }),
             amount_captured: item.response.amount_received,
             ..item.data
@@ -1797,6 +1798,7 @@ impl<F, T>
                 mandate_reference,
                 connector_metadata,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             Err,
         );
@@ -1837,6 +1839,7 @@ impl<F, T>
                 mandate_reference,
                 connector_metadata: None,
                 network_txn_id: Option::foreign_from(item.response.latest_attempt),
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -2261,8 +2264,8 @@ impl<F, T>
         // We get pending as the status from stripe, but hyperswitch should give it as requires_customer_action as
         // customer has to make payment to the virtual account number given in the source response
         let status = match connector_source_response.status.clone().into() {
-            storage_models::enums::AttemptStatus::Pending => {
-                storage_models::enums::AttemptStatus::AuthenticationPending
+            diesel_models::enums::AttemptStatus::Pending => {
+                diesel_models::enums::AttemptStatus::AuthenticationPending
             }
             _ => connector_source_response.status.into(),
         };
@@ -2273,6 +2276,7 @@ impl<F, T>
                 ),
                 connector_metadata: Some(connector_metadata),
                 session_token: None,
+                connector_response_reference_id: None,
             }),
             status,
             ..item.data
@@ -2314,6 +2318,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 mandate_reference: None,
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

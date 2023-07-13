@@ -1739,6 +1739,9 @@
           }
         }
       },
+      "AliPay": {
+        "type": "object"
+      },
       "AliPayHkRedirection": {
         "type": "object"
       },
@@ -2950,6 +2953,7 @@
           "fiserv",
           "forte",
           "globalpay",
+          "globepay",
           "klarna",
           "mollie",
           "multisafepay",
@@ -3711,8 +3715,11 @@
             "maxLength": 255
           },
           "address": {
-            "type": "object",
-            "description": "The address for the customer",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
             "nullable": true
           },
           "metadata": {
@@ -3771,8 +3778,11 @@
             "maxLength": 255
           },
           "address": {
-            "type": "object",
-            "description": "The address for the customer",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
             "nullable": true
           },
           "created_at": {
@@ -7659,6 +7669,12 @@
               }
             ],
             "nullable": true
+          },
+          "reference_id": {
+            "type": "string",
+            "description": "reference to the payment at connector side",
+            "example": "993672945374576J",
+            "nullable": true
           }
         }
       },
@@ -8539,6 +8555,17 @@
       },
       "WalletData": {
         "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ali_pay"
+            ],
+            "properties": {
+              "ali_pay": {
+                "$ref": "#/components/schemas/AliPay"
+              }
+            }
+          },
           {
             "type": "object",
             "required": [

@@ -2,9 +2,9 @@ use std::{fmt::Debug, marker::PhantomData};
 
 use api_models::payments::OrderDetailsWithAmount;
 use common_utils::fp_utils;
+use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
-use storage_models::{ephemeral_key, payment_attempt::PaymentListFilters};
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
@@ -85,6 +85,7 @@ where
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            connector_response_reference_id: None,
         });
 
     let additional_data = PaymentAdditionalData {
@@ -473,6 +474,7 @@ where
                         .set_connector_transaction_id(payment_attempt.connector_transaction_id)
                         .set_feature_metadata(payment_intent.feature_metadata)
                         .set_connector_metadata(payment_intent.connector_metadata)
+                        .set_reference_id(payment_attempt.connector_response_reference_id)
                         .to_owned(),
                 )
             }
@@ -524,6 +526,7 @@ where
             feature_metadata: payment_intent.feature_metadata,
             connector_metadata: payment_intent.connector_metadata,
             allowed_payment_method_types: payment_intent.allowed_payment_method_types,
+            reference_id: payment_attempt.connector_response_reference_id,
             ..Default::default()
         }),
     });
@@ -559,7 +562,7 @@ where
                 if is_connector_supports_third_party_sdk {
                     payment_attempt
                         .payment_method
-                        .map(|pm| matches!(pm, storage_models::enums::PaymentMethod::Wallet))
+                        .map(|pm| matches!(pm, diesel_models::enums::PaymentMethod::Wallet))
                 } else {
                     Some(false)
                 }
