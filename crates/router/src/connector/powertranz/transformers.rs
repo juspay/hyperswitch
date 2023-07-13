@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    connector::utils::{self, CardData, CurrencyIso},
+    connector::utils::{self, CardData},
     consts,
     core::errors,
     types::{self, api, storage::enums, transformers::ForeignFrom},
@@ -72,7 +72,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
                 item.request.amount,
                 item.request.currency,
             )?,
-            currency_code: CurrencyIso::iso_4217(&item.request.currency),
+            currency_code: diesel_models::enums::Currency::iso_4217(&item.request.currency)
+                .to_string(),
             three_d_secure: false,
             source,
             order_identifier: item.payment_id.clone(),
