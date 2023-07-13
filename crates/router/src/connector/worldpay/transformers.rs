@@ -1,8 +1,8 @@
 use base64::Engine;
 use common_utils::errors::CustomResult;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
-use storage_models::enums;
 
 use super::{requests::*, response::*};
 use crate::{
@@ -159,6 +159,7 @@ impl TryFrom<types::PaymentsResponseRouterData<WorldpayPaymentsResponse>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

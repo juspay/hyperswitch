@@ -5,12 +5,12 @@ use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
 };
+use diesel_models::{enums, payment_intent};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use router_env::{instrument, logger, tracing};
-use storage_models::{enums, payment_intent};
 use time::Duration;
 use uuid::Uuid;
 
@@ -76,7 +76,7 @@ pub fn create_identity_from_certificate_and_key(
 
 pub fn filter_mca_based_on_business_details(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    payment_intent: Option<&storage_models::payment_intent::PaymentIntent>,
+    payment_intent: Option<&diesel_models::payment_intent::PaymentIntent>,
 ) -> Vec<domain::MerchantConnectorAccount> {
     if let Some(payment_intent) = payment_intent {
         merchant_connector_accounts
@@ -372,7 +372,7 @@ pub async fn get_token_for_recurring_mandate(
         .to_owned()
         .get_required_value("locker_id")?;
     let payment_method_type = payment_method.payment_method_type.clone();
-    if let storage_models::enums::PaymentMethod::Card = payment_method.payment_method {
+    if let diesel_models::enums::PaymentMethod::Card = payment_method.payment_method {
         let _ =
             cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
         if let Some(payment_method_from_request) = req.payment_method {
@@ -1452,6 +1452,7 @@ pub fn get_handle_response_url(
         merchant_account,
         redirection_response,
         payments_return_url,
+        response.client_secret.as_ref(),
     )
     .attach_printable("Failed to make merchant url with response")?;
 
@@ -1462,6 +1463,7 @@ pub fn make_merchant_url_with_response(
     merchant_account: &domain::MerchantAccount,
     redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
+    client_secret: Option<&masking::Secret<String>>,
 ) -> RouterResult<String> {
     // take return url if provided in the request else use merchant return url
     let url = request_return_url
@@ -1470,14 +1472,20 @@ pub fn make_merchant_url_with_response(
 
     let status_check = redirection_response.status;
 
-    let payment_intent_id = redirection_response.payment_id;
+    let payment_client_secret = client_secret
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Expected client secret to be `Some`")?;
 
     let merchant_url_with_response = if merchant_account.redirect_to_merchant_with_http_post {
         url::Url::parse_with_params(
             url,
             &[
                 ("status", status_check.to_string()),
-                ("payment_intent_client_secret", payment_intent_id),
+                (
+                    "payment_intent_client_secret",
+                    payment_client_secret.peek().to_string(),
+                ),
             ],
         )
         .into_report()
@@ -1489,7 +1497,10 @@ pub fn make_merchant_url_with_response(
             url,
             &[
                 ("status", status_check.to_string()),
-                ("payment_intent_client_secret", payment_intent_id),
+                (
+                    "payment_intent_client_secret",
+                    payment_client_secret.peek().to_string(),
+                ),
                 ("amount", amount.to_string()),
             ],
         )
@@ -2325,6 +2336,7 @@ impl AttemptType {
             mandate_details: old_payment_attempt.mandate_details,
             preprocessing_step_id: None,
             error_reason: None,
+            connector_response_reference_id: None,
         }
     }
 
