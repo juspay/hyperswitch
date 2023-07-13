@@ -619,6 +619,7 @@ mod merchant_connector_account_cache_tests {
             business_sub_label: None,
             created_at: date_time::now(),
             modified_at: date_time::now(),
+            connector_webhook_details: None,
         };
 
         let key_store = db

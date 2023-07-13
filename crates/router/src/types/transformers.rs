@@ -3,7 +3,6 @@ use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
-use storage_models::enums as storage_enums;
 
 use super::domain;
 use crate::{
