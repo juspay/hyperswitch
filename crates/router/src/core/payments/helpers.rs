@@ -2299,6 +2299,7 @@ impl AttemptType {
             mandate_details: old_payment_attempt.mandate_details,
             preprocessing_step_id: None,
             error_reason: None,
+            connector_response_reference_id: None,
         }
     }
 
