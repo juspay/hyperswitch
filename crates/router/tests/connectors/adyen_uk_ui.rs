@@ -181,7 +181,7 @@ async fn should_make_adyen_swish_payment(c: WebDriver) -> Result<(), WebDriverEr
             Event::Assert(Assert::IsPresent("status")),
             Event::Assert(Assert::IsPresent("processing")),
             Event::Assert(Assert::IsPresent("Next Action Type")),
-            Event::Assert(Assert::IsPresent("qr_code_information"))
+            Event::Assert(Assert::IsPresent("qr_code_information")),
         ],
     )
     .await?;
