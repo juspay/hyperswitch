@@ -18,6 +18,7 @@ THA = "THA"  # Thailand country code
 ZAR = "ZAR"  # South African Rand currency code
 klick = "klick" # Swedish word for clicks
 optin = "optin" # Boku preflow name
+optin_id = "optin_id" # Boku's id for optin flow
 
 [default.extend-words]
 aci = "aci"                   # Name of a connector
