@@ -12,6 +12,7 @@ use transformers as globepay;
 
 use crate::{
     configs::settings,
+    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{self, request, ConnectorIntegration},
@@ -119,7 +120,7 @@ impl ConnectorCommon for Globepay {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.return_code.to_string(),
-            message: response.return_code.to_string(),
+            message: consts::NO_ERROR_MESSAGE.to_string(),
             reason: Some(response.return_msg),
         })
     }

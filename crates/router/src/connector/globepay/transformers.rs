@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::RouterData,
+    consts,
     core::errors,
     types::{self, api, storage::enums},
 };
@@ -249,7 +250,7 @@ fn get_error_response(
 ) -> types::ErrorResponse {
     types::ErrorResponse {
         code: return_code.to_string(),
-        message: return_code.to_string(),
+        message: consts::NO_ERROR_MESSAGE.to_string(),
         reason: return_msg,
         status_code,
     }
