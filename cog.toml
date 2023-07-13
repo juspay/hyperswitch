@@ -1,5 +1,4 @@
 tag_prefix = "v"
-branch_whitelist = ["main"]
 ignore_merge_commits = true
 
 # the HTML comments (`<!-- N -->`) are a workaround to have sections in custom order, since they are alphabetically sorted

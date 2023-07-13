@@ -642,7 +642,7 @@ pub enum Connector {
     Fiserv,
     Forte,
     Globalpay,
-    // Globepay, added as template code for future usage
+    Globepay,
     Klarna,
     Mollie,
     Multisafepay,
@@ -656,7 +656,7 @@ pub enum Connector {
     Payme,
     Paypal,
     Payu,
-    //Powertranz,
+    Powertranz,
     Rapyd,
     Shift4,
     Stripe,
@@ -747,7 +747,7 @@ pub enum RoutableConnectors {
     Fiserv,
     Forte,
     Globalpay,
-    // Globepay, added as template code for future usage
+    Globepay,
     Iatapay,
     Klarna,
     Mollie,
@@ -762,7 +762,7 @@ pub enum RoutableConnectors {
     Payme,
     Paypal,
     Payu,
-    //Powertranz,
+    Powertranz,
     Rapyd,
     Shift4,
     Stripe,
@@ -1027,6 +1027,20 @@ pub struct UnresolvedResponseReason {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
+    UserFullName,
+    UserEmailAddress,
+    UserPhoneNumber,
+    UserCountry { options: Vec<String> },
+    UserAddressline1,
+    UserAddressline2,
+    UserAddressCity,
+    UserAddressPincode,
+    UserAddressState,
+    UserAddressCountry,
+    UserBlikCode,
+    FieldsComplete,
+    UserBillingName,
+    UserBank,
     Text,
     DropDown { options: Vec<String> },
 }

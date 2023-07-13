@@ -1,1 +1,1 @@
-pub use storage_models::configs::{Config, ConfigNew, ConfigUpdate, ConfigUpdateInternal};
+pub use diesel_models::configs::{Config, ConfigNew, ConfigUpdate, ConfigUpdateInternal};
