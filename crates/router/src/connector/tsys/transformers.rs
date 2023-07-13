@@ -121,10 +121,7 @@ pub struct AuthSaleResponse {
     pub response_code: String,
     pub response_message: String,
     #[serde(rename = "transactionID")]
-    pub transaction_id: String,
-    pub transaction_amount: String,
-    pub processed_amount: String,
-    pub card_transaction_identifier: String,
+    pub transaction_id: Option<String>,
 }
 
 impl<F, T>
@@ -135,13 +132,15 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, TsysPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let (transaction_id, status) = match item.response {
+        let (transaction_id, status, response_code, response_message) = match item.response {
             TsysPaymentsResponse::AuthResponse(auth_response) => (
                 auth_response.transaction_id,
                 match auth_response.status {
                     TsysPaymentStatus::Pass => enums::AttemptStatus::Authorized,
                     TsysPaymentStatus::Fail => enums::AttemptStatus::AuthorizationFailed,
                 },
+                auth_response.response_code,
+                auth_response.response_message,
             ),
             TsysPaymentsResponse::SaleResponse(sale_response) => (
                 sale_response.transaction_id,
@@ -149,21 +148,36 @@ impl<F, T>
                     TsysPaymentStatus::Pass => enums::AttemptStatus::Charged,
                     TsysPaymentStatus::Fail => enums::AttemptStatus::Failure,
                 },
+                sale_response.response_code,
+                sale_response.response_message,
             ),
         };
-        Ok(Self {
-            status,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(transaction_id),
+        let response = if response_code.chars().next().is_some_and(|x| x == 'A') {
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: transaction_id.map_or(types::ResponseId::NoResponseId, |t| {
+                    types::ResponseId::ConnectorTransactionId(t)
+                }),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-            }),
+            })
+        } else {
+            Err(types::ErrorResponse {
+                code: response_code,
+                message: response_message.clone(),
+                reason: Some(response_message),
+                status_code: item.http_code,
+            })
+        };
+        Ok(Self {
+            status,
+            response,
             ..item.data
         })
     }
 }
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TsysPSyncRequest {
@@ -460,42 +474,4 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
             ..item.data
         })
     }
-}
-
-//TODO: Fill the struct with respective fields
-// #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-// pub struct TsysErrorResponse {
-//     pub status_code: u16,
-//     pub code: String,
-//     pub message: String,
-//     pub reason: Option<String>,
-// }
-// "status": "FAIL",
-//         "responseCode": "F9901",
-//         "responseMessage": "The value of element 'expirationDate' is not vali
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct ErrorResponse {
-    status: TsysPaymentStatus,
-    response_code: String,
-    response_message: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "PascalCase")]
-pub struct TsysAuthErrorResponse {
-    auth_response: ErrorResponse,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "PascalCase")]
-pub struct TsysSaleErrorResponse {
-    sale_response: ErrorResponse,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde(untagged)]
-pub enum TsysErrorResponse {
-    AuthErrorResponse(TsysAuthErrorResponse),
-    SaleErrorResponse(TsysSaleErrorResponse),
 }
