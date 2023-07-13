@@ -1695,7 +1695,7 @@ pub async fn list_customer_payment_method(
         let time_eslapsed = current_datetime_utc
             - payment_intent
                 .map(|intent| intent.created_at)
-                .unwrap_or_else(common_utils::date_time::now);
+                .unwrap_or_else(|| current_datetime_utc);
         redis_conn
             .set_key_with_expiry(
                 &key_for_hyperswitch_token,
