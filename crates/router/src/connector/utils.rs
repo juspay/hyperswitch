@@ -20,7 +20,7 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     pii::PeekInterface,
-    types::{self, api, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
+    types::{self, api, storage, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
     utils::{self, OptionExt, ValueExt},
 };
 
@@ -881,7 +881,7 @@ pub fn to_currency_base_unit_asf64(
 
 pub fn check_and_remove_decimal(
     amount: i64,
-    currency: storage_models::enums::Currency,
+    currency: storage::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     if amount % 100 == 0 {
         let mut amount_string = utils::to_currency_base_unit(amount, currency)

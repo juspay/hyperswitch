@@ -13,7 +13,11 @@ use crate::{
     },
     core::errors::{self, CustomResult},
     services::{self, Method},
-    types::{self, api, storage::enums, transformers::ForeignTryFrom},
+    types::{
+        self, api,
+        storage::{self, enums},
+        transformers::ForeignTryFrom,
+    },
     utils::OptionExt,
 };
 // Auth Struct
@@ -440,10 +444,10 @@ impl
 
 fn get_amount(
     amount: i64,
-    currency: storage_models::enums::Currency,
+    currency: storage::enums::Currency,
 ) -> CustomResult<String, errors::ConnectorError> {
     match currency {
-        storage_models::enums::Currency::CLP => utils::check_and_remove_decimal(amount, currency),
+        storage::enums::Currency::CLP => utils::check_and_remove_decimal(amount, currency),
         _ => utils::to_currency_base_unit(amount, currency),
     }
 }
