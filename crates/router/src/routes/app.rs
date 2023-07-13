@@ -89,9 +89,9 @@ impl AppState {
             store,
             conf,
             #[cfg(feature = "email")]
-            email_client: email_client,
+            email_client,
             #[cfg(feature = "kms")]
-            kms_secrets: kms_secrets,
+            kms_secrets,
         }
     }
 
