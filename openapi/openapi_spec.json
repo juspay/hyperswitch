@@ -2914,6 +2914,18 @@
           "Maestro"
         ]
       },
+      "CashtoCodeData": {
+        "type": "object",
+        "required": [
+          "merchant_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The merchant ID with which we have to call the connector"
+          }
+        }
+      },
       "Connector": {
         "type": "string",
         "enum": [
