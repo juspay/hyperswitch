@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 #[cfg(feature = "payouts")]
+use crate::connector::utils::AddressDetailsData;
+#[cfg(feature = "payouts")]
 use crate::types::api::payouts;
 use crate::{
     connector::utils::{
@@ -2157,8 +2159,8 @@ pub struct AdyenPayoutCreateRequest {
     shopper_reference: String,
     shopper_email: Option<Email>,
     shopper_name: ShopperName,
-    date_of_birth: Option<String>,
-    entity_type: Option<storage_enums::EntityType>,
+    date_of_birth: Option<Secret<String>>,
+    entity_type: Option<storage_enums::PayoutEntityType>,
     nationality: Option<storage_enums::CountryAlpha2>,
     billing_address: Option<Address>,
 }
@@ -2173,7 +2175,7 @@ struct PayoutBankDetails {
     iban: Option<Secret<String>>,
     owner_name: Option<Secret<String>>,
     bank_city: String,
-    tax_id: Option<String>,
+    tax_id: Option<Secret<String>>,
 }
 
 #[cfg(feature = "payouts")]
@@ -2271,7 +2273,7 @@ pub struct PayoutFulfillCardRequest {
     reference: String,
     shopper_name: ShopperName,
     nationality: Option<storage_enums::CountryAlpha2>,
-    entity_type: Option<storage_enums::EntityType>,
+    entity_type: Option<storage_enums::PayoutEntityType>,
 }
 
 #[cfg(feature = "payouts")]
@@ -2364,6 +2366,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutCreateRequest {
                         payment_experience: "".to_string(),
                     })?,
                 };
+                let address: &payments::AddressDetails = item.get_billing_address()?;
                 Ok(Self {
                     amount: Amount {
                         value: item.request.amount,
@@ -2377,12 +2380,10 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutCreateRequest {
                     reference: item.request.payout_id.to_owned(),
                     shopper_reference: item.merchant_id.to_owned(),
                     shopper_email: customer_email,
-                    shopper_name: get_shopper_name(item.address.billing.as_ref()).map_or(
-                        Err(errors::ConnectorError::MissingRequiredField {
-                            field_name: "shopperName",
-                        }),
-                        Ok,
-                    )?,
+                    shopper_name: ShopperName {
+                        first_name: address.get_first_name().ok().cloned(),
+                        last_name: address.get_last_name().ok().cloned(),
+                    },
                     date_of_birth: None,
                     entity_type: Some(item.request.entity_type),
                     nationality: get_country_code(item.address.billing.as_ref()),
@@ -2400,7 +2401,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutFulfillRequest {
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         let payout_type = item.request.payout_type.to_owned();
-
         let merchant_account = auth_type.merchant_account;
         match payout_type {
             storage_enums::PayoutType::Bank => Ok(Self::Bank(PayoutFulfillBankRequest {
@@ -2411,29 +2411,30 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutFulfillRequest {
                     .clone()
                     .unwrap_or("".to_string()),
             })),
-            storage_enums::PayoutType::Card => Ok(Self::Card(Box::new(PayoutFulfillCardRequest {
-                amount: Amount {
-                    value: item.request.amount,
-                    currency: item.request.destination_currency.to_string(),
-                },
-                card: get_payout_card_details(&item.get_payout_method_data()?).map_or(
-                    Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payout_method_data",
-                    }),
-                    Ok,
-                )?,
-                billing_address: get_address_info(item.get_billing().ok()),
-                merchant_account,
-                reference: item.request.payout_id.clone(),
-                shopper_name: get_shopper_name(item.address.billing.as_ref()).map_or(
-                    Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "shopperName",
-                    }),
-                    Ok,
-                )?,
-                nationality: get_country_code(item.address.billing.as_ref()),
-                entity_type: Some(item.request.entity_type),
-            }))),
+            storage_enums::PayoutType::Card => {
+                let address = item.get_billing_address()?;
+                Ok(Self::Card(Box::new(PayoutFulfillCardRequest {
+                    amount: Amount {
+                        value: item.request.amount,
+                        currency: item.request.destination_currency.to_string(),
+                    },
+                    card: get_payout_card_details(&item.get_payout_method_data()?).map_or(
+                        Err(errors::ConnectorError::MissingRequiredField {
+                            field_name: "payout_method_data",
+                        }),
+                        Ok,
+                    )?,
+                    billing_address: get_address_info(item.get_billing().ok()),
+                    merchant_account,
+                    reference: item.request.payout_id.clone(),
+                    shopper_name: ShopperName {
+                        first_name: address.get_first_name().ok().cloned(),
+                        last_name: address.get_last_name().ok().cloned(),
+                    },
+                    nationality: get_country_code(item.address.billing.as_ref()),
+                    entity_type: Some(item.request.entity_type),
+                })))
+            }
         }
     }
 }

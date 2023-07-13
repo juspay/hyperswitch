@@ -357,25 +357,42 @@ impl Vaultable for api::CardPayout {
     }
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankSensitiveValues {
+    pub bank_account_number: Option<masking::Secret<String>>,
+    pub bank_routing_number: Option<masking::Secret<String>>,
+    pub bic: Option<masking::Secret<String>>,
+    pub bank_sort_code: Option<masking::Secret<String>>,
+    pub iban: Option<masking::Secret<String>>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankInsensitiveValues {
+    pub customer_id: Option<String>,
+    pub bank_name: String,
+    pub bank_country_code: api::enums::CountryAlpha2,
+    pub bank_city: String,
+}
+
 #[cfg(feature = "payouts")]
 impl Vaultable for api::BankPayout {
     fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let bank_sensitive_data = match self {
-            Self::Ach(b) => api::TokenizedBankSensitiveValues {
+            Self::Ach(b) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(b.bank_account_number.clone()),
                 bank_routing_number: Some(b.bank_routing_number.to_owned()),
                 bic: None,
                 bank_sort_code: None,
                 iban: None,
             },
-            Self::Bacs(b) => api::TokenizedBankSensitiveValues {
+            Self::Bacs(b) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(b.bank_account_number.to_owned()),
                 bank_routing_number: None,
                 bic: None,
                 bank_sort_code: Some(b.bank_sort_code.to_owned()),
                 iban: None,
             },
-            Self::Sepa(b) => api::TokenizedBankSensitiveValues {
+            Self::Sepa(b) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
                 bank_routing_number: None,
                 bic: b.bic.to_owned(),
@@ -384,7 +401,7 @@ impl Vaultable for api::BankPayout {
             },
         };
 
-        utils::Encode::<api::TokenizedBankSensitiveValues>::encode_to_string_of_json(
+        utils::Encode::<TokenizedBankSensitiveValues>::encode_to_string_of_json(
             &bank_sensitive_data,
         )
         .change_context(errors::VaultError::RequestEncodingFailed)
@@ -393,19 +410,19 @@ impl Vaultable for api::BankPayout {
 
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let bank_insensitive_data = match self {
-            Self::Ach(b) => api::TokenizedBankInsensitiveValues {
+            Self::Ach(b) => TokenizedBankInsensitiveValues {
                 customer_id,
                 bank_name: b.bank_name.to_owned(),
                 bank_country_code: b.bank_country_code.to_owned(),
                 bank_city: b.bank_city.to_owned(),
             },
-            Self::Bacs(b) => api::TokenizedBankInsensitiveValues {
+            Self::Bacs(b) => TokenizedBankInsensitiveValues {
                 customer_id,
                 bank_name: b.bank_name.to_owned(),
                 bank_country_code: b.bank_country_code.to_owned(),
                 bank_city: b.bank_city.to_owned(),
             },
-            Self::Sepa(b) => api::TokenizedBankInsensitiveValues {
+            Self::Sepa(b) => TokenizedBankInsensitiveValues {
                 customer_id,
                 bank_name: b.bank_name.to_owned(),
                 bank_country_code: b.bank_country_code.to_owned(),
@@ -413,7 +430,7 @@ impl Vaultable for api::BankPayout {
             },
         };
 
-        utils::Encode::<api::TokenizedBankInsensitiveValues>::encode_to_string_of_json(
+        utils::Encode::<TokenizedBankInsensitiveValues>::encode_to_string_of_json(
             &bank_insensitive_data,
         )
         .change_context(errors::VaultError::RequestEncodingFailed)
@@ -424,12 +441,12 @@ impl Vaultable for api::BankPayout {
         bank_sensitive_data: String,
         bank_insensitive_data: String,
     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
-        let bank_sensitive_data: api::TokenizedBankSensitiveValues = bank_sensitive_data
+        let bank_sensitive_data: TokenizedBankSensitiveValues = bank_sensitive_data
             .parse_struct("TokenizedBankValue1")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into bank data bank_sensitive_data")?;
 
-        let bank_insensitive_data: api::TokenizedBankInsensitiveValues = bank_insensitive_data
+        let bank_insensitive_data: TokenizedBankInsensitiveValues = bank_insensitive_data
             .parse_struct("TokenizedBankValue2")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into wallet data bank_insensitive_data")?;
@@ -576,7 +593,7 @@ impl Vault {
 
     #[cfg(feature = "payouts")]
     #[instrument(skip_all)]
-    pub async fn get_payout_method_data_from_locker(
+    pub async fn get_payout_method_data_from_temporary_locker(
         state: &routes::AppState,
         lookup_key: &str,
     ) -> RouterResult<(Option<api::PayoutMethodData>, SupplementaryVaultData)> {
@@ -772,7 +789,7 @@ impl Vault {
 
     #[cfg(feature = "payouts")]
     #[instrument(skip_all)]
-    pub async fn get_payout_method_data_from_locker(
+    pub async fn get_payout_method_data_from_temporary_locker(
         state: &routes::AppState,
         lookup_key: &str,
     ) -> RouterResult<(Option<api::PayoutMethodData>, SupplementaryVaultData)> {

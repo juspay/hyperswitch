@@ -253,7 +253,7 @@ diesel::table! {
         card_cvc -> Nullable<Varchar>,
         #[max_length = 64]
         payment_method_id -> Nullable<Varchar>,
-        enc_card_data -> Nullable<Text>,
+        encrypted_card_data -> Nullable<Text>,
     }
 }
 
@@ -329,7 +329,7 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         frm_routing_algorithm -> Nullable<Jsonb>,
-        payout_routing_algorithm -> Nullable<Json>,
+        payout_routing_algorithm -> Nullable<Jsonb>,
     }
 }
 
@@ -530,8 +530,9 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payout_attempt (id) {
-        id -> Int4,
+    payout_attempt (payout_attempt_id) {
+        #[max_length = 64]
+        payout_attempt_id -> Varchar,
         #[max_length = 64]
         payout_id -> Varchar,
         #[max_length = 64]
@@ -542,13 +543,12 @@ diesel::table! {
         address_id -> Varchar,
         #[max_length = 64]
         connector -> Varchar,
-        #[max_length = 64]
+        #[max_length = 128]
         connector_payout_id -> Varchar,
         #[max_length = 64]
         payout_token -> Nullable<Varchar>,
         status -> PayoutStatus,
         is_eligible -> Nullable<Bool>,
-        encoded_data -> Nullable<Text>,
         error_message -> Nullable<Text>,
         #[max_length = 64]
         error_code -> Nullable<Varchar>,
@@ -562,8 +562,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payouts (id) {
-        id -> Int4,
+    payouts (payout_id) {
         #[max_length = 64]
         payout_id -> Varchar,
         #[max_length = 64]
@@ -584,7 +583,8 @@ diesel::table! {
         auto_fulfill -> Bool,
         #[max_length = 255]
         return_url -> Nullable<Varchar>,
-        entity_type -> EntityType,
+        #[max_length = 64]
+        entity_type -> Varchar,
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,

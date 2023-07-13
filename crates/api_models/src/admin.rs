@@ -35,7 +35,7 @@ pub struct MerchantAccountCreate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
     pub routing_algorithm: Option<serde_json::Value>,
 
-    /// The routing algorithm to be be used for routing payouts to desired connectors
+    /// The routing algorithm to be  used for routing payouts to desired connectors
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     #[serde(
@@ -119,7 +119,7 @@ pub struct MerchantAccountUpdate {
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
     pub routing_algorithm: Option<serde_json::Value>,
 
-    /// The routing algorithm to be be used for routing payouts to desired connectors
+    /// The routing algorithm to be used for routing payouts to desired connectors
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     #[serde(
@@ -209,7 +209,7 @@ pub struct MerchantAccountResponse {
     #[schema(value_type = Option<RoutingAlgorithm>, max_length = 255, example = "custom")]
     pub routing_algorithm: Option<serde_json::Value>,
 
-    /// The routing algorithm to be be used for routing payouts to desired connectors
+    /// The routing algorithm to be used for routing payouts to desired connectors
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     #[serde(
@@ -529,8 +529,8 @@ pub struct MerchantConnectorCreate {
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
     /// Name of the Connector
-    #[schema(value_type = Connectors, example = "stripe")]
-    pub connector_name: api_enums::Connectors,
+    #[schema(value_type = Connector, example = "stripe")]
+    pub connector_name: api_enums::Connector,
     // /// Connector label for specific country and Business
     #[serde(skip_deserializing)]
     #[schema(example = "stripe_US_travel")]

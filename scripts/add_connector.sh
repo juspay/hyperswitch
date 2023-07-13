@@ -24,7 +24,6 @@ function find_prev_connector() {
 }
 pg=$1;
 base_url=$2;
-connector_type=$3;
 pgc="$(tr '[:lower:]' '[:upper:]' <<< ${pg:0:1})${pg:1}"
 src="crates/router/src"
 conn="$src/connector"
@@ -34,8 +33,8 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 ORANGE='\033[0;33m'
 
-if [ -z "$pg" ] || [ -z "$base_url" ] || [ -z "$connector_type" ]; then
-    echo "$RED Connector name, base_url or connector_type not present: try $GREEN\"sh add_connector.sh adyen https://test.adyen.com\" payment"
+if [ -z "$pg" ] || [ -z "$base_url" ]; then
+    echo "$RED Connector name or base_url not present: try $GREEN\"sh add_connector.sh adyen https://test.adyen.com\""
     exit
 fi
 cd $SCRIPT/..
@@ -54,12 +53,9 @@ sed -i'' -e "s|\"$prvc\" \(.*\)|\"$prvc\" \1\n\t\t\t\"${pg}\" => Ok(Box::new(\&c
 sed -i'' -e "s/pub $prvc: \(.*\)/pub $prvc: \1\n\tpub ${pg}: ConnectorParams,/" $src/configs/settings.rs
 sed -i'' -e "s|$prvc.base_url \(.*\)|$prvc.base_url \1\n${pg}.base_url = \"$base_url\"|" config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml
 sed  -r -i'' -e "s/\"$prvc\",/\"$prvc\",\n    \"${pg}\",/" config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml
+sed -i'' -e "s/pub enum RoutableConnectors {/pub enum RoutableConnectors {\n\t${pgc},/" crates/api_models/src/enums.rs
 sed -i'' -e "s/Dummy,/Dummy,\n\t${pgc},/" crates/api_models/src/enums.rs
 sed -i'' -e "s/^default_imp_for_\(.*\)/default_imp_for_\1\n\tconnector::${pgc},/" $src/core/payments/flows.rs
-case "$connector_type" of
-    payout) sed -i'' -e "s/pub enum PayoutConnectors {/pub enum PayoutConnectors {\n\t${pgc},/" crates/api_models/src/enums.rs   ;;
-    *)      sed -i'' -e "s/pub enum RoutableConnectors {/pub enum RoutableConnectors {\n\t${pgc},/" crates/api_models/src/enums.rs ;;
-esac
 
 # remove temporary files created in above step
 rm $conn.rs-e $src/types/api.rs-e $src/configs/settings.rs-e config/development.toml-e config/docker_compose.toml-e config/config.example.toml-e loadtest/config/development.toml-e crates/api_models/src/enums.rs-e $src/core/payments/flows.rs-e

@@ -681,12 +681,12 @@ impl api::PayoutEligibility for Adyen {}
 impl api::PayoutFulfill for Adyen {}
 
 #[cfg(feature = "payouts")]
-impl services::ConnectorIntegration<api::PCancel, types::PayoutsData, types::PayoutsResponseData>
+impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsResponseData>
     for Adyen
 {
     fn get_url(
         &self,
-        _req: &types::PayoutsRouterData<api::PCancel>,
+        _req: &types::PayoutsRouterData<api::PoCancel>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -697,7 +697,7 @@ impl services::ConnectorIntegration<api::PCancel, types::PayoutsData, types::Pay
 
     fn get_headers(
         &self,
-        req: &types::PayoutsRouterData<api::PCancel>,
+        req: &types::PayoutsRouterData<api::PoCancel>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
@@ -718,7 +718,7 @@ impl services::ConnectorIntegration<api::PCancel, types::PayoutsData, types::Pay
 
     fn get_request_body(
         &self,
-        req: &types::PayoutsRouterData<api::PCancel>,
+        req: &types::PayoutsRouterData<api::PoCancel>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = adyen::AdyenPayoutCancelRequest::try_from(req)?;
         let adyen_req = types::RequestBody::log_and_get_request_body(
@@ -731,7 +731,7 @@ impl services::ConnectorIntegration<api::PCancel, types::PayoutsData, types::Pay
 
     fn build_request(
         &self,
-        req: &types::PayoutsRouterData<api::PCancel>,
+        req: &types::PayoutsRouterData<api::PoCancel>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
@@ -748,9 +748,9 @@ impl services::ConnectorIntegration<api::PCancel, types::PayoutsData, types::Pay
     #[instrument(skip_all)]
     fn handle_response(
         &self,
-        data: &types::PayoutsRouterData<api::PCancel>,
+        data: &types::PayoutsRouterData<api::PoCancel>,
         res: types::Response,
-    ) -> CustomResult<types::PayoutsRouterData<api::PCancel>, errors::ConnectorError> {
+    ) -> CustomResult<types::PayoutsRouterData<api::PoCancel>, errors::ConnectorError> {
         let response: adyen::AdyenPayoutResponse = res
             .response
             .parse_struct("AdyenPayoutResponse")
@@ -771,12 +771,12 @@ impl services::ConnectorIntegration<api::PCancel, types::PayoutsData, types::Pay
 }
 
 #[cfg(feature = "payouts")]
-impl services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::PayoutsResponseData>
+impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData>
     for Adyen
 {
     fn get_url(
         &self,
-        _req: &types::PayoutsRouterData<api::PCreate>,
+        _req: &types::PayoutsRouterData<api::PoCreate>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -787,7 +787,7 @@ impl services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::Pay
 
     fn get_headers(
         &self,
-        req: &types::PayoutsRouterData<api::PCreate>,
+        req: &types::PayoutsRouterData<api::PoCreate>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
@@ -803,7 +803,7 @@ impl services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::Pay
 
     fn get_request_body(
         &self,
-        req: &types::PayoutsRouterData<api::PCreate>,
+        req: &types::PayoutsRouterData<api::PoCreate>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = adyen::AdyenPayoutCreateRequest::try_from(req)?;
         let adyen_req = types::RequestBody::log_and_get_request_body(
@@ -816,7 +816,7 @@ impl services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::Pay
 
     fn build_request(
         &self,
-        req: &types::PayoutsRouterData<api::PCreate>,
+        req: &types::PayoutsRouterData<api::PoCreate>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
@@ -833,9 +833,9 @@ impl services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::Pay
     #[instrument(skip_all)]
     fn handle_response(
         &self,
-        data: &types::PayoutsRouterData<api::PCreate>,
+        data: &types::PayoutsRouterData<api::PoCreate>,
         res: types::Response,
-    ) -> CustomResult<types::PayoutsRouterData<api::PCreate>, errors::ConnectorError> {
+    ) -> CustomResult<types::PayoutsRouterData<api::PoCreate>, errors::ConnectorError> {
         let response: adyen::AdyenPayoutResponse = res
             .response
             .parse_struct("AdyenPayoutResponse")
@@ -858,14 +858,14 @@ impl services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::Pay
 #[cfg(feature = "payouts")]
 impl
     services::ConnectorIntegration<
-        api::PEligibility,
+        api::PoEligibility,
         types::PayoutsData,
         types::PayoutsResponseData,
     > for Adyen
 {
     fn get_url(
         &self,
-        _req: &types::PayoutsRouterData<api::PEligibility>,
+        _req: &types::PayoutsRouterData<api::PoEligibility>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}v68/payments", self.base_url(connectors),))
@@ -873,7 +873,7 @@ impl
 
     fn get_headers(
         &self,
-        req: &types::PayoutsRouterData<api::PEligibility>,
+        req: &types::PayoutsRouterData<api::PoEligibility>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
@@ -889,7 +889,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PayoutsRouterData<api::PEligibility>,
+        req: &types::PayoutsRouterData<api::PoEligibility>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = adyen::AdyenPayoutEligibilityRequest::try_from(req)?;
         let adyen_req = types::RequestBody::log_and_get_request_body(
@@ -902,7 +902,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PayoutsRouterData<api::PEligibility>,
+        req: &types::PayoutsRouterData<api::PoEligibility>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
@@ -923,9 +923,9 @@ impl
     #[instrument(skip_all)]
     fn handle_response(
         &self,
-        data: &types::PayoutsRouterData<api::PEligibility>,
+        data: &types::PayoutsRouterData<api::PoEligibility>,
         res: types::Response,
-    ) -> CustomResult<types::PayoutsRouterData<api::PEligibility>, errors::ConnectorError> {
+    ) -> CustomResult<types::PayoutsRouterData<api::PoEligibility>, errors::ConnectorError> {
         let response: adyen::AdyenPayoutResponse = res
             .response
             .parse_struct("AdyenPayoutResponse")
@@ -946,12 +946,12 @@ impl
 }
 
 #[cfg(feature = "payouts")]
-impl services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::PayoutsResponseData>
+impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData>
     for Adyen
 {
     fn get_url(
         &self,
-        req: &types::PayoutsRouterData<api::PFulfill>,
+        req: &types::PayoutsRouterData<api::PoFulfill>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -966,7 +966,7 @@ impl services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::Pa
 
     fn get_headers(
         &self,
-        req: &types::PayoutsRouterData<api::PFulfill>,
+        req: &types::PayoutsRouterData<api::PoFulfill>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
@@ -990,7 +990,7 @@ impl services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::Pa
 
     fn get_request_body(
         &self,
-        req: &types::PayoutsRouterData<api::PFulfill>,
+        req: &types::PayoutsRouterData<api::PoFulfill>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = adyen::AdyenPayoutFulfillRequest::try_from(req)?;
         let adyen_req = types::RequestBody::log_and_get_request_body(
@@ -1003,7 +1003,7 @@ impl services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::Pa
 
     fn build_request(
         &self,
-        req: &types::PayoutsRouterData<api::PFulfill>,
+        req: &types::PayoutsRouterData<api::PoFulfill>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
@@ -1022,9 +1022,9 @@ impl services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::Pa
     #[instrument(skip_all)]
     fn handle_response(
         &self,
-        data: &types::PayoutsRouterData<api::PFulfill>,
+        data: &types::PayoutsRouterData<api::PoFulfill>,
         res: types::Response,
-    ) -> CustomResult<types::PayoutsRouterData<api::PFulfill>, errors::ConnectorError> {
+    ) -> CustomResult<types::PayoutsRouterData<api::PoFulfill>, errors::ConnectorError> {
         let response: adyen::AdyenPayoutResponse = res
             .response
             .parse_struct("AdyenPayoutResponse")

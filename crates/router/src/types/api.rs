@@ -317,6 +317,7 @@ impl ConnectorData {
                 enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
                 enums::Connector::Shift4 => Ok(Box::new(&connector::Shift4)),
                 enums::Connector::Stripe => Ok(Box::new(&connector::Stripe)),
+                enums::Connector::Wise => Ok(Box::new(&connector::Wise)),
                 enums::Connector::Worldline => Ok(Box::new(&connector::Worldline)),
                 enums::Connector::Worldpay => Ok(Box::new(&connector::Worldpay)),
                 enums::Connector::Multisafepay => Ok(Box::new(&connector::Multisafepay)),

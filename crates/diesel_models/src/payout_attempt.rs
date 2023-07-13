@@ -4,8 +4,9 @@ use crate::{enums as storage_enums, schema::payout_attempt};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Identifiable, Queryable)]
 #[diesel(table_name = payout_attempt)]
+#[diesel(primary_key(payout_attempt_id))]
 pub struct PayoutAttempt {
-    pub id: i32,
+    pub payout_attempt_id: String,
     pub payout_id: String,
     pub customer_id: String,
     pub merchant_id: String,
@@ -15,7 +16,6 @@ pub struct PayoutAttempt {
     pub payout_token: Option<String>,
     pub status: storage_enums::PayoutStatus,
     pub is_eligible: Option<bool>,
-    pub encoded_data: Option<String>,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
@@ -34,6 +34,7 @@ pub struct PayoutAttempt {
 )]
 #[diesel(table_name = payout_attempt)]
 pub struct PayoutAttemptNew {
+    pub payout_attempt_id: String,
     pub payout_id: String,
     pub customer_id: String,
     pub merchant_id: String,
@@ -43,7 +44,6 @@ pub struct PayoutAttemptNew {
     pub payout_token: Option<String>,
     pub status: storage_enums::PayoutStatus,
     pub is_eligible: Option<bool>,
-    pub encoded_data: Option<String>,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
     pub business_country: Option<storage_enums::CountryAlpha2>,

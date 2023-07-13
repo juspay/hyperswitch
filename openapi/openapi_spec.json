@@ -3226,6 +3226,7 @@
           "shift4",
           "stripe",
           "trustpay",
+          "wise",
           "worldline",
           "worldpay",
           "zen"
@@ -3271,16 +3272,6 @@
           "banking_entities",
           "non_banking_finance",
           "payout_processor"
-        ]
-      },
-      "Connectors": {
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/PaymentConnectors"
-          },
-          {
-            "$ref": "#/components/schemas/PayoutConnectors"
-          }
         ]
       },
       "CountryAlpha2": {
@@ -4231,17 +4222,6 @@
           "dispute_challenged",
           "dispute_won",
           "dispute_lost"
-        ]
-      },
-      "EntityType": {
-        "type": "string",
-        "enum": [
-          "Individual",
-          "Company",
-          "NonProfit",
-          "PublicSector",
-          "lowercase",
-          "Personal"
         ]
       },
       "EphemeralKeyCreateResponse": {
@@ -5404,7 +5384,7 @@
             "$ref": "#/components/schemas/ConnectorType"
           },
           "connector_name": {
-            "$ref": "#/components/schemas/Connectors"
+            "$ref": "#/components/schemas/Connector"
           },
           "connector_label": {
             "type": "string",
@@ -6269,54 +6249,6 @@
             "description": "Token generated for the Apple pay"
           }
         }
-      },
-      "PaymentConnectors": {
-        "type": "string",
-        "enum": [
-          "phonypay",
-          "fauxpay",
-          "pretendpay",
-          "stripe_test",
-          "adyen_test",
-          "checkout_test",
-          "paypal_test",
-          "aci",
-          "adyen",
-          "airwallex",
-          "authorizedotnet",
-          "bitpay",
-          "bambora",
-          "bluesnap",
-          "braintree",
-          "cashtocode",
-          "checkout",
-          "coinbase",
-          "cryptopay",
-          "cybersource",
-          "dlocal",
-          "fiserv",
-          "forte",
-          "globalpay",
-          "iatapay",
-          "klarna",
-          "mollie",
-          "multisafepay",
-          "nexinets",
-          "nmi",
-          "noon",
-          "nuvei",
-          "opennode",
-          "payme",
-          "paypal",
-          "payu",
-          "rapyd",
-          "shift4",
-          "stripe",
-          "trustpay",
-          "worldline",
-          "worldpay",
-          "zen"
-        ]
       },
       "PaymentExperience": {
         "type": "string",
@@ -8163,7 +8095,7 @@
         "required": [
           "merchant_id",
           "currency",
-          "create_payout",
+          "confirm",
           "payout_type",
           "customer_id",
           "auto_fulfill",
@@ -8217,7 +8149,7 @@
             ],
             "nullable": true
           },
-          "create_payout": {
+          "confirm": {
             "type": "boolean",
             "description": "The boolean value to create payout with connector",
             "default": false,
@@ -8304,7 +8236,7 @@
             "example": "It's my first payout request"
           },
           "entity_type": {
-            "$ref": "#/components/schemas/EntityType"
+            "$ref": "#/components/schemas/PayoutEntityType"
           },
           "recurring": {
             "type": "boolean",
@@ -8446,7 +8378,7 @@
             "example": "It's my first payout request"
           },
           "entity_type": {
-            "$ref": "#/components/schemas/EntityType"
+            "$ref": "#/components/schemas/PayoutEntityType"
           },
           "recurring": {
             "type": "boolean",
@@ -8473,6 +8405,17 @@
             "example": "E0001"
           }
         }
+      },
+      "PayoutEntityType": {
+        "type": "string",
+        "enum": [
+          "Individual",
+          "Company",
+          "NonProfit",
+          "PublicSector",
+          "lowercase",
+          "Personal"
+        ]
       },
       "PayoutMethodData": {
         "oneOf": [

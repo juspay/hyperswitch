@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use error_stack::report;
 use router_env::{instrument, tracing};
 
@@ -31,28 +31,6 @@ impl Payouts {
         .await
     }
 
-    pub async fn find_by_merchant_id_customer_id(
-        conn: &PgPooledConn,
-        merchant_id: &str,
-        customer_id: &str,
-    ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<
-            <Self as HasTable>::Table,
-            _,
-            <<Self as HasTable>::Table as Table>::PrimaryKey,
-            _,
-        >(
-            conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::customer_id.eq(customer_id.to_owned())),
-            None,
-            None,
-            None,
-        )
-        .await
-    }
-
     pub async fn update_by_merchant_id_payout_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -72,17 +50,5 @@ impl Payouts {
         .ok_or_else(|| {
             report!(errors::DatabaseError::NotFound).attach_printable("Error while updating payout")
         })
-    }
-
-    #[instrument(skip(conn))]
-    pub async fn delete_by_payout_id(
-        conn: &PgPooledConn,
-        payout_id: String,
-    ) -> StorageResult<Self> {
-        generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, Self>(
-            conn,
-            dsl::payout_id.eq(payout_id),
-        )
-        .await
     }
 }

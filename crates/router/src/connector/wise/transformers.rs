@@ -15,7 +15,7 @@ use crate::{
     connector::utils::RouterData,
     types::{
         api::payouts,
-        storage::enums::{self as storage_enums, EntityType},
+        storage::enums::{self as storage_enums, PayoutEntityType},
         transformers::ForeignFrom,
     },
 };
@@ -314,7 +314,7 @@ fn get_payout_address_details(
 fn get_payout_bank_details(
     payout_method_data: PayoutMethodData,
     address: &Option<api_models::payments::Address>,
-    entity_type: EntityType,
+    entity_type: PayoutEntityType,
 ) -> Result<WiseBankDetails, errors::ConnectorError> {
     let wise_address_details = match get_payout_address_details(address) {
         Some(a) => Ok(a),
@@ -475,12 +475,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutCreateRequest {
         match request.payout_type.to_owned() {
             storage_enums::PayoutType::Bank => {
                 let connector_customer_id = item.get_connector_customer_id()?;
-                let quote_uuid =
-                    request
-                        .quote_id
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "quote_id",
-                        })?;
+                let quote_uuid = item.get_quote_id()?;
                 let wise_transfer_details = WiseTransferDetails {
                     transfer_purpose: None,
                     source_of_funds: None,
@@ -589,11 +584,15 @@ impl ForeignFrom<WiseStatus> for storage_enums::PayoutStatus {
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<EntityType> for LegalType {
-    fn foreign_from(entity_type: EntityType) -> Self {
+impl ForeignFrom<PayoutEntityType> for LegalType {
+    fn foreign_from(entity_type: PayoutEntityType) -> Self {
         match entity_type {
-            EntityType::Individual | EntityType::Personal | EntityType::NonProfit => Self::Private,
-            EntityType::Company | EntityType::PublicSector | EntityType::Business => Self::Business,
+            PayoutEntityType::Individual
+            | PayoutEntityType::Personal
+            | PayoutEntityType::NonProfit => Self::Private,
+            PayoutEntityType::Company
+            | PayoutEntityType::PublicSector
+            | PayoutEntityType::Business => Self::Business,
         }
     }
 }

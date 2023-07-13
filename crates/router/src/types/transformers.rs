@@ -1,6 +1,8 @@
 use api_models::enums as api_enums;
 use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
 use diesel_models::enums as storage_enums;
+#[cfg(feature = "payouts")]
+use error_stack::report;
 use error_stack::ResultExt;
 use masking::PeekInterface;
 
@@ -389,15 +391,51 @@ impl ForeignFrom<storage_enums::Currency> for api_enums::Currency {
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<storage_enums::EntityType> for api_enums::EntityType {
-    fn foreign_from(entity_type: storage_enums::EntityType) -> Self {
+impl ForeignTryFrom<String> for api_enums::PayoutEntityType {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(entity_type: String) -> Result<Self, Self::Error> {
+        match entity_type.as_str() {
+            "Individual" => Ok(Self::Individual),
+            "Company" => Ok(Self::Company),
+            "NonProfit" => Ok(Self::NonProfit),
+            "PublicSector" => Ok(Self::PublicSector),
+            "business" => Ok(Self::Business),
+            "personal" => Ok(Self::Personal),
+            _ => Err(report!(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "entity_type",
+            })),
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignTryFrom<String> for storage_enums::PayoutEntityType {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(entity_type: String) -> Result<Self, Self::Error> {
+        match entity_type.as_str() {
+            "Individual" => Ok(Self::Individual),
+            "Company" => Ok(Self::Company),
+            "NonProfit" => Ok(Self::NonProfit),
+            "PublicSector" => Ok(Self::PublicSector),
+            "business" => Ok(Self::Business),
+            "personal" => Ok(Self::Personal),
+            _ => Err(report!(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "entity_type",
+            })),
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<storage_enums::PayoutEntityType> for api_enums::PayoutEntityType {
+    fn foreign_from(entity_type: storage_enums::PayoutEntityType) -> Self {
         frunk::labelled_convert_from(entity_type)
     }
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<api_enums::EntityType> for storage_enums::EntityType {
-    fn foreign_from(entity_type: api_enums::EntityType) -> Self {
+impl ForeignFrom<api_enums::PayoutEntityType> for storage_enums::PayoutEntityType {
+    fn foreign_from(entity_type: api_enums::PayoutEntityType) -> Self {
         frunk::labelled_convert_from(entity_type)
     }
 }

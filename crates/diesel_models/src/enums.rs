@@ -4,7 +4,7 @@ pub mod diesel_exports {
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
         DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType,
         DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
-        DbDisputeStatus as DisputeStatus, DbEntityType as EntityType, DbEventClass as EventClass,
+        DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
         DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbMandateType as MandateType,
@@ -538,7 +538,7 @@ pub enum PayoutType {
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
 #[serde(rename_all = "PascalCase")]
 #[strum(serialize_all = "PascalCase")]
-pub enum EntityType {
+pub enum PayoutEntityType {
     /// Adyen
     #[default]
     Individual,

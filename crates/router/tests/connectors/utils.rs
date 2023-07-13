@@ -372,23 +372,21 @@ pub trait ConnectorActions: Connector {
         &self,
         connector_payout_id: Option<String>,
         payout_type: enums::PayoutType,
-        quote_id: Option<String>,
         payment_info: Option<PaymentInfo>,
     ) -> RouterData<Flow, types::PayoutsData, Res> {
         self.generate_data(
             types::PayoutsData {
-                payout_id: core_utils::get_or_generate_uuid("payout_id", &None)
+                payout_id: core_utils::get_or_generate_uuid("payout_id", None)
                     .map_or("payout_3154763247".to_string(), |p| p),
                 amount: 1,
                 connector_payout_id,
-                quote_id,
                 destination_currency: payment_info.to_owned().map_or(enums::Currency::EUR, |pi| {
                     pi.currency.map_or(enums::Currency::EUR, |c| c)
                 }),
                 source_currency: payment_info.to_owned().map_or(enums::Currency::EUR, |pi| {
                     pi.currency.map_or(enums::Currency::EUR, |c| c)
                 }),
-                entity_type: enums::EntityType::Individual,
+                entity_type: enums::PayoutEntityType::Individual,
                 payout_type,
                 country_code: payment_info
                     .to_owned()
@@ -451,6 +449,8 @@ pub trait ConnectorActions: Connector {
             connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
             #[cfg(feature = "payouts")]
             payout_method_data: info.and_then(|p| p.payout_method_data),
+            #[cfg(feature = "payouts")]
+            quote_id: None,
         }
     }
 
@@ -480,7 +480,7 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
-            types::api::PEligibility,
+            types::api::PoEligibility,
             types::PayoutsData,
             types::PayoutsResponseData,
         > = self
@@ -488,7 +488,7 @@ pub trait ConnectorActions: Connector {
             .ok_or(ConnectorError::FailedToObtainPreferredConnector)?
             .connector
             .get_connector_integration();
-        let mut request = self.get_payout_request(None, payout_type, None, payment_info);
+        let mut request = self.get_payout_request(None, payout_type, payment_info);
         let tx: oneshot::Sender<()> = oneshot::channel().0;
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
@@ -518,7 +518,7 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
-            types::api::PFulfill,
+            types::api::PoFulfill,
             types::PayoutsData,
             types::PayoutsResponseData,
         > = self
@@ -526,8 +526,7 @@ pub trait ConnectorActions: Connector {
             .ok_or(ConnectorError::FailedToObtainPreferredConnector)?
             .connector
             .get_connector_integration();
-        let mut request =
-            self.get_payout_request(connector_payout_id, payout_type, None, payment_info);
+        let mut request = self.get_payout_request(connector_payout_id, payout_type, payment_info);
         let tx: oneshot::Sender<()> = oneshot::channel().0;
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
@@ -557,7 +556,7 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
-            types::api::PCreate,
+            types::api::PoCreate,
             types::PayoutsData,
             types::PayoutsResponseData,
         > = self
@@ -565,7 +564,7 @@ pub trait ConnectorActions: Connector {
             .ok_or(ConnectorError::FailedToObtainPreferredConnector)?
             .connector
             .get_connector_integration();
-        let mut request = self.get_payout_request(None, payout_type, None, payment_info);
+        let mut request = self.get_payout_request(None, payout_type, payment_info);
         request.connector_customer = connector_customer;
         let tx: oneshot::Sender<()> = oneshot::channel().0;
         let state = routes::AppState::with_storage(
@@ -596,7 +595,7 @@ pub trait ConnectorActions: Connector {
     ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
-            types::api::PCancel,
+            types::api::PoCancel,
             types::PayoutsData,
             types::PayoutsResponseData,
         > = self
@@ -605,7 +604,7 @@ pub trait ConnectorActions: Connector {
             .connector
             .get_connector_integration();
         let mut request =
-            self.get_payout_request(Some(connector_payout_id), payout_type, None, payment_info);
+            self.get_payout_request(Some(connector_payout_id), payout_type, payment_info);
         let tx: oneshot::Sender<()> = oneshot::channel().0;
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),
@@ -688,7 +687,7 @@ pub trait ConnectorActions: Connector {
             .ok_or(ConnectorError::FailedToObtainPreferredConnector)?
             .connector
             .get_connector_integration();
-        let mut request = self.get_payout_request(None, payout_type, None, payment_info);
+        let mut request = self.get_payout_request(None, payout_type, payment_info);
         let tx = oneshot::channel().0;
         let state = routes::AppState::with_storage(
             Settings::new().unwrap(),

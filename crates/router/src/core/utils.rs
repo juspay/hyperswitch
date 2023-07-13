@@ -13,6 +13,8 @@ use super::payments::{helpers, PaymentAddress};
 use super::payouts::PayoutData;
 #[cfg(feature = "payouts")]
 use crate::core::payments;
+#[cfg(feature = "payouts")]
+use crate::types::transformers::ForeignTryFrom;
 use crate::{
     configs::settings,
     consts,
@@ -154,10 +156,9 @@ pub async fn construct_payout_router_data<'a, F>(
             payout_id: payouts.payout_id.to_owned(),
             amount: payouts.amount,
             connector_payout_id: Some(payout_attempt.connector_payout_id.to_owned()),
-            quote_id: None,
             destination_currency: payouts.destination_currency,
             source_currency: payouts.source_currency,
-            entity_type: payouts.entity_type,
+            entity_type: enums::PayoutEntityType::foreign_try_from(payouts.entity_type.to_owned())?,
             payout_type: payouts.payout_type,
             country_code: business_country,
             customer_details: customer_details
@@ -179,6 +180,7 @@ pub async fn construct_payout_router_data<'a, F>(
         connector_request_reference_id: IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW
             .to_string(),
         payout_method_data: payout_data.payout_method_data.to_owned(),
+        quote_id: None,
     };
 
     Ok(router_data)
@@ -280,6 +282,8 @@ pub async fn construct_refund_router_data<'a, F>(
         ),
         #[cfg(feature = "payouts")]
         payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
     };
 
     Ok(router_data)
@@ -298,10 +302,12 @@ pub fn get_or_generate_id(
 
 pub fn get_or_generate_uuid(
     key: &str,
-    provided_id: &Option<String>,
+    provided_id: Option<&String>,
 ) -> Result<String, errors::ApiErrorResponse> {
     let validate_id = |id: String| validate_uuid(id, key);
-    provided_id.clone().map_or(Ok(generate_uuid()), validate_id)
+    provided_id
+        .cloned()
+        .map_or(Ok(generate_uuid()), validate_id)
 }
 
 fn invalid_id_format_error(key: &str) -> errors::ApiErrorResponse {
@@ -489,6 +495,8 @@ pub async fn construct_accept_dispute_router_data<'a>(
         ),
         #[cfg(feature = "payouts")]
         payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
     };
     Ok(router_data)
 }
@@ -557,6 +565,8 @@ pub async fn construct_submit_evidence_router_data<'a>(
         ),
         #[cfg(feature = "payouts")]
         payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
     };
     Ok(router_data)
 }
@@ -626,6 +636,8 @@ pub async fn construct_upload_file_router_data<'a>(
         ),
         #[cfg(feature = "payouts")]
         payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
     };
     Ok(router_data)
 }
@@ -697,6 +709,8 @@ pub async fn construct_defend_dispute_router_data<'a>(
         ),
         #[cfg(feature = "payouts")]
         payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
     };
     Ok(router_data)
 }
@@ -763,6 +777,8 @@ pub async fn construct_retrieve_file_router_data<'a>(
             .to_string(),
         #[cfg(feature = "payouts")]
         payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
     };
     Ok(router_data)
 }

@@ -4,8 +4,7 @@ pub use api_models::payment_methods::{
     DeleteTokenizeByDateRequest, DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest,
     GetTokenizePayloadResponse, PaymentMethodCreate, PaymentMethodDeleteResponse, PaymentMethodId,
     PaymentMethodList, PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodResponse,
-    PaymentMethodUpdate, TokenizePayloadEncrypted, TokenizePayloadRequest,
-    TokenizedBankInsensitiveValues, TokenizedBankSensitiveValues, TokenizedCardValue1,
+    PaymentMethodUpdate, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
     TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
 };
 use error_stack::report;

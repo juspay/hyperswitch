@@ -133,16 +133,16 @@ pub type RefundSyncType =
 
 #[cfg(feature = "payouts")]
 pub type PayoutCancelType =
-    dyn services::ConnectorIntegration<api::PCancel, PayoutsData, PayoutsResponseData>;
+    dyn services::ConnectorIntegration<api::PoCancel, PayoutsData, PayoutsResponseData>;
 #[cfg(feature = "payouts")]
 pub type PayoutCreateType =
-    dyn services::ConnectorIntegration<api::PCreate, PayoutsData, PayoutsResponseData>;
+    dyn services::ConnectorIntegration<api::PoCreate, PayoutsData, PayoutsResponseData>;
 #[cfg(feature = "payouts")]
 pub type PayoutEligibilityType =
-    dyn services::ConnectorIntegration<api::PEligibility, PayoutsData, PayoutsResponseData>;
+    dyn services::ConnectorIntegration<api::PoEligibility, PayoutsData, PayoutsResponseData>;
 #[cfg(feature = "payouts")]
 pub type PayoutFulfillType =
-    dyn services::ConnectorIntegration<api::PFulfill, PayoutsData, PayoutsResponseData>;
+    dyn services::ConnectorIntegration<api::PoFulfill, PayoutsData, PayoutsResponseData>;
 #[cfg(feature = "payouts")]
 pub type PayoutRecipientType =
     dyn services::ConnectorIntegration<api::PoRecipient, PayoutsData, PayoutsResponseData>;
@@ -238,9 +238,14 @@ pub struct RouterData<Flow, Request, Response> {
 
     /// Contains a reference ID that should be sent in the connector request
     pub connector_request_reference_id: String,
+
     #[cfg(feature = "payouts")]
     /// Contains payout method data
     pub payout_method_data: Option<api::PayoutMethodData>,
+
+    #[cfg(feature = "payouts")]
+    /// Contains payout method data
+    pub quote_id: Option<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -252,10 +257,9 @@ pub struct PayoutsData {
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
     pub payout_type: storage_enums::PayoutType,
-    pub entity_type: storage_enums::EntityType,
+    pub entity_type: storage_enums::PayoutEntityType,
     pub country_code: storage_enums::CountryAlpha2,
     pub customer_details: Option<CustomerDetails>,
-    pub quote_id: Option<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -881,6 +885,8 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             connector_request_reference_id: data.connector_request_reference_id.clone(),
             #[cfg(feature = "payouts")]
             payout_method_data: data.payout_method_data.clone(),
+            #[cfg(feature = "payouts")]
+            quote_id: data.quote_id.clone(),
         }
     }
 }
@@ -948,6 +954,7 @@ impl<F1, F2>
             connector_request_reference_id:
                 IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW.to_string(),
             payout_method_data: data.payout_method_data.clone(),
+            quote_id: data.quote_id.clone(),
         }
     }
 }

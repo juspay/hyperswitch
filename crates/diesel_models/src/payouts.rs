@@ -8,8 +8,8 @@ use crate::{enums as storage_enums, schema::payouts};
 // Payouts
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payouts)]
+#[diesel(primary_key(payout_id))]
 pub struct Payouts {
-    pub id: i32,
     pub payout_id: String,
     pub merchant_id: String,
     pub customer_id: String,
@@ -23,7 +23,7 @@ pub struct Payouts {
     pub recurring: bool,
     pub auto_fulfill: bool,
     pub return_url: Option<String>,
-    pub entity_type: storage_enums::EntityType,
+    pub entity_type: String,
     pub metadata: Option<pii::SecretSerdeValue>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
@@ -36,7 +36,6 @@ impl Default for Payouts {
         let now = common_utils::date_time::now();
 
         Self {
-            id: i32::default(),
             payout_id: String::default(),
             merchant_id: String::default(),
             customer_id: String::default(),
@@ -49,8 +48,8 @@ impl Default for Payouts {
             description: Option::default(),
             recurring: bool::default(),
             auto_fulfill: bool::default(),
-            return_url: Some("https://www.google.com".to_string()),
-            entity_type: storage_enums::EntityType::default(),
+            return_url: None,
+            entity_type: storage_enums::PayoutEntityType::default().to_string(),
             metadata: Option::default(),
             created_at: now,
             last_modified_at: now,
@@ -85,7 +84,7 @@ pub struct PayoutsNew {
     pub recurring: bool,
     pub auto_fulfill: bool,
     pub return_url: Option<String>,
-    pub entity_type: storage_enums::EntityType,
+    pub entity_type: String,
     pub metadata: Option<pii::SecretSerdeValue>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
@@ -103,7 +102,7 @@ pub enum PayoutsUpdate {
         recurring: bool,
         auto_fulfill: bool,
         return_url: Option<String>,
-        entity_type: storage_enums::EntityType,
+        entity_type: String,
         metadata: Option<pii::SecretSerdeValue>,
         last_modified_at: Option<PrimitiveDateTime>,
     },
@@ -125,7 +124,7 @@ pub struct PayoutsUpdateInternal {
     pub recurring: Option<bool>,
     pub auto_fulfill: Option<bool>,
     pub return_url: Option<String>,
-    pub entity_type: Option<storage_enums::EntityType>,
+    pub entity_type: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub last_modified_at: Option<PrimitiveDateTime>,
     pub payout_method_id: Option<String>,

@@ -1,1 +1,0 @@
-ALTER TABLE payouts DROP COLUMN payout_method_data;

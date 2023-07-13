@@ -209,8 +209,8 @@ pub struct OnlineMandate {
 #[derive(Deserialize, Clone)]
 pub struct StripePaymentIntentRequest {
     pub id: Option<String>,
-    pub amount: Option<i64>, //amount in cents, hence passed as integer
-    pub connector: Option<Vec<api_enums::PaymentConnectors>>,
+    pub amount: Option<i64>, // amount in cents, hence passed as integer
+    pub connector: Option<Vec<api_enums::RoutableConnectors>>,
     pub currency: Option<String>,
     #[serde(rename = "amount_to_capture")]
     pub amount_capturable: Option<i64>,

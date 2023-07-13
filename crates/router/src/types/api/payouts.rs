@@ -11,19 +11,19 @@ use crate::{services::api, types};
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
-pub struct PCancel;
+pub struct PoCancel;
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
-pub struct PCreate;
+pub struct PoCreate;
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
-pub struct PEligibility;
+pub struct PoEligibility;
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
-pub struct PFulfill;
+pub struct PoFulfill;
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
@@ -35,25 +35,25 @@ pub struct PoRecipient;
 
 #[cfg(feature = "payouts")]
 pub trait PayoutCancel:
-    api::ConnectorIntegration<PCancel, types::PayoutsData, types::PayoutsResponseData>
+    api::ConnectorIntegration<PoCancel, types::PayoutsData, types::PayoutsResponseData>
 {
 }
 
 #[cfg(feature = "payouts")]
 pub trait PayoutCreate:
-    api::ConnectorIntegration<PCreate, types::PayoutsData, types::PayoutsResponseData>
+    api::ConnectorIntegration<PoCreate, types::PayoutsData, types::PayoutsResponseData>
 {
 }
 
 #[cfg(feature = "payouts")]
 pub trait PayoutEligibility:
-    api::ConnectorIntegration<PEligibility, types::PayoutsData, types::PayoutsResponseData>
+    api::ConnectorIntegration<PoEligibility, types::PayoutsData, types::PayoutsResponseData>
 {
 }
 
 #[cfg(feature = "payouts")]
 pub trait PayoutFulfill:
-    api::ConnectorIntegration<PFulfill, types::PayoutsData, types::PayoutsResponseData>
+    api::ConnectorIntegration<PoFulfill, types::PayoutsData, types::PayoutsResponseData>
 {
 }
 

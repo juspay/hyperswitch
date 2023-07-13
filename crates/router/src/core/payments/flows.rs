@@ -787,7 +787,7 @@ macro_rules! default_imp_for_payouts_create {
             impl api::PayoutCreate for $path::$connector {}
             impl
             services::ConnectorIntegration<
-            api::PCreate,
+            api::PoCreate,
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
@@ -802,7 +802,7 @@ impl<const T: u8> api::PayoutCreate for connector::DummyConnector<T> {}
 #[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
-    services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::PayoutsResponseData>
+    services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyConnector<T>
 {
 }
@@ -857,7 +857,7 @@ macro_rules! default_imp_for_payouts_eligibility {
             impl api::PayoutEligibility for $path::$connector {}
             impl
             services::ConnectorIntegration<
-            api::PEligibility,
+            api::PoEligibility,
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
@@ -873,7 +873,7 @@ impl<const T: u8> api::PayoutEligibility for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
-        api::PEligibility,
+        api::PoEligibility,
         types::PayoutsData,
         types::PayoutsResponseData,
     > for connector::DummyConnector<T>
@@ -930,7 +930,7 @@ macro_rules! default_imp_for_payouts_fulfill {
             impl api::PayoutFulfill for $path::$connector {}
             impl
             services::ConnectorIntegration<
-            api::PFulfill,
+            api::PoFulfill,
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
@@ -945,7 +945,7 @@ impl<const T: u8> api::PayoutFulfill for connector::DummyConnector<T> {}
 #[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
-    services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::PayoutsResponseData>
+    services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyConnector<T>
 {
 }
@@ -1000,7 +1000,7 @@ macro_rules! default_imp_for_payouts_cancel {
             impl api::PayoutCancel for $path::$connector {}
             impl
             services::ConnectorIntegration<
-            api::PCancel,
+            api::PoCancel,
             types::PayoutsData,
             types::PayoutsResponseData,
         > for $path::$connector
@@ -1015,7 +1015,7 @@ impl<const T: u8> api::PayoutCancel for connector::DummyConnector<T> {}
 #[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
-    services::ConnectorIntegration<api::PCancel, types::PayoutsData, types::PayoutsResponseData>
+    services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyConnector<T>
 {
 }

@@ -129,7 +129,7 @@ impl From<Shipping> for payments::Address {
 pub struct StripeSetupIntentRequest {
     pub confirm: Option<bool>,
     pub customer: Option<String>,
-    pub connector: Option<Vec<api_enums::PaymentConnectors>>,
+    pub connector: Option<Vec<api_enums::RoutableConnectors>>,
     pub description: Option<String>,
     pub currency: Option<String>,
     pub payment_method_data: Option<StripePaymentMethodData>,

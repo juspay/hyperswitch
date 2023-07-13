@@ -15,12 +15,6 @@ pub trait PayoutAttemptInterface {
         _payout_id: &str,
     ) -> CustomResult<storage::PayoutAttempt, errors::StorageError>;
 
-    async fn find_payout_attempt_by_merchant_id_customer_id(
-        &self,
-        _merchant_id: &str,
-        _customer_id: &str,
-    ) -> CustomResult<Vec<storage::PayoutAttempt>, errors::StorageError>;
-
     async fn update_payout_attempt_by_merchant_id_payout_id(
         &self,
         _merchant_id: &str,
@@ -43,18 +37,6 @@ impl PayoutAttemptInterface for Store {
     ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::PayoutAttempt::find_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
-            .await
-            .map_err(Into::into)
-            .into_report()
-    }
-
-    async fn find_payout_attempt_by_merchant_id_customer_id(
-        &self,
-        merchant_id: &str,
-        customer_id: &str,
-    ) -> CustomResult<Vec<storage::PayoutAttempt>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::PayoutAttempt::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id)
             .await
             .map_err(Into::into)
             .into_report()
@@ -94,15 +76,6 @@ impl PayoutAttemptInterface for MockDb {
         _merchant_id: &str,
         _payout_id: &str,
     ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
-        // TODO: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
-    }
-
-    async fn find_payout_attempt_by_merchant_id_customer_id(
-        &self,
-        _merchant_id: &str,
-        _customer_id: &str,
-    ) -> CustomResult<Vec<storage::PayoutAttempt>, errors::StorageError> {
         // TODO: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }

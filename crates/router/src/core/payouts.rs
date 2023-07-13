@@ -21,7 +21,7 @@ use crate::{
         self,
         api::{self, payouts},
         domain, storage,
-        transformers::{ForeignFrom, ForeignInto},
+        transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
     },
     utils::{self, OptionExt},
 };
@@ -184,8 +184,8 @@ pub async fn payouts_update_core(
         return_url: req.return_url.clone().or(payouts.return_url),
         entity_type: req
             .entity_type
-            .unwrap_or(payouts.entity_type.foreign_into())
-            .foreign_into(),
+            .map(|e| e.to_string())
+            .unwrap_or(payouts.entity_type),
         metadata: req.metadata.clone().or(payouts.metadata),
         last_modified_at: Some(common_utils::date_time::now()),
     };
@@ -458,7 +458,7 @@ pub async fn call_connector_payout(
         .await?
         .get_required_value("payout_method_data")?,
     );
-    if let Some(true) = req.create_payout {
+    if let Some(true) = req.confirm {
         // Eligibility flow
         if payouts.payout_type == storage_enums::PayoutType::Card
             && payout_attempt.is_eligible.is_none()
@@ -661,7 +661,7 @@ pub async fn check_payout_eligibility(
     // 2. Fetch connector integration details
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
-        api::PEligibility,
+        api::PoEligibility,
         types::PayoutsData,
         types::PayoutsResponseData,
     > = connector_data.connector.get_connector_integration();
@@ -759,7 +759,7 @@ pub async fn create_payout(
     // 2. Fetch connector integration details
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
-        api::PCreate,
+        api::PoCreate,
         types::PayoutsData,
         types::PayoutsResponseData,
     > = connector_data.connector.get_connector_integration();
@@ -863,7 +863,7 @@ pub async fn cancel_payout(
     // 2. Fetch connector integration details
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
-        api::PCancel,
+        api::PoCancel,
         types::PayoutsData,
         types::PayoutsResponseData,
     > = connector_data.connector.get_connector_integration();
@@ -953,7 +953,7 @@ pub async fn fulfill_payout(
     // 2. Fetch connector integration details
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
-        api::PFulfill,
+        api::PoFulfill,
         types::PayoutsData,
         types::PayoutsResponseData,
     > = connector_data.connector.get_connector_integration();
@@ -1053,7 +1053,8 @@ pub async fn response_handler(
 
     let status = api_enums::PayoutStatus::foreign_from(payout_attempt.status.to_owned());
     let currency = api_enums::Currency::foreign_from(payouts.destination_currency.to_owned());
-    let entity_type = api_enums::EntityType::foreign_from(payouts.entity_type.to_owned());
+    let entity_type =
+        api_enums::PayoutEntityType::foreign_try_from(payouts.entity_type.to_owned())?;
     let payout_type = api_enums::PayoutType::foreign_from(payouts.payout_type.to_owned());
 
     let customer_id = payouts.customer_id;
@@ -1201,9 +1202,11 @@ pub async fn payout_create_db_entries(
         .set_recurring(req.recurring.unwrap_or(false))
         .set_auto_fulfill(req.auto_fulfill.unwrap_or(false))
         .set_return_url(req.return_url.to_owned())
-        .set_entity_type(storage_enums::EntityType::foreign_from(
-            req.entity_type.unwrap_or(api_enums::EntityType::default()),
-        ))
+        .set_entity_type(
+            req.entity_type
+                .map(|e| e.to_string())
+                .unwrap_or(api_enums::PayoutEntityType::default().to_string()),
+        )
         .set_metadata(req.metadata.to_owned())
         .set_created_at(Some(common_utils::date_time::now()))
         .set_last_modified_at(Some(common_utils::date_time::now()))
@@ -1226,7 +1229,11 @@ pub async fn payout_create_db_entries(
     } else {
         storage_enums::PayoutStatus::RequiresPayoutMethodData
     };
+    let id = core_utils::get_or_generate_uuid("payout_attempt_id", None)?;
+    let payout_attempt_id = format!("{}_{}_{}", merchant_id.to_owned(), payout_id.to_owned(), id);
+
     let payout_attempt_req = storage::PayoutAttemptNew::default()
+        .set_payout_attempt_id(payout_attempt_id.to_string())
         .set_payout_id(payout_id.to_owned())
         .set_customer_id(customer_id.to_owned())
         .set_merchant_id(merchant_id.to_owned())

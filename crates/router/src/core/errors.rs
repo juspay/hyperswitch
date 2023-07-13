@@ -334,9 +334,9 @@ pub enum VaultError {
     UnexpectedResponseError(bytes::Bytes),
     #[error("Failed to update in PMD table")]
     UpdateInPaymentMethodDataTableFailed,
-    #[error("Failed to save payment method in vault")]
-    FetchPaymentMethodFailed,
     #[error("Failed to fetch payment method in vault")]
+    FetchPaymentMethodFailed,
+    #[error("Failed to save payment method in vault")]
     SavePaymentMethodFailed,
 }
 
