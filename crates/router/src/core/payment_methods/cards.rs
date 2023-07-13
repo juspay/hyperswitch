@@ -1976,49 +1976,43 @@ pub async fn delete_payment_method(
     merchant_account: domain::MerchantAccount,
     pm_id: api::PaymentMethodId,
 ) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
-    let pm = state
-        .store
-        .delete_payment_method_by_merchant_id_payment_method_id(
-            &merchant_account.merchant_id,
-            &pm_id.payment_method_id,
-        )
+    let db = &*state.store;
+    let key = db
+        .find_payment_method(pm_id.payment_method_id.as_str())
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let mut resp: Option<errors::RouterResponse<api::PaymentMethodDeleteResponse>> = None;
-    if pm.payment_method == enums::PaymentMethod::Card {
+    if key.payment_method == enums::PaymentMethod::Card {
         let response = delete_card_from_locker(
             state,
-            &pm.customer_id,
-            &pm.merchant_id,
-            &pm_id.payment_method_id,
+            &key.customer_id,
+            &key.merchant_id,
+            pm_id.payment_method_id.as_str(),
         )
-        .await;
-        if response
-            .as_ref()
-            .map(|del_card_resp| del_card_resp.status.clone())
-            .unwrap_or_default()
-            == "SUCCESS"
-        {
-            resp = Some(Ok(services::ApplicationResponse::Json(
-                api::PaymentMethodDeleteResponse {
-                    payment_method_id: pm.payment_method_id,
-                    deleted: true,
-                },
-            )))
-        } else {
-            let err = response
-                .map(|err_msg| err_msg.error_message.unwrap_or_default())
-                .unwrap_or_default();
-            resp = Some(Err(errors::ApiErrorResponse::NotSupported {
-                message: err,
-            })?)
-        }
-    };
+        .await?;
 
-    resp.unwrap_or_else(|| {
-        Err(errors::ApiErrorResponse::NotSupported {
-            message: "Payment Method is not supported!".to_string(),
-        })?
-    })
+        if response.status == "SUCCESS" {
+            db.delete_payment_method_by_merchant_id_payment_method_id(
+                &merchant_account.merchant_id,
+                pm_id.payment_method_id.as_str(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+            Ok(services::ApplicationResponse::Json(
+                api::PaymentMethodDeleteResponse {
+                    payment_method_id: key.payment_method_id,
+                    deleted: true,
+                    status: Some(response.status),
+                },
+            ))
+        } else {
+            Err(errors::ApiErrorResponse::UnprocessableEntity {
+                entity: response.error_message.unwrap_or_default(),
+            })?
+        }
+    } else {
+        // This part of code is like a place holder and the control will never come here since everything is handled above
+        Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
+    }
 }
