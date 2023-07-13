@@ -129,7 +129,7 @@ impl behaviour::Conversion for Address {
     }
 }
 
-#[derive(Debug, frunk::LabelledGeneric)]
+#[derive(Debug)]
 pub enum AddressUpdate {
     Update {
         city: Option<String>,
