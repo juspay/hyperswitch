@@ -1,11 +1,13 @@
 mod transformers;
 
-use std::fmt::{Debug, format};
+use std::fmt::{Debug};
 
+use common_utils::ext_traits::XmlExt;
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeOptionInterface, ExposeInterface};
+use masking::{ExposeInterface, Secret, WithType};
 use time::OffsetDateTime;
 use transformers as boku;
+use ring::hmac;
 
 use crate::{
     configs::settings,
@@ -19,9 +21,9 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        ErrorResponse, Response
     },
-    utils::{self, BytesExt},
+    utils::{self, BytesExt, OptionExt},
 };
 
 #[derive(Debug, Clone)]
@@ -57,15 +59,28 @@ where
     fn build_headers(
         &self,
         req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let con_type= format!("{};charset=utf-8",types::PaymentsAuthorizeType::get_content_type(self));
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            con_type.into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        let con_auth = boku::BokuAuthType::try_from(&req.connector_auth_type)?;
+        let boku_base_url = get_country_url(req.connector_meta_data.clone(), self.base_url(connectors).to_string())?;
+        let con_type= Self::common_get_content_type(&self).to_string();
+        let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
+
+        let signature = get_signature(req,boku_base_url,con_type.clone(),timestamp)?;
+
+        let auth_val = format!("2/HMAC_SHA256(H+SHA256(E)) timestamp={}, signature={} signed-headers=Content-Type, key-id={}", timestamp, signature, con_auth.key_id.clone().expose());
+
+        let header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                con_type.into(),
+            ),
+            (
+                headers::AUTHORIZATION.to_string(),
+                auth_val.into_masked(),
+            )
+        ];
+        
         Ok(header)
     }
 }
@@ -76,7 +91,7 @@ impl ConnectorCommon for Boku {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "text/xml"
+        "text/xml;charset=utf-8"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -85,17 +100,9 @@ impl ConnectorCommon for Boku {
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
+        _auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        
-        let auth = boku::BokuAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
-        let auth_val = format!("2/HMAC_SHA256(H+SHA256(E)) timestamp={}, signed-headers=Content-Type, key-id={}", timestamp, auth.key_id.clone().expose());
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth_val.into_masked(),
-        )])
+            todo!()
     }
 
     fn build_error_response(
@@ -153,15 +160,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let country = req.connector_meta_data.clone()
-        .unwrap()
-        .expose()["country"]
-        .to_string()
-        .to_lowercase();
-
-        let boku_url = self.base_url(connectors).to_string().replace("country",&"us");
-
-        Ok(boku_url)
+        let boku_url = get_country_url(req.connector_meta_data.clone(), self.base_url(connectors).to_string())?;
+        
+        Ok(format!("{}/billing/3.0/begin-single-charge",boku_url))
     }
 
     fn get_request_body(
@@ -169,10 +170,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = boku::BokuPaymentsRequest::try_from(req)?;
-        let cur = utils::Encode::<boku::BokuPaymentsRequest>::encode_to_string_of_xml(&req_obj).change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let boku_req = types::RequestBody::log_and_get_request_body(&req_obj, utils::Encode::<boku::BokuPaymentsRequest>::encode_to_string_of_xml)
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("sakilmostak {}",cur);
         Ok(Some(boku_req))
     }
 
@@ -201,15 +200,20 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: boku::BokuPaymentsResponse = res
-            .response
-            .parse_struct("Boku PaymentsAuthorizeResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+            let response_data = String::from_utf8(res.response.to_vec())
+                .into_report()
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+            let response = response_data
+                .parse_xml::<boku::BokuPaymentsResponse>()
+                .into_report()
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            
+            types::RouterData::try_from(types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
     }
 
     fn get_error_response(
@@ -263,10 +267,15 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: boku::BokuPaymentsResponse = res
-            .response
-            .parse_struct("boku PaymentsSyncResponse")
+        let response_data = String::from_utf8(res.response.to_vec())
+            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response = response_data
+            .parse_xml::<boku::BokuPaymentsResponse>()
+            .into_report()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -517,4 +526,31 @@ impl api::IncomingWebhook for Boku {
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
+}
+
+fn get_country_url(meta_data: Option<Secret<serde_json::Value, WithType>>, base_url: String) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    let conn_meta_data: boku::BokuMetaData = meta_data
+        .parse_value("Object")
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        Ok(base_url.replace("country", &conn_meta_data.country.to_lowercase()))
+}
+
+fn get_signature<Flow, Request, Response> ( req: &types::RouterData<Flow, Request, Response>, boku_url: String, con_type: String, timestamp: i128) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    let method = match req {
+        _payments_authorize_router_data => services::Method::Post.to_string(),
+        
+    };
+    let route = match req {
+        _payments_authorize_router_data => "/billing/3.0/begin-single-charge".to_string(),
+    };
+
+    let secret_key = boku::BokuAuthType::try_from(&req.connector_auth_type)?
+    .key_id
+    .expose();
+
+    let sign = format!("{} {}{}\nContent-Type: {}\n{}",method,boku_url,route,con_type,timestamp);
+    let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.as_bytes());
+    let tag = hmac::sign(&key, sign.as_bytes());
+    Ok(hex::encode(tag))
 }
