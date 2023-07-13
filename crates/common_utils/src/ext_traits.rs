@@ -5,7 +5,7 @@
 
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret, Strategy};
-use quick_xml::{de,se};
+use quick_xml::{de, se};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -60,7 +60,7 @@ where
     fn encode_to_string_of_json(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         Self: Serialize;
-        
+
     ///
     /// Functionality, for specifically encoding `Self` into `String`
     /// after serialization by using `serde::Serialize`

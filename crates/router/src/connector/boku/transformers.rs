@@ -1,27 +1,31 @@
-use api_models::{enums::{CountryAlpha2, Currency}, payments::Amount};
+use std::fmt;
+
+use api_models::{
+    enums::{CountryAlpha2, Currency},
+    payments::Amount,
+};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 use url::Url;
-//use common_utils::ext_traits::XmlExt;
 
+//use common_utils::ext_traits::XmlExt;
 use crate::{
     core::errors,
-    types::{self, api, storage::enums},
     services,
+    types::{self, api, storage::enums},
 };
 
 //TODO: Fill the struct with respective fields
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 pub enum BokuPaymentsRequest {
     BeginSingleCharge(SingleChargeData),
     // MultiCharge(MultiChargeData),
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all="kebab-case")]
-#[serde(rename="begin-single-charge")]
+#[serde(rename_all = "kebab-case")]
+#[serde(rename = "begin-single-charge")]
 pub struct SingleChargeData {
     total_amount: i64,
     currency: String,
@@ -45,7 +49,7 @@ pub enum BokuPaymentType {
 impl fmt::Display for BokuPaymentType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BokuPaymentType::AuPay => write!(f,"aupay"),
+            Self::AuPay => write!(f, "aupay"),
         }
     }
 }
@@ -62,19 +66,19 @@ pub enum BokuChargeType {
 impl fmt::Display for BokuChargeType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BokuChargeType::Hosted => write!(f,"hosted"),
+            Self::Hosted => write!(f, "hosted"),
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 struct BokuHostedData {
     forward_url: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 pub struct MultiChargeData {
     total_amount: Amount,
     currency: Currency,
@@ -88,36 +92,40 @@ pub struct MultiChargeData {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BokuPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let country = get_country_code(item).unwrap().to_string();
+        let country = match get_country_code(item) {
+            Some(cn_code) => cn_code.to_string(),
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "country",
+            })?,
+        };
         let hosted = get_hosted_data(item);
         let auth_type = BokuAuthType::try_from(&item.connector_auth_type)?;
         let merchant_item_description = get_item_description(item)?;
-        let payment_data = SingleChargeData { 
-            total_amount: item.request.amount, 
-            currency: item.request.currency.to_string(), 
-            country, 
-            merchant_id: auth_type.merchant_id, 
+        let payment_data = SingleChargeData {
+            total_amount: item.request.amount,
+            currency: item.request.currency.to_string(),
+            country,
+            merchant_id: auth_type.merchant_id,
             merchant_request_id: Secret::new(item.payment_id.to_string()),
-            merchant_item_description, 
-            payment_method: BokuPaymentType::AuPay.to_string(), 
-            charge_type: BokuChargeType::Hosted.to_string(), 
-            hosted, 
+            merchant_item_description,
+            payment_method: BokuPaymentType::AuPay.to_string(),
+            charge_type: BokuChargeType::Hosted.to_string(),
+            hosted,
         };
-        
+
         match item.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => {
-                match wallet_data {
-                    api_models::payments::WalletData::MbWayRedirect{ .. } => {
-                        Ok( Self::BeginSingleCharge(payment_data))
-                    }
-                    _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                api_models::payments::WalletData::MbWayRedirect { .. } => {
+                    Ok(Self::BeginSingleCharge(payment_data))
                 }
-            }
+                _ => {
+                    Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
+                }
+            },
             _ => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_type),
                 connector: "Boku",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                    .to_string(),
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }
@@ -155,8 +163,6 @@ pub enum BokuPaymentStatus {
     Failure,
 }
 
-
-
 impl From<BokuPaymentStatus> for enums::AttemptStatus {
     fn from(item: BokuPaymentStatus) -> Self {
         match item {
@@ -169,7 +175,7 @@ impl From<BokuPaymentStatus> for enums::AttemptStatus {
 //TODO: Fill the struct with respective fields
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename = "begin-single-charge-response")]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 pub struct BokuPaymentsResponse {
     result: ResultData,
     // merchant_id: String,
@@ -180,7 +186,7 @@ pub struct BokuPaymentsResponse {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 pub struct ResultData {
     #[serde(rename = "@value")]
     reason_code: BokuPaymentStatus,
@@ -189,7 +195,7 @@ pub struct ResultData {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all="kebab-case")]
+#[serde(rename_all = "kebab-case")]
 pub struct HostedUrlResponse {
     redirect_url: Option<Url>,
 }
@@ -202,12 +208,13 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, BokuPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-
         let redirection_data = match item.response.hosted {
-            Some(hosted_value) => {
-                Ok(hosted_value.redirect_url.map(|url| services::RedirectForm::from((url, services::Method::Get))))
-            }
-            None => Err(errors::ConnectorError::MissingConnectorRedirectionPayload { field_name: "redirect_url" })
+            Some(hosted_value) => Ok(hosted_value
+                .redirect_url
+                .map(|url| services::RedirectForm::from((url, services::Method::Get)))),
+            None => Err(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "redirect_url",
+            }),
         }?;
 
         Ok(Self {
@@ -313,7 +320,7 @@ pub struct BokuErrorResponse {
     pub reason: Option<String>,
 }
 
-#[derive(Debug,Serialize)]
+#[derive(Debug, Serialize)]
 pub struct BokuConnMetaData {
     country: String,
 }
@@ -326,17 +333,18 @@ fn get_country_code(item: &types::PaymentsAuthorizeRouterData) -> Option<Country
 }
 
 fn get_hosted_data(item: &types::PaymentsAuthorizeRouterData) -> Option<BokuHostedData> {
-    match item.return_url.clone() {
-        Some(url) => Some(BokuHostedData { 
-            forward_url: url,
-        }),
-        None => None
-    }
+    item.return_url
+        .clone()
+        .map(|url| BokuHostedData { forward_url: url })
 }
 
-fn get_item_description(item: &types::PaymentsAuthorizeRouterData) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+fn get_item_description(
+    item: &types::PaymentsAuthorizeRouterData,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     match item.description.clone() {
         Some(desc) => Ok(desc),
-        None => Err(errors::ConnectorError::MissingRequiredField { field_name: "description" })?,
+        None => Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "description",
+        })?,
     }
 }
