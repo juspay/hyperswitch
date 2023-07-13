@@ -1436,6 +1436,7 @@ pub fn get_handle_response_url(
         merchant_account,
         redirection_response,
         payments_return_url,
+        response.client_secret.as_ref(),
     )
     .attach_printable("Failed to make merchant url with response")?;
 
@@ -1446,6 +1447,7 @@ pub fn make_merchant_url_with_response(
     merchant_account: &domain::MerchantAccount,
     redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
+    client_secret: Option<&masking::Secret<String>>,
 ) -> RouterResult<String> {
     // take return url if provided in the request else use merchant return url
     let url = request_return_url
@@ -1454,14 +1456,20 @@ pub fn make_merchant_url_with_response(
 
     let status_check = redirection_response.status;
 
-    let payment_intent_id = redirection_response.payment_id;
+    let payment_client_secret = client_secret
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Expected client secret to be `Some`")?;
 
     let merchant_url_with_response = if merchant_account.redirect_to_merchant_with_http_post {
         url::Url::parse_with_params(
             url,
             &[
                 ("status", status_check.to_string()),
-                ("payment_intent_client_secret", payment_intent_id),
+                (
+                    "payment_intent_client_secret",
+                    payment_client_secret.peek().to_string(),
+                ),
             ],
         )
         .into_report()
@@ -1473,7 +1481,10 @@ pub fn make_merchant_url_with_response(
             url,
             &[
                 ("status", status_check.to_string()),
-                ("payment_intent_client_secret", payment_intent_id),
+                (
+                    "payment_intent_client_secret",
+                    payment_client_secret.peek().to_string(),
+                ),
                 ("amount", amount.to_string()),
             ],
         )
@@ -2300,6 +2311,7 @@ impl AttemptType {
             mandate_details: old_payment_attempt.mandate_details,
             preprocessing_step_id: None,
             error_reason: None,
+            connector_response_reference_id: None,
         }
     }
 

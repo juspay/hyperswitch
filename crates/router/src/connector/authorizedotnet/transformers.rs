@@ -484,6 +484,7 @@ impl<F, T>
                             mandate_reference: None,
                             connector_metadata: metadata,
                             network_txn_id: transaction_response.network_trans_id.clone(),
+                            connector_response_reference_id: None,
                         }),
                     },
                     ..item.data
@@ -547,6 +548,7 @@ impl<F, T>
                             mandate_reference: None,
                             connector_metadata: metadata,
                             network_txn_id: transaction_response.network_trans_id.clone(),
+                            connector_response_reference_id: None,
                         }),
                     },
                     ..item.data
@@ -832,6 +834,7 @@ impl<F, Req>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        connector_response_reference_id: None,
                     }),
                     status: payment_status,
                     ..item.data
