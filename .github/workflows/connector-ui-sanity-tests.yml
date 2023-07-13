@@ -75,6 +75,7 @@ jobs:
           - adyen_uk,shift4,worldline
           - airwallex,bluesnap,checkout
           - paypal,mollie,payu
+          - noon
 
     steps:
       - name: Checkout repository
