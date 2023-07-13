@@ -1,0 +1,38 @@
+name: Code Coverage
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    branches:
+      - main  # Update this with your default branch
+
+jobs:
+  code_coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Rust
+        uses: actions/setup-rust@v1
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install code coverage dependencies
+        run: |
+          rustup component add llvm-tools-preview
+          cargo install cargo-tarpaulin
+
+      - name: Run tests and generate coverage report
+        run: cargo tarpaulin --all --ciserver github-actions --coveralls ${{ github.event.pull_request.head.ref }}
+
+      - name: Publish code coverage comment on PR
+        uses: mikepenz/action-github-comment@v2
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          message: |
+            Code Coverage Report:
+            ${{ steps.code_coverage.outputs.coverage-report }}
+
+      # Optionally, include a step to check for a minimum coverage threshold
