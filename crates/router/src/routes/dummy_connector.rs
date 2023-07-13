@@ -4,6 +4,7 @@ use router_env::{instrument, tracing};
 use super::app;
 use crate::services::{api, authentication as auth};
 
+mod core;
 mod errors;
 mod types;
 mod utils;
@@ -21,7 +22,7 @@ pub async fn dummy_connector_payment(
         state.get_ref(),
         &req,
         payload,
-        |state, _, req| utils::payment(state, req),
+        |state, _, req| core::payment(state, req),
         &auth::NoAuth,
     )
     .await
@@ -41,7 +42,7 @@ pub async fn dummy_connector_payment_data(
         state.get_ref(),
         &req,
         payload,
-        |state, _, req| utils::payment_data(state, req),
+        |state, _, req| core::payment_data(state, req),
         &auth::NoAuth,
     )
     .await
@@ -62,7 +63,7 @@ pub async fn dummy_connector_refund(
         state.get_ref(),
         &req,
         payload,
-        |state, _, req| utils::refund_payment(state, req),
+        |state, _, req| core::refund_payment(state, req),
         &auth::NoAuth,
     )
     .await
@@ -82,7 +83,7 @@ pub async fn dummy_connector_refund_data(
         state.get_ref(),
         &req,
         payload,
-        |state, _, req| utils::refund_data(state, req),
+        |state, _, req| core::refund_data(state, req),
         &auth::NoAuth,
     )
     .await

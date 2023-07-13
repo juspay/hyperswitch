@@ -19,7 +19,6 @@ pub enum Flow {
 
 impl FlowMetric for Flow {}
 
-#[allow(dead_code)]
 #[derive(
     Default, serde::Serialize, serde::Deserialize, strum::Display, Clone, PartialEq, Debug, Eq,
 )]
@@ -64,6 +63,7 @@ pub enum PaymentMethodType {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct DummyConnectorPaymentData {
+    pub payment_id: String,
     pub status: DummyConnectorStatus,
     pub amount: i64,
     pub eligible_amount: i64,
@@ -71,24 +71,29 @@ pub struct DummyConnectorPaymentData {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
     pub payment_method_type: PaymentMethodType,
+    pub redirect_url: Option<String>,
 }
 
 impl DummyConnectorPaymentData {
     pub fn new(
+        payment_id: String,
         status: DummyConnectorStatus,
         amount: i64,
         eligible_amount: i64,
         currency: Currency,
         created: PrimitiveDateTime,
         payment_method_type: PaymentMethodType,
+        redirect_url: Option<String>,
     ) -> Self {
         Self {
+            payment_id,
             status,
             amount,
             eligible_amount,
             currency,
             created,
             payment_method_type,
+            redirect_url,
         }
     }
 }
@@ -102,31 +107,26 @@ pub struct DummyConnectorPaymentResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
     pub payment_method_type: PaymentMethodType,
+    pub redirect_url: Option<String>,
+}
+
+impl From<DummyConnectorPaymentData> for DummyConnectorPaymentResponse {
+    fn from(value: DummyConnectorPaymentData) -> Self {
+        Self {
+            status: value.status,
+            id: value.payment_id,
+            amount: value.amount,
+            currency: value.currency,
+            created: value.created,
+            payment_method_type: value.payment_method_type,
+            redirect_url: value.redirect_url
+        }
+    }
 }
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DummyConnectorPaymentRetrieveRequest {
     pub payment_id: String,
-}
-
-impl DummyConnectorPaymentResponse {
-    pub fn new(
-        status: DummyConnectorStatus,
-        id: String,
-        amount: i64,
-        currency: Currency,
-        created: PrimitiveDateTime,
-        payment_method_type: PaymentMethodType,
-    ) -> Self {
-        Self {
-            status,
-            id,
-            amount,
-            currency,
-            created,
-            payment_method_type,
-        }
-    }
 }
 
 #[derive(Default, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
@@ -173,3 +173,10 @@ pub struct DummyConnectorRefundRetrieveRequest {
 
 pub type DummyConnectorResponse<T> =
     CustomResult<services::ApplicationResponse<T>, DummyConnectorErrors>;
+
+pub type DummyConnectorResult<T> = CustomResult<T, DummyConnectorErrors>;
+
+pub enum DummyConnectorFlow {
+    NoThreeDS(DummyConnectorStatus, Option<DummyConnectorErrors>),
+    ThreeDS(DummyConnectorStatus, Option<DummyConnectorErrors>),
+}
