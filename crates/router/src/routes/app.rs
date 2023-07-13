@@ -224,6 +224,10 @@ impl Customers {
                         .route(web::get().to(list_customer_payment_method_api)),
                 )
                 .service(
+                    web::resource("{customer_id}/payment_methods")
+                        .route(web::get().to(list_customer_payment_method_api)),
+                )
+                .service(
                     web::resource("/{customer_id}")
                         .route(web::get().to(customers_retrieve))
                         .route(web::post().to(customers_update))

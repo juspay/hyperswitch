@@ -121,6 +121,7 @@ pub async fn list_payment_method_api(
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
+    customer_id: Option<web::Path<(String,)>>,
     req: HttpRequest,
     json_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
@@ -130,14 +131,20 @@ pub async fn list_customer_payment_method_api(
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
     };
-
+    let customer = if let Some(id) = customer_id {
+        let inner = id.into_inner().0;
+        let customer_str = inner.as_str().to_owned();
+        Some(customer_str)
+    } else {
+        None
+    };
     api::server_wrap(
         flow,
         state.get_ref(),
         &req,
         payload,
         |state, auth, req| {
-            cards::list_customer_payment_method(state, auth.merchant_account, auth.key_store, req)
+            cards::do_list_customer_pm_fetch_customer_if_not_passed(state, auth.merchant_account, auth.key_store, customer.as_deref(), Some(req))
         },
         &*auth,
     )

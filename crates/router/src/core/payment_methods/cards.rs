@@ -1561,24 +1561,43 @@ async fn filter_payment_mandate_based(
     Ok(recurring_filter)
 }
 
+pub async fn do_list_customer_pm_fetch_customer_if_not_passed (
+    state: &routes::AppState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    customer_id: Option<&str>,
+    req: Option<api::PaymentMethodListRequest>,
+) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
+    let db = &*state.store;
+    if customer_id.is_some(){
+        let customer_id = customer_id.ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
+        list_customer_payment_method(state, merchant_account, key_store, customer_id).await
+        }
+    else {
+        let cloned_secret = req.and_then(|r| r.client_secret.as_ref().cloned());
+        let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
+            db,
+            &merchant_account,
+            cloned_secret,
+        )
+        .await?;
+        let customer_id = payment_intent
+            .and_then(|intent| (intent.customer_id))
+            .ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
+        list_customer_payment_method(state, merchant_account, key_store, &customer_id).await
+    }
+}
+
+
 pub async fn list_customer_payment_method(
     state: &routes::AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    req: api::PaymentMethodListRequest,
+    customer_id: &str,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
-    let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
-        db,
-        &merchant_account,
-        req.client_secret.clone(),
-    )
-    .await?;
-    let customer_id = payment_intent
-        .and_then(|intent| (intent.customer_id))
-        .ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
     db.find_customer_by_customer_id_merchant_id(
-        customer_id.as_str(),
+        customer_id,
         &merchant_account.merchant_id,
         &key_store,
     )
@@ -1587,7 +1606,7 @@ pub async fn list_customer_payment_method(
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_list(
-            customer_id.as_str(),
+            customer_id,
             &merchant_account.merchant_id,
         )
         .await
