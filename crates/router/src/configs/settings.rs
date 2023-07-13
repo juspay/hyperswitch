@@ -152,7 +152,7 @@ pub struct SupportedConnectorsForMandate {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentMethodTokenFilter {
     #[serde(deserialize_with = "pm_deser")]
-    pub payment_method: HashSet<storage_models::enums::PaymentMethod>,
+    pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
 }
@@ -166,16 +166,16 @@ pub struct PaymentMethodTokenFilter {
 )]
 pub enum PaymentMethodTypeTokenFilter {
     #[serde(deserialize_with = "pm_type_deser")]
-    EnableOnly(HashSet<storage_models::enums::PaymentMethodType>),
+    EnableOnly(HashSet<diesel_models::enums::PaymentMethodType>),
     #[serde(deserialize_with = "pm_type_deser")]
-    DisableOnly(HashSet<storage_models::enums::PaymentMethodType>),
+    DisableOnly(HashSet<diesel_models::enums::PaymentMethodType>),
     #[default]
     AllAccepted,
 }
 
 fn pm_deser<'a, D>(
     deserializer: D,
-) -> Result<HashSet<storage_models::enums::PaymentMethod>, D::Error>
+) -> Result<HashSet<diesel_models::enums::PaymentMethod>, D::Error>
 where
     D: Deserializer<'a>,
 {
@@ -183,14 +183,14 @@ where
     value
         .trim()
         .split(',')
-        .map(storage_models::enums::PaymentMethod::from_str)
+        .map(diesel_models::enums::PaymentMethod::from_str)
         .collect::<Result<_, _>>()
         .map_err(D::Error::custom)
 }
 
 fn pm_type_deser<'a, D>(
     deserializer: D,
-) -> Result<HashSet<storage_models::enums::PaymentMethodType>, D::Error>
+) -> Result<HashSet<diesel_models::enums::PaymentMethodType>, D::Error>
 where
     D: Deserializer<'a>,
 {
@@ -198,7 +198,7 @@ where
     value
         .trim()
         .split(',')
-        .map(storage_models::enums::PaymentMethodType::from_str)
+        .map(diesel_models::enums::PaymentMethodType::from_str)
         .collect::<Result<_, _>>()
         .map_err(D::Error::custom)
 }

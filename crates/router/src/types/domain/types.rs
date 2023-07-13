@@ -4,10 +4,10 @@ use common_utils::{
     errors::{self, CustomResult},
     ext_traits::AsyncExt,
 };
+use diesel_models::encryption::Encryption;
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
-use storage_models::encryption::Encryption;
 
 use crate::routes::metrics::{request, DECRYPTION_TIME, ENCRYPTION_TIME};
 
