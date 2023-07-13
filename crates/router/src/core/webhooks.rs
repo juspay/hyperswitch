@@ -216,7 +216,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
     state: &AppState,
     object_reference_id: api_models::webhooks::ObjectReferenceId,
     merchant_account: &domain::MerchantAccount,
-) -> CustomResult<storage_models::payment_attempt::PaymentAttempt, errors::ApiErrorResponse> {
+) -> CustomResult<diesel_models::payment_attempt::PaymentAttempt, errors::ApiErrorResponse> {
     let db = &*state.store;
     match object_reference_id {
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(ref id)) => db
@@ -251,19 +251,19 @@ pub async fn get_payment_attempt_from_object_reference_id(
 
 pub async fn get_or_update_dispute_object(
     state: AppState,
-    option_dispute: Option<storage_models::dispute::Dispute>,
+    option_dispute: Option<diesel_models::dispute::Dispute>,
     dispute_details: api::disputes::DisputePayload,
     merchant_id: &str,
-    payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
+    payment_attempt: &diesel_models::payment_attempt::PaymentAttempt,
     event_type: api_models::webhooks::IncomingWebhookEvent,
     connector_name: &str,
-) -> CustomResult<storage_models::dispute::Dispute, errors::ApiErrorResponse> {
+) -> CustomResult<diesel_models::dispute::Dispute, errors::ApiErrorResponse> {
     let db = &*state.store;
     match option_dispute {
         None => {
             metrics::INCOMING_DISPUTE_WEBHOOK_NEW_RECORD_METRIC.add(&metrics::CONTEXT, 1, &[]);
             let dispute_id = generate_id(consts::ID_LENGTH, "dp");
-            let new_dispute = storage_models::dispute::DisputeNew {
+            let new_dispute = diesel_models::dispute::DisputeNew {
                 dispute_id,
                 amount: dispute_details.amount,
                 currency: dispute_details.currency,
@@ -295,7 +295,7 @@ pub async fn get_or_update_dispute_object(
         Some(dispute) => {
             logger::info!("Dispute Already exists, Updating the dispute details");
             metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(&metrics::CONTEXT, 1, &[]);
-            let dispute_status: storage_models::enums::DisputeStatus = event_type
+            let dispute_status: diesel_models::enums::DisputeStatus = event_type
                 .foreign_try_into()
                 .into_report()
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
@@ -308,7 +308,7 @@ pub async fn get_or_update_dispute_object(
             )
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("dispute stage and status validation failed")?;
-            let update_dispute = storage_models::dispute::DisputeUpdate::Update {
+            let update_dispute = diesel_models::dispute::DisputeUpdate::Update {
                 dispute_stage: dispute_details.dispute_stage.foreign_into(),
                 dispute_status,
                 connector_status: dispute_details.connector_status,

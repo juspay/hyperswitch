@@ -72,10 +72,10 @@ pub trait PaymentAttemptInterface {
 
     async fn get_filters_for_payments(
         &self,
-        pi: &[storage_models::payment_intent::PaymentIntent],
+        pi: &[diesel_models::payment_intent::PaymentIntent],
         merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<storage_models::payment_attempt::PaymentListFilters, errors::StorageError>;
+    ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>;
 }
 
 #[cfg(not(feature = "kv_store"))]
@@ -193,10 +193,10 @@ mod storage {
 
         async fn get_filters_for_payments(
             &self,
-            pi: &[storage_models::payment_intent::PaymentIntent],
+            pi: &[diesel_models::payment_intent::PaymentIntent],
             merchant_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<storage_models::payment_attempt::PaymentListFilters, errors::StorageError>
+        ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>
         {
             let conn = connection::pg_connection_read(self).await?;
             PaymentAttempt::get_filters_for_payments(&conn, pi, merchant_id)
@@ -267,10 +267,10 @@ impl PaymentAttemptInterface for MockDb {
 
     async fn get_filters_for_payments(
         &self,
-        _pi: &[storage_models::payment_intent::PaymentIntent],
+        _pi: &[diesel_models::payment_intent::PaymentIntent],
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<storage_models::payment_attempt::PaymentListFilters, errors::StorageError>
+    ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>
     {
         Err(errors::StorageError::MockDbError)?
     }
@@ -365,6 +365,7 @@ impl PaymentAttemptInterface for MockDb {
             mandate_details: payment_attempt.mandate_details,
             preprocessing_step_id: payment_attempt.preprocessing_step_id,
             error_reason: payment_attempt.error_reason,
+            connector_response_reference_id: None,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
@@ -425,9 +426,9 @@ impl PaymentAttemptInterface for MockDb {
 #[cfg(feature = "kv_store")]
 mod storage {
     use common_utils::date_time;
+    use diesel_models::reverse_lookup::ReverseLookup;
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
-    use storage_models::reverse_lookup::ReverseLookup;
 
     use super::PaymentAttemptInterface;
     use crate::{
@@ -503,6 +504,7 @@ mod storage {
                         mandate_details: payment_attempt.mandate_details.clone(),
                         preprocessing_step_id: payment_attempt.preprocessing_step_id.clone(),
                         error_reason: payment_attempt.error_reason.clone(),
+                        connector_response_reference_id: None,
                     };
 
                     let field = format!("pa_{}", created_attempt.attempt_id);
@@ -891,10 +893,10 @@ mod storage {
 
         async fn get_filters_for_payments(
             &self,
-            pi: &[storage_models::payment_intent::PaymentIntent],
+            pi: &[diesel_models::payment_intent::PaymentIntent],
             merchant_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<storage_models::payment_attempt::PaymentListFilters, errors::StorageError>
+        ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>
         {
             let conn = connection::pg_connection_read(self).await?;
             PaymentAttempt::get_filters_for_payments(&conn, pi, merchant_id)

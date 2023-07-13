@@ -7,6 +7,8 @@
 
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
+/// Utilities to identify members of the current cargo workspace.
+pub mod cargo_workspace;
 pub mod env;
 pub mod logger;
 pub mod metrics;

@@ -3728,8 +3728,11 @@
             "maxLength": 255
           },
           "address": {
-            "type": "object",
-            "description": "The address for the customer",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
             "nullable": true
           },
           "metadata": {
@@ -3788,8 +3791,11 @@
             "maxLength": 255
           },
           "address": {
-            "type": "object",
-            "description": "The address for the customer",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
             "nullable": true
           },
           "created_at": {
@@ -4022,6 +4028,106 @@
       },
       "FieldType": {
         "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "user_full_name"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_email_address"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_phone_number"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_country"
+            ],
+            "properties": {
+              "user_country": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_addressline1"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_addressline2"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_address_city"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_address_pincode"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_address_state"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_address_country"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_blik_code"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "fields_complete"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_billing_name"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank"
+            ]
+          },
           {
             "type": "string",
             "enum": [
@@ -7684,6 +7790,12 @@
                 "$ref": "#/components/schemas/FeatureMetadata"
               }
             ],
+            "nullable": true
+          },
+          "reference_id": {
+            "type": "string",
+            "description": "reference to the payment at connector side",
+            "example": "993672945374576J",
             "nullable": true
           }
         }

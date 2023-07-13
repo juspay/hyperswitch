@@ -5,8 +5,8 @@ mod transformers;
 use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt};
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
-use storage_models::enums;
 use transformers as worldpay;
 
 use self::{requests::*, response::*};
@@ -183,6 +183,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        connector_response_reference_id: None,
                     }),
                     ..data.clone()
                 })
@@ -280,6 +281,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..data.clone()
         })
@@ -338,6 +340,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        connector_response_reference_id: None,
                     }),
                     ..data.clone()
                 })

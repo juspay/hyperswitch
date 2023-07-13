@@ -1581,6 +1581,10 @@ pub struct PaymentsResponse {
     /// additional data that might be required by hyperswitch
     #[schema(value_type = Option<FeatureMetadata>)]
     pub feature_metadata: Option<serde_json::Value>, // This is Value because it is fetched from DB and before putting in DB the type is validated
+
+    /// reference to the payment at connector side
+    #[schema(value_type = Option<String>, example = "993672945374576J")]
+    pub reference_id: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
