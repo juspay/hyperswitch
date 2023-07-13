@@ -2557,17 +2557,6 @@
           {
             "type": "object",
             "required": [
-              "swish"
-            ],
-            "properties": {
-              "swish": {
-                "type": "object"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
               "trustly"
             ],
             "properties": {
@@ -5654,11 +5643,19 @@
             "type": "object",
             "description": "Contains url for Qr code image, this qr code has to be shown in sdk",
             "required": [
+              "image_data_source",
               "image_data_url",
+              "mobile_redirection_url",
               "type"
             ],
             "properties": {
+              "image_data_source": {
+                "type": "string"
+              },
               "image_data_url": {
+                "type": "string"
+              },
+              "mobile_redirection_url": {
                 "type": "string"
               },
               "type": {
@@ -8453,6 +8450,9 @@
           }
         }
       },
+      "SwishWalletData": {
+        "type": "object"
+      },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
         "required": [
@@ -8685,6 +8685,17 @@
             "properties": {
               "we_chat_pay": {
                 "$ref": "#/components/schemas/WeChatPay"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "swish"
+            ],
+            "properties": {
+              "swish": {
+                "$ref": "#/components/schemas/SwishWalletData"
               }
             }
           }
