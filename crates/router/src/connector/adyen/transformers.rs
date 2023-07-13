@@ -19,6 +19,7 @@ use crate::{
         api::{self, enums as api_enums},
         storage::enums as storage_enums,
         transformers::ForeignFrom,
+        PaymentsAuthorizeData,
     },
 };
 
@@ -1542,20 +1543,15 @@ fn get_sofort_extra_details(
 }
 
 fn get_shopper_email(
-    email: Option<Email>,
+    item: PaymentsAuthorizeData,
     payment_method_type: storage_enums::PaymentMethodType,
 ) -> errors::CustomResult<Option<Email>, errors::ConnectorError> {
     match payment_method_type {
         storage_enums::PaymentMethodType::Paypal => {
-            if let Some(email) = email {
-                Ok(Some(email))
-            } else {
-                Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "email",
-                })?
-            }
+            let email = item.get_email()?;
+            Ok(Some(email))
         }
-        _ => Ok(email),
+        _ => Ok(item.email),
     }
 }
 
@@ -1581,7 +1577,11 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)>
             .payment_method_type
             .clone()
             .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
-        let shopper_email = get_shopper_email(item.request.email.clone(), payment_method_type)?;
+        let shopper_email = if store_payment_method.is_some() {
+            get_shopper_email(item.request.clone(), payment_method_type)?
+        } else {
+            item.request.email.clone()
+        };
         Ok(AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
