@@ -214,8 +214,9 @@ impl<const T: u8>
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: dummyconnector::PaymentsResponse = res
             .response
-            .parse_struct("DummyConnector PaymentsAuthorizeResponse")
+            .parse_struct("DummyConnector PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        println!("handle_response: {:#?}", response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),

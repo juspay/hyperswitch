@@ -6,8 +6,7 @@ use url::Url;
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
     core::errors,
-    services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums}, services,
 };
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -88,7 +87,7 @@ impl From<DummyConnectorPaymentStatus> for enums::AttemptStatus {
         match item {
             DummyConnectorPaymentStatus::Succeeded => Self::Charged,
             DummyConnectorPaymentStatus::Failed => Self::Failure,
-            DummyConnectorPaymentStatus::Processing => Self::Authorizing,
+            DummyConnectorPaymentStatus::Processing => Self::AuthenticationPending,
         }
     }
 }
