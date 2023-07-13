@@ -144,7 +144,13 @@ pub async fn list_customer_payment_method_api(
         &req,
         payload,
         |state, auth, req| {
-            cards::do_list_customer_pm_fetch_customer_if_not_passed(state, auth.merchant_account, auth.key_store, customer.as_deref(), Some(req))
+            cards::do_list_customer_pm_fetch_customer_if_not_passed(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                customer.as_deref(),
+                Some(req),
+            )
         },
         &*auth,
     )
