@@ -2,15 +2,15 @@ use std::borrow::Cow;
 
 use base64::Engine;
 use common_utils::{
-    ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
+    ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
 };
+use diesel_models::{enums, payment_intent};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use router_env::{instrument, logger, tracing};
-use storage_models::{enums, payment_intent};
 use time::Duration;
 use uuid::Uuid;
 
@@ -28,7 +28,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::{metrics, AppState},
-    scheduler::{metrics as scheduler_metrics, workflows::payment_sync},
+    scheduler::metrics as scheduler_metrics,
     services,
     types::{
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
@@ -76,7 +76,7 @@ pub fn create_identity_from_certificate_and_key(
 
 pub fn filter_mca_based_on_business_details(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    payment_intent: Option<&storage_models::payment_intent::PaymentIntent>,
+    payment_intent: Option<&diesel_models::payment_intent::PaymentIntent>,
 ) -> Vec<domain::MerchantConnectorAccount> {
     if let Some(payment_intent) = payment_intent {
         merchant_connector_accounts
@@ -361,7 +361,7 @@ pub async fn get_token_for_recurring_mandate(
         .locker_id
         .to_owned()
         .get_required_value("locker_id")?;
-    if let storage_models::enums::PaymentMethod::Card = payment_method.payment_method {
+    if let diesel_models::enums::PaymentMethod::Card = payment_method.payment_method {
         let _ =
             cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
         if let Some(payment_method_from_request) = req.payment_method {
@@ -764,27 +764,12 @@ pub async fn add_domain_task_to_pt<Op>(
     state: &AppState,
     payment_attempt: &storage::PaymentAttempt,
     requeue: bool,
+    schedule_time: Option<time::PrimitiveDateTime>,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
     Op: std::fmt::Debug,
 {
     if check_if_operation_confirm(operation) {
-        let connector_name = payment_attempt
-            .connector
-            .clone()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-
-        let schedule_time = payment_sync::get_sync_process_schedule_time(
-            &*state.store,
-            &connector_name,
-            &payment_attempt.merchant_id,
-            0,
-        )
-        .await
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while getting process schedule time")?;
-
         match schedule_time {
             Some(stime) => {
                 if !requeue {
@@ -1512,6 +1497,7 @@ pub fn get_handle_response_url(
         merchant_account,
         redirection_response,
         payments_return_url,
+        response.client_secret.as_ref(),
     )
     .attach_printable("Failed to make merchant url with response")?;
 
@@ -1522,6 +1508,7 @@ pub fn make_merchant_url_with_response(
     merchant_account: &domain::MerchantAccount,
     redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
+    client_secret: Option<&masking::Secret<String>>,
 ) -> RouterResult<String> {
     // take return url if provided in the request else use merchant return url
     let url = request_return_url
@@ -1530,14 +1517,20 @@ pub fn make_merchant_url_with_response(
 
     let status_check = redirection_response.status;
 
-    let payment_intent_id = redirection_response.payment_id;
+    let payment_client_secret = client_secret
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Expected client secret to be `Some`")?;
 
     let merchant_url_with_response = if merchant_account.redirect_to_merchant_with_http_post {
         url::Url::parse_with_params(
             url,
             &[
                 ("status", status_check.to_string()),
-                ("payment_intent_client_secret", payment_intent_id),
+                (
+                    "payment_intent_client_secret",
+                    payment_client_secret.peek().to_string(),
+                ),
             ],
         )
         .into_report()
@@ -1549,7 +1542,10 @@ pub fn make_merchant_url_with_response(
             url,
             &[
                 ("status", status_check.to_string()),
-                ("payment_intent_client_secret", payment_intent_id),
+                (
+                    "payment_intent_client_secret",
+                    payment_client_secret.peek().to_string(),
+                ),
                 ("amount", amount.to_string()),
             ],
         )
@@ -1968,7 +1964,10 @@ mod tests {
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
             order_details: None,
-            udf: None,
+            allowed_payment_method_types: None,
+            connector_metadata: None,
+            feature_metadata: None,
+            attempt_count: 1,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -2009,7 +2008,10 @@ mod tests {
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
             order_details: None,
-            udf: None,
+            allowed_payment_method_types: None,
+            connector_metadata: None,
+            feature_metadata: None,
+            attempt_count: 1,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2050,7 +2052,10 @@ mod tests {
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
             order_details: None,
-            udf: None,
+            allowed_payment_method_types: None,
+            connector_metadata: None,
+            feature_metadata: None,
+            attempt_count: 1,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2217,6 +2222,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         customer_id: router_data.customer_id,
         connector_customer: router_data.connector_customer,
         preprocessing_id: router_data.preprocessing_id,
+        connector_request_reference_id: router_data.connector_request_reference_id,
     }
 }
 
@@ -2270,7 +2276,7 @@ pub fn get_attempt_type(
             } else {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                         message:
-                            format!("You cannot {action} this payment because it has status {}, you can pass manual_retry as true in request to try this payment again", payment_intent.status)
+                            format!("You cannot {action} this payment because it has status {}, you can pass `retry_action` as `manual_retry` in request to try this payment again", payment_intent.status)
                         }
                     ))
             }
@@ -2308,13 +2314,17 @@ impl AttemptType {
     fn make_new_payment_attempt(
         payment_method_data: &Option<api_models::payments::PaymentMethodData>,
         old_payment_attempt: storage::PaymentAttempt,
+        new_attempt_count: i16,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
 
         storage::PaymentAttemptNew {
+            attempt_id: utils::get_payment_attempt_id(
+                &old_payment_attempt.payment_id,
+                new_attempt_count,
+            ),
             payment_id: old_payment_attempt.payment_id,
             merchant_id: old_payment_attempt.merchant_id,
-            attempt_id: uuid::Uuid::new_v4().simple().to_string(),
 
             // A new payment attempt is getting created so, used the same function which is used to populate status in PaymentCreate Flow.
             status: payment_attempt_status_fsm(payment_method_data, Some(true)),
@@ -2362,6 +2372,7 @@ impl AttemptType {
             mandate_details: old_payment_attempt.mandate_details,
             preprocessing_step_id: None,
             error_reason: None,
+            connector_response_reference_id: None,
         }
     }
 
@@ -2376,11 +2387,13 @@ impl AttemptType {
         match self {
             Self::SameOld => Ok((fetched_payment_intent, fetched_payment_attempt)),
             Self::New => {
+                let new_attempt_count = fetched_payment_intent.attempt_count + 1;
                 let new_payment_attempt = db
                     .insert_payment_attempt(
                         Self::make_new_payment_attempt(
                             &request.payment_method_data,
                             fetched_payment_attempt,
+                            new_attempt_count,
                         ),
                         storage_scheme,
                     )
@@ -2398,6 +2411,7 @@ impl AttemptType {
                                 Some(true),
                             ),
                             active_attempt_id: new_payment_attempt.attempt_id.to_owned(),
+                            attempt_count: new_attempt_count,
                         },
                         storage_scheme,
                     )
@@ -2486,108 +2500,6 @@ pub fn is_manual_retry_allowed(
     }
 }
 
-pub fn validate_and_add_order_details_to_payment_intent(
-    payment_intent: &mut storage::payment_intent::PaymentIntent,
-    request: &api::PaymentsRequest,
-) -> RouterResult<()> {
-    let parsed_metadata_db: Option<api_models::payments::Metadata> = payment_intent
-        .metadata
-        .as_ref()
-        .map(|metadata_value| {
-            metadata_value
-                .peek()
-                .clone()
-                .parse_value("metadata")
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "metadata",
-                })
-                .attach_printable("unable to parse metadata")
-        })
-        .transpose()?;
-    let order_details_metadata_db = parsed_metadata_db
-        .as_ref()
-        .and_then(|meta| meta.order_details.to_owned());
-    let order_details_outside_metadata_db = payment_intent.order_details.as_ref();
-    let order_details_outside_metadata_req = request.order_details.as_ref();
-    let order_details_metadata_req = request
-        .metadata
-        .as_ref()
-        .and_then(|meta| meta.order_details.to_owned());
-
-    if order_details_metadata_db
-        .as_ref()
-        .zip(order_details_outside_metadata_db.as_ref())
-        .is_some()
-    {
-        Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payment intent in db".to_string() })?
-    }
-    let order_details_outside = match order_details_outside_metadata_req {
-        Some(order) => match order_details_metadata_db {
-            Some(_) => Err(errors::ApiErrorResponse::NotSupported {
-                message: "order_details previously present inside of metadata".to_string(),
-            })?,
-            None => Some(order),
-        },
-        None => match order_details_metadata_req {
-            Some(_order) => match order_details_outside_metadata_db {
-                Some(_) => Err(errors::ApiErrorResponse::NotSupported {
-                    message: "order_details previously present outside of metadata".to_string(),
-                })?,
-                None => None,
-            },
-            None => None,
-        },
-    };
-    add_order_details_and_metadata_to_payment_intent(
-        payment_intent,
-        request,
-        parsed_metadata_db,
-        &order_details_outside.map(|data| data.to_owned()),
-    )
-}
-
-pub fn add_order_details_and_metadata_to_payment_intent(
-    mut payment_intent: &mut storage::payment_intent::PaymentIntent,
-    request: &api::PaymentsRequest,
-    parsed_metadata_db: Option<api_models::payments::Metadata>,
-    order_details_outside: &Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
-) -> RouterResult<()> {
-    let metadata_with_order_details = match request.metadata.as_ref() {
-        Some(meta) => {
-            let transformed_metadata = match parsed_metadata_db {
-                Some(meta_db) => api_models::payments::Metadata {
-                    order_details: meta.order_details.to_owned(),
-                    ..meta_db
-                },
-                None => meta.to_owned(),
-            };
-            let transformed_metadata_value =
-                Encode::<api_models::payments::Metadata>::encode_to_value(&transformed_metadata)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Encoding Metadata to value failed")?;
-            Some(masking::Secret::new(transformed_metadata_value))
-        }
-        None => None,
-    };
-    if let Some(order_details_outside_struct) = order_details_outside {
-        let order_details_outside_value = order_details_outside_struct
-            .iter()
-            .map(|order| {
-                Encode::<api_models::payments::OrderDetailsWithAmount>::encode_to_value(order)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .map(masking::Secret::new)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        payment_intent.order_details = Some(order_details_outside_value);
-    };
-
-    if metadata_with_order_details.is_some() {
-        payment_intent.metadata = metadata_with_order_details;
-    }
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod test {
     #![allow(clippy::unwrap_used)]
@@ -2610,5 +2522,95 @@ mod test {
             "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_",
             super::get_payment_id_from_client_secret(client_secret3).unwrap()
         );
+    }
+}
+
+pub async fn get_additional_payment_data(
+    pm_data: &api_models::payments::PaymentMethodData,
+    db: &dyn StorageInterface,
+) -> api_models::payments::AdditionalPaymentData {
+    match pm_data {
+        api_models::payments::PaymentMethodData::Card(card_data) => {
+            if card_data.card_issuer.is_some()
+                && card_data.card_network.is_some()
+                && card_data.card_type.is_some()
+                && card_data.card_issuing_country.is_some()
+                && card_data.bank_code.is_some()
+            {
+                api_models::payments::AdditionalPaymentData::Card {
+                    card_issuer: card_data.card_issuer.to_owned(),
+                    card_network: card_data.card_network.clone(),
+                    card_type: card_data.card_type.to_owned(),
+                    card_issuing_country: card_data.card_issuing_country.to_owned(),
+                    bank_code: card_data.bank_code.to_owned(),
+                }
+            } else {
+                let card_number = card_data.clone().card_number;
+                let card_info = db
+                    .get_card_info(&card_number.get_card_isin())
+                    .await
+                    .map_err(|error| services::logger::warn!(card_info_error=?error))
+                    .ok()
+                    .flatten()
+                    .map(
+                        |card_info| api_models::payments::AdditionalPaymentData::Card {
+                            card_issuer: card_info.card_issuer,
+                            card_network: card_info
+                                .card_network
+                                .clone()
+                                .map(|network| network.foreign_into()),
+                            bank_code: card_info.bank_code,
+                            card_type: card_info.card_type,
+                            card_issuing_country: card_info.card_issuing_country,
+                        },
+                    );
+                card_info.unwrap_or(api_models::payments::AdditionalPaymentData::Card {
+                    card_issuer: None,
+                    card_network: None,
+                    bank_code: None,
+                    card_type: None,
+                    card_issuing_country: None,
+                })
+            }
+        }
+        api_models::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
+            match bank_redirect_data {
+                api_models::payments::BankRedirectData::Eps { bank_name, .. } => {
+                    api_models::payments::AdditionalPaymentData::BankRedirect {
+                        bank_name: bank_name.to_owned(),
+                    }
+                }
+                api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
+                    api_models::payments::AdditionalPaymentData::BankRedirect {
+                        bank_name: bank_name.to_owned(),
+                    }
+                }
+                _ => api_models::payments::AdditionalPaymentData::BankRedirect { bank_name: None },
+            }
+        }
+        api_models::payments::PaymentMethodData::Wallet(_) => {
+            api_models::payments::AdditionalPaymentData::Wallet {}
+        }
+        api_models::payments::PaymentMethodData::PayLater(_) => {
+            api_models::payments::AdditionalPaymentData::PayLater {}
+        }
+        api_models::payments::PaymentMethodData::BankTransfer(_) => {
+            api_models::payments::AdditionalPaymentData::BankTransfer {}
+        }
+        api_models::payments::PaymentMethodData::Crypto(_) => {
+            api_models::payments::AdditionalPaymentData::Crypto {}
+        }
+        api_models::payments::PaymentMethodData::BankDebit(_) => {
+            api_models::payments::AdditionalPaymentData::BankDebit {}
+        }
+        api_models::payments::PaymentMethodData::MandatePayment => {
+            api_models::payments::AdditionalPaymentData::MandatePayment {}
+        }
+        api_models::payments::PaymentMethodData::Reward(_) => {
+            api_models::payments::AdditionalPaymentData::Reward {}
+        }
+        api_models::payments::PaymentMethodData::Upi(_) => {
+            api_models::payments::AdditionalPaymentData::Upi {}
+        }
     }
 }
