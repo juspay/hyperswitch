@@ -18,9 +18,9 @@ use common_utils::{
     ext_traits::{AsyncExt, BytesExt, StringExt, ValueExt},
     generate_id,
 };
+use diesel_models::{enums as storage_enums, payment_method};
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
-use storage_models::{enums as storage_enums, payment_method};
 
 #[cfg(feature = "basilisk")]
 use crate::scheduler::metrics as scheduler_metrics;
