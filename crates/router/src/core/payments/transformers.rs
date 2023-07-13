@@ -333,7 +333,8 @@ where
                     qr_code_next_steps_check(payment_attempt.clone())?;
 
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
-                    || bank_transfer_next_steps.is_some() || next_action_containing_qr_code.is_some() 
+                    || bank_transfer_next_steps.is_some()
+                    || next_action_containing_qr_code.is_some()
                 {
                     next_action_response = bank_transfer_next_steps
                         .map(|bank_transfer| {

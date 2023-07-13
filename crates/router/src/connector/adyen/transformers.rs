@@ -19,9 +19,9 @@ use crate::{
         api::{self, enums as api_enums},
         storage::enums as storage_enums,
         transformers::ForeignFrom,
-    }, utils::QrImage,
+    },
+    utils::QrImage,
 };
-
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -312,7 +312,7 @@ pub enum AdyenPaymentMethod<'a> {
     SepaDirectDebit(Box<SepaDirectDebitData>),
     BacsDirectDebit(Box<BacsDirectDebitData>),
     SamsungPay(Box<SamsungPayPmData>),
-    Swish(Box<SwishData>)
+    Swish(Box<SwishData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -648,8 +648,7 @@ pub struct AliPayHkData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SwishData {
-}
+pub struct SwishData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
@@ -1806,8 +1805,10 @@ pub fn get_qr_code_response(
     ),
     errors::ConnectorError,
 > {
-    let status =
-        storage_enums::AttemptStatus::foreign_from((is_manual_capture, response.result_code.clone()));
+    let status = storage_enums::AttemptStatus::foreign_from((
+        is_manual_capture,
+        response.result_code.clone(),
+    ));
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
         Some(types::ErrorResponse {
             code: response
@@ -1825,7 +1826,8 @@ pub fn get_qr_code_response(
         None
     };
 
-    let connector_metadata = get_qr_connector_metadata(&response).or(Err(errors::ConnectorError::NoConnectorMetaData))?;
+    let connector_metadata = get_qr_connector_metadata(&response)
+        .or(Err(errors::ConnectorError::NoConnectorMetaData))?;
 
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
@@ -1842,16 +1844,15 @@ pub fn get_qr_connector_metadata(
     next_action: &QrCodeResponse,
 ) -> Result<Option<serde_json::Value>, error_stack::Report<common_utils::errors::QrCodeError>> {
     let qr_code_data = match next_action.action.type_of_response {
-        ActionType::QrCode => {
-            Some(serde_json::json!(
-            QrCodeNextStepData {
-                image_data_source: QrImage::new_from_data(next_action.action.qr_code_data.clone())?.data,
-                mobile_redirection_url: next_action.action.mobile_redirect_url.clone(),
-            }))},
-            _ => None,
-        };
+        ActionType::QrCode => Some(serde_json::json!(QrCodeNextStepData {
+            image_data_source: QrImage::new_from_data(next_action.action.qr_code_data.clone())?
+                .data,
+            mobile_redirection_url: next_action.action.mobile_redirect_url.clone(),
+        })),
+        _ => None,
+    };
     Ok(qr_code_data)
-}         
+}
 
 impl<F, Req>
     TryFrom<(

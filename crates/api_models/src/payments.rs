@@ -924,7 +924,7 @@ pub enum WalletData {
     /// The wallet data for WeChat Pay
     WeChatPay(Box<WeChatPay>),
     // The wallet data for Swish
-    Swish(SwishWalletData)
+    Swish(SwishWalletData),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

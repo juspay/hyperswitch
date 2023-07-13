@@ -369,9 +369,15 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::ThirdPartySdkSessionToken { session_token } => {
             StripeNextAction::ThirdPartySdkSessionToken { session_token }
         }
-        payments::NextActionData::QrCodeInformation { image_data_source, image_data_url, mobile_redirection_url } => {
-            StripeNextAction::QrCodeInformation { image_data_source, image_data_url, mobile_redirection_url }
-        }
+        payments::NextActionData::QrCodeInformation {
+            image_data_source,
+            image_data_url,
+            mobile_redirection_url,
+        } => StripeNextAction::QrCodeInformation {
+            image_data_source,
+            image_data_url,
+            mobile_redirection_url,
+        },
     })
 }
 
