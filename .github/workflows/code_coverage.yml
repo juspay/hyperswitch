@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Set up Rust
-        uses: actions/setup-rust@v1
+        uses: dtolnay/rust-toolchain@master
 
       - name: Checkout code
         uses: actions/checkout@v2
