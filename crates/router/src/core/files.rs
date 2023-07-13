@@ -19,6 +19,7 @@ use crate::{
 pub async fn files_create_core(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     create_file_request: api::CreateFileRequest,
 ) -> RouterResponse<files::CreateFileResponse> {
     helpers::validate_file_upload(state, merchant_account.clone(), create_file_request.clone())
@@ -28,7 +29,7 @@ pub async fn files_create_core(
     let file_key = format!("{}/{}", merchant_account.merchant_id, file_id);
     #[cfg(not(feature = "s3"))]
     let file_key = format!("{}_{}", merchant_account.merchant_id, file_id);
-    let file_new = storage_models::file::FileMetadataNew {
+    let file_new = diesel_models::file::FileMetadataNew {
         file_id: file_id.clone(),
         merchant_id: merchant_account.merchant_id.clone(),
         file_name: create_file_request.file_name.clone(),
@@ -49,12 +50,13 @@ pub async fn files_create_core(
         helpers::upload_and_get_provider_provider_file_id_connector_label(
             state,
             &merchant_account,
+            &key_store,
             &create_file_request,
             file_key.clone(),
         )
         .await?;
     //Update file metadata
-    let update_file_metadata = storage_models::file::FileMetadataUpdate::Update {
+    let update_file_metadata = diesel_models::file::FileMetadataUpdate::Update {
         provider_file_id: Some(provider_file_id),
         file_upload_provider: Some(file_upload_provider),
         available: true,
@@ -91,6 +93,7 @@ pub async fn files_delete_core(
 pub async fn files_retrieve_core(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     req: api::FileId,
 ) -> RouterResponse<serde_json::Value> {
     let file_metadata_object = state
@@ -104,6 +107,7 @@ pub async fn files_retrieve_core(
             state,
             Some(req.file_id),
             &merchant_account,
+            &key_store,
             api::FileDataRequired::Required,
         )
         .await?;

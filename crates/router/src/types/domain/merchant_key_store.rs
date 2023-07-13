@@ -3,11 +3,10 @@ use common_utils::{
     custom_serde, date_time,
 };
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
 use crate::{
-    db::StorageInterface,
     errors::{CustomResult, ValidationError},
     types::domain::types::TypeEncryption,
 };
@@ -22,10 +21,10 @@ pub struct MerchantKeyStore {
 
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for MerchantKeyStore {
-    type DstType = storage_models::merchant_key_store::MerchantKeyStore;
-    type NewDstType = storage_models::merchant_key_store::MerchantKeyStoreNew;
+    type DstType = diesel_models::merchant_key_store::MerchantKeyStore;
+    type NewDstType = diesel_models::merchant_key_store::MerchantKeyStoreNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(storage_models::merchant_key_store::MerchantKeyStore {
+        Ok(diesel_models::merchant_key_store::MerchantKeyStore {
             key: self.key.into(),
             merchant_id: self.merchant_id,
             created_at: self.created_at,
@@ -34,15 +33,13 @@ impl super::behaviour::Conversion for MerchantKeyStore {
 
     async fn convert_back(
         item: Self::DstType,
-        db: &dyn StorageInterface,
-        _merchant_id: &str,
+        key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
-        let key = &db.get_master_key();
         Ok(Self {
-            key: Encryptable::decrypt(item.key, key, GcmAes256)
+            key: Encryptable::decrypt(item.key, key.peek(), GcmAes256)
                 .await
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting customer data".to_string(),
@@ -53,7 +50,7 @@ impl super::behaviour::Conversion for MerchantKeyStore {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        Ok(storage_models::merchant_key_store::MerchantKeyStoreNew {
+        Ok(diesel_models::merchant_key_store::MerchantKeyStoreNew {
             merchant_id: self.merchant_id,
             key: self.key.into(),
             created_at: date_time::now(),

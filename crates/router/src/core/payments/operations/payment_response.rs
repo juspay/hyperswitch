@@ -311,6 +311,7 @@ async fn payment_response_update_tracker<F: Flow, T: types::Capturable>(
             types::PaymentsResponseData::PreProcessingResponse {
                 pre_processing_id,
                 connector_metadata,
+                connector_response_reference_id,
                 ..
             } => {
                 let connector_transaction_id = match pre_processing_id.to_owned() {
@@ -331,6 +332,7 @@ async fn payment_response_update_tracker<F: Flow, T: types::Capturable>(
                     connector_metadata,
                     preprocessing_step_id,
                     connector_transaction_id,
+                    connector_response_reference_id,
                 };
 
                 (Some(payment_attempt_update), None)
@@ -339,6 +341,7 @@ async fn payment_response_update_tracker<F: Flow, T: types::Capturable>(
                 resource_id,
                 redirection_data,
                 connector_metadata,
+                connector_response_reference_id,
                 ..
             } => {
                 let connector_transaction_id = match resource_id {
@@ -382,6 +385,7 @@ async fn payment_response_update_tracker<F: Flow, T: types::Capturable>(
                     error_code: error_status.clone(),
                     error_message: error_status.clone(),
                     error_reason: error_status,
+                    connector_response_reference_id,
                 };
 
                 let connector_response_update = storage::ConnectorResponseUpdate::ResponseUpdate {
@@ -399,6 +403,7 @@ async fn payment_response_update_tracker<F: Flow, T: types::Capturable>(
             types::PaymentsResponseData::TransactionUnresolvedResponse {
                 resource_id,
                 reason,
+                connector_response_reference_id,
             } => {
                 let connector_transaction_id = match resource_id {
                     types::ResponseId::NoResponseId => None,
@@ -414,6 +419,7 @@ async fn payment_response_update_tracker<F: Flow, T: types::Capturable>(
                         error_code: Some(reason.clone().map(|cd| cd.code)),
                         error_message: Some(reason.clone().map(|cd| cd.message)),
                         error_reason: Some(reason.map(|cd| cd.message)),
+                        connector_response_reference_id,
                     }),
                     None,
                 )

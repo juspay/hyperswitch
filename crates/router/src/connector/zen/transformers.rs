@@ -588,6 +588,7 @@ impl<F: Flow, T> TryFrom<types::ResponseRouterData<F, ApiResponse, T, types::Pay
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..value.data
         })
@@ -614,6 +615,7 @@ impl<F: Flow, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..value.data
         })

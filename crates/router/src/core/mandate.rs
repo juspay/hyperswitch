@@ -1,8 +1,8 @@
 use common_utils::{ext_traits::Encode, pii};
+use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use futures::future;
 use router_env::{instrument, logger, tracing};
-use storage_models::enums as storage_enums;
 
 use super::payments::{helpers, operations::Flow};
 use crate::{
@@ -144,7 +144,7 @@ where
                     .store
                     .find_mandate_by_merchant_id_mandate_id(resp.merchant_id.as_ref(), mandate_id)
                     .await
-                    .change_context(errors::ApiErrorResponse::MandateNotFound)?;
+                    .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
                 let mandate = match mandate.mandate_type {
                     storage_enums::MandateType::SingleUse => state
                         .store
@@ -197,7 +197,9 @@ where
                     let mandate_ids = mandate_reference
                         .map(|md| {
                             Encode::<types::MandateReference>::encode_to_value(&md)
-                                .change_context(errors::ApiErrorResponse::MandateNotFound)
+                                .change_context(
+                                    errors::ApiErrorResponse::MandateSerializationFailed,
+                                )
                                 .map(masking::Secret::new)
                         })
                         .transpose()?;
@@ -224,7 +226,7 @@ where
                                     .parse_value::<api_models::payments::ConnectorMandateReferenceId>(
                                         "ConnectorMandateId",
                                     )
-                                    .change_context(errors::ApiErrorResponse::MandateNotFound)
+                                    .change_context(errors::ApiErrorResponse::MandateDeserializationFailed)
                             })
                             .transpose()?
                             .map_or(
@@ -303,7 +305,7 @@ impl ForeignTryFrom<Result<types::PaymentsResponseData, types::ErrorResponse>>
 
 pub trait MandateBehaviour {
     fn get_amount(&self) -> i64;
-    fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage>;
+    fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage>;
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds>;
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>);
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData;

@@ -16,14 +16,16 @@ use crate::{
 pub async fn get_evidence_request_data(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     evidence_request: api_models::disputes::SubmitEvidenceRequest,
-    dispute: &storage_models::dispute::Dispute,
+    dispute: &diesel_models::dispute::Dispute,
 ) -> CustomResult<SubmitEvidenceRequestData, errors::ApiErrorResponse> {
     let (cancellation_policy, cancellation_policy_provider_file_id) =
         retrieve_file_and_provider_file_id_from_file_id(
             state,
             evidence_request.cancellation_policy,
             merchant_account,
+            key_store,
             api::FileDataRequired::NotRequired,
         )
         .await?;
@@ -32,6 +34,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.customer_communication,
             merchant_account,
+            key_store,
             api::FileDataRequired::NotRequired,
         )
         .await?;
@@ -40,6 +43,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.customer_signature,
             merchant_account,
+            key_store,
             api::FileDataRequired::NotRequired,
         )
         .await?;
@@ -47,6 +51,7 @@ pub async fn get_evidence_request_data(
         state,
         evidence_request.receipt,
         merchant_account,
+        key_store,
         api::FileDataRequired::NotRequired,
     )
     .await?;
@@ -55,6 +60,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.refund_policy,
             merchant_account,
+            key_store,
             api::FileDataRequired::NotRequired,
         )
         .await?;
@@ -63,6 +69,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.service_documentation,
             merchant_account,
+            key_store,
             api::FileDataRequired::NotRequired,
         )
         .await?;
@@ -71,6 +78,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.shipping_documentation,
             merchant_account,
+            key_store,
             api::FileDataRequired::NotRequired,
         )
         .await?;
@@ -81,6 +89,7 @@ pub async fn get_evidence_request_data(
         state,
         evidence_request.invoice_showing_distinct_transactions,
         merchant_account,
+        key_store,
         api::FileDataRequired::NotRequired,
     )
     .await?;
@@ -89,6 +98,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.recurring_transaction_agreement,
             merchant_account,
+            key_store,
             api::FileDataRequired::NotRequired,
         )
         .await?;
@@ -97,6 +107,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.uncategorized_file,
             merchant_account,
+            key_store,
             api::FileDataRequired::NotRequired,
         )
         .await?;

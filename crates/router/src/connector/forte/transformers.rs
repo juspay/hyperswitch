@@ -259,6 +259,7 @@ impl<F: Flow, T>
                     auth_id: item.response.authorization_code,
                 })),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -305,6 +306,7 @@ impl<F: Flow, T>
                     auth_id: item.response.authorization_code,
                 })),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -372,6 +374,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
                     auth_id: item.response.authorization_code,
                 })),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             amount_captured: None,
             ..item.data
@@ -438,6 +441,7 @@ impl<F: Flow, T>
                     auth_id: item.response.authorization_code,
                 })),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

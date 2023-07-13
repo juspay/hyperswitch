@@ -34,8 +34,9 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentUpd
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsRequest,
-        mandate_type: Option<api::MandateTxnType>,
+        mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -87,10 +88,12 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentUpd
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let _ = helpers::validate_and_add_order_details_to_payment_intent(
-            &mut payment_intent,
-            request,
-        )?;
+        payment_intent.order_details = request
+            .get_order_details_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert order details to value")?
+            .or(payment_intent.order_details);
+
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
@@ -136,6 +139,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentUpd
                 .customer_id
                 .as_ref()
                 .or(customer_details.customer_id.as_ref()),
+            key_store,
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
@@ -147,12 +151,31 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentUpd
                 .customer_id
                 .as_ref()
                 .or(customer_details.customer_id.as_ref()),
+            key_store,
         )
         .await?;
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
 
+        payment_intent.allowed_payment_method_types = request
+            .get_allowed_payment_method_types_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error converting allowed_payment_types to Value")?
+            .or(payment_intent.allowed_payment_method_types);
+
+        payment_intent.connector_metadata = request
+            .get_connector_metadata_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error converting connector_metadata to Value")?
+            .or(payment_intent.connector_metadata);
+
+        payment_intent.feature_metadata = request
+            .get_feature_metadata_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error converting feature_metadata to Value")?
+            .or(payment_intent.feature_metadata);
+        payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
         Self::populate_payment_intent_with_request(&mut payment_intent, request);
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
@@ -316,7 +339,7 @@ impl<F: Flow> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
-        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRequest>,
@@ -329,7 +352,8 @@ impl<F: Flow> Domain<F, api::PaymentsRequest> for PaymentUpdate {
             db,
             payment_data,
             request,
-            merchant_id,
+            &key_store.merchant_id,
+            key_store,
         )
         .await
     }
@@ -352,6 +376,8 @@ impl<F: Flow> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         &'a self,
         _state: &'a AppState,
         _payment_attempt: &storage::PaymentAttempt,
+        _requeue: bool,
+        _schedule_time: Option<time::PrimitiveDateTime>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -362,6 +388,7 @@ impl<F: Flow> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         state: &AppState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::payment_intent::PaymentIntent,
+        _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
     }
@@ -377,6 +404,7 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Payment
         customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -399,7 +427,10 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Payment
         let additional_pm_data = payment_data
             .payment_method_data
             .as_ref()
-            .map(api_models::payments::AdditionalPaymentData::from)
+            .async_map(|payment_method_data| async {
+                helpers::get_additional_payment_data(payment_method_data, db).await
+            })
+            .await
             .as_ref()
             .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
             .transpose()
@@ -469,7 +500,7 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Payment
             .clone();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-        let udf = payment_data.payment_intent.udf.clone();
+
         payment_data.payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
@@ -489,7 +520,6 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Payment
                     statement_descriptor_suffix,
                     order_details,
                     metadata,
-                    udf,
                 },
                 storage_scheme,
             )
@@ -515,19 +545,6 @@ impl<F: Flow> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate {
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
-        let order_details_inside_metadata = request
-            .metadata
-            .as_ref()
-            .and_then(|meta| meta.order_details.to_owned());
-        if request
-            .order_details
-            .as_ref()
-            .zip(order_details_inside_metadata)
-            .is_some()
-        {
-            Err(errors::ApiErrorResponse::NotSupported { message: "order_details cannot be present both inside and outside metadata in payments request".to_string() })?
-        }
-
         helpers::validate_customer_details_in_request(request)?;
 
         let given_payment_id = match &request.payment_id {
@@ -567,6 +584,10 @@ impl<F: Flow> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate {
                 payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: matches!(
+                    request.retry_action,
+                    Some(api_models::enums::RetryAction::Requeue)
+                ),
             },
         ))
     }
@@ -633,10 +654,5 @@ impl PaymentUpdate {
             .client_secret
             .clone()
             .map(|i| payment_intent.client_secret.replace(i));
-
-        request
-            .udf
-            .clone()
-            .map(|udf| payment_intent.udf.replace(udf));
     }
 }

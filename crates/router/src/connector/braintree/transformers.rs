@@ -184,9 +184,7 @@ pub enum BraintreePaymentStatus {
 impl From<BraintreePaymentStatus> for enums::AttemptStatus {
     fn from(item: BraintreePaymentStatus) -> Self {
         match item {
-            BraintreePaymentStatus::Succeeded
-            | BraintreePaymentStatus::SubmittedForSettlement
-            | BraintreePaymentStatus::Settling => Self::Charged,
+            BraintreePaymentStatus::Succeeded | BraintreePaymentStatus::Settling => Self::Charged,
             BraintreePaymentStatus::AuthorizedExpired => Self::AuthorizationFailed,
             BraintreePaymentStatus::Failed
             | BraintreePaymentStatus::GatewayRejected
@@ -222,6 +220,7 @@ impl<F: Flow, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

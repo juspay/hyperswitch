@@ -45,7 +45,7 @@ where
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => {
+            diesel_models::enums::PaymentMethod::BankRedirect => {
                 let token = req
                     .access_token
                     .clone()
@@ -114,8 +114,16 @@ impl ConnectorCommon for Trustpay {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.status.to_string(),
-            message: format!("{:?}", response.errors.first().unwrap_or(&default_error)),
-            reason: Some(format!("{:?}", response.errors)),
+            message: format!(
+                "{:?}",
+                response
+                    .errors
+                    .as_ref()
+                    .unwrap_or(&vec![])
+                    .first()
+                    .unwrap_or(&default_error)
+            ),
+            reason: response.errors.map(|errors| format!("{:?}", errors)),
         })
     }
 }
@@ -192,10 +200,13 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn get_request_body(
         &self,
         req: &types::RefreshTokenRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let trustpay_req =
-            utils::Encode::<trustpay::TrustpayAuthUpdateRequest>::convert_and_url_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = trustpay::TrustpayAuthUpdateRequest::try_from(req)?;
+        let trustpay_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<trustpay::TrustpayAuthUpdateRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(trustpay_req))
     }
 
@@ -277,7 +288,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.clone();
         match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => Ok(format!(
+            diesel_models::enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}{}/{}",
                 connectors.trustpay.base_url_bank_redirects,
                 "api/Payments/Payment",
@@ -389,11 +400,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsPreProcessingRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let create_intent_req = trustpay::TrustpayCreateIntentRequest::try_from(req)?;
-        let trustpay_req =
-            utils::Encode::<trustpay::TrustpayCreateIntentRequest>::url_encode(&create_intent_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let trustpay_req = types::RequestBody::log_and_get_request_body(
+            &create_intent_req,
+            utils::Encode::<trustpay::TrustpayCreateIntentRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(trustpay_req))
     }
 
@@ -475,7 +488,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => Ok(format!(
+            diesel_models::enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}{}",
                 connectors.trustpay.base_url_bank_redirects, "api/Payments/Payment"
             )),
@@ -490,17 +503,21 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let trustpay_req = trustpay::TrustpayPaymentsRequest::try_from(req)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = trustpay::TrustpayPaymentsRequest::try_from(req)?;
         let trustpay_req_string = match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => {
-                utils::Encode::<trustpay::PaymentRequestBankRedirect>::encode_to_string_of_json(
-                    &trustpay_req,
+            diesel_models::enums::PaymentMethod::BankRedirect => {
+                types::RequestBody::log_and_get_request_body(
+                    &connector_req,
+                    utils::Encode::<trustpay::PaymentRequestBankRedirect>::encode_to_string_of_json,
                 )
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?
             }
-            _ => utils::Encode::<trustpay::PaymentRequestCards>::url_encode(&trustpay_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+            _ => types::RequestBody::log_and_get_request_body(
+                &connector_req,
+                utils::Encode::<trustpay::PaymentRequestCards>::url_encode,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         };
         Ok(Some(trustpay_req_string))
     }
@@ -575,7 +592,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => Ok(format!(
+            diesel_models::enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}{}{}{}",
                 connectors.trustpay.base_url_bank_redirects,
                 "api/Payments/Payment/",
@@ -589,16 +606,21 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let trustpay_req = trustpay::TrustpayRefundRequest::try_from(req)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = trustpay::TrustpayRefundRequest::try_from(req)?;
         let trustpay_req_string = match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => utils::Encode::<
-                trustpay::TrustpayRefundRequestBankRedirect,
-            >::encode_to_string_of_json(
-                &trustpay_req
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-            _ => utils::Encode::<trustpay::TrustpayRefundRequestCards>::url_encode(&trustpay_req)
+            diesel_models::enums::PaymentMethod::BankRedirect => {
+                types::RequestBody::log_and_get_request_body(
+                    &connector_req,
+                    utils::Encode::<trustpay::TrustpayRefundRequestBankRedirect>::encode_to_string_of_json,
+                )
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?
+            }
+            _ =>
+                types::RequestBody::log_and_get_request_body(
+                    &connector_req,
+                    utils::Encode::<trustpay::TrustpayRefundRequestCards>::url_encode,
+                )
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         };
         Ok(Some(trustpay_req_string))
@@ -670,7 +692,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .to_owned()
             .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
         match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => Ok(format!(
+            diesel_models::enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}{}/{}",
                 connectors.trustpay.base_url_bank_redirects, "api/Payments/Payment", id
             )),
@@ -914,7 +936,7 @@ impl services::ConnectorRedirectResponse for Trustpay {
             payments::CallConnectorAction::Trigger,
             |status| match status.as_str() {
                 "SuccessOk" => payments::CallConnectorAction::StatusUpdate {
-                    status: storage_models::enums::AttemptStatus::Charged,
+                    status: diesel_models::enums::AttemptStatus::Charged,
                     error_code: None,
                     error_message: None,
                 },

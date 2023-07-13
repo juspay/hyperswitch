@@ -121,10 +121,13 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
     fn get_request_body(
         &self,
         req: &types::VerifyRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = nmi::NmiPaymentsRequest::try_from(req)?;
-        let nmi_req = utils::Encode::<nmi::NmiPaymentsRequest>::url_encode(&connector_req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let nmi_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<nmi::NmiPaymentsRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(nmi_req))
     }
 
@@ -190,10 +193,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = nmi::NmiPaymentsRequest::try_from(req)?;
-        let nmi_req = utils::Encode::<nmi::NmiPaymentsRequest>::url_encode(&connector_req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let nmi_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<nmi::NmiPaymentsRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(nmi_req))
     }
 
@@ -261,10 +267,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_request_body(
         &self,
         req: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = nmi::NmiSyncRequest::try_from(req)?;
-        let nmi_req = utils::Encode::<nmi::NmiSyncRequest>::url_encode(&connector_req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let nmi_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<nmi::NmiSyncRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(nmi_req))
     }
 
@@ -325,10 +334,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = nmi::NmiCaptureRequest::try_from(req)?;
-        let nmi_req = utils::Encode::<NmiCaptureRequest>::url_encode(&connector_req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let nmi_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<NmiCaptureRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(nmi_req))
     }
 
@@ -394,10 +406,13 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = nmi::NmiCancelRequest::try_from(req)?;
-        let nmi_req = utils::Encode::<nmi::NmiCancelRequest>::url_encode(&connector_req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let nmi_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<nmi::NmiCancelRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(nmi_req))
     }
 
@@ -459,10 +474,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = nmi::NmiRefundRequest::try_from(req)?;
-        let nmi_req = utils::Encode::<nmi::NmiRefundRequest>::url_encode(&connector_req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let nmi_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<nmi::NmiRefundRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(nmi_req))
     }
 
@@ -526,10 +544,13 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::RSync>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = nmi::NmiSyncRequest::try_from(req)?;
-        let nmi_req = utils::Encode::<nmi::NmiSyncRequest>::url_encode(&connector_req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let nmi_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<nmi::NmiSyncRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(nmi_req))
     }
 

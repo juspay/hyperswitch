@@ -173,12 +173,13 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn get_request_body(
         &self,
         req: &types::RefreshTokenRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = iatapay::IatapayAuthUpdateRequest::try_from(req)?;
-        println!("##accReq={:?}", req_obj);
-        let iatapay_req = Encode::<iatapay::IatapayAuthUpdateRequest>::url_encode(&req_obj)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("##accReqString={:?}", iatapay_req);
+        let iatapay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            Encode::<iatapay::IatapayAuthUpdateRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(iatapay_req))
     }
 
@@ -265,11 +266,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = iatapay::IatapayPaymentsRequest::try_from(req)?;
-        let iatapay_req =
-            Encode::<iatapay::IatapayPaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let iatapay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            Encode::<iatapay::IatapayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(iatapay_req))
     }
 
@@ -416,7 +419,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         _req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
@@ -490,11 +493,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = iatapay::IatapayRefundRequest::try_from(req)?;
-        let iatapay_req =
-            Encode::<iatapay::IatapayRefundRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let iatapay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            Encode::<iatapay::IatapayRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(iatapay_req))
     }
 

@@ -205,6 +205,9 @@ pub struct RouterData<F: Flow, Request, Response> {
 
     /// Contains any error response that the connector returns.
     pub payment_method_id: Option<String>,
+
+    /// Contains a reference ID that should be sent in the connector request
+    pub connector_request_reference_id: String,
 }
 
 #[derive(Debug, Clone)]
@@ -269,9 +272,11 @@ pub struct PaymentMethodTokenizationData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsPreProcessingData {
+    pub payment_method_data: Option<payments::PaymentMethodData>,
+    pub amount: Option<i64>,
     pub email: Option<Email>,
     pub currency: Option<storage_enums::Currency>,
-    pub amount: Option<i64>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Clone)]
@@ -338,6 +343,7 @@ pub struct VerifyRequestData {
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
     pub router_return_url: Option<String>,
+    pub browser_info: Option<BrowserInformation>,
     pub email: Option<Email>,
     pub return_url: Option<String>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
@@ -403,6 +409,7 @@ pub enum PaymentsResponseData {
         mandate_reference: Option<MandateReference>,
         connector_metadata: Option<serde_json::Value>,
         network_txn_id: Option<String>,
+        connector_response_reference_id: Option<String>,
     },
     SessionResponse {
         session_token: api::SessionToken,
@@ -414,6 +421,7 @@ pub enum PaymentsResponseData {
         resource_id: ResponseId,
         //to add more info on cypto response, like `unresolved` reason(overpaid, underpaid, delayed)
         reason: Option<api::enums::UnresolvedResponseReason>,
+        connector_response_reference_id: Option<String>,
     },
     TokenizationResponse {
         token: String,
@@ -431,6 +439,7 @@ pub enum PaymentsResponseData {
         pre_processing_id: PreprocessingResponseId,
         connector_metadata: Option<serde_json::Value>,
         session_token: Option<api::SessionToken>,
+        connector_response_reference_id: Option<String>,
     },
 }
 
@@ -766,7 +775,7 @@ impl From<&VerifyRouterData> for PaymentsAuthorizeData {
             capture_method: None,
             webhook_url: None,
             complete_authorize_url: None,
-            browser_info: None,
+            browser_info: data.request.browser_info.clone(),
             order_details: None,
             order_category: None,
             session_token: None,
@@ -810,6 +819,27 @@ impl<F1: Flow, F2: Flow, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>
             payment_method_token: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
+            connector_request_reference_id: data.connector_request_reference_id.clone(),
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RequestBody(Secret<String>);
+
+impl RequestBody {
+    pub fn log_and_get_request_body<T, F>(
+        body: T,
+        encoder: F,
+    ) -> errors::CustomResult<Self, errors::ParsingError>
+    where
+        F: FnOnce(T) -> errors::CustomResult<String, errors::ParsingError>,
+        T: std::fmt::Debug,
+    {
+        router_env::logger::info!(connector_request_body=?body);
+        Ok(Self(Secret::new(encoder(body)?)))
+    }
+    pub fn get_inner_value(request_body: Self) -> Secret<String> {
+        request_body.0
     }
 }

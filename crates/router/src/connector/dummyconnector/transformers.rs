@@ -1,6 +1,6 @@
+use diesel_models::enums::Currency;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use storage_models::enums::Currency;
 
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
@@ -117,6 +117,7 @@ impl<F: Flow, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

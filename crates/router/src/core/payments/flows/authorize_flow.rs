@@ -30,6 +30,7 @@ impl
         state: &AppState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<
         types::RouterData<
@@ -43,6 +44,7 @@ impl
             self.clone(),
             connector_id,
             merchant_account,
+            key_store,
             customer,
         )
         .await
@@ -149,7 +151,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         state: &AppState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<Option<services::Request>> {
+    ) -> RouterResult<(Option<services::Request>, bool)> {
         match call_connector_action {
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedConnectorIntegration<
@@ -182,24 +184,27 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     self.decide_authentication_type();
                     logger::debug!(auth_type=?self.auth_type);
 
-                    connector_integration
-                        .build_request(self, &state.conf.connectors)
-                        .to_payment_failed_response()
+                    Ok((
+                        connector_integration
+                            .build_request(self, &state.conf.connectors)
+                            .to_payment_failed_response()?,
+                        true,
+                    ))
                 } else {
-                    Ok(None)
+                    Ok((None, false))
                 }
             }
-            _ => Ok(None),
+            _ => Ok((None, true)),
         }
     }
 }
 
 impl types::PaymentsAuthorizeRouterData {
     fn decide_authentication_type(&mut self) {
-        if self.auth_type == storage_models::enums::AuthenticationType::ThreeDs
+        if self.auth_type == diesel_models::enums::AuthenticationType::ThreeDs
             && !self.request.enrolled_for_3ds
         {
-            self.auth_type = storage_models::enums::AuthenticationType::NoThreeDs
+            self.auth_type = diesel_models::enums::AuthenticationType::NoThreeDs
         }
     }
 
@@ -224,7 +229,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
         self.payment_method_data.clone()
     }
-    fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage> {
+    fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
         self.setup_future_usage
     }
     fn get_setup_mandate_details(&self) -> Option<&api_models::payments::MandateData> {
@@ -340,9 +345,11 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
 
     fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            amount: Some(data.amount),
             email: data.email,
             currency: Some(data.currency),
-            amount: Some(data.amount),
+            payment_method_type: data.payment_method_type,
         })
     }
 }

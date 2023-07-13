@@ -33,8 +33,9 @@ impl<F: Flow> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureReques
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsCaptureRequest,
-        _mandate_type: Option<api::MandateTxnType>,
+        _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
         payments::PaymentData<F>,
@@ -98,6 +99,7 @@ impl<F: Flow> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureReques
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
+            key_store,
         )
         .await?;
 
@@ -107,6 +109,7 @@ impl<F: Flow> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureReques
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
+            key_store,
         )
         .await?;
 
@@ -176,6 +179,7 @@ impl<F: Flow> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureReq
         _customer: Option<domain::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
         payments::PaymentData<F>,
@@ -209,6 +213,7 @@ impl<F: Flow> ValidateRequest<F, api::PaymentsCaptureRequest> for PaymentCapture
                 payment_id: api::PaymentIdType::PaymentIntentId(payment_id.to_owned()),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }

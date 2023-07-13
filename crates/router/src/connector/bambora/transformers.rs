@@ -212,6 +212,7 @@ impl<F: Flow, T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 }),
                 ..item.data
             }),
@@ -235,6 +236,7 @@ impl<F: Flow, T>
                             .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
                         ),
                         network_txn_id: None,
+                        connector_response_reference_id: None,
                     }),
                     ..item.data
                 })
@@ -428,7 +430,7 @@ pub struct BamboraRefundRequest {
 }
 
 impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for BamboraRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.request.refund_amount,

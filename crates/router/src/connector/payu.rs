@@ -222,9 +222,13 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn get_request_body(
         &self,
         req: &types::RefreshTokenRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let payu_req = utils::Encode::<payu::PayuAuthUpdateRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = payu::PayuAuthUpdateRequest::try_from(req)?;
+        let payu_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<payu::PayuAuthUpdateRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         Ok(Some(payu_req))
     }
@@ -391,10 +395,11 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = payu::PayuPaymentsCaptureRequest::try_from(req)?;
-        let payu_req = utils::Encode::<payu::PayuPaymentsCaptureRequest>::encode_to_string_of_json(
+        let payu_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
+            utils::Encode::<payu::PayuPaymentsCaptureRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payu_req))
@@ -484,11 +489,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = payu::PayuPaymentsRequest::try_from(req)?;
-        let payu_req =
-            utils::Encode::<payu::PayuPaymentsRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let payu_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<payu::PayuPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payu_req))
     }
 
@@ -576,11 +583,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = payu::PayuRefundRequest::try_from(req)?;
-        let payu_req =
-            utils::Encode::<payu::PayuRefundRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let payu_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<payu::PayuRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payu_req))
     }
 

@@ -4,19 +4,14 @@ use common_utils::{
     errors::{CustomResult, ValidationError},
     pii,
 };
-use error_stack::ResultExt;
-use masking::Secret;
-use storage_models::{
+use diesel_models::{
     encryption::Encryption, enums,
     merchant_connector_account::MerchantConnectorAccountUpdateInternal,
 };
+use error_stack::ResultExt;
+use masking::{PeekInterface, Secret};
 
-use super::{
-    behaviour,
-    types::{self, TypeEncryption},
-};
-use crate::db::StorageInterface;
-
+use super::{behaviour, types::TypeEncryption};
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccount {
     pub id: Option<i32>,
@@ -56,12 +51,12 @@ pub enum MerchantConnectorAccountUpdate {
 
 #[async_trait::async_trait]
 impl behaviour::Conversion for MerchantConnectorAccount {
-    type DstType = storage_models::merchant_connector_account::MerchantConnectorAccount;
-    type NewDstType = storage_models::merchant_connector_account::MerchantConnectorAccountNew;
+    type DstType = diesel_models::merchant_connector_account::MerchantConnectorAccount;
+    type NewDstType = diesel_models::merchant_connector_account::MerchantConnectorAccountNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(
-            storage_models::merchant_connector_account::MerchantConnectorAccount {
+            diesel_models::merchant_connector_account::MerchantConnectorAccount {
                 id: self.id.ok_or(ValidationError::MissingRequiredField {
                     field_name: "id".to_string(),
                 })?,
@@ -87,22 +82,15 @@ impl behaviour::Conversion for MerchantConnectorAccount {
 
     async fn convert_back(
         other: Self::DstType,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
+        key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError> {
-        let key = types::get_merchant_enc_key(db, merchant_id)
-            .await
-            .change_context(ValidationError::InvalidValue {
-                message: "Error while getting key from keystore".to_string(),
-            })?;
-
         Ok(Self {
             id: Some(other.id),
             merchant_id: other.merchant_id,
             connector_name: other.connector_name,
             connector_account_details: Encryptable::decrypt(
                 other.connector_account_details,
-                &key,
+                key.peek(),
                 GcmAes256,
             )
             .await

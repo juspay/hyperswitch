@@ -33,8 +33,9 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for Pay
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsSessionRequest,
-        _mandate_type: Option<api::MandateTxnType>,
+        _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
@@ -84,6 +85,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for Pay
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
+            key_store,
         )
         .await?;
 
@@ -93,6 +95,7 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for Pay
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
+            key_store,
         )
         .await?;
 
@@ -185,6 +188,7 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for 
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
@@ -229,6 +233,7 @@ impl<F: Flow> ValidateRequest<F, api::PaymentsSessionRequest> for PaymentSession
                 payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }
@@ -246,7 +251,7 @@ where
         db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
-        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> errors::CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsSessionRequest>,
@@ -259,7 +264,8 @@ where
             db,
             payment_data,
             request,
-            merchant_id,
+            &key_store.merchant_id,
+            key_store,
         )
         .await
     }
@@ -293,6 +299,7 @@ where
         state: &AppState,
         request: &api::PaymentsSessionRequest,
         payment_intent: &storage::payment_intent::PaymentIntent,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<api::ConnectorChoice> {
         let connectors = &state.conf.connectors;
         let db = &state.store;
@@ -301,6 +308,7 @@ where
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
                 &merchant_account.merchant_id,
                 false,
+                key_store,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

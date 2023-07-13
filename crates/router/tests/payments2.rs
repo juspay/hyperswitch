@@ -37,9 +37,18 @@ async fn payments_create_core() {
     let tx: oneshot::Sender<()> = oneshot::channel().0;
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
 
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            "juspay_merchant",
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .unwrap();
+
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id("juspay_merchant")
+        .find_merchant_account_by_merchant_id("juspay_merchant", &key_store)
         .await
         .unwrap();
 
@@ -69,6 +78,10 @@ async fn payments_create_core() {
             card_cvc: "123".to_string().into(),
             card_issuer: None,
             card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            nick_name: Some(masking::Secret::new("nick_name".into())),
         })),
         payment_method: Some(api_enums::PaymentMethod::Card),
         shipping: Some(api::Address {
@@ -104,6 +117,7 @@ async fn payments_create_core() {
         router::core::payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
             &state,
             merchant_account,
+            key_store,
             payments::PaymentCreate,
             req,
             services::AuthFlow::Merchant,
@@ -194,9 +208,18 @@ async fn payments_create_core_adyen_no_redirect() {
     let merchant_id = "arunraj".to_string();
     let payment_id = "pay_mbabizu24mvu3mela5njyhpit10".to_string();
 
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            "juspay_merchant",
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .unwrap();
+
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id("juspay_merchant")
+        .find_merchant_account_by_merchant_id("juspay_merchant", &key_store)
         .await
         .unwrap();
 
@@ -220,14 +243,14 @@ async fn payments_create_core_adyen_no_redirect() {
             card_exp_year: "2030".to_string().into(),
             card_holder_name: "JohnDoe".to_string().into(),
             card_cvc: "737".to_string().into(),
+            bank_code: None,
             card_issuer: None,
             card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            nick_name: Some(masking::Secret::new("nick_name".into())),
         })),
         payment_method: Some(api_enums::PaymentMethod::Card),
-        shipping: Some(api::Address {
-            address: None,
-            phone: None,
-        }),
         billing: Some(api::Address {
             address: None,
             phone: None,
@@ -256,6 +279,7 @@ async fn payments_create_core_adyen_no_redirect() {
         router::core::payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
             &state,
             merchant_account,
+            key_store,
             payments::PaymentCreate,
             req,
             services::AuthFlow::Merchant,

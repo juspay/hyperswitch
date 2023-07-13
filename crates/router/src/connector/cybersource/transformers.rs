@@ -100,7 +100,7 @@ fn build_bill_to(
         last_name: address.get_last_name()?.to_owned(),
         address1: address.get_line1()?.to_owned(),
         locality: address.get_city()?.to_owned(),
-        administrative_area: address.get_line2()?.to_owned(),
+        administrative_area: address.to_state_code()?,
         postal_code: address.get_zip()?.to_owned(),
         country: address.get_country()?.to_owned(),
         email,
@@ -318,6 +318,7 @@ impl<F: Flow, T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 }),
             },
             ..item.data
@@ -382,6 +383,7 @@ impl<F: Flow, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

@@ -32,8 +32,9 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for Paym
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsCancelRequest,
-        _mandate_type: Option<api::MandateTxnType>,
+        _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         PaymentData<F>,
@@ -79,14 +80,17 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for Paym
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
+            key_store,
         )
         .await?;
+
         let billing_address = helpers::get_address_for_payment_request(
             db,
             None,
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
+            key_store,
         )
         .await?;
 
@@ -168,6 +172,7 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for P
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCancelRequest>,
         PaymentData<F>,
@@ -228,6 +233,7 @@ impl<F: Flow> ValidateRequest<F, api::PaymentsCancelRequest> for PaymentCancel {
                 payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }

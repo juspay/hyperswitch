@@ -260,6 +260,7 @@ pub enum AdyenPaymentMethod<'a> {
     AdyenPaypal(Box<AdyenPaypal>),
     AfterPay(Box<AdyenPayLaterData>),
     AliPay(Box<AliPayData>),
+    AliPayHk(Box<AliPayHkData>),
     ApplePay(Box<AdyenApplePay>),
     BancontactCard(Box<BancontactCardData>),
     Blik(Box<BlikRedirectionData>),
@@ -283,6 +284,7 @@ pub enum AdyenPaymentMethod<'a> {
     #[serde(rename = "sepadirectdebit")]
     SepaDirectDebit(Box<SepaDirectDebitData>),
     BacsDirectDebit(Box<BacsDirectDebitData>),
+    SamsungPay(Box<SamsungPayPmData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -357,6 +359,14 @@ pub struct MbwayData {
 pub struct WalleyData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SamsungPayPmData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+    #[serde(rename = "samsungPayToken")]
+    samsung_pay_token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -604,11 +614,17 @@ pub struct AliPayData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliPayHkData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
     #[serde(rename = "type")]
     payment_type: PaymentType,
     #[serde(rename = "googlePayToken")]
-    google_pay_token: String,
+    google_pay_token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -616,7 +632,7 @@ pub struct AdyenApplePay {
     #[serde(rename = "type")]
     payment_type: PaymentType,
     #[serde(rename = "applePayToken")]
-    apple_pay_token: String,
+    apple_pay_token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -656,6 +672,8 @@ pub enum PaymentType {
     Affirm,
     Afterpaytouch,
     Alipay,
+    #[serde(rename = "alipay_hk")]
+    AlipayHk,
     Applepay,
     Blik,
     Eps,
@@ -689,6 +707,7 @@ pub enum PaymentType {
     SepaDirectDebit,
     #[serde(rename = "directdebit_GB")]
     BacsDirectDebit,
+    Samsungpay,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -863,7 +882,7 @@ fn get_browser_info(
 
 fn get_additional_data(item: &types::PaymentsAuthorizeRouterData) -> Option<AdditionalData> {
     match item.request.capture_method {
-        Some(storage_models::enums::CaptureMethod::Manual) => Some(AdditionalData {
+        Some(diesel_models::enums::CaptureMethod::Manual) => Some(AdditionalData {
             authorisation_type: Some(AuthType::PreAuth),
             manual_capture: Some(true),
             network_tx_reference: None,
@@ -1053,14 +1072,14 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
             api_models::payments::WalletData::GooglePay(data) => {
                 let gpay_data = AdyenGPay {
                     payment_type: PaymentType::Googlepay,
-                    google_pay_token: data.tokenization_data.token.to_owned(),
+                    google_pay_token: Secret::new(data.tokenization_data.token.to_owned()),
                 };
                 Ok(AdyenPaymentMethod::Gpay(Box::new(gpay_data)))
             }
             api_models::payments::WalletData::ApplePay(data) => {
                 let apple_pay_data = AdyenApplePay {
                     payment_type: PaymentType::Applepay,
-                    apple_pay_token: data.payment_data.to_string(),
+                    apple_pay_token: Secret::new(data.payment_data.to_string()),
                 };
 
                 Ok(AdyenPaymentMethod::ApplePay(Box::new(apple_pay_data)))
@@ -1076,6 +1095,12 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                     payment_type: PaymentType::Alipay,
                 };
                 Ok(AdyenPaymentMethod::AliPay(Box::new(alipay_data)))
+            }
+            api_models::payments::WalletData::AliPayHkRedirect(_) => {
+                let alipay_hk_data = AliPayHkData {
+                    payment_type: PaymentType::AlipayHk,
+                };
+                Ok(AdyenPaymentMethod::AliPayHk(Box::new(alipay_hk_data)))
             }
             api_models::payments::WalletData::MbWayRedirect(data) => {
                 let mbway_data = MbwayData {
@@ -1095,6 +1120,13 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                     payment_type: PaymentType::WeChatPayWeb,
                 };
                 Ok(AdyenPaymentMethod::WeChatPayWeb(Box::new(data)))
+            }
+            api_models::payments::WalletData::SamsungPay(samsung_data) => {
+                let data = SamsungPayPmData {
+                    payment_type: PaymentType::Samsungpay,
+                    samsung_pay_token: samsung_data.token.to_owned(),
+                };
+                Ok(AdyenPaymentMethod::SamsungPay(Box::new(data)))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
@@ -1612,6 +1644,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -1664,6 +1697,7 @@ pub fn get_adyen_response(
         mandate_reference,
         connector_metadata: None,
         network_txn_id,
+        connector_response_reference_id: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -1718,6 +1752,7 @@ pub fn get_redirection_response(
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
+        connector_response_reference_id: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -1805,6 +1840,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             amount_captured: Some(item.response.amount.value),
             ..item.data

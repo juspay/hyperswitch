@@ -18,6 +18,7 @@ pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;
 // String literals
 pub(crate) const NO_ERROR_MESSAGE: &str = "No error message";
 pub(crate) const NO_ERROR_CODE: &str = "No error code";
+pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
 
 // General purpose base64 engines
 pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
@@ -31,3 +32,7 @@ pub(crate) const PUB_SUB_CHANNEL: &str = "hyperswitch_invalidate";
 // Apple Pay validation url
 pub(crate) const APPLEPAY_VALIDATION_URL: &str =
     "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";
+
+// Qr Image data source starts with this string
+// The base64 image data will be appended to it to image data source
+pub(crate) const QR_IMAGE_DATA_SOURCE_STRING: &str = "data:image/png;base64";

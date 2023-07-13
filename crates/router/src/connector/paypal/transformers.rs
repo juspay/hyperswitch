@@ -228,6 +228,7 @@ impl TryFrom<&types::ConnectorAuthType> for PaypalAuthType {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaypalOrderStatus {
+    Pending,
     Completed,
     Voided,
     Created,
@@ -247,7 +248,9 @@ impl ForeignFrom<(PaypalOrderStatus, PaypalPaymentIntent)> for storage_enums::At
                 }
             }
             PaypalOrderStatus::Voided => Self::Voided,
-            PaypalOrderStatus::Created | PaypalOrderStatus::Saved => Self::Pending,
+            PaypalOrderStatus::Created | PaypalOrderStatus::Saved | PaypalOrderStatus::Pending => {
+                Self::Pending
+            }
             PaypalOrderStatus::Approved => Self::AuthenticationSuccessful,
             PaypalOrderStatus::PayerActionRequired => Self::AuthenticationPending,
         }
@@ -387,6 +390,7 @@ impl<F: Flow, T>
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -436,6 +440,7 @@ impl<F: Flow, T>
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -464,6 +469,7 @@ impl<F: Flow, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -552,6 +558,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                     psync_flow: PaypalPaymentIntent::Capture
                 })),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             amount_captured: Some(amount_captured),
             ..item.data
@@ -598,6 +605,7 @@ impl<F: Flow, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

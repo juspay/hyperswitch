@@ -166,11 +166,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = noon::NoonPaymentsRequest::try_from(req)?;
-        let noon_req =
-            utils::Encode::<noon::NoonPaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let noon_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<noon::NoonPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(noon_req))
     }
 
@@ -310,11 +312,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = noon::NoonPaymentsActionRequest::try_from(req)?;
-        let noon_req =
-            utils::Encode::<noon::NoonPaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let noon_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<noon::NoonPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(noon_req))
     }
 
@@ -385,10 +389,11 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = noon::NoonPaymentsCancelRequest::try_from(req)?;
-        let noon_req = utils::Encode::<noon::NoonPaymentsCancelRequest>::encode_to_string_of_json(
+        let noon_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
+            utils::Encode::<noon::NoonPaymentsCancelRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(noon_req))
@@ -458,11 +463,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = noon::NoonPaymentsActionRequest::try_from(req)?;
-        let noon_req =
-            utils::Encode::<noon::NoonPaymentsActionRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let noon_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<noon::NoonPaymentsActionRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(noon_req))
     }
 
