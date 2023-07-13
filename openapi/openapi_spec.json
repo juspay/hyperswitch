@@ -129,115 +129,6 @@
         ]
       }
     },
-    "/customer/payment_methods": {
-      "get": {
-        "tags": [
-          "Payment Methods"
-        ],
-        "summary": "List payment methods for a Customer",
-        "description": "List payment methods for a Customer\n\nTo filter and list the applicable payment methods for a particular Customer ID",
-        "operationId": "List all Payment Methods for a Customer",
-        "parameters": [
-          {
-            "name": "customer_id",
-            "in": "path",
-            "description": "The unique identifier for the customer account",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "accepted_country",
-            "in": "query",
-            "description": "The two-letter ISO currency code",
-            "required": true,
-            "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          },
-          {
-            "name": "accepted_currency",
-            "in": "path",
-            "description": "The three-letter ISO currency code",
-            "required": true,
-            "schema": {
-              "type": "array",
-              "items": {
-                "$ref": "#/components/schemas/Currency"
-              }
-            }
-          },
-          {
-            "name": "minimum_amount",
-            "in": "query",
-            "description": "The minimum amount accepted for processing by the particular payment method.",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          {
-            "name": "maximum_amount",
-            "in": "query",
-            "description": "The maximum amount amount accepted for processing by the particular payment method.",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          {
-            "name": "recurring_payment_enabled",
-            "in": "query",
-            "description": "Indicates whether the payment method is eligible for recurring payments",
-            "required": true,
-            "schema": {
-              "type": "boolean"
-            }
-          },
-          {
-            "name": "installment_payment_enabled",
-            "in": "query",
-            "description": "Indicates whether the payment method is eligible for installment payments",
-            "required": true,
-            "schema": {
-              "type": "boolean"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Payment Methods retrieved",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid Data"
-          },
-          "404": {
-            "description": "Payment Methods does not exist in records"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          },
-          {
-            "publishable_key": []
-          }
-        ]
-      }
-    },
     "/customers": {
       "post": {
         "tags": [
@@ -406,6 +297,115 @@
         "security": [
           {
             "api_key": []
+          }
+        ]
+      }
+    },
+    "/customers/{customer_id}/payment_methods": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "List payment methods for a Customer",
+        "description": "List payment methods for a Customer\n\nTo filter and list the applicable payment methods for a particular Customer ID",
+        "operationId": "List all Payment Methods for a Customer",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "description": "The unique identifier for the customer account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accepted_country",
+            "in": "query",
+            "description": "The two-letter ISO currency code",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "accepted_currency",
+            "in": "path",
+            "description": "The three-letter ISO currency code",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Currency"
+              }
+            }
+          },
+          {
+            "name": "minimum_amount",
+            "in": "query",
+            "description": "The minimum amount accepted for processing by the particular payment method.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "maximum_amount",
+            "in": "query",
+            "description": "The maximum amount amount accepted for processing by the particular payment method.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "recurring_payment_enabled",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for recurring payments",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "installment_payment_enabled",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for installment payments",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Methods retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          },
+          "404": {
+            "description": "Payment Methods does not exist in records"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "api-key": []
           }
         ]
       }

@@ -98,7 +98,7 @@ pub async fn list_payment_method_api(
 /// To filter and list the applicable payment methods for a particular Customer ID
 #[utoipa::path(
     get,
-    path = "/customer/payment_methods",
+    path = "/customers/{customer_id}/payment_methods",
     params (
         ("customer_id" = String, Path, description = "The unique identifier for the customer account"),
         ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
@@ -115,18 +115,17 @@ pub async fn list_payment_method_api(
     ),
     tag = "Payment Methods",
     operation_id = "List all Payment Methods for a Customer",
-    security(("api_key" = []), ("publishable_key" = []))
+    security(("api_key" = []), ("api-key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
     customer_id: Option<web::Path<(String,)>>,
     req: HttpRequest,
-    json_payload: web::Query<payment_methods::PaymentMethodListRequest>,
+    query_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
     let flow = Flow::CustomerPaymentMethodsList;
-    let payload = json_payload.into_inner();
+    let payload = query_payload.into_inner();
     let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
