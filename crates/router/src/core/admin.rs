@@ -146,10 +146,7 @@ pub async fn create_merchant_account(
     let merchant_account = async {
         Ok(domain::MerchantAccount {
             merchant_id: req.merchant_id,
-            merchant_name: req
-                .merchant_name
-                .async_lift(|inner| domain_types::encrypt_optional(inner, &key))
-                .await?,
+            merchant_name: domain_types::encrypt(req.merchant_name, &key).await?,
             merchant_details: merchant_details
                 .async_lift(|inner| domain_types::encrypt_optional(inner, &key))
                 .await?,
