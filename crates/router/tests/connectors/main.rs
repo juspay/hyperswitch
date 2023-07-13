@@ -7,6 +7,7 @@
 use test_utils::connector_auth;
 
 mod aci;
+mod aci_ui;
 mod adyen;
 mod adyen_uk_ui;
 mod airwallex;
