@@ -892,15 +892,22 @@ pub async fn list_payment_methods(
                         required_fields_hm_for_each_connector
                             .fields
                             .get(&connector_variant)
-                            .map(|required_fields_vec| {
-                                // If payment_method_type already exist in required_fields_hm, extend the required_fields hs to existing hs.
-                                let required_fields_hs =
-                                    HashSet::from_iter(required_fields_vec.iter().cloned());
+                            .map(|required_fields_final| {
+
+                                let mut required_fields_hs = HashSet::from_iter(required_fields_final.common.iter().cloned());
+                                payment_attempt.as_ref().map(|pa| {
+                                    if let Some(mandate) = &pa.mandate_details {
+                                        required_fields_hs.extend( required_fields_final.mandate.iter().cloned());
+                                    } else {
+                                        required_fields_hs.extend( required_fields_final.non_mandate.iter().cloned());
+                                    }
+                                });
 
                                 let existing_req_fields_hs = required_fields_hm
                                     .get_mut(&payment_method)
                                     .and_then(|inner_hm| inner_hm.get_mut(&payment_method_type));
 
+                                // If payment_method_type already exist in required_fields_hm, extend the required_fields hs to existing hs.
                                 if let Some(inner_hs) = existing_req_fields_hs {
                                     inner_hs.extend(required_fields_hs);
                                 } else {

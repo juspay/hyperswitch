@@ -233,7 +233,14 @@ pub struct PaymentMethodType(pub HashMap<enums::PaymentMethodType, ConnectorFiel
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ConnectorFields {
-    pub fields: HashMap<enums::Connector, Vec<RequiredFieldInfo>>,
+    pub fields: HashMap<enums::Connector, RequiredFieldFinal>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct RequiredFieldFinal {
+    pub mandate: Vec<RequiredFieldInfo>,
+    pub non_mandate: Vec<RequiredFieldInfo>,
+    pub common: Vec<RequiredFieldInfo>,
 }
 
 fn string_set_deser<'a, D>(
