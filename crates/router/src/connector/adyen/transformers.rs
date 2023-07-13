@@ -915,7 +915,7 @@ fn get_browser_info(
 
 fn get_additional_data(item: &types::PaymentsAuthorizeRouterData) -> Option<AdditionalData> {
     match item.request.capture_method {
-        Some(storage_models::enums::CaptureMethod::Manual) => Some(AdditionalData {
+        Some(diesel_models::enums::CaptureMethod::Manual) => Some(AdditionalData {
             authorisation_type: Some(AuthType::PreAuth),
             manual_capture: Some(true),
             network_tx_reference: None,
@@ -1681,6 +1681,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -1733,6 +1734,7 @@ pub fn get_adyen_response(
         mandate_reference,
         connector_metadata: None,
         network_txn_id,
+        connector_response_reference_id: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -1787,6 +1789,7 @@ pub fn get_redirection_response(
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
+        connector_response_reference_id: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -1936,6 +1939,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             amount_captured: Some(item.response.amount.value),
             ..item.data
