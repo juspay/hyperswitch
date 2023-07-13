@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use masking::Secret;
 use router::types::{self, api, storage::enums};
 use test_utils::connector_auth;
@@ -22,7 +20,7 @@ impl utils::Connector for TsysTest {
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         types::ConnectorAuthType::from(
             connector_auth::ConnectorAuthentication::new()
-                .tsys
+                .dummyconnector
                 .expect("Missing connector authentication configuration"),
         )
     }
