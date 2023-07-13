@@ -41,6 +41,7 @@ impl Default for super::settings::Secrets {
             jwt_secret: "secret".into(),
             #[cfg(not(feature = "kms"))]
             admin_api_key: "test_admin".into(),
+            recon_admin_api_key: "recon_test_admin".into(),
             master_enc_key: "".into(),
             #[cfg(feature = "kms")]
             kms_encrypted_jwt_secret: "".into(),
