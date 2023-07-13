@@ -443,6 +443,7 @@ pub enum PaymentMethodType {
     OnlineBankingSlovakia,
     PayBright,
     Paypal,
+    Pix,
     Przelewy24,
     SamsungPay,
     Sepa,

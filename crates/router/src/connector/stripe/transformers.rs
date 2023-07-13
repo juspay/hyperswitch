@@ -1167,6 +1167,9 @@ fn create_stripe_payment_method(
                         billing_details,
                     ))
                 }
+                _ => Err(
+                    errors::ConnectorError::NotImplemented("this bank transfer".to_string()).into(),
+                ),
             }
         }
         _ => Err(errors::ConnectorError::NotImplemented(
@@ -1514,7 +1517,6 @@ pub struct SepaAndBacsBankTransferInstructions {
     pub receiver: SepaAndBacsReceiver,
 }
 
-#[serde_with::skip_serializing_none]
 #[derive(Clone, Debug, Serialize)]
 pub struct WechatPayNextInstructions {
     pub image_data_url: Url,
@@ -2673,6 +2675,10 @@ impl
                             payment_method_type: StripePaymentMethodType::CustomerBalance,
                         })),
                     )),
+                    payments::BankTransferData::Pix {} => Err(
+                        errors::ConnectorError::NotImplemented("this bank transfer".to_string())
+                            .into(),
+                    ),
                 }
             }
             api::PaymentMethodData::MandatePayment
