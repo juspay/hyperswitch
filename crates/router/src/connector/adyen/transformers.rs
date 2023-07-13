@@ -884,7 +884,7 @@ fn get_browser_info(
 
 fn get_additional_data(item: &types::PaymentsAuthorizeRouterData) -> Option<AdditionalData> {
     match item.request.capture_method {
-        Some(storage_models::enums::CaptureMethod::Manual) => Some(AdditionalData {
+        Some(diesel_models::enums::CaptureMethod::Manual) => Some(AdditionalData {
             authorisation_type: Some(AuthType::PreAuth),
             manual_capture: Some(true),
             network_tx_reference: None,

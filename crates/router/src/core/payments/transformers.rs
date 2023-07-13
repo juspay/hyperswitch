@@ -2,9 +2,9 @@ use std::{fmt::Debug, marker::PhantomData};
 
 use api_models::payments::OrderDetailsWithAmount;
 use common_utils::fp_utils;
+use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
-use storage_models::{ephemeral_key, payment_attempt::PaymentListFilters};
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
@@ -557,7 +557,7 @@ where
                 if is_connector_supports_third_party_sdk {
                     payment_attempt
                         .payment_method
-                        .map(|pm| matches!(pm, storage_models::enums::PaymentMethod::Wallet))
+                        .map(|pm| matches!(pm, diesel_models::enums::PaymentMethod::Wallet))
                 } else {
                     Some(false)
                 }
@@ -642,7 +642,7 @@ impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralK
 pub fn bank_transfer_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::BankTransferNextStepsData>> {
-    let bank_transfer_next_step = if let Some(storage_models::enums::PaymentMethod::BankTransfer) =
+    let bank_transfer_next_step = if let Some(diesel_models::enums::PaymentMethod::BankTransfer) =
         payment_attempt.payment_method
     {
         let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
