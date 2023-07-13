@@ -1060,7 +1060,7 @@ pub enum RewardData {
 pub enum VoucherData {
     Boleto {
         /// The shopper's social security number
-        #[schema(value_type = String)]
+        #[schema(value_type = Option<String>)]
         social_security_number: Option<Secret<String>>,
     },
     Efecty,
