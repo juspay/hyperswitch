@@ -227,6 +227,7 @@ impl TryFrom<&types::ConnectorAuthType> for PaypalAuthType {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaypalOrderStatus {
+    Pending,
     Completed,
     Voided,
     Created,
@@ -246,7 +247,9 @@ impl ForeignFrom<(PaypalOrderStatus, PaypalPaymentIntent)> for storage_enums::At
                 }
             }
             PaypalOrderStatus::Voided => Self::Voided,
-            PaypalOrderStatus::Created | PaypalOrderStatus::Saved => Self::Pending,
+            PaypalOrderStatus::Created | PaypalOrderStatus::Saved | PaypalOrderStatus::Pending => {
+                Self::Pending
+            }
             PaypalOrderStatus::Approved => Self::AuthenticationSuccessful,
             PaypalOrderStatus::PayerActionRequired => Self::AuthenticationPending,
         }

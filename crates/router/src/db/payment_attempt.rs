@@ -65,10 +65,10 @@ pub trait PaymentAttemptInterface {
 
     async fn get_filters_for_payments(
         &self,
-        pi: &[storage_models::payment_intent::PaymentIntent],
+        pi: &[diesel_models::payment_intent::PaymentIntent],
         merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<storage_models::payment_attempt::PaymentListFilters, errors::StorageError>;
+    ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>;
 }
 
 #[cfg(not(feature = "kv_store"))]
@@ -186,10 +186,10 @@ mod storage {
 
         async fn get_filters_for_payments(
             &self,
-            pi: &[storage_models::payment_intent::PaymentIntent],
+            pi: &[diesel_models::payment_intent::PaymentIntent],
             merchant_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<storage_models::payment_attempt::PaymentListFilters, errors::StorageError>
+        ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>
         {
             let conn = connection::pg_connection_read(self).await?;
             PaymentAttempt::get_filters_for_payments(&conn, pi, merchant_id)
@@ -247,10 +247,10 @@ impl PaymentAttemptInterface for MockDb {
 
     async fn get_filters_for_payments(
         &self,
-        _pi: &[storage_models::payment_intent::PaymentIntent],
+        _pi: &[diesel_models::payment_intent::PaymentIntent],
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<storage_models::payment_attempt::PaymentListFilters, errors::StorageError>
+    ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>
     {
         Err(errors::StorageError::MockDbError)?
     }
@@ -396,9 +396,9 @@ impl PaymentAttemptInterface for MockDb {
 #[cfg(feature = "kv_store")]
 mod storage {
     use common_utils::date_time;
+    use diesel_models::reverse_lookup::ReverseLookup;
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
-    use storage_models::reverse_lookup::ReverseLookup;
 
     use super::PaymentAttemptInterface;
     use crate::{
@@ -834,10 +834,10 @@ mod storage {
 
         async fn get_filters_for_payments(
             &self,
-            pi: &[storage_models::payment_intent::PaymentIntent],
+            pi: &[diesel_models::payment_intent::PaymentIntent],
             merchant_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<storage_models::payment_attempt::PaymentListFilters, errors::StorageError>
+        ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>
         {
             let conn = connection::pg_connection_read(self).await?;
             PaymentAttempt::get_filters_for_payments(&conn, pi, merchant_id)
