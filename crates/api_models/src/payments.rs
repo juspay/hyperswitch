@@ -338,6 +338,9 @@ pub struct PaymentAttemptResponse {
     /// Payment Method Type
     #[schema(value_type = Option<PaymentMethodType>, example = "google_pay")]
     pub payment_method_type: Option<enums::PaymentMethodType>,
+    /// reference to the payment at connector side
+    #[schema(value_type = Option<String>, example = "993672945374576J")]
+    pub reference_id: Option<String>,
 }
 
 impl PaymentsRequest {

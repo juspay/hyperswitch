@@ -698,6 +698,7 @@ impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttem
             payment_method_type: payment_attempt
                 .payment_method_type
                 .map(|payment_method_type| payment_method_type.foreign_into()),
+            reference_id: payment_attempt.connector_response_reference_id,
         }
     }
 }
