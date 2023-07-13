@@ -203,9 +203,9 @@ pub struct AdyenThreeDS {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum AdyenPaymentResponse {
-    DirectResponse(DirectResponse),
-    QrCodeResponse(QrCodeResponse),
-    RedirectResponse(RedirectResponse),
+    Direct(DirectResponse),
+    QrCode(QrCodeResponse),
+    Redirect(RedirectResponse),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1866,16 +1866,13 @@ impl<F, Req>
         let item = items.0;
         let is_manual_capture = items.1;
         let (status, error, payment_response_data) = match item.response {
-            AdyenPaymentResponse::DirectResponse(response) => {
-                crate::logger::debug!("AAAAAAAAAAAAA1");
+            AdyenPaymentResponse::Direct(response) => {
                 get_adyen_response(response, is_manual_capture, item.http_code)?
             }
-            AdyenPaymentResponse::RedirectResponse(response) => {
-                crate::logger::debug!("AAAAAAAAAAAAA2{:?}", response);
+            AdyenPaymentResponse::Redirect(response) => {
                 get_redirection_response(response, is_manual_capture, item.http_code)?
             }
-            AdyenPaymentResponse::QrCodeResponse(response) => {
-                crate::logger::debug!("AAAAAAAAAAAAA3");
+            AdyenPaymentResponse::QrCode(response) => {
                 get_qr_code_response(response, is_manual_capture, item.http_code)?
             }
         };
