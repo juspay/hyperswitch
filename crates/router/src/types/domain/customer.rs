@@ -1,7 +1,7 @@
 use common_utils::{crypto, date_time, pii};
+use diesel_models::{customers::CustomerUpdateInternal, encryption::Encryption};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
-use storage_models::{customers::CustomerUpdateInternal, encryption::Encryption};
 use time::PrimitiveDateTime;
 
 use super::types::{self, AsyncLift};
@@ -25,10 +25,10 @@ pub struct Customer {
 
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for Customer {
-    type DstType = storage_models::customers::Customer;
-    type NewDstType = storage_models::customers::CustomerNew;
+    type DstType = diesel_models::customers::Customer;
+    type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(storage_models::customers::Customer {
+        Ok(diesel_models::customers::Customer {
             id: self.id.ok_or(ValidationError::MissingRequiredField {
                 field_name: "id".to_string(),
             })?,
@@ -79,7 +79,7 @@ impl super::behaviour::Conversion for Customer {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
-        Ok(storage_models::customers::CustomerNew {
+        Ok(diesel_models::customers::CustomerNew {
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),
