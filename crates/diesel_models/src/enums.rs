@@ -291,6 +291,7 @@ impl Currency {
             Self::BZD => "084",
             Self::CAD => "124",
             Self::CHF => "756",
+            Self::CLP => "152",
             Self::COP => "170",
             Self::CRC => "188",
             Self::CUP => "192",
