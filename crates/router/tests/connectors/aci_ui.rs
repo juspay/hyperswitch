@@ -11,10 +11,10 @@ impl SeleniumTest for AciSeleniumTest {
     }
 }
 
-async fn should_make_aci_card_mandate_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_aci_card_mandate_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AciSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/180"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
@@ -22,7 +22,7 @@ async fn should_make_aci_card_mandate_payment(c: WebDriver) -> Result<(), WebDri
             Event::Assert(Assert::IsPresent("Mandate ID")),
             Event::Assert(Assert::IsPresent("man_")), // mandate id starting with man_
             Event::Trigger(Trigger::Click(By::Css("a.btn"))),
-            Event::Trigger(Trigger::Click(By::Id("card-submitbtn"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("succeeded")),
         ],
     )
@@ -30,10 +30,10 @@ async fn should_make_aci_card_mandate_payment(c: WebDriver) -> Result<(), WebDri
     Ok(())
 }
 
-async fn should_make_aci_alipay_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_aci_alipay_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AciSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/213"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
@@ -45,10 +45,10 @@ async fn should_make_aci_alipay_payment(c: WebDriver) -> Result<(), WebDriverErr
     Ok(())
 }
 
-async fn should_make_aci_interac_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_aci_interac_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AciSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/14"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
@@ -61,10 +61,10 @@ async fn should_make_aci_interac_payment(c: WebDriver) -> Result<(), WebDriverEr
     Ok(())
 }
 
-async fn should_make_aci_eps_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_aci_eps_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AciSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/208"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
@@ -138,10 +138,10 @@ async fn should_make_aci_giropay_payment(web_driver: WebDriver) -> Result<(), We
     Ok(())
 }
 
-async fn should_make_aci_trustly_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_aci_trustly_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AciSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/13"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
@@ -184,10 +184,10 @@ async fn should_make_aci_trustly_payment(c: WebDriver) -> Result<(), WebDriverEr
     Ok(())
 }
 
-async fn should_make_aci_przelewy24_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_aci_przelewy24_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AciSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/12"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
