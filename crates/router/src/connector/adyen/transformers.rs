@@ -1836,6 +1836,7 @@ pub fn get_qr_code_response(
         mandate_reference: None,
         connector_metadata,
         network_txn_id: None,
+        connector_response_reference_id: None,
     };
     Ok((status, error, payments_response_data))
 }

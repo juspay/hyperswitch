@@ -1238,7 +1238,7 @@ pub enum NextActionData {
     RedirectToUrl { redirect_to_url: String },
     /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
     DisplayBankTransferInformation {
-        _steps_and_charges_details: BankTransferNextStepsData,
+        bank_transfer_steps_and_charges_details: BankTransferNextStepsData,
     },
     /// Contains third party sdk session token response
     ThirdPartySdkSessionToken { session_token: Option<SessionToken> },
