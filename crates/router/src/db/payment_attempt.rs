@@ -335,6 +335,7 @@ impl PaymentAttemptInterface for MockDb {
             mandate_details: payment_attempt.mandate_details,
             preprocessing_step_id: payment_attempt.preprocessing_step_id,
             error_reason: payment_attempt.error_reason,
+            connector_response_reference_id: None,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
@@ -463,8 +464,8 @@ mod storage {
                         payment_token: payment_attempt.payment_token.clone(),
                         error_code: payment_attempt.error_code.clone(),
                         connector_metadata: payment_attempt.connector_metadata.clone(),
-                        payment_experience: payment_attempt.payment_experience.clone(),
-                        payment_method_type: payment_attempt.payment_method_type.clone(),
+                        payment_experience: payment_attempt.payment_experience,
+                        payment_method_type: payment_attempt.payment_method_type,
                         payment_method_data: payment_attempt.payment_method_data.clone(),
                         business_sub_label: payment_attempt.business_sub_label.clone(),
                         straight_through_algorithm: payment_attempt
@@ -473,6 +474,7 @@ mod storage {
                         mandate_details: payment_attempt.mandate_details.clone(),
                         preprocessing_step_id: payment_attempt.preprocessing_step_id.clone(),
                         error_reason: payment_attempt.error_reason.clone(),
+                        connector_response_reference_id: None,
                     };
 
                     let field = format!("pa_{}", created_attempt.attempt_id);

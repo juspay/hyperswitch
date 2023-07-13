@@ -677,6 +677,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        connector_response_reference_id: None,
                     }),
                     ..data.clone()
                 })
