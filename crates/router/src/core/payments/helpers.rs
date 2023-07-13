@@ -2541,15 +2541,30 @@ pub async fn get_additional_payment_data(
     }
 }
 
-pub fn validate_customer_access(
+pub async fn validate_customer_access(
     auth_flow: services::AuthFlow,
     request: &api::PaymentsRequest,
+    db: &dyn StorageInterface,
+    merchant_account: &domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
 ) -> Result<(), errors::ApiErrorResponse> {
     if auth_flow == services::AuthFlow::Client && request.customer_id.is_some() {
-        return Err(errors::ApiErrorResponse::GenericUnauthorized {
-            message: "Unauthorised access to update customer".to_string(),
-        });
+        let customer_id = request.customer_id.clone().ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
+        db.find_customer_by_customer_id_merchant_id(
+            &customer_id,
+            &merchant_account.merchant_id,
+            &key_store,
+        )
+        .await
+        .into_report()
+        .change_context(errors::ApiErrorResponse::GenericUnauthorized {
+                message: "Unauthorised access to update customer".to_string()});
+        // .into_report({errors::ApiErrorResponse::GenericUnauthorized {
+        //     message: "Unauthorised access to update customer".to_string(),
+        // }});
+        Ok(());
     }
-
     Ok(())
 }
+
+

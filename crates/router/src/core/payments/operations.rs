@@ -82,6 +82,8 @@ pub trait ValidateRequest<F, R> {
         request: &R,
         merchant_account: &'a domain::MerchantAccount,
         _auth_flow: services::AuthFlow,
+        _state: &AppState,
+        _key_store: domain::MerchantKeyStore,
     ) -> RouterResult<(BoxedOperation<'b, F, R>, ValidateResult<'a>)>;
 }
 

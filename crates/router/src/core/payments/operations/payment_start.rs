@@ -184,6 +184,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentS
         request: &api::PaymentsStartRequest,
         merchant_account: &'a domain::MerchantAccount,
         _auth_flow: services::AuthFlow,
+        _state: &AppState,
+        _key_store: domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsStartRequest>,
         operations::ValidateResult<'a>,

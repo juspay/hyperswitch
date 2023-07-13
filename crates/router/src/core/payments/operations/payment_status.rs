@@ -319,6 +319,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRetrieveRequest> for Payme
         request: &api::PaymentsRetrieveRequest,
         merchant_account: &'a domain::MerchantAccount,
         _auth_flow: services::AuthFlow,
+        _state: &AppState,
+        _key_store: domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRetrieveRequest>,
         operations::ValidateResult<'a>,

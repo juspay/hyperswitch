@@ -38,6 +38,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
         request: &api::VerifyRequest,
         merchant_account: &'a domain::MerchantAccount,
         _auth_flow: services::AuthFlow,
+        _state: &AppState,
+        _key_store: domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::VerifyRequest>,
         operations::ValidateResult<'a>,

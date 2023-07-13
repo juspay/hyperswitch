@@ -500,12 +500,15 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
         request: &api::PaymentsRequest,
         merchant_account: &'a domain::MerchantAccount,
         auth_flow: services::AuthFlow,
+        state: &AppState,
+        key_store: domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
-        helpers::validate_customer_access(auth_flow, request)?;
+        let db = &*state.store;
+        helpers::validate_customer_access(auth_flow, request, db, merchant_account, key_store)?;
         let given_payment_id = match &request.payment_id {
             Some(id_type) => Some(
                 id_type
