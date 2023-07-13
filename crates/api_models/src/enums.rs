@@ -659,6 +659,7 @@ pub enum Connector {
     //Powertranz,
     Rapyd,
     Shift4,
+    Stax,
     Stripe,
     Trustpay,
     Worldline,
@@ -702,6 +703,7 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
+    Stax,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
