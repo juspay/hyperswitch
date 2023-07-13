@@ -149,3 +149,6 @@ key1 = "Credential code"
 
 [powertranz]
 api_key="API Key"
+
+[tsys]
+api_key="API Key"
