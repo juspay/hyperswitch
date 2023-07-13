@@ -1739,6 +1739,9 @@
           }
         }
       },
+      "AliPay": {
+        "type": "object"
+      },
       "AliPayHkRedirection": {
         "type": "object"
       },
@@ -2939,6 +2942,7 @@
           "fiserv",
           "forte",
           "globalpay",
+          "globepay",
           "klarna",
           "mollie",
           "multisafepay",
@@ -2950,6 +2954,7 @@
           "payme",
           "paypal",
           "payu",
+          "powertranz",
           "rapyd",
           "shift4",
           "stripe",
@@ -8541,6 +8546,17 @@
       },
       "WalletData": {
         "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ali_pay"
+            ],
+            "properties": {
+              "ali_pay": {
+                "$ref": "#/components/schemas/AliPay"
+              }
+            }
+          },
           {
             "type": "object",
             "required": [

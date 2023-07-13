@@ -5,7 +5,7 @@ pub use diesel_models::dispute::{Dispute, DisputeNew, DisputeUpdate};
 use diesel_models::{errors, schema::dispute::dsl};
 use error_stack::{IntoReport, ResultExt};
 
-use crate::{connection::PgPooledConn, logger, types::transformers::ForeignInto};
+use crate::{connection::PgPooledConn, logger};
 
 #[async_trait::async_trait]
 pub trait DisputeDbExt: Sized {
@@ -50,14 +50,10 @@ impl DisputeDbExt for Dispute {
             filter = filter.filter(dsl::connector_reason.eq(reason));
         }
         if let Some(dispute_stage) = dispute_list_constraints.dispute_stage {
-            let storage_dispute_stage: diesel_models::enums::DisputeStage =
-                dispute_stage.foreign_into();
-            filter = filter.filter(dsl::dispute_stage.eq(storage_dispute_stage));
+            filter = filter.filter(dsl::dispute_stage.eq(dispute_stage));
         }
         if let Some(dispute_status) = dispute_list_constraints.dispute_status {
-            let storage_dispute_status: diesel_models::enums::DisputeStatus =
-                dispute_status.foreign_into();
-            filter = filter.filter(dsl::dispute_status.eq(storage_dispute_status));
+            filter = filter.filter(dsl::dispute_status.eq(dispute_status));
         }
         if let Some(limit) = dispute_list_constraints.limit {
             filter = filter.limit(limit);

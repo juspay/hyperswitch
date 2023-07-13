@@ -895,6 +895,8 @@ pub struct BankDebitBilling {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum WalletData {
+    /// The wallet data for Ali Pay QrCode
+    AliPay(Box<AliPay>),
     /// The wallet data for Ali Pay redirect
     AliPayRedirect(AliPayRedirection),
     /// The wallet data for Ali Pay HK redirect
@@ -968,6 +970,9 @@ pub struct WeChatPay {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaypalRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct AliPay {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AliPayRedirection {}
@@ -1099,17 +1104,7 @@ impl Default for PaymentIdType {
     }
 }
 
-#[derive(
-    Default,
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    ToSchema,
-    serde::Deserialize,
-    serde::Serialize,
-    frunk::LabelledGeneric,
-)]
+#[derive(Default, Clone, Debug, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Address {
     /// Provide the address details
@@ -1119,17 +1114,7 @@ pub struct Address {
 }
 
 // used by customers also, could be moved outside
-#[derive(
-    Clone,
-    Default,
-    Debug,
-    Eq,
-    serde::Deserialize,
-    serde::Serialize,
-    PartialEq,
-    ToSchema,
-    frunk::LabelledGeneric,
-)]
+#[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AddressDetails {
     /// The address city
@@ -1169,17 +1154,7 @@ pub struct AddressDetails {
     pub last_name: Option<Secret<String>>,
 }
 
-#[derive(
-    Debug,
-    Clone,
-    Default,
-    Eq,
-    PartialEq,
-    ToSchema,
-    serde::Deserialize,
-    serde::Serialize,
-    frunk::LabelledGeneric,
-)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize)]
 pub struct PhoneDetails {
     /// The contact number
     #[schema(value_type = Option<String>, example = "9999999999")]
