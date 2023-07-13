@@ -99,6 +99,7 @@ pub async fn list_payment_method_api(
 #[utoipa::path(
     get,
     path = "/customers/{customer_id}/payment_methods",
+    path = "/customers/payment_methods/{client-secret}",
     params (
         ("customer_id" = String, Path, description = "The unique identifier for the customer account"),
         ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
@@ -115,7 +116,7 @@ pub async fn list_payment_method_api(
     ),
     tag = "Payment Methods",
     operation_id = "List all Payment Methods for a Customer",
-    security(("api_key" = []), ("api-key" = []))
+    security(("api_key" = []), ("publishable_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
