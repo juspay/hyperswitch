@@ -495,8 +495,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let (enrolled_for_3ds, related_transaction_id) =
             match (router_data.auth_type, router_data.payment_method) {
                 (
-                    storage_models::enums::AuthenticationType::ThreeDs,
-                    storage_models::enums::PaymentMethod::Card,
+                    diesel_models::enums::AuthenticationType::ThreeDs,
+                    diesel_models::enums::PaymentMethod::Card,
                 ) => {
                     let integ: Box<
                         &(dyn ConnectorIntegration<

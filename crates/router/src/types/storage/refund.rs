@@ -1,17 +1,17 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
-use error_stack::{IntoReport, ResultExt};
-pub use storage_models::refund::{
+pub use diesel_models::refund::{
     Refund, RefundCoreWorkflow, RefundNew, RefundUpdate, RefundUpdateInternal,
 };
-use storage_models::{
+use diesel_models::{
     enums::{Currency, RefundStatus},
     errors,
     schema::refund::dsl,
 };
+use error_stack::{IntoReport, ResultExt};
 
-use crate::{connection::PgPooledConn, logger, types::transformers::ForeignInto};
+use crate::{connection::PgPooledConn, logger};
 
 #[cfg(feature = "kv_store")]
 impl crate::utils::storage_partitioning::KvStorePartition for Refund {}
@@ -69,19 +69,11 @@ impl RefundDbExt for Refund {
         }
 
         if let Some(filter_currency) = &refund_list_details.currency {
-            let currency: Vec<Currency> = filter_currency
-                .iter()
-                .map(|currency| (*currency).foreign_into())
-                .collect();
-            filter = filter.filter(dsl::currency.eq_any(currency));
+            filter = filter.filter(dsl::currency.eq_any(filter_currency.clone()));
         }
 
         if let Some(filter_refund_status) = &refund_list_details.refund_status {
-            let refund_status: Vec<RefundStatus> = filter_refund_status
-                .iter()
-                .map(|refund_status| (*refund_status).foreign_into())
-                .collect();
-            filter = filter.filter(dsl::refund_status.eq_any(refund_status));
+            filter = filter.filter(dsl::refund_status.eq_any(filter_refund_status.clone()));
         }
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
@@ -145,14 +137,8 @@ impl RefundDbExt for Refund {
 
         let meta = api_models::refunds::RefundListMetaData {
             connector: filter_connector,
-            currency: filter_currency
-                .into_iter()
-                .map(|curr| curr.foreign_into())
-                .collect(),
-            status: filter_status
-                .into_iter()
-                .map(|curr| curr.foreign_into())
-                .collect(),
+            currency: filter_currency,
+            status: filter_status,
         };
 
         Ok(meta)
