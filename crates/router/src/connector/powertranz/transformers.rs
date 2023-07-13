@@ -86,6 +86,10 @@ pub struct PowertranzAddressDetails {
     phone_number: Option<Secret<String>>,
 }
 
+pub struct RedirectResponsePayload {
+    spi_token: String,
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {

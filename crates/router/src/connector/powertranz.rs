@@ -253,7 +253,7 @@ impl
     }
 
     fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
+        "application/json-patch+json"
     }
 
     fn get_url(
