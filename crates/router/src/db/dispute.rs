@@ -366,12 +366,12 @@ mod tests {
     #[allow(clippy::unwrap_used)]
     mod mockdb_dispute_interface {
         use api_models::disputes::DisputeListConstraints;
-        use masking::Secret;
-        use serde_json::Value;
-        use storage_models::{
+        use diesel_models::{
             dispute::DisputeNew,
             enums::{DisputeStage, DisputeStatus},
         };
+        use masking::Secret;
+        use serde_json::Value;
         use time::macros::datetime;
 
         use crate::db::{dispute::DisputeInterface, MockDb};
@@ -595,12 +595,12 @@ mod tests {
         }
 
         mod update_dispute {
-            use masking::Secret;
-            use serde_json::Value;
-            use storage_models::{
+            use diesel_models::{
                 dispute::DisputeUpdate,
                 enums::{DisputeStage, DisputeStatus},
             };
+            use masking::Secret;
+            use serde_json::Value;
             use time::macros::datetime;
 
             use crate::db::{

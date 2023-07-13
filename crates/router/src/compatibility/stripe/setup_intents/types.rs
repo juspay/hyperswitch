@@ -89,6 +89,10 @@ impl From<StripeCard> for payments::Card {
             card_cvc: card.cvc,
             card_issuer: None,
             card_network: None,
+            bank_code: None,
+            card_issuing_country: None,
+            card_type: None,
+            nick_name: None,
         }
     }
 }
@@ -125,6 +129,7 @@ impl From<Shipping> for payments::Address {
 pub struct StripeSetupIntentRequest {
     pub confirm: Option<bool>,
     pub customer: Option<String>,
+    pub connector: Option<Vec<api_enums::RoutableConnectors>>,
     pub description: Option<String>,
     pub currency: Option<String>,
     pub payment_method_data: Option<StripePaymentMethodData>,
@@ -142,29 +147,24 @@ pub struct StripeSetupIntentRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     pub receipt_ipaddress: Option<String>,
     pub user_agent: Option<String>,
+    pub mandate_data: Option<payment_intent::MandateData>,
 }
 
 impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripeSetupIntentRequest) -> errors::RouterResult<Self> {
-        let (mandate_options, authentication_type) = match item.payment_method_options {
-            Some(pmo) => {
-                let payment_intent::StripePaymentMethodOptions::Card {
-                    request_three_d_secure,
-                    mandate_options,
-                }: payment_intent::StripePaymentMethodOptions = pmo;
-                (
-                    Option::<payments::MandateData>::foreign_try_from((
-                        mandate_options,
-                        item.currency.to_owned(),
-                    ))?,
-                    Some(api_enums::AuthenticationType::foreign_from(
-                        request_three_d_secure,
-                    )),
-                )
-            }
-            None => (None, None),
-        };
+        let routable_connector: Option<api_enums::RoutableConnectors> =
+            item.connector.and_then(|v| v.into_iter().next());
+
+        let routing = routable_connector
+            .map(api_types::RoutingAlgorithm::Single)
+            .map(|r| {
+                serde_json::to_value(r)
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("converting to routing failed")
+            })
+            .transpose()?;
         let ip_address = item
             .receipt_ipaddress
             .map(|ip| std::net::IpAddr::from_str(ip.as_str()))
@@ -223,12 +223,25 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             statement_descriptor_name: item.statement_descriptor,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             metadata: metadata_object,
-            udf: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
             setup_future_usage: item.setup_future_usage,
             merchant_connector_details: item.merchant_connector_details,
-            authentication_type,
-            mandate_data: mandate_options,
+            routing,
+            authentication_type: match item.payment_method_options {
+                Some(pmo) => {
+                    let payment_intent::StripePaymentMethodOptions::Card {
+                        request_three_d_secure,
+                    }: payment_intent::StripePaymentMethodOptions = pmo;
+                    Some(api_enums::AuthenticationType::foreign_from(
+                        request_three_d_secure,
+                    ))
+                }
+                None => None,
+            },
+            mandate_data: ForeignTryFrom::foreign_try_from((
+                item.mandate_data,
+                item.currency.to_owned(),
+            ))?,
             browser_info: Some(
                 serde_json::to_value(crate::types::BrowserInformation {
                     ip_address,
@@ -328,6 +341,9 @@ pub enum StripeNextAction {
     ThirdPartySdkSessionToken {
         session_token: Option<payments::SessionToken>,
     },
+    QrCodeInformation {
+        image_data_url: url::Url,
+    },
 }
 
 pub(crate) fn into_stripe_next_action(
@@ -351,6 +367,9 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::ThirdPartySdkSessionToken { session_token } => {
             StripeNextAction::ThirdPartySdkSessionToken { session_token }
         }
+        payments::NextActionData::QrCodeInformation { image_data_url } => {
+            StripeNextAction::QrCodeInformation { image_data_url }
+        }
     })
 }
 
@@ -360,6 +379,7 @@ pub struct StripeSetupIntentResponse {
     pub object: String,
     pub status: StripeSetupStatus,
     pub client_secret: Option<masking::Secret<String>>,
+    pub metadata: Option<secret::SecretSerdeValue>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
     pub customer: Option<String>,
@@ -403,6 +423,7 @@ impl From<payments::PaymentsResponse> for StripeSetupIntentResponse {
             charges: payment_intent::Charges::new(),
             created: resp.created,
             customer: resp.customer_id,
+            metadata: resp.metadata,
             id: resp.payment_id,
             refunds: resp
                 .refunds
