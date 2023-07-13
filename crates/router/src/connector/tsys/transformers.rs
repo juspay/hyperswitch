@@ -5,7 +5,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{CardData, PaymentsAuthorizeRequestData},
     core::errors,
-    types::{self, api, storage::enums},
+    types::{
+        self, api,
+        storage::{self, enums},
+    },
 };
 
 #[derive(Debug, Serialize)]
@@ -22,7 +25,7 @@ pub struct TsysPaymentAuthSaleRequest {
     transaction_key: Secret<String>,
     card_data_source: String,
     transaction_amount: String,
-    currency_code: storage_models::enums::Currency,
+    currency_code: storage::enums::Currency,
     card_number: cards::CardNumber,
     expiration_date: Secret<String>,
     cvv2: Secret<String>,
@@ -161,6 +164,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             })
         } else {
             Err(types::ErrorResponse {
@@ -293,6 +297,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -369,6 +374,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<TsysPaymentCaptureResponse
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             amount_captured: Some(amount_captured),
             ..item.data
