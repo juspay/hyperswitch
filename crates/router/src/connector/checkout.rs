@@ -1221,7 +1221,7 @@ impl services::ConnectorRedirectResponse for Checkout {
             .status
             .map(
                 |checkout_status| payments::CallConnectorAction::StatusUpdate {
-                    status: storage_models::enums::AttemptStatus::from(checkout_status),
+                    status: diesel_models::enums::AttemptStatus::from(checkout_status),
                     error_code: None,
                     error_message: None,
                 },

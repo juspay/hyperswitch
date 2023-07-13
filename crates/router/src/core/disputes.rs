@@ -144,7 +144,7 @@ pub async fn accept_dispute(
                 status_code: err.status_code,
                 reason: err.reason,
             })?;
-    let update_dispute = storage_models::dispute::DisputeUpdate::StatusUpdate {
+    let update_dispute = diesel_models::dispute::DisputeUpdate::StatusUpdate {
         dispute_status: accept_dispute_response
             .dispute_status
             .clone()
@@ -307,7 +307,7 @@ pub async fn submit_evidence(
                 submit_evidence_response.connector_status,
             )
         };
-    let update_dispute = storage_models::dispute::DisputeUpdate::StatusUpdate {
+    let update_dispute = diesel_models::dispute::DisputeUpdate::StatusUpdate {
         dispute_status: dispute_status.foreign_into(),
         connector_status,
     };
@@ -383,7 +383,7 @@ pub async fn attach_evidence(
         attach_evidence_request.evidence_type,
         file_id,
     );
-    let update_dispute = storage_models::dispute::DisputeUpdate::EvidenceUpdate {
+    let update_dispute = diesel_models::dispute::DisputeUpdate::EvidenceUpdate {
         evidence: utils::Encode::<api::DisputeEvidence>::encode_to_value(&updated_dispute_evidence)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while encoding dispute evidence")?
