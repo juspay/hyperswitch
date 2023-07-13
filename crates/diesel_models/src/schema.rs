@@ -328,6 +328,7 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         frm_routing_algorithm -> Nullable<Jsonb>,
+        is_recon_enabled -> Bool,
     }
 }
 

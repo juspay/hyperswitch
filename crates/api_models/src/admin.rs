@@ -221,6 +221,9 @@ pub struct MerchantAccountResponse {
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
     pub intent_fulfillment_time: Option<i64>,
+
+    //Says is recon service is enabled for this merchnat or not
+    pub is_recon_enabled: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
