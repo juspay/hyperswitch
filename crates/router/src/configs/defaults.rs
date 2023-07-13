@@ -765,6 +765,32 @@ impl Default for super::settings::RequiredFields {
                             )]),
                         },
                     ),
+                    (
+                        enums::PaymentMethodType::AliPay,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Globepay,
+                                vec![RequiredFieldInfo {
+                                    required_field: "description".to_string(),
+                                    display_name: "description".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
+                            )]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::WeChatPay,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Globepay,
+                                vec![RequiredFieldInfo {
+                                    required_field: "description".to_string(),
+                                    display_name: "description".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
+                            )]),
+                        },
+                    ),
                 ])),
             ),
             (
