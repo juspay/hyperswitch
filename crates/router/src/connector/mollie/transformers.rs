@@ -1,9 +1,9 @@
 use api_models::payments;
 use common_utils::pii::Email;
+use diesel_models::enums;
 use error_stack::IntoReport;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use storage_models::enums;
 use url::Url;
 
 use crate::{

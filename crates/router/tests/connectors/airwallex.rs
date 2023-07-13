@@ -67,7 +67,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             bank_code: None,
             nick_name: Some(masking::Secret::new("nick_name".into())),
         }),
-        capture_method: Some(storage_models::enums::CaptureMethod::Manual),
+        capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
         router_return_url: Some("https://google.com".to_string()),
         complete_authorize_url: Some("https://google.com".to_string()),
         ..utils::PaymentAuthorizeType::default().0

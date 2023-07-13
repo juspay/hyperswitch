@@ -96,7 +96,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayeezyPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.payment_method {
-            storage_models::enums::PaymentMethod::Card => get_card_specific_payment_data(item),
+            diesel_models::enums::PaymentMethod::Card => get_card_specific_payment_data(item),
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
@@ -158,10 +158,10 @@ fn get_transaction_type_and_stored_creds(
             )
         } else {
             match item.request.capture_method {
-                Some(storage_models::enums::CaptureMethod::Manual) => {
+                Some(diesel_models::enums::CaptureMethod::Manual) => {
                     Ok((PayeezyTransactionType::Authorize, None))
                 }
-                Some(storage_models::enums::CaptureMethod::Automatic) => {
+                Some(diesel_models::enums::CaptureMethod::Automatic) => {
                     Ok((PayeezyTransactionType::Purchase, None))
                 }
                 _ => Err(errors::ConnectorError::FlowNotSupported {

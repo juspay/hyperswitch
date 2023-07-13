@@ -1,8 +1,8 @@
 use base64::Engine;
 use common_utils::errors::CustomResult;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
-use storage_models::enums;
 
 use super::{requests::*, response::*};
 use crate::{

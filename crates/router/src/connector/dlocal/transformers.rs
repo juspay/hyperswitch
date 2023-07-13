@@ -108,10 +108,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest {
                     }),
                     order_id: item.payment_id.clone(),
                     three_dsecure: match item.auth_type {
-                        storage_models::enums::AuthenticationType::ThreeDs => {
+                        diesel_models::enums::AuthenticationType::ThreeDs => {
                             Some(ThreeDSecureReqData { force: true })
                         }
-                        storage_models::enums::AuthenticationType::NoThreeDs => None,
+                        diesel_models::enums::AuthenticationType::NoThreeDs => None,
                     },
                     callback_url: Some(item.request.get_router_return_url()?),
                     description: item.description.clone(),

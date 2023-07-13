@@ -1,6 +1,6 @@
+use diesel_models::enums::Currency;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use storage_models::enums::Currency;
 
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,

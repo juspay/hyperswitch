@@ -388,7 +388,7 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                     connector_metadata: None,
                     network_txn_id: None,
                 }),
-                if let Some(storage_models::enums::CaptureMethod::Automatic) =
+                if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
                 {
                     enums::AttemptStatus::CaptureInitiated
