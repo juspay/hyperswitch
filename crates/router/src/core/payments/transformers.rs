@@ -85,6 +85,7 @@ where
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            connector_response_reference_id: None,
         });
 
     let additional_data = PaymentAdditionalData {
@@ -446,6 +447,7 @@ where
                         .set_connector_transaction_id(payment_attempt.connector_transaction_id)
                         .set_feature_metadata(payment_intent.feature_metadata)
                         .set_connector_metadata(payment_intent.connector_metadata)
+                        .set_reference_id(payment_attempt.connector_response_reference_id)
                         .to_owned(),
                 )
             }
@@ -493,6 +495,7 @@ where
             feature_metadata: payment_intent.feature_metadata,
             connector_metadata: payment_intent.connector_metadata,
             allowed_payment_method_types: payment_intent.allowed_payment_method_types,
+            reference_id: payment_attempt.connector_response_reference_id,
             ..Default::default()
         }),
     });

@@ -335,6 +335,7 @@ impl PaymentAttemptInterface for MockDb {
             mandate_details: payment_attempt.mandate_details,
             preprocessing_step_id: payment_attempt.preprocessing_step_id,
             error_reason: payment_attempt.error_reason,
+            connector_response_reference_id: None,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
@@ -473,6 +474,7 @@ mod storage {
                         mandate_details: payment_attempt.mandate_details.clone(),
                         preprocessing_step_id: payment_attempt.preprocessing_step_id.clone(),
                         error_reason: payment_attempt.error_reason.clone(),
+                        connector_response_reference_id: None,
                     };
 
                     let field = format!("pa_{}", created_attempt.attempt_id);

@@ -683,12 +683,13 @@ impl<F, T>
             ))?,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.transaction_id,
+                    item.response.transaction_id.clone(),
                 ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: Some(item.response.transaction_id),
             }),
             ..item.data
         })
