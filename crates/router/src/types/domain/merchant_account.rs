@@ -2,11 +2,11 @@ use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time, pii,
 };
-use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
-use storage_models::{
+use diesel_models::{
     encryption::Encryption, enums, merchant_account::MerchantAccountUpdateInternal,
 };
+use error_stack::ResultExt;
+use masking::{PeekInterface, Secret};
 
 use crate::{
     errors::{CustomResult, ValidationError},
@@ -115,10 +115,10 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
 
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for MerchantAccount {
-    type DstType = storage_models::merchant_account::MerchantAccount;
-    type NewDstType = storage_models::merchant_account::MerchantAccountNew;
+    type DstType = diesel_models::merchant_account::MerchantAccount;
+    type NewDstType = diesel_models::merchant_account::MerchantAccountNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(storage_models::merchant_account::MerchantAccount {
+        Ok(diesel_models::merchant_account::MerchantAccount {
             id: self.id.ok_or(ValidationError::MissingRequiredField {
                 field_name: "id".to_string(),
             })?,
@@ -191,7 +191,7 @@ impl super::behaviour::Conversion for MerchantAccount {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
-        Ok(storage_models::merchant_account::MerchantAccountNew {
+        Ok(diesel_models::merchant_account::MerchantAccountNew {
             merchant_id: self.merchant_id,
             merchant_name: self.merchant_name.map(Encryption::from),
             merchant_details: self.merchant_details.map(Encryption::from),

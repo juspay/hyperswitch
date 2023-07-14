@@ -4,10 +4,10 @@ use std::fmt::Debug;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
+use diesel_models::enums as storage_enums;
 use error_stack::{IntoReport, ResultExt};
 use ring::hmac;
 use router_env::{instrument, tracing};
-use storage_models::enums as storage_enums;
 
 use self::transformers as adyen;
 use crate::{
@@ -526,7 +526,7 @@ impl
             .parse_struct("AdyenPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let is_manual_capture =
-            data.request.capture_method == Some(storage_models::enums::CaptureMethod::Manual);
+            data.request.capture_method == Some(diesel_models::enums::CaptureMethod::Manual);
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,
@@ -918,7 +918,7 @@ impl api::IncomingWebhook for Adyen {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        let response: adyen::AdyenResponse = notif.into();
+        let response: adyen::Response = notif.into();
 
         let res_json = serde_json::to_value(response)
             .into_report()

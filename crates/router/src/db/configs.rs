@@ -1,3 +1,4 @@
+use diesel_models::configs::ConfigUpdateInternal;
 use error_stack::IntoReport;
 
 use super::{cache, MockDb, Store};
@@ -113,47 +114,107 @@ impl ConfigInterface for Store {
 impl ConfigInterface for MockDb {
     async fn insert_config(
         &self,
-        _config: storage::ConfigNew,
+        config: storage::ConfigNew,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let mut configs = self.configs.lock().await;
+
+        let config_new = storage::Config {
+            #[allow(clippy::as_conversions)]
+            id: configs.len() as i32,
+            key: config.key,
+            config: config.config,
+        };
+        configs.push(config_new.clone());
+        Ok(config_new)
     }
 
     async fn find_config_by_key(
         &self,
-        _key: &str,
+        key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let configs = self.configs.lock().await;
+        let config = configs.iter().find(|c| c.key == key).cloned();
+
+        config.ok_or_else(|| {
+            errors::StorageError::ValueNotFound("cannot find config".to_string()).into()
+        })
     }
 
     async fn update_config_by_key(
         &self,
-        _key: &str,
-        _config_update: storage::ConfigUpdate,
+        key: &str,
+        config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let result = self
+            .configs
+            .lock()
+            .await
+            .iter_mut()
+            .find(|c| c.key == key)
+            .ok_or_else(|| {
+                errors::StorageError::ValueNotFound("cannot find config to update".to_string())
+                    .into()
+            })
+            .map(|c| {
+                let config_updated =
+                    ConfigUpdateInternal::from(config_update).create_config(c.clone());
+                *c = config_updated.clone();
+                config_updated
+            });
+
+        result
     }
     async fn update_config_cached(
         &self,
-        _key: &str,
-        _config_update: storage::ConfigUpdate,
+        key: &str,
+        config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let result = self
+            .configs
+            .lock()
+            .await
+            .iter_mut()
+            .find(|c| c.key == key)
+            .ok_or_else(|| {
+                errors::StorageError::ValueNotFound("cannot find config to update".to_string())
+                    .into()
+            })
+            .map(|c| {
+                let config_updated =
+                    ConfigUpdateInternal::from(config_update).create_config(c.clone());
+                *c = config_updated.clone();
+                config_updated
+            });
+
+        result
     }
 
-    async fn delete_config_by_key(&self, _key: &str) -> CustomResult<bool, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+    async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
+        let mut configs = self.configs.lock().await;
+        let result = configs
+            .iter()
+            .position(|c| c.key == key)
+            .map(|index| {
+                configs.remove(index);
+                true
+            })
+            .ok_or_else(|| {
+                errors::StorageError::ValueNotFound("cannot find config to delete".to_string())
+                    .into()
+            });
+
+        result
     }
 
     async fn find_config_by_key_cached(
         &self,
-        _key: &str,
+        key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let configs = self.configs.lock().await;
+        let config = configs.iter().find(|c| c.key == key).cloned();
+
+        config.ok_or_else(|| {
+            errors::StorageError::ValueNotFound("cannot find config".to_string()).into()
+        })
     }
 }

@@ -208,13 +208,14 @@ pub struct AdyenThreeDS {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum AdyenPaymentResponse {
-    AdyenResponse(AdyenResponse),
-    AdyenRedirectResponse(AdyenRedirectionResponse),
+    Response(Response),
+    RedirectResponse(RedirectionResponse),
+    RedirectionErrorResponse(RedirectionErrorResponse),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenResponse {
+pub struct Response {
     psp_reference: String,
     result_code: AdyenStatus,
     amount: Option<Amount>,
@@ -224,9 +225,16 @@ pub struct AdyenResponse {
     additional_data: Option<AdditionalData>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RedirectionErrorResponse {
+    result_code: AdyenStatus,
+    refusal_reason: String,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenRedirectionResponse {
+pub struct RedirectionResponse {
     result_code: AdyenStatus,
     action: AdyenRedirectionAction,
     refusal_reason: Option<String>,
@@ -914,7 +922,7 @@ fn get_browser_info(
 
 fn get_additional_data(item: &types::PaymentsAuthorizeRouterData) -> Option<AdditionalData> {
     match item.request.capture_method {
-        Some(storage_models::enums::CaptureMethod::Manual) => Some(AdditionalData {
+        Some(diesel_models::enums::CaptureMethod::Manual) => Some(AdditionalData {
             authorisation_type: Some(AuthType::PreAuth),
             manual_capture: Some(true),
             network_tx_reference: None,
@@ -1356,7 +1364,6 @@ impl<'a>
         let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
-        let channel = get_channel_type(&item.request.payment_method_type);
         let payment_method = match mandate_ref_id {
             payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
                 let adyen_mandate = AdyenMandate {
@@ -1412,7 +1419,7 @@ impl<'a>
             line_items: None,
             shopper_reference,
             store_payment_method,
-            channel,
+            channel: None,
         })
     }
 }
@@ -1429,7 +1436,6 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::Card)> for AdyenPay
             get_recurring_processing_model(item)?;
         let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
-        let channel = get_channel_type(&item.request.payment_method_type);
         let return_url = item.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(card_data)?;
         Ok(AdyenPaymentRequest {
@@ -1452,7 +1458,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::Card)> for AdyenPay
             line_items: None,
             shopper_reference,
             store_payment_method,
-            channel,
+            channel: None,
         })
     }
 }
@@ -1479,7 +1485,6 @@ impl<'a>
         let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
-        let channel = get_channel_type(&item.request.payment_method_type);
         let payment_method = AdyenPaymentMethod::try_from(bank_debit_data)?;
         let country_code = get_country_code(item);
         let request = AdyenPaymentRequest {
@@ -1502,7 +1507,7 @@ impl<'a>
             line_items: None,
             shopper_reference: None,
             store_payment_method: None,
-            channel,
+            channel: None,
         };
         Ok(request)
     }
@@ -1530,7 +1535,6 @@ impl<'a>
         let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
-        let channel = get_channel_type(&item.request.payment_method_type);
         let payment_method = AdyenPaymentMethod::try_from(bank_redirect_data)?;
         let (shopper_locale, country) = get_sofort_extra_details(item);
         let line_items = Some(get_line_items(item));
@@ -1555,7 +1559,7 @@ impl<'a>
             line_items,
             shopper_reference,
             store_payment_method,
-            channel,
+            channel: None,
         })
     }
 }
@@ -1648,7 +1652,6 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::PayLaterData)>
         let billing_address = get_address_info(item.address.billing.as_ref());
         let delivery_address = get_address_info(item.address.shipping.as_ref());
         let country_code = get_country_code(item);
-        let channel = get_channel_type(&item.request.payment_method_type);
         let line_items = Some(get_line_items(item));
         let telephone_number = get_telephone_number(item);
         Ok(AdyenPaymentRequest {
@@ -1671,7 +1674,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::PayLaterData)>
             line_items,
             shopper_reference,
             store_payment_method,
-            channel,
+            channel: None,
         })
     }
 }
@@ -1711,6 +1714,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -1718,7 +1722,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
 }
 
 pub fn get_adyen_response(
-    response: AdyenResponse,
+    response: Response,
     is_capture_manual: bool,
     status_code: u16,
 ) -> errors::CustomResult<
@@ -1731,20 +1735,21 @@ pub fn get_adyen_response(
 > {
     let status =
         storage_enums::AttemptStatus::foreign_from((is_capture_manual, response.result_code));
-    let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
-        Some(types::ErrorResponse {
-            code: response
-                .refusal_reason_code
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: response
-                .refusal_reason
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
-            status_code,
-        })
-    } else {
-        None
-    };
+    let error: Option<types::ErrorResponse> =
+        if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
+            Some(types::ErrorResponse {
+                code: response
+                    .refusal_reason_code
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: response
+                    .refusal_reason
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: None,
+                status_code,
+            })
+        } else {
+            None
+        };
     let mandate_reference = response
         .additional_data
         .as_ref()
@@ -1763,12 +1768,13 @@ pub fn get_adyen_response(
         mandate_reference,
         connector_metadata: None,
         network_txn_id,
+        connector_response_reference_id: None,
     };
     Ok((status, error, payments_response_data))
 }
 
 pub fn get_redirection_response(
-    response: AdyenRedirectionResponse,
+    response: RedirectionResponse,
     is_manual_capture: bool,
     status_code: u16,
 ) -> errors::CustomResult<
@@ -1817,6 +1823,39 @@ pub fn get_redirection_response(
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
+        connector_response_reference_id: None,
+    };
+    Ok((status, error, payments_response_data))
+}
+
+pub fn get_redirection_error_response(
+    response: RedirectionErrorResponse,
+    is_manual_capture: bool,
+    status_code: u16,
+) -> errors::CustomResult<
+    (
+        storage_enums::AttemptStatus,
+        Option<types::ErrorResponse>,
+        types::PaymentsResponseData,
+    ),
+    errors::ConnectorError,
+> {
+    let status =
+        storage_enums::AttemptStatus::foreign_from((is_manual_capture, response.result_code));
+    let error = Some(types::ErrorResponse {
+        code: status.to_string(),
+        message: response.refusal_reason.clone(),
+        reason: Some(response.refusal_reason),
+        status_code,
+    });
+    // We don't get connector transaction id for redirections in Adyen.
+    let payments_response_data = types::PaymentsResponseData::TransactionResponse {
+        resource_id: types::ResponseId::NoResponseId,
+        redirection_data: None,
+        mandate_reference: None,
+        connector_metadata: None,
+        network_txn_id: None,
+        connector_response_reference_id: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -1837,11 +1876,14 @@ impl<F, Req>
         let item = items.0;
         let is_manual_capture = items.1;
         let (status, error, payment_response_data) = match item.response {
-            AdyenPaymentResponse::AdyenResponse(response) => {
+            AdyenPaymentResponse::Response(response) => {
                 get_adyen_response(response, is_manual_capture, item.http_code)?
             }
-            AdyenPaymentResponse::AdyenRedirectResponse(response) => {
+            AdyenPaymentResponse::RedirectResponse(response) => {
                 get_redirection_response(response, is_manual_capture, item.http_code)?
+            }
+            AdyenPaymentResponse::RedirectionErrorResponse(response) => {
+                get_redirection_error_response(response, is_manual_capture, item.http_code)?
             }
         };
 
@@ -1904,6 +1946,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             amount_captured: Some(item.response.amount.value),
             ..item.data
@@ -2147,7 +2190,7 @@ pub struct AdyenIncomingWebhook {
     pub notification_items: Vec<AdyenItemObjectWH>,
 }
 
-impl From<AdyenNotificationRequestItemWH> for AdyenResponse {
+impl From<AdyenNotificationRequestItemWH> for Response {
     fn from(notif: AdyenNotificationRequestItemWH) -> Self {
         Self {
             psp_reference: notif.psp_reference,

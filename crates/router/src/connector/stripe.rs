@@ -2,9 +2,9 @@ mod transformers;
 
 use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
-use storage_models::enums;
 
 use self::transformers as stripe;
 use super::utils::RefundsRequestData;
@@ -130,12 +130,13 @@ impl
         &self,
         req: &types::PaymentsPreProcessingRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req = stripe::StripeAchSourceRequest::try_from(req)?;
+        let req = stripe::StripeCreditTransferSourceRequest::try_from(req)?;
         let pre_processing_request = types::RequestBody::log_and_get_request_body(
             &req,
-            utils::Encode::<stripe::StripeAchSourceRequest>::url_encode,
+            utils::Encode::<stripe::StripeCreditTransferSourceRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
         Ok(Some(pre_processing_request))
     }
 
@@ -721,7 +722,8 @@ impl
         match &req.request.payment_method_data {
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data.deref() {
-                    api_models::payments::BankTransferData::AchBankTransfer { .. } => {
+                    api_models::payments::BankTransferData::AchBankTransfer { .. }
+                    | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
                         Ok(format!("{}{}", self.base_url(connectors), "v1/charges"))
                     }
                     _ => Ok(format!(
@@ -1772,7 +1774,9 @@ impl api::IncomingWebhook for Stripe {
             }
             stripe::WebhookEventType::ChargeSucceeded => {
                 if let Some(stripe::WebhookPaymentMethodDetails {
-                    payment_method: stripe::WebhookPaymentMethodType::AchCreditTransfer,
+                    payment_method:
+                        stripe::WebhookPaymentMethodType::AchCreditTransfer
+                        | stripe::WebhookPaymentMethodType::MultibancoBankTransfers,
                 }) = details.event_data.event_object.payment_method_details
                 {
                     api::IncomingWebhookEvent::PaymentIntentSuccess

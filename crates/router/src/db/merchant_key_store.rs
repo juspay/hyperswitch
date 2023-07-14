@@ -57,7 +57,7 @@ impl MerchantKeyStoreInterface for Store {
         let fetch_func = || async {
             let conn = connection::pg_connection_read(self).await?;
 
-            storage_models::merchant_key_store::MerchantKeyStore::find_by_merchant_id(
+            diesel_models::merchant_key_store::MerchantKeyStore::find_by_merchant_id(
                 &conn,
                 merchant_id,
             )

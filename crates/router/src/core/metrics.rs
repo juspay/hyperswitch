@@ -1,3 +1,4 @@
+pub use router_env::opentelemetry::KeyValue;
 use router_env::{counter_metric, global_meter, metrics_context};
 
 metrics_context!(CONTEXT);
@@ -31,3 +32,10 @@ counter_metric!(
     ATTACH_EVIDENCE_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC,
     GLOBAL_METER
 );
+
+counter_metric!(WEBHOOK_INCOMING_COUNT, GLOBAL_METER);
+counter_metric!(WEBHOOK_INCOMING_FILTERED_COUNT, GLOBAL_METER);
+counter_metric!(WEBHOOK_SOURCE_VERIFIED_COUNT, GLOBAL_METER);
+counter_metric!(WEBHOOK_OUTGOING_COUNT, GLOBAL_METER);
+counter_metric!(WEBHOOK_OUTGOING_RECEIVED_COUNT, GLOBAL_METER);
+counter_metric!(WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT, GLOBAL_METER);
