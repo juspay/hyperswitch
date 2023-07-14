@@ -251,6 +251,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 payment_method_data: request.payment_method_data.clone(),
                 refunds: vec![],
                 disputes: vec![],
+                attempts: None,
                 force_sync: None,
                 connector_response,
                 sessions_token: vec![],
