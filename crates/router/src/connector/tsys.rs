@@ -45,7 +45,6 @@ impl
         types::PaymentsResponseData,
     > for Tsys
 {
-    // Not Implemented (R)
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Tsys
