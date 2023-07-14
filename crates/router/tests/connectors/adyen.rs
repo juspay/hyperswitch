@@ -25,7 +25,7 @@ impl utils::Connector for AdyenTest {
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         types::ConnectorAuthType::from(
             connector_auth::ConnectorAuthentication::new()
-                .adyen
+                .adyen_uk
                 .expect("Missing connector authentication configuration"),
         )
     }

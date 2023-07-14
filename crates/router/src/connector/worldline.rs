@@ -4,9 +4,9 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use common_utils::ext_traits::ByteSliceExt;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use ring::hmac;
-use storage_models::enums;
 use time::{format_description, OffsetDateTime};
 use transformers as worldline;
 
@@ -16,7 +16,6 @@ use crate::{
     connector::utils as conn_utils,
     consts,
     core::errors::{self, CustomResult},
-    db::StorageInterface,
     headers, logger,
     services::{
         self,
@@ -721,24 +720,6 @@ impl api::IncomingWebhook for Worldline {
         _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(request.body.to_vec())
-    }
-
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
     }
 
     fn get_webhook_object_reference_id(
