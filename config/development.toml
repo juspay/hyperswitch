@@ -38,7 +38,6 @@ master_enc_key = "73ad7bbbbc640c845a150f67d058b279849370cd2c1f3c67c4dd6c869213e1
 host = ""
 mock_locker = true
 basilisk_host = ""
-locker_setup = "legacy_locker"
 
 [jwekey]
 locker_key_identifier1 = ""
@@ -90,6 +89,7 @@ cards = [
     "shift4",
     "stripe",
     "trustpay",
+    "tsys",
     "worldline",
     "worldpay",
     "zen",
@@ -151,6 +151,7 @@ stripe.base_url_file_upload = "https://files.stripe.com/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+tsys.base_url = "https://stagegw.transnox.com/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen.com/"
