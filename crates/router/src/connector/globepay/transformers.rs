@@ -29,8 +29,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobepayPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let channel: GlobepayChannel = match &item.request.payment_method_data {
             api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
-                api::WalletData::AliPay(_) => GlobepayChannel::Alipay,
-                api::WalletData::WeChatPay(_) => GlobepayChannel::Wechat,
+                api::WalletData::AliPayQr(_) => GlobepayChannel::Alipay,
+                api::WalletData::WeChatPayQr(_) => GlobepayChannel::Wechat,
                 _ => Err(errors::ConnectorError::NotImplemented(
                     "Payment method".to_string(),
                 ))?,
