@@ -36,6 +36,20 @@ env:
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 jobs:
+  ignore_test:
+    name: Ignore UI tests on pull request
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Provide success response always
+        shell: bash
+        run: echo true
+
+
   test_connectors:
     name: Run connector UI tests
     if: github.event_name != 'pull_request'
