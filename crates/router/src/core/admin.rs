@@ -172,6 +172,7 @@ pub async fn create_merchant_account(
             frm_routing_algorithm: req.frm_routing_algorithm,
             intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
             id: None,
+            organization_id: req.organization_id,
         })
     }
     .await
