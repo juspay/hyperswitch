@@ -51,18 +51,19 @@ async fn should_make_adyen_3ds_payment_success(
     Ok(())
 }
 
-async fn should_make_adyen_3ds_mandate_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_adyen_3ds_mandate_payment(
+    web_driver: WebDriver,
+) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/203"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
-            // Event::Trigger(Trigger::Click(By::Id("test-source-authorize-3ds"))),
             Event::Assert(Assert::IsPresent("succeeded")),
             Event::Assert(Assert::IsPresent("Mandate ID")),
             Event::Assert(Assert::IsPresent("man_")), // mandate id starting with man_
-            // Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
+            Event::Trigger(Trigger::Click(By::Css("a.btn"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("succeeded")),
         ],
@@ -72,19 +73,18 @@ async fn should_make_adyen_3ds_mandate_payment(c: WebDriver) -> Result<(), WebDr
 }
 
 async fn should_make_adyen_3ds_mandate_with_zero_dollar_payment(
-    c: WebDriver,
+    web_driver: WebDriver,
 ) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/204"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
-            // Event::Trigger(Trigger::Click(By::Id("test-source-authorize-3ds"))),
             Event::Assert(Assert::IsPresent("succeeded")),
             Event::Assert(Assert::IsPresent("Mandate ID")),
             Event::Assert(Assert::IsPresent("man_")), // mandate id starting with man_
-            // Event::Trigger(Trigger::Click(By::Css("#pm-mandate-btn a"))),
+            Event::Trigger(Trigger::Click(By::Css("a.btn"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("succeeded")),
         ],
