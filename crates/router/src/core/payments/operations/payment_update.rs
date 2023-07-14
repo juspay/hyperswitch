@@ -83,7 +83,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 }
                 .into());
             }
-            }
+        }
 
         helpers::validate_card_data(request.payment_method_data.clone())?;
 
