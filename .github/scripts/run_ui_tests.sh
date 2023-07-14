@@ -18,6 +18,10 @@ done
 firefox --version
 $GECKOWEBDRIVER/geckodriver > tests/geckodriver.log 2>&1 &
 
+echo $SECONDS
+echo "$SECONDS"
+echo "========"
+
 #start server and run ui tests
 cargo run &
 
