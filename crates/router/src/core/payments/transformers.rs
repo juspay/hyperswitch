@@ -179,6 +179,7 @@ where
             &operation,
             payment_data.ephemeral_key,
             payment_data.sessions_token,
+            payment_data.setup_mandate,
         )
     }
 }
@@ -269,6 +270,7 @@ pub fn payments_to_payments_response<R, Op>(
     operation: &Op,
     ephemeral_key_option: Option<ephemeral_key::EphemeralKey>,
     session_tokens: Vec<api::SessionToken>,
+    mandate_data: Option<api_models::payments::MandateData>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
@@ -412,6 +414,7 @@ where
                                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
                         )
                         .set_mandate_id(mandate_id)
+                        .set_mandate_data(mandate_data)
                         .set_description(payment_intent.description)
                         .set_refunds(refunds_response) // refunds.iter().map(refund_to_refund_response),
                         .set_disputes(disputes_response)
