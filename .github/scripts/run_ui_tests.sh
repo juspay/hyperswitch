@@ -6,7 +6,7 @@ mkdir tests
 #download connector ui tests
 while [ ! -f $HOME/target/test/connector_tests.json ]
 do
-    if [ $SECONDS > 20 ]
+    if (( SECONDS > 30 ))
     then
         exit 1
     fi
@@ -20,13 +20,12 @@ $GECKOWEBDRIVER/geckodriver > tests/geckodriver.log 2>&1 &
 #start server and run ui tests
 cargo run &
 
-COUNTER=0
 #Wait for the server to start in port 8080
 while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do 
-    if [ $COUNTER > 300 ]; then
+    if (( SECONDS > 300 ))
+    then
         exit 1
     else 
-        COUNTER=`expr $COUNTER + 10`
         sleep 10
     fi
 done
