@@ -2,7 +2,7 @@ use api_models::enums as api_enums;
 use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 
 use super::domain;
 use crate::{
@@ -482,6 +482,17 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
             business_label: item.business_label,
             business_sub_label: item.business_sub_label,
             frm_configs,
+            connector_webhook_details: item
+                .connector_webhook_details
+                .map(|webhook_details| {
+                    serde_json::Value::parse_value(
+                        webhook_details.expose(),
+                        "MerchantConnectorWebhookDetails",
+                    )
+                    .attach_printable("Unable to deserialize connector_webhook_details")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?,
         })
     }
 }

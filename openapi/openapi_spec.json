@@ -5202,6 +5202,14 @@
             "description": "Business Sub label of the merchant",
             "example": "chase",
             "nullable": true
+          },
+          "connector_webhook_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -5399,6 +5407,14 @@
               }
             ],
             "nullable": true
+          },
+          "connector_webhook_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -5487,6 +5503,26 @@
               }
             ],
             "nullable": true
+          },
+          "connector_webhook_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "MerchantConnectorWebhookDetails": {
+        "type": "object",
+        "required": [
+          "merchant_secret"
+        ],
+        "properties": {
+          "merchant_secret": {
+            "type": "string",
+            "example": "12345678900987654321"
           }
         }
       },

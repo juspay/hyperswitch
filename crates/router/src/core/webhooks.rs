@@ -653,9 +653,18 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    connector_name: &str,
+    connector_label: &str,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
+    let connector_name = connector_label
+        .split('_') //connector_name will be the first string after splitting connector_label
+        .next()
+        .ok_or(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector_label",
+        })
+        .into_report()
+        .attach_printable("Failed to infer connector_name from connector_label")?;
+
     metrics::WEBHOOK_INCOMING_COUNT.add(
         &metrics::CONTEXT,
         1,
@@ -702,7 +711,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
 
     let process_webhook_further = utils::lookup_webhook_event(
         &*state.store,
-        connector_name,
+        connector_label,
         &merchant_account.merchant_id,
         &event_type,
     )
@@ -718,6 +727,8 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
                 &*state.store,
                 &request_details,
                 &merchant_account.merchant_id,
+                connector_label,
+                &key_store,
             )
             .await
             .switch()
