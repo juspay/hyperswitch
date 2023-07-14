@@ -893,13 +893,17 @@ pub async fn list_payment_methods(
                             .fields
                             .get(&connector_variant)
                             .map(|required_fields_final| {
-
-                                let mut required_fields_hs = HashSet::from_iter(required_fields_final.common.iter().cloned());
+                                let mut required_fields_hs = HashSet::from_iter(
+                                    required_fields_final.common.iter().cloned(),
+                                );
                                 payment_attempt.as_ref().map(|pa| {
                                     if let Some(mandate) = &pa.mandate_details {
-                                        required_fields_hs.extend( required_fields_final.mandate.iter().cloned());
+                                        required_fields_hs
+                                            .extend(required_fields_final.mandate.iter().cloned());
                                     } else {
-                                        required_fields_hs.extend( required_fields_final.non_mandate.iter().cloned());
+                                        required_fields_hs.extend(
+                                            required_fields_final.non_mandate.iter().cloned(),
+                                        );
                                     }
                                 });
 
