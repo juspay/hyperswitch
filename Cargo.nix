@@ -11,7 +11,7 @@ args@{
     "router_derive/default"
     "drainer/default"
     "redis_interface/default"
-    "storage_models/default"
+    "diesel_models/default"
     "router/default"
   ],
   rustPackages,
@@ -53,7 +53,7 @@ in
     router_derive = rustPackages.unknown.router_derive."0.1.0";
     drainer = rustPackages.unknown.drainer."0.1.0";
     redis_interface = rustPackages.unknown.redis_interface."0.1.0";
-    storage_models = rustPackages.unknown.storage_models."0.1.0";
+    diesel_models = rustPackages.unknown.diesel_models."0.1.0";
     router = rustPackages.unknown.router."0.2.0";
   };
   "registry+https://github.com/rust-lang/crates.io-index".actix."0.13.0" = overridableMkRustCrate (profileName: rec {
@@ -1685,7 +1685,7 @@ in
       serde = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.152" { inherit profileName; };
       serde_json = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_json."1.0.91" { inherit profileName; };
       serde_path_to_error = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_path_to_error."0.1.9" { inherit profileName; };
-      storage_models = rustPackages."unknown".storage_models."0.1.0" { inherit profileName; };
+      diesel_models = rustPackages."unknown".diesel_models."0.1.0" { inherit profileName; };
       thiserror = rustPackages."registry+https://github.com/rust-lang/crates.io-index".thiserror."1.0.38" { inherit profileName; };
       tokio = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio."1.25.0" { inherit profileName; };
     };
@@ -4020,7 +4020,7 @@ in
       serde_urlencoded = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_urlencoded."0.7.1" { inherit profileName; };
       signal_hook = rustPackages."registry+https://github.com/rust-lang/crates.io-index".signal-hook."0.3.14" { inherit profileName; };
       signal_hook_tokio = rustPackages."registry+https://github.com/rust-lang/crates.io-index".signal-hook-tokio."0.3.1" { inherit profileName; };
-      storage_models = rustPackages."unknown".storage_models."0.1.0" { inherit profileName; };
+      diesel_models = rustPackages."unknown".diesel_models."0.1.0" { inherit profileName; };
       strum = rustPackages."registry+https://github.com/rust-lang/crates.io-index".strum."0.24.1" { inherit profileName; };
       thiserror = rustPackages."registry+https://github.com/rust-lang/crates.io-index".thiserror."1.0.38" { inherit profileName; };
       time = rustPackages."registry+https://github.com/rust-lang/crates.io-index".time."0.3.17" { inherit profileName; };
@@ -4581,11 +4581,11 @@ in
     registry = "registry+https://github.com/rust-lang/crates.io-index";
     src = fetchCratesIo { inherit name version; sha256 = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"; };
   });
-  "unknown".storage_models."0.1.0" = overridableMkRustCrate (profileName: rec {
-    name = "storage_models";
+  "unknown".diesel_models."0.1.0" = overridableMkRustCrate (profileName: rec {
+    name = "diesel_models";
     version = "0.1.0";
     registry = "unknown";
-    src = fetchCrateLocal (workspaceSrc + "/crates/storage_models");
+    src = fetchCrateLocal (workspaceSrc + "/crates/diesel_models");
     features = builtins.concatLists [
       [ "default" ]
       [ "kv_store" ]
