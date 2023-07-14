@@ -38,7 +38,6 @@ master_enc_key = "73ad7bbbbc640c845a150f67d058b279849370cd2c1f3c67c4dd6c869213e1
 host = ""
 mock_locker = true
 basilisk_host = ""
-locker_setup = "legacy_locker"
 
 [jwekey]
 locker_key_identifier1 = ""
