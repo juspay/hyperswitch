@@ -414,7 +414,10 @@ where
                                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
                         )
                         .set_mandate_id(mandate_id)
-                        .set_mandate_data(mandate_data)
+                        .set_mandate_data(
+                            mandate_data.map(api::MandateData::from),
+                            auth_flow == services::AuthFlow::Merchant,
+                        )
                         .set_description(payment_intent.description)
                         .set_refunds(refunds_response) // refunds.iter().map(refund_to_refund_response),
                         .set_disputes(disputes_response)
