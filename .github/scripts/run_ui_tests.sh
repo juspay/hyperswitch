@@ -6,6 +6,7 @@ mkdir tests
 #download connector ui tests
 while [ ! -f $HOME/target/test/connector_tests.json ]
 do
+    echo $SECONDS
     if [ $SECONDS > 20 ]
     then
         exit 1
