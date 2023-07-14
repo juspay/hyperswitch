@@ -1,14 +1,14 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
-use error_stack::{IntoReport, ResultExt};
-use router_env::{instrument, tracing};
-pub use storage_models::{
+pub use diesel_models::{
     errors,
     payment_intent::{
         PaymentIntent, PaymentIntentNew, PaymentIntentUpdate, PaymentIntentUpdateInternal,
     },
     schema::payment_intent::dsl,
 };
+use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 
 use crate::{connection::PgPooledConn, core::errors::CustomResult, types::api};
 

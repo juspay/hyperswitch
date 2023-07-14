@@ -29,7 +29,7 @@ pub async fn files_create_core(
     let file_key = format!("{}/{}", merchant_account.merchant_id, file_id);
     #[cfg(not(feature = "s3"))]
     let file_key = format!("{}_{}", merchant_account.merchant_id, file_id);
-    let file_new = storage_models::file::FileMetadataNew {
+    let file_new = diesel_models::file::FileMetadataNew {
         file_id: file_id.clone(),
         merchant_id: merchant_account.merchant_id.clone(),
         file_name: create_file_request.file_name.clone(),
@@ -56,7 +56,7 @@ pub async fn files_create_core(
         )
         .await?;
     //Update file metadata
-    let update_file_metadata = storage_models::file::FileMetadataUpdate::Update {
+    let update_file_metadata = diesel_models::file::FileMetadataUpdate::Update {
         provider_file_id: Some(provider_file_id),
         file_upload_provider: Some(file_upload_provider),
         available: true,
