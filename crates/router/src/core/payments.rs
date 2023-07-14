@@ -41,7 +41,7 @@ use crate::{
     utils::{Encode, OptionExt, ValueExt},
 };
 
-#[instrument(skip_all, fields(payment_id, merchant_id))]
+// #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
@@ -71,10 +71,9 @@ where
     let operation: BoxedOperation<'_, F, Req> = Box::new(operation);
 
     tracing::Span::current().record("merchant_id", merchant_account.merchant_id.as_str());
-    let (operation, validate_result) =
-        operation
-            .to_validate_request()?
-            .validate_request(&req, &merchant_account, auth_flow, state, key_store.clone())?;
+    let (operation, validate_result) = operation
+        .to_validate_request()?
+        .validate_request(&req, &merchant_account)?;
 
     tracing::Span::current().record("payment_id", &format!("{}", validate_result.payment_id));
     let (operation, mut payment_data, customer_details) = operation
@@ -86,6 +85,7 @@ where
             validate_result.mandate_type.to_owned(),
             &merchant_account,
             &key_store,
+            auth_flow,
         )
         .await?;
 

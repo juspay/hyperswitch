@@ -37,9 +37,6 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
         &'b self,
         request: &api::VerifyRequest,
         merchant_account: &'a domain::MerchantAccount,
-        _auth_flow: services::AuthFlow,
-        _state: &AppState,
-        _key_store: domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::VerifyRequest>,
         operations::ValidateResult<'a>,
@@ -76,6 +73,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         _mechant_key_store: &domain::MerchantKeyStore,
+        _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         PaymentData<F>,

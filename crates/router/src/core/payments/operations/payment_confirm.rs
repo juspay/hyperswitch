@@ -29,7 +29,6 @@ use crate::{
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(ops = "all", flow = "authorize")]
 pub struct PaymentConfirm;
-
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
@@ -41,6 +40,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
+        auth_flow: services::AuthFlow,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -59,6 +59,28 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        if auth_flow == services::AuthFlow::Client && request.customer_id.is_some() {
+            println!("request customer {:?}", request.customer_id);
+            println!("intent customer {:?}", payment_intent.customer_id);
+            let response = request
+                .clone()
+                .customer_id
+                .and_then(|customer| {
+                    payment_intent
+                        .clone()
+                        .customer_id
+                        .map(|payment_customer| payment_customer != customer)
+                })
+                .unwrap_or_default();
+            println!("response sahkal {}", response);
+            if response {
+                return Err(errors::ApiErrorResponse::GenericUnauthorized {
+                    message: "Unauthorised access to update customer".to_string(),
+                }
+                .into());
+            }
+        }
 
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
@@ -499,16 +521,11 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
         &'b self,
         request: &api::PaymentsRequest,
         merchant_account: &'a domain::MerchantAccount,
-        auth_flow: services::AuthFlow,
-        state: &AppState,
-        key_store: domain::MerchantKeyStore,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
-        let db = &*state.store;
-        helpers::validate_customer_access(auth_flow, request, db, merchant_account, key_store)?;
         let given_payment_id = match &request.payment_id {
             Some(id_type) => Some(
                 id_type

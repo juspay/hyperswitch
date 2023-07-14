@@ -81,9 +81,6 @@ pub trait ValidateRequest<F, R> {
         &'b self,
         request: &R,
         merchant_account: &'a domain::MerchantAccount,
-        _auth_flow: services::AuthFlow,
-        _state: &AppState,
-        _key_store: domain::MerchantKeyStore,
     ) -> RouterResult<(BoxedOperation<'b, F, R>, ValidateResult<'a>)>;
 }
 
@@ -98,6 +95,7 @@ pub trait GetTracker<F, D, R>: Send {
         mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
+        auth_flow: services::AuthFlow,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>;
 }
 
