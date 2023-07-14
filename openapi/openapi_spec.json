@@ -1748,9 +1748,6 @@
       "AliPayRedirection": {
         "type": "object"
       },
-      "GcashRedirection": {
-        "type": "object"
-      },
       "AmountInfo": {
         "type": "object",
         "required": [
@@ -4198,6 +4195,9 @@
           "on_session"
         ]
       },
+      "GcashRedirection": {
+        "type": "object"
+      },
       "GoPayRedirection": {
         "type": "object"
       },
@@ -6494,14 +6494,14 @@
           "debit",
           "eps",
           "evoucher",
-          "gcash",
           "giropay",
           "google_pay",
           "go_pay",
+          "gcash",
           "ideal",
           "interac",
-          "kakao_pay",
           "klarna",
+          "kakao_pay",
           "mb_way",
           "mobile_pay",
           "multibanco",
@@ -8566,18 +8566,7 @@
           {
             "type": "object",
             "required": [
-              "gcash_redirect"
-            ],
-            "properties": {
-              "gcash_redirect": {
-                "$ref": "#/components/schemas/GcashRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "kakao_pay_redirect"
+              "ali_pay_redirect"
             ],
             "properties": {
               "ali_pay_redirect": {
@@ -8615,6 +8604,17 @@
             "properties": {
               "go_pay_redirect": {
                 "$ref": "#/components/schemas/GoPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "gcash_redirect"
+            ],
+            "properties": {
+              "gcash_redirect": {
+                "$ref": "#/components/schemas/GcashRedirection"
               }
             }
           },
