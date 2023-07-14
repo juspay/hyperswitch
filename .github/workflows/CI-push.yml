@@ -11,6 +11,10 @@ on:
     #   - "Cargo.lock"
     #   - "Cargo.toml"
 
+  merge_group:
+    types:
+      - checks_requested
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
