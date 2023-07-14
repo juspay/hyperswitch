@@ -1556,6 +1556,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::GoPay => Self::Wallet,
             PaymentMethodType::Ideal => Self::BankRedirect,
             PaymentMethodType::Klarna => Self::PayLater,
+            PaymentMethodType::KakaoPay => Self::Wallet,
             PaymentMethodType::MbWay => Self::Wallet,
             PaymentMethodType::MobilePay => Self::Wallet,
             PaymentMethodType::Multibanco => Self::BankTransfer,

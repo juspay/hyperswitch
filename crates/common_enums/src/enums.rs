@@ -572,6 +572,7 @@ pub enum PaymentMethodType {
     Ideal,
     Interac,
     Klarna,
+    KakaoPay,
     MbWay,
     MobilePay,
     Multibanco,
