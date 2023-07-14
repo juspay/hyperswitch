@@ -186,8 +186,6 @@ fn setup_metrics_pipeline(config: &config::LogTelemetry) -> Option<BasicControll
         buckets
     };
 
-    let pod_name = std::env::var("POD_NAME").ok();
-
     let metrics_controller_result = opentelemetry_otlp::new_pipeline()
         .metrics(
             simple::histogram(histogram_buckets),
@@ -200,7 +198,10 @@ fn setup_metrics_pipeline(config: &config::LogTelemetry) -> Option<BasicControll
         .with_timeout(Duration::from_secs(10))
         .with_resource(Resource::new(vec![KeyValue::new(
             "pod",
-            pod_name.unwrap_or("hyperswitch-server-default".to_string()),
+            std::env::var("POD_NAME").map_or(
+                "hyperswitch-server-default".into(),
+                Into::<opentelemetry::Value>::into,
+            ),
         )]))
         .build();
 
