@@ -310,6 +310,8 @@ pub enum ConnectorError {
     MissingConnectorRedirectionPayload { field_name: &'static str },
     #[error("Failed at connector's end with code '{code}'")]
     FailedAtConnector { message: String, code: String },
+    #[error("Payment Method Type not found")]
+    MissingPaymentMethodType,
 }
 
 #[derive(Debug, thiserror::Error)]
