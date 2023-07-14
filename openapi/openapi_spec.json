@@ -1739,10 +1739,10 @@
           }
         }
       },
-      "AliPay": {
+      "AliPayHkRedirection": {
         "type": "object"
       },
-      "AliPayHkRedirection": {
+      "AliPayQr": {
         "type": "object"
       },
       "AliPayRedirection": {
@@ -8761,11 +8761,11 @@
           {
             "type": "object",
             "required": [
-              "ali_pay"
+              "ali_pay_qr"
             ],
             "properties": {
-              "ali_pay": {
-                "$ref": "#/components/schemas/AliPay"
+              "ali_pay_qr": {
+                "$ref": "#/components/schemas/AliPayQr"
               }
             }
           },
@@ -8933,10 +8933,24 @@
                 "$ref": "#/components/schemas/WeChatPay"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "we_chat_pay_qr"
+            ],
+            "properties": {
+              "we_chat_pay_qr": {
+                "$ref": "#/components/schemas/WeChatPayQr"
+              }
+            }
           }
         ]
       },
       "WeChatPay": {
+        "type": "object"
+      },
+      "WeChatPayQr": {
         "type": "object"
       },
       "WeChatPayRedirection": {
