@@ -11,7 +11,7 @@ use common_utils::{
     pii::{self, Email, IpAddress},
 };
 use error_stack::{report, IntoReport, ResultExt};
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
@@ -514,6 +514,7 @@ pub trait CardData {
     ) -> Secret<String>;
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
+    fn get_expiry_date_as_yymm(&self) -> Secret<String>;
 }
 
 impl CardData for api::Card {
@@ -552,6 +553,11 @@ impl CardData for api::Card {
             year = format!("20{}", year);
         }
         Secret::new(year)
+    }
+    fn get_expiry_date_as_yymm(&self) -> Secret<String> {
+        let year = self.get_card_expiry_year_2_digit().expose();
+        let month = self.card_exp_month.clone().expose();
+        Secret::new(format!("{year}{month}"))
     }
 }
 
@@ -928,8 +934,8 @@ pub fn collect_and_sort_values_by_removing_signature(
 }
 
 #[inline]
-pub fn get_webhook_merchant_secret_key(connector: &str, merchant_id: &str) -> String {
-    format!("whsec_verification_{connector}_{merchant_id}")
+pub fn get_webhook_merchant_secret_key(connector_label: &str, merchant_id: &str) -> String {
+    format!("whsec_verification_{connector_label}_{merchant_id}")
 }
 
 impl ForeignTryFrom<String> for UsStatesAbbreviation {
