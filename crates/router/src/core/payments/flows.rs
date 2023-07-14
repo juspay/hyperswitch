@@ -166,6 +166,7 @@ default_imp_for_complete_authorize!(
     connector::Rapyd,
     connector::Stripe,
     connector::Trustpay,
+    connector::Tsys,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen
@@ -234,6 +235,7 @@ default_imp_for_create_customer!(
     connector::Rapyd,
     connector::Shift4,
     connector::Trustpay,
+    connector::Tsys,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen
@@ -295,6 +297,7 @@ default_imp_for_connector_redirect_response!(
     connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Tsys,
     connector::Worldline,
     connector::Worldpay
 );
@@ -346,6 +349,7 @@ default_imp_for_connector_request_id!(
     connector::Shift4,
     connector::Stripe,
     connector::Trustpay,
+    connector::Tsys,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen
@@ -417,6 +421,7 @@ default_imp_for_accept_dispute!(
     connector::Shift4,
     connector::Stripe,
     connector::Trustpay,
+    connector::Tsys,
     connector::Opennode,
     connector::Worldline,
     connector::Worldpay,
@@ -507,6 +512,7 @@ default_imp_for_file_upload!(
     connector::Rapyd,
     connector::Shift4,
     connector::Trustpay,
+    connector::Tsys,
     connector::Opennode,
     connector::Worldline,
     connector::Worldpay,
@@ -575,6 +581,7 @@ default_imp_for_submit_evidence!(
     connector::Rapyd,
     connector::Shift4,
     connector::Trustpay,
+    connector::Tsys,
     connector::Opennode,
     connector::Worldline,
     connector::Worldpay,
@@ -644,6 +651,7 @@ default_imp_for_defend_dispute!(
     connector::Stripe,
     connector::Shift4,
     connector::Trustpay,
+    connector::Tsys,
     connector::Opennode,
     connector::Worldline,
     connector::Worldpay,
@@ -713,6 +721,7 @@ default_imp_for_pre_processing_steps!(
     connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Tsys,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen
