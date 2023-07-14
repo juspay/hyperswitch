@@ -1,7 +1,4 @@
-use common_utils::{
-    crypto::{Encryptable, GcmAes256},
-    ext_traits::ValueExt,
-};
+use common_utils::crypto::{Encryptable, GcmAes256};
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
@@ -42,11 +39,7 @@ pub async fn create_customer(
 
     let key = key_store.key.get_inner().peek();
     if let Some(addr) = &customer_data.address {
-        let customer_address: api_models::payments::AddressDetails = addr
-            .peek()
-            .clone()
-            .parse_value("AddressDetails")
-            .change_context(errors::ApiErrorResponse::AddressNotFound)?;
+        let customer_address: api_models::payments::AddressDetails = addr.clone();
 
         let address = async {
             Ok(domain::Address {
@@ -333,11 +326,7 @@ pub async fn update_customer(
     let key = key_store.key.get_inner().peek();
 
     if let Some(addr) = &update_customer.address {
-        let customer_address: api_models::payments::AddressDetails = addr
-            .peek()
-            .clone()
-            .parse_value("AddressDetails")
-            .change_context(errors::ApiErrorResponse::AddressNotFound)?;
+        let customer_address: api_models::payments::AddressDetails = addr.clone();
         let update_address = async {
             Ok(storage::AddressUpdate::Update {
                 city: customer_address.city,

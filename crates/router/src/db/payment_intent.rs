@@ -35,6 +35,14 @@ pub trait PaymentIntentInterface {
         pc: &api::PaymentListConstraints,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn filter_payment_intents_by_time_range_constraints(
+        &self,
+        merchant_id: &str,
+        time_range: &api::TimeRange,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError>;
 }
 
 #[cfg(feature = "kv_store")]
@@ -96,7 +104,10 @@ mod storage {
                         business_label: new.business_label.clone(),
                         active_attempt_id: new.active_attempt_id.to_owned(),
                         order_details: new.order_details.clone(),
-                        udf: new.udf.clone(),
+                        allowed_payment_method_types: new.allowed_payment_method_types.clone(),
+                        connector_metadata: new.connector_metadata.clone(),
+                        feature_metadata: new.feature_metadata.clone(),
+                        attempt_count: new.attempt_count,
                     };
 
                     match self
@@ -237,6 +248,25 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
             }
         }
+        #[cfg(feature = "olap")]
+        async fn filter_payment_intents_by_time_range_constraints(
+            &self,
+            merchant_id: &str,
+            time_range: &api::TimeRange,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
+            match storage_scheme {
+                enums::MerchantStorageScheme::PostgresOnly => {
+                    let conn = connection::pg_connection_read(self).await?;
+                    PaymentIntent::filter_by_time_constraints(&conn, merchant_id, time_range)
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
+                }
+
+                enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
+            }
+        }
     }
 }
 
@@ -304,6 +334,19 @@ mod storage {
                 .map_err(Into::into)
                 .into_report()
         }
+        #[cfg(feature = "olap")]
+        async fn filter_payment_intents_by_time_range_constraints(
+            &self,
+            merchant_id: &str,
+            time_range: &api::TimeRange,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            PaymentIntent::filter_by_time_constraints(&conn, merchant_id, time_range)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        }
     }
 }
 
@@ -314,6 +357,16 @@ impl PaymentIntentInterface for MockDb {
         &self,
         _merchant_id: &str,
         _pc: &api::PaymentListConstraints,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+    #[cfg(feature = "olap")]
+    async fn filter_payment_intents_by_time_range_constraints(
+        &self,
+        _merchant_id: &str,
+        _time_range: &api::TimeRange,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
@@ -356,7 +409,10 @@ impl PaymentIntentInterface for MockDb {
             business_label: new.business_label,
             active_attempt_id: new.active_attempt_id.to_owned(),
             order_details: new.order_details,
-            udf: new.udf,
+            allowed_payment_method_types: new.allowed_payment_method_types,
+            connector_metadata: new.connector_metadata,
+            feature_metadata: new.feature_metadata,
+            attempt_count: new.attempt_count,
         };
         payment_intents.push(payment_intent.clone());
         Ok(payment_intent)

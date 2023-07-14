@@ -1,6 +1,8 @@
 use error_stack::IntoReport;
 
 use super::{MockDb, Store};
+#[cfg(feature = "accounts_cache")]
+use crate::cache::{self, ACCOUNTS_CACHE};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -67,10 +69,46 @@ impl ApiKeyInterface for Store {
         api_key: storage::ApiKeyUpdate,
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::ApiKey::update_by_merchant_id_key_id(&conn, merchant_id, key_id, api_key)
+        let _merchant_id = merchant_id.clone();
+        let _key_id = key_id.clone();
+        let update_call = || async {
+            storage::ApiKey::update_by_merchant_id_key_id(&conn, merchant_id, key_id, api_key)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            update_call().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            use error_stack::report;
+
+            // We need to fetch api_key here because the key that's saved in cache in HashedApiKey.
+            // Used function from storage model to reuse the connection that made here instead of
+            // creating new.
+            let api_key = storage::ApiKey::find_optional_by_merchant_id_key_id(
+                &conn,
+                &_merchant_id,
+                &_key_id,
+            )
             .await
             .map_err(Into::into)
-            .into_report()
+            .into_report()?
+            .ok_or(report!(errors::StorageError::ValueNotFound(format!(
+                "ApiKey of {_key_id} not found"
+            ))))?;
+
+            super::cache::publish_and_redact(
+                self,
+                cache::CacheKind::Accounts(api_key.hashed_api_key.into_inner().into()),
+                update_call,
+            )
+            .await
+        }
     }
 
     async fn revoke_api_key(
@@ -79,10 +117,41 @@ impl ApiKeyInterface for Store {
         key_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::ApiKey::revoke_by_merchant_id_key_id(&conn, merchant_id, key_id)
+        let delete_call = || async {
+            storage::ApiKey::revoke_by_merchant_id_key_id(&conn, merchant_id, key_id)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            delete_call().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            use error_stack::report;
+
+            // We need to fetch api_key here because the key that's saved in cache in HashedApiKey.
+            // Used function from storage model to reuse the connection that made here instead of
+            // creating new.
+
+            let api_key =
+                storage::ApiKey::find_optional_by_merchant_id_key_id(&conn, merchant_id, key_id)
+                    .await
+                    .map_err(Into::into)
+                    .into_report()?
+                    .ok_or(report!(errors::StorageError::ValueNotFound(format!(
+                        "ApiKey of {key_id} not found"
+                    ))))?;
+
+            super::cache::publish_and_redact(
+                self,
+                cache::CacheKind::Accounts(api_key.hashed_api_key.into_inner().into()),
+                delete_call,
+            )
             .await
-            .map_err(Into::into)
-            .into_report()
+        }
     }
 
     async fn find_api_key_by_merchant_id_key_id_optional(
@@ -101,11 +170,30 @@ impl ApiKeyInterface for Store {
         &self,
         hashed_api_key: storage::HashedApiKey,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::ApiKey::find_optional_by_hashed_api_key(&conn, hashed_api_key)
+        let _hashed_api_key = hashed_api_key.clone();
+        let find_call = || async {
+            let conn = connection::pg_connection_read(self).await?;
+            storage::ApiKey::find_optional_by_hashed_api_key(&conn, hashed_api_key)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            find_call().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            super::cache::get_or_populate_in_memory(
+                self,
+                &_hashed_api_key.into_inner(),
+                find_call,
+                &ACCOUNTS_CACHE,
+            )
             .await
-            .map_err(Into::into)
-            .into_report()
+        }
     }
 
     async fn list_api_keys_by_merchant_id(
@@ -158,7 +246,7 @@ impl ApiKeyInterface for MockDb {
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
         let mut locked_api_keys = self.api_keys.lock().await;
         // find a key with the given merchant_id and key_id and update, otherwise return an error
-        let mut key_to_update = locked_api_keys
+        let key_to_update = locked_api_keys
             .iter_mut()
             .find(|k| k.merchant_id == merchant_id && k.key_id == key_id)
             .ok_or(errors::StorageError::MockDbError)?;
@@ -288,7 +376,9 @@ mod tests {
     use time::macros::datetime;
 
     use crate::{
-        db::{api_keys::ApiKeyInterface, MockDb},
+        cache::{CacheKind, ACCOUNTS_CACHE},
+        db::{api_keys::ApiKeyInterface, cache, MockDb},
+        services::{PubSubInterface, RedisConnInterface},
         types::storage,
     };
 
@@ -373,5 +463,68 @@ mod tests {
                 .len(),
             1
         );
+    }
+
+    #[allow(clippy::unwrap_used)]
+    #[tokio::test]
+    async fn test_api_keys_cache() {
+        let db = MockDb::new(&Default::default()).await;
+
+        let redis_conn = db.get_redis_conn();
+        redis_conn
+            .subscribe("hyperswitch_invalidate")
+            .await
+            .unwrap();
+
+        let merchant_id = "test_merchant";
+        let api = storage::ApiKeyNew {
+            key_id: "test_key".into(),
+            merchant_id: merchant_id.into(),
+            name: "My test key".into(),
+            description: None,
+            hashed_api_key: "a_hashed_key".to_string().into(),
+            prefix: "pre".into(),
+            created_at: datetime!(2023-06-01 0:00),
+            expires_at: None,
+            last_used: None,
+        };
+
+        let api = db.insert_api_key(api).await.unwrap();
+
+        let hashed_api_key = api.hashed_api_key.clone();
+        let find_call = || async {
+            db.find_api_key_by_hash_optional(hashed_api_key.clone())
+                .await
+        };
+        let _: Option<storage::ApiKey> = cache::get_or_populate_in_memory(
+            &db,
+            &format!("{}_{}", merchant_id, hashed_api_key.clone().into_inner()),
+            find_call,
+            &ACCOUNTS_CACHE,
+        )
+        .await
+        .unwrap();
+
+        let delete_call = || async { db.revoke_api_key(merchant_id, &api.key_id).await };
+
+        cache::publish_and_redact(
+            &db,
+            CacheKind::Accounts(
+                format!("{}_{}", merchant_id, hashed_api_key.clone().into_inner()).into(),
+            ),
+            delete_call,
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            ACCOUNTS_CACHE
+                .get_val::<storage::ApiKey>(&format!(
+                    "{}_{}",
+                    merchant_id,
+                    hashed_api_key.into_inner()
+                ),)
+                .is_none()
+        )
     }
 }

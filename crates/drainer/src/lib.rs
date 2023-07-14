@@ -8,9 +8,9 @@ mod utils;
 use std::sync::{atomic, Arc};
 
 use common_utils::signals::get_allowed_signals;
+use diesel_models::kv;
 pub use env as logger;
 use error_stack::{IntoReport, ResultExt};
-use storage_models::kv;
 use tokio::sync::mpsc;
 
 use crate::{connection::pg_connection, services::Store};

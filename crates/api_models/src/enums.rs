@@ -429,7 +429,6 @@ pub enum PaymentMethodType {
     Debit,
     Eps,
     Evoucher,
-    Gcash,
     Giropay,
     GooglePay,
     GoPay,
@@ -542,7 +541,6 @@ pub enum RefundStatus {
     strum::Display,
     strum::EnumString,
     ToSchema,
-    frunk::LabelledGeneric,
 )]
 
 /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
@@ -556,31 +554,6 @@ pub enum RoutingAlgorithm {
     Custom,
 }
 
-/// The status of the mandate, which indicates whether it can be used to initiate a payment
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Default,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum MandateStatus {
-    #[default]
-    Active,
-    Inactive,
-    Pending,
-    Revoked,
-}
-
 #[derive(
     Clone,
     Copy,
@@ -590,9 +563,10 @@ pub enum MandateStatus {
     ToSchema,
     serde::Deserialize,
     serde::Serialize,
+    strum::EnumVariantNames,
+    strum::EnumIter,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
     Hash,
 )]
 #[serde(rename_all = "snake_case")]
@@ -623,11 +597,28 @@ pub enum Connector {
     #[serde(rename = "pretendpay")]
     #[strum(serialize = "pretendpay")]
     DummyConnector3,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "stripe_test")]
+    #[strum(serialize = "stripe_test")]
+    DummyConnector4,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "adyen_test")]
+    #[strum(serialize = "adyen_test")]
+    DummyConnector5,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "checkout_test")]
+    #[strum(serialize = "checkout_test")]
+    DummyConnector6,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "paypal_test")]
+    #[strum(serialize = "paypal_test")]
+    DummyConnector7,
     Bambora,
     Dlocal,
     Fiserv,
     Forte,
     Globalpay,
+    Globepay,
     Klarna,
     Mollie,
     Multisafepay,
@@ -638,9 +629,10 @@ pub enum Connector {
     // Opayo, added as template code for future usage
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    // Payme,
+    Payme,
     Paypal,
     Payu,
+    Powertranz,
     Rapyd,
     Shift4,
     Stripe,
@@ -681,7 +673,8 @@ impl Connector {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
+    strum::EnumIter,
+    strum::EnumVariantNames,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -698,6 +691,22 @@ pub enum RoutableConnectors {
     #[serde(rename = "pretendpay")]
     #[strum(serialize = "pretendpay")]
     DummyConnector3,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "stripe_test")]
+    #[strum(serialize = "stripe_test")]
+    DummyConnector4,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "adyen_test")]
+    #[strum(serialize = "adyen_test")]
+    DummyConnector5,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "checkout_test")]
+    #[strum(serialize = "checkout_test")]
+    DummyConnector6,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "paypal_test")]
+    #[strum(serialize = "paypal_test")]
+    DummyConnector7,
     Aci,
     Adyen,
     Airwallex,
@@ -715,6 +724,7 @@ pub enum RoutableConnectors {
     Fiserv,
     Forte,
     Globalpay,
+    Globepay,
     Iatapay,
     Klarna,
     Mollie,
@@ -726,9 +736,10 @@ pub enum RoutableConnectors {
     // Opayo, added as template code for future usage
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    // Payme,
+    Payme,
     Paypal,
     Payu,
+    Powertranz,
     Rapyd,
     Shift4,
     Stripe,
@@ -750,7 +761,6 @@ pub enum RoutableConnectors {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
     ToSchema,
 )]
 #[strum(serialize_all = "snake_case")]
@@ -860,91 +870,7 @@ pub enum BankNames {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-    ToSchema,
-)]
-pub enum CardNetwork {
-    Visa,
-    Mastercard,
-    AmericanExpress,
-    JCB,
-    DinersClub,
-    Discover,
-    CartesBancaires,
-    UnionPay,
-    Interac,
-    RuPay,
-    Maestro,
-}
-
-#[derive(
-    Clone,
-    Default,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-pub enum DisputeStage {
-    PreDispute,
-    #[default]
-    Dispute,
-    PreArbitration,
-}
-
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-pub enum DisputeStatus {
-    #[default]
-    DisputeOpened,
-    DisputeExpired,
-    DisputeAccepted,
-    DisputeCancelled,
-    DisputeChallenged,
-    // dispute has been successfully challenged by the merchant
-    DisputeWon,
-    // dispute has been unsuccessfully challenged
-    DisputeLost,
-}
-
-#[derive(
-    Clone,
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-    ToSchema,
+    Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString, ToSchema,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
@@ -955,14 +881,7 @@ pub enum FrmAction {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-    ToSchema,
+    Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString, ToSchema,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
@@ -975,4 +894,58 @@ pub struct UnresolvedResponseReason {
     pub code: String,
     /// A message to merchant to give hint on next action he/she should do to resolve
     pub message: String,
+}
+
+/// Possible field type of required fields in payment_method_data
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FieldType {
+    UserFullName,
+    UserEmailAddress,
+    UserPhoneNumber,
+    UserCountry { options: Vec<String> },
+    UserAddressline1,
+    UserAddressline2,
+    UserAddressCity,
+    UserAddressPincode,
+    UserAddressState,
+    UserAddressCountry,
+    UserBlikCode,
+    FieldsComplete,
+    UserBillingName,
+    UserBank,
+    Text,
+    DropDown { options: Vec<String> },
+}
+
+#[derive(
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    Clone,
+    PartialEq,
+    Eq,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RetryAction {
+    /// Payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted
+    ManualRetry,
+    /// Denotes that the payment is requeued
+    Requeue,
 }

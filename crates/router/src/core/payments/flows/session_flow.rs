@@ -13,7 +13,7 @@ use crate::{
     headers, logger,
     routes::{self, metrics},
     services,
-    types::{self, api, domain, transformers::ForeignInto},
+    types::{self, api, domain},
     utils::{self, OptionExt},
 };
 
@@ -190,7 +190,7 @@ async fn create_applepay_session_token(
                 .change_context(errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "country_code",
                 })?,
-            currency_code: router_data.request.currency.foreign_into(),
+            currency_code: router_data.request.currency,
             total: amount_info,
             merchant_capabilities: applepay_metadata
                 .data
@@ -322,7 +322,7 @@ fn create_gpay_session_token(
         let session_data = router_data.request.clone();
         let transaction_info = payment_types::GpayTransactionInfo {
             country_code: session_data.country.unwrap_or_default(),
-            currency_code: router_data.request.currency.foreign_into(),
+            currency_code: router_data.request.currency,
             total_price_status: "Final".to_string(),
             total_price: utils::to_currency_base_unit(
                 router_data.request.amount,

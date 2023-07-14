@@ -2,7 +2,10 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, schema::payment_attempt};
+use crate::{
+    enums::{self as storage_enums},
+    schema::payment_attempt,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_attempt)]
@@ -50,6 +53,16 @@ pub struct PaymentAttempt {
     // providing a location to store mandate details intermediately for transaction
     pub mandate_details: Option<storage_enums::MandateDataType>,
     pub error_reason: Option<String>,
+    // reference to the payment at connector side
+    pub connector_response_reference_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
+pub struct PaymentListFilters {
+    pub connector: Vec<String>,
+    pub currency: Vec<storage_enums::Currency>,
+    pub status: Vec<storage_enums::IntentStatus>,
+    pub payment_method: Vec<storage_enums::PaymentMethod>,
 }
 
 #[derive(
@@ -98,6 +111,7 @@ pub struct PaymentAttemptNew {
     pub preprocessing_step_id: Option<String>,
     pub mandate_details: Option<storage_enums::MandateDataType>,
     pub error_reason: Option<String>,
+    pub connector_response_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -155,6 +169,7 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
+        connector_response_reference_id: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -164,6 +179,7 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
+        connector_response_reference_id: Option<String>,
     },
     StatusUpdate {
         status: storage_enums::AttemptStatus,
@@ -181,6 +197,7 @@ pub enum PaymentAttemptUpdate {
         connector_metadata: Option<serde_json::Value>,
         preprocessing_step_id: Option<String>,
         connector_transaction_id: Option<String>,
+        connector_response_reference_id: Option<String>,
     },
 }
 
@@ -212,6 +229,7 @@ pub struct PaymentAttemptUpdateInternal {
     preprocessing_step_id: Option<String>,
     error_reason: Option<Option<String>>,
     capture_method: Option<storage_enums::CaptureMethod>,
+    connector_response_reference_id: Option<String>,
 }
 
 impl PaymentAttemptUpdate {
@@ -335,6 +353,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 error_reason,
+                connector_response_reference_id,
             } => Self {
                 status: Some(status),
                 connector,
@@ -348,6 +367,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_message,
                 payment_token,
                 error_reason,
+                connector_response_reference_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {
@@ -387,6 +407,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 error_reason,
+                connector_response_reference_id,
             } => Self {
                 status: Some(status),
                 connector,
@@ -396,6 +417,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 error_reason,
+                connector_response_reference_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -404,6 +426,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_metadata,
                 preprocessing_step_id,
                 connector_transaction_id,
+                connector_response_reference_id,
             } => Self {
                 status: Some(status),
                 payment_method_id,
@@ -411,6 +434,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_metadata,
                 preprocessing_step_id,
                 connector_transaction_id,
+                connector_response_reference_id,
                 ..Default::default()
             },
         }

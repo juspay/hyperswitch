@@ -72,6 +72,7 @@ cards = [
     "fiserv",
     "forte",
     "globalpay",
+    "globepay",
     "iatapay",
     "mollie",
     "multisafepay",
@@ -85,6 +86,7 @@ cards = [
     "payme",
     "paypal",
     "payu",
+    "powertranz",
     "shift4",
     "stripe",
     "trustpay",
@@ -126,6 +128,7 @@ dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
+globepay.base_url = "https://pay.globepay.co/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
@@ -140,6 +143,7 @@ payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
 paypal.base_url = "https://www.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
+powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
 stripe.base_url = "https://api.stripe.com/"
@@ -305,3 +309,6 @@ refund_retrieve_tolerance = 100
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay"
+
+[connector_request_reference_id_config]
+merchant_ids_send_payment_id_as_connector_request_id = []
