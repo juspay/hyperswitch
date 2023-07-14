@@ -38,7 +38,7 @@ env:
 jobs:
   test_connectors:
     name: Run connector UI tests
-    if: ${{ !github.event.issue.pull_request }}
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
 
     services:
