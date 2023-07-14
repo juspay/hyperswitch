@@ -17,7 +17,7 @@ use crate::{
             mandates::{self, MandateResponseExt},
         },
         domain, storage,
-        transformers::{ForeignInto, ForeignTryFrom},
+        transformers::ForeignTryFrom,
     },
     utils::OptionExt,
 };
@@ -58,7 +58,7 @@ pub async fn revoke_mandate(
     Ok(services::ApplicationResponse::Json(
         mandates::MandateRevokedResponse {
             mandate_id: mandate.mandate_id,
-            status: mandate.mandate_status.foreign_into(),
+            status: mandate.mandate_status,
         },
     ))
 }
