@@ -2011,6 +2011,7 @@ pub async fn delete_payment_method(
         .await?;
 
         if response.status == "SUCCESS" {
+            logger::info!("Card From locker deleted Successfully!");
             db.delete_payment_method_by_merchant_id_payment_method_id(
                 &merchant_account.merchant_id,
                 pm_id.payment_method_id.as_str(),
@@ -2026,12 +2027,13 @@ pub async fn delete_payment_method(
                 },
             ))
         } else {
+            logger::info!("Error: Deleting Card From Locker!");
             Err(errors::ApiErrorResponse::UnprocessableEntity {
                 entity: response.error_message.unwrap_or_default(),
             })?
         }
     } else {
-        // This part of code is like a place holder and the control will never come here since everything is handled above
+        // This part of code is like a place holder until other other payment methods are handled.  
         Err(errors::ApiErrorResponse::PaymentMethodNotFound)?
     }
 }
