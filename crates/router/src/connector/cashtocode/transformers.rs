@@ -123,9 +123,15 @@ pub struct CashtocodeErrors {
     pub event_type: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CashtocodePaymentsResponse {
+pub enum CashtocodePaymentsResponse {
+    CashtoCodeError(CashtocodeErrorResponse),
+    CashtoCodeData(CashtocodePaymentsResponseData),
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CashtocodePaymentsResponseData {
     pub pay_url: String,
 }
 
@@ -150,22 +156,40 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = services::RedirectForm::Form {
-            endpoint: item.response.pay_url.clone(),
-            method: services::Method::Post,
-            form_fields: Default::default(),
+        let (status, response) = match item.response {
+            CashtocodePaymentsResponse::CashtoCodeError(error_data) => (
+                enums::AttemptStatus::Failure,
+                Err(types::ErrorResponse {
+                    code: error_data.error.to_string(),
+                    status_code: item.http_code,
+                    message: error_data.error_description,
+                    reason: None,
+                }),
+            ),
+            CashtocodePaymentsResponse::CashtoCodeData(response_data) => {
+                let redirection_data = services::RedirectForm::Form {
+                    endpoint: response_data.pay_url.clone(),
+                    method: services::Method::Post,
+                    form_fields: Default::default(),
+                };
+                (
+                    enums::AttemptStatus::AuthenticationPending,
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            item.data.attempt_id.clone(),
+                        ),
+                        redirection_data: Some(redirection_data),
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                    }),
+                )
+            }
         };
+
         Ok(Self {
-            status: enums::AttemptStatus::AuthenticationPending,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.data.attempt_id.clone(),
-                ),
-                redirection_data: Some(redirection_data),
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-            }),
+            status,
+            response,
             ..item.data
         })
     }
@@ -209,7 +233,7 @@ impl<F, T>
 
 #[derive(Debug, Deserialize)]
 pub struct CashtocodeErrorResponse {
-    pub error: String,
+    pub error: u32,
     pub error_description: String,
     pub errors: Option<Vec<CashtocodeErrors>>,
 }
