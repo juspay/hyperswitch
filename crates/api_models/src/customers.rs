@@ -3,6 +3,8 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::payments;
+
 /// The customer details
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
 pub struct CustomerRequest {
@@ -30,18 +32,8 @@ pub struct CustomerRequest {
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
     /// The address for the customer
-    #[schema(value_type = Option<Object>,example = json!({
-    "city": "Bangalore",
-    "country": "IN",
-    "line1": "Hyperswitch router",
-    "line2": "Koramangala",
-    "line3": "Stallion",
-    "state": "Karnataka",
-    "zip": "560095",
-    "first_name": "John",
-    "last_name": "Doe"
-  }))]
-    pub address: Option<pii::SecretSerdeValue>,
+    #[schema(value_type = Option<AddressDetails>)]
+    pub address: Option<payments::AddressDetails>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
     /// characters long. Metadata is useful for storing additional, structured information on an
     /// object.
@@ -70,18 +62,8 @@ pub struct CustomerResponse {
     #[schema(max_length = 255, example = "First Customer")]
     pub description: Option<String>,
     /// The address for the customer
-    #[schema(value_type = Option<Object>,example = json!({
-    "city": "Bangalore",
-    "country": "IN",
-    "line1": "Hyperswitch router",
-    "line2": "Koramangala",
-    "line3": "Stallion",
-    "state": "Karnataka",
-    "zip": "560095",
-    "first_name": "John",
-    "last_name": "Doe"
-  }))]
-    pub address: Option<Secret<serde_json::Value>>,
+    #[schema(value_type = Option<AddressDetails>)]
+    pub address: Option<payments::AddressDetails>,
     ///  A timestamp (ISO 8601 code) that determines when the customer was created
     #[schema(value_type = PrimitiveDateTime,example = "2023-01-18T11:04:09.922Z")]
     #[serde(with = "custom_serde::iso8601")]
@@ -93,7 +75,7 @@ pub struct CustomerResponse {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
-#[derive(Default, Debug, Deserialize, Serialize)]
+#[derive(Default, Clone, Debug, Deserialize, Serialize)]
 pub struct CustomerId {
     pub customer_id: String,
 }

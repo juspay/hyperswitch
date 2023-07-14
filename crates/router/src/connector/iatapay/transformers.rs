@@ -216,6 +216,7 @@ impl<F, T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 }),
                 |checkout_methods| {
                     Ok(types::PaymentsResponseData::TransactionResponse {
@@ -228,6 +229,7 @@ impl<F, T>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        connector_response_reference_id: None,
                     })
                 },
             ),

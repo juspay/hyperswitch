@@ -26,6 +26,7 @@ use crate::{
 };
 
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
+const MERCHANT_ID: &str = "merchant_id";
 
 #[instrument(skip_all)]
 pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
@@ -54,6 +55,7 @@ pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
                     connector: None,
                     param: None,
                     merchant_connector_details: None,
+                    client_secret: None,
                 },
                 services::AuthFlow::Merchant,
                 consume_or_trigger_flow,
@@ -213,7 +215,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
     state: &AppState,
     object_reference_id: api_models::webhooks::ObjectReferenceId,
     merchant_account: &domain::MerchantAccount,
-) -> CustomResult<storage_models::payment_attempt::PaymentAttempt, errors::ApiErrorResponse> {
+) -> CustomResult<diesel_models::payment_attempt::PaymentAttempt, errors::ApiErrorResponse> {
     let db = &*state.store;
     match object_reference_id {
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(ref id)) => db
@@ -248,23 +250,23 @@ pub async fn get_payment_attempt_from_object_reference_id(
 
 pub async fn get_or_update_dispute_object(
     state: AppState,
-    option_dispute: Option<storage_models::dispute::Dispute>,
+    option_dispute: Option<diesel_models::dispute::Dispute>,
     dispute_details: api::disputes::DisputePayload,
     merchant_id: &str,
-    payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
+    payment_attempt: &diesel_models::payment_attempt::PaymentAttempt,
     event_type: api_models::webhooks::IncomingWebhookEvent,
     connector_name: &str,
-) -> CustomResult<storage_models::dispute::Dispute, errors::ApiErrorResponse> {
+) -> CustomResult<diesel_models::dispute::Dispute, errors::ApiErrorResponse> {
     let db = &*state.store;
     match option_dispute {
         None => {
             metrics::INCOMING_DISPUTE_WEBHOOK_NEW_RECORD_METRIC.add(&metrics::CONTEXT, 1, &[]);
             let dispute_id = generate_id(consts::ID_LENGTH, "dp");
-            let new_dispute = storage_models::dispute::DisputeNew {
+            let new_dispute = diesel_models::dispute::DisputeNew {
                 dispute_id,
                 amount: dispute_details.amount,
                 currency: dispute_details.currency,
-                dispute_stage: dispute_details.dispute_stage.foreign_into(),
+                dispute_stage: dispute_details.dispute_stage,
                 dispute_status: event_type
                     .foreign_try_into()
                     .into_report()
@@ -292,21 +294,21 @@ pub async fn get_or_update_dispute_object(
         Some(dispute) => {
             logger::info!("Dispute Already exists, Updating the dispute details");
             metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(&metrics::CONTEXT, 1, &[]);
-            let dispute_status: storage_models::enums::DisputeStatus = event_type
+            let dispute_status: diesel_models::enums::DisputeStatus = event_type
                 .foreign_try_into()
                 .into_report()
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("event type to dispute state conversion failure")?;
             crate::core::utils::validate_dispute_stage_and_dispute_status(
-                dispute.dispute_stage.foreign_into(),
-                dispute.dispute_status.foreign_into(),
-                dispute_details.dispute_stage.clone(),
-                dispute_status.foreign_into(),
+                dispute.dispute_stage,
+                dispute.dispute_status,
+                dispute_details.dispute_stage,
+                dispute_status,
             )
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("dispute stage and status validation failed")?;
-            let update_dispute = storage_models::dispute::DisputeUpdate::Update {
-                dispute_stage: dispute_details.dispute_stage.foreign_into(),
+            let update_dispute = diesel_models::dispute::DisputeUpdate::Update {
+                dispute_stage: dispute_details.dispute_stage,
                 dispute_status,
                 connector_status: dispute_details.connector_status,
                 connector_reason: dispute_details.connector_reason,
@@ -498,7 +500,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookTy
         let outgoing_webhook = api::OutgoingWebhook {
             merchant_id: merchant_account.merchant_id.clone(),
             event_id: event.event_id,
-            event_type: event.event_type.foreign_into(),
+            event_type: event.event_type,
             content,
             timestamp: event.created_at,
         };
@@ -594,6 +596,14 @@ pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
     let response =
         services::api::send_request(state, request, Some(OUTGOING_WEBHOOK_TIMEOUT_SECS)).await;
 
+    metrics::WEBHOOK_OUTGOING_COUNT.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::KeyValue::new(
+            MERCHANT_ID,
+            merchant_account.merchant_id.clone(),
+        )],
+    );
     logger::debug!(outgoing_webhook_response=?response);
 
     match response {
@@ -603,6 +613,14 @@ pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
         }
         Ok(res) => {
             if res.status().is_success() {
+                metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[metrics::KeyValue::new(
+                        MERCHANT_ID,
+                        merchant_account.merchant_id.clone(),
+                    )],
+                );
                 let update_event = storage::EventUpdate::UpdateWebhookNotified {
                     is_webhook_notified: Some(true),
                 };
@@ -612,6 +630,14 @@ pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
                     .await
                     .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)?;
             } else {
+                metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[metrics::KeyValue::new(
+                        MERCHANT_ID,
+                        merchant_account.merchant_id.clone(),
+                    )],
+                );
                 // [#217]: Schedule webhook for retry.
                 Err(errors::WebhooksFlowError::NotReceivedByMerchant).into_report()?;
             }
@@ -630,6 +656,15 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     connector_name: &str,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
+    metrics::WEBHOOK_INCOMING_COUNT.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::KeyValue::new(
+            MERCHANT_ID,
+            merchant_account.merchant_id.clone(),
+        )],
+    );
+
     let connector = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         connector_name,
@@ -687,6 +722,18 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
             .await
             .switch()
             .attach_printable("There was an issue in incoming webhook source verification")?;
+
+        if source_verified {
+            metrics::WEBHOOK_SOURCE_VERIFIED_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[metrics::KeyValue::new(
+                    MERCHANT_ID,
+                    merchant_account.merchant_id.clone(),
+                )],
+            );
+        }
+
         logger::info!(source_verified=?source_verified);
         let object_ref_id = connector
             .get_webhook_object_reference_id(&request_details)
@@ -758,6 +805,15 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
                 .into_report()
                 .attach_printable("Unsupported Flow Type received in incoming webhooks")?,
         }
+    } else {
+        metrics::WEBHOOK_INCOMING_FILTERED_COUNT.add(
+            &metrics::CONTEXT,
+            1,
+            &[metrics::KeyValue::new(
+                MERCHANT_ID,
+                merchant_account.merchant_id.clone(),
+            )],
+        );
     }
 
     let response = connector

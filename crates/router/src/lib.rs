@@ -222,7 +222,7 @@ pub fn get_application_builder(
             errors::error_handlers::custom_error_handlers,
         ))
         .wrap(middleware::default_response_headers())
-        .wrap(cors::cors())
         .wrap(middleware::RequestId)
+        .wrap(cors::cors())
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }
