@@ -36,23 +36,8 @@ env:
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 jobs:
-  ignore_test:
-    name: Ignore UI tests on pull request
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Provide success response always
-        shell: bash
-        run: echo true
-
-
   test_connectors:
     name: Run connector UI tests
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
 
     services:
@@ -90,6 +75,13 @@ jobs:
           - paypal,mollie,payu,trustpay_3ds
 
     steps:
+      - name: Ignore Tests incase of pull request
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          echo "Skipped tests as the event is pull request" 
+          exit 0
+
       - name: Checkout repository
         uses: actions/checkout@v3
 
