@@ -35,6 +35,7 @@ pub struct MerchantConnectorAccount {
     pub frm_configs: Option<Secret<serde_json::Value>>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub connector_webhook_details: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -56,9 +57,10 @@ pub struct MerchantConnectorAccountNew {
     pub frm_configs: Option<Secret<serde_json::Value>>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub connector_webhook_details: Option<pii::SecretSerdeValue>,
 }
 
-#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_connector_account)]
 pub struct MerchantConnectorAccountUpdateInternal {
     pub merchant_id: Option<String>,
@@ -72,6 +74,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub frm_configs: Option<Secret<serde_json::Value>>,
     pub modified_at: Option<time::PrimitiveDateTime>,
+    pub connector_webhook_details: Option<pii::SecretSerdeValue>,
 }
 
 impl MerchantConnectorAccountUpdateInternal {

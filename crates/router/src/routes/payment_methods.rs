@@ -141,15 +141,14 @@ pub async fn list_customer_payment_method_api(
                 state,
                 auth.merchant_account,
                 auth.key_store,
-                Some(&customer_id),
                 Some(req),
+                Some(&customer_id),
             )
         },
         &*auth,
     )
     .await
 }
-
 
 /// List payment methods for a Customer
 ///
@@ -197,8 +196,8 @@ pub async fn list_customer_payment_method_api_client(
                 state,
                 auth.merchant_account,
                 auth.key_store,
-                None,
                 Some(req),
+                None,
             )
         },
         &*auth,
@@ -240,7 +239,7 @@ pub async fn payment_method_retrieve_api(
         state.get_ref(),
         &req,
         payload,
-        |state, auth, pm| cards::retrieve_payment_method(state, pm, auth.merchant_account),
+        |state, _auth, pm| cards::retrieve_payment_method(state, pm),
         &auth::ApiKeyAuth,
     )
     .await
