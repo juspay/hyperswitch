@@ -124,13 +124,14 @@ pub struct CashtocodeErrors {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
 pub enum CashtocodePaymentsResponse {
     CashtoCodeError(CashtocodeErrorResponse),
     CashtoCodeData(CashtocodePaymentsResponseData),
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsResponseData {
     pub pay_url: String,
 }
@@ -182,7 +183,7 @@ impl<F, T>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id : None,
+                        connector_response_reference_id: None,
                     }),
                 )
             }
