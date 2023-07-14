@@ -1647,6 +1647,7 @@ pub async fn list_customer_payment_method(
     state: &routes::AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
+    req: api::PaymentMethodListRequest,
     customer_id: &str,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
@@ -1702,11 +1703,23 @@ pub async fn list_customer_payment_method(
             "pm_token_{}_{}_hyperswitch",
             parent_payment_method_token, pma.payment_method
         );
+
+        let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
+            db,
+            &merchant_account,
+            req.client_secret.clone(),
+        )
+        .await?;
+        let current_datetime_utc = common_utils::date_time::now();
+        let time_eslapsed = current_datetime_utc
+            - payment_intent
+                .map(|intent| intent.created_at)
+                .unwrap_or_else(|| current_datetime_utc);
         redis_conn
             .set_key_with_expiry(
                 &key_for_hyperswitch_token,
                 hyperswitch_token,
-                consts::TOKEN_TTL,
+                consts::TOKEN_TTL - time_eslapsed.whole_seconds(),
             )
             .await
             .map_err(|error| {
@@ -1731,7 +1744,11 @@ pub async fn list_customer_payment_method(
                     parent_payment_method_token, pma.payment_method, pm_metadata.0
                 );
                 redis_conn
-                    .set_key_with_expiry(&key, pm_metadata.1, consts::TOKEN_TTL)
+                    .set_key_with_expiry(
+                        &key,
+                        pm_metadata.1,
+                        consts::TOKEN_TTL - time_eslapsed.whole_seconds(),
+                    )
                     .await
                     .map_err(|error| {
                         logger::error!(connector_payment_method_token_kv_error=?error);
