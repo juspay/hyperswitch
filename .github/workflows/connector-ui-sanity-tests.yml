@@ -74,7 +74,7 @@ jobs:
           - stripe
           - adyen_uk,shift4,worldline,multisafepay
           - airwallex,bluesnap,checkout
-          - paypal,mollie,payu, trustpay_3ds
+          - paypal,mollie,payu,trustpay_3ds
           - noon
 
     steps:
