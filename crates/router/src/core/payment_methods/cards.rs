@@ -18,9 +18,9 @@ use common_utils::{
     ext_traits::{AsyncExt, BytesExt, StringExt, ValueExt},
     generate_id,
 };
+use diesel_models::{enums as storage_enums, payment_method};
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
-use storage_models::{enums as storage_enums, payment_method};
 
 #[cfg(feature = "basilisk")]
 use crate::scheduler::metrics as scheduler_metrics;
@@ -64,8 +64,8 @@ pub async fn create_payment_method(
             customer_id: customer_id.to_string(),
             merchant_id: merchant_id.to_string(),
             payment_method_id: payment_method_id.to_string(),
-            payment_method: req.payment_method.foreign_into(),
-            payment_method_type: req.payment_method_type.map(ForeignInto::foreign_into),
+            payment_method: req.payment_method,
+            payment_method_type: req.payment_method_type,
             payment_method_issuer: req.payment_method_issuer.clone(),
             scheme: req.card_network.clone(),
             metadata: pm_metadata.map(masking::Secret::new),
@@ -86,20 +86,26 @@ pub async fn add_payment_method(
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
     let response = match req.card.clone() {
-        Some(card) => add_card_to_locker(state, req, card, customer_id, merchant_account)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Add Card Failed"),
+        Some(card) => add_card_to_locker(
+            state,
+            req.clone(),
+            card,
+            customer_id.clone(),
+            merchant_account,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Card Failed"),
         None => {
             let pm_id = generate_id(consts::ID_LENGTH, "pm");
             let payment_method_response = api::PaymentMethodResponse {
                 merchant_id: merchant_id.to_string(),
-                customer_id: Some(customer_id),
+                customer_id: Some(customer_id.clone()),
                 payment_method_id: pm_id,
                 payment_method: req.payment_method,
                 payment_method_type: req.payment_method_type,
                 card: None,
-                metadata: req.metadata,
+                metadata: req.metadata.clone(),
                 created: Some(common_utils::date_time::now()),
                 recurring_enabled: false,           //[#219]
                 installment_payment_enabled: false, //[#219]
@@ -108,7 +114,24 @@ pub async fn add_payment_method(
             Ok((payment_method_response, false))
         }
     };
-    Ok(response?.0).map(services::ApplicationResponse::Json)
+
+    let (resp, is_duplicate) = response?;
+    if !is_duplicate {
+        let pm_metadata = resp.metadata.as_ref().map(|data| data.peek());
+        create_payment_method(
+            &*state.store,
+            &req,
+            &customer_id,
+            &resp.payment_method_id,
+            &resp.merchant_id,
+            pm_metadata.cloned(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to save Payment Method")?;
+    }
+
+    Ok(resp).map(services::ApplicationResponse::Json)
 }
 
 #[instrument(skip_all)]
@@ -136,10 +159,10 @@ pub async fn update_customer_payment_method(
         .await?;
     };
     let new_pm = api::PaymentMethodCreate {
-        payment_method: pm.payment_method.foreign_into(),
-        payment_method_type: pm.payment_method_type.map(|x| x.foreign_into()),
+        payment_method: pm.payment_method,
+        payment_method_type: pm.payment_method_type,
         payment_method_issuer: pm.payment_method_issuer,
-        payment_method_issuer_code: pm.payment_method_issuer_code.map(|x| x.foreign_into()),
+        payment_method_issuer_code: pm.payment_method_issuer_code,
         card: req.card,
         metadata: req.metadata,
         customer_id: Some(pm.customer_id),
@@ -838,6 +861,7 @@ pub async fn list_payment_methods(
             address.as_ref(),
             mca.connector_name,
             pm_config_mapping,
+            &state.conf.mandates.supported_payment_methods,
         )
         .await?;
     }
@@ -1201,6 +1225,7 @@ pub async fn filter_payment_methods(
     address: Option<&domain::Address>,
     connector: String,
     config: &settings::ConnectorFilters,
+    supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.into_iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method);
@@ -1272,15 +1297,34 @@ pub async fn filter_payment_methods(
                         payment_attempt,
                         &mut payment_method_object.card_networks,
                         &address.and_then(|inner| inner.country),
-                        payment_attempt
-                            .and_then(|value| value.currency)
-                            .map(|value| value.foreign_into()),
+                        payment_attempt.and_then(|value| value.currency),
                     );
 
                     let filter6 = filter_pm_based_on_allowed_types(
                         allowed_payment_method_types.as_ref(),
                         &payment_method_object.payment_method_type,
                     );
+
+                    let connector_variant = api_enums::Connector::from_str(connector.as_str())
+                        .into_report()
+                        .change_context(errors::ConnectorError::InvalidConnectorName)
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "connector",
+                        })
+                        .attach_printable_lazy(|| {
+                            format!("unable to parse connector name {connector:?}")
+                        })?;
+                    let filter7 = payment_attempt
+                        .and_then(|attempt| attempt.mandate_details.as_ref())
+                        .map(|_mandate_details| {
+                            filter_pm_based_on_supported_payments_for_mandate(
+                                supported_payment_methods_for_mandate,
+                                &payment_method,
+                                &payment_method_object.payment_method_type,
+                                connector_variant,
+                            )
+                        })
+                        .unwrap_or(true);
 
                     let connector = connector.clone();
 
@@ -1290,7 +1334,7 @@ pub async fn filter_payment_methods(
                         payment_method,
                     );
 
-                    if filter && filter2 && filter3 && filter4 && filter5 && filter6 {
+                    if filter && filter2 && filter3 && filter4 && filter5 && filter6 && filter7 {
                         resp.push(response_pm_type);
                     }
                 }
@@ -1298,6 +1342,20 @@ pub async fn filter_payment_methods(
         }
     }
     Ok(())
+}
+
+fn filter_pm_based_on_supported_payments_for_mandate(
+    supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
+    payment_method: &api_enums::PaymentMethod,
+    payment_method_type: &api_enums::PaymentMethodType,
+    connector: api_enums::Connector,
+) -> bool {
+    supported_payment_methods_for_mandate
+        .0
+        .get(payment_method)
+        .and_then(|payment_method_type_hm| payment_method_type_hm.0.get(payment_method_type))
+        .map(|supported_connectors| supported_connectors.connector_list.contains(&connector))
+        .unwrap_or(false)
 }
 
 fn filter_pm_based_on_config<'a>(
@@ -1594,8 +1652,8 @@ fn filter_payment_currency_based(
 ) -> bool {
     payment_intent.currency.map_or(true, |currency| {
         pm.accepted_currencies.as_ref().map_or(true, |ac| match ac {
-            admin::AcceptedCurrencies::EnableOnly(acc) => acc.contains(&currency.foreign_into()),
-            admin::AcceptedCurrencies::DisableOnly(den) => !den.contains(&currency.foreign_into()),
+            admin::AcceptedCurrencies::EnableOnly(acc) => acc.contains(&currency),
+            admin::AcceptedCurrencies::DisableOnly(den) => !den.contains(&currency),
             admin::AcceptedCurrencies::AllAccepted => true,
         })
     })
@@ -1626,6 +1684,7 @@ pub async fn list_customer_payment_method(
     state: &routes::AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
+    req: api::PaymentMethodListRequest,
     customer_id: &str,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
@@ -1663,14 +1722,12 @@ pub async fn list_customer_payment_method(
         let pma = api::CustomerPaymentMethod {
             payment_token: parent_payment_method_token.to_owned(),
             customer_id: pm.customer_id,
-            payment_method: pm.payment_method.foreign_into(),
-            payment_method_type: pm.payment_method_type.map(ForeignInto::foreign_into),
+            payment_method: pm.payment_method,
+            payment_method_type: pm.payment_method_type,
             payment_method_issuer: pm.payment_method_issuer,
             card,
             metadata: pm.metadata,
-            payment_method_issuer_code: pm
-                .payment_method_issuer_code
-                .map(ForeignInto::foreign_into),
+            payment_method_issuer_code: pm.payment_method_issuer_code,
             recurring_enabled: false,
             installment_payment_enabled: false,
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
@@ -1683,11 +1740,23 @@ pub async fn list_customer_payment_method(
             "pm_token_{}_{}_hyperswitch",
             parent_payment_method_token, pma.payment_method
         );
+
+        let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
+            db,
+            &merchant_account,
+            req.client_secret.clone(),
+        )
+        .await?;
+        let current_datetime_utc = common_utils::date_time::now();
+        let time_eslapsed = current_datetime_utc
+            - payment_intent
+                .map(|intent| intent.created_at)
+                .unwrap_or_else(|| current_datetime_utc);
         redis_conn
             .set_key_with_expiry(
                 &key_for_hyperswitch_token,
                 hyperswitch_token,
-                consts::TOKEN_TTL,
+                consts::TOKEN_TTL - time_eslapsed.whole_seconds(),
             )
             .await
             .map_err(|error| {
@@ -1712,7 +1781,11 @@ pub async fn list_customer_payment_method(
                     parent_payment_method_token, pma.payment_method, pm_metadata.0
                 );
                 redis_conn
-                    .set_key_with_expiry(&key, pm_metadata.1, consts::TOKEN_TTL)
+                    .set_key_with_expiry(
+                        &key,
+                        pm_metadata.1,
+                        consts::TOKEN_TTL - time_eslapsed.whole_seconds(),
+                    )
                     .await
                     .map_err(|error| {
                         logger::error!(connector_payment_method_token_kv_error=?error);
@@ -1958,8 +2031,8 @@ pub async fn retrieve_payment_method(
             merchant_id: pm.merchant_id,
             customer_id: Some(pm.customer_id),
             payment_method_id: pm.payment_method_id,
-            payment_method: pm.payment_method.foreign_into(),
-            payment_method_type: pm.payment_method_type.map(ForeignInto::foreign_into),
+            payment_method: pm.payment_method,
+            payment_method_type: pm.payment_method_type,
             card,
             metadata: pm.metadata,
             created: Some(pm.created_at),

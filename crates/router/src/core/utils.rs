@@ -526,7 +526,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
     state: &'a AppState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    file_metadata: &storage_models::file::FileMetadata,
+    file_metadata: &diesel_models::file::FileMetadata,
     connector_id: &str,
 ) -> RouterResult<types::RetrieveFileRouterData> {
     let connector_label = file_metadata
@@ -555,14 +555,14 @@ pub async fn construct_retrieve_file_router_data<'a>(
         connector_customer: None,
         payment_id: IRRELEVANT_PAYMENT_ID_IN_DISPUTE_FLOW.to_string(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW.to_string(),
-        status: storage_models::enums::AttemptStatus::default(),
-        payment_method: storage_models::enums::PaymentMethod::default(),
+        status: diesel_models::enums::AttemptStatus::default(),
+        payment_method: diesel_models::enums::PaymentMethod::default(),
         connector_auth_type: auth_type,
         description: None,
         return_url: None,
         payment_method_id: None,
         address: PaymentAddress::default(),
-        auth_type: storage_models::enums::AuthenticationType::default(),
+        auth_type: diesel_models::enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: None,
         request: types::RetrieveFileRequestData {
@@ -599,7 +599,7 @@ pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
 pub fn get_connector_request_reference_id(
     conf: &settings::Settings,
     merchant_id: &str,
-    payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
+    payment_attempt: &diesel_models::payment_attempt::PaymentAttempt,
 ) -> String {
     let is_config_enabled_for_merchant =
         is_merchant_enabled_for_payment_id_as_connector_request_id(conf, merchant_id);

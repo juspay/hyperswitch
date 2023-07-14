@@ -533,6 +533,7 @@ impl<F, T>
                     }),
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -543,7 +544,7 @@ impl<F, T>
 // Type definition for RefundRequest
 #[derive(Debug, Serialize)]
 pub struct MultisafepayRefundRequest {
-    pub currency: storage_models::enums::Currency,
+    pub currency: diesel_models::enums::Currency,
     pub amount: i64,
     pub description: Option<String>,
     pub refund_order_id: Option<String>,
