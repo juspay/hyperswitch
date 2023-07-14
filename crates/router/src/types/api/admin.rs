@@ -36,6 +36,7 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             frm_routing_algorithm: item.frm_routing_algorithm,
             intent_fulfillment_time: item.intent_fulfillment_time,
             payout_routing_algorithm: item.payout_routing_algorithm,
+            organization_id: item.organization_id,
         })
     }
 }

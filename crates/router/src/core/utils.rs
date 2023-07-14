@@ -13,8 +13,6 @@ use super::payments::{helpers, PaymentAddress};
 use super::payouts::PayoutData;
 #[cfg(feature = "payouts")]
 use crate::core::payments;
-#[cfg(feature = "payouts")]
-use crate::types::transformers::ForeignTryFrom;
 use crate::{
     configs::settings,
     consts,
@@ -158,7 +156,7 @@ pub async fn construct_payout_router_data<'a, F>(
             connector_payout_id: Some(payout_attempt.connector_payout_id.to_owned()),
             destination_currency: payouts.destination_currency,
             source_currency: payouts.source_currency,
-            entity_type: enums::PayoutEntityType::foreign_try_from(payouts.entity_type.to_owned())?,
+            entity_type: payouts.entity_type.to_owned(),
             payout_type: payouts.payout_type,
             country_code: business_country,
             customer_details: customer_details

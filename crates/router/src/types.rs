@@ -475,6 +475,7 @@ pub enum PaymentsResponseData {
         mandate_reference: Option<MandateReference>,
         connector_metadata: Option<serde_json::Value>,
         network_txn_id: Option<String>,
+        connector_response_reference_id: Option<String>,
     },
     SessionResponse {
         session_token: api::SessionToken,
@@ -486,6 +487,7 @@ pub enum PaymentsResponseData {
         resource_id: ResponseId,
         //to add more info on cypto response, like `unresolved` reason(overpaid, underpaid, delayed)
         reason: Option<api::enums::UnresolvedResponseReason>,
+        connector_response_reference_id: Option<String>,
     },
     TokenizationResponse {
         token: String,
@@ -503,6 +505,7 @@ pub enum PaymentsResponseData {
         pre_processing_id: PreprocessingResponseId,
         connector_metadata: Option<serde_json::Value>,
         session_token: Option<api::SessionToken>,
+        connector_response_reference_id: Option<String>,
     },
 }
 

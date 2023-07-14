@@ -21,7 +21,6 @@ use crate::{
         self,
         api::{self, payouts},
         domain, storage,
-        transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
     },
     utils::{self, OptionExt},
 };
@@ -154,7 +153,7 @@ pub async fn payouts_update_core(
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
-    let status = payout_attempt.status.foreign_into();
+    let status = payout_attempt.status;
 
     // Verify update feasibility
     if helpers::is_payout_terminal_state(status) || helpers::is_payout_initiated(status) {
@@ -170,22 +169,13 @@ pub async fn payouts_update_core(
     let payouts = payout_data.payouts.to_owned();
     let updated_payouts = storage::PayoutsUpdate::Update {
         amount: req.amount.unwrap_or(payouts.amount.into()).into(),
-        destination_currency: req
-            .currency
-            .unwrap_or(payouts.destination_currency.foreign_into())
-            .foreign_into(),
-        source_currency: req
-            .currency
-            .unwrap_or(payouts.source_currency.foreign_into())
-            .foreign_into(),
+        destination_currency: req.currency.unwrap_or(payouts.destination_currency),
+        source_currency: req.currency.unwrap_or(payouts.source_currency),
         description: req.description.clone().or(payouts.description),
         recurring: req.recurring.unwrap_or(payouts.recurring),
         auto_fulfill: req.auto_fulfill.unwrap_or(payouts.auto_fulfill),
         return_url: req.return_url.clone().or(payouts.return_url),
-        entity_type: req
-            .entity_type
-            .map(|e| e.to_string())
-            .unwrap_or(payouts.entity_type),
+        entity_type: req.entity_type.unwrap_or(payouts.entity_type),
         metadata: req.metadata.clone().or(payouts.metadata),
         last_modified_at: Some(common_utils::date_time::now()),
     };
@@ -298,7 +288,7 @@ pub async fn payouts_cancel_core(
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let connector_payout_id = payout_attempt.connector_payout_id.to_owned();
-    let status = payout_attempt.status.foreign_into();
+    let status = payout_attempt.status;
 
     // Verify if cancellation can be triggered
     if helpers::is_payout_terminal_state(status) {
@@ -378,7 +368,7 @@ pub async fn payouts_fulfill_core(
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
-    let status = payout_attempt.status.foreign_into();
+    let status = payout_attempt.status;
 
     // Verify if fulfillment can be triggered
     if helpers::is_payout_terminal_state(status)
@@ -704,7 +694,7 @@ pub async fn check_payout_eligibility(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payout_attempt in db")?;
-            if helpers::is_payout_err_state(status.foreign_into()) {
+            if helpers::is_payout_err_state(status) {
                 return Err(report!(errors::ApiErrorResponse::PayoutFailed {
                     data: Some(
                         serde_json::json!({"payout_status": status.to_string(), "error_message": payout_data.payout_attempt.error_message.as_ref(), "error_code": payout_data.payout_attempt.error_code.as_ref()})
@@ -808,7 +798,7 @@ pub async fn create_payout(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payout_attempt in db")?;
-            if helpers::is_payout_err_state(status.foreign_into()) {
+            if helpers::is_payout_err_state(status) {
                 return Err(report!(errors::ApiErrorResponse::PayoutFailed {
                     data: Some(
                         serde_json::json!({"payout_status": status.to_string(), "error_message": payout_data.payout_attempt.error_message.as_ref(), "error_code": payout_data.payout_attempt.error_code.as_ref()})
@@ -1008,7 +998,7 @@ pub async fn fulfill_payout(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payout_attempt in db")?;
-            if helpers::is_payout_err_state(status.foreign_into()) {
+            if helpers::is_payout_err_state(status) {
                 return Err(report!(errors::ApiErrorResponse::PayoutFailed {
                     data: Some(
                         serde_json::json!({"payout_status": status.to_string(), "error_message": payout_data.payout_attempt.error_message.as_ref(), "error_code": payout_data.payout_attempt.error_code.as_ref()})
@@ -1050,13 +1040,6 @@ pub async fn response_handler(
     let payouts = payout_data.payouts.to_owned();
     let billing_address = payout_data.billing_address.to_owned();
     let customer_details = payout_data.customer_details.to_owned();
-
-    let status = api_enums::PayoutStatus::foreign_from(payout_attempt.status.to_owned());
-    let currency = api_enums::Currency::foreign_from(payouts.destination_currency.to_owned());
-    let entity_type =
-        api_enums::PayoutEntityType::foreign_try_from(payouts.entity_type.to_owned())?;
-    let payout_type = api_enums::PayoutType::foreign_from(payouts.payout_type.to_owned());
-
     let customer_id = payouts.customer_id;
 
     let (email, name, phone, phone_country_code) = customer_details
@@ -1090,9 +1073,9 @@ pub async fn response_handler(
         payout_id: payouts.payout_id.to_owned(),
         merchant_id: merchant_account.merchant_id.to_owned(),
         amount: payouts.amount.to_owned(),
-        currency,
+        currency: payouts.destination_currency.to_owned(),
         connector: Some(payout_attempt.connector.to_owned()),
-        payout_type,
+        payout_type: payouts.payout_type.to_owned(),
         billing: address,
         customer_id,
         auto_fulfill: payouts.auto_fulfill,
@@ -1105,10 +1088,10 @@ pub async fn response_handler(
         business_country: payout_attempt.business_country,
         business_label: payout_attempt.business_label,
         description: payouts.description.to_owned(),
-        entity_type,
+        entity_type: payouts.entity_type.to_owned(),
         recurring: payouts.recurring,
         metadata: payouts.metadata,
-        status,
+        status: payout_attempt.status.to_owned(),
         error_message: payout_attempt.error_message.to_owned(),
         error_code: payout_attempt.error_code,
     };
@@ -1176,7 +1159,6 @@ pub async fn payout_create_db_entries(
     let currency = req
         .currency
         .to_owned()
-        .map(ForeignInto::foreign_into)
         .get_required_value("currency")?;
     let payout_type = req
         .payout_type
@@ -1194,7 +1176,7 @@ pub async fn payout_create_db_entries(
         .set_merchant_id(merchant_id.to_owned())
         .set_customer_id(customer_id.to_owned())
         .set_address_id(address_id.to_owned())
-        .set_payout_type(payout_type.foreign_into())
+        .set_payout_type(payout_type)
         .set_amount(req.amount.unwrap_or(api::Amount::Zero).into())
         .set_destination_currency(currency)
         .set_source_currency(currency)
@@ -1204,8 +1186,7 @@ pub async fn payout_create_db_entries(
         .set_return_url(req.return_url.to_owned())
         .set_entity_type(
             req.entity_type
-                .map(|e| e.to_string())
-                .unwrap_or(api_enums::PayoutEntityType::default().to_string()),
+                .unwrap_or(api_enums::PayoutEntityType::default()),
         )
         .set_metadata(req.metadata.to_owned())
         .set_created_at(Some(common_utils::date_time::now()))

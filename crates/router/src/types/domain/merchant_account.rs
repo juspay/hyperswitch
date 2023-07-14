@@ -37,6 +37,7 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub intent_fulfillment_time: Option<i64>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
+    pub organization_id: Option<String>,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -147,6 +148,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             intent_fulfillment_time: self.intent_fulfillment_time,
             frm_routing_algorithm: self.frm_routing_algorithm,
             payout_routing_algorithm: self.payout_routing_algorithm,
+            organization_id: self.organization_id,
         })
     }
 
@@ -187,6 +189,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 modified_at: item.modified_at,
                 intent_fulfillment_time: item.intent_fulfillment_time,
                 payout_routing_algorithm: item.payout_routing_algorithm,
+                organization_id: item.organization_id,
             })
         }
         .await
@@ -218,6 +221,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             intent_fulfillment_time: self.intent_fulfillment_time,
             frm_routing_algorithm: self.frm_routing_algorithm,
             payout_routing_algorithm: self.payout_routing_algorithm,
+            organization_id: self.organization_id,
         })
     }
 }
