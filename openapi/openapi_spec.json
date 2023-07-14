@@ -1739,6 +1739,9 @@
           }
         }
       },
+      "AliPay": {
+        "type": "object"
+      },
       "AliPayHkRedirection": {
         "type": "object"
       },
@@ -2939,6 +2942,7 @@
           "fiserv",
           "forte",
           "globalpay",
+          "globepay",
           "klarna",
           "mollie",
           "multisafepay",
@@ -2947,8 +2951,10 @@
           "noon",
           "nuvei",
           "opennode",
+          "payme",
           "paypal",
           "payu",
+          "powertranz",
           "rapyd",
           "shift4",
           "stripe",
@@ -3699,8 +3705,11 @@
             "maxLength": 255
           },
           "address": {
-            "type": "object",
-            "description": "The address for the customer",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
             "nullable": true
           },
           "metadata": {
@@ -3759,8 +3768,11 @@
             "maxLength": 255
           },
           "address": {
-            "type": "object",
-            "description": "The address for the customer",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
             "nullable": true
           },
           "created_at": {
@@ -3993,6 +4005,106 @@
       },
       "FieldType": {
         "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "user_full_name"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_email_address"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_phone_number"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_country"
+            ],
+            "properties": {
+              "user_country": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_addressline1"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_addressline2"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_address_city"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_address_pincode"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_address_state"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_address_country"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_blik_code"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "fields_complete"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_billing_name"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank"
+            ]
+          },
           {
             "type": "string",
             "enum": [
@@ -4985,9 +5097,7 @@
             "$ref": "#/components/schemas/ConnectorType"
           },
           "connector_name": {
-            "type": "string",
-            "description": "Name of the Connector",
-            "example": "stripe"
+            "$ref": "#/components/schemas/Connector"
           },
           "connector_label": {
             "type": "string",
@@ -5530,7 +5640,7 @@
           },
           {
             "type": "object",
-            "description": "contains third party sdk session token response",
+            "description": "Contains third party sdk session token response",
             "required": [
               "type"
             ],
@@ -5547,6 +5657,25 @@
                 "type": "string",
                 "enum": [
                   "third_party_sdk_session_token"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Contains url for Qr code image, this qr code has to be shown in sdk",
+            "required": [
+              "image_data_url",
+              "type"
+            ],
+            "properties": {
+              "image_data_url": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "qr_code_information"
                 ]
               }
             }
@@ -6441,6 +6570,11 @@
           "force_sync": {
             "type": "boolean",
             "description": "Decider to enable or disable the connector call for retrieve request",
+            "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
             "nullable": true
           }
         }
@@ -7520,6 +7654,12 @@
               }
             ],
             "nullable": true
+          },
+          "reference_id": {
+            "type": "string",
+            "description": "reference to the payment at connector side",
+            "example": "993672945374576J",
+            "nullable": true
           }
         }
       },
@@ -7558,6 +7698,11 @@
                 "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
               }
             ],
+            "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
             "nullable": true
           }
         }
@@ -8398,6 +8543,17 @@
           {
             "type": "object",
             "required": [
+              "ali_pay"
+            ],
+            "properties": {
+              "ali_pay": {
+                "$ref": "#/components/schemas/AliPay"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "ali_pay_redirect"
             ],
             "properties": {
@@ -8548,8 +8704,22 @@
                 "$ref": "#/components/schemas/WeChatPayRedirection"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "we_chat_pay"
+            ],
+            "properties": {
+              "we_chat_pay": {
+                "$ref": "#/components/schemas/WeChatPay"
+              }
+            }
           }
         ]
+      },
+      "WeChatPay": {
+        "type": "object"
       },
       "WeChatPayRedirection": {
         "type": "object"

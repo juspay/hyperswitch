@@ -1,10 +1,10 @@
 use api_models::payments;
 use cards::CardNumber;
 use common_utils::pii::Email;
+use diesel_models::enums;
 use error_stack::IntoReport;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
-use storage_models::enums;
 use url::Url;
 
 use crate::{
@@ -497,6 +497,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

@@ -762,21 +762,21 @@ fn infer_stripe_bank_redirect_issuer(
     payment_method_type: Option<&enums::PaymentMethodType>,
 ) -> Result<StripePaymentMethodType, errors::ConnectorError> {
     match payment_method_type {
-        Some(storage_models::enums::PaymentMethodType::Giropay) => {
+        Some(diesel_models::enums::PaymentMethodType::Giropay) => {
             Ok(StripePaymentMethodType::Giropay)
         }
-        Some(storage_models::enums::PaymentMethodType::Ideal) => Ok(StripePaymentMethodType::Ideal),
-        Some(storage_models::enums::PaymentMethodType::Sofort) => {
+        Some(diesel_models::enums::PaymentMethodType::Ideal) => Ok(StripePaymentMethodType::Ideal),
+        Some(diesel_models::enums::PaymentMethodType::Sofort) => {
             Ok(StripePaymentMethodType::Sofort)
         }
 
-        Some(storage_models::enums::PaymentMethodType::BancontactCard) => {
+        Some(diesel_models::enums::PaymentMethodType::BancontactCard) => {
             Ok(StripePaymentMethodType::Bancontact)
         }
-        Some(storage_models::enums::PaymentMethodType::Przelewy24) => {
+        Some(diesel_models::enums::PaymentMethodType::Przelewy24) => {
             Ok(StripePaymentMethodType::Przelewy24)
         }
-        Some(storage_models::enums::PaymentMethodType::Eps) => Ok(StripePaymentMethodType::Eps),
+        Some(diesel_models::enums::PaymentMethodType::Eps) => Ok(StripePaymentMethodType::Eps),
         None => Err(errors::ConnectorError::MissingRequiredField {
             field_name: "payment_method_type",
         }),
@@ -1060,8 +1060,7 @@ fn create_stripe_payment_method(
                 StripePaymentMethodType::ApplePay,
                 StripeBillingAddress::default(),
             )),
-
-            payments::WalletData::WeChatPayRedirect(_) => Ok((
+            payments::WalletData::WeChatPay(_) => Ok((
                 StripePaymentMethodData::Wallet(StripeWallet::WechatpayPayment(WechatpayPayment {
                     client: WechatClient::Web,
                     payment_method_types: StripePaymentMethodType::Wechatpay,
@@ -1371,7 +1370,7 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
             metadata_txn_id,
             metadata_txn_uuid,
             payment_data,
-            return_url: item.return_url.clone(),
+            return_url: item.request.router_return_url.clone(),
             off_session: item.request.off_session,
             usage: item.request.setup_future_usage,
             payment_method_options: None,
@@ -1513,6 +1512,12 @@ pub struct SepaAndBacsBankTransferInstructions {
     pub bacs_bank_instructions: Option<BacsFinancialDetails>,
     pub sepa_bank_instructions: Option<SepaFinancialDetails>,
     pub receiver: SepaAndBacsReceiver,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Debug, Serialize)]
+pub struct WechatPayNextInstructions {
+    pub image_data_url: Url,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -1687,6 +1692,7 @@ impl<F, T>
                 mandate_reference,
                 connector_metadata,
                 network_txn_id,
+                connector_response_reference_id: None,
             }),
             amount_captured: item.response.amount_received,
             ..item.data
@@ -1699,26 +1705,47 @@ pub fn get_connector_metadata(
     amount: i64,
 ) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
     let next_action_response = next_action
-            .and_then(|next_action_response| match next_action_response {
-                    StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
-                        Some(SepaAndBacsBankTransferInstructions {
-                            sepa_bank_instructions: response.financial_addresses[0].iban.to_owned(),
-                            bacs_bank_instructions: response.financial_addresses[0]
-                                .sort_code
-                                .to_owned(),
-                            receiver: SepaAndBacsReceiver {
-                                amount_received: amount - response.amount_remaining,
-                                amount_remaining: response.amount_remaining,
-                            },
-                        })
-                    }
-                    _ => None,
-                }).map(|response| {
-                     common_utils::ext_traits::Encode::<SepaAndBacsBankTransferInstructions>::encode_to_value(
-                &response,
-            )
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
-                }).transpose()?;
+        .and_then(|next_action_response| match next_action_response {
+            StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
+                let bank_instructions = response.financial_addresses.get(0);
+                let (sepa_bank_instructions, bacs_bank_instructions) =
+                    bank_instructions.map_or((None, None), |financial_address| {
+                        (
+                            financial_address.iban.to_owned(),
+                            financial_address.sort_code.to_owned(),
+                        )
+                    });
+
+                let bank_transfer_instructions = SepaAndBacsBankTransferInstructions {
+                    sepa_bank_instructions,
+                    bacs_bank_instructions,
+                    receiver: SepaAndBacsReceiver {
+                        amount_received: amount - response.amount_remaining,
+                        amount_remaining: response.amount_remaining,
+                    },
+                };
+
+                Some(common_utils::ext_traits::Encode::<
+                    SepaAndBacsBankTransferInstructions,
+                >::encode_to_value(
+                    &bank_transfer_instructions
+                ))
+            }
+            StripeNextActionResponse::WechatPayDisplayQrCode(response) => {
+                let wechat_pay_instructions = WechatPayNextInstructions {
+                    image_data_url: response.image_data_url.to_owned(),
+                };
+
+                Some(
+                    common_utils::ext_traits::Encode::<WechatPayNextInstructions>::encode_to_value(
+                        &wechat_pay_instructions,
+                    ),
+                )
+            }
+            _ => None,
+        })
+        .transpose()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
     Ok(next_action_response)
 }
 
@@ -1769,6 +1796,7 @@ impl<F, T>
                 mandate_reference,
                 connector_metadata,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             Err,
         );
@@ -1809,6 +1837,7 @@ impl<F, T>
                 mandate_reference,
                 connector_metadata: None,
                 network_txn_id: Option::foreign_from(item.response.latest_attempt),
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -1848,7 +1877,7 @@ impl StripeNextActionResponse {
             Self::RedirectToUrl(redirect_to_url) | Self::AlipayHandleRedirect(redirect_to_url) => {
                 Some(redirect_to_url.url.to_owned())
             }
-            Self::WechatPayDisplayQrCode(redirect_to_url) => Some(redirect_to_url.data.to_owned()),
+            Self::WechatPayDisplayQrCode(_) => None,
             Self::VerifyWithMicrodeposits(verify_with_microdeposits) => {
                 Some(verify_with_microdeposits.hosted_verification_url.to_owned())
             }
@@ -1885,7 +1914,11 @@ pub struct StripeRedirectToUrlResponse {
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeRedirectToQr {
+    // This data contains url, it should be converted to QR code.
+    // Note: The url in this data is not redirection url
     data: Url,
+    // This is the image source, this image_data_url can directly be used by sdk to show the QR code
+    image_data_url: Url,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
@@ -2229,8 +2262,8 @@ impl<F, T>
         // We get pending as the status from stripe, but hyperswitch should give it as requires_customer_action as
         // customer has to make payment to the virtual account number given in the source response
         let status = match connector_source_response.status.clone().into() {
-            storage_models::enums::AttemptStatus::Pending => {
-                storage_models::enums::AttemptStatus::AuthenticationPending
+            diesel_models::enums::AttemptStatus::Pending => {
+                diesel_models::enums::AttemptStatus::AuthenticationPending
             }
             _ => connector_source_response.status.into(),
         };
@@ -2241,6 +2274,7 @@ impl<F, T>
                 ),
                 connector_metadata: Some(connector_metadata),
                 session_token: None,
+                connector_response_reference_id: None,
             }),
             status,
             ..item.data
@@ -2282,6 +2316,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 mandate_reference: None,
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

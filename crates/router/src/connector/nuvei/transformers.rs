@@ -65,7 +65,7 @@ pub struct NuveiPaymentsRequest {
     pub merchant_site_id: String,
     pub client_request_id: String,
     pub amount: String,
-    pub currency: storage_models::enums::Currency,
+    pub currency: diesel_models::enums::Currency,
     /// This ID uniquely identifies your consumer/user in your system.
     pub user_token_id: Option<Email>,
     pub client_unique_id: String,
@@ -107,7 +107,7 @@ pub struct NuveiPaymentFlowRequest {
     pub merchant_site_id: String,
     pub client_request_id: String,
     pub amount: String,
-    pub currency: storage_models::enums::Currency,
+    pub currency: diesel_models::enums::Currency,
     pub related_transaction_id: Option<String>,
     pub checksum: String,
 }
@@ -937,12 +937,12 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentFlowRequest {
 #[derive(Debug, Clone, Default)]
 pub struct NuveiPaymentRequestData {
     pub amount: String,
-    pub currency: storage_models::enums::Currency,
+    pub currency: diesel_models::enums::Currency,
     pub related_transaction_id: Option<String>,
     pub client_request_id: String,
     pub connector_auth_type: types::ConnectorAuthType,
     pub session_token: String,
-    pub capture_method: Option<storage_models::enums::CaptureMethod>,
+    pub capture_method: Option<diesel_models::enums::CaptureMethod>,
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for NuveiPaymentFlowRequest {
@@ -1195,8 +1195,8 @@ where
         item: types::ResponseRouterData<F, NuveiPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirection_data = match item.data.payment_method {
-            storage_models::enums::PaymentMethod::Wallet
-            | storage_models::enums::PaymentMethod::BankRedirect => item
+            diesel_models::enums::PaymentMethod::Wallet
+            | diesel_models::enums::PaymentMethod::BankRedirect => item
                 .response
                 .payment_option
                 .as_ref()
@@ -1249,6 +1249,7 @@ where
                         None
                     },
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 })
             },
             ..item.data
