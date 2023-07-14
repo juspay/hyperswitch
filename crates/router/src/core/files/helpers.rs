@@ -135,7 +135,7 @@ pub async fn delete_file_using_file_id(
             .attach_printable("File not available")?,
     };
     match provider {
-        storage_models::enums::FileUploadProvider::Router => {
+        diesel_models::enums::FileUploadProvider::Router => {
             delete_file(
                 #[cfg(feature = "s3")]
                 state,
@@ -152,7 +152,7 @@ pub async fn delete_file_using_file_id(
 
 pub async fn retrieve_file_from_connector(
     state: &AppState,
-    file_metadata: storage_models::file::FileMetadata,
+    file_metadata: diesel_models::file::FileMetadata,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<Vec<u8>, errors::ApiErrorResponse> {
@@ -234,7 +234,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                     .attach_printable("File not available")?,
             };
             match provider {
-                storage_models::enums::FileUploadProvider::Router => Ok((
+                diesel_models::enums::FileUploadProvider::Router => Ok((
                     Some(
                         retrieve_file(
                             #[cfg(feature = "s3")]
