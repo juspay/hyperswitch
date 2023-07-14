@@ -148,12 +148,15 @@ pub async fn payments_retrieve(
         resource_id: payment_types::PaymentIdType::PaymentIntentId(path.to_string()),
         merchant_id: json_payload.merchant_id.clone(),
         force_sync: json_payload.force_sync.unwrap_or(false),
+        client_secret: json_payload.client_secret.clone(),
+        expand_attempts: json_payload.expand_attempts,
         ..Default::default()
     };
-    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(report!(err)),
-    };
+    let (auth_type, auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(report!(err)),
+        };
 
     api::server_wrap(
         flow,
@@ -167,7 +170,7 @@ pub async fn payments_retrieve(
                 auth.key_store,
                 payments::PaymentStatus,
                 req,
-                api::AuthFlow::Merchant,
+                auth_flow,
                 payments::CallConnectorAction::Trigger,
             )
         },
