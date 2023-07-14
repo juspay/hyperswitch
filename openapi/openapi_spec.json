@@ -1748,9 +1748,6 @@
       "AliPayRedirection": {
         "type": "object"
       },
-      "GcashRedirection": {
-        "type": "object"
-      },
       "AmountInfo": {
         "type": "object",
         "required": [
@@ -3457,6 +3454,7 @@
           "USD",
           "UYU",
           "UZS",
+          "VND",
           "YER",
           "ZAR"
         ]
@@ -5574,6 +5572,9 @@
       "MobilePayRedirection": {
         "type": "object"
       },
+      "MomoRedirection": {
+        "type": "object"
+      },
       "MultibancoBillingDetails": {
         "type": "object",
         "required": [
@@ -6507,6 +6508,8 @@
           "kakao_pay",
           "mb_way",
           "mobile_pay",
+          "momo",
+          "multibanco",
           "online_banking_czech_republic",
           "online_banking_finland",
           "online_banking_poland",
