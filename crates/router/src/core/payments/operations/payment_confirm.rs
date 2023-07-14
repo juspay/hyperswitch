@@ -61,8 +61,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         if auth_flow == services::AuthFlow::Client && request.customer_id.is_some() {
-            println!("request customer {:?}", request.customer_id);
-            println!("intent customer {:?}", payment_intent.customer_id);
             let response = request
                 .clone()
                 .customer_id
@@ -73,7 +71,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                         .map(|payment_customer| payment_customer != customer)
                 })
                 .unwrap_or_default();
-            println!("response sahkal {}", response);
             if response {
                 return Err(errors::ApiErrorResponse::GenericUnauthorized {
                     message: "Unauthorised access to update customer".to_string(),
