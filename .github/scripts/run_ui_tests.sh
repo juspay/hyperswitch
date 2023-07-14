@@ -22,6 +22,7 @@ cargo run &
 
 #Wait for the server to start in port 8080
 while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do 
+    echo $SECONDS
     if [ $SECONDS > 900 ]
     then
         exit 1
