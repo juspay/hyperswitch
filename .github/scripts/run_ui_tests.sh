@@ -6,7 +6,7 @@ mkdir tests
 #download connector ui tests
 while [ ! -f $HOME/target/test/connector_tests.json ]
 do
-    if (( SECONDS > 30 ))
+    if (( $SECONDS > 30 ))
     then
         exit 1
     fi
@@ -22,7 +22,7 @@ cargo run &
 
 #Wait for the server to start in port 8080
 while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do 
-    if (( SECONDS > 300 ))
+    if (( $SECONDS > 300 ))
     then
         exit 1
     else 
