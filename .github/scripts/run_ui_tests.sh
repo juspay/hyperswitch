@@ -3,14 +3,13 @@ sudo apt update
 apt install net-tools
 mkdir tests
 
-COUNTER=0
 #download connector ui tests
 while [ ! -f $HOME/target/test/connector_tests.json ]
 do
-    if [ $COUNTER > 10 ]; then
+    if [ $SECONDS > 20 ]
+    then
         exit 1
     fi
-    ((COUNTER+=1))
     sleep 2
     wget $UI_TESTCASES_PATH && mv testcases $HOME/target/test/connector_tests.json
 done
@@ -27,7 +26,7 @@ while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do
     if [ $COUNTER > 300 ]; then
         exit 1
     else 
-        ((COUNTER+=10))
+        COUNTER=`expr $COUNTER + 10`
         sleep 10
     fi
 done
