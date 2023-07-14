@@ -1061,9 +1061,35 @@ impl TryFrom<&storage_enums::PaymentMethodType> for PaymentType {
     type Error = Error;
     fn try_from(item: &storage_enums::PaymentMethodType) -> Result<Self, Self::Error> {
         match item {
-            storage_enums::PaymentMethodType::Credit | storage_enums::PaymentMethodType::Debit => {
-                Ok(Self::Scheme)
-            }
+            storage_enums::PaymentMethodType::Credit
+            | storage_enums::PaymentMethodType::Debit
+            | storage_enums::PaymentMethodType::Klarna
+            | storage_enums::PaymentMethodType::Ach
+            | storage_enums::PaymentMethodType::Sepa
+            | storage_enums::PaymentMethodType::Bacs
+            | storage_enums::PaymentMethodType::BancontactCard
+            | storage_enums::PaymentMethodType::Blik
+            | storage_enums::PaymentMethodType::Eps
+            | storage_enums::PaymentMethodType::Giropay
+            | storage_enums::PaymentMethodType::Ideal
+            | storage_enums::PaymentMethodType::OnlineBankingCzechRepublic
+            | storage_enums::PaymentMethodType::OnlineBankingFinland
+            | storage_enums::PaymentMethodType::OnlineBankingPoland
+            | storage_enums::PaymentMethodType::OnlineBankingSlovakia
+            | storage_enums::PaymentMethodType::Sofort
+            | storage_enums::PaymentMethodType::Trustly
+            | storage_enums::PaymentMethodType::GooglePay
+            | storage_enums::PaymentMethodType::AliPay
+            | storage_enums::PaymentMethodType::ApplePay
+            | storage_enums::PaymentMethodType::AliPayHk
+            | storage_enums::PaymentMethodType::MbWay
+            | storage_enums::PaymentMethodType::MobilePay
+            | storage_enums::PaymentMethodType::WeChatPay
+            | storage_enums::PaymentMethodType::SamsungPay
+            | storage_enums::PaymentMethodType::Affirm
+            | storage_enums::PaymentMethodType::AfterpayClearpay
+            | storage_enums::PaymentMethodType::PayBright
+            | storage_enums::PaymentMethodType::Walley => Ok(Self::Scheme),
             storage_enums::PaymentMethodType::Paypal => Ok(Self::Paypal),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment Method Type".to_string(),
