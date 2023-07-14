@@ -3,14 +3,14 @@ sudo apt update
 apt install net-tools
 mkdir tests
 
+COUNTER=0
 #download connector ui tests
 while [ ! -f $HOME/target/test/connector_tests.json ]
 do
-    echo $SECONDS
-    if [ $SECONDS > 20 ]
-    then
+    if [ $COUNTER > 10 ]; then
         exit 1
     fi
+    ((COUNTER+=1))
     sleep 2
     wget $UI_TESTCASES_PATH && mv testcases $HOME/target/test/connector_tests.json
 done
@@ -18,20 +18,16 @@ done
 firefox --version
 $GECKOWEBDRIVER/geckodriver > tests/geckodriver.log 2>&1 &
 
-echo $SECONDS
-echo "$SECONDS"
-echo "========"
-
 #start server and run ui tests
 cargo run &
 
+COUNTER=0
 #Wait for the server to start in port 8080
 while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do 
-    echo $SECONDS
-    if [ $SECONDS > 900 ]
-    then
+    if [ $COUNTER > 300 ]; then
         exit 1
     else 
+        ((COUNTER+=10))
         sleep 10
     fi
 done
