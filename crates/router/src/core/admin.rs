@@ -2,11 +2,11 @@ use api_models::admin::PrimaryBusinessDetails;
 use common_utils::{
     crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
     date_time,
-    ext_traits::ValueExt,
+    ext_traits::{Encode, ValueExt},
 };
+use diesel_models::enums;
 use error_stack::{report, FutureExt, ResultExt};
 use masking::{PeekInterface, Secret};
-use storage_models::enums;
 use uuid::Uuid;
 
 use crate::{
@@ -25,7 +25,6 @@ use crate::{
             types::{self as domain_types, AsyncLift},
         },
         storage,
-        transformers::ForeignInto,
     },
     utils::{self, OptionExt},
 };
@@ -166,13 +165,14 @@ pub async fn create_merchant_account(
             publishable_key,
             locker_id: req.locker_id,
             metadata: req.metadata,
-            storage_scheme: storage_models::enums::MerchantStorageScheme::PostgresOnly,
+            storage_scheme: diesel_models::enums::MerchantStorageScheme::PostgresOnly,
             primary_business_details,
             created_at: date_time::now(),
             modified_at: date_time::now(),
             frm_routing_algorithm: req.frm_routing_algorithm,
             intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
             id: None,
+            organization_id: req.organization_id,
         })
     }
     .await
@@ -462,7 +462,7 @@ pub async fn create_payment_connector(
         business_country,
         &business_label,
         req.business_sub_label.as_ref(),
-        &req.connector_name,
+        &req.connector_name.to_string(),
     );
 
     let mut vec = Vec::new();
@@ -503,8 +503,8 @@ pub async fn create_payment_connector(
 
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
-        connector_type: req.connector_type.foreign_into(),
-        connector_name: req.connector_name.clone(),
+        connector_type: req.connector_type,
+        connector_name: req.connector_name.to_string(),
         merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
         connector_account_details: domain_types::encrypt(
             req.connector_account_details.ok_or(
@@ -529,6 +529,18 @@ pub async fn create_payment_connector(
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),
         id: None,
+        connector_webhook_details: match req.connector_webhook_details {
+            Some(connector_webhook_details) => {
+                Encode::<api_models::admin::MerchantConnectorWebhookDetails>::encode_to_value(
+                    &connector_webhook_details,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {}", merchant_id))
+                .map(Some)?
+                .map(masking::Secret::new)
+            }
+            None => None,
+        },
     };
 
     let mca = store
@@ -550,7 +562,6 @@ pub async fn create_payment_connector(
     );
 
     let mca_response = mca.try_into()?;
-
     Ok(service_api::ApplicationResponse::Json(mca_response))
 }
 
@@ -670,7 +681,7 @@ pub async fn update_payment_connector(
 
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: None,
-        connector_type: Some(req.connector_type.foreign_into()),
+        connector_type: Some(req.connector_type),
         connector_name: None,
         merchant_connector_id: None,
         connector_account_details: req
@@ -686,6 +697,17 @@ pub async fn update_payment_connector(
         payment_methods_enabled,
         metadata: req.metadata,
         frm_configs,
+        connector_webhook_details: match &req.connector_webhook_details {
+            Some(connector_webhook_details) => {
+                Encode::<api_models::admin::MerchantConnectorWebhookDetails>::encode_to_value(
+                    connector_webhook_details,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .map(Some)?
+                .map(masking::Secret::new)
+            }
+            None => None,
+        },
     };
 
     let updated_mca = db
@@ -716,6 +738,17 @@ pub async fn delete_payment_connector(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
+    let _mca = db
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            &merchant_id,
+            &merchant_connector_id,
+            &key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.clone(),
+        })?;
+
     let is_deleted = db
         .delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
             &merchant_id,
@@ -725,6 +758,7 @@ pub async fn delete_payment_connector(
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_connector_id.clone(),
         })?;
+
     let response = api::MerchantConnectorDeleteResponse {
         merchant_id,
         merchant_connector_id,

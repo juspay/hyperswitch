@@ -147,7 +147,9 @@ impl Payments {
 
         #[cfg(feature = "olap")]
         {
-            route = route.service(web::resource("/list").route(web::get().to(payments_list)));
+            route = route
+                .service(web::resource("/list").route(web::get().to(payments_list)))
+                .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
         }
         #[cfg(feature = "oltp")]
         {
@@ -408,7 +410,7 @@ impl Webhooks {
         web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
-                web::resource("/{merchant_id}/{connector}")
+                web::resource("/{merchant_id}/{connector_label}")
                     .route(
                         web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     )

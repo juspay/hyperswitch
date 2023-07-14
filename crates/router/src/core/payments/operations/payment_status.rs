@@ -94,8 +94,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         state: &'a AppState,
         payment_attempt: &storage::PaymentAttempt,
         requeue: bool,
+        schedule_time: Option<time::PrimitiveDateTime>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        helpers::add_domain_task_to_pt(self, state, payment_attempt, requeue).await
+        helpers::add_domain_task_to_pt(self, state, payment_attempt, requeue, schedule_time).await
     }
 
     async fn get_connector<'a>(
@@ -232,6 +233,19 @@ async fn get_tracker_for_sync<
     )
     .await?;
 
+    let attempts = match request.expand_attempts {
+        Some(true) => {
+            Some(db
+                .find_attempts_by_merchant_id_payment_id(merchant_id, &payment_id_str, storage_scheme)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    format!("Error while retrieving attempt list for, merchant_id: {merchant_id}, payment_id: {payment_id_str}")
+                })?)
+        },
+        _ => None,
+    };
+
     let refunds = db
         .find_refund_by_payment_id_merchant_id(&payment_id_str, merchant_id, storage_scheme)
         .await
@@ -299,6 +313,7 @@ async fn get_tracker_for_sync<
             payment_attempt,
             refunds,
             disputes,
+            attempts,
             sessions_token: vec![],
             card_cvc: None,
             creds_identifier,

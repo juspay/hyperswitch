@@ -8,13 +8,12 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use api_models::payments::Metadata;
 use common_utils::pii;
+use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
 use router_env::{instrument, tracing};
-use storage_models::ephemeral_key;
 use time;
 
 pub use self::operations::{
@@ -29,14 +28,11 @@ use self::{
 use super::errors::StorageErrorExt;
 use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
-    core::{
-        errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::vault,
-    },
+    core::errors::{self, CustomResult, RouterResponse, RouterResult},
     db::StorageInterface,
     logger,
     routes::{metrics, AppState},
-    scheduler::utils as pt_utils,
+    scheduler::{utils as pt_utils, workflows::payment_sync},
     services::{self, api::Authenticate},
     types::{
         self, api, domain,
@@ -120,6 +116,26 @@ where
     )
     .await?;
 
+    let schedule_time = match &connector {
+        Some(api::ConnectorCallType::Single(connector_data)) => {
+            if should_add_task_to_process_tracker(&payment_data) {
+                payment_sync::get_sync_process_schedule_time(
+                    &*state.store,
+                    connector_data.connector.id(),
+                    &merchant_account.merchant_id,
+                    0,
+                )
+                .await
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while getting process schedule time")?
+            } else {
+                None
+            }
+        }
+        _ => None,
+    };
+
     let (mut payment_data, tokenization_action) =
         get_connector_tokenization_action(state, &operation, payment_data, &validate_result)
             .await?;
@@ -134,19 +150,6 @@ where
     .await?;
 
     if let Some(connector_details) = connector {
-        if should_add_task_to_process_tracker(&payment_data) {
-            operation
-                .to_domain()?
-                .add_task_to_process_tracker(
-                    state,
-                    &payment_data.payment_attempt,
-                    validate_result.requeue,
-                )
-                .await
-                .map_err(|error| logger::error!(process_tracker_error=?error))
-                .ok();
-        }
-
         payment_data = match connector_details {
             api::ConnectorCallType::Single(connector) => {
                 let router_data = call_connector_service(
@@ -160,6 +163,8 @@ where
                     call_connector_action,
                     tokenization_action,
                     updated_customer,
+                    validate_result.requeue,
+                    schedule_time,
                 )
                 .await?;
 
@@ -190,11 +195,6 @@ where
                 .await?
             }
         };
-
-        if should_delete_pm_from_locker(payment_data.payment_intent.status) {
-            vault::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token)
-                .await
-        }
     } else {
         (_, payment_data) = operation
             .to_update_tracker()?
@@ -382,14 +382,11 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         let payment_confirm_req = api::PaymentsRequest {
             payment_id: Some(req.resource_id.clone()),
             merchant_id: req.merchant_id.clone(),
-            metadata: Some(Metadata {
-                order_details: None,
+            feature_metadata: Some(api_models::payments::FeatureMetadata {
                 redirect_response: Some(api_models::payments::RedirectResponse {
                     param: req.param.map(Secret::new),
                     json_payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
                 }),
-                allowed_payment_method_types: None,
-                order_category: None,
             }),
             ..Default::default()
         };
@@ -426,7 +423,8 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                     .and_then(|next_action_data| match next_action_data {
                         api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
                         api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
-                        api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None
+                        api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None,
+                        api_models::payments::NextActionData::QrCodeInformation{..} => None
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
@@ -480,6 +478,8 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                     encoded_data: None,
                 }
             }),
+            client_secret: None,
+            expand_attempts: None,
         };
         payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
             state,
@@ -525,6 +525,8 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     call_connector_action: CallConnectorAction,
     tokenization_action: TokenizationAction,
     updated_customer: Option<storage::CustomerUpdate>,
+    requeue: bool,
+    schedule_time: Option<time::PrimitiveDateTime>,
 ) -> RouterResult<types::RouterData<F, RouterDReq, types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -595,6 +597,20 @@ where
     } else {
         (None, false)
     };
+
+    if should_add_task_to_process_tracker(payment_data) {
+        operation
+            .to_domain()?
+            .add_task_to_process_tracker(
+                state,
+                &payment_data.payment_attempt,
+                requeue,
+                schedule_time,
+            )
+            .await
+            .map_err(|error| logger::error!(process_tracker_error=?error))
+            .ok();
+    }
 
     // Update the payment trackers just before calling the connector
     // Since the request is already built in the previous step,
@@ -817,7 +833,8 @@ where
     //TODO: For ACH transfers, if preprocessing_step is not required for connectors encountered in future, add the check
     let router_data_and_should_continue_payment = match payment_data.payment_method_data.clone() {
         Some(api_models::payments::PaymentMethodData::BankTransfer(data)) => match data.deref() {
-            api_models::payments::BankTransferData::AchBankTransfer { .. } => {
+            api_models::payments::BankTransferData::AchBankTransfer { .. }
+            | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
                 if payment_data.payment_attempt.preprocessing_step_id.is_none() {
                     (
                         router_data.preprocessing_steps(state, connector).await?,
@@ -871,7 +888,7 @@ fn is_payment_method_type_allowed_for_connector(
     current_pm_type: &Option<storage::enums::PaymentMethodType>,
     pm_type_filter: Option<PaymentMethodTypeTokenFilter>,
 ) -> bool {
-    match current_pm_type.clone().zip(pm_type_filter) {
+    match (*current_pm_type).zip(pm_type_filter) {
         Some((pm_type, type_filter)) => match type_filter {
             PaymentMethodTypeTokenFilter::AllAccepted => true,
             PaymentMethodTypeTokenFilter::EnableOnly(enabled) => enabled.contains(&pm_type),
@@ -1065,6 +1082,7 @@ where
     pub payment_method_data: Option<api::PaymentMethodData>,
     pub refunds: Vec<storage::Refund>,
     pub disputes: Vec<storage::Dispute>,
+    pub attempts: Option<Vec<storage::PaymentAttempt>>,
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<Secret<String>>,
     pub email: Option<pii::Email>,
@@ -1164,13 +1182,6 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
     }
 }
 
-pub fn should_delete_pm_from_locker(status: storage_enums::IntentStatus) -> bool {
-    !matches!(
-        status,
-        storage_models::enums::IntentStatus::RequiresCustomerAction
-    )
-}
-
 pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
     matches!(format!("{operation:?}").as_str(), "PaymentConfirm")
 }
@@ -1181,8 +1192,6 @@ pub async fn list_payments(
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
-    use futures::stream::StreamExt;
-
     use crate::types::transformers::ForeignFrom;
 
     helpers::validate_payment_list_request(&constraints)?;
@@ -1192,9 +1201,9 @@ pub async fn list_payments(
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    let pi = futures::stream::iter(payment_intents)
-        .filter_map(|pi| async {
-            let pa = db
+    let collected_futures = payment_intents.into_iter().map(|pi| {
+        async {
+            match db
                 .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                     &pi.payment_id,
                     merchant_id,
@@ -1203,13 +1212,38 @@ pub async fn list_payments(
                     storage_enums::MerchantStorageScheme::PostgresOnly,
                 )
                 .await
-                .ok()?;
-            Some((pi, pa))
-        })
-        .collect::<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>>()
-        .await;
+            {
+                Ok(pa) => Some(Ok((pi, pa))),
+                Err(e) => {
+                    if e.current_context().is_db_not_found() {
+                        logger::warn!(
+                            "payment_attempts missing for payment_id : {} | error : {}",
+                            pi.payment_id,
+                            e
+                        );
+                        return None;
+                    }
+                    Some(Err(e))
+                }
+            }
+        }
+    });
 
-    let data: Vec<api::PaymentsResponse> = pi.into_iter().map(ForeignFrom::foreign_from).collect();
+    //If any of the response are Err, we will get Result<Err(_)>
+    let pi_pa_tuple_vec: Result<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>, _> =
+        join_all(collected_futures)
+            .await
+            .into_iter()
+            .flatten() //Will ignore `None`, will only flatten 1 level
+            .collect::<Result<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>, _>>();
+    //Will collect responses in same order async, leading to sorted responses
+
+    //Converting Intent-Attempt array to Response if no error
+    let data: Vec<api::PaymentsResponse> = pi_pa_tuple_vec
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .into_iter()
+        .map(ForeignFrom::foreign_from)
+        .collect();
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {
@@ -1217,6 +1251,38 @@ pub async fn list_payments(
             data,
         },
     ))
+}
+
+#[cfg(feature = "olap")]
+pub async fn get_filters_for_payments(
+    db: &dyn StorageInterface,
+    merchant: domain::MerchantAccount,
+    time_range: api::TimeRange,
+) -> RouterResponse<api::PaymentListFilters> {
+    use crate::types::transformers::ForeignFrom;
+
+    let pi = db
+        .filter_payment_intents_by_time_range_constraints(
+            &merchant.merchant_id,
+            &time_range,
+            merchant.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let filters = db
+        .get_filters_for_payments(
+            &pi,
+            &merchant.merchant_id,
+            // since OLAP doesn't have KV. Force to get the data from PSQL.
+            storage_enums::MerchantStorageScheme::PostgresOnly,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let filters: api::PaymentListFilters = ForeignFrom::foreign_from(filters);
+
+    Ok(services::ApplicationResponse::Json(filters))
 }
 
 pub async fn add_process_sync_task(
