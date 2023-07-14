@@ -763,6 +763,7 @@ pub enum BankRedirectData {
         //Required by Stripes
         billing_details: Option<BankRedirectBilling>,
     },
+    Bizum {},
     Blik {
         // Blik Code
         blik_code: String,

@@ -2340,6 +2340,17 @@
           {
             "type": "object",
             "required": [
+              "bizum"
+            ],
+            "properties": {
+              "bizum": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "blik"
             ],
             "properties": {

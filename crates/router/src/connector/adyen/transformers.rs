@@ -265,6 +265,7 @@ pub enum AdyenPaymentMethod<'a> {
     AliPayHk(Box<AliPayHkData>),
     ApplePay(Box<AdyenApplePay>),
     BancontactCard(Box<BancontactCardData>),
+    Bizum(Box<BankRedirectionPMData>),
     Blik(Box<BlikRedirectionData>),
     Eps(Box<BankRedirectionWithIssuer<'a>>),
     Giropay(Box<BankRedirectionPMData>),
@@ -677,6 +678,7 @@ pub enum PaymentType {
     #[serde(rename = "alipay_hk")]
     AlipayHk,
     Applepay,
+    Bizum,
     Blik,
     Eps,
     Giropay,
@@ -1227,6 +1229,11 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                         .clone(),
                 },
             ))),
+            api_models::payments::BankRedirectData::Bizum { .. } => {
+                Ok(AdyenPaymentMethod::Bizum(Box::new(BankRedirectionPMData {
+                    payment_type: PaymentType::Bizum,
+                })))
+            }
             api_models::payments::BankRedirectData::Blik { blik_code } => {
                 Ok(AdyenPaymentMethod::Blik(Box::new(BlikRedirectionData {
                     payment_type: PaymentType::Blik,
