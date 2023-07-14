@@ -83,6 +83,9 @@ pub struct MerchantAccountCreate {
     ///(900) for 15 mins
     #[schema(example = 900)]
     pub intent_fulfillment_time: Option<u32>,
+
+    /// The id of the organization to which the merchant belongs to
+    pub organization_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
@@ -221,6 +224,9 @@ pub struct MerchantAccountResponse {
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
     pub intent_fulfillment_time: Option<i64>,
+
+    /// The organization id merchant is associated with
+    pub organization_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
