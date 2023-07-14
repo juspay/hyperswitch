@@ -317,11 +317,15 @@ pub struct Secrets {
     pub jwt_secret: String,
     #[cfg(not(feature = "kms"))]
     pub admin_api_key: String,
+    #[cfg(not(feature = "kms"))]
+    pub recon_admin_api_key: String,
     pub master_enc_key: String,
     #[cfg(feature = "kms")]
     pub kms_encrypted_jwt_secret: String,
     #[cfg(feature = "kms")]
     pub kms_encrypted_admin_api_key: String,
+    #[cfg(feature = "kms")]
+    pub kms_encrypted_recon_admin_api_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
