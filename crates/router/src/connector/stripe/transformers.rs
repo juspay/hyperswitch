@@ -913,23 +913,34 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             }),
             payments::BankRedirectData::BancontactCard {
                 billing_details, ..
-            } => Ok(Self {
-                name: billing_details
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "bancontact_card.billing_name",
-                    })?
-                    .billing_name
-                    .clone(),
-                email: billing_details
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "bancontact_card.email",
-                    })?
-                    .email
-                    .clone(),
-                ..Self::default()
-            }),
+            } => {
+                let billing_details = billing_details.as_ref().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing_details",
+                    },
+                )?;
+                Ok(Self {
+                    name: Some(
+                        billing_details
+                            .billing_name
+                            .as_ref()
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "billing_details.billing_name",
+                            })?
+                            .to_owned(),
+                    ),
+                    email: Some(
+                        billing_details
+                            .email
+                            .as_ref()
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "billing_details.email",
+                            })?
+                            .to_owned(),
+                    ),
+                    ..Self::default()
+                })
+            }
             payments::BankRedirectData::Sofort {
                 billing_details, ..
             } => Ok(Self {
@@ -1361,6 +1372,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             }
         };
 
+        //if payment_method is Some(), That means, it is a recurring mandate payment.
+        //payment_method_types will not be not be available in router_data.request. But stripe requires that field.
+        //here we will get that field from router_data.recurring_mandate_payment_data
         let payment_method_types = if payment_method.is_some() {
             //if recurring payment get payment_method_type
             get_payment_method_type_for_saved_payment_method_payment(item).map(Some)?
@@ -1482,29 +1496,15 @@ fn get_payment_method_type_for_saved_payment_method_payment(
     let stripe_payment_method_type = match item.recurring_mandate_payment_data.clone() {
         Some(recurring_payment_method_data) => {
             match recurring_payment_method_data.payment_method_type {
-                Some(enums::PaymentMethodType::Eps)
-                | Some(enums::PaymentMethodType::Giropay)
-                | Some(enums::PaymentMethodType::Przelewy24) => {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: "Eps, Giropay, Przelewy24 Recurring payments ".into(),
-                        connector: "Stripe",
-                        payment_experience: "Recurring Payments".into(),
-                    }
-                    .into())
-                }
                 Some(payment_method_type) => StripePaymentMethodType::try_from(payment_method_type),
-                None => Err(errors::ConnectorError::NotSupported {
-                    message: "payment_method_type for Recurring payments unavailable ".into(),
-                    connector: "Stripe",
-                    payment_experience: "Recurring Payments".into(),
+                None => Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_method_type",
                 }
                 .into()),
             }
         }
-        None => Err(errors::ConnectorError::NotSupported {
-            message: "payment_method_type for Recurring payments unavailable ".into(),
-            connector: "Stripe",
-            payment_experience: "Recurring Payments".into(),
+        None => Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "recurring_mandate_payment_data",
         }
         .into()),
     }?;

@@ -365,7 +365,7 @@ pub async fn get_token_for_recurring_mandate(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let token = Uuid::new_v4().to_string();
-    let payment_method_type = payment_method.payment_method_type.clone();
+    let payment_method_type = payment_method.payment_method_type;
     if let diesel_models::enums::PaymentMethod::Card = payment_method.payment_method {
         let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method).await?;
         if let Some(payment_method_from_request) = req.payment_method {
