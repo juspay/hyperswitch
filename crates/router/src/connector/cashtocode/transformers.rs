@@ -168,7 +168,7 @@ impl<F, T>
             ),
             CashtocodePaymentsResponse::CashtoCodeData(response_data) => {
                 let redirection_data = services::RedirectForm::Form {
-                    endpoint: response_data.pay_url.clone(),
+                    endpoint: response_data.pay_url,
                     method: services::Method::Post,
                     form_fields: Default::default(),
                 };
@@ -182,6 +182,7 @@ impl<F, T>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        connector_response_reference_id : None,
                     }),
                 )
             }
