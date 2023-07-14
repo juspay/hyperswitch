@@ -186,7 +186,7 @@ pub async fn payment_method_retrieve_api(
         state.get_ref(),
         &req,
         payload,
-        |state, auth, pm| cards::retrieve_payment_method(state, pm, auth.merchant_account),
+        |state, _auth, pm| cards::retrieve_payment_method(state, pm),
         &auth::ApiKeyAuth,
     )
     .await
