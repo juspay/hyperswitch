@@ -223,7 +223,7 @@ impl Customers {
                 .service(web::resource("").route(web::post().to(customers_create)))
                 .service(
                     web::resource("/payment_methods")
-                        .route(web::get().to(list_customer_payment_method_api)),
+                        .route(web::get().to(list_customer_payment_method_api_client)),
                 )
                 .service(
                     web::resource("/{customer_id}/payment_methods")
