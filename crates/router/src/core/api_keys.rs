@@ -135,6 +135,10 @@ pub async fn create_api_key(
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
     let store = &*state.store;
+    // We are not fetching merchant account as the merchant key store is needed to search for a
+    // merchant account.
+    // Instead, we're only fetching merchant key store, as it is sufficient to identify
+    // non-existence of a merchant account.
     store
         .get_merchant_key_store_by_merchant_id(
             merchant_id.as_str(),
