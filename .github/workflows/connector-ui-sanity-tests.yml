@@ -74,7 +74,7 @@ jobs:
 
     steps:
       - name: Ignore Tests incase of pull request
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'pull_request'
         shell: bash
         run: |
           echo "Skipped tests as the event is pull request" 
