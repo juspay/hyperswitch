@@ -114,6 +114,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             })
         } else {
             Ok(types::PaymentsResponseData::TransactionUnresolvedResponse {
@@ -124,6 +125,7 @@ impl<F, T>
                         "Please check the transaction in opennode dashboard and resolve manually"
                             .to_string(),
                 }),
+                connector_response_reference_id: None,
             })
         };
         Ok(Self {

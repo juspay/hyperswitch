@@ -53,7 +53,7 @@ impl TryFrom<&types::ConnectorAuthType> for {{project-name | downcase | pascal_c
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: Secret::new(api_key.to_owned()),
+                api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -97,7 +97,8 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, {{project-name | downcase | pasca
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
-                network_txn_id: None
+                network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

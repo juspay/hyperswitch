@@ -592,6 +592,7 @@ fn handle_cards_response(
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
+        connector_response_reference_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -619,6 +620,7 @@ fn handle_bank_redirects_response(
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
+        connector_response_reference_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -651,6 +653,7 @@ fn handle_bank_redirects_error_response(
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
+        connector_response_reference_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -693,6 +696,7 @@ fn handle_bank_redirects_sync_response(
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
+        connector_response_reference_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -714,6 +718,7 @@ pub fn handle_webhook_response(
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
+        connector_response_reference_id: None,
     };
     Ok((status, None, payment_response_data))
 }
@@ -1043,6 +1048,7 @@ pub fn get_apple_pay_session<F, T>(
                     },
                 },
             ))),
+            connector_response_reference_id: None,
         }),
         // We don't get status from TrustPay but status should be pending by default for session response
         status: diesel_models::enums::AttemptStatus::Pending,
@@ -1089,6 +1095,7 @@ pub fn get_google_pay_session<F, T>(
                     },
                 ),
             ))),
+            connector_response_reference_id: None,
         }),
         // We don't get status from TrustPay but status should be pending by default for session response
         status: diesel_models::enums::AttemptStatus::Pending,

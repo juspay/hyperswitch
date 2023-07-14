@@ -389,6 +389,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -438,6 +439,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -466,6 +468,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -554,6 +557,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                     psync_flow: PaypalPaymentIntent::Capture
                 })),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             amount_captured: Some(amount_captured),
             ..item.data
@@ -600,6 +604,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

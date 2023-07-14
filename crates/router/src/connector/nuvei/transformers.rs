@@ -1247,6 +1247,7 @@ where
                         None
                     },
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 })
             },
             ..item.data
