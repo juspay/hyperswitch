@@ -169,7 +169,7 @@
         ]
       }
     },
-    "/customers/payment_methods/{client-secret}": {
+    "/customers/payment_methods?{client-secret}": {
       "get": {
         "tags": [
           "Payment Methods"
@@ -269,9 +269,6 @@
           }
         },
         "security": [
-          {
-            "api_key": []
-          },
           {
             "publishable_key": []
           }
