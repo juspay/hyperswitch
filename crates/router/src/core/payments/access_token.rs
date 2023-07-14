@@ -10,7 +10,7 @@ use crate::{
     },
     routes::{metrics, AppState},
     services,
-    types::{self, api as api_types, domain, transformers::ForeignInto},
+    types::{self, api as api_types, domain},
 };
 
 /// After we get the access token, check if there was an error and if the flow should proceed further
@@ -59,7 +59,7 @@ pub async fn add_access_token<
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
         .connector_name
-        .supports_access_token(router_data.payment_method.foreign_into())
+        .supports_access_token(router_data.payment_method)
     {
         let merchant_id = &merchant_account.merchant_id;
         let store = &*state.store;
