@@ -6307,12 +6307,6 @@
             "type": "boolean",
             "description": "Whether payment method was deleted or not",
             "example": true
-          },
-          "status": {
-            "type": "string",
-            "description": "Status message of the Payment method in case there was an error",
-            "example": "Failed to delete card from locker",
-            "nullable": true
           }
         }
       },

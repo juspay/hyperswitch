@@ -516,10 +516,6 @@ pub struct PaymentMethodDeleteResponse {
     /// Whether payment method was deleted or not
     #[schema(example = true)]
     pub deleted: bool,
-
-    /// Status message of the Payment method in case there was an error
-    #[schema(example = "Failed to delete card from locker")]
-    pub status: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
