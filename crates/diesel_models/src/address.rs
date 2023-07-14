@@ -24,7 +24,7 @@ pub struct AddressNew {
     pub modified_at: PrimitiveDateTime,
 }
 
-#[derive(Clone, Debug, Identifiable, Queryable, frunk::LabelledGeneric)]
+#[derive(Clone, Debug, Identifiable, Queryable)]
 #[diesel(table_name = address)]
 pub struct Address {
     pub id: i32,

@@ -72,9 +72,9 @@ jobs:
         connector:
           # do not use more than 8 runners, try to group less time taking connectors together
           - stripe
-          - adyen_uk|shift4|worldline 
-          - airwallex|bluesnap|checkout
-          - paypal|mollie|payu
+          - adyen_uk,shift4,worldline,multisafepay
+          - airwallex,bluesnap,checkout
+          - paypal,mollie,payu,trustpay_3ds
 
     steps:
       - name: Checkout repository
@@ -101,33 +101,36 @@ jobs:
       - name: Install latest compiler
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: stable
-            override: true
+          toolchain: stable
+
       - uses: Swatinem/rust-cache@v2.4.0
 
-      - uses: baptiste0928/cargo-install@v2.0.0
+      - uses: baptiste0928/cargo-install@v2.1.0
         with:
           crate: diesel_cli
           features: postgres
           args: "--no-default-features"
 
-      - name: diesel migration run
+      - name: Diesel migration run
         shell: bash
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: diesel migration run
 
-      - name: Start server
+      - name: Start server and run tests
         env:
           UI_TESTCASES_PATH: ${{ secrets.UI_TESTCASES_PATH }}
+          INPUT: ${{ matrix.connector }}
         shell: bash
         run: sh .github/scripts/run_ui_tests.sh
 
-      - name: Run tests
+      - name: View test results
+        shell: bash
+        run: cat tests/test_results.log
+
+      - name: Check test results
         shell: bash
         run: |
-          IN="${{ matrix.connector }}"
-          connectors=(${IN//|/ })
-          for i in "${connectors[@]}"; do
-            cargo test --package router --test connectors -- "${i}_ui::" --test-threads=1
-          done
+          if test "$( grep 'test result: FAILED' -r tests/test_results.log | wc -l )" -gt "0"; then
+            exit 1
+          fi
