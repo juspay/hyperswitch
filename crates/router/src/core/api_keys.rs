@@ -1,11 +1,11 @@
 use common_utils::date_time;
+#[cfg(feature = "email")]
+use diesel_models::{api_keys::ApiKey, enums as storage_enums};
 use error_stack::{report, IntoReport, ResultExt};
 #[cfg(feature = "kms")]
 use external_services::kms;
 use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
-#[cfg(feature = "email")]
-use storage_models::{api_keys::ApiKey, enums as storage_enums};
 
 #[cfg(feature = "email")]
 use crate::types::storage::enums;
