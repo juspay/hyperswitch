@@ -1,9 +1,9 @@
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{CardData, PaymentsAuthorizeRequestData},
+    connector::utils::{CardData, PaymentsAuthorizeRequestData, RefundsRequestData},
     core::errors,
     types::{
         self, api,
@@ -17,7 +17,7 @@ pub enum TsysPaymentsRequest {
     Sale(TsysPaymentAuthSaleRequest),
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TsysPaymentAuthSaleRequest {
     #[serde(rename = "deviceID")]
@@ -46,7 +46,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TsysPaymentsRequest {
                 let auth_data: TsysPaymentAuthSaleRequest = TsysPaymentAuthSaleRequest {
                     device_id: connector_auth.device_id,
                     transaction_key: connector_auth.transaction_key,
-                    card_data_source: "MANUAL".to_string(),
+                    card_data_source: "INTERNET".to_string(),
                     transaction_amount: item.request.amount.to_string(),
                     currency_code: item.request.currency,
                     card_number: ccard.card_number.clone(),
@@ -59,9 +59,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TsysPaymentsRequest {
                     developer_id: connector_auth.developer_id,
                 };
                 if item.request.is_auto_capture()? {
-                    Ok(TsysPaymentsRequest::Sale(auth_data))
+                    Ok(Self::Sale(auth_data))
                 } else {
-                    Ok(TsysPaymentsRequest::Auth(auth_data))
+                    Ok(Self::Auth(auth_data))
                 }
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -95,7 +95,7 @@ impl TryFrom<&types::ConnectorAuthType> for TsysAuthType {
 }
 
 // PaymentsResponse
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum TsysPaymentStatus {
     Pass,
@@ -112,19 +112,42 @@ impl From<TsysPaymentStatus> for enums::AttemptStatus {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(clippy::enum_variant_names)]
 pub enum TsysPaymentsResponse {
-    AuthResponse(AuthSaleResponse),
-    SaleResponse(AuthSaleResponse),
+    AuthResponse(TsysResponse),
+    SaleResponse(TsysResponse),
+    CaptureResponse(TsysResponse),
+    SearchTransactionResponse(TsysResponse),
+    VoidResponse(TsysResponse),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AuthSaleResponse {
+pub struct TsysResponse {
     pub status: TsysPaymentStatus,
     pub response_code: String,
     pub response_message: String,
     #[serde(rename = "transactionID")]
     pub transaction_id: Option<String>,
+    pub transaction_amount: Option<String>,
+    pub transaction_details: Option<TsysTransactionDetails>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TsysTransactionDetails {
+    #[serde(rename = "transactionID")]
+    transaction_id: String,
+    transaction_type: String,
+    transaction_status: TsysTransactionStatus,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum TsysTransactionStatus {
+    Approved,
+    Declined,
+    Void,
 }
 
 impl<F, T>
@@ -135,7 +158,9 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, TsysPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let (transaction_id, status, response_code, response_message) = match item.response {
+        let (transaction_id, status, response_code, response_message, amount_captured) = match item
+            .response
+        {
             TsysPaymentsResponse::AuthResponse(auth_response) => (
                 auth_response.transaction_id,
                 match auth_response.status {
@@ -144,15 +169,69 @@ impl<F, T>
                 },
                 auth_response.response_code,
                 auth_response.response_message,
+                None,
             ),
             TsysPaymentsResponse::SaleResponse(sale_response) => (
                 sale_response.transaction_id,
-                match sale_response.status {
-                    TsysPaymentStatus::Pass => enums::AttemptStatus::Charged,
-                    TsysPaymentStatus::Fail => enums::AttemptStatus::Failure,
-                },
+                enums::AttemptStatus::from(sale_response.status),
                 sale_response.response_code,
                 sale_response.response_message,
+                None,
+            ),
+            TsysPaymentsResponse::CaptureResponse(capture_response) => (
+                capture_response.transaction_id,
+                enums::AttemptStatus::from(capture_response.status),
+                capture_response.response_code,
+                capture_response.response_message,
+                capture_response
+                    .transaction_amount
+                    .map(|amount| amount.parse::<i64>())
+                    .transpose()
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+            ),
+            TsysPaymentsResponse::SearchTransactionResponse(search_response) => {
+                let (status, transaction_id) = search_response.transaction_details.map_or(
+                    (enums::AttemptStatus::Pending, None),
+                    |transaction_details| {
+                        (
+                            match transaction_details.transaction_status {
+                                TsysTransactionStatus::Approved => {
+                                    if transaction_details.transaction_type.contains("Auth-Only") {
+                                        enums::AttemptStatus::Authorized
+                                    } else {
+                                        enums::AttemptStatus::Charged
+                                    }
+                                }
+                                TsysTransactionStatus::Void => enums::AttemptStatus::Voided,
+                                TsysTransactionStatus::Declined => enums::AttemptStatus::Failure,
+                            },
+                            Some(transaction_details.transaction_id),
+                        )
+                    },
+                );
+                (
+                    transaction_id,
+                    status,
+                    search_response.response_code,
+                    search_response.response_message,
+                    search_response
+                        .transaction_amount
+                        .map(|amount| amount.parse::<i64>())
+                        .transpose()
+                        .into_report()
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+                )
+            }
+            TsysPaymentsResponse::VoidResponse(void_response) => (
+                void_response.transaction_id,
+                match void_response.status {
+                    TsysPaymentStatus::Pass => enums::AttemptStatus::Voided,
+                    TsysPaymentStatus::Fail => enums::AttemptStatus::VoidFailed,
+                },
+                void_response.response_code,
+                void_response.response_message,
+                None,
             ),
         };
         let response = if response_code.chars().next().is_some_and(|x| x == 'A') {
@@ -177,6 +256,7 @@ impl<F, T>
         Ok(Self {
             status,
             response,
+            amount_captured,
             ..item.data
         })
     }
@@ -184,7 +264,7 @@ impl<F, T>
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TsysPSyncRequest {
+pub struct TsysSearchTransactionRequest {
     #[serde(rename = "deviceID")]
     device_id: Secret<String>,
     transaction_key: Secret<String>,
@@ -196,15 +276,15 @@ pub struct TsysPSyncRequest {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct TsysPaymentsSyncRequest {
-    search_transaction: TsysPSyncRequest,
+pub struct TsysSyncRequest {
+    search_transaction: TsysSearchTransactionRequest,
 }
 
-impl TryFrom<&types::PaymentsSyncRouterData> for TsysPaymentsSyncRequest {
+impl TryFrom<&types::PaymentsSyncRouterData> for TsysSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         let connector_auth: TsysAuthType = TsysAuthType::try_from(&item.connector_auth_type)?;
-        let search_transaction = TsysPSyncRequest {
+        let search_transaction = TsysSearchTransactionRequest {
             device_id: connector_auth.device_id,
             transaction_key: connector_auth.transaction_key,
             transaction_id: item
@@ -248,65 +328,10 @@ impl TryFrom<&types::PaymentsCancelRouterData> for TsysPaymentsCancelRequest {
         Ok(Self { void })
     }
 }
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum TsysCancelStatus {
-    Pass,
-    Fail,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct TsysCancelResponse {
-    #[serde(rename = "transactionID")]
-    transaction_id: String,
-    status: TsysCancelStatus,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "PascalCase")]
-pub struct TsysPaymentsCancelResponse {
-    void_response: TsysCancelResponse,
-}
-
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<F, TsysPaymentsCancelResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            TsysPaymentsCancelResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-        let status = match item.response.void_response.status {
-            TsysCancelStatus::Pass => enums::AttemptStatus::Voided,
-            TsysCancelStatus::Fail => enums::AttemptStatus::VoidFailed,
-        };
-        Ok(Self {
-            status,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.void_response.transaction_id,
-                ),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-            }),
-            ..item.data
-        })
-    }
-}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TsysPaymentsCaptRequest {
+pub struct TsysCaptureRequest {
     #[serde(rename = "deviceID")]
     device_id: Secret<String>,
     transaction_key: Secret<String>,
@@ -321,14 +346,14 @@ pub struct TsysPaymentsCaptRequest {
 #[serde(rename_all = "PascalCase")]
 
 pub struct TsysPaymentsCaptureRequest {
-    capture: TsysPaymentsCaptRequest,
+    capture: TsysCaptureRequest,
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for TsysPaymentsCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let connector_auth: TsysAuthType = TsysAuthType::try_from(&item.connector_auth_type)?;
-        let capture = TsysPaymentsCaptRequest {
+        let capture = TsysCaptureRequest {
             device_id: connector_auth.device_id,
             transaction_key: connector_auth.transaction_key,
             transaction_id: item.request.connector_transaction_id.clone(),
@@ -338,50 +363,6 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for TsysPaymentsCaptureRequest {
         Ok(Self { capture })
     }
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TsysCaptureResponse {
-    #[serde(rename = "transactionID")]
-    transaction_id: String,
-    status: TsysPaymentStatus,
-    transaction_amount: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct TsysPaymentCaptureResponse {
-    capture_response: TsysCaptureResponse,
-}
-
-impl TryFrom<types::PaymentsCaptureResponseRouterData<TsysPaymentCaptureResponse>>
-    for types::PaymentsCaptureRouterData
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::PaymentsCaptureResponseRouterData<TsysPaymentCaptureResponse>,
-    ) -> Result<Self, Self::Error> {
-        let amount_captured = item.data.request.amount_to_capture;
-        let status = enums::AttemptStatus::from(item.response.capture_response.status);
-
-        Ok(Self {
-            status,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.capture_response.transaction_id,
-                ),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-            }),
-            amount_captured: Some(amount_captured),
-            ..item.data
-        })
-    }
-}
-
 // REFUND :
 // Type definition for RefundRequest
 
@@ -417,35 +398,19 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TsysRefundRequest {
     }
 }
 
-// Type definition for Refund Response
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum RefundStatus {
-    Pass,
-    Fail,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+impl From<TsysPaymentStatus> for enums::RefundStatus {
+    fn from(item: TsysPaymentStatus) -> Self {
         match item {
-            RefundStatus::Pass => Self::Success,
-            RefundStatus::Fail => Self::Failure,
+            TsysPaymentStatus::Pass => Self::Success,
+            TsysPaymentStatus::Fail => Self::Failure,
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TsysReturnResponse {
-    #[serde(rename = "transactionID")]
-    transaction_id: String,
-    status: RefundStatus,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct RefundResponse {
-    return_response: TsysReturnResponse,
+    return_response: TsysResponse,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -455,28 +420,93 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let return_response = item.response.return_response;
+        let response = if return_response
+            .response_code
+            .chars()
+            .next()
+            .is_some_and(|x| x == 'A')
+        {
+            Ok(types::RefundsResponseData {
+                connector_refund_id: return_response.transaction_id.unwrap_or_default(),
+                refund_status: enums::RefundStatus::from(return_response.status),
+            })
+        } else {
+            Err(types::ErrorResponse {
+                code: return_response.response_code,
+                message: return_response.response_message.clone(),
+                reason: Some(return_response.response_message),
+                status_code: item.http_code,
+            })
+        };
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.return_response.transaction_id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.return_response.status),
-            }),
+            response,
             ..item.data
         })
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
+impl TryFrom<&types::RefundSyncRouterData> for TsysSyncRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
+        let connector_auth: TsysAuthType = TsysAuthType::try_from(&item.connector_auth_type)?;
+        let search_transaction = TsysSearchTransactionRequest {
+            device_id: connector_auth.device_id,
+            transaction_key: connector_auth.transaction_key,
+            transaction_id: item.request.get_connector_refund_id()?,
+            developer_id: connector_auth.developer_id,
+        };
+        Ok(Self { search_transaction })
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct RefundSyncResponse {
+    search_transaction_response: TsysResponse,
+}
+
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
+        let search_response = item.response.search_transaction_response;
+        let (refund_status, transaction_id) = search_response.transaction_details.map_or(
+            (enums::RefundStatus::Pending, None),
+            |transaction_details| {
+                (
+                    match transaction_details.transaction_status {
+                        TsysTransactionStatus::Void => enums::RefundStatus::Success,
+                        TsysTransactionStatus::Declined => enums::RefundStatus::Failure,
+                        TsysTransactionStatus::Approved => enums::RefundStatus::Pending,
+                    },
+                    Some(transaction_details.transaction_id),
+                )
+            },
+        );
+        let response = if search_response
+            .response_code
+            .chars()
+            .next()
+            .is_some_and(|x| x == 'A')
+        {
+            Ok(types::RefundsResponseData {
+                connector_refund_id: transaction_id.unwrap_or_default(),
+                refund_status,
+            })
+        } else {
+            Err(types::ErrorResponse {
+                code: search_response.response_code,
+                message: search_response.response_message.clone(),
+                reason: Some(search_response.response_message),
+                status_code: item.http_code,
+            })
+        };
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.return_response.transaction_id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.return_response.status),
-            }),
+            response,
             ..item.data
         })
     }

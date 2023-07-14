@@ -324,7 +324,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Your card's security code is invalid.".to_string(),
+        "CVV2 verification failed".to_string(),
     );
 }
 
@@ -346,7 +346,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Your card's expiration month is invalid.".to_string(),
+        "The value of element 'expirationDate' is not valid., ".to_string(),
     );
 }
 
@@ -357,7 +357,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_exp_year: Secret::new("2000".to_string()),
+                    card_exp_year: Secret::new("abcd".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -368,12 +368,13 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Your card's expiration year is invalid.".to_string(),
+        "The value of element 'expirationDate' is not valid., ".to_string(),
     );
 }
 
 // Voids a payment using automatic capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Connector Refunds the payment on Void call for Auto Captured Payment"]
 async fn should_fail_void_payment_for_auto_capture() {
     let authorize_response = CONNECTOR
         .make_payment(payment_method_details(), get_default_payment_info())
@@ -401,7 +402,7 @@ async fn should_fail_capture_for_invalid_payment() {
         .unwrap();
     assert_eq!(
         capture_response.response.unwrap_err().message,
-        String::from("No such payment_intent: '123456789'")
+        String::from("Record(s) Not Found.")
     );
 }
 
@@ -421,7 +422,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Refund amount (₹1.50) is greater than charge amount (₹1.00)",
+        "Return Not Allowed.",
     );
 }
 

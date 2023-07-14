@@ -53,7 +53,6 @@ pub use self::{
     globepay::Globepay, iatapay::Iatapay, klarna::Klarna, mollie::Mollie,
     multisafepay::Multisafepay, nexinets::Nexinets, nmi::Nmi, noon::Noon, nuvei::Nuvei,
     opayo::Opayo, opennode::Opennode, payeezy::Payeezy, payme::Payme, paypal::Paypal, payu::Payu,
-    powertranz::Powertranz, rapyd::Rapyd, shift4::Shift4, stripe::Stripe, trustpay::Trustpay, tsys::Tsys,
-    worldline::Worldline, worldpay::Worldpay,
-    zen::Zen,
+    powertranz::Powertranz, rapyd::Rapyd, shift4::Shift4, stripe::Stripe, trustpay::Trustpay,
+    tsys::Tsys, worldline::Worldline, worldpay::Worldpay, zen::Zen,
 };
