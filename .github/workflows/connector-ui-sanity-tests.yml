@@ -2,10 +2,8 @@ name: Connector UI Sanity Tests
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-
+  
+  pull_request:
   merge_group:
     types:
       - checks_requested
@@ -39,7 +37,8 @@ env:
 
 jobs:
   test_connectors:
-    name: Run tests on stable toolchain for connectors
+    name: Run connector UI tests
+    if: ${{ !github.event.issue.pull_request }}
     runs-on: ubuntu-latest
 
     services:
