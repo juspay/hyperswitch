@@ -1156,10 +1156,7 @@ pub async fn payout_create_db_entries(
         .address_id;
 
     // Make payouts entry
-    let currency = req
-        .currency
-        .to_owned()
-        .get_required_value("currency")?;
+    let currency = req.currency.to_owned().get_required_value("currency")?;
     let payout_type = req
         .payout_type
         .to_owned()
