@@ -206,6 +206,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_wallet(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -241,6 +242,13 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("return_url"))
     }
+
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+
     fn connector_mandate_id(&self) -> Option<String> {
         self.mandate_id
             .as_ref()

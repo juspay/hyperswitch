@@ -86,8 +86,10 @@ pub struct PowertranzAddressDetails {
     phone_number: Option<Secret<String>>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct RedirectResponsePayload {
-    spi_token: String,
+    pub spi_token: String,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest {
@@ -132,7 +134,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ExtendedData {
             three_d_secure: ThreeDSecure {
                 challenge_window_size: 5,
             },
-            merchant_response_url: item.request.get_return_url()?,
+            merchant_response_url: item.request.get_complete_authorize_url()?,
             browser_info: BrowserInfo::try_from(&item.request.get_browser_info()?)?,
         })
     }
@@ -228,6 +230,7 @@ pub struct PowertranzBaseResponse {
     transaction_identifier: String,
     original_trxn_identifier: Option<String>,
     errors: Option<Vec<Error>>,
+    iso_response_code: String,
     risk_management: Option<RiskManagement>,
 }
 
@@ -243,16 +246,27 @@ pub struct ThreeDSecureResponse {
     redirect_data: String,
 }
 
-impl ForeignFrom<(u8, bool)> for enums::AttemptStatus {
-    fn foreign_from((transaction_type, approved): (u8, bool)) -> Self {
+impl ForeignFrom<(u8, bool, bool)> for enums::AttemptStatus {
+    fn foreign_from((transaction_type, approved, is_3ds): (u8, bool, bool)) -> Self {
         match transaction_type {
             // Auth
             1 => match approved {
                 true => Self::Authorized,
-                false => Self::Failure,
+                false => match is_3ds {
+                    true => Self::AuthenticationPending,
+                    false => Self::Failure,
+                },
             },
-            // Sale or Capture
-            2 | 3 => match approved {
+            // Sale
+            2 => match approved {
+                true => Self::Charged,
+                false => match is_3ds {
+                    true => Self::AuthenticationPending,
+                    false => Self::Failure,
+                },
+            },
+            // Capture
+            3 => match approved {
                 true => Self::Charged,
                 false => Self::Failure,
             },
@@ -310,11 +324,16 @@ impl<F, T>
             status: enums::AttemptStatus::foreign_from((
                 item.response.transaction_type,
                 item.response.approved,
+                is_3ds_payment(item.response.iso_response_code),
             )),
             response,
             ..item.data
         })
     }
+}
+
+fn is_3ds_payment(response_code: String) -> bool {
+    matches!(response_code.as_str(), "3D4" | "3D5" | "3D6")
 }
 
 // Type definition for Capture, Void, Refund Request

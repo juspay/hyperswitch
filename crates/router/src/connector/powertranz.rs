@@ -2,6 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use common_utils::ext_traits::ValueExt;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use transformers as powertranz;
@@ -262,6 +263,28 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}spi/payment", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let redirect_payload: powertranz::RedirectResponsePayload = req
+            .request
+            .redirect_response
+            .as_ref()
+            .and_then(|res| res.payload.to_owned())
+            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "request.redirect_response.payload",
+            })?
+            .parse_value("PowerTranz RedirectResponsePayload")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let powertranz_req = types::RequestBody::log_and_get_request_body(
+            &redirect_payload.spi_token,
+            utils::Encode::<powertranz::PowertranzPaymentsRequest>::url_encode,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(powertranz_req))
     }
 
     fn build_request(
