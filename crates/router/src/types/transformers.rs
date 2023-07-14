@@ -496,3 +496,28 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
         })
     }
 }
+
+impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttemptResponse {
+    fn foreign_from(payment_attempt: storage::PaymentAttempt) -> Self {
+        Self {
+            attempt_id: payment_attempt.attempt_id,
+            status: payment_attempt.status,
+            amount: payment_attempt.amount,
+            currency: payment_attempt.currency,
+            connector: payment_attempt.connector,
+            error_message: payment_attempt.error_reason,
+            payment_method: payment_attempt.payment_method,
+            connector_transaction_id: payment_attempt.connector_transaction_id,
+            capture_method: payment_attempt.capture_method,
+            authentication_type: payment_attempt.authentication_type,
+            cancellation_reason: payment_attempt.cancellation_reason,
+            mandate_id: payment_attempt.mandate_id,
+            error_code: payment_attempt.error_code,
+            payment_token: payment_attempt.payment_token,
+            connector_metadata: payment_attempt.connector_metadata,
+            payment_experience: payment_attempt.payment_experience,
+            payment_method_type: payment_attempt.payment_method_type,
+            reference_id: payment_attempt.connector_response_reference_id,
+        }
+    }
+}
