@@ -1826,6 +1826,7 @@ pub fn get_redirection_error_response(
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
+        connector_response_reference_id: None,
     };
     Ok((status, error, payments_response_data))
 }

@@ -1553,6 +1553,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Evoucher => Self::Reward,
             PaymentMethodType::Giropay => Self::BankRedirect,
             PaymentMethodType::GooglePay => Self::Wallet,
+            PaymentMethodType::GoPay => Self::Wallet,
             PaymentMethodType::Ideal => Self::BankRedirect,
             PaymentMethodType::Klarna => Self::PayLater,
             PaymentMethodType::MbWay => Self::Wallet,
