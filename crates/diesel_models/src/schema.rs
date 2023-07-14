@@ -359,6 +359,7 @@ diesel::table! {
         frm_configs -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        connector_webhook_details -> Nullable<Jsonb>,
     }
 }
 
