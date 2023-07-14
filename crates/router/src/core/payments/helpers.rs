@@ -2149,7 +2149,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         customer_id: router_data.customer_id,
         connector_customer: router_data.connector_customer,
         preprocessing_id: router_data.preprocessing_id,
-        capture_status: router_data.capture_status,
+        multiple_capture_status: router_data.multiple_capture_status,
         connector_request_reference_id: router_data.connector_request_reference_id,
     }
 }
@@ -2300,6 +2300,8 @@ impl AttemptType {
             mandate_details: old_payment_attempt.mandate_details,
             preprocessing_step_id: None,
             error_reason: None,
+            multiple_capture_count: None,
+            succeeded_capture_count: None,
         }
     }
 

@@ -59,7 +59,10 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
 
         helpers::validate_status(payment_intent.status)?;
 
-        helpers::validate_amount_to_capture(payment_intent.amount, request.amount_to_capture)?;
+        helpers::validate_amount_to_capture(
+            payment_intent.amount - payment_intent.amount_captured.unwrap_or(0),
+            request.amount_to_capture,
+        )?;
 
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -132,11 +135,17 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             })
             .await
             .transpose()?;
-
-        let capture = Self::create_capture(state, &payment_attempt, storage_scheme)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to create capture in DB")?;
+ 
+        let capture = match payment_attempt.capture_method{
+            Some(enums::CaptureMethod::ManualMultiple)=>{
+                let new_capture = Self::create_capture(state, &payment_attempt, storage_scheme)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to create capture in DB")?;
+                Some(new_capture)
+            },
+            _ => None
+        };
 
         Ok((
             Box::new(self),
@@ -168,7 +177,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 connector_customer_id: None,
                 ephemeral_key: None,
                 redirect_response: None,
-                capture: Some(capture),
+                capture,
             },
             None,
         ))
@@ -242,10 +251,11 @@ impl PaymentCapture {
             .await
     }
     fn make_capture(authorized_attempt: &storage::PaymentAttempt) -> storage::CaptureNew {
+        let capture_sequence = authorized_attempt.multiple_capture_count.unwrap_or(0) + 1;
         storage::CaptureNew {
             payment_id: authorized_attempt.payment_id.clone(),
             merchant_id: authorized_attempt.merchant_id.clone(),
-            attempt_id: format!("{}_1", authorized_attempt.attempt_id), //todo: suffix must be dynamic for multiple partial capture
+            attempt_id: format!("{}_{}", authorized_attempt.attempt_id, capture_sequence),
             status: enums::CaptureStatus::Started,
             amount: authorized_attempt
                 .amount_to_capture
@@ -259,7 +269,8 @@ impl PaymentCapture {
             error_code: None,
             error_reason: None,
             authorized_attempt_id: authorized_attempt.attempt_id.clone(),
-            capture_sequence: 1, //todo: This needs to be dynamic for multiple partial capture
+            capture_sequence,
+            connector_transaction_id: None,
         }
     }
 }

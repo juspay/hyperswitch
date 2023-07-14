@@ -142,8 +142,8 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
             }
             storage_enums::AttemptStatus::Unresolved => Self::RequiresMerchantAction,
 
-            storage_enums::AttemptStatus::PartialCharged
-            | storage_enums::AttemptStatus::Started
+            storage_enums::AttemptStatus::PartialCharged => Self::RequiresCapture,
+            storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::AuthenticationSuccessful
             | storage_enums::AttemptStatus::Authorizing
             | storage_enums::AttemptStatus::CodInitiated

@@ -24,7 +24,8 @@ pub struct Capture {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     pub authorized_attempt_id: String,
-    pub capture_sequence: i32,
+    pub capture_sequence: i16,
+    pub connector_transaction_id: Option<String>,
 }
 
 #[derive(
@@ -48,7 +49,8 @@ pub struct CaptureNew {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub modified_at: Option<PrimitiveDateTime>,
     pub authorized_attempt_id: String,
-    pub capture_sequence: i32,
+    pub capture_sequence: i16,
+    pub connector_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,20 +58,35 @@ pub enum CaptureUpdate {
     StatusUpdate {
         status: storage_enums::CaptureStatus,
     },
+    ResponseUpdate {
+        status: storage_enums::CaptureStatus,
+        connector: Option<String>,
+        connector_transaction_id: Option<String>,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
+        error_reason: Option<Option<String>>,
+    },
+    ErrorUpdate {
+        connector: Option<String>,
+        status: storage_enums::CaptureStatus,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
+        error_reason: Option<Option<String>>,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = captures)]
 pub struct CaptureUpdateInternal {
     pub status: Option<storage_enums::CaptureStatus>,
-    pub amount: Option<i64>,
     pub currency: Option<Option<storage_enums::Currency>>,
     pub connector: Option<Option<String>>,
     pub error_message: Option<Option<String>>,
     pub error_code: Option<Option<String>>,
     pub error_reason: Option<Option<String>>,
     pub modified_at: Option<PrimitiveDateTime>,
-    pub capture_sequence: Option<i32>,
+    pub capture_sequence: Option<i16>,
+    pub connector_transaction_id: Option<String>
 }
 
 impl CaptureUpdate {
@@ -77,7 +94,6 @@ impl CaptureUpdate {
         let capture_update: CaptureUpdateInternal = self.into();
         Capture {
             status: capture_update.status.unwrap_or(source.status),
-            amount: capture_update.amount.unwrap_or(source.amount),
             currency: capture_update.currency.unwrap_or(source.currency),
             connector: capture_update.connector.unwrap_or(source.connector),
             error_message: capture_update.error_message.unwrap_or(source.error_message),
@@ -97,6 +113,38 @@ impl From<CaptureUpdate> for CaptureUpdateInternal {
         match payment_attempt_child_update {
             CaptureUpdate::StatusUpdate { status } => Self {
                 status: Some(status),
+                modified_at: Some(common_utils::date_time::now()),
+                ..Self::default()
+            },
+            CaptureUpdate::ResponseUpdate {
+                status,
+                connector,
+                connector_transaction_id,
+                error_code,
+                error_message,
+                error_reason,
+            } => Self {
+                status: Some(status),
+                connector: Some(connector),
+                connector_transaction_id,
+                error_code,
+                error_message,
+                error_reason,
+                modified_at: Some(common_utils::date_time::now()),
+                ..Self::default()
+            },
+            CaptureUpdate::ErrorUpdate {
+                connector,
+                status,
+                error_code,
+                error_message,
+                error_reason,
+            } => Self {
+                status: Some(status),
+                connector: Some(connector),
+                error_code,
+                error_message,
+                error_reason,
                 modified_at: Some(common_utils::date_time::now()),
                 ..Self::default()
             },

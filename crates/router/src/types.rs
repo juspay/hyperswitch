@@ -182,7 +182,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub payment_id: String,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
-    pub capture_status: Option<storage_enums::CaptureStatus>,
+    pub multiple_capture_status: Option<storage_enums::CaptureStatus>,
     pub payment_method: storage_enums::PaymentMethod,
     pub connector_auth_type: ConnectorAuthType,
     pub description: Option<String>,
@@ -245,6 +245,7 @@ pub struct PaymentsCaptureData {
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
     pub payment_amount: i64,
+    pub capture_method: storage_enums::CaptureMethod,
     pub connector_meta: Option<serde_json::Value>,
 }
 
@@ -816,7 +817,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_method_token: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
-            capture_status: data.capture_status,
+            multiple_capture_status: data.multiple_capture_status,
             connector_request_reference_id: data.connector_request_reference_id.clone(),
         }
     }

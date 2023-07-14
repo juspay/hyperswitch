@@ -53,6 +53,8 @@ pub struct PaymentAttempt {
     // providing a location to store mandate details intermediately for transaction
     pub mandate_details: Option<storage_enums::MandateDataType>,
     pub error_reason: Option<String>,
+    pub multiple_capture_count: Option<i16>,
+    pub succeeded_capture_count: Option<i16>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -109,6 +111,8 @@ pub struct PaymentAttemptNew {
     pub preprocessing_step_id: Option<String>,
     pub mandate_details: Option<storage_enums::MandateDataType>,
     pub error_reason: Option<String>,
+    pub multiple_capture_count: Option<i16>,
+    pub succeeded_capture_count: Option<i16>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -167,6 +171,11 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
     },
+    MultipleCaptureResponseUpdate {
+        status: storage_enums::AttemptStatus,
+        multiple_capture_count: i16,
+        succeeded_capture_count: Option<i16>,
+    },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
         connector: Option<String>,
@@ -223,6 +232,8 @@ pub struct PaymentAttemptUpdateInternal {
     preprocessing_step_id: Option<String>,
     error_reason: Option<Option<String>>,
     capture_method: Option<storage_enums::CaptureMethod>,
+    multiple_capture_count: Option<i16>,
+    succeeded_capture_count: Option<i16>,
 }
 
 impl PaymentAttemptUpdate {
@@ -422,6 +433,16 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_metadata,
                 preprocessing_step_id,
                 connector_transaction_id,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::MultipleCaptureResponseUpdate {
+                status,
+                multiple_capture_count,
+                succeeded_capture_count,
+            } => Self {
+                status: Some(status),
+                multiple_capture_count: Some(multiple_capture_count),
+                succeeded_capture_count,
                 ..Default::default()
             },
         }

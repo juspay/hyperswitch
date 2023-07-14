@@ -129,7 +129,7 @@ where
             &payment_data.payment_attempt,
         ),
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
-        capture_status: None,
+        multiple_capture_status: None,
     };
 
     Ok(router_data)
@@ -858,6 +858,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             payment_amount: payment_data.amount.into(),
             connector_meta: payment_data.payment_attempt.connector_metadata,
+            capture_method: payment_data
+                .payment_attempt
+                .capture_method
+                .unwrap_or_default(),
         })
     }
 }

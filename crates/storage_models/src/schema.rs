@@ -81,7 +81,9 @@ diesel::table! {
         modified_at -> Timestamp,
         #[max_length = 255]
         authorized_attempt_id -> Varchar,
-        capture_sequence -> Int4,
+        capture_sequence -> Int2,
+        #[max_length = 128]
+        connector_transaction_id -> Nullable<Varchar>,
     }
 }
 
@@ -462,6 +464,8 @@ diesel::table! {
         preprocessing_step_id -> Nullable<Varchar>,
         mandate_details -> Nullable<Jsonb>,
         error_reason -> Nullable<Text>,
+        multiple_capture_count -> Nullable<Int2>,
+        succeeded_capture_count -> Nullable<Int2>,
     }
 }
 

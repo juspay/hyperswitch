@@ -403,7 +403,7 @@ pub trait ConnectorActions: Connector {
             payment_method_token: None,
             connector_customer: None,
             preprocessing_id: None,
-            capture_status: None,
+            multiple_capture_status: None,
             connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
         }
     }

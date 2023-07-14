@@ -113,7 +113,7 @@ pub async fn construct_refund_router_data<'a, F>(
         payment_method_token: None,
         connector_customer: None,
         preprocessing_id: None,
-        capture_status: None,
+        multiple_capture_status: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
             &merchant_account.merchant_id,
@@ -306,7 +306,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         connector_customer: None,
         customer_id: None,
         preprocessing_id: None,
-        capture_status: None,
+        multiple_capture_status: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
             &merchant_account.merchant_id,
@@ -373,7 +373,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         connector_customer: None,
         customer_id: None,
         preprocessing_id: None,
-        capture_status: None,
+        multiple_capture_status: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
             &merchant_account.merchant_id,
@@ -441,7 +441,7 @@ pub async fn construct_upload_file_router_data<'a>(
         connector_customer: None,
         customer_id: None,
         preprocessing_id: None,
-        capture_status: None,
+        multiple_capture_status: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
             &merchant_account.merchant_id,
@@ -511,7 +511,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         customer_id: None,
         connector_customer: None,
         preprocessing_id: None,
-        capture_status: None,
+        multiple_capture_status: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
             &merchant_account.merchant_id,
@@ -579,7 +579,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         reference_id: None,
         payment_method_token: None,
         preprocessing_id: None,
-        capture_status: None,
+        multiple_capture_status: None,
         connector_request_reference_id: IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW
             .to_string(),
     };
