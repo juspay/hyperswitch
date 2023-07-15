@@ -1,17 +1,17 @@
-#!/bin/bash
+#!/bin/sh
 sudo apt update
 apt install net-tools
 mkdir tests
 
-COUNT=0
+COUNT = 0
 #download connector ui tests
 while [ ! -f $HOME/target/test/connector_tests.json ]
 do
-    if (( $COUNT > 10 ))
+    if [ {COUNT} -gt 10 ];
     then
         exit 1
     fi
-    ((COUNT++))
+    COUNT = $((COUNT+1))
     sleep 2
     wget $UI_TESTCASES_PATH && mv testcases $HOME/target/test/connector_tests.json
 done
@@ -22,14 +22,14 @@ $GECKOWEBDRIVER/geckodriver > tests/geckodriver.log 2>&1 &
 #start server and run ui tests
 cargo run &
 
-COUNT=0
+COUNT = 0
 #Wait for the server to start in port 8080
 while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do 
-    if (( $COUNT > 30 ))
+    if [ {COUNT} -gt 30 ];
     then
         exit 1
     else 
-        ((COUNT++))
+        COUNT = $((COUNT+1))
         sleep 10
     fi
 done
