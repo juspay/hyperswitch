@@ -25,7 +25,8 @@ cargo run &
 COUNT=0
 #Wait for the server to start in port 8080
 while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do 
-    if [ $COUNT -gt 30 ];
+    #Wait for 15mins to start otherwise kill the task
+    if [ $COUNT -gt 90 ];
     then
         exit 1
     else 
