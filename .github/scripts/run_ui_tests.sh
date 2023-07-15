@@ -1,4 +1,4 @@
-#! /usr/bin/env bash
+#!/bin/bash
 sudo apt update
 apt install net-tools
 mkdir tests
