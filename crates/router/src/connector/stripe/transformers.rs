@@ -1260,6 +1260,7 @@ fn get_billing_details_if_exists(
         } => Some(billing_details.to_owned()),
         payments::BankRedirectData::Swish {} => None,
         payments::BankRedirectData::Trustly { .. } => None,
+        payments::BankRedirectData::Bizum {} => None,
     }
 }
 
