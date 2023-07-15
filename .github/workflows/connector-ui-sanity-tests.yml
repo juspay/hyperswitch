@@ -133,7 +133,6 @@ jobs:
         env:
           UI_TESTCASES_PATH: ${{ secrets.UI_TESTCASES_PATH }}
           INPUT: ${{ matrix.connector }}
-          COUNT: 0
         shell: bash
         run: sh .github/scripts/run_ui_tests.sh
 
