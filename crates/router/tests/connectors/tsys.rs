@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::Duration};
+use std::str::FromStr;
 
 use cards::CardNumber;
 use masking::Secret;
@@ -97,7 +97,6 @@ async fn should_sync_authorized_payment() {
         .await
         .expect("Authorize payment response");
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
-    tokio::time::sleep(Duration::from_secs(10)).await;
     let response = CONNECTOR
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
@@ -313,7 +312,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_cvc: Secret::new("12345".to_string()),
+                    card_cvc: Secret::new("".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -324,7 +323,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "CVV2 verification failed".to_string(),
+        "The value of element cvv2 is not valid.".to_string(),
     );
 }
 
