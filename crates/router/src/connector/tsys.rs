@@ -58,9 +58,7 @@ where
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self)
-                .to_string()
-                .into(),
+            Self::get_content_type(self).to_string().into(),
         )];
         Ok(header)
     }

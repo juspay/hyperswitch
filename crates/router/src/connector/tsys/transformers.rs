@@ -115,13 +115,13 @@ impl From<TsysTransactionDetails> for enums::AttemptStatus {
         match item.transaction_status {
             TsysTransactionStatus::Approved => {
                 if item.transaction_type.contains("Auth-Only") {
-                    enums::AttemptStatus::Authorized
+                    Self::Authorized
                 } else {
-                    enums::AttemptStatus::Charged
+                    Self::Charged
                 }
             }
-            TsysTransactionStatus::Void => enums::AttemptStatus::Voided,
-            TsysTransactionStatus::Declined => enums::AttemptStatus::Failure,
+            TsysTransactionStatus::Void => Self::Voided,
+            TsysTransactionStatus::Declined => Self::Failure,
         }
     }
 }
@@ -463,9 +463,9 @@ impl From<TsysPaymentStatus> for enums::RefundStatus {
 impl From<TsysTransactionDetails> for enums::RefundStatus {
     fn from(item: TsysTransactionDetails) -> Self {
         match item.transaction_status {
-            TsysTransactionStatus::Approved => enums::RefundStatus::Pending,
-            TsysTransactionStatus::Void => enums::RefundStatus::Success,
-            TsysTransactionStatus::Declined => enums::RefundStatus::Failure,
+            TsysTransactionStatus::Approved => Self::Pending,
+            TsysTransactionStatus::Void => Self::Success,
+            TsysTransactionStatus::Declined => Self::Failure,
         }
     }
 }
