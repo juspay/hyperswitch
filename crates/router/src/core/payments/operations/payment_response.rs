@@ -321,12 +321,14 @@ async fn capture_payment_response_update_tracker<F: Clone>(
             Err(err) => (
                 Some(
                     storage::PaymentAttemptUpdate::MultipleCaptureResponseUpdate {
-                        status: payment_data.payment_attempt.status,
-                        multiple_capture_count: payment_data
-                            .payment_attempt
-                            .multiple_capture_count
-                            .unwrap_or(0)
-                            + 1,
+                        status: Some(payment_data.payment_attempt.status),
+                        multiple_capture_count: Some(
+                            payment_data
+                                .payment_attempt
+                                .multiple_capture_count
+                                .unwrap_or(0)
+                                + 1,
+                        ),
                         succeeded_capture_count: None,
                     },
                 ),
@@ -397,9 +399,11 @@ async fn capture_payment_response_update_tracker<F: Clone>(
                             match authorized_amount.cmp(&total_amount_captured) {
                                 Ordering::Greater => enums::AttemptStatus::PartialCharged,
                                 Ordering::Equal => enums::AttemptStatus::Charged,
-                                Ordering::Less => Err(errors::ApiErrorResponse::InvalidDataValue {
-                                    field_name: "capture_amount", //ideally should not come till here
-                                })?,
+                                Ordering::Less => {
+                                    Err(errors::ApiErrorResponse::InvalidDataValue {
+                                        field_name: "capture_amount", //ideally should not come till here
+                                    })?
+                                }
                             }
                         }
                         enums::CaptureStatus::Pending => enums::AttemptStatus::CaptureInitiated,
@@ -408,8 +412,8 @@ async fn capture_payment_response_update_tracker<F: Clone>(
 
                     let payment_attempt_update =
                         storage::PaymentAttemptUpdate::MultipleCaptureResponseUpdate {
-                            status: attempt_status,
-                            multiple_capture_count: capture.capture_sequence,
+                            status: Some(attempt_status),
+                            multiple_capture_count: Some(capture.capture_sequence),
                             succeeded_capture_count: if capture_status
                                 == enums::CaptureStatus::Charged
                             {
@@ -483,12 +487,12 @@ async fn capture_payment_response_update_tracker<F: Clone>(
             .amount_captured
             .get_required_value("amount_captured")?;
         let updated_amount_captured = match capture_status {
-            storage_models::enums::CaptureStatus::Charged => {
+            enums::CaptureStatus::Charged => {
                 Some(payment_data.payment_intent.amount_captured.unwrap_or(0) + new_captured_amount)
             }
-            storage_models::enums::CaptureStatus::Started
-            | storage_models::enums::CaptureStatus::Pending
-            | storage_models::enums::CaptureStatus::Failure => None,
+            enums::CaptureStatus::Started
+            | enums::CaptureStatus::Pending
+            | enums::CaptureStatus::Failure => None,
         };
         let payment_intent_update = match &router_data.response {
             Err(_) => None,
@@ -545,6 +549,7 @@ async fn payment_response_update_tracker<F: Clone, T: Capturable>(
             types::PaymentsResponseData::PreProcessingResponse {
                 pre_processing_id,
                 connector_metadata,
+                connector_response_reference_id,
                 ..
             } => {
                 let connector_transaction_id = match pre_processing_id.to_owned() {
@@ -565,6 +570,7 @@ async fn payment_response_update_tracker<F: Clone, T: Capturable>(
                     connector_metadata,
                     preprocessing_step_id,
                     connector_transaction_id,
+                    connector_response_reference_id,
                 };
 
                 (Some(payment_attempt_update), None)
@@ -573,6 +579,7 @@ async fn payment_response_update_tracker<F: Clone, T: Capturable>(
                 resource_id,
                 redirection_data,
                 connector_metadata,
+                connector_response_reference_id,
                 ..
             } => {
                 let connector_transaction_id = match resource_id {
@@ -616,6 +623,7 @@ async fn payment_response_update_tracker<F: Clone, T: Capturable>(
                     error_code: error_status.clone(),
                     error_message: error_status.clone(),
                     error_reason: error_status,
+                    connector_response_reference_id,
                 };
 
                 let connector_response_update = storage::ConnectorResponseUpdate::ResponseUpdate {
@@ -633,6 +641,7 @@ async fn payment_response_update_tracker<F: Clone, T: Capturable>(
             types::PaymentsResponseData::TransactionUnresolvedResponse {
                 resource_id,
                 reason,
+                connector_response_reference_id,
             } => {
                 let connector_transaction_id = match resource_id {
                     types::ResponseId::NoResponseId => None,
@@ -648,6 +657,7 @@ async fn payment_response_update_tracker<F: Clone, T: Capturable>(
                         error_code: Some(reason.clone().map(|cd| cd.code)),
                         error_message: Some(reason.clone().map(|cd| cd.message)),
                         error_reason: Some(reason.map(|cd| cd.message)),
+                        connector_response_reference_id,
                     }),
                     None,
                 )

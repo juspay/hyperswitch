@@ -93,7 +93,7 @@ where
                                 errors::StorageError::DatabaseError(err) => match err
                                     .current_context()
                                 {
-                                    storage_models::errors::DatabaseError::NotFound => {
+                                    diesel_models::errors::DatabaseError::NotFound => {
                                         let pm_metadata =
                                             create_payment_method_metadata(None, connector_token)?;
                                         payment_methods::cards::create_payment_method(

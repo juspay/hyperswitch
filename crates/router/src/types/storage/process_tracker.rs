@@ -1,9 +1,9 @@
-use error_stack::ResultExt;
-use serde::Serialize;
-pub use storage_models::process_tracker::{
+pub use diesel_models::process_tracker::{
     ProcessData, ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate,
     ProcessTrackerUpdateInternal, SchedulerOptions,
 };
+use error_stack::ResultExt;
+use serde::Serialize;
 use time::PrimitiveDateTime;
 
 use crate::{

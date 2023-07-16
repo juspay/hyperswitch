@@ -74,7 +74,7 @@ impl EventInterface for MockDb {
         event: storage::EventUpdate,
     ) -> CustomResult<storage::Event, errors::StorageError> {
         let mut locked_events = self.events.lock().await;
-        let mut event_to_update = locked_events
+        let event_to_update = locked_events
             .iter_mut()
             .find(|e| e.event_id == event_id)
             .ok_or(errors::StorageError::MockDbError)?;
@@ -95,7 +95,7 @@ impl EventInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
-    use storage_models::enums;
+    use diesel_models::enums;
 
     use crate::{
         db::{events::EventInterface, MockDb},

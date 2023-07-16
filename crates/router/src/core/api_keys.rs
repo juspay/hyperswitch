@@ -1,11 +1,11 @@
 use common_utils::date_time;
+#[cfg(feature = "email")]
+use diesel_models::{api_keys::ApiKey, enums as storage_enums};
 use error_stack::{report, IntoReport, ResultExt};
 #[cfg(feature = "kms")]
 use external_services::kms;
 use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
-#[cfg(feature = "email")]
-use storage_models::{api_keys::ApiKey, enums as storage_enums};
 
 #[cfg(feature = "email")]
 use crate::types::storage::enums;
@@ -135,6 +135,18 @@ pub async fn create_api_key(
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
     let store = &*state.store;
+    // We are not fetching merchant account as the merchant key store is needed to search for a
+    // merchant account.
+    // Instead, we're only fetching merchant key store, as it is sufficient to identify
+    // non-existence of a merchant account.
+    store
+        .get_merchant_key_store_by_merchant_id(
+            merchant_id.as_str(),
+            &store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
     let hash_key = get_hash_key(
         api_key_config,
         #[cfg(feature = "kms")]

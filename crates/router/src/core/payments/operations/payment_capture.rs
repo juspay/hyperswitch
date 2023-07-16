@@ -135,16 +135,16 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             })
             .await
             .transpose()?;
- 
-        let capture = match payment_attempt.capture_method{
-            Some(enums::CaptureMethod::ManualMultiple)=>{
+
+        let capture = match payment_attempt.capture_method {
+            Some(enums::CaptureMethod::ManualMultiple) => {
                 let new_capture = Self::create_capture(state, &payment_attempt, storage_scheme)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to create capture in DB")?;
                 Some(new_capture)
-            },
-            _ => None
+            }
+            _ => None,
         };
 
         Ok((
@@ -169,6 +169,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 payment_method_data: None,
                 refunds: vec![],
                 disputes: vec![],
+                attempts: None,
                 connector_response,
                 sessions_token: vec![],
                 card_cvc: None,

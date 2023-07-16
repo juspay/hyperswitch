@@ -5,12 +5,12 @@ use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
 };
+use diesel_models::{enums, payment_intent};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
 use router_env::{instrument, logger, tracing};
-use storage_models::{enums, payment_intent};
 use time::Duration;
 use uuid::Uuid;
 
@@ -37,7 +37,6 @@ use crate::{
             types::{self, AsyncLift},
         },
         storage::{self, enums as storage_enums, ephemeral_key, CustomerUpdate::Update},
-        transformers::ForeignInto,
         ErrorResponse, RouterData,
     },
     utils::{
@@ -76,7 +75,7 @@ pub fn create_identity_from_certificate_and_key(
 
 pub fn filter_mca_based_on_business_details(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    payment_intent: Option<&storage_models::payment_intent::PaymentIntent>,
+    payment_intent: Option<&diesel_models::payment_intent::PaymentIntent>,
 ) -> Vec<domain::MerchantConnectorAccount> {
     if let Some(payment_intent) = payment_intent {
         merchant_connector_accounts
@@ -284,8 +283,8 @@ pub async fn get_token_pm_type_mandate_details(
                 .get_required_value("mandate_data")?;
             Ok((
                 request.payment_token.to_owned(),
-                request.payment_method.map(ForeignInto::foreign_into),
-                request.payment_method_type.map(ForeignInto::foreign_into),
+                request.payment_method,
+                request.payment_method_type,
                 Some(setup_mandate),
                 None,
             ))
@@ -296,16 +295,15 @@ pub async fn get_token_pm_type_mandate_details(
             Ok((
                 token_,
                 payment_method_,
-                payment_method_type_
-                    .or_else(|| request.payment_method_type.map(ForeignInto::foreign_into)),
+                payment_method_type_.or(request.payment_method_type),
                 None,
                 mandate_connector,
             ))
         }
         None => Ok((
             request.payment_token.to_owned(),
-            request.payment_method.map(ForeignInto::foreign_into),
-            request.payment_method_type.map(ForeignInto::foreign_into),
+            request.payment_method,
+            request.payment_method_type,
             request.mandate_data.clone(),
             None,
         )),
@@ -357,15 +355,10 @@ pub async fn get_token_for_recurring_mandate(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let token = Uuid::new_v4().to_string();
-    let locker_id = merchant_account
-        .locker_id
-        .to_owned()
-        .get_required_value("locker_id")?;
-    if let storage_models::enums::PaymentMethod::Card = payment_method.payment_method {
-        let _ =
-            cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
+    if let diesel_models::enums::PaymentMethod::Card = payment_method.payment_method {
+        let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method).await?;
         if let Some(payment_method_from_request) = req.payment_method {
-            let pm: storage_enums::PaymentMethod = payment_method_from_request.foreign_into();
+            let pm: storage_enums::PaymentMethod = payment_method_from_request;
             if pm != payment_method.payment_method {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                     message:
@@ -722,7 +715,7 @@ pub fn verify_mandate_details(
     utils::when(
         mandate
             .mandate_currency
-            .map(|mandate_currency| mandate_currency != request_currency.foreign_into())
+            .map(|mandate_currency| mandate_currency != request_currency)
             .unwrap_or(false),
         || {
             Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
@@ -823,8 +816,8 @@ pub(crate) async fn get_payment_method_create_request(
                     };
                     let customer_id = customer.customer_id.clone();
                     let payment_method_request = api::PaymentMethodCreate {
-                        payment_method: payment_method.foreign_into(),
-                        payment_method_type: payment_method_type.map(ForeignInto::foreign_into),
+                        payment_method,
+                        payment_method_type,
                         payment_method_issuer: card.card_issuer.clone(),
                         payment_method_issuer_code: None,
                         card: Some(card_detail),
@@ -839,8 +832,8 @@ pub(crate) async fn get_payment_method_create_request(
                 }
                 _ => {
                     let payment_method_request = api::PaymentMethodCreate {
-                        payment_method: payment_method.foreign_into(),
-                        payment_method_type: payment_method_type.map(ForeignInto::foreign_into),
+                        payment_method,
+                        payment_method_type,
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
                         card: None,
@@ -1435,6 +1428,7 @@ pub fn get_handle_response_url(
         merchant_account,
         redirection_response,
         payments_return_url,
+        response.client_secret.as_ref(),
     )
     .attach_printable("Failed to make merchant url with response")?;
 
@@ -1445,6 +1439,7 @@ pub fn make_merchant_url_with_response(
     merchant_account: &domain::MerchantAccount,
     redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
+    client_secret: Option<&masking::Secret<String>>,
 ) -> RouterResult<String> {
     // take return url if provided in the request else use merchant return url
     let url = request_return_url
@@ -1453,14 +1448,20 @@ pub fn make_merchant_url_with_response(
 
     let status_check = redirection_response.status;
 
-    let payment_intent_id = redirection_response.payment_id;
+    let payment_client_secret = client_secret
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Expected client secret to be `Some`")?;
 
     let merchant_url_with_response = if merchant_account.redirect_to_merchant_with_http_post {
         url::Url::parse_with_params(
             url,
             &[
                 ("status", status_check.to_string()),
-                ("payment_intent_client_secret", payment_intent_id),
+                (
+                    "payment_intent_client_secret",
+                    payment_client_secret.peek().to_string(),
+                ),
             ],
         )
         .into_report()
@@ -1472,7 +1473,10 @@ pub fn make_merchant_url_with_response(
             url,
             &[
                 ("status", status_check.to_string()),
-                ("payment_intent_client_secret", payment_intent_id),
+                (
+                    "payment_intent_client_secret",
+                    payment_client_secret.peek().to_string(),
+                ),
                 ("amount", amount.to_string()),
             ],
         )
@@ -1648,14 +1652,14 @@ pub fn generate_mandate(
                 match data.mandate_type.get_required_value("mandate_type")? {
                     api::MandateType::SingleUse(data) => new_mandate
                         .set_mandate_amount(Some(data.amount))
-                        .set_mandate_currency(Some(data.currency.foreign_into()))
+                        .set_mandate_currency(Some(data.currency))
                         .set_mandate_type(storage_enums::MandateType::SingleUse)
                         .to_owned(),
 
                     api::MandateType::MultiUse(op_data) => match op_data {
                         Some(data) => new_mandate
                             .set_mandate_amount(Some(data.amount))
-                            .set_mandate_currency(Some(data.currency.foreign_into()))
+                            .set_mandate_currency(Some(data.currency))
                             .set_start_date(data.start_date)
                             .set_end_date(data.end_date)
                             .set_metadata(data.metadata),
@@ -2055,6 +2059,13 @@ impl MerchantConnectorAccountType {
             Self::CacheVal(_) => false,
         }
     }
+
+    pub fn is_test_mode_on(&self) -> Option<bool> {
+        match self {
+            Self::DbVal(val) => val.test_mode,
+            Self::CacheVal(_) => None,
+        }
+    }
 }
 
 pub async fn get_merchant_connector_account(
@@ -2151,6 +2162,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         preprocessing_id: router_data.preprocessing_id,
         multiple_capture_status: router_data.multiple_capture_status,
         connector_request_reference_id: router_data.connector_request_reference_id,
+        test_mode: router_data.test_mode,
     }
 }
 
@@ -2302,6 +2314,7 @@ impl AttemptType {
             error_reason: None,
             multiple_capture_count: None,
             succeeded_capture_count: None,
+            connector_response_reference_id: None,
         }
     }
 
@@ -2484,10 +2497,7 @@ pub async fn get_additional_payment_data(
                     .map(
                         |card_info| api_models::payments::AdditionalPaymentData::Card {
                             card_issuer: card_info.card_issuer,
-                            card_network: card_info
-                                .card_network
-                                .clone()
-                                .map(|network| network.foreign_into()),
+                            card_network: card_info.card_network.clone(),
                             bank_code: card_info.bank_code,
                             card_type: card_info.card_type,
                             card_issuing_country: card_info.card_issuing_country,

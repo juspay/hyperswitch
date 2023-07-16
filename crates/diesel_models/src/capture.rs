@@ -86,7 +86,7 @@ pub struct CaptureUpdateInternal {
     pub error_reason: Option<Option<String>>,
     pub modified_at: Option<PrimitiveDateTime>,
     pub capture_sequence: Option<i16>,
-    pub connector_transaction_id: Option<String>
+    pub connector_transaction_id: Option<String>,
 }
 
 impl CaptureUpdate {
