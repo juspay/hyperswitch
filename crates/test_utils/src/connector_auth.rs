@@ -27,7 +27,7 @@ pub struct ConnectorAuthentication {
     pub globalpay: Option<BodyKey>,
     pub globepay: Option<BodyKey>,
     pub iatapay: Option<SignatureKey>,
-    pub mollie: Option<HeaderKey>,
+    pub mollie: Option<BodyKey>,
     pub multisafepay: Option<HeaderKey>,
     pub nexinets: Option<BodyKey>,
     pub noon: Option<SignatureKey>,
