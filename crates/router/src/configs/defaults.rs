@@ -753,7 +753,7 @@ impl Default for super::settings::RequiredFields {
                             (
                                 enums::Connector::Worldline,
                                 vec![RequiredFieldInfo {
-                                    required_field: "payment_method_datacard.card_holder_name".to_string(),
+                                    required_field: "payment_method_data.card.card_holder_name".to_string(),
                                     display_name: "card_holder_name".to_string(),
                                     field_type: enums::FieldType::UserFullName,
                                 }],
