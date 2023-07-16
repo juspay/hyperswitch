@@ -291,7 +291,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     }
 }
 
-fn is_mutiple_capture_request(
+fn is_multiple_capture_request(
     multiple_capture_status: Option<enums::CaptureStatus>,
     capture: Option<storage::Capture>,
     response: Result<types::PaymentsResponseData, types::ErrorResponse>,
@@ -309,7 +309,7 @@ async fn capture_payment_response_update_tracker<F: Clone>(
     router_data: types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<PaymentData<F>> {
-    if let Some((capture_status, capture)) = is_mutiple_capture_request(
+    if let Some((capture_status, capture)) = is_multiple_capture_request(
         router_data.multiple_capture_status,
         payment_data.capture.clone(),
         router_data.response.clone(),
