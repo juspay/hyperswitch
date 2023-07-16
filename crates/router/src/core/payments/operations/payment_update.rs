@@ -66,24 +66,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .map(ForeignInto::foreign_into)
             .or(payment_intent.setup_future_usage);
 
-        if auth_flow == services::AuthFlow::Client && request.customer_id.is_some() {
-            let response = request
-                .clone()
-                .customer_id
-                .and_then(|customer| {
-                    payment_intent
-                        .clone()
-                        .customer_id
-                        .map(|payment_customer| payment_customer != customer)
-                })
-                .unwrap_or_default();
-            if response {
-                return Err(errors::ApiErrorResponse::GenericUnauthorized {
-                    message: "Unauthorised access to update customer".to_string(),
-                }
-                .into());
-            }
-        }
+        helpers::validate_customer_access(&payment_intent, auth_flow, request)?;
 
         helpers::validate_card_data(request.payment_method_data.clone())?;
 
