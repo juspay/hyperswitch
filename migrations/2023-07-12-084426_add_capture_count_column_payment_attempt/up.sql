@@ -6,7 +6,3 @@ ADD COLUMN succeeded_capture_count SMALLINT; --number of succeeded captures avai
 ALTER TABLE captures
 ADD COLUMN connector_transaction_id VARCHAR(128),
 ALTER COLUMN capture_sequence TYPE SMALLINT;
-
-UPDATE payment_attempt
-SET multiple_capture_count = 0, succeeded_capture_count = 0
-WHERE payment_attempt.capture_method = 'manual_multiple';

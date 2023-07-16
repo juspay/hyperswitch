@@ -467,10 +467,10 @@ diesel::table! {
         preprocessing_step_id -> Nullable<Varchar>,
         mandate_details -> Nullable<Jsonb>,
         error_reason -> Nullable<Text>,
-        multiple_capture_count -> Nullable<Int2>,
-        succeeded_capture_count -> Nullable<Int2>,
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
+        multiple_capture_count -> Nullable<Int2>,
+        succeeded_capture_count -> Nullable<Int2>,
     }
 }
 

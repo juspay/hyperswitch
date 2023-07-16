@@ -57,11 +57,7 @@ jobs:
         shell: bash
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-        run: diesel migration run
-
-      - name: git diff
-        shell: bash
-        run: git diff
+        run: diesel migration run --locked-schema
 
       - name: Verify `diesel migration redo`
         shell: bash
