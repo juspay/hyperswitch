@@ -2,6 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use api_models::enums::AuthenticationType;
 use common_utils::ext_traits::ValueExt;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
@@ -168,9 +169,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let endpoint = match req.request.is_auto_capture()? {
+        let mut endpoint = match req.request.is_auto_capture()? {
             true => "sale",
             false => "auth",
+        }
+        .to_string();
+        // 3ds payments uses different endpoints
+        if req.auth_type == AuthenticationType::ThreeDs {
+            endpoint.insert_str(0, "spi/")
         };
         Ok(format!("{}{endpoint}", self.base_url(connectors)))
     }
@@ -279,11 +285,12 @@ impl
             })?
             .parse_value("PowerTranz RedirectResponsePayload")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let powertranz_req = types::RequestBody::log_and_get_request_body(
-            &redirect_payload.spi_token,
-            utils::Encode::<powertranz::PowertranzPaymentsRequest>::url_encode,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let spi_token = format!("\"{}\"", redirect_payload.spi_token);
+        let powertranz_req =
+            types::RequestBody::log_and_get_request_body(&spi_token, |spi_token| {
+                Ok(spi_token.to_string())
+            })
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(powertranz_req))
     }
 

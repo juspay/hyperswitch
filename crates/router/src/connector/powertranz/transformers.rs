@@ -333,7 +333,7 @@ impl<F, T>
 }
 
 fn is_3ds_payment(response_code: String) -> bool {
-    matches!(response_code.as_str(), "3D4" | "3D5" | "3D6")
+    matches!(response_code.as_str(), "SP4")
 }
 
 // Type definition for Capture, Void, Refund Request
