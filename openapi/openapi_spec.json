@@ -4115,10 +4115,26 @@
             ]
           },
           {
-            "type": "string",
-            "enum": [
+            "type": "object",
+            "required": [
               "user_address_country"
-            ]
+            ],
+            "properties": {
+              "user_address_country": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           },
           {
             "type": "string",
@@ -4139,10 +4155,48 @@
             ]
           },
           {
-            "type": "string",
-            "enum": [
+            "type": "object",
+            "required": [
               "user_bank"
-            ]
+            ],
+            "properties": {
+              "user_bank": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_currency"
+            ],
+            "properties": {
+              "user_currency": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           },
           {
             "type": "string",
