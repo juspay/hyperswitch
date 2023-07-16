@@ -8,7 +8,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use transformers as powertranz;
 
-use super::utils::PaymentsAuthorizeRequestData;
+use super::utils::{PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData};
 use crate::{
     configs::settings,
     consts,
@@ -271,12 +271,7 @@ impl
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let redirect_payload: powertranz::RedirectResponsePayload = req
             .request
-            .redirect_response
-            .as_ref()
-            .and_then(|res| res.payload.to_owned())
-            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "request.redirect_response.payload",
-            })?
+            .get_redirect_response_payload()?
             .parse_value("PowerTranz RedirectResponsePayload")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let spi_token = format!("\"{}\"", redirect_payload.spi_token);
