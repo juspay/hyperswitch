@@ -247,16 +247,10 @@ impl
 {
     fn get_headers(
         &self,
-        _req: &types::PaymentsCompleteAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let headers = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PaymentsCompleteAuthorizeType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
-        Ok(headers)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {

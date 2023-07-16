@@ -231,19 +231,7 @@ pub struct PowertranzBaseResponse {
     original_trxn_identifier: Option<String>,
     errors: Option<Vec<Error>>,
     iso_response_code: String,
-    risk_management: Option<RiskManagement>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct RiskManagement {
-    three_d_secure: ThreeDSecureResponse,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct ThreeDSecureResponse {
-    redirect_data: String,
+    redirect_data: Option<String>,
 }
 
 impl ForeignFrom<(u8, bool, bool)> for enums::AttemptStatus {
@@ -305,9 +293,9 @@ impl<F, T>
             .unwrap_or(item.response.transaction_identifier);
         let redirection_data =
             item.response
-                .risk_management
-                .map(|risk_management| services::RedirectForm::Html {
-                    html_data: risk_management.three_d_secure.redirect_data,
+                .redirect_data
+                .map(|redirect_data| services::RedirectForm::Html {
+                    html_data: redirect_data,
                 });
         let response = error_response.map_or(
             Ok(types::PaymentsResponseData::TransactionResponse {
