@@ -1739,10 +1739,10 @@
           }
         }
       },
-      "AliPay": {
+      "AliPayHkRedirection": {
         "type": "object"
       },
-      "AliPayHkRedirection": {
+      "AliPayQr": {
         "type": "object"
       },
       "AliPayRedirection": {
@@ -2334,6 +2334,17 @@
                     "nullable": true
                   }
                 }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bizum"
+            ],
+            "properties": {
+              "bizum": {
+                "type": "object"
               }
             }
           },
@@ -4846,6 +4857,11 @@
             "example": 900,
             "nullable": true,
             "minimum": 0.0
+          },
+          "organization_id": {
+            "type": "string",
+            "description": "The id of the organization to which the merchant belongs to",
+            "nullable": true
           }
         }
       },
@@ -4990,6 +5006,11 @@
             "type": "integer",
             "format": "int64",
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+            "nullable": true
+          },
+          "organization_id": {
+            "type": "string",
+            "description": "The organization id merchant is associated with",
             "nullable": true
           }
         }
@@ -6658,6 +6679,7 @@
           "bancontact_card",
           "becs",
           "blik",
+          "bizum",
           "classic",
           "credit",
           "crypto_currency",
@@ -8740,11 +8762,11 @@
           {
             "type": "object",
             "required": [
-              "ali_pay"
+              "ali_pay_qr"
             ],
             "properties": {
-              "ali_pay": {
-                "$ref": "#/components/schemas/AliPay"
+              "ali_pay_qr": {
+                "$ref": "#/components/schemas/AliPayQr"
               }
             }
           },
@@ -8912,10 +8934,24 @@
                 "$ref": "#/components/schemas/WeChatPay"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "we_chat_pay_qr"
+            ],
+            "properties": {
+              "we_chat_pay_qr": {
+                "$ref": "#/components/schemas/WeChatPayQr"
+              }
+            }
           }
         ]
       },
       "WeChatPay": {
+        "type": "object"
+      },
+      "WeChatPayQr": {
         "type": "object"
       },
       "WeChatPayRedirection": {

@@ -581,6 +581,7 @@ pub trait WalletData {
     fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
+    fn get_encoded_wallet_token(&self) -> Result<String, Error>;
 }
 
 impl WalletData for api::WalletData {
@@ -599,6 +600,20 @@ impl WalletData for api::WalletData {
         serde_json::from_str::<T>(self.get_wallet_token()?.peek())
             .into_report()
             .change_context(errors::ConnectorError::InvalidWalletToken)
+    }
+
+    fn get_encoded_wallet_token(&self) -> Result<String, Error> {
+        match self {
+            Self::GooglePay(_) => {
+                let json_token: serde_json::Value = self.get_wallet_token_as_json()?;
+                let token_as_vec = serde_json::to_vec(&json_token)
+                    .into_report()
+                    .change_context(errors::ConnectorError::InvalidWalletToken)?;
+                let encoded_token = consts::BASE64_ENGINE.encode(token_as_vec);
+                Ok(encoded_token)
+            }
+            _ => Err(errors::ConnectorError::InvalidWalletToken.into()),
+        }
     }
 }
 
