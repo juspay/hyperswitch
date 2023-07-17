@@ -321,6 +321,7 @@ async fn get_tracker_for_sync<
             creds_identifier,
             pm_token: None,
             connector_customer_id: None,
+            recurring_mandate_payment_data: None,
             ephemeral_key: None,
             redirect_response: None,
         },
