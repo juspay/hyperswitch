@@ -249,6 +249,8 @@ pub struct AutomationConfigs {
     pub pypl_pass: Option<String>,
     pub gmail_email: Option<String>,
     pub gmail_pass: Option<String>,
+    pub clearpay_email: Option<String>,
+    pub clearpay_pass: Option<String>,
     pub configs_url: Option<String>,
     pub stripe_pub_key: Option<String>,
     pub testcases_path: Option<String>,
