@@ -1565,6 +1565,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Interac => Self::BankRedirect,
             PaymentMethodType::OnlineBankingCzechRepublic => Self::BankRedirect,
             PaymentMethodType::OnlineBankingFinland => Self::BankRedirect,
+            PaymentMethodType::OnlineBankingFpx => Self::BankRedirect,
             PaymentMethodType::OnlineBankingPoland => Self::BankRedirect,
             PaymentMethodType::OnlineBankingSlovakia => Self::BankRedirect,
             PaymentMethodType::PayBright => Self::PayLater,

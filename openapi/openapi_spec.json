@@ -2139,12 +2139,21 @@
         "description": "Name of banks supported by Hyperswitch",
         "enum": [
           "american_express",
+          "affin_bank",
+          "agro_bank",
+          "alliance_bank",
+          "am_bank",
           "bank_of_america",
+          "bank_islam",
+          "bank_muamalat",
+          "bank_rakyat",
+          "bank_simpanan_nasional",
           "barclays",
           "blik_p_s_p",
           "capital_one",
           "chase",
           "citi",
+          "cimb_bank",
           "discover",
           "navy_federal_credit_union",
           "pentagon_federal_credit_union",
@@ -2154,8 +2163,11 @@
           "asn_bank",
           "bunq",
           "handelsbanken",
+          "hong_leong_bank",
+          "hsbc_bank",
           "ing",
           "knab",
+          "kuwait_finance_house",
           "moneyou",
           "rabobank",
           "regiobank",
@@ -2191,15 +2203,20 @@
           "komercni_banka",
           "m_bank",
           "marchfelder_bank",
+          "maybank",
           "oberbank_ag",
           "osterreichische_arzte_und_apothekerbank",
+          "ocbc_bank",
           "pay_with_i_n_g",
           "place_z_i_p_k_o",
           "platnosc_online_karta_platnicza",
           "posojilnica_bank_e_gen",
           "postova_banka",
+          "public_bank",
           "raiffeisen_bankengruppe_osterreich",
+          "rhb_bank",
           "schelhammer_capital_bank_ag",
+          "standard_chartered_bank",
           "schoellerbank_ag",
           "sparda_bank_wien",
           "sporo_pay",
@@ -2209,6 +2226,7 @@
           "volksbank_gruppe",
           "volkskreditbank_ag",
           "vr_bank_braunau",
+          "uob_bank",
           "pay_with_alior_bank",
           "banki_spoldzielcze",
           "pay_with_inteligo",
@@ -2238,26 +2256,7 @@
           "bank_pekao_sa",
           "volkswagen_bank",
           "alior_bank",
-          "boz",
-          "affin_bank",
-          "agro_bank",
-          "alliance_bank",
-          "am_bank",
-          "bank_islam",
-          "bank_muamalat",
-          "bank_rakyat",
-          "bank_simpanan_nasional",
-          "cimb_bank",
-          "hong_leong_bank",
-          "hsbc_bank",
-          "kuwait_finance_house",
-          "may_bank",
-          "ocbc_bank",
-          "public_bank",
-          "rhb_bank",
-          "standard_chartered_bank",
-          "uob_bank"
-
+          "boz"
         ]
       },
       "BankRedirectBilling": {
@@ -2609,16 +2608,16 @@
           {
             "type": "object",
             "required": [
-              "OnlineBankingFpx"
+              "online_banking_fpx"
             ],
             "properties": {
-              "OnlineBankingFpx": {
+              "online_banking_fpx": {
                 "type": "object",
                 "required": [
-                  "country"
+                  "issuer"
                 ],
                 "properties": {
-                  "bank_name": {
+                  "issuer": {
                     "$ref": "#/components/schemas/BankNames"
                   }
                 }
@@ -6550,9 +6549,9 @@
           "multibanco",
           "online_banking_czech_republic",
           "online_banking_finland",
+          "online_banking_fpx",
           "online_banking_poland",
           "online_banking_slovakia",
-          "online_banking_fpx",
           "pay_bright",
           "paypal",
           "przelewy24",
