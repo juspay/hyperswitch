@@ -230,6 +230,23 @@ async fn should_make_adyen_bizum_payment(web_driver: WebDriver) -> Result<(), We
     Ok(())
 }
 
+async fn should_make_adyen_clearpay_payment(driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_clearpay_payment(
+        driver,
+        &format!("{CHEKOUT_BASE_URL}/saved/163"),
+        vec![
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=succeeded"],
+            )),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
 async fn should_make_adyen_paypal_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
     conn.make_paypal_payment(
@@ -549,6 +566,12 @@ fn should_make_adyen_alipay_hk_payment_test() {
 #[serial]
 fn should_make_adyen_bizum_payment_test() {
     tester!(should_make_adyen_bizum_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_clearpay_payment_test() {
+    tester!(should_make_adyen_clearpay_payment);
 }
 
 #[test]
