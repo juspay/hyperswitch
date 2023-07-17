@@ -4347,6 +4347,9 @@
           "on_session"
         ]
       },
+      "GoPayRedirection": {
+        "type": "object"
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -6801,6 +6804,7 @@
           "evoucher",
           "giropay",
           "google_pay",
+          "go_pay",
           "ideal",
           "interac",
           "klarna",
@@ -8902,6 +8906,17 @@
             "properties": {
               "ali_pay_hk_redirect": {
                 "$ref": "#/components/schemas/AliPayHkRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "go_pay_redirect"
+            ],
+            "properties": {
+              "go_pay_redirect": {
+                "$ref": "#/components/schemas/GoPayRedirection"
               }
             }
           },
