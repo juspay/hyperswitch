@@ -11,6 +11,17 @@ pub fn generate_hscan_pattern_for_refund(sk: &str) -> String {
         .join("_")
 }
 
+#[cfg(feature = "kv_store")]
+/// Generates hscan field pattern. Suppose the field is pa_1234 it will generate
+/// pa_*
+pub fn generate_hscan_pattern_for_attempt(sk: &str) -> String {
+    sk.split('_')
+        .take(1)
+        .chain(["*"])
+        .collect::<Vec<&str>>()
+        .join("_")
+}
+
 // The first argument should be a future while the second argument should be a closure that returns a future for a database call
 pub async fn try_redis_get_else_try_database_get<F, RFut, DFut, T>(
     redis_fut: RFut,
