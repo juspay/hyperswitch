@@ -53,7 +53,7 @@ impl OutgoingWebhookType for StripeOutgoingWebhook {
             )
             .change_context(errors::WebhooksFlowError::OutgoingWebhookSigningFailed)
             .attach_printable("Failed to sign the message")?,
-        ); // should i hex encode this ? or else how to convert to string , from_utf8 is giving error
+        );
 
         let t = timestamp;
         Ok(Some(format!("t={t},v1={v1}")))
