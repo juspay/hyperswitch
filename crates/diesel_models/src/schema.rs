@@ -224,6 +224,30 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    fraud_check (id) {
+        id -> Int4,
+        frm_id -> Varchar,
+        payment_id -> Varchar,
+        merchant_id -> Varchar,
+        attempt_id -> Varchar,
+        created_at -> Timestamp,
+        frm_name -> Varchar,
+        frm_transaction_id -> Nullable<Varchar>,
+        frm_transaction_type -> FraudCheckType,
+        frm_status -> FraudCheckStatus,
+        frm_score -> Nullable<Int4>,
+        frm_reason -> Nullable<Jsonb>,
+        frm_error -> Nullable<Varchar>,
+        payment_details -> Nullable<Jsonb>,
+        metadata -> Nullable<Jsonb>,
+        modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     locker_mock_up (id) {
         id -> Int4,
         #[max_length = 255]
@@ -625,6 +649,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     dispute,
     events,
     file_metadata,
+    fraud_check,
     locker_mock_up,
     mandate,
     merchant_account,
