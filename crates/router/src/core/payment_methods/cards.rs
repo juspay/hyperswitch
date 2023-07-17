@@ -1507,8 +1507,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     customer_id: Option<&str>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
-    if customer_id.is_some() {
-        let customer_id = customer_id.ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
+    if let Some(customer_id) = customer_id {
         list_customer_payment_method(state, merchant_account, key_store, None, customer_id).await
     } else {
         let cloned_secret = req.and_then(|r| r.client_secret.as_ref().cloned());
