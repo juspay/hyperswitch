@@ -1518,8 +1518,8 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
         )
         .await?;
         let customer_id = payment_intent
-            .clone()
-            .and_then(|intent| (intent.customer_id))
+            .as_ref()
+            .and_then(|intent| (intent.customer_id.to_owned()))
             .ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
         list_customer_payment_method(
             state,
@@ -1591,7 +1591,7 @@ pub async fn list_customer_payment_method(
         let current_datetime_utc = common_utils::date_time::now();
         let time_eslapsed = current_datetime_utc
             - payment_intent
-                .clone()
+                .as_ref()
                 .map(|intent| intent.created_at)
                 .unwrap_or_else(|| current_datetime_utc);
         redis_conn
