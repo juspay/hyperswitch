@@ -2,8 +2,8 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
-use storage_models::enums;
 use transformers as dummyconnector;
 
 use super::utils::RefundsRequestData;

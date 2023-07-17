@@ -207,7 +207,7 @@ pub async fn trigger_refund_to_gateway(
             refund_error_code: Some(err.code),
         },
         Ok(response) => {
-            if response.refund_status == storage_models::enums::RefundStatus::Success {
+            if response.refund_status == diesel_models::enums::RefundStatus::Success {
                 metrics::SUCCESSFUL_REFUND.add(
                     &metrics::CONTEXT,
                     1,
@@ -344,7 +344,7 @@ pub async fn refund_retrieve_core(
     Ok(response)
 }
 
-fn should_call_refund(refund: &storage_models::refund::Refund, force_sync: bool) -> bool {
+fn should_call_refund(refund: &diesel_models::refund::Refund, force_sync: bool) -> bool {
     // This implies, we cannot perform a refund sync & `the connector_refund_id`
     // doesn't exist
     let predicate1 = refund.connector_refund_id.is_some();
@@ -354,7 +354,7 @@ fn should_call_refund(refund: &storage_models::refund::Refund, force_sync: bool)
     let predicate2 = force_sync
         || !matches!(
             refund.refund_status,
-            storage_models::enums::RefundStatus::Failure
+            diesel_models::enums::RefundStatus::Failure
         );
 
     predicate1 && predicate2
@@ -700,7 +700,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             refund_id: refund.refund_id,
             amount: refund.refund_amount,
             currency: refund.currency.to_string(),
-            reason: refund.description,
+            reason: refund.refund_reason,
             status: refund.refund_status.foreign_into(),
             metadata: refund.metadata,
             error_message: refund.refund_error_message,
