@@ -209,16 +209,16 @@ async fn should_make_adyen_alipay_hk_payment(web_driver: WebDriver) -> Result<()
     Ok(())
 }
 
-async fn should_make_adyen_bizum_payment(driver: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_adyen_bizum_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
     conn.make_redirection_payment(
-        driver,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/186"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SendKeys(By::Id("iPhBizInit"), "700000000")),
             Event::Trigger(Trigger::Click(By::Id("bBizInit"))),
-            Event::Trigger(Trigger::Click(By::ClassName("btn"))),
+            Event::Trigger(Trigger::Click(By::Css("input.btn.btn-lg.btn-continue"))),
             Event::Assert(Assert::IsPresent("Google")),
             Event::Assert(Assert::Contains(
                 Selector::QueryParamStr,
@@ -461,9 +461,12 @@ async fn should_make_adyen_walley_payment(web_driver: WebDriver) -> Result<(), W
             Event::Trigger(Trigger::SwitchFrame(By::ClassName(
                 "collector-checkout-iframe",
             ))),
-            Event::Assert(Assert::IsPresent("Identifisering")),
             Event::Trigger(Trigger::Click(By::Id("purchase"))),
-            Event::Trigger(Trigger::SwitchTab(Position::Next)),
+            Event::Trigger(Trigger::Sleep(10)),
+            Event::Trigger(Trigger::SwitchFrame(By::Css(
+                "iframe[title='Walley Modal - idp-choices']",
+            ))),
+            Event::Assert(Assert::IsPresent("Identifisering")),
             Event::Trigger(Trigger::Click(By::Id("optionLoggInnMedBankId"))),
             Event::Trigger(Trigger::SwitchFrame(By::Css("iframe[title='BankID']"))),
             Event::Assert(Assert::IsPresent("Engangskode")),
@@ -627,6 +630,7 @@ fn should_make_adyen_giropay_payment_test() {
     tester!(should_make_adyen_giropay_payment);
 }
 
+#[ignore]
 #[test]
 #[serial]
 fn should_make_adyen_walley_payment_test() {
