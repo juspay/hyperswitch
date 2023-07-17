@@ -204,6 +204,10 @@ pub struct RouterData<Flow, Request, Response> {
 
     /// Contains any error response that the connector returns.
     pub payment_method_id: Option<String>,
+
+    /// Contains a reference ID that should be sent in the connector request
+    pub connector_request_reference_id: String,
+    pub test_mode: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -264,6 +268,7 @@ pub struct ConnectorCustomerData {
 #[derive(Debug, Clone)]
 pub struct PaymentMethodTokenizationData {
     pub payment_method_data: payments::PaymentMethodData,
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[derive(Debug, Clone)]
@@ -405,6 +410,7 @@ pub enum PaymentsResponseData {
         mandate_reference: Option<MandateReference>,
         connector_metadata: Option<serde_json::Value>,
         network_txn_id: Option<String>,
+        connector_response_reference_id: Option<String>,
     },
     SessionResponse {
         session_token: api::SessionToken,
@@ -416,6 +422,7 @@ pub enum PaymentsResponseData {
         resource_id: ResponseId,
         //to add more info on cypto response, like `unresolved` reason(overpaid, underpaid, delayed)
         reason: Option<api::enums::UnresolvedResponseReason>,
+        connector_response_reference_id: Option<String>,
     },
     TokenizationResponse {
         token: String,
@@ -433,6 +440,7 @@ pub enum PaymentsResponseData {
         pre_processing_id: PreprocessingResponseId,
         connector_metadata: Option<serde_json::Value>,
         session_token: Option<api::SessionToken>,
+        connector_response_reference_id: Option<String>,
     },
 }
 
@@ -812,6 +820,8 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_method_token: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
+            connector_request_reference_id: data.connector_request_reference_id.clone(),
+            test_mode: data.test_mode,
         }
     }
 }

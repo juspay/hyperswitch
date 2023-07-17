@@ -9,11 +9,11 @@ pub mod transformers;
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
 use common_utils::pii;
+use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
 use router_env::{instrument, tracing};
-use storage_models::ephemeral_key;
 use time;
 
 pub use self::operations::{
@@ -28,10 +28,7 @@ use self::{
 use super::errors::StorageErrorExt;
 use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
-    core::{
-        errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::vault,
-    },
+    core::errors::{self, CustomResult, RouterResponse, RouterResult},
     db::StorageInterface,
     logger,
     routes::{metrics, AppState},
@@ -198,11 +195,6 @@ where
                 .await?
             }
         };
-
-        if should_delete_pm_from_locker(payment_data.payment_intent.status) {
-            vault::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token)
-                .await
-        }
     } else {
         (_, payment_data) = operation
             .to_update_tracker()?
@@ -450,7 +442,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             // If the status is terminal status, then redirect to merchant return url to provide status
             api_models::enums::IntentStatus::Succeeded
             | api_models::enums::IntentStatus::Failed
-            | api_models::enums::IntentStatus::Cancelled | api_models::enums::IntentStatus::RequiresCapture=> helpers::get_handle_response_url(
+            | api_models::enums::IntentStatus::Cancelled | api_models::enums::IntentStatus::RequiresCapture| api_models::enums::IntentStatus::Processing=> helpers::get_handle_response_url(
                 payment_id,
                 &merchant_account,
                 payments_response,
@@ -487,6 +479,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 }
             }),
             client_secret: None,
+            expand_attempts: None,
         };
         payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
             state,
@@ -895,7 +888,7 @@ fn is_payment_method_type_allowed_for_connector(
     current_pm_type: &Option<storage::enums::PaymentMethodType>,
     pm_type_filter: Option<PaymentMethodTypeTokenFilter>,
 ) -> bool {
-    match current_pm_type.clone().zip(pm_type_filter) {
+    match (*current_pm_type).zip(pm_type_filter) {
         Some((pm_type, type_filter)) => match type_filter {
             PaymentMethodTypeTokenFilter::AllAccepted => true,
             PaymentMethodTypeTokenFilter::EnableOnly(enabled) => enabled.contains(&pm_type),
@@ -1089,6 +1082,7 @@ where
     pub payment_method_data: Option<api::PaymentMethodData>,
     pub refunds: Vec<storage::Refund>,
     pub disputes: Vec<storage::Dispute>,
+    pub attempts: Option<Vec<storage::PaymentAttempt>>,
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<Secret<String>>,
     pub email: Option<pii::Email>,
@@ -1186,13 +1180,6 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         "PaymentSession" => true,
         _ => false,
     }
-}
-
-pub fn should_delete_pm_from_locker(status: storage_enums::IntentStatus) -> bool {
-    !matches!(
-        status,
-        storage_models::enums::IntentStatus::RequiresCustomerAction
-    )
 }
 
 pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
