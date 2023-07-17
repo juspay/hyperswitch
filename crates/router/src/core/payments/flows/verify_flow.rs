@@ -69,7 +69,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
             resp.to_owned(),
             maybe_customer,
             merchant_account,
-            self.request.payment_method_type.clone(),
+            self.request.payment_method_type,
         )
         .await?;
 
@@ -183,7 +183,7 @@ impl types::VerifyRouterData {
                 .await
                 .to_verify_failed_response()?;
 
-                let payment_method_type = self.request.payment_method_type.clone();
+                let payment_method_type = self.request.payment_method_type;
                 let pm_id = tokenization::save_payment_method(
                     state,
                     connector,
@@ -206,7 +206,7 @@ impl mandate::MandateBehaviour for types::VerifyRequestData {
         0
     }
 
-    fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage> {
+    fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
         self.setup_future_usage
     }
 
@@ -233,6 +233,7 @@ impl TryFrom<types::VerifyRequestData> for types::PaymentMethodTokenizationData 
     fn try_from(data: types::VerifyRequestData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.payment_method_data,
+            browser_info: None,
         })
     }
 }

@@ -15,7 +15,6 @@ use super::utils::{
 };
 use crate::{
     configs::settings,
-    connector::utils as conn_utils,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -31,6 +30,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        domain,
         storage::enums,
         ErrorResponse, Response,
     },
@@ -499,11 +499,90 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 }
 
+// This session code is not used
 impl api::PaymentSession for Bluesnap {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Bluesnap
 {
+    fn get_headers(
+        &self,
+        req: &types::PaymentsSessionRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::PaymentsSessionRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "services/2/wallets"
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsSessionRouterData,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = bluesnap::BluesnapCreateWalletToken::try_from(req)?;
+        let bluesnap_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<bluesnap::BluesnapCreateWalletToken>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(bluesnap_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsSessionRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsSessionType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsSessionType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsSessionRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
+        let response: bluesnap::BluesnapWalletTokenResponse = res
+            .response
+            .parse_struct("BluesnapWalletTokenResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
 }
 
 impl api::PaymentAuthorize for Bluesnap {}
@@ -599,6 +678,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        connector_response_reference_id: None,
                     }),
                     ..data.clone()
                 })
@@ -907,29 +987,13 @@ impl api::IncomingWebhook for Bluesnap {
         Ok(msg.into_bytes())
     }
 
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
-    }
-
     async fn verify_webhook_source(
         &self,
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
+        connector_label: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(request)
@@ -939,7 +1003,12 @@ impl api::IncomingWebhook for Bluesnap {
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let mut secret = self
-            .get_webhook_source_verification_merchant_secret(db, merchant_id)
+            .get_webhook_source_verification_merchant_secret(
+                db,
+                merchant_id,
+                connector_label,
+                key_store,
+            )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let mut message = self

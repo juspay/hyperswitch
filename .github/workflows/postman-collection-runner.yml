@@ -1,9 +1,9 @@
-name: Postman Collection API test
+name: Postman Collection Runner
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 0,12 * * *' # Run workflow at 6 AM and 6 PM IST
+    - cron: "30 0,12 * * *" # Run workflow at 6 AM and 6 PM IST
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -33,7 +33,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@v2.4.0
+
       - name: Decrypt connector auth file
         env:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
@@ -48,13 +55,14 @@ jobs:
         env:
           ADMIN_API_KEY: ${{ secrets.INTEG_ADMIN_API_KEY }}
           BASE_URL: ${{ secrets.INTEG_BASE_URL }}
-          CONNECTOR_CONFIG_PATH: ${{ env.CONNECTOR_CONFIG_PATH }}
+          CONNECTOR_AUTH_FILE_PATH: ${{ env.CONNECTOR_CONFIG_PATH }}
           GATEWAY_MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
           GPAY_CERTIFICATE: ${{ secrets.STRIPE_GPAY_CERTIFICATE }}
           GPAY_CERTIFICATE_KEYS: ${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
         uses: nick-fields/retry@v2
         with:
-          timeout_minutes: 6
+          timeout_minutes: 30
           max_attempts: 3
           retry_on: error
-          command: ./scripts/postman_test_automation.sh ${{ matrix.connector }}
+          command: |
+            cargo run --package test_utils --bin test_utils -- --connector_name=${{ matrix.connector }} --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY

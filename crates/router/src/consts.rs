@@ -28,3 +28,11 @@ pub(crate) const BASE64_ENGINE_URL_SAFE: base64::engine::GeneralPurpose =
 
 pub(crate) const API_KEY_LENGTH: usize = 64;
 pub(crate) const PUB_SUB_CHANNEL: &str = "hyperswitch_invalidate";
+
+// Apple Pay validation url
+pub(crate) const APPLEPAY_VALIDATION_URL: &str =
+    "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";
+
+// Qr Image data source starts with this string
+// The base64 image data will be appended to it to image data source
+pub(crate) const QR_IMAGE_DATA_SOURCE_STRING: &str = "data:image/png;base64";
