@@ -451,6 +451,7 @@ pub trait ConnectorActions: Connector {
             payout_method_data: info.and_then(|p| p.payout_method_data),
             #[cfg(feature = "payouts")]
             quote_id: None,
+            test_mode: None,
         }
     }
 

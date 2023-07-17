@@ -85,6 +85,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         payout_method_data: None,
         #[cfg(feature = "payouts")]
         quote_id: None,
+        test_mode: None,
     }
 }
 
@@ -134,6 +135,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         payout_method_data: None,
         #[cfg(feature = "payouts")]
         quote_id: None,
+        test_mode: None,
     }
 }
 

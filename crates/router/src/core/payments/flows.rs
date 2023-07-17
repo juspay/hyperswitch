@@ -161,7 +161,6 @@ default_imp_for_complete_authorize!(
     connector::Payeezy,
     connector::Payme,
     connector::Payu,
-    connector::Powertranz,
     connector::Rapyd,
     connector::Stripe,
     connector::Trustpay,

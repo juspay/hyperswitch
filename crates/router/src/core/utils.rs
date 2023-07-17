@@ -123,6 +123,7 @@ pub async fn construct_payout_router_data<'a, F>(
         }),
     };
 
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let payouts = &payout_data.payouts;
     let payout_attempt = &payout_data.payout_attempt;
     let customer_details = &payout_data.customer_details;
@@ -131,7 +132,6 @@ pub async fn construct_payout_router_data<'a, F>(
         .and_then(|c| c.connector_customer.as_ref())
         .and_then(|cc| cc.get("id"))
         .and_then(|id| serde_json::from_value::<String>(id.to_owned()).ok());
-
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.to_owned(),
@@ -179,6 +179,7 @@ pub async fn construct_payout_router_data<'a, F>(
             .to_string(),
         payout_method_data: payout_data.payout_method_data.to_owned(),
         quote_id: None,
+        test_mode,
     };
 
     Ok(router_data)
@@ -232,6 +233,7 @@ pub async fn construct_refund_router_data<'a, F>(
         &merchant_account.merchant_id,
         &connector_id.to_string(),
     ));
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -282,6 +284,7 @@ pub async fn construct_refund_router_data<'a, F>(
         payout_method_data: None,
         #[cfg(feature = "payouts")]
         quote_id: None,
+        test_mode,
     };
 
     Ok(router_data)
@@ -451,6 +454,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -495,6 +499,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         payout_method_data: None,
         #[cfg(feature = "payouts")]
         quote_id: None,
+        test_mode,
     };
     Ok(router_data)
 }
@@ -524,6 +529,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -565,6 +571,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         payout_method_data: None,
         #[cfg(feature = "payouts")]
         quote_id: None,
+        test_mode,
     };
     Ok(router_data)
 }
@@ -590,6 +597,7 @@ pub async fn construct_upload_file_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -636,6 +644,7 @@ pub async fn construct_upload_file_router_data<'a>(
         payout_method_data: None,
         #[cfg(feature = "payouts")]
         quote_id: None,
+        test_mode,
     };
     Ok(router_data)
 }
@@ -665,6 +674,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -709,6 +719,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         payout_method_data: None,
         #[cfg(feature = "payouts")]
         quote_id: None,
+        test_mode,
     };
     Ok(router_data)
 }
@@ -735,6 +746,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -777,6 +789,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         payout_method_data: None,
         #[cfg(feature = "payouts")]
         quote_id: None,
+        test_mode,
     };
     Ok(router_data)
 }

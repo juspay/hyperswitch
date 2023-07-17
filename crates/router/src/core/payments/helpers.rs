@@ -2060,6 +2060,13 @@ impl MerchantConnectorAccountType {
             Self::CacheVal(_) => false,
         }
     }
+
+    pub fn is_test_mode_on(&self) -> Option<bool> {
+        match self {
+            Self::DbVal(val) => val.test_mode,
+            Self::CacheVal(_) => None,
+        }
+    }
 }
 
 pub async fn get_merchant_connector_account(
@@ -2159,6 +2166,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         payout_method_data: None,
         #[cfg(feature = "payouts")]
         quote_id: None,
+        test_mode: router_data.test_mode,
     }
 }
 

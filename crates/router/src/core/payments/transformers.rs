@@ -62,6 +62,8 @@ where
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
     })?;
 
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
+
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -134,6 +136,7 @@ where
         payout_method_data: None,
         #[cfg(feature = "payouts")]
         quote_id: None,
+        test_mode,
     };
 
     Ok(router_data)

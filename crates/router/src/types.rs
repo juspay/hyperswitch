@@ -246,6 +246,8 @@ pub struct RouterData<Flow, Request, Response> {
     #[cfg(feature = "payouts")]
     /// Contains payout method data
     pub quote_id: Option<String>,
+
+    pub test_mode: Option<bool>,
 }
 
 #[cfg(feature = "payouts")]
@@ -334,6 +336,7 @@ pub struct ConnectorCustomerData {
 #[derive(Debug, Clone)]
 pub struct PaymentMethodTokenizationData {
     pub payment_method_data: payments::PaymentMethodData,
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[derive(Debug, Clone)]
@@ -890,6 +893,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             payout_method_data: data.payout_method_data.clone(),
             #[cfg(feature = "payouts")]
             quote_id: data.quote_id.clone(),
+            test_mode: data.test_mode,
         }
     }
 }
@@ -958,6 +962,7 @@ impl<F1, F2>
                 IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW.to_string(),
             payout_method_data: data.payout_method_data.clone(),
             quote_id: data.quote_id.clone(),
+            test_mode: data.test_mode,
         }
     }
 }
