@@ -99,15 +99,6 @@ pub struct ConnectorParamsWithFileUploadUrl {
     pub base_url_file_upload: String,
 }
 
-#[cfg(feature = "s3")]
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
-pub struct FileUploadConfig {
-    /// The AWS region to send file uploads
-    pub region: String,
-    /// The AWS s3 bucket to send file uploads
-    pub bucket_name: String,
-}
 #[cfg(test)]
 mod payment_method_deserialization_test {
     #![allow(clippy::unwrap_used)]

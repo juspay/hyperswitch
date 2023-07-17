@@ -4,10 +4,20 @@ pub use diesel_models::process_tracker as storage;
 
 use crate::errors;
 
-pub type WorkflowSelectorFn<T> =
-    fn(
-        &storage::ProcessTracker,
-    ) -> Result<Option<Box<dyn ProcessTrackerWorkflow<T>>>, errors::ProcessTrackerError>;
+pub type WorkflowSelectorFn =
+    fn(&storage::ProcessTracker) -> Result<(), errors::ProcessTrackerError>;
+
+#[async_trait]
+pub trait ProcessTrackerWorkflows<T>: Send + Sync {
+    // The core execution of the workflow
+    async fn trigger_workflow<'a>(
+        &'a self,
+        _state: &'a T,
+        _process: storage::ProcessTracker,
+    ) -> Result<(), errors::ProcessTrackerError> {
+        Err(errors::ProcessTrackerError::NotImplemented)?
+    }
+}
 
 #[async_trait]
 pub trait ProcessTrackerWorkflow<T>: Send + Sync {

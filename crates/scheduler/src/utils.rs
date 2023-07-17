@@ -249,7 +249,7 @@ pub async fn consumer_operation_handler<E, T: Send + Sync + 'static>(
     settings: sync::Arc<SchedulerSettings>,
     error_handler_fun: E,
     consumer_operation_counter: sync::Arc<atomic::AtomicU64>,
-    workflow_selector: workflows::WorkflowSelectorFn<T>,
+    workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
 ) where
     // Error handler function
     E: FnOnce(error_stack::Report<errors::ProcessTrackerError>),

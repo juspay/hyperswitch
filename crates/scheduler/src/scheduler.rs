@@ -46,7 +46,7 @@ pub async fn start_process_tracker<T: SchedulerAppState + Send + Sync + Clone + 
     scheduler_flow: SchedulerFlow,
     scheduler_settings: Arc<SchedulerSettings>,
     channel: (mpsc::Sender<()>, mpsc::Receiver<()>),
-    runner_from_task: workflows::WorkflowSelectorFn<T>,
+    runner_from_task: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     match scheduler_flow {
         SchedulerFlow::Producer => {

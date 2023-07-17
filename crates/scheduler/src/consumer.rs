@@ -33,7 +33,7 @@ pub fn valid_business_statuses() -> Vec<&'static str> {
 pub async fn start_consumer<T: SchedulerAppState + Send + Sync + Clone + 'static>(
     state: &T,
     settings: sync::Arc<SchedulerSettings>,
-    workflow_selector: workflows::WorkflowSelectorFn<T>,
+    workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
     (tx, mut rx): (mpsc::Sender<()>, mpsc::Receiver<()>),
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     use std::time::Duration;
@@ -107,7 +107,7 @@ pub async fn start_consumer<T: SchedulerAppState + Send + Sync + Clone + 'static
 pub async fn consumer_operations<T: Send + Sync + Clone + 'static>(
     state: &T,
     settings: &SchedulerSettings,
-    workflow_selector: workflows::WorkflowSelectorFn<T>,
+    workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
     T: SchedulerAppState + Send + Sync + Clone + 'static,
@@ -139,12 +139,12 @@ where
         pt_utils::add_histogram_metrics(&pickup_time, task, &stream_name);
 
         metrics::TASK_CONSUMED.add(&metrics::CONTEXT, 1, &[]);
-        let runner = workflow_selector(task)?.ok_or(errors::ProcessTrackerError::UnexpectedFlow)?;
+        // let runner = workflow_selector(task)?.ok_or(errors::ProcessTrackerError::UnexpectedFlow)?;
         handler.push(tokio::task::spawn(start_workflow(
             state.clone(),
             task.clone(),
             pickup_time,
-            runner,
+            workflow_selector,
         )))
     }
     future::join_all(handler).await;
@@ -194,44 +194,52 @@ pub async fn fetch_consumer_tasks(
 }
 
 // Accept flow_options if required
-#[instrument(skip(state, runner), fields(workflow_id))]
+#[instrument(skip(state), fields(workflow_id))]
 pub async fn start_workflow<T>(
     state: T,
     process: storage::ProcessTracker,
     _pickup_time: PrimitiveDateTime,
-    runner: Box<dyn ProcessTrackerWorkflow<T>>,
-) where
+    workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + std::fmt::Debug,
+) -> Result<(), errors::ProcessTrackerError>
+where
     T: SchedulerAppState + Send + Sync + Clone + 'static,
 {
     tracing::Span::current().record("workflow_id", Uuid::new_v4().to_string());
-    run_executor(&state, process, runner).await
+    let res = workflow_selector
+        .trigger_workflow(&state.clone(), process.clone())
+        .await;
+    metrics::TASK_PROCESSED.add(&metrics::CONTEXT, 1, &[]);
+    res
 }
 
-pub async fn run_executor<T: Send + Sync + Clone + 'static>(
-    state: &T,
-    process: storage::ProcessTracker,
-    operation: Box<dyn ProcessTrackerWorkflow<T>>,
-) where
-    T: SchedulerAppState + Send + Sync + Clone + 'static,
-{
-    let output = operation.execute_workflow(state, process.clone()).await;
-    match output {
-        Ok(_) => operation.success_handler(state, process).await,
-        Err(error) => match operation.error_handler(state, process.clone(), error).await {
-            Ok(_) => (),
-            Err(error) => {
-                logger::error!(%error, "Failed while handling error");
-                let status = process
-                    .finish_with_status(state.get_db().as_scheduler(), "GLOBAL_FAILURE".to_string())
-                    .await;
-                if let Err(err) = status {
-                    logger::error!(%err, "Failed while performing database operation: GLOBAL_FAILURE");
-                }
-            }
-        },
-    };
-    metrics::TASK_PROCESSED.add(&metrics::CONTEXT, 1, &[]);
-}
+// pub async fn run_executor<T: Send + Sync + Clone + 'static, F>(
+//     state: &T,
+//     process: storage::ProcessTracker,
+//     workflow_selector: F,
+// ) where
+//     F: Future<Output = T>,
+//     F: Send + std::fmt::Debug + 'static,
+//     T: SchedulerAppState + Send + Sync + Clone + 'static,
+// {
+//     workflow_selector(state, &process).await?;
+//     // let output = operation.execute_workflow(state, process.clone()).await;
+//     // match output {
+//     //     Ok(_) => operation.success_handler(state, process).await,
+//     //     Err(error) => match operation.error_handler(state, process.clone(), error).await {
+//     //         Ok(_) => (),
+//     //         Err(error) => {
+//     //             logger::error!(%error, "Failed while handling error");
+//     //             let status = process
+//     //                 .finish_with_status(state.get_db().as_scheduler(), "GLOBAL_FAILURE".to_string())
+//     //                 .await;
+//     //             if let Err(err) = status {
+//     //                 logger::error!(%err, "Failed while performing database operation: GLOBAL_FAILURE");
+//     //             }
+//     //         }
+//     //     },
+//     // };
+//     metrics::TASK_PROCESSED.add(&metrics::CONTEXT, 1, &[]);
+// }
 
 #[instrument(skip_all)]
 pub async fn consumer_error_handler(
