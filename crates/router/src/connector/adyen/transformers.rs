@@ -3,8 +3,7 @@ use cards::CardNumber;
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use time::PrimitiveDateTime;
-use time::{OffsetDateTime, Duration};
+use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 
 use crate::{
     connector::utils::{
@@ -1789,8 +1788,10 @@ pub fn get_redirection_response(
     ),
     errors::ConnectorError,
 > {
-    let status =
-        storage_enums::AttemptStatus::foreign_from((is_manual_capture, response.result_code.clone()));
+    let status = storage_enums::AttemptStatus::foreign_from((
+        is_manual_capture,
+        response.result_code.clone(),
+    ));
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
         Some(types::ErrorResponse {
             code: response
@@ -1817,7 +1818,11 @@ pub fn get_redirection_response(
         });
         services::RedirectForm::Form {
             endpoint: url.to_string(),
-            method: response.clone().action.method.unwrap_or(services::Method::Get),
+            method: response
+                .clone()
+                .action
+                .method
+                .unwrap_or(services::Method::Get),
             form_fields,
         }
     });
@@ -1842,20 +1847,18 @@ pub struct WaitScreenData {
     display_to: Option<i128>,
 }
 
-pub fn get_connector_metadata(
-    next_action: &AdyenRedirectionAction,
-) -> Option<serde_json::Value> {
+pub fn get_connector_metadata(next_action: &AdyenRedirectionAction) -> Option<serde_json::Value> {
     match next_action.payment_method_type {
         PaymentType::Blik => {
             let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
             Some(serde_json::json!(WaitScreenData {
-            display_from: current_time,
-            display_to: Some(current_time + Duration::minutes(1).whole_nanoseconds())
-        }))},
-        _ => None
-    }         
+                display_from: current_time,
+                display_to: Some(current_time + Duration::minutes(1).whole_nanoseconds())
+            }))
+        }
+        _ => None,
+    }
 }
-
 
 impl<F, Req>
     TryFrom<(

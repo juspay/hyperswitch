@@ -340,10 +340,12 @@ where
                 let next_action_containing_qr_code_url =
                     qr_code_next_steps_check(payment_attempt.clone())?;
 
-                let next_action_containing_wait_screen = wait_screen_next_steps_check(payment_attempt.clone())?;
-                
+                let next_action_containing_wait_screen =
+                    wait_screen_next_steps_check(payment_attempt.clone())?;
+
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
-                    || bank_transfer_next_steps.is_some() || next_action_containing_wait_screen.is_some()
+                    || bank_transfer_next_steps.is_some()
+                    || next_action_containing_wait_screen.is_some()
                 {
                     next_action_response = bank_transfer_next_steps
                         .map(|bank_transfer| {
@@ -578,16 +580,16 @@ pub fn qr_code_next_steps_check(
 pub fn wait_screen_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::WaitScreenInstructions>> {
-    let display_info_with_timer_steps: Option<Result<api_models::payments::WaitScreenInstructions, _>> =
-        payment_attempt
-            .connector_metadata
-            .map(|metadata| metadata.parse_value("WaitScreenInstructions"));
+    let display_info_with_timer_steps: Option<
+        Result<api_models::payments::WaitScreenInstructions, _>,
+    > = payment_attempt
+        .connector_metadata
+        .map(|metadata| metadata.parse_value("WaitScreenInstructions"));
 
-    let display_info_with_timer_instructions = display_info_with_timer_steps.transpose().ok().flatten();
+    let display_info_with_timer_instructions =
+        display_info_with_timer_steps.transpose().ok().flatten();
     Ok(display_info_with_timer_instructions)
 }
-
-
 
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
     fn foreign_from(item: (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {

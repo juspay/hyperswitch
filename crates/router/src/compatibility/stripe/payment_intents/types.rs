@@ -750,8 +750,7 @@ pub enum StripeNextAction {
     WaitScreenInformation {
         display_from: i128,
         display_to: Option<i128>,
-    }
-
+    },
 }
 
 pub(crate) fn into_stripe_next_action(
@@ -778,9 +777,13 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::QrCodeInformation { image_data_url } => {
             StripeNextAction::QrCodeInformation { image_data_url }
         }
-        payments::NextActionData::WaitScreenInformation {display_from , display_to} => {
-            StripeNextAction::WaitScreenInformation {display_from, display_to}
-        }
+        payments::NextActionData::WaitScreenInformation {
+            display_from,
+            display_to,
+        } => StripeNextAction::WaitScreenInformation {
+            display_from,
+            display_to,
+        },
     })
 }
 

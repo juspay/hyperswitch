@@ -1279,7 +1279,7 @@ pub enum NextActionData {
     WaitScreenInformation {
         display_from: i128,
         display_to: Option<i128>,
-    }
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

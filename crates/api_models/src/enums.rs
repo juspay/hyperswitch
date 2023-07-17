@@ -25,31 +25,6 @@ pub enum RoutingAlgorithm {
     Custom,
 }
 
-/// The status of the mandate, which indicates whether it can be used to initiate a payment
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Default,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum MandateStatus {
-    #[default]
-    Active,
-    Inactive,
-    Pending,
-    Revoked,
-}
-
 #[derive(
     Clone,
     Copy,
@@ -368,91 +343,7 @@ pub enum BankNames {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-    ToSchema,
-)]
-pub enum CardNetwork {
-    Visa,
-    Mastercard,
-    AmericanExpress,
-    JCB,
-    DinersClub,
-    Discover,
-    CartesBancaires,
-    UnionPay,
-    Interac,
-    RuPay,
-    Maestro,
-}
-
-#[derive(
-    Clone,
-    Default,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-pub enum DisputeStage {
-    PreDispute,
-    #[default]
-    Dispute,
-    PreArbitration,
-}
-
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-pub enum DisputeStatus {
-    #[default]
-    DisputeOpened,
-    DisputeExpired,
-    DisputeAccepted,
-    DisputeCancelled,
-    DisputeChallenged,
-    // dispute has been successfully challenged by the merchant
-    DisputeWon,
-    // dispute has been unsuccessfully challenged
-    DisputeLost,
-}
-
-#[derive(
-    Clone,
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-    ToSchema,
+    Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString, ToSchema,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
