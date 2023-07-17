@@ -2030,7 +2030,7 @@ pub async fn delete_payment_method(
         if response.status == "SUCCESS" {
             logger::info!("Card From locker deleted Successfully!");
         } else {
-            logger::info!("Error: Deleting Card From Locker!");
+            logger::info!("Error: Deleting Card From Locker! {:#?}", response);
             return Err(errors::ApiErrorResponse::UnprocessableEntity {
                 entity: response.error_message.unwrap_or_default(),
             })?;
