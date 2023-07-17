@@ -14,6 +14,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         api, domain,
         storage::{self, enums},
@@ -163,6 +164,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
         _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
+        _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         PaymentData<F>,
@@ -233,6 +235,19 @@ async fn get_tracker_for_sync<
     )
     .await?;
 
+    let attempts = match request.expand_attempts {
+        Some(true) => {
+            Some(db
+                .find_attempts_by_merchant_id_payment_id(merchant_id, &payment_id_str, storage_scheme)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    format!("Error while retrieving attempt list for, merchant_id: {merchant_id}, payment_id: {payment_id_str}")
+                })?)
+        },
+        _ => None,
+    };
+
     let refunds = db
         .find_refund_by_payment_id_merchant_id(&payment_id_str, merchant_id, storage_scheme)
         .await
@@ -300,6 +315,7 @@ async fn get_tracker_for_sync<
             payment_attempt,
             refunds,
             disputes,
+            attempts,
             sessions_token: vec![],
             card_cvc: None,
             creds_identifier,

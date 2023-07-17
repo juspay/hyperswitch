@@ -4,7 +4,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
+    connector::utils::{self, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -69,7 +69,7 @@ pub struct PayerInfo {
 #[serde(rename_all = "camelCase")]
 pub struct IatapayPaymentsRequest {
     merchant_id: String,
-    amount: i64,
+    amount: f64,
     currency: String,
     country: String,
     locale: String,
@@ -89,9 +89,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
             }
             _ => None,
         };
+        let amount =
+            utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.connector_auth_type)?.merchant_id,
-            amount: item.request.amount,
+            amount,
             currency: item.request.currency.to_string(),
             country: country.clone(),
             locale: format!("en-{}", country),
