@@ -6761,6 +6761,7 @@
           "sofort",
           "swish",
           "trustly",
+          "twint",
           "upi_collect",
           "walley",
           "we_chat_pay"
