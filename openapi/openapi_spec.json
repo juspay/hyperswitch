@@ -518,9 +518,6 @@
         "security": [
           {
             "api_key": []
-          },
-          {
-            "publishable_key": []
           }
         ]
       }
