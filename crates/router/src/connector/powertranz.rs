@@ -274,7 +274,7 @@ impl
             .get_redirect_response_payload()?
             .parse_value("PowerTranz RedirectResponsePayload")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let spi_token = format!(r##""{}""##, redirect_payload.spi_token);
+        let spi_token = format!(r#""{}""#, redirect_payload.spi_token);
         let powertranz_req =
             types::RequestBody::log_and_get_request_body(&spi_token, |spi_token| {
                 Ok(spi_token.to_string())
