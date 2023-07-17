@@ -72,6 +72,7 @@ pub async fn construct_refund_router_data<'a, F>(
         &merchant_account.merchant_id,
         &connector_id.to_string(),
     ));
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -118,6 +119,7 @@ pub async fn construct_refund_router_data<'a, F>(
             &merchant_account.merchant_id,
             payment_attempt,
         ),
+        test_mode,
     };
 
     Ok(router_data)
@@ -270,6 +272,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -310,6 +313,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
             &merchant_account.merchant_id,
             payment_attempt,
         ),
+        test_mode,
     };
     Ok(router_data)
 }
@@ -339,6 +343,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -376,6 +381,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
             &merchant_account.merchant_id,
             payment_attempt,
         ),
+        test_mode,
     };
     Ok(router_data)
 }
@@ -401,6 +407,7 @@ pub async fn construct_upload_file_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -443,6 +450,7 @@ pub async fn construct_upload_file_router_data<'a>(
             &merchant_account.merchant_id,
             payment_attempt,
         ),
+        test_mode,
     };
     Ok(router_data)
 }
@@ -472,6 +480,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -512,6 +521,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
             &merchant_account.merchant_id,
             payment_attempt,
         ),
+        test_mode,
     };
     Ok(router_data)
 }
@@ -538,6 +548,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -576,6 +587,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         preprocessing_id: None,
         connector_request_reference_id: IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW
             .to_string(),
+        test_mode,
     };
     Ok(router_data)
 }
