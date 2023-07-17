@@ -13,6 +13,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         api::{self, PaymentIdTypeExt},
         domain,
@@ -38,6 +39,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
+        _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
         payments::PaymentData<F>,

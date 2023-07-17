@@ -49,6 +49,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     operation: Op,
     req: Req,
     call_connector_action: CallConnectorAction,
+    auth_flow: services::AuthFlow,
 ) -> RouterResult<(PaymentData<F>, Req, Option<domain::Customer>)>
 where
     F: Send + Clone + Sync,
@@ -70,7 +71,6 @@ where
     let operation: BoxedOperation<'_, F, Req> = Box::new(operation);
 
     tracing::Span::current().record("merchant_id", merchant_account.merchant_id.as_str());
-
     let (operation, validate_result) = operation
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
@@ -85,6 +85,7 @@ where
             validate_result.mandate_type.to_owned(),
             &merchant_account,
             &key_store,
+            auth_flow,
         )
         .await?;
 
@@ -246,6 +247,7 @@ where
         operation.clone(),
         req,
         call_connector_action,
+        auth_flow,
     )
     .await?;
 

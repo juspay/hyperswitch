@@ -15,6 +15,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         api::{self, PaymentIdTypeExt},
         domain,
@@ -39,6 +40,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
+        auth_flow: services::AuthFlow,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -62,6 +64,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_intent.setup_future_usage = request
             .setup_future_usage
             .or(payment_intent.setup_future_usage);
+
+        helpers::validate_customer_access(&payment_intent, auth_flow, request)?;
 
         helpers::validate_card_data(request.payment_method_data.clone())?;
 
@@ -548,7 +552,6 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
-
         let given_payment_id = match &request.payment_id {
             Some(id_type) => Some(
                 id_type
