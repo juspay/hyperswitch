@@ -590,6 +590,7 @@ pub enum PaymentMethodType {
     Trustly,
     Twint,
     UpiCollect,
+    Vipps,
     Walley,
     WeChatPay,
 }
