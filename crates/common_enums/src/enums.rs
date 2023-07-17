@@ -560,6 +560,7 @@ pub enum PaymentMethodType {
     BancontactCard,
     Becs,
     Blik,
+    Bizum,
     #[serde(rename = "classic")]
     ClassicReward,
     Credit,

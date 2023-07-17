@@ -1,8 +1,13 @@
+use std::str::FromStr;
+
+use cards::CardNumber;
 use masking::Secret;
 use router::types::{self, api, storage::enums};
-use test_utils::connector_auth;
 
-use crate::utils::{self, ConnectorActions};
+use crate::{
+    connector_auth,
+    utils::{self, ConnectorActions},
+};
 
 #[derive(Clone, Copy)]
 struct TsysTest;
@@ -12,7 +17,7 @@ impl utils::Connector for TsysTest {
         use router::connector::Tsys;
         types::api::ConnectorData {
             connector: Box::new(&Tsys),
-            connector_name: types::Connector::DummyConnector1,
+            connector_name: types::Connector::Tsys,
             get_token: types::api::GetToken::Connector,
         }
     }
@@ -20,7 +25,7 @@ impl utils::Connector for TsysTest {
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         types::ConnectorAuthType::from(
             connector_auth::ConnectorAuthentication::new()
-                .dummyconnector
+                .tsys
                 .expect("Missing connector authentication configuration"),
         )
     }
@@ -37,7 +42,13 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
 }
 
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
-    None
+    Some(types::PaymentsAuthorizeData {
+        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+            card_number: CardNumber::from_str("4111111111111111").unwrap(),
+            ..utils::CCardType::default().0
+        }),
+        ..utils::PaymentAuthorizeType::default().0
+    })
 }
 
 // Cards Positive Tests
@@ -301,7 +312,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_cvc: Secret::new("12345".to_string()),
+                    card_cvc: Secret::new("".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -312,7 +323,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Your card's security code is invalid.".to_string(),
+        "The value of element cvv2 is not valid.".to_string(),
     );
 }
 
@@ -334,7 +345,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Your card's expiration month is invalid.".to_string(),
+        "The value of element 'expirationDate' is not valid., ".to_string(),
     );
 }
 
@@ -345,7 +356,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_exp_year: Secret::new("2000".to_string()),
+                    card_exp_year: Secret::new("abcd".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -356,12 +367,13 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Your card's expiration year is invalid.".to_string(),
+        "The value of element 'expirationDate' is not valid., ".to_string(),
     );
 }
 
 // Voids a payment using automatic capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Connector Refunds the payment on Void call for Auto Captured Payment"]
 async fn should_fail_void_payment_for_auto_capture() {
     let authorize_response = CONNECTOR
         .make_payment(payment_method_details(), get_default_payment_info())
@@ -389,7 +401,7 @@ async fn should_fail_capture_for_invalid_payment() {
         .unwrap();
     assert_eq!(
         capture_response.response.unwrap_err().message,
-        String::from("No such payment_intent: '123456789'")
+        String::from("Record(s) Not Found.")
     );
 }
 
@@ -409,7 +421,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Refund amount (₹1.50) is greater than charge amount (₹1.00)",
+        "Return Not Allowed.",
     );
 }
 

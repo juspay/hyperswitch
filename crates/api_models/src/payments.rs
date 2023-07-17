@@ -947,7 +947,7 @@ pub struct BankDebitBilling {
 #[serde(rename_all = "snake_case")]
 pub enum WalletData {
     /// The wallet data for Ali Pay QrCode
-    AliPay(Box<AliPay>),
+    AliPayQr(Box<AliPayQr>),
     /// The wallet data for Ali Pay redirect
     AliPayRedirect(AliPayRedirection),
     /// The wallet data for Ali Pay HK redirect
@@ -977,6 +977,8 @@ pub enum WalletData {
     WeChatPayRedirect(Box<WeChatPayRedirection>),
     /// The wallet data for WeChat Pay
     WeChatPay(Box<WeChatPay>),
+    /// The wallet data for WeChat Pay Display QrCode
+    WeChatPayQr(Box<WeChatPayQr>),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1020,10 +1022,13 @@ pub struct WeChatPayRedirection {}
 pub struct WeChatPay {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct WeChatPayQr {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaypalRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct AliPay {}
+pub struct AliPayQr {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AliPayRedirection {}
