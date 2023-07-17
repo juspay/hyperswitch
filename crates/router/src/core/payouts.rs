@@ -1217,8 +1217,8 @@ pub async fn payout_create_db_entries(
     } else {
         storage_enums::PayoutStatus::RequiresPayoutMethodData
     };
-    let id = core_utils::get_or_generate_uuid("payout_attempt_id", None)?;
-    let payout_attempt_id = format!("{}_{}_{}", merchant_id.to_owned(), payout_id.to_owned(), id);
+    let _id = core_utils::get_or_generate_uuid("payout_attempt_id", None)?;
+    let payout_attempt_id = format!("{}_{}", merchant_id.to_owned(), payout_id.to_owned());
 
     let payout_attempt_req = storage::PayoutAttemptNew::default()
         .set_payout_attempt_id(payout_attempt_id.to_string())

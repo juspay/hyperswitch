@@ -368,7 +368,7 @@ pub async fn call_to_card_hs(
         stored_card_resp
     } else {
         let card_id = generate_id(consts::ID_LENGTH, "card");
-        mock_add_card_hs(db, &card_id, card, None, None, None, Some(customer_id)).await?
+        mock_add_card_hs(db, &card_id, card, None, enc_value, None, Some(customer_id)).await?
     };
 
     let stored_card = stored_card_response

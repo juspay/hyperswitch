@@ -11,7 +11,10 @@ pub struct ConnectorAuthentication {
     pub adyen: Option<BodyKey>,
     #[cfg(feature = "payouts")]
     pub adyen: Option<SignatureKey>,
+    #[cfg(not(feature = "payouts"))]
     pub adyen_uk: Option<BodyKey>,
+    #[cfg(feature = "payouts")]
+    pub adyen_uk: Option<SignatureKey>,
     pub airwallex: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
