@@ -2556,7 +2556,7 @@ pub fn validate_customer_access(
                     .customer_id
                     .map(|payment_customer| payment_customer != customer)
             })
-            .unwrap_or_default();
+            .unwrap_or(false);
         if is_same_customer {
             Err(errors::ApiErrorResponse::GenericUnauthorized {
                 message: "Unauthorised access to update customer".to_string(),
