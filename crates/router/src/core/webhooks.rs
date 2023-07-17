@@ -1,10 +1,10 @@
 pub mod types;
 pub mod utils;
 
+use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
-use utils::WebhookApiErrorSwitch;
 
 use super::{errors::StorageErrorExt, metrics};
 use crate::{
