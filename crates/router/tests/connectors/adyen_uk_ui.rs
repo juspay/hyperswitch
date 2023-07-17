@@ -235,13 +235,7 @@ async fn should_make_adyen_clearpay_payment(driver: WebDriver) -> Result<(), Web
     conn.make_clearpay_payment(
         driver,
         &format!("{CHEKOUT_BASE_URL}/saved/163"),
-        vec![
-            Event::Assert(Assert::IsPresent("Google")),
-            Event::Assert(Assert::ContainsAny(
-                Selector::QueryParamStr,
-                vec!["status=succeeded"],
-            )),
-        ],
+        vec![Event::Assert(Assert::IsPresent("succeeded"))],
     )
     .await?;
     Ok(())
@@ -354,15 +348,29 @@ async fn should_make_adyen_bancontact_card_payment(
     web_driver: WebDriver,
 ) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
+    let user = &conn
+        .get_configs()
+        .automation_configs
+        .unwrap()
+        .adyen_bancontact_username
+        .unwrap();
+
+    let pass = &conn
+        .get_configs()
+        .automation_configs
+        .unwrap()
+        .adyen_bancontact_pass
+        .unwrap();
+
     conn.make_redirection_payment(
         web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/68"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
-            Event::Trigger(Trigger::SendKeys(By::Id("username"), "admin")),
-            Event::Trigger(Trigger::SendKeys(By::Id("password"), "Juspay@123")),
+            Event::Trigger(Trigger::SendKeys(By::Id("username"), user)),
+            Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
             Event::Trigger(Trigger::Click(By::ClassName("button"))),
-            Event::Assert(Assert::IsPresent("failed")),
+            Event::Assert(Assert::IsPresent("succeeded")),
         ],
     )
     .await?;

@@ -553,6 +553,13 @@ pub trait SeleniumTest {
             vec![
                 Event::Trigger(Trigger::Goto(url)),
                 Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+                Event::Trigger(Trigger::Sleep(5)),
+                Event::RunIf(
+                    Assert::IsPresent("Manage Cookies"),
+                    vec![Event::Trigger(Trigger::Click(By::Css(
+                        "button.cookie-setting-link",
+                    )))],
+                ),
             ],
         )
         .await?;
@@ -574,16 +581,34 @@ pub trait SeleniumTest {
             Event::Trigger(Trigger::Sleep(3)),
             Event::EitherOr(
                 Assert::IsPresent("Review your order | Clearpay"),
-                vec![Event::Trigger(Trigger::Click(By::ClassName("ai_az")))],
-                vec![
-                    Event::Trigger(Trigger::SendKeys(By::ClassName("n8_fl"), email)),
-                    Event::Trigger(Trigger::Click(By::ClassName("ai_az"))),
-                    Event::Trigger(Trigger::Sleep(3)),
-                    Event::Trigger(Trigger::SendKeys(By::ClassName("n8_fl"), pass)),
-                    Event::Trigger(Trigger::Click(By::ClassName("ai_az"))),
-                    Event::Trigger(Trigger::Sleep(10)), //Time needed for login
-                    Event::Trigger(Trigger::Click(By::ClassName("ai_az"))),
-                ],
+                vec![Event::Trigger(Trigger::Click(By::Css(
+                    "button[data-testid='summary-button']",
+                )))],
+                vec![Event::EitherOr(
+                    Assert::IsPresent("Welcome back! | Clearpay"),
+                    vec![
+                        Event::Trigger(Trigger::SendKeys(By::Css("input[name='password']"), pass)),
+                        Event::Trigger(Trigger::Click(By::Css("button[type='submit']"))),
+                        Event::Trigger(Trigger::Sleep(10)), //Time needed for login
+                        Event::Trigger(Trigger::Click(By::Css(
+                            "button[data-testid='summary-button']",
+                        ))),
+                    ],
+                    vec![
+                        Event::Trigger(Trigger::SendKeys(
+                            By::Css("input[name='identifier']"),
+                            email,
+                        )),
+                        Event::Trigger(Trigger::Click(By::Css("button[type='submit']"))),
+                        Event::Trigger(Trigger::Sleep(3)),
+                        Event::Trigger(Trigger::SendKeys(By::Css("input[name='password']"), pass)),
+                        Event::Trigger(Trigger::Click(By::Css("button[type='submit']"))),
+                        Event::Trigger(Trigger::Sleep(10)), //Time needed for login
+                        Event::Trigger(Trigger::Click(By::Css(
+                            "button[data-testid='summary-button']",
+                        ))),
+                    ],
+                )],
             ),
         ];
         clearpay_actions.extend(actions);
