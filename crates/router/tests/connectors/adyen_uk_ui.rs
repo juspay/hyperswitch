@@ -145,10 +145,10 @@ async fn should_make_adyen_klarna_mandate_payment(
     Ok(())
 }
 
-async fn should_make_adyen_alipay_hk_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_adyen_alipay_hk_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/162"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
@@ -185,6 +185,23 @@ async fn should_make_adyen_bizum_payment(driver: WebDriver) -> Result<(), WebDri
             Event::Assert(Assert::Contains(
                 Selector::QueryParamStr,
                 "status=succeeded",
+            )),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_clearpay_payment(driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_clearpay_payment(
+        driver,
+        &format!("{CHEKOUT_BASE_URL}/saved/163"),
+        vec![
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=succeeded"],
             )),
         ],
     )
@@ -241,6 +258,12 @@ fn should_make_adyen_alipay_hk_payment_test() {
 #[serial]
 fn should_make_adyen_bizum_payment_test() {
     tester!(should_make_adyen_bizum_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_clearpay_payment_test() {
+    tester!(should_make_adyen_clearpay_payment);
 }
 
 // https://hs-payments-test.netlify.app/paypal-redirect?amount=70.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD&apikey=dev_uFpxA0r6jjbVaxHSY3X0BZLL3erDUzvg3i51abwB1Bknu3fdiPxw475DQgnByn1z

@@ -1615,15 +1615,47 @@ async fn filter_payment_mandate_based(
     Ok(recurring_filter)
 }
 
+pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
+    state: &routes::AppState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    req: Option<api::PaymentMethodListRequest>,
+    customer_id: Option<&str>,
+) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
+    let db = &*state.store;
+    if let Some(customer_id) = customer_id {
+        list_customer_payment_method(state, merchant_account, key_store, None, customer_id).await
+    } else {
+        let cloned_secret = req.and_then(|r| r.client_secret.as_ref().cloned());
+        let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
+            db,
+            &merchant_account,
+            cloned_secret,
+        )
+        .await?;
+        let customer_id = payment_intent
+            .as_ref()
+            .and_then(|intent| intent.customer_id.to_owned())
+            .ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
+        list_customer_payment_method(
+            state,
+            merchant_account,
+            key_store,
+            payment_intent,
+            &customer_id,
+        )
+        .await
+    }
+}
+
 pub async fn list_customer_payment_method(
     state: &routes::AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    req: api::PaymentMethodListRequest,
+    payment_intent: Option<storage::PaymentIntent>,
     customer_id: &str,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
-
     db.find_customer_by_customer_id_merchant_id(
         customer_id,
         &merchant_account.merchant_id,
@@ -1672,15 +1704,10 @@ pub async fn list_customer_payment_method(
             parent_payment_method_token, pma.payment_method
         );
 
-        let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
-            db,
-            &merchant_account,
-            req.client_secret.clone(),
-        )
-        .await?;
         let current_datetime_utc = common_utils::date_time::now();
         let time_eslapsed = current_datetime_utc
             - payment_intent
+                .as_ref()
                 .map(|intent| intent.created_at)
                 .unwrap_or_else(|| current_datetime_utc);
         redis_conn

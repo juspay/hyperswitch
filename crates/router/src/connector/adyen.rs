@@ -1294,7 +1294,7 @@ impl api::IncomingWebhook for Adyen {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        let response: adyen::AdyenResponse = notif.into();
+        let response: adyen::Response = notif.into();
 
         let res_json = serde_json::to_value(response)
             .into_report()
