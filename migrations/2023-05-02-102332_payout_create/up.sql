@@ -26,7 +26,9 @@ CREATE TABLE
         error_message TEXT,
         error_code VARCHAR (64),
         business_country "CountryAlpha2",
-        business_label VARCHAR(64)
+        business_label VARCHAR(64),
+        created_at timestamp NOT NULL DEFAULT NOW():: timestamp,
+        last_modified_at timestamp NOT NULL DEFAULT NOW():: timestamp
     );
 
 CREATE TABLE
@@ -52,7 +54,8 @@ CREATE TABLE
 
 CREATE UNIQUE INDEX payout_attempt_index ON PAYOUT_ATTEMPT (
     merchant_id,
-    payout_attempt_id
+    payout_attempt_id,
+    payout_id
 );
 
 CREATE UNIQUE INDEX payouts_index ON PAYOUTS (merchant_id, payout_id);

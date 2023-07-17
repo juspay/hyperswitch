@@ -212,6 +212,7 @@ pub async fn payouts_update_core(
             let update_payout_attempt = storage::PayoutAttemptUpdate::BusinessUpdate {
                 business_country,
                 business_label,
+                last_modified_at: Some(common_utils::date_time::now()),
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt_by_merchant_id_payout_id(
@@ -307,6 +308,7 @@ pub async fn payouts_cancel_core(
             error_message: Some("Cancelled by user".to_string()),
             error_code: None,
             is_eligible: None,
+            last_modified_at: Some(common_utils::date_time::now()),
         };
         payout_data.payout_attempt = state
             .store
@@ -684,6 +686,7 @@ pub async fn check_payout_eligibility(
                     error_code: None,
                     error_message: None,
                     is_eligible: payout_response_data.payout_eligible,
+                    last_modified_at: Some(common_utils::date_time::now()),
                 };
             payout_data.payout_attempt = db
                 .update_payout_attempt_by_merchant_id_payout_id(
@@ -710,6 +713,7 @@ pub async fn check_payout_eligibility(
                     error_code: Some(err.code),
                     error_message: Some(err.message),
                     is_eligible: None,
+                    last_modified_at: Some(common_utils::date_time::now()),
                 };
             payout_data.payout_attempt = db
                 .update_payout_attempt_by_merchant_id_payout_id(
@@ -788,6 +792,7 @@ pub async fn create_payout(
                     error_code: None,
                     error_message: None,
                     is_eligible: payout_response_data.payout_eligible,
+                    last_modified_at: Some(common_utils::date_time::now()),
                 };
             payout_data.payout_attempt = db
                 .update_payout_attempt_by_merchant_id_payout_id(
@@ -814,6 +819,7 @@ pub async fn create_payout(
                     error_code: Some(err.code),
                     error_message: Some(err.message),
                     is_eligible: None,
+                    last_modified_at: Some(common_utils::date_time::now()),
                 };
             payout_data.payout_attempt = db
                 .update_payout_attempt_by_merchant_id_payout_id(
@@ -885,6 +891,7 @@ pub async fn cancel_payout(
                     error_code: None,
                     error_message: None,
                     is_eligible: payout_response_data.payout_eligible,
+                    last_modified_at: Some(common_utils::date_time::now()),
                 };
             payout_data.payout_attempt = db
                 .update_payout_attempt_by_merchant_id_payout_id(
@@ -904,6 +911,7 @@ pub async fn cancel_payout(
                     error_code: Some(err.code),
                     error_message: Some(err.message),
                     is_eligible: None,
+                    last_modified_at: Some(common_utils::date_time::now()),
                 };
             payout_data.payout_attempt = db
                 .update_payout_attempt_by_merchant_id_payout_id(
@@ -988,6 +996,7 @@ pub async fn fulfill_payout(
                 error_code: None,
                 error_message: None,
                 is_eligible: payout_response_data.payout_eligible,
+                last_modified_at: Some(common_utils::date_time::now()),
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt_by_merchant_id_payout_id(
@@ -1013,6 +1022,7 @@ pub async fn fulfill_payout(
                 error_code: Some(err.code),
                 error_message: Some(err.message),
                 is_eligible: None,
+                last_modified_at: Some(common_utils::date_time::now()),
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt_by_merchant_id_payout_id(
@@ -1221,6 +1231,8 @@ pub async fn payout_create_db_entries(
         .set_business_country(req.business_country.to_owned())
         .set_business_label(req.business_label.to_owned())
         .set_payout_token(req.payout_token.to_owned())
+        .set_created_at(Some(common_utils::date_time::now()))
+        .set_last_modified_at(Some(common_utils::date_time::now()))
         .to_owned();
     let payout_attempt = db
         .insert_payout_attempt(payout_attempt_req)

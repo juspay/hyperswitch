@@ -100,6 +100,7 @@ pub async fn make_payout_method_data<'a>(
                 let payout_update = storage::PayoutAttemptUpdate::PayoutTokenUpdate {
                     payout_token: lookup_key,
                     status: payout_attempt.status,
+                    last_modified_at: Some(common_utils::date_time::now()),
                 };
                 db.update_payout_attempt_by_merchant_id_payout_id(
                     &payout_attempt.merchant_id,
@@ -146,6 +147,7 @@ pub async fn save_payout_data_to_locker(
             let db = &*state.store;
             let update_payout = storage::PayoutsUpdate::PayoutMethodIdUpdate {
                 payout_method_id: Some(stored_card_resp.card_reference),
+                last_modified_at: Some(common_utils::date_time::now()),
             };
             db.update_payout_by_merchant_id_payout_id(
                 &merchant_account.merchant_id.clone(),
@@ -202,6 +204,7 @@ pub async fn save_payout_data_to_locker(
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
             let update_payout = storage::PayoutsUpdate::PayoutMethodIdUpdate {
                 payout_method_id: Some(stored_resp.card_reference),
+                last_modified_at: Some(common_utils::date_time::now()),
             };
             db.update_payout_by_merchant_id_payout_id(
                 &merchant_account.merchant_id,

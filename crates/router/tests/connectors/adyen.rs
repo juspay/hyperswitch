@@ -555,7 +555,7 @@ async fn should_verify_payout_eligibility() {
         .expect("Payout eligibility response");
     assert_eq!(
         response.status.unwrap(),
-        enums::PayoutStatus::RequiresCreation
+        enums::PayoutStatus::RequiresFulfillment
     );
 }
 

@@ -560,6 +560,8 @@ diesel::table! {
         business_country -> Nullable<CountryAlpha2>,
         #[max_length = 64]
         business_label -> Nullable<Varchar>,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp,
     }
 }
 

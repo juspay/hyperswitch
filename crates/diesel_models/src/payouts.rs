@@ -108,9 +108,11 @@ pub enum PayoutsUpdate {
     },
     PayoutMethodIdUpdate {
         payout_method_id: Option<String>,
+        last_modified_at: Option<PrimitiveDateTime>,
     },
     RecurringUpdate {
         recurring: bool,
+        last_modified_at: Option<PrimitiveDateTime>,
     },
 }
 
@@ -157,11 +159,19 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 last_modified_at,
                 ..Default::default()
             },
-            PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id } => Self {
+            PayoutsUpdate::PayoutMethodIdUpdate {
+                last_modified_at,
+                payout_method_id,
+            } => Self {
+                last_modified_at,
                 payout_method_id,
                 ..Default::default()
             },
-            PayoutsUpdate::RecurringUpdate { recurring } => Self {
+            PayoutsUpdate::RecurringUpdate {
+                last_modified_at,
+                recurring,
+            } => Self {
+                last_modified_at,
                 recurring: Some(recurring),
                 ..Default::default()
             },
