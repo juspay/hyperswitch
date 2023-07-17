@@ -287,10 +287,6 @@ pub struct StripeBankRedirectData {
     pub bank_name: Option<StripeBankName>,
     #[serde(flatten)]
     pub bank_specific_data: Option<BankSpecificData>,
-    // #[serde(rename = "payment_method_data[billing_details][name]")]
-    // pub billing_name: Option<Secret<String>>,
-    // #[serde(rename = "payment_method_data[billing_details][email]")]
-    // pub email: Option<Email>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]

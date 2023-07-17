@@ -597,7 +597,7 @@ impl
                 self.base_url(connectors),
                 "v1/payment_intents",
                 x,
-                "?expand[0]=latest_charge" //updated payment_id(if present) reside inside latest_change field
+                "?expand[0]=latest_charge" //updated payment_id(if present) reside inside latest_charge field
             )),
             x => x.change_context(errors::ConnectorError::MissingConnectorTransactionID),
         }
@@ -1884,7 +1884,8 @@ impl services::ConnectorRedirectResponse for Stripe {
             .map_or(
                 payments::CallConnectorAction::Trigger,
                 |status| match status {
-                    transformers::StripePaymentStatus::Failed => {
+                    transformers::StripePaymentStatus::Failed
+                    | transformers::StripePaymentStatus::Pending => {
                         payments::CallConnectorAction::Trigger
                     }
                     _ => payments::CallConnectorAction::StatusUpdate {
