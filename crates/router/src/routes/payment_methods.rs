@@ -167,7 +167,7 @@ pub async fn list_customer_payment_method_api(
         ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
     ),
     responses(
-        (status = 200, description = "Payment Methods retrieved", body = CustomerPaymentMethodsListResponse),
+        (status = 200, description = "Payment Methods retrieved for customer tied to its respective client-secret passed in the param", body = CustomerPaymentMethodsListResponse),
         (status = 400, description = "Invalid Data"),
         (status = 404, description = "Payment Methods does not exist in records")
     ),

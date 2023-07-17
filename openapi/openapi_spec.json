@@ -261,7 +261,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Payment Methods retrieved",
+            "description": "Payment Methods retrieved for customer tied to its respective client-secret passed in the param",
             "content": {
               "application/json": {
                 "schema": {
