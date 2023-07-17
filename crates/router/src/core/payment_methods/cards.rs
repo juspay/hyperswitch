@@ -1519,7 +1519,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
         .await?;
         let customer_id = payment_intent
             .as_ref()
-            .and_then(|intent| (intent.customer_id.to_owned()))
+            .and_then(|intent| intent.customer_id.to_owned())
             .ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
         list_customer_payment_method(
             state,
