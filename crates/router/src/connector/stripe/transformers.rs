@@ -287,10 +287,10 @@ pub struct StripeBankRedirectData {
     pub bank_name: Option<StripeBankName>,
     #[serde(flatten)]
     pub bank_specific_data: Option<BankSpecificData>,
-    #[serde(rename = "payment_method_data[billing_details][name]")]
-    pub billing_name: Option<Secret<String>>,
-    #[serde(rename = "payment_method_data[billing_details][email]")]
-    pub email: Option<Email>,
+    // #[serde(rename = "payment_method_data[billing_details][name]")]
+    // pub billing_name: Option<Secret<String>>,
+    // #[serde(rename = "payment_method_data[billing_details][email]")]
+    // pub email: Option<Email>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1088,17 +1088,12 @@ fn create_stripe_payment_method(
             let pm_type = infer_stripe_bank_redirect_issuer(pm_type)?;
             let bank_specific_data = get_bank_specific_data(bank_redirect_data);
             let bank_name = get_bank_name(&pm_type, bank_redirect_data)?;
-            let billing_details = get_billing_details_if_exists(bank_redirect_data);
 
             Ok((
                 StripePaymentMethodData::BankRedirect(StripeBankRedirectData {
                     payment_method_data_type: pm_type,
                     bank_name,
                     bank_specific_data,
-                    billing_name: billing_details
-                        .clone()
-                        .and_then(|billing_details| billing_details.billing_name),
-                    email: billing_details.and_then(|billing_details| billing_details.email),
                 }),
                 pm_type,
                 billing_address,
@@ -1227,40 +1222,6 @@ fn create_stripe_payment_method(
             "this payment method for stripe".to_string(),
         )
         .into()),
-    }
-}
-
-fn get_billing_details_if_exists(
-    bank_redirect_data: &api_models::payments::BankRedirectData,
-) -> Option<api_models::payments::BankRedirectBilling> {
-    match bank_redirect_data {
-        payments::BankRedirectData::BancontactCard {
-            billing_details, ..
-        } => billing_details.to_owned(),
-        payments::BankRedirectData::Blik { .. } => None,
-        payments::BankRedirectData::Eps {
-            billing_details, ..
-        } => Some(billing_details.to_owned()),
-        payments::BankRedirectData::Giropay {
-            billing_details, ..
-        } => Some(billing_details.to_owned()),
-        payments::BankRedirectData::Ideal {
-            billing_details, ..
-        } => Some(billing_details.to_owned()),
-        payments::BankRedirectData::Interac { .. } => None,
-        payments::BankRedirectData::OnlineBankingCzechRepublic { .. } => None,
-        payments::BankRedirectData::OnlineBankingFinland { .. } => None,
-        payments::BankRedirectData::OnlineBankingPoland { .. } => None,
-        payments::BankRedirectData::OnlineBankingSlovakia { .. } => None,
-        payments::BankRedirectData::Przelewy24 {
-            billing_details, ..
-        } => Some(billing_details.to_owned()),
-        payments::BankRedirectData::Sofort {
-            billing_details, ..
-        } => Some(billing_details.to_owned()),
-        payments::BankRedirectData::Swish {} => None,
-        payments::BankRedirectData::Trustly { .. } => None,
-        payments::BankRedirectData::Bizum {} => None,
     }
 }
 
@@ -2835,8 +2796,6 @@ impl
                     payment_method_data_type: pm_type,
                     bank_name: None,
                     bank_specific_data: None,
-                    billing_name: None,
-                    email: None,
                 }))
             }
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
