@@ -132,6 +132,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ExtendedData {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             three_d_secure: ThreeDSecure {
+                // Merchants preferred sized of challenge window presented to cardholder 5-100%
                 challenge_window_size: 5,
             },
             merchant_response_url: item.request.get_complete_authorize_url()?,
