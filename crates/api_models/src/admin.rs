@@ -86,6 +86,9 @@ pub struct MerchantAccountCreate {
     ///(900) for 15 mins
     #[schema(example = 900)]
     pub intent_fulfillment_time: Option<u32>,
+
+    /// The id of the organization to which the merchant belongs to
+    pub organization_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
@@ -224,6 +227,9 @@ pub struct MerchantAccountResponse {
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
     pub intent_fulfillment_time: Option<i64>,
+
+    /// The organization id merchant is associated with
+    pub organization_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -470,6 +476,21 @@ pub struct MerchantConnectorCreate {
     /// Business Sub label of the merchant
     #[schema(example = "chase")]
     pub business_sub_label: Option<String>,
+
+    /// Webhook details of this merchant connector
+    #[schema(example = json!({
+        "connector_webhook_details": {
+            "merchant_secret": "1234567890987654321"
+        }
+    }))]
+    pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MerchantConnectorWebhookDetails {
+    #[schema(value_type = String, example = "12345678900987654321")]
+    pub merchant_secret: Secret<String>,
 }
 
 /// Response of creating a new Merchant Connector for the merchant account."
@@ -549,6 +570,14 @@ pub struct MerchantConnectorResponse {
     /// contains the frm configs for the merchant connector
     #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
+
+    /// Webhook details of this merchant connector
+    #[schema(example = json!({
+        "connector_webhook_details": {
+            "merchant_secret": "1234567890987654321"
+        }
+    }))]
+    pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -610,6 +639,14 @@ pub struct MerchantConnectorUpdate {
     /// contains the frm configs for the merchant connector
     #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
+
+    /// Webhook details of this merchant connector
+    #[schema(example = json!({
+        "connector_webhook_details": {
+            "merchant_secret": "1234567890987654321"
+        }
+    }))]
+    pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 }
 
 ///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
