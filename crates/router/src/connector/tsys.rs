@@ -2,21 +2,16 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use api_models::enums::AuthenticationType;
-use common_utils::ext_traits::ValueExt;
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
-use transformers as powertranz;
+use transformers as tsys;
 
-use super::utils::{PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData};
 use crate::{
     configs::settings,
-    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{
         self,
-        request::{self, Mask},
+        request::{self},
         ConnectorIntegration,
     },
     types::{
@@ -28,56 +23,50 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Powertranz;
+pub struct Tsys;
 
-impl api::Payment for Powertranz {}
-impl api::PaymentSession for Powertranz {}
-impl api::ConnectorAccessToken for Powertranz {}
-impl api::PreVerify for Powertranz {}
-impl api::PaymentAuthorize for Powertranz {}
-impl api::PaymentsCompleteAuthorize for Powertranz {}
-impl api::PaymentSync for Powertranz {}
-impl api::PaymentCapture for Powertranz {}
-impl api::PaymentVoid for Powertranz {}
-impl api::Refund for Powertranz {}
-impl api::RefundExecute for Powertranz {}
-impl api::RefundSync for Powertranz {}
-impl api::PaymentToken for Powertranz {}
-
-const POWER_TRANZ_ID: &str = "PowerTranz-PowerTranzId";
-const POWER_TRANZ_PASSWORD: &str = "PowerTranz-PowerTranzPassword";
+impl api::Payment for Tsys {}
+impl api::PaymentSession for Tsys {}
+impl api::ConnectorAccessToken for Tsys {}
+impl api::PreVerify for Tsys {}
+impl api::PaymentAuthorize for Tsys {}
+impl api::PaymentSync for Tsys {}
+impl api::PaymentCapture for Tsys {}
+impl api::PaymentVoid for Tsys {}
+impl api::Refund for Tsys {}
+impl api::RefundExecute for Tsys {}
+impl api::RefundSync for Tsys {}
+impl api::PaymentToken for Tsys {}
 
 impl
     ConnectorIntegration<
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
-    > for Powertranz
+    > for Tsys
 {
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Powertranz
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Tsys
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
+        _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
+        let header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            self.common_get_content_type().to_string().into(),
+            Self::get_content_type(self).to_string().into(),
         )];
-        let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut auth_header);
         Ok(header)
     }
 }
 
-impl ConnectorCommon for Powertranz {
+impl ConnectorCommon for Tsys {
     fn id(&self) -> &'static str {
-        "powertranz"
+        "tsys"
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -85,72 +74,27 @@ impl ConnectorCommon for Powertranz {
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
-        connectors.powertranz.base_url.as_ref()
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth = powertranz::PowertranzAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![
-            (
-                POWER_TRANZ_ID.to_string(),
-                auth.power_tranz_id.expose().into_masked(),
-            ),
-            (
-                POWER_TRANZ_PASSWORD.to_string(),
-                auth.power_tranz_password.expose().into_masked(),
-            ),
-        ])
-    }
-
-    fn build_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: powertranz::PowertranzErrorResponse = res
-            .response
-            .parse_struct("PowertranzErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let first_error = response.errors.first();
-        let code = first_error.map(|error| error.code.clone());
-        let message = first_error.map(|error| error.message.clone());
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: message.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: Some(
-                response
-                    .errors
-                    .iter()
-                    .map(|error| format!("{} : {}", error.code, error.message))
-                    .collect::<Vec<_>>()
-                    .join(", "),
-            ),
-        })
+        connectors.tsys.base_url.as_ref()
     }
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Powertranz
+    for Tsys
 {
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Powertranz
+    for Tsys
 {
 }
 
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Powertranz
+    for Tsys
 {
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Powertranz
+    for Tsys
 {
     fn get_headers(
         &self,
@@ -166,32 +110,26 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let mut endpoint = match req.request.is_auto_capture()? {
-            true => "sale",
-            false => "auth",
-        }
-        .to_string();
-        // 3ds payments uses different endpoints
-        if req.auth_type == AuthenticationType::ThreeDs {
-            endpoint.insert_str(0, "spi/")
-        };
-        Ok(format!("{}{endpoint}", self.base_url(connectors)))
+        Ok(format!(
+            "{}servlets/transnox_api_server",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = powertranz::PowertranzPaymentsRequest::try_from(req)?;
-        let powertranz_req = types::RequestBody::log_and_get_request_body(
+        let req_obj = tsys::TsysPaymentsRequest::try_from(req)?;
+        let tsys_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
-            utils::Encode::<powertranz::PowertranzPaymentsRequest>::encode_to_string_of_json,
+            utils::Encode::<tsys::TsysPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(powertranz_req))
+        Ok(Some(tsys_req))
     }
 
     fn build_request(
@@ -219,100 +157,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: powertranz::PowertranzBaseResponse = res
+        let response: tsys::TsysPaymentsResponse = res
             .response
-            .parse_struct("Powertranz PaymentsAuthorizeResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
-}
-
-impl
-    ConnectorIntegration<
-        api::CompleteAuthorize,
-        types::CompleteAuthorizeData,
-        types::PaymentsResponseData,
-    > for Powertranz
-{
-    fn get_headers(
-        &self,
-        req: &types::PaymentsCompleteAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        "application/json-patch+json"
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::PaymentsCompleteAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}spi/payment", self.base_url(connectors)))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &types::PaymentsCompleteAuthorizeRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let redirect_payload: powertranz::RedirectResponsePayload = req
-            .request
-            .get_redirect_response_payload()?
-            .parse_value("PowerTranz RedirectResponsePayload")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let spi_token = format!("\"{}\"", redirect_payload.spi_token);
-        let powertranz_req =
-            types::RequestBody::log_and_get_request_body(&spi_token, |spi_token| {
-                Ok(spi_token.to_string())
-            })
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(powertranz_req))
-    }
-
-    fn build_request(
-        &self,
-        req: &types::PaymentsCompleteAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsCompleteAuthorizeType::get_url(
-                    self, req, connectors,
-                )?)
-                .attach_default_headers()
-                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
-                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
-                    self, req,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsCompleteAuthorizeRouterData,
-        res: Response,
-    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
-        let response: powertranz::PowertranzBaseResponse = res
-            .response
-            .parse_struct("Powertranz PaymentsCompleteAuthorizeResponse")
+            .parse_struct("Tsys PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -330,22 +177,86 @@ impl
 }
 
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Powertranz
+    for Tsys
 {
-    fn build_request(
+    fn get_headers(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
         &self,
         _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}servlets/Transnox_API_server",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = tsys::TsysSyncRequest::try_from(req)?;
+        let tsys_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<tsys::TsysSyncRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(tsys_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Payment Sync".to_string(),
-            connector: "PowerTranz".to_string(),
-        })?
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .body(types::PaymentsSyncType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsSyncRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+        let response: tsys::TsysSyncResponse = res
+            .response
+            .parse_struct("tsys PaymentsSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
     }
 }
 
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Powertranz
+    for Tsys
 {
     fn get_headers(
         &self,
@@ -364,20 +275,23 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         _req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}capture", self.base_url(connectors)))
+        Ok(format!(
+            "{}servlets/Transnox_API_server",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = powertranz::PowertranzBaseRequest::try_from(&req.request)?;
-        let powertranz_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<powertranz::PowertranzBaseRequest>::encode_to_string_of_json,
+        let connector_req = tsys::TsysPaymentsCaptureRequest::try_from(req)?;
+        let tsys_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<tsys::TsysPaymentsCaptureRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(powertranz_req))
+        Ok(Some(tsys_req))
     }
 
     fn build_request(
@@ -403,9 +317,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: powertranz::PowertranzBaseResponse = res
+        let response: tsys::TsysPaymentsResponse = res
             .response
-            .parse_struct("Powertranz PaymentsCaptureResponse")
+            .parse_struct("Tsys PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -423,7 +337,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 }
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Powertranz
+    for Tsys
 {
     fn get_headers(
         &self,
@@ -433,35 +347,56 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         self.build_headers(req, connectors)
     }
 
-    fn get_url(
-        &self,
-        _req: &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}void", self.base_url(connectors)))
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
     }
 
+    fn get_url(
+        &self,
+        _req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}servlets/Transnox_API_server",
+            self.base_url(connectors),
+        ))
+    }
     fn get_request_body(
         &self,
-        req: &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
+        req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = powertranz::PowertranzBaseRequest::try_from(&req.request)?;
-        let powertranz_req = types::RequestBody::log_and_get_request_body(
+        let req_obj = tsys::TsysPaymentsCancelRequest::try_from(req)?;
+        let tsys_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
-            utils::Encode::<powertranz::PowertranzBaseRequest>::encode_to_string_of_json,
+            utils::Encode::<tsys::TsysPaymentsCancelRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(powertranz_req))
+        Ok(Some(tsys_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+            .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+            .body(types::PaymentsVoidType::get_request_body(self, req)?)
+            .build();
+
+        Ok(Some(request))
     }
 
     fn handle_response(
         &self,
-        data: &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
+        data: &types::PaymentsCancelRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: powertranz::PowertranzBaseResponse = res
+        let response: tsys::TsysPaymentsResponse = res
             .response
-            .parse_struct("powertranz CancelResponse")
+            .parse_struct("PaymentCancelResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -469,23 +404,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             http_code: res.status_code,
         })
     }
-
-    fn build_request(
-        &self,
-        req: &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsVoidType::get_request_body(self, req)?)
-                .build(),
-        ))
-    }
-
     fn get_error_response(
         &self,
         res: Response,
@@ -494,9 +412,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     }
 }
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Powertranz
-{
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Tsys {
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -514,20 +430,23 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         _req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}refund", self.base_url(connectors)))
+        Ok(format!(
+            "{}servlets/Transnox_API_server",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = powertranz::PowertranzBaseRequest::try_from(req)?;
-        let powertranz_req = types::RequestBody::log_and_get_request_body(
+        let req_obj = tsys::TsysRefundRequest::try_from(req)?;
+        let tsys_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
-            utils::Encode::<powertranz::PowertranzBaseRequest>::encode_to_string_of_json,
+            utils::Encode::<tsys::TsysRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(powertranz_req))
+        Ok(Some(tsys_req))
     }
 
     fn build_request(
@@ -552,9 +471,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: powertranz::PowertranzBaseResponse = res
+        let response: tsys::RefundResponse = res
             .response
-            .parse_struct("powertranz RefundResponse")
+            .parse_struct("tsys RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -571,23 +490,85 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
-    for Powertranz
-{
-    fn build_request(
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Tsys {
+    fn get_headers(
+        &self,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
         &self,
         _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}servlets/Transnox_API_server",
+            self.base_url(connectors),
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::RefundSyncRouterData,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = tsys::TsysSyncRequest::try_from(req)?;
+        let tsys_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<tsys::TsysSyncRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(tsys_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Refund Sync".to_string(),
-            connector: "PowerTranz".to_string(),
-        })?
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                .body(types::RefundSyncType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::RefundSyncRouterData,
+        res: Response,
+    ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
+        let response: tsys::TsysSyncResponse = res
+            .response
+            .parse_struct("tsys RefundSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
     }
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Powertranz {
+impl api::IncomingWebhook for Tsys {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,

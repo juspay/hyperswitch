@@ -171,6 +171,27 @@ async fn should_make_adyen_alipay_hk_payment(c: WebDriver) -> Result<(), WebDriv
     Ok(())
 }
 
+async fn should_make_adyen_bizum_payment(driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/186"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::SendKeys(By::Id("iPhBizInit"), "700000000")),
+            Event::Trigger(Trigger::Click(By::Id("bBizInit"))),
+            Event::Trigger(Trigger::Click(By::ClassName("btn"))),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::Contains(
+                Selector::QueryParamStr,
+                "status=succeeded",
+            )),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
 async fn should_make_adyen_clearpay_payment(driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
     conn.make_clearpay_payment(
@@ -196,7 +217,7 @@ async fn should_make_adyen_twint_payment(driver: WebDriver) -> Result<(), WebDri
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/170"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Sleep(5)),
-            Event::Trigger(Trigger::Click(By::LinkText("authorised"))),
+            Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
             Event::Assert(Assert::IsPresent("Google")),
             Event::Assert(Assert::ContainsAny(
                 Selector::QueryParamStr,
@@ -251,6 +272,12 @@ fn should_make_adyen_3ds_payment_success_test() {
 #[serial]
 fn should_make_adyen_alipay_hk_payment_test() {
     tester!(should_make_adyen_alipay_hk_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_bizum_payment_test() {
+    tester!(should_make_adyen_bizum_payment);
 }
 
 #[test]

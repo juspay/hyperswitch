@@ -330,16 +330,7 @@ pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
     pub basilisk_host: String,
-    pub locker_setup: LockerSetup,
     pub locker_signing_key_id: String,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum LockerSetup {
-    #[default]
-    LegacyLocker,
-    BasiliskLocker,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -451,6 +442,7 @@ pub struct Connectors {
     pub shift4: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
     pub trustpay: ConnectorParamsWithMoreUrls,
+    pub tsys: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub zen: ConnectorParams,

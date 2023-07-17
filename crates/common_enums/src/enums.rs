@@ -560,6 +560,7 @@ pub enum PaymentMethodType {
     BancontactCard,
     Becs,
     Blik,
+    Bizum,
     #[serde(rename = "classic")]
     ClassicReward,
     Credit,
@@ -587,6 +588,7 @@ pub enum PaymentMethodType {
     Sofort,
     Swish,
     Trustly,
+    Twint,
     UpiCollect,
     Walley,
     WeChatPay,

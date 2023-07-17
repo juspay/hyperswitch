@@ -19,6 +19,7 @@ use crate::{
         api::{self, enums as api_enums},
         storage::enums as storage_enums,
         transformers::ForeignFrom,
+        PaymentsAuthorizeData,
     },
 };
 
@@ -264,6 +265,7 @@ pub enum AdyenPaymentMethod<'a> {
     AliPayHk(Box<AliPayHkData>),
     ApplePay(Box<AdyenApplePay>),
     BancontactCard(Box<BancontactCardData>),
+    Bizum(Box<BankRedirectionPMData>),
     Blik(Box<BlikRedirectionData>),
     ClearPay(Box<AdyenPayLaterData>),
     Eps(Box<BankRedirectionWithIssuer<'a>>),
@@ -691,6 +693,7 @@ pub enum PaymentType {
     #[serde(rename = "alipay_hk")]
     AlipayHk,
     Applepay,
+    Bizum,
     Blik,
     ClearPay,
     Eps,
@@ -1073,6 +1076,47 @@ impl<'a> TryFrom<&api::Card> for AdyenPaymentMethod<'a> {
     }
 }
 
+impl TryFrom<&storage_enums::PaymentMethodType> for PaymentType {
+    type Error = Error;
+    fn try_from(item: &storage_enums::PaymentMethodType) -> Result<Self, Self::Error> {
+        match item {
+            storage_enums::PaymentMethodType::Credit
+            | storage_enums::PaymentMethodType::Debit
+            | storage_enums::PaymentMethodType::Klarna
+            | storage_enums::PaymentMethodType::Ach
+            | storage_enums::PaymentMethodType::Sepa
+            | storage_enums::PaymentMethodType::Bacs
+            | storage_enums::PaymentMethodType::BancontactCard
+            | storage_enums::PaymentMethodType::Blik
+            | storage_enums::PaymentMethodType::Eps
+            | storage_enums::PaymentMethodType::Giropay
+            | storage_enums::PaymentMethodType::Ideal
+            | storage_enums::PaymentMethodType::OnlineBankingCzechRepublic
+            | storage_enums::PaymentMethodType::OnlineBankingFinland
+            | storage_enums::PaymentMethodType::OnlineBankingPoland
+            | storage_enums::PaymentMethodType::OnlineBankingSlovakia
+            | storage_enums::PaymentMethodType::Sofort
+            | storage_enums::PaymentMethodType::Trustly
+            | storage_enums::PaymentMethodType::GooglePay
+            | storage_enums::PaymentMethodType::AliPay
+            | storage_enums::PaymentMethodType::ApplePay
+            | storage_enums::PaymentMethodType::AliPayHk
+            | storage_enums::PaymentMethodType::MbWay
+            | storage_enums::PaymentMethodType::MobilePay
+            | storage_enums::PaymentMethodType::WeChatPay
+            | storage_enums::PaymentMethodType::SamsungPay
+            | storage_enums::PaymentMethodType::Affirm
+            | storage_enums::PaymentMethodType::AfterpayClearpay
+            | storage_enums::PaymentMethodType::PayBright
+            | storage_enums::PaymentMethodType::Walley => Ok(Self::Scheme),
+            storage_enums::PaymentMethodType::Paypal => Ok(Self::Paypal),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment Method Type".to_string(),
+            ))?,
+        }
+    }
+}
+
 impl TryFrom<&utils::CardIssuer> for CardBrand {
     type Error = Error;
     fn try_from(card_issuer: &utils::CardIssuer) -> Result<Self, Self::Error> {
@@ -1263,6 +1307,11 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                         .clone(),
                 },
             ))),
+            api_models::payments::BankRedirectData::Bizum { .. } => {
+                Ok(AdyenPaymentMethod::Bizum(Box::new(BankRedirectionPMData {
+                    payment_type: PaymentType::Bizum,
+                })))
+            }
             api_models::payments::BankRedirectData::Blik { blik_code } => {
                 Ok(AdyenPaymentMethod::Blik(Box::new(BlikRedirectionData {
                     payment_type: PaymentType::Blik,
@@ -1354,10 +1403,15 @@ impl<'a>
         let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
+        let payment_method_type = item
+            .request
+            .payment_method_type
+            .as_ref()
+            .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
         let payment_method = match mandate_ref_id {
             payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
                 let adyen_mandate = AdyenMandate {
-                    payment_type: PaymentType::Scheme,
+                    payment_type: PaymentType::try_from(payment_method_type)?,
                     stored_payment_method_id: connector_mandate_ids.get_connector_mandate_id()?,
                 };
                 Ok::<AdyenPaymentMethod<'_>, Self::Error>(AdyenPaymentMethod::Mandate(Box::new(
@@ -1573,6 +1627,24 @@ fn get_sofort_extra_details(
     }
 }
 
+fn get_shopper_email(
+    item: &PaymentsAuthorizeData,
+    is_mandate_payment: bool,
+) -> errors::CustomResult<Option<Email>, errors::ConnectorError> {
+    if is_mandate_payment {
+        let payment_method_type = item
+            .payment_method_type
+            .as_ref()
+            .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
+        match payment_method_type {
+            storage_enums::PaymentMethodType::Paypal => Ok(Some(item.get_email()?)),
+            _ => Ok(item.email.clone()),
+        }
+    } else {
+        Ok(item.email.clone())
+    }
+}
+
 impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)>
     for AdyenPaymentRequest<'a>
 {
@@ -1590,6 +1662,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)>
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item)?;
         let return_url = item.request.get_return_url()?;
+        let shopper_email = get_shopper_email(&item.request, store_payment_method.is_some())?;
         Ok(AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -1602,7 +1675,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)>
             additional_data,
             telephone_number: None,
             shopper_name: None,
-            shopper_email: None,
+            shopper_email,
             shopper_locale: None,
             billing_address: None,
             delivery_address: None,
