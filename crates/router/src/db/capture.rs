@@ -182,6 +182,35 @@ mod storage {
                 .map_err(Into::into)
                 .into_report()
         }
+        async fn find_all_captures_by_authorized_attempt_id(
+            &self,
+            authorized_attempt_id: &str,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<Capture>, errors::StorageError> {
+            let db_call = || async {
+                let conn = connection::pg_connection_write(self).await?;
+                Capture::find_all_by_authorized_attempt_id(authorized_attempt_id, &conn)
+                    .await
+                    .map_err(Into::into)
+                    .into_report()
+            };
+            db_call().await
+        }
+
+        async fn find_all_charged_captures_by_authorized_attempt_id(
+            &self,
+            authorized_attempt_id: &str,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<Capture>, errors::StorageError> {
+            let db_call = || async {
+                let conn = connection::pg_connection_write(self).await?;
+                Capture::find_all_charged_by_authorized_attempt_id(authorized_attempt_id, &conn)
+                    .await
+                    .map_err(Into::into)
+                    .into_report()
+            };
+            db_call().await
+        }
     }
 }
 
