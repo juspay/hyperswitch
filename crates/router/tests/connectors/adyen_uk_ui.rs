@@ -192,6 +192,21 @@ async fn should_make_adyen_bizum_payment(driver: WebDriver) -> Result<(), WebDri
     Ok(())
 }
 
+async fn should_make_adyen_blik_payment(driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/64"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("Next Action Type")),
+            Event::Assert(Assert::IsPresent("wait_screen_information")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
 #[test]
 #[serial]
 #[ignore]
@@ -241,6 +256,12 @@ fn should_make_adyen_alipay_hk_payment_test() {
 #[serial]
 fn should_make_adyen_bizum_payment_test() {
     tester!(should_make_adyen_bizum_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_blik_payment_test() {
+    tester!(should_make_adyen_blik_payment);
 }
 
 // https://hs-payments-test.netlify.app/paypal-redirect?amount=70.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD&apikey=dev_uFpxA0r6jjbVaxHSY3X0BZLL3erDUzvg3i51abwB1Bknu3fdiPxw475DQgnByn1z
