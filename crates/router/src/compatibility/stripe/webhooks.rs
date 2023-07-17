@@ -2,21 +2,70 @@ use api_models::{
     enums::DisputeStatus,
     webhooks::{self as api},
 };
+use common_utils::{crypto::SignMessage, date_time, ext_traits};
+use error_stack::{IntoReport, ResultExt};
+use router_env::logger;
 use serde::Serialize;
 
 use super::{
     payment_intents::types::StripePaymentIntentResponse, refunds::types::StripeRefundResponse,
 };
+use crate::{
+    core::{errors, webhooks::types::OutgoingWebhookType},
+    headers,
+    services::request::Maskable,
+};
 
 #[derive(Serialize, Debug)]
 pub struct StripeOutgoingWebhook {
-    id: Option<String>,
+    id: String,
     #[serde(rename = "type")]
     stype: &'static str,
+    object: &'static str,
     data: StripeWebhookObject,
+    created: u64,
+    // api_version: "2019-11-05", // not used
 }
 
-impl api::OutgoingWebhookType for StripeOutgoingWebhook {}
+impl OutgoingWebhookType for StripeOutgoingWebhook {
+    fn get_outgoing_webhooks_signature(
+        &self,
+        payment_response_hash_key: Option<String>,
+    ) -> errors::CustomResult<Option<String>, errors::WebhooksFlowError> {
+        let timestamp = self.created;
+
+        let payment_response_hash_key = payment_response_hash_key
+            .ok_or(errors::WebhooksFlowError::MerchantConfigNotFound)
+            .into_report()
+            .attach_printable("For stripe compatibility payment_response_hash_key is mandatory")?;
+
+        let webhook_signature_payload =
+            ext_traits::Encode::<serde_json::Value>::encode_to_string_of_json(self)
+                .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
+                .attach_printable("failed encoding outgoing webhook payload")?;
+
+        let new_signature_payload = format!("{timestamp}.{webhook_signature_payload}");
+        let v1 = hex::encode(
+            common_utils::crypto::HmacSha256::sign_message(
+                &common_utils::crypto::HmacSha256,
+                payment_response_hash_key.as_bytes(),
+                new_signature_payload.as_bytes(),
+            )
+            .change_context(errors::WebhooksFlowError::OutgoingWebhookSigningFailed)
+            .attach_printable("Failed to sign the message")?,
+        ); // should i hex encode this ? or else how to convert to string , from_utf8 is giving error
+
+        let t = timestamp;
+        Ok(Some(format!("t={t},v1={v1}")))
+    }
+
+    fn add_webhook_header(header: &mut Vec<(String, Maskable<String>)>, signature: String) {
+        header.push((
+            headers::STRIPE_COMPATIBLE_WEBHOOK_SIGNATURE.to_string(),
+            signature.into(),
+        ))
+    }
+}
 
 #[derive(Serialize, Debug)]
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
@@ -76,13 +125,46 @@ impl From<DisputeStatus> for StripeDisputeStatus {
     }
 }
 
+fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static str {
+    match event_type {
+        api_models::enums::EventType::PaymentSucceeded => "payment_intent.succeeded",
+        api_models::enums::EventType::PaymentFailed => "payment_intent.payment_failed",
+        api_models::enums::EventType::PaymentProcessing => "payment_intent.processing",
+
+        // the below are not really stripe compatible because stripe doesn't provide this
+        api_models::enums::EventType::ActionRequired => "action.required",
+        api_models::enums::EventType::RefundSucceeded => "refund.suceeded",
+        api_models::enums::EventType::RefundFailed => "refund.failed",
+        api_models::enums::EventType::DisputeOpened => "dispute.failed",
+        api_models::enums::EventType::DisputeExpired => "dispute.expired",
+        api_models::enums::EventType::DisputeAccepted => "dispute.accepted",
+        api_models::enums::EventType::DisputeCancelled => "dispute.cancelled",
+        api_models::enums::EventType::DisputeChallenged => "dispute.challenged",
+        api_models::enums::EventType::DisputeWon => "dispute.won",
+        api_models::enums::EventType::DisputeLost => "dispute.lost",
+    }
+}
+
 impl From<api::OutgoingWebhook> for StripeOutgoingWebhook {
     fn from(value: api::OutgoingWebhook) -> Self {
-        let data: StripeWebhookObject = value.content.into();
         Self {
-            id: data.get_id(),
-            stype: "webhook_endpoint",
-            data,
+            id: value.event_id,
+            stype: get_stripe_event_type(value.event_type),
+            data: StripeWebhookObject::from(value.content),
+            object: "event",
+            // put this conversion it into a function
+            created: u64::try_from(value.timestamp.assume_utc().unix_timestamp()).unwrap_or_else(
+                |error| {
+                    logger::error!(
+                        %error,
+                        "incorrect value for `webhook.timestamp` provided {}", value.timestamp
+                    );
+                    // Current timestamp converted to Unix timestamp should have a positive value
+                    // for many years to come
+                    u64::try_from(date_time::now().assume_utc().unix_timestamp())
+                        .unwrap_or_default()
+                },
+            ),
         }
     }
 }
@@ -97,16 +179,6 @@ impl From<api::OutgoingWebhookContent> for StripeWebhookObject {
             api::OutgoingWebhookContent::DisputeDetails(dispute) => {
                 Self::Dispute((*dispute).into())
             }
-        }
-    }
-}
-
-impl StripeWebhookObject {
-    fn get_id(&self) -> Option<String> {
-        match self {
-            Self::PaymentIntent(p) => p.id.to_owned(),
-            Self::Refund(r) => Some(r.id.to_owned()),
-            Self::Dispute(d) => Some(d.id.to_owned()),
         }
     }
 }

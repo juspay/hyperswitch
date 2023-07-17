@@ -1,6 +1,6 @@
 pub use api_models::webhooks::{
     IncomingWebhookDetails, IncomingWebhookEvent, MerchantWebhookConfig, ObjectReferenceId,
-    OutgoingWebhook, OutgoingWebhookContent, OutgoingWebhookType, WebhookFlow,
+    OutgoingWebhook, OutgoingWebhookContent, WebhookFlow,
 };
 use error_stack::ResultExt;
 

@@ -1,7 +1,6 @@
-pub mod transformers;
+pub mod types;
 pub mod utils;
 
-use common_utils::{crypto::SignMessage, ext_traits};
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
@@ -14,11 +13,11 @@ use crate::{
         errors::{self, CustomResult, RouterResponse},
         payments, refunds,
     },
-    headers, logger,
+    logger,
     routes::AppState,
     services,
     types::{
-        self, api, domain,
+        self as router_types, api, domain,
         storage::{self, enums},
         transformers::{ForeignInto, ForeignTryInto},
     },
@@ -29,7 +28,7 @@ const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 const MERCHANT_ID: &str = "merchant_id";
 
 #[instrument(skip_all)]
-pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
+pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -107,7 +106,7 @@ pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
 }
 
 #[instrument(skip_all)]
-pub async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
+pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -324,7 +323,7 @@ pub async fn get_or_update_dispute_object(
 }
 
 #[instrument(skip_all)]
-pub async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
+pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
@@ -387,7 +386,7 @@ pub async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     }
 }
 
-async fn bank_transfer_webhook_flow<W: api::OutgoingWebhookType>(
+async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -464,7 +463,7 @@ async fn bank_transfer_webhook_flow<W: api::OutgoingWebhookType>(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookType>(
+pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhookType>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     event_type: enums::EventType,
@@ -505,34 +504,9 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookTy
             timestamp: event.created_at,
         };
 
-        let webhook_signature_payload =
-            ext_traits::Encode::<serde_json::Value>::encode_to_string_of_json(&outgoing_webhook)
-                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("failed encoding outgoing webhook payload")?;
-
-        let outgoing_webhooks_signature = merchant_account
-            .payment_response_hash_key
-            .clone()
-            .map(|key| {
-                common_utils::crypto::HmacSha512::sign_message(
-                    &common_utils::crypto::HmacSha512,
-                    key.as_bytes(),
-                    webhook_signature_payload.as_bytes(),
-                )
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .attach_printable("Failed to sign the message")?
-            .map(hex::encode);
-
         arbiter.spawn(async move {
-            let result = trigger_webhook_to_merchant::<W>(
-                merchant_account,
-                outgoing_webhook,
-                outgoing_webhooks_signature,
-                &state,
-            )
-            .await;
+            let result =
+                trigger_webhook_to_merchant::<W>(merchant_account, outgoing_webhook, &state).await;
 
             if let Err(e) = result {
                 logger::error!(?e);
@@ -543,10 +517,9 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookTy
     Ok(())
 }
 
-pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
+pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
     merchant_account: domain::MerchantAccount,
     webhook: api::OutgoingWebhook,
-    outgoing_webhooks_signature: Option<String>,
     state: &AppState,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     let webhook_details_json = merchant_account
@@ -569,7 +542,10 @@ pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
 
     let transformed_outgoing_webhook = W::from(webhook);
 
-    let transformed_outgoing_webhook_string = types::RequestBody::log_and_get_request_body(
+    let outgoing_webhooks_signature = transformed_outgoing_webhook
+        .get_outgoing_webhooks_signature(merchant_account.payment_response_hash_key.clone())?;
+
+    let transformed_outgoing_webhook_string = router_types::RequestBody::log_and_get_request_body(
         &transformed_outgoing_webhook,
         Encode::<serde_json::Value>::encode_to_string_of_json,
     )
@@ -582,7 +558,7 @@ pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
     )];
 
     if let Some(signature) = outgoing_webhooks_signature {
-        header.push((headers::X_WEBHOOK_SIGNATURE.to_string(), signature.into()))
+        W::add_webhook_header(&mut header, signature)
     }
 
     let request = services::RequestBuilder::new()
@@ -648,7 +624,7 @@ pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
 }
 
 #[instrument(skip_all)]
-pub async fn webhooks_core<W: api::OutgoingWebhookType>(
+pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     state: &AppState,
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,
