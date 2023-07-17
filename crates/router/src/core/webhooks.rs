@@ -55,6 +55,7 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                     param: None,
                     merchant_connector_details: None,
                     client_secret: None,
+                    expand_attempts: None,
                 },
                 services::AuthFlow::Merchant,
                 consume_or_trigger_flow,
@@ -265,7 +266,7 @@ pub async fn get_or_update_dispute_object(
                 dispute_id,
                 amount: dispute_details.amount,
                 currency: dispute_details.currency,
-                dispute_stage: dispute_details.dispute_stage.foreign_into(),
+                dispute_stage: dispute_details.dispute_stage,
                 dispute_status: event_type
                     .foreign_try_into()
                     .into_report()
@@ -299,15 +300,15 @@ pub async fn get_or_update_dispute_object(
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("event type to dispute state conversion failure")?;
             crate::core::utils::validate_dispute_stage_and_dispute_status(
-                dispute.dispute_stage.foreign_into(),
-                dispute.dispute_status.foreign_into(),
-                dispute_details.dispute_stage.clone(),
-                dispute_status.foreign_into(),
+                dispute.dispute_stage,
+                dispute.dispute_status,
+                dispute_details.dispute_stage,
+                dispute_status,
             )
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("dispute stage and status validation failed")?;
             let update_dispute = diesel_models::dispute::DisputeUpdate::Update {
-                dispute_stage: dispute_details.dispute_stage.foreign_into(),
+                dispute_stage: dispute_details.dispute_stage,
                 dispute_status,
                 connector_status: dispute_details.connector_status,
                 connector_reason: dispute_details.connector_reason,
@@ -499,7 +500,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
         let outgoing_webhook = api::OutgoingWebhook {
             merchant_id: merchant_account.merchant_id.clone(),
             event_id: event.event_id,
-            event_type: event.event_type.foreign_into(),
+            event_type: event.event_type,
             content,
             timestamp: event.created_at,
         };
@@ -629,9 +630,18 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    connector_name: &str,
+    connector_label: &str,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
+    let connector_name = connector_label
+        .split('_') //connector_name will be the first string after splitting connector_label
+        .next()
+        .ok_or(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector_label",
+        })
+        .into_report()
+        .attach_printable("Failed to infer connector_name from connector_label")?;
+
     metrics::WEBHOOK_INCOMING_COUNT.add(
         &metrics::CONTEXT,
         1,
@@ -678,7 +688,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 
     let process_webhook_further = utils::lookup_webhook_event(
         &*state.store,
-        connector_name,
+        connector_label,
         &merchant_account.merchant_id,
         &event_type,
     )
@@ -694,6 +704,8 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 &*state.store,
                 &request_details,
                 &merchant_account.merchant_id,
+                connector_label,
+                &key_store,
             )
             .await
             .switch()

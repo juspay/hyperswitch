@@ -251,6 +251,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 payment_method_data: request.payment_method_data.clone(),
                 refunds: vec![],
                 disputes: vec![],
+                attempts: None,
                 force_sync: None,
                 connector_response,
                 sessions_token: vec![],
@@ -532,15 +533,15 @@ impl PaymentCreate {
             currency,
             amount: amount.into(),
             payment_method,
-            capture_method: request.capture_method.map(ForeignInto::foreign_into),
+            capture_method: request.capture_method,
             capture_on: request.capture_on,
             confirm: request.confirm.unwrap_or(false),
             created_at,
             modified_at,
             last_synced,
-            authentication_type: request.authentication_type.map(ForeignInto::foreign_into),
+            authentication_type: request.authentication_type,
             browser_info,
-            payment_experience: request.payment_experience.map(ForeignInto::foreign_into),
+            payment_experience: request.payment_experience,
             payment_method_type,
             payment_method_data: additional_pm_data,
             amount_to_capture: request.amount_to_capture,
@@ -609,7 +610,7 @@ impl PaymentCreate {
             modified_at,
             last_synced,
             client_secret: Some(client_secret),
-            setup_future_usage: request.setup_future_usage.map(ForeignInto::foreign_into),
+            setup_future_usage: request.setup_future_usage,
             off_session: request.off_session,
             return_url: request.return_url.as_ref().map(|a| a.to_string()),
             shipping_address_id,
@@ -678,10 +679,7 @@ impl PaymentCreate {
 pub fn payments_create_request_validation(
     req: &api::PaymentsRequest,
 ) -> RouterResult<(api::Amount, enums::Currency)> {
-    let currency = req
-        .currency
-        .map(ForeignInto::foreign_into)
-        .get_required_value("currency")?;
+    let currency = req.currency.get_required_value("currency")?;
     let amount = req.amount.get_required_value("amount")?;
     Ok((amount, currency))
 }

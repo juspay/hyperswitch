@@ -61,7 +61,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_intent.setup_future_usage = request
             .setup_future_usage
-            .map(ForeignInto::foreign_into)
             .or(payment_intent.setup_future_usage);
 
         helpers::validate_card_data(request.payment_method_data.clone())?;
@@ -106,10 +105,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        currency = match request.currency {
-            Some(cur) => cur.foreign_into(),
-            None => payment_attempt.currency.get_required_value("currency")?,
-        };
+        currency = request
+            .currency
+            .or(payment_attempt.currency)
+            .get_required_value("currency")?;
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
         payment_attempt.payment_method_type =
@@ -319,6 +318,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 force_sync: None,
                 refunds: vec![],
                 disputes: vec![],
+                attempts: None,
                 connector_response,
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
@@ -441,8 +441,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
 
-        let payment_method_type = payment_data.payment_attempt.payment_method_type.clone();
-        let payment_experience = payment_data.payment_attempt.payment_experience.clone();
+        let payment_method_type = payment_data.payment_attempt.payment_method_type;
+        let payment_experience = payment_data.payment_attempt.payment_experience;
         let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
         let capture_method = payment_data.payment_attempt.capture_method;
         payment_data.payment_attempt = db
@@ -604,22 +604,18 @@ impl PaymentUpdate {
             .business_sub_label
             .clone()
             .map(|bsl| payment_attempt.business_sub_label.replace(bsl));
-        request.payment_method_type.map(|pmt| {
-            payment_attempt
-                .payment_method_type
-                .replace(pmt.foreign_into())
-        });
-        request.payment_experience.map(|experience| {
-            payment_attempt
-                .payment_experience
-                .replace(experience.foreign_into())
-        });
+        request
+            .payment_method_type
+            .map(|pmt| payment_attempt.payment_method_type.replace(pmt));
+        request
+            .payment_experience
+            .map(|experience| payment_attempt.payment_experience.replace(experience));
         payment_attempt.amount_to_capture = request
             .amount_to_capture
             .or(payment_attempt.amount_to_capture);
         request
             .capture_method
-            .map(|i| payment_attempt.capture_method.replace(i.foreign_into()));
+            .map(|i| payment_attempt.capture_method.replace(i));
     }
     fn populate_payment_intent_with_request(
         payment_intent: &mut storage::PaymentIntent,

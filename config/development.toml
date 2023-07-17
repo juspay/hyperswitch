@@ -38,7 +38,6 @@ master_enc_key = "73ad7bbbbc640c845a150f67d058b279849370cd2c1f3c67c4dd6c869213e1
 host = ""
 mock_locker = true
 basilisk_host = ""
-locker_setup = "legacy_locker"
 
 [jwekey]
 locker_key_identifier1 = ""
@@ -90,6 +89,7 @@ cards = [
     "shift4",
     "stripe",
     "trustpay",
+    "tsys",
     "worldline",
     "worldpay",
     "zen",
@@ -132,6 +132,7 @@ globepay.base_url = "https://pay.globepay.co/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
+mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nmi.base_url = "https://secure.nmi.com/"
@@ -151,6 +152,7 @@ stripe.base_url_file_upload = "https://files.stripe.com/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+tsys.base_url = "https://stagegw.transnox.com/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen.com/"
@@ -238,6 +240,7 @@ ach = {country = "US", currency = "USD"}
 bacs = {country = "UK", currency = "GBP"}
 sepa = {country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT", currency = "EUR"}
 ali_pay_hk = {country = "HK", currency = "HKD"}
+bizum = {country = "ES", currency = "EUR"}
 
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }
@@ -288,6 +291,7 @@ debit = { currency = "USD" }
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet" }
+mollie = {long_lived_token = false, payment_method = "card"}
 
 [connector_customer]
 connector_list = "bluesnap,stripe"
@@ -306,6 +310,13 @@ refund_retrieve_tolerance = 100
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay"
+
+[mandates.supported_payment_methods]
+pay_later.klarna = {connector_list = "adyen"}
+wallet.google_pay = {connector_list = "stripe,adyen"}
+wallet.apple_pay = {connector_list = "stripe,adyen"}
+card.credit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
+card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
 
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = []

@@ -4,8 +4,6 @@ use std::collections::HashSet;
 use diesel_models::{errors::DatabaseError, refund::RefundUpdateInternal};
 
 use super::MockDb;
-#[cfg(feature = "olap")]
-use crate::types::transformers::ForeignInto;
 use crate::{
     core::errors::{self, CustomResult},
     types::storage::{self as storage_types, enums},
@@ -865,10 +863,10 @@ impl RefundInterface for MockDb {
         for refund in filtered_refunds.into_iter() {
             unique_connectors.insert(refund.connector);
 
-            let currency: api_models::enums::Currency = refund.currency.foreign_into();
+            let currency: api_models::enums::Currency = refund.currency;
             unique_currencies.insert(currency);
 
-            let status: api_models::enums::RefundStatus = refund.refund_status.foreign_into();
+            let status: api_models::enums::RefundStatus = refund.refund_status;
             unique_statuses.insert(status);
         }
 

@@ -9,7 +9,7 @@ use crate::{
     core::{customers, payment_methods::cards},
     routes,
     services::{api, authentication as auth},
-    types::api::customers as customer_types,
+    types::api::{customers as customer_types, payment_methods},
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
@@ -168,9 +168,10 @@ pub async fn list_customer_payment_method_api(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
     path: web::Path<String>,
+    json_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
     let customer_id = path.into_inner();
-
+    let payload = json_payload.into_inner();
     let flow = Flow::CustomerPaymentMethodsList;
 
     wrap::compatibility_api_wrap::<
@@ -186,9 +187,15 @@ pub async fn list_customer_payment_method_api(
         flow,
         state.get_ref(),
         &req,
-        customer_id.as_ref(),
+        payload,
         |state, auth, req| {
-            cards::list_customer_payment_method(state, auth.merchant_account, auth.key_store, req)
+            cards::list_customer_payment_method(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                req,
+                &customer_id,
+            )
         },
         &auth::ApiKeyAuth,
     )

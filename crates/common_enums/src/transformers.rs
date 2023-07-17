@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 
 use serde::{Deserialize, Serialize};
 
-use crate::enums::{Country, CountryAlpha2, CountryAlpha3};
+use crate::enums::{Country, CountryAlpha2, CountryAlpha3, PaymentMethod, PaymentMethodType};
 
 impl Display for NumericCountryCodeParseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -1528,6 +1528,53 @@ impl Country {
             Self::Yemen => 887,
             Self::Zambia => 894,
             Self::Zimbabwe => 716,
+        }
+    }
+}
+
+impl From<PaymentMethodType> for PaymentMethod {
+    fn from(value: PaymentMethodType) -> Self {
+        match value {
+            PaymentMethodType::Ach => Self::BankDebit,
+            PaymentMethodType::Affirm => Self::PayLater,
+            PaymentMethodType::AfterpayClearpay => Self::PayLater,
+            PaymentMethodType::AliPay => Self::Wallet,
+            PaymentMethodType::AliPayHk => Self::Wallet,
+            PaymentMethodType::ApplePay => Self::Wallet,
+            PaymentMethodType::Bacs => Self::BankDebit,
+            PaymentMethodType::BancontactCard => Self::BankRedirect,
+            PaymentMethodType::Becs => Self::BankDebit,
+            PaymentMethodType::Bizum => Self::BankRedirect,
+            PaymentMethodType::Blik => Self::BankRedirect,
+            PaymentMethodType::ClassicReward => Self::Reward,
+            PaymentMethodType::Credit => Self::Card,
+            PaymentMethodType::CryptoCurrency => Self::Crypto,
+            PaymentMethodType::Debit => Self::Card,
+            PaymentMethodType::Eps => Self::BankRedirect,
+            PaymentMethodType::Evoucher => Self::Reward,
+            PaymentMethodType::Giropay => Self::BankRedirect,
+            PaymentMethodType::GooglePay => Self::Wallet,
+            PaymentMethodType::Ideal => Self::BankRedirect,
+            PaymentMethodType::Klarna => Self::PayLater,
+            PaymentMethodType::MbWay => Self::Wallet,
+            PaymentMethodType::MobilePay => Self::Wallet,
+            PaymentMethodType::Multibanco => Self::BankTransfer,
+            PaymentMethodType::Interac => Self::BankRedirect,
+            PaymentMethodType::OnlineBankingCzechRepublic => Self::BankRedirect,
+            PaymentMethodType::OnlineBankingFinland => Self::BankRedirect,
+            PaymentMethodType::OnlineBankingPoland => Self::BankRedirect,
+            PaymentMethodType::OnlineBankingSlovakia => Self::BankRedirect,
+            PaymentMethodType::PayBright => Self::PayLater,
+            PaymentMethodType::Paypal => Self::Wallet,
+            PaymentMethodType::Przelewy24 => Self::BankRedirect,
+            PaymentMethodType::SamsungPay => Self::Wallet,
+            PaymentMethodType::Sepa => Self::BankDebit,
+            PaymentMethodType::Sofort => Self::BankRedirect,
+            PaymentMethodType::Swish => Self::BankRedirect,
+            PaymentMethodType::Trustly => Self::BankRedirect,
+            PaymentMethodType::UpiCollect => Self::Upi,
+            PaymentMethodType::Walley => Self::PayLater,
+            PaymentMethodType::WeChatPay => Self::Wallet,
         }
     }
 }

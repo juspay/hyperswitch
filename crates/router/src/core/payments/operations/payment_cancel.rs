@@ -150,6 +150,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                 force_sync: None,
                 refunds: vec![],
                 disputes: vec![],
+                attempts: None,
                 connector_response,
                 sessions_token: vec![],
                 card_cvc: None,
