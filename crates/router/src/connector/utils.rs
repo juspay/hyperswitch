@@ -206,6 +206,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_wallet(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -241,6 +242,13 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("return_url"))
     }
+
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+
     fn connector_mandate_id(&self) -> Option<String> {
         self.mandate_id
             .as_ref()
@@ -349,6 +357,7 @@ impl BrowserInformationData for types::BrowserInformation {
 pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
@@ -361,6 +370,17 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
     }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error> {
+        self.redirect_response
+            .as_ref()
+            .and_then(|res| res.payload.to_owned())
+            .ok_or(
+                errors::ConnectorError::MissingConnectorRedirectionPayload {
+                    field_name: "request.redirect_response.payload",
+                }
+                .into(),
+            )
     }
 }
 
@@ -581,6 +601,7 @@ pub trait WalletData {
     fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
+    fn get_encoded_wallet_token(&self) -> Result<String, Error>;
 }
 
 impl WalletData for api::WalletData {
@@ -599,6 +620,20 @@ impl WalletData for api::WalletData {
         serde_json::from_str::<T>(self.get_wallet_token()?.peek())
             .into_report()
             .change_context(errors::ConnectorError::InvalidWalletToken)
+    }
+
+    fn get_encoded_wallet_token(&self) -> Result<String, Error> {
+        match self {
+            Self::GooglePay(_) => {
+                let json_token: serde_json::Value = self.get_wallet_token_as_json()?;
+                let token_as_vec = serde_json::to_vec(&json_token)
+                    .into_report()
+                    .change_context(errors::ConnectorError::InvalidWalletToken)?;
+                let encoded_token = consts::BASE64_ENGINE.encode(token_as_vec);
+                Ok(encoded_token)
+            }
+            _ => Err(errors::ConnectorError::InvalidWalletToken.into()),
+        }
     }
 }
 
@@ -934,8 +969,8 @@ pub fn collect_and_sort_values_by_removing_signature(
 }
 
 #[inline]
-pub fn get_webhook_merchant_secret_key(connector: &str, merchant_id: &str) -> String {
-    format!("whsec_verification_{connector}_{merchant_id}")
+pub fn get_webhook_merchant_secret_key(connector_label: &str, merchant_id: &str) -> String {
+    format!("whsec_verification_{connector_label}_{merchant_id}")
 }
 
 impl ForeignTryFrom<String> for UsStatesAbbreviation {

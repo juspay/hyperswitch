@@ -6,9 +6,14 @@ use diesel_models::process_tracker as storage;
 use router::{
     configs::settings::{CmdLineConf, Settings},
     core::errors::{self, CustomResult},
-    logger, routes, workflows,
+    logger, routes,
+    types::storage::ProcessTrackerExt,
+    workflows,
 };
-use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors as sch_errors};
+use scheduler::{
+    consumer::workflows::ProcessTrackerWorkflow, errors::ProcessTrackerError,
+    workflows::ProcessTrackerWorkflows, SchedulerAppState,
+};
 use serde::{Deserialize, Serialize};
 use strum::EnumString;
 use tokio::sync::{mpsc, oneshot};
@@ -16,7 +21,7 @@ use tokio::sync::{mpsc, oneshot};
 const SCHEDULER_FLOW: &str = "SCHEDULER_FLOW";
 
 #[tokio::main]
-async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
+async fn main() -> CustomResult<(), ProcessTrackerError> {
     // console_subscriber::init();
 
     let cmd_line = <CmdLineConf as clap::Parser>::parse();
@@ -52,32 +57,61 @@ pub enum PTRunner {
     DeleteTokenizeDataWorkflow,
 }
 
-pub fn runner_from_task(
-    task: &storage::ProcessTracker,
-) -> Result<
-    Option<Box<dyn ProcessTrackerWorkflow<routes::AppState>>>,
-    sch_errors::ProcessTrackerError,
-> {
-    let runner = task.runner.clone().get_required_value("runner")?;
-    let runner: Option<PTRunner> = runner.parse_enum("PTRunner").ok();
-    Ok(match runner {
-        Some(PTRunner::PaymentsSyncWorkflow) => {
-            Some(Box::new(workflows::payment_sync::PaymentsSyncWorkflow))
-        }
-        Some(PTRunner::RefundWorkflowRouter) => {
-            Some(Box::new(workflows::refund_router::RefundWorkflowRouter))
-        }
-        Some(PTRunner::DeleteTokenizeDataWorkflow) => Some(Box::new(
-            workflows::tokenized_data::DeleteTokenizeDataWorkflow,
-        )),
-        None => None,
-    })
+#[derive(Debug, Copy, Clone)]
+pub struct WorkflowRunner;
+
+#[async_trait::async_trait]
+impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
+    async fn trigger_workflow<'a>(
+        &'a self,
+        state: &'a routes::AppState,
+        process: storage::ProcessTracker,
+    ) -> Result<(), ProcessTrackerError> {
+        let runner = process.runner.clone().get_required_value("runner")?;
+        let runner: Option<PTRunner> = runner.parse_enum("PTRunner").ok();
+        let operation: Box<dyn ProcessTrackerWorkflow<routes::AppState>> = match runner {
+            Some(PTRunner::PaymentsSyncWorkflow) => {
+                Box::new(workflows::payment_sync::PaymentsSyncWorkflow)
+            }
+            Some(PTRunner::RefundWorkflowRouter) => {
+                Box::new(workflows::refund_router::RefundWorkflowRouter)
+            }
+            Some(PTRunner::DeleteTokenizeDataWorkflow) => {
+                Box::new(workflows::tokenized_data::DeleteTokenizeDataWorkflow)
+            }
+            _ => Err(ProcessTrackerError::UnexpectedFlow)?,
+        };
+        let app_state = &state.clone();
+        let output = operation.execute_workflow(app_state, process.clone()).await;
+        match output {
+            Ok(_) => operation.success_handler(app_state, process).await,
+            Err(error) => match operation
+                .error_handler(app_state, process.clone(), error)
+                .await
+            {
+                Ok(_) => (),
+                Err(error) => {
+                    logger::error!(%error, "Failed while handling error");
+                    let status = process
+                        .finish_with_status(
+                            state.get_db().as_scheduler(),
+                            "GLOBAL_FAILURE".to_string(),
+                        )
+                        .await;
+                    if let Err(err) = status {
+                        logger::error!(%err, "Failed while performing database operation: GLOBAL_FAILURE");
+                    }
+                }
+            },
+        };
+        Ok(())
+    }
 }
 
 async fn start_scheduler(
     state: &routes::AppState,
     channel: (mpsc::Sender<()>, mpsc::Receiver<()>),
-) -> CustomResult<(), errors::ProcessTrackerError> {
+) -> CustomResult<(), ProcessTrackerError> {
     use std::str::FromStr;
 
     #[allow(clippy::expect_used)]
@@ -96,7 +130,7 @@ async fn start_scheduler(
         flow,
         Arc::new(scheduler_settings),
         channel,
-        runner_from_task,
+        WorkflowRunner {},
     )
     .await
 }

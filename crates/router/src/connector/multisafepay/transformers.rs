@@ -439,6 +439,7 @@ pub enum MultisafepayPaymentStatus {
     Declined,
     #[default]
     Initialized,
+    Void,
 }
 
 impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
@@ -447,6 +448,7 @@ impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
             MultisafepayPaymentStatus::Completed => Self::Charged,
             MultisafepayPaymentStatus::Declined => Self::Failure,
             MultisafepayPaymentStatus::Initialized => Self::AuthenticationPending,
+            MultisafepayPaymentStatus::Void => Self::Voided,
         }
     }
 }

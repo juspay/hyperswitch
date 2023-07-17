@@ -137,8 +137,9 @@ pub enum PaymentIntentUpdate {
         order_details: Option<Vec<pii::SecretSerdeValue>>,
         metadata: Option<pii::SecretSerdeValue>,
     },
-    PaymentAttemptUpdate {
+    PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
+        attempt_count: i16,
     },
     StatusAndAttemptUpdate {
         status: storage_enums::IntentStatus,
@@ -302,8 +303,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
-            PaymentIntentUpdate::PaymentAttemptUpdate { active_attempt_id } => Self {
+            PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
+                active_attempt_id,
+                attempt_count,
+            } => Self {
                 active_attempt_id: Some(active_attempt_id),
+                attempt_count: Some(attempt_count),
                 ..Default::default()
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {

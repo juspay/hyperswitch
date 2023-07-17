@@ -193,6 +193,7 @@ impl RefundUpdate {
             refund_error_code: pa_update.refund_error_code.or(source.refund_error_code),
             refund_arn: pa_update.refund_arn.or(source.refund_arn),
             metadata: pa_update.metadata.or(source.metadata),
+            refund_reason: pa_update.refund_reason.or(source.refund_reason),
             ..source
         }
     }

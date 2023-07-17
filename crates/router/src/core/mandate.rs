@@ -1,3 +1,4 @@
+use api_models::payments;
 use common_utils::{ext_traits::Encode, pii};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
@@ -34,7 +35,7 @@ pub async fn get_mandate(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
     Ok(services::ApplicationResponse::Json(
-        mandates::MandateResponse::from_db_mandate(state, mandate, &merchant_account).await?,
+        mandates::MandateResponse::from_db_mandate(state, mandate).await?,
     ))
 }
 
@@ -117,12 +118,21 @@ pub async fn get_customer_mandates(
     } else {
         let mut response_vec = Vec::with_capacity(mandates.len());
         for mandate in mandates {
-            response_vec.push(
-                mandates::MandateResponse::from_db_mandate(state, mandate, &merchant_account)
-                    .await?,
-            );
+            response_vec.push(mandates::MandateResponse::from_db_mandate(state, mandate).await?);
         }
         Ok(services::ApplicationResponse::Json(response_vec))
+    }
+}
+
+fn get_insensitive_payment_method_data_if_exists<F, FData>(
+    router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
+) -> Option<payments::PaymentMethodData>
+where
+    FData: MandateBehaviour,
+{
+    match &router_data.request.get_payment_method_data() {
+        api_models::payments::PaymentMethodData::Card(_) => None,
+        _ => Some(router_data.request.get_payment_method_data()),
     }
 }
 
@@ -212,6 +222,7 @@ where
                         pm_id.get_required_value("payment_method_id")?,
                         mandate_ids,
                         network_txn_id,
+                        get_insensitive_payment_method_data_if_exists(&resp),
                     )? {
                         let connector = new_mandate_data.connector.clone();
                         logger::debug!("{:?}", new_mandate_data);
@@ -272,9 +283,11 @@ pub async fn retrieve_mandates_list(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve mandates")?;
-    let mandates_list = future::try_join_all(mandates.into_iter().map(|mandate| {
-        mandates::MandateResponse::from_db_mandate(state, mandate, &merchant_account)
-    }))
+    let mandates_list = future::try_join_all(
+        mandates
+            .into_iter()
+            .map(|mandate| mandates::MandateResponse::from_db_mandate(state, mandate)),
+    )
     .await?;
     Ok(services::ApplicationResponse::Json(mandates_list))
 }

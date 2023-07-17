@@ -11,6 +11,7 @@ use crate::{
     db::{get_and_deserialize_key, StorageInterface},
     errors,
     routes::AppState,
+    services,
     types::{
         api,
         storage::{self, enums},
@@ -59,6 +60,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             operations::PaymentStatus,
             tracking_data.clone(),
             payment_flows::CallConnectorAction::Trigger,
+            services::AuthFlow::Client,
         )
         .await?;
 
