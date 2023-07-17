@@ -83,8 +83,10 @@ pub struct Settings {
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
     pub email: EmailSettings,
+    pub mandates: Mandates,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
+    pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -126,10 +128,31 @@ pub struct DummyConnector {
     pub refund_retrieve_tolerance: u64,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct Mandates {
+    pub supported_payment_methods: SupportedPaymentMethodsForMandate,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SupportedPaymentMethodsForMandate(
+    pub HashMap<enums::PaymentMethod, SupportedPaymentMethodTypesForMandate>,
+);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SupportedPaymentMethodTypesForMandate(
+    pub HashMap<enums::PaymentMethodType, SupportedConnectorsForMandate>,
+);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SupportedConnectorsForMandate {
+    #[serde(deserialize_with = "connector_deser")]
+    pub connector_list: HashSet<api_models::enums::Connector>,
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentMethodTokenFilter {
     #[serde(deserialize_with = "pm_deser")]
-    pub payment_method: HashSet<storage_models::enums::PaymentMethod>,
+    pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
 }
@@ -143,16 +166,16 @@ pub struct PaymentMethodTokenFilter {
 )]
 pub enum PaymentMethodTypeTokenFilter {
     #[serde(deserialize_with = "pm_type_deser")]
-    EnableOnly(HashSet<storage_models::enums::PaymentMethodType>),
+    EnableOnly(HashSet<diesel_models::enums::PaymentMethodType>),
     #[serde(deserialize_with = "pm_type_deser")]
-    DisableOnly(HashSet<storage_models::enums::PaymentMethodType>),
+    DisableOnly(HashSet<diesel_models::enums::PaymentMethodType>),
     #[default]
     AllAccepted,
 }
 
 fn pm_deser<'a, D>(
     deserializer: D,
-) -> Result<HashSet<storage_models::enums::PaymentMethod>, D::Error>
+) -> Result<HashSet<diesel_models::enums::PaymentMethod>, D::Error>
 where
     D: Deserializer<'a>,
 {
@@ -160,14 +183,14 @@ where
     value
         .trim()
         .split(',')
-        .map(storage_models::enums::PaymentMethod::from_str)
+        .map(diesel_models::enums::PaymentMethod::from_str)
         .collect::<Result<_, _>>()
         .map_err(D::Error::custom)
 }
 
 fn pm_type_deser<'a, D>(
     deserializer: D,
-) -> Result<HashSet<storage_models::enums::PaymentMethodType>, D::Error>
+) -> Result<HashSet<diesel_models::enums::PaymentMethodType>, D::Error>
 where
     D: Deserializer<'a>,
 {
@@ -175,7 +198,7 @@ where
     value
         .trim()
         .split(',')
-        .map(storage_models::enums::PaymentMethodType::from_str)
+        .map(diesel_models::enums::PaymentMethodType::from_str)
         .collect::<Result<_, _>>()
         .map_err(D::Error::custom)
 }
@@ -307,16 +330,7 @@ pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
     pub basilisk_host: String,
-    pub locker_setup: LockerSetup,
     pub locker_signing_key_id: String,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum LockerSetup {
-    #[default]
-    LegacyLocker,
-    BasiliskLocker,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -428,6 +442,7 @@ pub struct Connectors {
     pub shift4: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
     pub trustpay: ConnectorParamsWithMoreUrls,
+    pub tsys: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub zen: ConnectorParams,
@@ -534,6 +549,11 @@ pub struct FileUploadConfig {
 pub struct DelayedSessionConfig {
     #[serde(deserialize_with = "delayed_session_deser")]
     pub connectors_with_delayed_session_response: HashSet<api_models::enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ConnectorRequestReferenceIdConfig {
+    pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
 }
 
 fn delayed_session_deser<'a, D>(

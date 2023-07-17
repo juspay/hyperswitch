@@ -1,5 +1,5 @@
 [package]
-name = "storage_models"
+name = "diesel_models"
 description = "Database types shared across `router` and other crates"
 version = "0.1.0"
 edition.workspace = true
