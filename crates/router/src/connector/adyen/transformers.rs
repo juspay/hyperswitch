@@ -1843,8 +1843,8 @@ pub fn get_next_action_response(
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WaitScreenData {
-    display_from: i128,
-    display_to: Option<i128>,
+    display_from_timestamp: i128,
+    display_to_timestamp: Option<i128>,
 }
 
 pub fn get_connector_metadata(next_action: &AdyenRedirectionAction) -> Option<serde_json::Value> {
@@ -1852,8 +1852,8 @@ pub fn get_connector_metadata(next_action: &AdyenRedirectionAction) -> Option<se
         PaymentType::Blik => {
             let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
             Some(serde_json::json!(WaitScreenData {
-                display_from: current_time,
-                display_to: Some(current_time + Duration::minutes(1).whole_nanoseconds())
+                display_from_timestamp: current_time,
+                display_to_timestamp: Some(current_time + Duration::minutes(1).whole_nanoseconds())
             }))
         }
         _ => None,

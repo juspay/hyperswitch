@@ -360,8 +360,8 @@ where
                         }))
                         .or(next_action_containing_wait_screen.map(|wait_screen_data| {
                             api_models::payments::NextActionData::WaitScreenInformation {
-                                display_from: wait_screen_data.display_from,
-                                display_to: wait_screen_data.display_to,
+                                display_from_timestamp: wait_screen_data.display_from_timestamp,
+                                display_to_timestamp: wait_screen_data.display_to_timestamp,
                             }
                         }))
                         .or(Some(api_models::payments::NextActionData::RedirectToUrl {

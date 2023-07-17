@@ -1277,8 +1277,8 @@ pub enum NextActionData {
     },
     /// Contains duration for displaying a wait screen, wait screen with timer is displayed by sdk
     WaitScreenInformation {
-        display_from: i128,
-        display_to: Option<i128>,
+        display_from_timestamp: i128,
+        display_to_timestamp: Option<i128>,
     },
 }
 
@@ -1298,8 +1298,8 @@ pub struct QrCodeNextStepsInstruction {
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct WaitScreenInstructions {
-    pub display_from: i128,
-    pub display_to: Option<i128>,
+    pub display_from_timestamp: i128,
+    pub display_to_timestamp: Option<i128>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
