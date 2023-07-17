@@ -623,7 +623,7 @@ pub fn make_capabilities(browser: &str) -> Capabilities {
         "firefox" => {
             let mut caps = DesiredCapabilities::firefox();
             let ignore_profile = env::var("IGNORE_BROWSER_PROFILE").ok();
-            if ignore_profile.is_none() {
+            if ignore_profile.is_none() || ignore_profile.unwrap() == "false" {
                 let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
                 caps.add_firefox_arg(profile_path).unwrap();
             } else {
