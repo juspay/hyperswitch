@@ -133,7 +133,7 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
 
         // the below are not really stripe compatible because stripe doesn't provide this
         api_models::enums::EventType::ActionRequired => "action.required",
-        api_models::enums::EventType::RefundSucceeded => "refund.suceeded",
+        api_models::enums::EventType::RefundSucceeded => "refund.succeeded",
         api_models::enums::EventType::RefundFailed => "refund.failed",
         api_models::enums::EventType::DisputeOpened => "dispute.failed",
         api_models::enums::EventType::DisputeExpired => "dispute.expired",
