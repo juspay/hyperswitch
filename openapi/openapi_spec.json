@@ -1739,10 +1739,10 @@
           }
         }
       },
-      "AliPay": {
+      "AliPayHkRedirection": {
         "type": "object"
       },
-      "AliPayHkRedirection": {
+      "AliPayQr": {
         "type": "object"
       },
       "AliPayRedirection": {
@@ -2334,6 +2334,17 @@
                     "nullable": true
                   }
                 }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bizum"
+            ],
+            "properties": {
+              "bizum": {
+                "type": "object"
               }
             }
           },
@@ -2987,6 +2998,7 @@
           "shift4",
           "stripe",
           "trustpay",
+          "tsys",
           "worldline",
           "worldpay",
           "zen"
@@ -4104,10 +4116,26 @@
             ]
           },
           {
-            "type": "string",
-            "enum": [
+            "type": "object",
+            "required": [
               "user_address_country"
-            ]
+            ],
+            "properties": {
+              "user_address_country": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           },
           {
             "type": "string",
@@ -4128,10 +4156,48 @@
             ]
           },
           {
-            "type": "string",
-            "enum": [
+            "type": "object",
+            "required": [
               "user_bank"
-            ]
+            ],
+            "properties": {
+              "user_bank": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_currency"
+            ],
+            "properties": {
+              "user_currency": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           },
           {
             "type": "string",
@@ -6668,6 +6734,7 @@
           "bancontact_card",
           "becs",
           "blik",
+          "bizum",
           "classic",
           "credit",
           "crypto_currency",
@@ -8750,11 +8817,11 @@
           {
             "type": "object",
             "required": [
-              "ali_pay"
+              "ali_pay_qr"
             ],
             "properties": {
-              "ali_pay": {
-                "$ref": "#/components/schemas/AliPay"
+              "ali_pay_qr": {
+                "$ref": "#/components/schemas/AliPayQr"
               }
             }
           },
@@ -8934,10 +9001,24 @@
                 "$ref": "#/components/schemas/WeChatPay"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "we_chat_pay_qr"
+            ],
+            "properties": {
+              "we_chat_pay_qr": {
+                "$ref": "#/components/schemas/WeChatPayQr"
+              }
+            }
           }
         ]
       },
       "WeChatPay": {
+        "type": "object"
+      },
+      "WeChatPayQr": {
         "type": "object"
       },
       "WeChatPayRedirection": {

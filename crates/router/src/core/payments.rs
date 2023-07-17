@@ -442,7 +442,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             // If the status is terminal status, then redirect to merchant return url to provide status
             api_models::enums::IntentStatus::Succeeded
             | api_models::enums::IntentStatus::Failed
-            | api_models::enums::IntentStatus::Cancelled | api_models::enums::IntentStatus::RequiresCapture=> helpers::get_handle_response_url(
+            | api_models::enums::IntentStatus::Cancelled | api_models::enums::IntentStatus::RequiresCapture| api_models::enums::IntentStatus::Processing=> helpers::get_handle_response_url(
                 payment_id,
                 &merchant_account,
                 payments_response,
