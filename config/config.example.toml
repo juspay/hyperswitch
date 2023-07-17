@@ -171,6 +171,7 @@ globepay.base_url = "https://pay.globepay.co/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
+mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nmi.base_url = "https://secure.nmi.com/"
@@ -277,6 +278,12 @@ region = "" # The AWS region used by the KMS SDK for decrypting data.
 from_email = "notify@example.com" # Sender email
 aws_region = "" # AWS region used by AWS SES
 base_url = "" # Base url used when adding links that should redirect to self
+
+#tokenization configuration which describe token lifetime and payment method for specific connector
+[tokenization]
+stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
+checkout = { long_lived_token = false, payment_method = "wallet" }
+mollie = {long_lived_token = false, payment_method = "card"}
 
 [dummy_connector]
 payment_ttl = 172800             # Time to live for dummy connector payment in redis
