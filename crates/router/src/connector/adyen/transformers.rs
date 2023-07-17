@@ -1776,7 +1776,7 @@ pub fn get_adyen_response(
     Ok((status, error, payments_response_data))
 }
 
-pub fn get_redirection_response(
+pub fn get_next_action_response(
     response: AdyenNextActionResponse,
     is_manual_capture: bool,
     status_code: u16,
@@ -1880,7 +1880,7 @@ impl<F, Req>
                 get_adyen_response(response, is_manual_capture, item.http_code)?
             }
             AdyenPaymentResponse::AdyenNextActionResponse(response) => {
-                get_redirection_response(response, is_manual_capture, item.http_code)?
+                get_next_action_response(response, is_manual_capture, item.http_code)?
             }
         };
 
