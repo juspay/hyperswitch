@@ -143,9 +143,16 @@ key1 = "key1"
 api_key="Classic PMT API Key"
 key1 = "Evoucher PMT API Key"
 
+
+[tsys]
+api_key="device id"
+key1 = "transaction key"
+api_secret = "developer id"
+
 [globepay]
 api_key = "Partner code"
 key1 = "Credential code"
 
 [powertranz]
-api_key="API Key"
+api_key="PowerTranz-PowerTranzPassword"
+key1 = "PowerTranz-PowerTranzId"

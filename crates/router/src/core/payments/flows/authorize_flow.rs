@@ -86,7 +86,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 resp.to_owned(),
                 maybe_customer,
                 merchant_account,
-                self.request.payment_method_type.clone(),
+                self.request.payment_method_type,
             )
             .await?;
 
@@ -333,6 +333,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentMethodTokenizationD
     fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.payment_method_data,
+            browser_info: data.browser_info,
         })
     }
 }

@@ -138,11 +138,12 @@ pub async fn list_customer_payment_method_api(
         state.get_ref(),
         &req,
         json_payload.into_inner(),
-        |state, auth, _| {
+        |state, auth, req| {
             cards::list_customer_payment_method(
                 state,
                 auth.merchant_account,
                 auth.key_store,
+                req,
                 &customer_id,
             )
         },
@@ -185,7 +186,7 @@ pub async fn payment_method_retrieve_api(
         state.get_ref(),
         &req,
         payload,
-        |state, auth, pm| cards::retrieve_payment_method(state, pm, auth.merchant_account),
+        |state, _auth, pm| cards::retrieve_payment_method(state, pm),
         &auth::ApiKeyAuth,
     )
     .await
