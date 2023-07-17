@@ -208,6 +208,7 @@ pub struct RouterData<Flow, Request, Response> {
 
     /// Contains a reference ID that should be sent in the connector request
     pub connector_request_reference_id: String,
+    pub test_mode: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -268,6 +269,7 @@ pub struct ConnectorCustomerData {
 #[derive(Debug, Clone)]
 pub struct PaymentMethodTokenizationData {
     pub payment_method_data: payments::PaymentMethodData,
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[derive(Debug, Clone)]
@@ -821,6 +823,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             connector_customer: data.connector_customer.clone(),
             capture_status: data.capture_status,
             connector_request_reference_id: data.connector_request_reference_id.clone(),
+            test_mode: data.test_mode,
         }
     }
 }

@@ -15,11 +15,11 @@ use api_models::{
 };
 use common_utils::{
     consts,
-    ext_traits::{AsyncExt, BytesExt, StringExt, ValueExt},
+    ext_traits::{AsyncExt, StringExt, ValueExt},
     generate_id,
 };
 use diesel_models::{enums as storage_enums, payment_method};
-use error_stack::{report, IntoReport, ResultExt};
+use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "basilisk")]
@@ -187,18 +187,12 @@ pub async fn add_card_to_locker(
     metrics::STORED_TO_LOCKER.add(&metrics::CONTEXT, 1, &[]);
     request::record_operation_time(
         async {
-            match state.conf.locker.locker_setup {
-                settings::LockerSetup::BasiliskLocker => {
-                    add_card_hs(state, req, card, customer_id, merchant_account).await
-                }
-                settings::LockerSetup::LegacyLocker => {
-                    add_card(state, req, card, customer_id, merchant_account).await
-                }
-            }
-            .map_err(|error| {
-                metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                error
-            })
+            add_card_hs(state, req, card, customer_id, merchant_account)
+                .await
+                .map_err(|error| {
+                    metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                    error
+                })
         },
         &metrics::CARD_ADD_TIME,
     )
@@ -210,32 +204,19 @@ pub async fn get_card_from_locker(
     customer_id: &str,
     merchant_id: &str,
     card_reference: &str,
-    locker_id: Option<String>,
 ) -> errors::RouterResult<payment_methods::Card> {
     metrics::GET_FROM_LOCKER.add(&metrics::CONTEXT, 1, &[]);
 
     request::record_operation_time(
         async {
-            match state.conf.locker.locker_setup {
-                settings::LockerSetup::LegacyLocker => {
-                    get_card_from_legacy_locker(
-                        state,
-                        &locker_id.get_required_value("locker_id")?,
-                        card_reference,
-                    )
-                    .await
-                }
-                settings::LockerSetup::BasiliskLocker => {
-                    get_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while getting card from basilisk_hs")
-                }
-            }
-            .map_err(|error| {
-                metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                error
-            })
+            get_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while getting card from basilisk_hs")
+                .map_err(|error| {
+                    metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                    error
+                })
         },
         &metrics::CARD_GET_TIME,
     )
@@ -252,19 +233,12 @@ pub async fn delete_card_from_locker(
 
     request::record_operation_time(
         async {
-            match state.conf.locker.locker_setup {
-                settings::LockerSetup::LegacyLocker => {
-                    delete_card(state, merchant_id, card_reference).await
-                }
-                settings::LockerSetup::BasiliskLocker => {
-                    delete_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
-                        .await
-                }
-            }
-            .map_err(|error| {
-                metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                error
-            })
+            delete_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
+                .await
+                .map_err(|error| {
+                    metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                    error
+                })
         },
         &metrics::CARD_DELETE_TIME,
     )
@@ -288,11 +262,15 @@ pub async fn add_card_hs(
     let db = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
 
-    let request =
-        payment_methods::mk_add_card_request_hs(jwekey, locker, &card, &customer_id, merchant_id)
-            .await?;
-
     let stored_card_response = if !locker.mock_locker {
+        let request = payment_methods::mk_add_card_request_hs(
+            jwekey,
+            locker,
+            &card,
+            &customer_id,
+            merchant_id,
+        )
+        .await?;
         let response = services::call_connector_api(state, request)
             .await
             .change_context(errors::VaultError::SaveCardFailed);
@@ -331,59 +309,6 @@ pub async fn add_card_hs(
     ))
 }
 
-// Legacy Locker Function
-pub async fn add_card(
-    state: &routes::AppState,
-    req: api::PaymentMethodCreate,
-    card: api::CardDetail,
-    customer_id: String,
-    merchant_account: &domain::MerchantAccount,
-) -> errors::CustomResult<(api::PaymentMethodResponse, bool), errors::VaultError> {
-    let locker = &state.conf.locker;
-    let db = &*state.store;
-    let merchant_id = &merchant_account.merchant_id;
-    let locker_id = merchant_account
-        .locker_id
-        .to_owned()
-        .get_required_value("locker_id")
-        .change_context(errors::VaultError::SaveCardFailed)?;
-
-    let request = payment_methods::mk_add_card_request(
-        locker,
-        &card,
-        &customer_id,
-        &req,
-        &locker_id,
-        merchant_id,
-    )?;
-
-    let response = if !locker.mock_locker {
-        let response = services::call_connector_api(state, request)
-            .await
-            .change_context(errors::VaultError::SaveCardFailed)?;
-
-        let response: payment_methods::AddCardResponse = match response {
-            Ok(card) => card
-                .response
-                .parse_struct("AddCardResponse")
-                .change_context(errors::VaultError::ResponseDeserializationFailed),
-            Err(err) => Err(report!(errors::VaultError::UnexpectedResponseError(
-                err.response
-            ))),
-        }?;
-        response
-    } else {
-        let card_id = generate_id(consts::ID_LENGTH, "card");
-        mock_add_card(db, &card_id, &card, None, None, Some(&customer_id)).await?
-    };
-
-    let duplicate_check = response.duplicate.unwrap_or(false);
-
-    let payment_method_resp =
-        payment_methods::mk_add_card_response(card, response, req, merchant_id);
-    Ok((payment_method_resp, duplicate_check))
-}
-
 pub async fn update_payment_method(
     db: &dyn db::StorageInterface,
     pm: payment_method::PaymentMethod,
@@ -411,17 +336,17 @@ pub async fn get_card_from_hs_locker<'a>(
     #[cfg(feature = "kms")]
     let jwekey = &state.kms_secrets;
 
-    let request = payment_methods::mk_get_card_request_hs(
-        jwekey,
-        locker,
-        customer_id,
-        merchant_id,
-        card_reference,
-    )
-    .await
-    .change_context(errors::VaultError::FetchCardFailed)
-    .attach_printable("Making get card request failed")?;
     if !locker.mock_locker {
+        let request = payment_methods::mk_get_card_request_hs(
+            jwekey,
+            locker,
+            customer_id,
+            merchant_id,
+            card_reference,
+        )
+        .await
+        .change_context(errors::VaultError::FetchCardFailed)
+        .attach_printable("Making get card request failed")?;
         let response = services::call_connector_api(state, request)
             .await
             .change_context(errors::VaultError::FetchCardFailed)
@@ -449,35 +374,6 @@ pub async fn get_card_from_hs_locker<'a>(
         payment_methods::mk_get_card_response(get_card_resp)
             .change_context(errors::VaultError::ResponseDeserializationFailed)
     }
-}
-
-// Legacy Locker Function
-#[instrument(skip_all)]
-pub async fn get_card_from_legacy_locker<'a>(
-    state: &'a routes::AppState,
-    locker_id: &'a str,
-    card_id: &'a str,
-) -> errors::RouterResult<payment_methods::Card> {
-    let locker = &state.conf.locker;
-    let request = payment_methods::mk_get_card_request(locker, locker_id, card_id)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Making get card request failed")?;
-    let get_card_result = if !locker.mock_locker {
-        let response = services::call_connector_api(state, request)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while executing call_connector_api for get_card");
-
-        response.get_response_inner("AddCardResponse")?
-    } else {
-        let (get_card_response, _) = mock_get_card(&*state.store, card_id)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while fetching card from mock_locker")?;
-        get_card_response
-    };
-
-    payment_methods::mk_get_card_response(get_card_result)
 }
 
 #[instrument(skip_all)]
@@ -526,33 +422,6 @@ pub async fn delete_card_from_hs_locker<'a>(
     }
 }
 
-// Legacy Locker Function
-#[instrument(skip_all)]
-pub async fn delete_card<'a>(
-    state: &'a routes::AppState,
-    merchant_id: &'a str,
-    card_id: &'a str,
-) -> errors::RouterResult<payment_methods::DeleteCardResp> {
-    let locker = &state.conf.locker;
-    let request = payment_methods::mk_delete_card_request(&state.conf.locker, merchant_id, card_id)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Making Delete card request Failed")?;
-
-    let card_delete_failure_message = "Failed while deleting card from card_locker";
-    let delete_card_resp = if !locker.mock_locker {
-        services::call_connector_api(state, request)
-            .await
-            .get_response_inner("DeleteCardResponse")?
-    } else {
-        mock_delete_card(&*state.store, card_id)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(card_delete_failure_message)?
-    };
-
-    payment_methods::mk_delete_card_response(delete_card_resp)
-}
-
 ///Mock api for local testing
 #[instrument(skip_all)]
 pub async fn mock_add_card_hs(
@@ -592,56 +461,6 @@ pub async fn mock_add_card_hs(
         error_code: None,
         error_message: None,
         payload: Some(payload),
-    })
-}
-
-// Legacy Locker Function
-pub async fn mock_add_card(
-    db: &dyn db::StorageInterface,
-    card_id: &str,
-    card: &api::CardDetail,
-    card_cvc: Option<String>,
-    payment_method_id: Option<String>,
-    customer_id: Option<&str>,
-) -> errors::CustomResult<payment_methods::AddCardResponse, errors::VaultError> {
-    let locker_mock_up = storage::LockerMockUpNew {
-        card_id: card_id.to_string(),
-        external_id: uuid::Uuid::new_v4().to_string(),
-        card_fingerprint: uuid::Uuid::new_v4().to_string(),
-        card_global_fingerprint: uuid::Uuid::new_v4().to_string(),
-        merchant_id: "mm01".to_string(),
-        card_number: card.card_number.peek().to_string(),
-        card_exp_year: card.card_exp_year.peek().to_string(),
-        card_exp_month: card.card_exp_month.peek().to_string(),
-        card_cvc,
-        payment_method_id,
-        customer_id: customer_id.map(str::to_string),
-        name_on_card: card.card_holder_name.to_owned().expose_option(),
-        nickname: card.nick_name.to_owned().map(masking::Secret::expose),
-    };
-    let response = db
-        .insert_locker_mock_up(locker_mock_up)
-        .await
-        .change_context(errors::VaultError::SaveCardFailed)?;
-    Ok(payment_methods::AddCardResponse {
-        card_id: response.card_id,
-        external_id: response.external_id,
-        card_fingerprint: response.card_fingerprint.into(),
-        card_global_fingerprint: response.card_global_fingerprint.into(),
-        merchant_id: Some(response.merchant_id),
-        card_number: response
-            .card_number
-            .try_into()
-            .into_report()
-            .change_context(errors::VaultError::ResponseDeserializationFailed)
-            .attach_printable("Invalid card number format from the mock locker")
-            .map(Some)?,
-        card_exp_year: Some(response.card_exp_year.into()),
-        card_exp_month: Some(response.card_exp_month.into()),
-        name_on_card: response.name_on_card.map(|c| c.into()),
-        nickname: response.nickname,
-        customer_id: response.customer_id,
-        duplicate: response.duplicate,
     })
 }
 
@@ -1710,11 +1529,7 @@ pub async fn list_customer_payment_method(
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
         let hyperswitch_token = generate_id(consts::ID_LENGTH, "token");
         let card = if pm.payment_method == enums::PaymentMethod::Card {
-            let locker_id = merchant_account
-                .locker_id
-                .to_owned()
-                .get_required_value("locker_id")?;
-            Some(get_lookup_key_from_locker(state, &hyperswitch_token, &pm, &locker_id).await?)
+            Some(get_lookup_key_from_locker(state, &hyperswitch_token, &pm).await?)
         } else {
             None
         };
@@ -1809,14 +1624,12 @@ pub async fn get_lookup_key_from_locker(
     state: &routes::AppState,
     payment_token: &str,
     pm: &storage::PaymentMethod,
-    locker_id: &str,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
     let card = get_card_from_locker(
         state,
         &pm.customer_id,
         &pm.merchant_id,
         &pm.payment_method_id,
-        Some(locker_id.to_string()),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2001,7 +1814,6 @@ impl BasiliskCardSupport {
 pub async fn retrieve_payment_method(
     state: &routes::AppState,
     pm: api::PaymentMethodId,
-    merchant_account: domain::MerchantAccount,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
     let pm = db
@@ -2014,7 +1826,6 @@ pub async fn retrieve_payment_method(
             &pm.customer_id,
             &pm.merchant_id,
             &pm.payment_method_id,
-            merchant_account.locker_id,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -139,7 +139,6 @@ impl<const T: u8>
 default_imp_for_complete_authorize!(
     connector::Aci,
     connector::Adyen,
-    connector::Authorizedotnet,
     connector::Bitpay,
     connector::Braintree,
     connector::Cashtocode,
@@ -162,7 +161,6 @@ default_imp_for_complete_authorize!(
     connector::Payeezy,
     connector::Payme,
     connector::Payu,
-    connector::Powertranz,
     connector::Rapyd,
     connector::Stripe,
     connector::Trustpay,
@@ -273,7 +271,6 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 default_imp_for_connector_redirect_response!(
     connector::Aci,
     connector::Adyen,
-    connector::Authorizedotnet,
     connector::Bitpay,
     connector::Braintree,
     connector::Cashtocode,
