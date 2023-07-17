@@ -25,7 +25,10 @@ use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::{CustomerDetails, PaymentAddress};
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
-use crate::{core::errors, services};
+use crate::{
+    core::{errors, payments::RecurringMandatePaymentData},
+    services,
+};
 
 pub type PaymentsAuthorizeRouterData =
     RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
@@ -225,6 +228,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
     pub payment_method_token: Option<String>,
+    pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub preprocessing_id: Option<String>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
@@ -888,6 +892,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_method_token: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
+            recurring_mandate_payment_data: data.recurring_mandate_payment_data.clone(),
             connector_request_reference_id: data.connector_request_reference_id.clone(),
             #[cfg(feature = "payouts")]
             payout_method_data: data.payout_method_data.clone(),
@@ -956,6 +961,7 @@ impl<F1, F2>
             reference_id: data.reference_id.clone(),
             customer_id: data.customer_id.clone(),
             payment_method_token: None,
+            recurring_mandate_payment_data: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
             connector_request_reference_id:

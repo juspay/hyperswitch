@@ -159,6 +159,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                recurring_mandate_payment_data: None,
                 ephemeral_key: None,
                 redirect_response: None,
             },
