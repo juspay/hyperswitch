@@ -83,6 +83,7 @@ pub struct Settings {
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
     pub email: EmailSettings,
+    pub mandates: Mandates,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
@@ -125,6 +126,27 @@ pub struct DummyConnector {
     pub refund_tolerance: u64,
     pub refund_retrieve_duration: u64,
     pub refund_retrieve_tolerance: u64,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Mandates {
+    pub supported_payment_methods: SupportedPaymentMethodsForMandate,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SupportedPaymentMethodsForMandate(
+    pub HashMap<enums::PaymentMethod, SupportedPaymentMethodTypesForMandate>,
+);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SupportedPaymentMethodTypesForMandate(
+    pub HashMap<enums::PaymentMethodType, SupportedConnectorsForMandate>,
+);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct SupportedConnectorsForMandate {
+    #[serde(deserialize_with = "connector_deser")]
+    pub connector_list: HashSet<api_models::enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -308,16 +330,7 @@ pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
     pub basilisk_host: String,
-    pub locker_setup: LockerSetup,
     pub locker_signing_key_id: String,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum LockerSetup {
-    #[default]
-    LegacyLocker,
-    BasiliskLocker,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -429,6 +442,7 @@ pub struct Connectors {
     pub shift4: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
     pub trustpay: ConnectorParamsWithMoreUrls,
+    pub tsys: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub zen: ConnectorParams,

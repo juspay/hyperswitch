@@ -62,6 +62,8 @@ where
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
     })?;
 
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
+
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -130,6 +132,7 @@ where
             &payment_data.payment_attempt,
         ),
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
+        test_mode,
     };
 
     Ok(router_data)
@@ -169,6 +172,7 @@ where
             payment_data.payment_intent,
             payment_data.refunds,
             payment_data.disputes,
+            payment_data.attempts,
             payment_data.payment_method_data,
             customer,
             auth_flow,
@@ -258,6 +262,7 @@ pub fn payments_to_payments_response<R, Op>(
     payment_intent: storage::PaymentIntent,
     refunds: Vec<storage::Refund>,
     disputes: Vec<storage::Dispute>,
+    option_attempts: Option<Vec<storage::PaymentAttempt>>,
     payment_method_data: Option<api::PaymentMethodData>,
     customer: Option<domain::Customer>,
     auth_flow: services::AuthFlow,
@@ -296,6 +301,12 @@ where
                 .collect(),
         )
     };
+    let attempts_response = option_attempts.map(|attempts| {
+        attempts
+            .into_iter()
+            .map(ForeignInto::foreign_into)
+            .collect()
+    });
     let merchant_id = payment_attempt.merchant_id.to_owned();
     let payment_method_type = payment_attempt
         .payment_method_type
@@ -407,6 +418,7 @@ where
                         .set_description(payment_intent.description)
                         .set_refunds(refunds_response) // refunds.iter().map(refund_to_refund_response),
                         .set_disputes(disputes_response)
+                        .set_attempts(attempts_response)
                         .set_payment_method(
                             payment_attempt.payment_method,
                             auth_flow == services::AuthFlow::Merchant,
@@ -466,6 +478,7 @@ where
             description: payment_intent.description,
             refunds: refunds_response,
             disputes: disputes_response,
+            attempts: attempts_response,
             payment_method: payment_attempt.payment_method,
             capture_method: payment_attempt.capture_method,
             error_message: payment_attempt.error_message,
