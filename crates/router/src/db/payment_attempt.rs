@@ -464,8 +464,8 @@ mod storage {
                         payment_token: payment_attempt.payment_token.clone(),
                         error_code: payment_attempt.error_code.clone(),
                         connector_metadata: payment_attempt.connector_metadata.clone(),
-                        payment_experience: payment_attempt.payment_experience.clone(),
-                        payment_method_type: payment_attempt.payment_method_type.clone(),
+                        payment_experience: payment_attempt.payment_experience,
+                        payment_method_type: payment_attempt.payment_method_type,
                         payment_method_data: payment_attempt.payment_method_data.clone(),
                         business_sub_label: payment_attempt.business_sub_label.clone(),
                         straight_through_algorithm: payment_attempt

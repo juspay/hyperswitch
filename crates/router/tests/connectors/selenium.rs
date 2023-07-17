@@ -311,7 +311,7 @@ pub trait SeleniumTest {
                     Trigger::SwitchTab(position) => match position {
                         Position::Next => {
                             let windows = driver.windows().await?;
-                            if let Some(window) = windows.iter().rev().next() {
+                            if let Some(window) = windows.iter().next_back() {
                                 driver.switch_to_window(window.to_owned()).await?;
                             }
                         }

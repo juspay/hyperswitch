@@ -45,10 +45,7 @@ fn get_auth_cashtocode(
     payment_method_type: &Option<storage::enums::PaymentMethodType>,
     auth_type: &types::ConnectorAuthType,
 ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-    match payment_method_type
-        .clone()
-        .ok_or_else(conn_utils::missing_field_err("payment_method_type"))
-    {
+    match (*payment_method_type).ok_or_else(conn_utils::missing_field_err("payment_method_type")) {
         Ok(reward_type) => match reward_type {
             storage::enums::PaymentMethodType::ClassicReward => match auth_type {
                 types::ConnectorAuthType::BodyKey { api_key, .. } => Ok(vec![(

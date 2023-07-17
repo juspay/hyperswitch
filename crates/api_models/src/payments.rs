@@ -1104,17 +1104,7 @@ impl Default for PaymentIdType {
     }
 }
 
-#[derive(
-    Default,
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    ToSchema,
-    serde::Deserialize,
-    serde::Serialize,
-    frunk::LabelledGeneric,
-)]
+#[derive(Default, Clone, Debug, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Address {
     /// Provide the address details
@@ -1124,17 +1114,7 @@ pub struct Address {
 }
 
 // used by customers also, could be moved outside
-#[derive(
-    Clone,
-    Default,
-    Debug,
-    Eq,
-    serde::Deserialize,
-    serde::Serialize,
-    PartialEq,
-    ToSchema,
-    frunk::LabelledGeneric,
-)]
+#[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AddressDetails {
     /// The address city
@@ -1174,17 +1154,7 @@ pub struct AddressDetails {
     pub last_name: Option<Secret<String>>,
 }
 
-#[derive(
-    Debug,
-    Clone,
-    Default,
-    Eq,
-    PartialEq,
-    ToSchema,
-    serde::Deserialize,
-    serde::Serialize,
-    frunk::LabelledGeneric,
-)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize)]
 pub struct PhoneDetails {
     /// The contact number
     #[schema(value_type = Option<String>, example = "9999999999")]

@@ -72,9 +72,9 @@ jobs:
         connector:
           # do not use more than 8 runners, try to group less time taking connectors together
           - stripe
-          - adyen_uk,shift4,worldline
+          - adyen_uk,shift4,worldline,multisafepay
           - airwallex,bluesnap,checkout
-          - paypal,mollie,payu
+          - paypal,mollie,payu,trustpay_3ds
 
     steps:
       - name: Checkout repository

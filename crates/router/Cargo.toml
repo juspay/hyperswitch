@@ -49,8 +49,6 @@ diesel = { version = "2.1.0", features = ["postgres"] }
 dyn-clone = "1.0.11"
 encoding_rs = "0.8.32"
 error-stack = "0.3.1"
-frunk = "0.4.1"
-frunk_core = "0.4.1"
 futures = "0.3.28"
 hex = "0.4.3"
 http = "0.2.9"

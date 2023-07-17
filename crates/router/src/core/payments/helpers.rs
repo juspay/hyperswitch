@@ -36,7 +36,6 @@ use crate::{
             types::{self, AsyncLift},
         },
         storage::{self, enums as storage_enums, ephemeral_key, CustomerUpdate::Update},
-        transformers::ForeignInto,
         ErrorResponse, RouterData,
     },
     utils::{
@@ -283,8 +282,8 @@ pub async fn get_token_pm_type_mandate_details(
                 .get_required_value("mandate_data")?;
             Ok((
                 request.payment_token.to_owned(),
-                request.payment_method.map(ForeignInto::foreign_into),
-                request.payment_method_type.map(ForeignInto::foreign_into),
+                request.payment_method,
+                request.payment_method_type,
                 Some(setup_mandate),
                 None,
             ))
@@ -295,16 +294,15 @@ pub async fn get_token_pm_type_mandate_details(
             Ok((
                 token_,
                 payment_method_,
-                payment_method_type_
-                    .or_else(|| request.payment_method_type.map(ForeignInto::foreign_into)),
+                payment_method_type_.or(request.payment_method_type),
                 None,
                 mandate_connector,
             ))
         }
         None => Ok((
             request.payment_token.to_owned(),
-            request.payment_method.map(ForeignInto::foreign_into),
-            request.payment_method_type.map(ForeignInto::foreign_into),
+            request.payment_method,
+            request.payment_method_type,
             request.mandate_data.clone(),
             None,
         )),
@@ -364,7 +362,7 @@ pub async fn get_token_for_recurring_mandate(
         let _ =
             cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
         if let Some(payment_method_from_request) = req.payment_method {
-            let pm: storage_enums::PaymentMethod = payment_method_from_request.foreign_into();
+            let pm: storage_enums::PaymentMethod = payment_method_from_request;
             if pm != payment_method.payment_method {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                     message:
@@ -721,7 +719,7 @@ pub fn verify_mandate_details(
     utils::when(
         mandate
             .mandate_currency
-            .map(|mandate_currency| mandate_currency != request_currency.foreign_into())
+            .map(|mandate_currency| mandate_currency != request_currency)
             .unwrap_or(false),
         || {
             Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
@@ -822,8 +820,8 @@ pub(crate) async fn get_payment_method_create_request(
                     };
                     let customer_id = customer.customer_id.clone();
                     let payment_method_request = api::PaymentMethodCreate {
-                        payment_method: payment_method.foreign_into(),
-                        payment_method_type: payment_method_type.map(ForeignInto::foreign_into),
+                        payment_method,
+                        payment_method_type,
                         payment_method_issuer: card.card_issuer.clone(),
                         payment_method_issuer_code: None,
                         card: Some(card_detail),
@@ -838,8 +836,8 @@ pub(crate) async fn get_payment_method_create_request(
                 }
                 _ => {
                     let payment_method_request = api::PaymentMethodCreate {
-                        payment_method: payment_method.foreign_into(),
-                        payment_method_type: payment_method_type.map(ForeignInto::foreign_into),
+                        payment_method,
+                        payment_method_type,
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
                         card: None,
@@ -1658,14 +1656,14 @@ pub fn generate_mandate(
                 match data.mandate_type.get_required_value("mandate_type")? {
                     api::MandateType::SingleUse(data) => new_mandate
                         .set_mandate_amount(Some(data.amount))
-                        .set_mandate_currency(Some(data.currency.foreign_into()))
+                        .set_mandate_currency(Some(data.currency))
                         .set_mandate_type(storage_enums::MandateType::SingleUse)
                         .to_owned(),
 
                     api::MandateType::MultiUse(op_data) => match op_data {
                         Some(data) => new_mandate
                             .set_mandate_amount(Some(data.amount))
-                            .set_mandate_currency(Some(data.currency.foreign_into()))
+                            .set_mandate_currency(Some(data.currency))
                             .set_start_date(data.start_date)
                             .set_end_date(data.end_date)
                             .set_metadata(data.metadata),
@@ -2492,10 +2490,7 @@ pub async fn get_additional_payment_data(
                     .map(
                         |card_info| api_models::payments::AdditionalPaymentData::Card {
                             card_issuer: card_info.card_issuer,
-                            card_network: card_info
-                                .card_network
-                                .clone()
-                                .map(|network| network.foreign_into()),
+                            card_network: card_info.card_network.clone(),
                             bank_code: card_info.bank_code,
                             card_type: card_info.card_type,
                             card_issuing_country: card_info.card_issuing_country,
