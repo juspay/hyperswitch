@@ -169,7 +169,7 @@
         ]
       }
     },
-    "/customers/payment_methods?{client-secret}": {
+    "/customers/payment_methods": {
       "get": {
         "tags": [
           "Payment Methods"
@@ -178,6 +178,15 @@
         "description": "List payment methods for a Customer\n\nTo filter and list the applicable payment methods for a particular Customer ID",
         "operationId": "List all Payment Methods for a Customer",
         "parameters": [
+          {
+            "name": "client-secret",
+            "in": "path",
+            "description": "A secret known only to your application and the authorization server",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "customer_id",
             "in": "path",

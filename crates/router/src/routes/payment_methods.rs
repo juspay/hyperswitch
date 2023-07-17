@@ -155,8 +155,9 @@ pub async fn list_customer_payment_method_api(
 /// To filter and list the applicable payment methods for a particular Customer ID
 #[utoipa::path(
     get,
-    path = "/customers/payment_methods?{client-secret}",
+    path = "/customers/payment_methods",
     params (
+        ("client-secret" = String, Path, description = "A secret known only to your application and the authorization server"),
         ("customer_id" = String, Path, description = "The unique identifier for the customer account"),
         ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
         ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
