@@ -283,17 +283,17 @@ pub async fn get_payment_method_from_hs_locker<'a>(
     #[cfg(feature = "kms")]
     let jwekey = &state.kms_secrets;
 
-    let request = payment_methods::mk_get_card_request_hs(
-        jwekey,
-        locker,
-        customer_id,
-        merchant_id,
-        payment_method_reference,
-    )
-    .await
-    .change_context(errors::VaultError::FetchPaymentMethodFailed)
-    .attach_printable("Making get payment method request failed")?;
     if !locker.mock_locker {
+        let request = payment_methods::mk_get_card_request_hs(
+            jwekey,
+            locker,
+            customer_id,
+            merchant_id,
+            payment_method_reference,
+        )
+        .await
+        .change_context(errors::VaultError::FetchPaymentMethodFailed)
+        .attach_printable("Making get payment method request failed")?;
         let response = services::call_connector_api(state, request)
             .await
             .change_context(errors::VaultError::FetchPaymentMethodFailed)
