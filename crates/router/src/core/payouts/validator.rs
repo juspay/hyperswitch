@@ -1,12 +1,10 @@
-use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{report, ResultExt};
-use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
+use super::helpers;
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payment_methods::cards,
         utils as core_utils,
     },
     db::StorageInterface,
@@ -53,11 +51,11 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
 /// Validates the request on below checks
 /// - merchant_id passed is same as the one in merchant_account table
 /// - payout_id is unique against merchant_id
+/// - payout_token provided is legitimate
 #[cfg(feature = "payouts")]
 pub async fn validate_create_request(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutCreateRequest,
 ) -> RouterResult<(String, Option<payouts::PayoutMethodData>)> {
     let merchant_id = &merchant_account.merchant_id;
@@ -71,31 +69,6 @@ pub async fn validate_create_request(
         })
         .attach_printable("invalid merchant_id in request"))
     })?;
-
-    // Payout token
-    let customer_id = req.customer_id.to_owned().map_or("".to_string(), |c| c);
-    let payout_method_data = match req.payout_token.to_owned() {
-        Some(payout_token) => {
-            let pm = cards::get_payment_method_from_hs_locker(
-                state,
-                key_store,
-                &customer_id,
-                merchant_id,
-                &payout_token,
-            )
-            .await
-            .attach_printable("Failed to fetch payout method details from basilisk")
-            .change_context(errors::ApiErrorResponse::PayoutNotFound)?;
-            let pm_parsed: payouts::PayoutMethodData = pm
-                .peek()
-                .as_bytes()
-                .to_vec()
-                .parse_struct("PayoutMethodData")
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            Some(pm_parsed)
-        }
-        None => None,
-    };
 
     // Payout ID
     let db: &dyn StorageInterface = &*state.store;
@@ -113,8 +86,28 @@ pub async fn validate_create_request(
             )
         })? {
         Some(_) => Err(report!(errors::ApiErrorResponse::DuplicatePayout {
-            payout_id
+            payout_id: payout_id.to_owned()
         })),
-        None => Ok((payout_id, payout_method_data)),
-    }
+        None => Ok(()),
+    }?;
+
+    // Payout token
+    let payout_method_data = match req.payout_token.to_owned() {
+        Some(payout_token) => {
+            let customer_id = req.customer_id.to_owned().map_or("".to_string(), |c| c);
+            helpers::make_payout_method_data(
+                state,
+                req.payout_method_data.as_ref(),
+                Some(&payout_token),
+                &customer_id,
+                &merchant_account.merchant_id,
+                payout_id.as_ref(),
+                req.payout_type.as_ref(),
+            )
+            .await?
+        }
+        None => None,
+    };
+
+    Ok((payout_id, payout_method_data))
 }

@@ -1,10 +1,7 @@
 use std::str::FromStr;
 
 use ::cards::CardNumber;
-use common_utils::{
-    errors::CustomResult,
-    ext_traits::{ByteSliceExt, ValueExt},
-};
+use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use diesel_models::encryption::Encryption;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -25,73 +22,72 @@ use crate::{
             types::{self as domain_types, AsyncLift},
         },
         storage,
+        transformers::ForeignFrom,
     },
     utils::{self, OptionExt},
 };
 
 pub async fn make_payout_method_data<'a>(
     state: &'a AppState,
-    key_store: &domain::MerchantKeyStore,
     payout_method_data: Option<&api::PayoutMethodData>,
-    payout_attempt: &storage::PayoutAttempt,
+    payout_token: Option<&str>,
+    customer_id: &str,
+    merchant_id: &str,
+    payout_id: &str,
+    payout_type: Option<&api_enums::PayoutType>,
 ) -> RouterResult<Option<api::PayoutMethodData>> {
     let db = &*state.store;
-    match (
-        payout_method_data.to_owned(),
-        payout_attempt.payout_token.to_owned(),
-    ) {
+    let hyperswitch_token = if let Some(payout_token) = payout_token {
+        let key = format!(
+            "pm_token_{}_{}_hyperswitch",
+            payout_token,
+            api_enums::PaymentMethod::foreign_from(
+                payout_type.get_required_value("payout_type")?.to_owned()
+            )
+            .to_string()
+        );
+
+        let redis_conn = state.store.get_redis_conn();
+        let hyperswitch_token_option = redis_conn
+            .get_key::<Option<String>>(&key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch the token from redis")?;
+
+        hyperswitch_token_option.or(Some(payout_token.to_string()))
+    } else {
+        None
+    };
+
+    match (payout_method_data.to_owned(), hyperswitch_token) {
         // Get operation
         (None, Some(payout_token)) => {
-            let pm = vault::Vault::get_payout_method_data_from_temporary_locker(
+            let (pm, supplementary_data) = vault::Vault::get_payout_method_data_from_temporary_locker(
                 state,
                 &payout_token,
             )
             .await
             .attach_printable(
                 "Payout method for given token not found or there was a problem fetching it",
-            );
-            match pm {
-                Ok((pm, supplementary_data)) => {
-                    utils::when(
-                        supplementary_data
-                            .customer_id
-                            .ne(&Some(payout_attempt.customer_id.to_owned())),
-                        || {
-                            Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payout method and customer passed in payout are not same".into() })
-                        },
-                    )?;
-                    Ok(pm)
-                }
-                Err(_e) => {
-                    let pm = cards::get_payment_method_from_hs_locker(
-                        state,
-                        key_store,
-                        &payout_attempt.customer_id,
-                        &payout_attempt.merchant_id,
-                        &payout_token,
-                    )
-                    .await
-                    .attach_printable("Failed to fetch payout method details from basilisk")
-                    .change_context(errors::ApiErrorResponse::PayoutNotFound)?;
-                    let pm_parsed: api::PayoutMethodData = pm
-                        .peek()
-                        .as_bytes()
-                        .to_vec()
-                        .parse_struct("PayoutMethodData")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-                    Ok(Some(pm_parsed))
-                }
-            }
+            )?;
+            utils::when(
+                supplementary_data
+                    .customer_id
+                    .ne(&Some(customer_id.to_owned())),
+                || {
+                    Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payout method and customer passed in payout are not same".into() })
+                },
+            )?;
+            Ok(pm)
         }
 
         // Create / Update operation
         (Some(payout_method), payout_token) => {
             let lookup_key = vault::Vault::store_payout_method_data_in_locker(
                 state,
-                payout_token.to_owned(),
+                payout_token.clone().map(|p| p.to_string()),
                 payout_method,
-                Some(payout_attempt.customer_id.to_owned()),
+                Some(customer_id.to_owned()),
             )
             .await?;
 
@@ -99,12 +95,11 @@ pub async fn make_payout_method_data<'a>(
             if payout_token.is_none() {
                 let payout_update = storage::PayoutAttemptUpdate::PayoutTokenUpdate {
                     payout_token: lookup_key,
-                    status: payout_attempt.status,
                     last_modified_at: Some(common_utils::date_time::now()),
                 };
                 db.update_payout_attempt_by_merchant_id_payout_id(
-                    &payout_attempt.merchant_id,
-                    &payout_attempt.payout_id,
+                    &merchant_id,
+                    &payout_id,
                     payout_update,
                 )
                 .await
@@ -126,41 +121,19 @@ pub async fn save_payout_data_to_locker(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
-    match payout_method_data {
-        api_models::payouts::PayoutMethodData::Card(card) => {
-            let card_details = api::CardDetail {
+    let mut encrypted_card_data = None;
+    let (card_details, payment_method_type) = match payout_method_data {
+        api_models::payouts::PayoutMethodData::Card(card) => (
+            api::CardDetail {
                 card_number: card.card_number.to_owned(),
                 card_exp_month: card.expiry_month.to_owned(),
                 card_exp_year: card.expiry_year.to_owned(),
                 card_holder_name: Some(card.card_holder_name.to_owned()),
                 nick_name: None,
-            };
-            let stored_card_resp = cards::call_to_card_hs(
-                state,
-                &card_details,
-                None,
-                &payout_attempt.customer_id,
-                merchant_account,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            let db = &*state.store;
-            let update_payout = storage::PayoutsUpdate::PayoutMethodIdUpdate {
-                payout_method_id: Some(stored_card_resp.card_reference),
-                last_modified_at: Some(common_utils::date_time::now()),
-            };
-            db.update_payout_by_merchant_id_payout_id(
-                &merchant_account.merchant_id.clone(),
-                &payout_attempt.payout_id,
-                update_payout,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error updating payouts in saved payout method")?;
-            Ok(())
-        }
-        api_models::payouts::PayoutMethodData::Bank(_) => {
-            let db = &*state.store;
+            },
+            api_enums::PaymentMethodType::Debit,
+        ),
+        api_models::payouts::PayoutMethodData::Bank(bank) => {
             let key = key_store.key.get_inner().peek();
             let enc_str = async {
                 serde_json::to_value(payout_method_data.to_owned())
@@ -183,40 +156,72 @@ pub async fn save_payout_data_to_locker(
             .map_or(Err(errors::ApiErrorResponse::InternalServerError), |e| {
                 Ok(hex::encode(e.peek()))
             })?;
-            let temp_card = api::CardDetail {
-                card_number: CardNumber::from_str("4111111111111111")
-                    .into_report()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to form a temporary card number")?,
-                card_exp_month: "12".to_string().into(),
-                card_exp_year: "99".to_string().into(),
-                card_holder_name: Some("Temporary Card".to_string().into()),
-                nick_name: None,
-            };
-            let stored_resp = cards::call_to_card_hs(
-                state,
-                &temp_card,
-                Some(&enc_str),
-                &payout_attempt.customer_id,
-                merchant_account,
+            encrypted_card_data = Some(enc_str);
+            (
+                api::CardDetail {
+                    card_number: CardNumber::from_str("4111111111111111")
+                        .into_report()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to form a sample card number")?,
+                    card_exp_month: "12".to_string().into(),
+                    card_exp_year: "99".to_string().into(),
+                    card_holder_name: None,
+                    nick_name: None,
+                },
+                api_enums::PaymentMethodType::foreign_from(bank.to_owned()),
             )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            let update_payout = storage::PayoutsUpdate::PayoutMethodIdUpdate {
-                payout_method_id: Some(stored_resp.card_reference),
-                last_modified_at: Some(common_utils::date_time::now()),
-            };
-            db.update_payout_by_merchant_id_payout_id(
-                &merchant_account.merchant_id,
-                &payout_attempt.payout_id,
-                update_payout,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error updating payouts in saved payout method")?;
-            Ok(())
         }
-    }
+    };
+    // Store payout method in locker
+    let stored_resp = cards::call_to_card_hs(
+        state,
+        &card_details,
+        encrypted_card_data.as_ref().map(|s| s.as_str()),
+        &payout_attempt.customer_id,
+        merchant_account,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    // Store card_reference in payouts table
+    let db = &*state.store;
+    let updated_payout = storage::PayoutsUpdate::PayoutMethodIdUpdate {
+        payout_method_id: Some(stored_resp.card_reference.to_owned()),
+        last_modified_at: Some(common_utils::date_time::now()),
+    };
+    db.update_payout_by_merchant_id_payout_id(
+        &merchant_account.merchant_id,
+        &payout_attempt.payout_id,
+        updated_payout,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Error updating payouts in saved payout method")?;
+
+    // Insert in payment_method table
+    let payment_method = api::PaymentMethodCreate {
+        payment_method: api_enums::PaymentMethod::foreign_from(payout_method_data.to_owned()),
+        payment_method_type: Some(payment_method_type),
+        payment_method_issuer: None,
+        payment_method_issuer_code: None,
+        card: Some(card_details),
+        metadata: None,
+        customer_id: Some(payout_attempt.customer_id.to_owned()),
+        card_network: None,
+    };
+    cards::create_payment_method(
+        db,
+        &payment_method,
+        &payout_attempt.customer_id,
+        &stored_resp.card_reference,
+        &merchant_account.merchant_id,
+        None,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to save payment method")?;
+
+    Ok(())
 }
 
 pub async fn get_or_create_customer_details(

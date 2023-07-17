@@ -99,7 +99,6 @@ pub enum PayoutAttemptUpdate {
     },
     PayoutTokenUpdate {
         payout_token: String,
-        status: storage_enums::PayoutStatus,
         last_modified_at: Option<PrimitiveDateTime>,
     },
     BusinessUpdate {
@@ -129,11 +128,9 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
             PayoutAttemptUpdate::PayoutTokenUpdate {
                 last_modified_at,
                 payout_token,
-                status,
             } => Self {
                 last_modified_at,
                 payout_token: Some(payout_token),
-                status: Some(status),
                 ..Default::default()
             },
             PayoutAttemptUpdate::StatusUpdate {

@@ -112,7 +112,7 @@ where
 
     // Validate create request
     let (payout_id, payout_method_data) =
-        validator::validate_create_request(state, &merchant_account, &key_store, &req).await?;
+        validator::validate_create_request(state, &merchant_account, &req).await?;
 
     // Create DB entries
     let mut payout_data = payout_create_db_entries(
@@ -395,9 +395,17 @@ pub async fn payouts_fulfill_core(
 
     // Trigger fulfillment
     payout_data.payout_method_data = Some(
-        helpers::make_payout_method_data(state, &key_store, None, &payout_attempt)
-            .await?
-            .get_required_value("payout_method_data")?,
+        helpers::make_payout_method_data(
+            state,
+            None,
+            payout_attempt.payout_token.as_ref().map(|p| p.as_ref()),
+            &payout_attempt.customer_id,
+            &payout_attempt.merchant_id,
+            &payout_attempt.payout_id,
+            Some(&payout_data.payouts.payout_type),
+        )
+        .await?
+        .get_required_value("payout_method_data")?,
     );
     payout_data = fulfill_payout(
         state,
@@ -439,17 +447,6 @@ pub async fn call_connector_payout(
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let payout_attempt = &payout_data.payout_attempt.to_owned();
     let payouts: &diesel_models::payouts::Payouts = &payout_data.payouts.to_owned();
-    // Create / get / update payout_method_data in DB / locker
-    payout_data.payout_method_data = Some(
-        helpers::make_payout_method_data(
-            state,
-            key_store,
-            req.payout_method_data.as_ref(),
-            payout_attempt,
-        )
-        .await?
-        .get_required_value("payout_method_data")?,
-    );
     if let Some(true) = req.confirm {
         // Eligibility flow
         if payouts.payout_type == storage_enums::PayoutType::Card

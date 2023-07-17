@@ -13,6 +13,8 @@ use api_models::{
     },
     payments::BankCodeResponse,
 };
+#[cfg(feature = "payouts")]
+use common_utils::ext_traits::ByteSliceExt;
 use common_utils::{
     consts,
     ext_traits::{AsyncExt, StringExt, ValueExt},
@@ -1681,6 +1683,15 @@ pub async fn list_customer_payment_method(
         } else {
             None
         };
+        #[cfg(feature = "payouts")]
+        let pmd = if pm.payment_method == enums::PaymentMethod::BankTransfer {
+            Some(
+                get_lookup_key_for_payout_method(state, &key_store, &hyperswitch_token, &pm)
+                    .await?,
+            )
+        } else {
+            None
+        };
         //Need validation for enabled payment method ,querying MCA
         let pma = api::CustomerPaymentMethod {
             payment_token: parent_payment_method_token.to_owned(),
@@ -1695,6 +1706,10 @@ pub async fn list_customer_payment_method(
             installment_payment_enabled: false,
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
             created: Some(pm.created_at),
+            #[cfg(feature = "payouts")]
+            bank_transfer: pmd,
+            #[cfg(not(feature = "payouts"))]
+            bank_transfer: None,
         };
         customer_pms.push(pma.to_owned());
 
@@ -1785,6 +1800,49 @@ pub async fn get_lookup_key_from_locker(
         BasiliskCardSupport::create_payment_method_data_in_locker(state, payment_token, card, pm)
             .await?;
     Ok(resp)
+}
+
+#[cfg(feature = "payouts")]
+pub async fn get_lookup_key_for_payout_method(
+    state: &routes::AppState,
+    key_store: &domain::MerchantKeyStore,
+    payout_token: &str,
+    pm: &storage::PaymentMethod,
+) -> errors::RouterResult<api::BankPayout> {
+    let payment_method = get_payment_method_from_hs_locker(
+        state,
+        key_store,
+        &pm.customer_id,
+        &pm.merchant_id,
+        &pm.payment_method_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Error getting payment method from locker")?;
+    let pm_parsed: api::PayoutMethodData = payment_method
+        .peek()
+        .as_bytes()
+        .to_vec()
+        .parse_struct("PayoutMethodData")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    match &pm_parsed {
+        api::PayoutMethodData::Bank(bank) => {
+            vault::Vault::store_payout_method_data_in_locker(
+                state,
+                Some(payout_token.to_string()),
+                &pm_parsed,
+                Some(pm.customer_id.to_owned()),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error storing payout method data in temporary locker")?;
+            Ok(bank.to_owned())
+        }
+        api::PayoutMethodData::Card(_) => Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Expected bank details, found card details instead".to_string(),
+        }
+        .into()),
+    }
 }
 
 pub struct BasiliskCardSupport;
