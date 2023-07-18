@@ -269,7 +269,6 @@ pub struct Amount {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
-#[serde(rename_all = "snake_case")]
 pub enum AdyenPaymentMethod<'a> {
     AdyenAffirm(Box<AdyenPayLaterData>),
     AdyenCard(Box<AdyenCard>),
@@ -284,6 +283,7 @@ pub enum AdyenPaymentMethod<'a> {
     Blik(Box<BlikRedirectionData>),
     ClearPay(Box<AdyenPayLaterData>),
     Eps(Box<BankRedirectionWithIssuer<'a>>),
+    #[serde(rename = "gcash")]
     Gcash(Box<GcashData>),
     Giropay(Box<BankRedirectionPMData>),
     Gpay(Box<AdyenGPay>),
@@ -1821,21 +1821,20 @@ pub fn get_adyen_response(
 > {
     let status =
         storage_enums::AttemptStatus::foreign_from((is_capture_manual, response.result_code));
-    let error: Option<types::ErrorResponse> =
-        if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
-            Some(types::ErrorResponse {
-                code: response
-                    .refusal_reason_code
-                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                message: response
-                    .refusal_reason
-                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                reason: None,
-                status_code,
-            })
-        } else {
-            None
-        };
+    let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
+        Some(types::ErrorResponse {
+            code: response
+                .refusal_reason_code
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .refusal_reason
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: None,
+            status_code,
+        })
+    } else {
+        None
+    };
     let mandate_reference = response
         .additional_data
         .as_ref()
