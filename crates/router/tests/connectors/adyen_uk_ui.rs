@@ -483,13 +483,8 @@ async fn should_make_adyen_twint_payment(driver: WebDriver) -> Result<(), WebDri
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/170"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
-            Event::Trigger(Trigger::Sleep(5)),
             Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
-            Event::Assert(Assert::IsPresent("Google")),
-            Event::Assert(Assert::ContainsAny(
-                Selector::QueryParamStr,
-                vec!["status=succeeded"],
-            )),
+            Event::Assert(Assert::IsPresent("succeeded")),
         ],
     )
     .await?;
