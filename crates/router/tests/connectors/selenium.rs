@@ -555,10 +555,11 @@ pub trait SeleniumTest {
                 Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
                 Event::Trigger(Trigger::Sleep(5)),
                 Event::RunIf(
-                    Assert::IsPresent("Manage Cookies"),
-                    vec![Event::Trigger(Trigger::Click(By::Css(
-                        "button.cookie-setting-link",
-                    )))],
+                    Assert::IsPresentNow("Manage Cookies"),
+                    vec![
+                        Event::Trigger(Trigger::Click(By::Css("button.cookie-setting-link"))),
+                        Event::Trigger(Trigger::Click(By::Id("accept-recommended-btn-handler"))),
+                    ],
                 ),
             ],
         )
@@ -580,36 +581,25 @@ pub trait SeleniumTest {
         let mut clearpay_actions = vec![
             Event::Trigger(Trigger::Sleep(3)),
             Event::EitherOr(
-                Assert::IsPresent("Review your order | Clearpay"),
-                vec![Event::Trigger(Trigger::Click(By::Css(
-                    "button[data-testid='summary-button']",
-                )))],
-                vec![Event::EitherOr(
-                    Assert::IsPresent("Welcome back! | Clearpay"),
-                    vec![
-                        Event::Trigger(Trigger::SendKeys(By::Css("input[name='password']"), pass)),
-                        Event::Trigger(Trigger::Click(By::Css("button[type='submit']"))),
-                        Event::Trigger(Trigger::Sleep(10)), //Time needed for login
-                        Event::Trigger(Trigger::Click(By::Css(
-                            "button[data-testid='summary-button']",
-                        ))),
-                    ],
-                    vec![
-                        Event::Trigger(Trigger::SendKeys(
-                            By::Css("input[name='identifier']"),
-                            email,
-                        )),
-                        Event::Trigger(Trigger::Click(By::Css("button[type='submit']"))),
-                        Event::Trigger(Trigger::Sleep(3)),
-                        Event::Trigger(Trigger::SendKeys(By::Css("input[name='password']"), pass)),
-                        Event::Trigger(Trigger::Click(By::Css("button[type='submit']"))),
-                        Event::Trigger(Trigger::Sleep(10)), //Time needed for login
-                        Event::Trigger(Trigger::Click(By::Css(
-                            "button[data-testid='summary-button']",
-                        ))),
-                    ],
-                )],
+                Assert::IsPresent("Please enter your password"),
+                vec![
+                    Event::Trigger(Trigger::SendKeys(By::Css("input[name='password']"), pass)),
+                    Event::Trigger(Trigger::Click(By::Css("button.a_l.a_i.a_n.a_m"))),
+                ],
+                vec![
+                    Event::Trigger(Trigger::SendKeys(
+                        By::Css("input[name='identifier']"),
+                        email,
+                    )),
+                    Event::Trigger(Trigger::Click(By::Css("button[type='submit']"))),
+                    Event::Trigger(Trigger::Sleep(3)),
+                    Event::Trigger(Trigger::SendKeys(By::Css("input[name='password']"), pass)),
+                    Event::Trigger(Trigger::Click(By::Css("button[type='submit']"))),
+                ],
             ),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button[data-testid='summary-button']",
+            ))),
         ];
         clearpay_actions.extend(actions);
         self.complete_actions(&driver, clearpay_actions).await

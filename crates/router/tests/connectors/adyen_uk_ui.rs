@@ -370,6 +370,7 @@ async fn should_make_adyen_bancontact_card_payment(
             Event::Trigger(Trigger::SendKeys(By::Id("username"), user)),
             Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
             Event::Trigger(Trigger::Click(By::ClassName("button"))),
+            Event::Trigger(Trigger::Sleep(2)),
             Event::Assert(Assert::IsPresent("succeeded")),
         ],
     )
