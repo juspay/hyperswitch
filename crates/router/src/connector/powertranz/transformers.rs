@@ -13,6 +13,8 @@ use crate::{
     types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
+const ISO_SUCCESS_CODES: [&str; 7] = ["00", "3D0", "3D1", "HP0", "TK0", "SP4", "FC0"];
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PowertranzPaymentsRequest {
@@ -231,6 +233,7 @@ pub struct PowertranzBaseResponse {
     errors: Option<Vec<Error>>,
     iso_response_code: String,
     redirect_data: Option<String>,
+    response_message: String,
 }
 
 impl ForeignFrom<(u8, bool, bool)> for enums::AttemptStatus {
@@ -402,24 +405,38 @@ fn build_error_response(
     item: &PowertranzBaseResponse,
     status_code: u16,
 ) -> Option<types::ErrorResponse> {
-    item.errors.as_ref().map(|errors| {
-        let first_error = errors.first();
-        let code = first_error.map(|error| error.code.clone());
-        let message = first_error.map(|error| error.message.clone());
+    // errors object has highest precedence to get error message and code
+    let error_response = if item.errors.is_some() {
+        item.errors.as_ref().map(|errors| {
+            let first_error = errors.first();
+            let code = first_error.map(|error| error.code.clone());
+            let message = first_error.map(|error| error.message.clone());
 
-        types::ErrorResponse {
+            types::ErrorResponse {
+                status_code,
+                code: code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: message.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: Some(
+                    errors
+                        .iter()
+                        .map(|error| format!("{} : {}", error.code, error.message))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                ),
+            }
+        })
+    } else if !ISO_SUCCESS_CODES.contains(&item.iso_response_code.as_str()) {
+        // Incase error object is not present the error message and code should be propagated based on iso_response_code
+        Some(types::ErrorResponse {
             status_code,
-            code: code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: message.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: Some(
-                errors
-                    .iter()
-                    .map(|error| format!("{} : {}", error.code, error.message))
-                    .collect::<Vec<_>>()
-                    .join(", "),
-            ),
-        }
-    })
+            code: item.iso_response_code.clone(),
+            message: item.response_message.clone(),
+            reason: Some(item.response_message.clone()),
+        })
+    } else {
+        None
+    };
+    error_response
 }
 
 #[derive(Debug, Deserialize)]
