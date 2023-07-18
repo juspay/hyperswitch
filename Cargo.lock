@@ -385,15 +385,14 @@ dependencies = [
  "cards",
  "common_enums",
  "common_utils",
- "frunk",
- "frunk_core",
+ "error-stack",
  "masking",
  "mime",
  "reqwest",
  "router_derive",
  "serde",
  "serde_json",
- "strum",
+ "strum 0.24.1",
  "time 0.3.22",
  "url",
  "utoipa",
@@ -1361,11 +1360,13 @@ checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
 name = "common_enums"
 version = "0.1.0"
 dependencies = [
+ "common_utils",
  "diesel",
  "router_derive",
  "serde",
  "serde_json",
- "strum",
+ "strum 0.25.0",
+ "time 0.3.22",
  "utoipa",
 ]
 
@@ -1741,7 +1742,7 @@ dependencies = [
  "router_env",
  "serde",
  "serde_json",
- "strum",
+ "strum 0.24.1",
  "thiserror",
  "time 0.3.22",
 ]
@@ -3975,8 +3976,6 @@ dependencies = [
  "encoding_rs",
  "error-stack",
  "external_services",
- "frunk",
- "frunk_core",
  "futures",
  "hex",
  "http",
@@ -4010,7 +4009,7 @@ dependencies = [
  "serial_test",
  "signal-hook",
  "signal-hook-tokio",
- "strum",
+ "strum 0.24.1",
  "test_utils",
  "thirtyfour",
  "thiserror",
@@ -4035,7 +4034,7 @@ dependencies = [
  "quote",
  "serde",
  "serde_json",
- "strum",
+ "strum 0.24.1",
  "syn 1.0.109",
 ]
 
@@ -4053,7 +4052,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_path_to_error",
- "strum",
+ "strum 0.24.1",
  "time 0.3.22",
  "tokio",
  "tracing",
@@ -4595,7 +4594,16 @@ version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "063e6045c0e62079840579a7e47a355ae92f60eb74daaf156fb1e84ba164e63f"
 dependencies = [
- "strum_macros",
+ "strum_macros 0.24.3",
+]
+
+[[package]]
+name = "strum"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
+dependencies = [
+ "strum_macros 0.25.1",
 ]
 
 [[package]]
@@ -4609,6 +4617,19 @@ dependencies = [
  "quote",
  "rustversion",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6069ca09d878a33f883cc06aaa9718ede171841d3832450354410b718b097232"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "rustversion",
+ "syn 2.0.18",
 ]
 
 [[package]]

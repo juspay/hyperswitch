@@ -422,7 +422,6 @@ where
         }
         .into());
     }
-
     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
 
