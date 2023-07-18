@@ -25,31 +25,6 @@ pub enum RoutingAlgorithm {
     Custom,
 }
 
-/// The status of the mandate, which indicates whether it can be used to initiate a payment
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Default,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum MandateStatus {
-    #[default]
-    Active,
-    Inactive,
-    Pending,
-    Revoked,
-}
-
 #[derive(
     Clone,
     Copy,
