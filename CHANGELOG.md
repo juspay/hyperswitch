@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.7.0 (2023-07-18)
+
+### Features
+
+- **connector:**
+  - [Adyen] Implement Twint in Wallets ([#1549](https://github.com/juspay/hyperswitch/pull/1549)) ([`d317021`](https://github.com/juspay/hyperswitch/commit/d317021bc55af8b45cb48b572d44a957d57e7d28))
+  - [Stax] Add template code for Stax connector ([#1698](https://github.com/juspay/hyperswitch/pull/1698)) ([`f932d66`](https://github.com/juspay/hyperswitch/commit/f932d66c52a8b8ff78b90d1cd1b02ab068778ba0))
+  - [Bluesnap] Remove wallet call  ([#1620](https://github.com/juspay/hyperswitch/pull/1620)) ([`ec35d55`](https://github.com/juspay/hyperswitch/commit/ec35d55da69ee3fef9048de14fc54b10abb32d18))
+  - [Adyen] implement Kakao for Adyen ([#1558](https://github.com/juspay/hyperswitch/pull/1558)) ([`11ad9be`](https://github.com/juspay/hyperswitch/commit/11ad9beda81659da080aeb454cbea0476d0639dc))
+
+### Bug Fixes
+
+- **build:** Add a standalone Redis mode in docker-compose installation ([#1661](https://github.com/juspay/hyperswitch/pull/1661)) ([`ee1f6cc`](https://github.com/juspay/hyperswitch/commit/ee1f6ccb4cde3142d0a853dc1b04ac3792a4e68b))
+- **router:** Add parsing for `connector_request_reference_id` env ([#1731](https://github.com/juspay/hyperswitch/pull/1731)) ([`110fbe9`](https://github.com/juspay/hyperswitch/commit/110fbe9fc546e51ad945da31f25f242273646ed0))
+
+### Refactors
+
+- **router:** Remove `WebhookApiErrorSwitch ` and implement error mapping using `ErrorSwitch` ([#1660](https://github.com/juspay/hyperswitch/pull/1660)) ([`a7c66dd`](https://github.com/juspay/hyperswitch/commit/a7c66ddea206ea1d22be6ddb1a503badf76fe2cf))
+
+**Full Changelog:** [`v1.6.0...v1.7.0`](https://github.com/juspay/hyperswitch/compare/v1.6.0...v1.7.0)
+
+- - -
+
+
 ## 1.6.0 (2023-07-17)
 
 ### Features
