@@ -476,6 +476,26 @@ async fn should_make_adyen_giropay_payment(web_driver: WebDriver) -> Result<(), 
     Ok(())
 }
 
+async fn should_make_adyen_twint_payment(driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/170"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::Sleep(5)),
+            Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=succeeded"],
+            )),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
 async fn should_make_adyen_walley_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
     conn.make_redirection_payment(
@@ -581,6 +601,12 @@ fn should_make_adyen_bizum_payment_test() {
 #[serial]
 fn should_make_adyen_clearpay_payment_test() {
     tester!(should_make_adyen_clearpay_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_twint_payment_test() {
+    tester!(should_make_adyen_twint_payment);
 }
 
 #[test]

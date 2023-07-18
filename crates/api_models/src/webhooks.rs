@@ -98,9 +98,3 @@ pub enum OutgoingWebhookContent {
     RefundDetails(refunds::RefundResponse),
     DisputeDetails(Box<disputes::DisputeResponse>),
 }
-
-pub trait OutgoingWebhookType:
-    Serialize + From<OutgoingWebhook> + Sync + Send + std::fmt::Debug
-{
-}
-impl OutgoingWebhookType for OutgoingWebhook {}
