@@ -553,7 +553,7 @@ pub struct DelayedSessionConfig {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorRequestReferenceIdConfig {
-    pub merchant_ids_send_payment_id_as_connector_request_id: Vec<String>,
+    pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
 }
 
 fn delayed_session_deser<'a, D>(
