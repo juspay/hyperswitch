@@ -400,8 +400,7 @@ pub struct PayBrightData {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct PaySafeCardData {
-}
+pub struct PaySafeCardData {}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct OnlineBankingFinlandData {
@@ -1097,15 +1096,11 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
 
 impl<'a> TryFrom<&api_models::payments::GiftCardData> for AdyenPaymentMethod<'a> {
     type Error = Error;
-    fn try_from(
-        gift_card_data: &api_models::payments::GiftCardData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(gift_card_data: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
         match gift_card_data {
-            payments::GiftCardData::PaySafeCard {
-            } => Ok(AdyenPaymentMethod::PaySafeCard(Box::new(
-                PaySafeCardData {
-                },
-            ))),
+            payments::GiftCardData::PaySafeCard {} => Ok(AdyenPaymentMethod::PaySafeCard(
+                Box::new(PaySafeCardData {}),
+            )),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
@@ -1631,7 +1626,7 @@ impl<'a>
         let recurring_processing_model = get_recurring_processing_model(item)?.0;
         let browser_info = get_browser_info(item)?;
         let additional_data = get_additional_data(item);
-        let return_url = item.request.get_return_url()?;
+        let return_url = item.request.get_router_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(gift_card_data)?;
         let country_code = get_country_code(item);
         let request = AdyenPaymentRequest {
@@ -1654,6 +1649,7 @@ impl<'a>
             line_items: None,
             shopper_reference: None,
             store_payment_method: None,
+            channel: None,
         };
         Ok(request)
     }

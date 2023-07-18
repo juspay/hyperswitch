@@ -722,15 +722,15 @@ pub enum PaymentMethodData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum GiftCardData {
-    BabyGiftCard{
-    /// The gift card number
-    #[schema(value_type = String)]
-    number: Option<Secret<String>>,
-    /// The card verification code.
-    #[schema(value_type = String)]
-    cvc: Option<Secret<String>>
-   },
-   PaySafeCard {}
+    BabyGiftCard {
+        /// The gift card number
+        #[schema(value_type = String)]
+        number: Secret<String>,
+        /// The card verification code.
+        #[schema(value_type = String)]
+        cvc: Secret<String>,
+    },
+    PaySafeCard {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]

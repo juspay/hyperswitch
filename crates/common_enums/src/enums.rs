@@ -584,6 +584,7 @@ pub enum PaymentMethodType {
     OnlineBankingSlovakia,
     PayBright,
     Paypal,
+    PaySafeCard,
     Przelewy24,
     SamsungPay,
     Sepa,
@@ -626,6 +627,7 @@ pub enum PaymentMethod {
     BankDebit,
     Reward,
     Upi,
+    GiftCard,
 }
 
 #[derive(

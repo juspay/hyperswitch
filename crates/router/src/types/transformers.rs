@@ -210,6 +210,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             api_enums::PaymentMethodType::Evoucher
             | api_enums::PaymentMethodType::ClassicReward => Self::Reward,
             api_enums::PaymentMethodType::Multibanco => Self::BankTransfer,
+            api_enums::PaymentMethodType::PaySafeCard => Self::GiftCard,
         }
     }
 }

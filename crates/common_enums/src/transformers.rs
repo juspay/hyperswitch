@@ -1568,6 +1568,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::OnlineBankingSlovakia => Self::BankRedirect,
             PaymentMethodType::PayBright => Self::PayLater,
             PaymentMethodType::Paypal => Self::Wallet,
+            PaymentMethodType::PaySafeCard => Self::GiftCard,
             PaymentMethodType::Przelewy24 => Self::BankRedirect,
             PaymentMethodType::SamsungPay => Self::Wallet,
             PaymentMethodType::Sepa => Self::BankDebit,

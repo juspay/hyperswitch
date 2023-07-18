@@ -4348,6 +4348,49 @@
           "on_session"
         ]
       },
+      "GiftCardData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "baby_gift_card"
+            ],
+            "properties": {
+              "baby_gift_card": {
+                "type": "object",
+                "required": [
+                  "number",
+                  "cvc"
+                ],
+                "properties": {
+                  "number": {
+                    "type": "string",
+                    "description": "The gift card number"
+                  },
+                  "cvc": {
+                    "type": "string",
+                    "description": "The card verification code."
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_safe_card"
+            ],
+            "properties": {
+              "pay_safe_card": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "GoPayRedirection": {
+        "type": "object"
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -6831,6 +6874,7 @@
           "online_banking_slovakia",
           "pay_bright",
           "paypal",
+          "pay_safe_card",
           "przelewy24",
           "samsung_pay",
           "sepa",
@@ -6840,8 +6884,7 @@
           "twint",
           "upi_collect",
           "walley",
-          "we_chat_pay",
-          "baby_gift_card"
+          "we_chat_pay"
         ]
       },
       "PaymentMethodUpdate": {
