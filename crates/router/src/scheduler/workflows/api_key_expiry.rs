@@ -1,5 +1,5 @@
 use common_utils::ext_traits::ValueExt;
-use storage_models::enums::{self as storage_enums};
+use diesel_models::enums::{self as storage_enums};
 
 use super::{ApiKeyExpiryWorkflow, ProcessTrackerWorkflow};
 use crate::{

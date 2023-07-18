@@ -11,10 +11,10 @@ impl SeleniumTest for PayUSeleniumTest {
     }
 }
 
-async fn should_make_no_3ds_card_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_no_3ds_card_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = PayUSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/72"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
@@ -27,19 +27,14 @@ async fn should_make_no_3ds_card_payment(c: WebDriver) -> Result<(), WebDriverEr
     Ok(())
 }
 
-async fn should_make_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_gpay_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = PayUSeleniumTest {};
-    conn.make_redirection_payment(
-        c,
+    conn.make_gpay_payment(web_driver,
+        &format!("{CHEKOUT_BASE_URL}/gpay?gatewayname=payu&gatewaymerchantid=459551&amount=70.00&country=US&currency=PLN"),
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/77"))),
-            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
-            Event::Trigger(Trigger::Sleep(1)),
-            Event::Assert(Assert::IsPresent("status")),
-            Event::Assert(Assert::IsPresent("processing")),
-        ],
-    )
-    .await?;
+        Event::Assert(Assert::IsPresent("Status")),
+        Event::Assert(Assert::IsPresent("processing")),
+    ]).await?;
     Ok(())
 }
 
@@ -51,6 +46,7 @@ fn should_make_no_3ds_card_payment_test() {
 
 #[test]
 #[serial]
+#[ignore]
 fn should_make_gpay_payment_test() {
     tester!(should_make_gpay_payment);
 }

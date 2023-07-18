@@ -136,6 +136,12 @@ async fn should_make_stripe_klarna_payment(c: WebDriver) -> Result<(), WebDriver
                 ],
             ),
             Event::RunIf(
+                Assert::IsPresent("We've updated our Shopping terms"),
+                vec![Event::Trigger(Trigger::Click(By::Css(
+                    "button[data-testid='kaf-button']",
+                )))],
+            ),
+            Event::RunIf(
                 Assert::IsPresent("Pick a plan"),
                 vec![Event::Trigger(Trigger::Click(By::Css(
                     "button[data-testid='pick-plan']",
@@ -374,6 +380,19 @@ async fn should_make_stripe_sepa_bank_debit_payment(c: WebDriver) -> Result<(), 
     Ok(())
 }
 
+async fn should_make_stripe_affirm_paylater_payment(
+    driver: WebDriver,
+) -> Result<(), WebDriverError> {
+    let conn = StripeSeleniumTest {};
+    conn.make_affirm_payment(
+        driver,
+        &format!("{CHEKOUT_BASE_URL}/saved/110"),
+        vec![Event::Assert(Assert::IsPresent("succeeded"))],
+    )
+    .await?;
+    Ok(())
+}
+
 #[test]
 #[serial]
 fn should_make_3ds_payment_test() {
@@ -476,4 +495,10 @@ fn should_make_stripe_ach_bank_debit_payment_test() {
 #[serial]
 fn should_make_stripe_sepa_bank_debit_payment_test() {
     tester!(should_make_stripe_sepa_bank_debit_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_stripe_affirm_paylater_payment_test() {
+    tester!(should_make_stripe_affirm_paylater_payment);
 }

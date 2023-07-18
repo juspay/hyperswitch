@@ -68,6 +68,14 @@ pub enum CryptoError {
     SignatureVerificationFailed,
 }
 
+/// Errors for Qr code handling
+#[derive(Debug, thiserror::Error)]
+pub enum QrCodeError {
+    /// Failed to encode data into Qr code
+    #[error("Failed to create Qr code")]
+    FailedToCreateQrCode,
+}
+
 /// Allows [error_stack::Report] to change between error contexts
 /// using the dependent [ErrorSwitch] trait to define relations & mappings between traits
 pub trait ReportSwitchExt<T, U> {

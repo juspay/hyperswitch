@@ -65,6 +65,8 @@ pub mod headers {
     pub const X_ACCEPT_VERSION: &str = "X-Accept-Version";
     pub const X_DATE: &str = "X-Date";
     pub const X_WEBHOOK_SIGNATURE: &str = "X-Webhook-Signature-512";
+
+    pub const STRIPE_COMPATIBLE_WEBHOOK_SIGNATURE: &str = "Stripe-Signature";
 }
 
 pub mod pii {
@@ -222,7 +224,7 @@ pub fn get_application_builder(
             errors::error_handlers::custom_error_handlers,
         ))
         .wrap(middleware::default_response_headers())
-        .wrap(cors::cors())
         .wrap(middleware::RequestId)
+        .wrap(cors::cors())
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }

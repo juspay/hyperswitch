@@ -4,12 +4,12 @@ use common_utils::{
     errors::{CustomResult, ValidationError},
     pii,
 };
-use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
-use storage_models::{
+use diesel_models::{
     encryption::Encryption, enums,
     merchant_connector_account::MerchantConnectorAccountUpdateInternal,
 };
+use error_stack::ResultExt;
+use masking::{PeekInterface, Secret};
 
 use super::{behaviour, types::TypeEncryption};
 #[derive(Clone, Debug)]
@@ -31,6 +31,7 @@ pub struct MerchantConnectorAccount {
     pub business_sub_label: Option<String>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub connector_webhook_details: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug)]
@@ -46,17 +47,18 @@ pub enum MerchantConnectorAccountUpdate {
         payment_methods_enabled: Option<Vec<serde_json::Value>>,
         metadata: Option<pii::SecretSerdeValue>,
         frm_configs: Option<Secret<serde_json::Value>>,
+        connector_webhook_details: Option<pii::SecretSerdeValue>,
     },
 }
 
 #[async_trait::async_trait]
 impl behaviour::Conversion for MerchantConnectorAccount {
-    type DstType = storage_models::merchant_connector_account::MerchantConnectorAccount;
-    type NewDstType = storage_models::merchant_connector_account::MerchantConnectorAccountNew;
+    type DstType = diesel_models::merchant_connector_account::MerchantConnectorAccount;
+    type NewDstType = diesel_models::merchant_connector_account::MerchantConnectorAccountNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(
-            storage_models::merchant_connector_account::MerchantConnectorAccount {
+            diesel_models::merchant_connector_account::MerchantConnectorAccount {
                 id: self.id.ok_or(ValidationError::MissingRequiredField {
                     field_name: "id".to_string(),
                 })?,
@@ -76,6 +78,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 business_sub_label: self.business_sub_label,
                 created_at: self.created_at,
                 modified_at: self.modified_at,
+                connector_webhook_details: self.connector_webhook_details,
             },
         )
     }
@@ -111,6 +114,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             business_sub_label: other.business_sub_label,
             created_at: other.created_at,
             modified_at: other.modified_at,
+            connector_webhook_details: other.connector_webhook_details,
         })
     }
 
@@ -133,6 +137,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             business_sub_label: self.business_sub_label,
             created_at: now,
             modified_at: now,
+            connector_webhook_details: self.connector_webhook_details,
         })
     }
 }
@@ -151,6 +156,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 payment_methods_enabled,
                 metadata,
                 frm_configs,
+                connector_webhook_details,
             } => Self {
                 merchant_id,
                 connector_type,
@@ -163,6 +169,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 metadata,
                 frm_configs,
                 modified_at: Some(common_utils::date_time::now()),
+                connector_webhook_details,
             },
         }
     }

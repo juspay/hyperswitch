@@ -40,7 +40,7 @@ pub trait ConnectorAccessToken:
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     fn connector_transaction_id(
         &self,
-        payment_attempt: storage_models::payment_attempt::PaymentAttempt,
+        payment_attempt: diesel_models::payment_attempt::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
         Ok(payment_attempt.connector_transaction_id)
     }
@@ -232,6 +232,7 @@ impl ConnectorData {
                 enums::Connector::Fiserv => Ok(Box::new(&connector::Fiserv)),
                 enums::Connector::Forte => Ok(Box::new(&connector::Forte)),
                 enums::Connector::Globalpay => Ok(Box::new(&connector::Globalpay)),
+                enums::Connector::Globepay => Ok(Box::new(&connector::Globepay)),
                 enums::Connector::Iatapay => Ok(Box::new(&connector::Iatapay)),
                 enums::Connector::Klarna => Ok(Box::new(&connector::Klarna)),
                 enums::Connector::Mollie => Ok(Box::new(&connector::Mollie)),
@@ -242,9 +243,10 @@ impl ConnectorData {
                 // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 enums::Connector::Payme => Ok(Box::new(&connector::Payme)),
                 enums::Connector::Payu => Ok(Box::new(&connector::Payu)),
-                //enums::Connector::Powertranz => Ok(Box::new(&connector::powertranz)),
+                enums::Connector::Powertranz => Ok(Box::new(&connector::Powertranz)),
                 enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
                 enums::Connector::Shift4 => Ok(Box::new(&connector::Shift4)),
+                enums::Connector::Stax => Ok(Box::new(&connector::Stax)),
                 enums::Connector::Stripe => Ok(Box::new(&connector::Stripe)),
                 enums::Connector::Worldline => Ok(Box::new(&connector::Worldline)),
                 enums::Connector::Worldpay => Ok(Box::new(&connector::Worldpay)),
@@ -252,6 +254,7 @@ impl ConnectorData {
                 enums::Connector::Nexinets => Ok(Box::new(&connector::Nexinets)),
                 enums::Connector::Paypal => Ok(Box::new(&connector::Paypal)),
                 enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
+                enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)

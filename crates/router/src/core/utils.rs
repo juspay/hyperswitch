@@ -7,6 +7,7 @@ use router_env::{instrument, tracing};
 
 use super::payments::{helpers, PaymentAddress};
 use crate::{
+    configs::settings,
     consts,
     core::errors::{self, RouterResult},
     routes::AppState,
@@ -17,6 +18,11 @@ use crate::{
     },
     utils::{generate_id, OptionExt, ValueExt},
 };
+
+const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
+    "irrelevant_connector_request_reference_id_in_dispute_flow";
+const IRRELEVANT_PAYMENT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_payment_id_in_dispute_flow";
+const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_dispute_flow";
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
@@ -66,6 +72,7 @@ pub async fn construct_refund_router_data<'a, F>(
         &merchant_account.merchant_id,
         &connector_id.to_string(),
     ));
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -106,7 +113,14 @@ pub async fn construct_refund_router_data<'a, F>(
         reference_id: None,
         payment_method_token: None,
         connector_customer: None,
+        recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        connector_request_reference_id: get_connector_request_reference_id(
+            &state.conf,
+            &merchant_account.merchant_id,
+            payment_attempt,
+        ),
+        test_mode,
     };
 
     Ok(router_data)
@@ -259,6 +273,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -293,7 +308,14 @@ pub async fn construct_accept_dispute_router_data<'a>(
         payment_method_token: None,
         connector_customer: None,
         customer_id: None,
+        recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        connector_request_reference_id: get_connector_request_reference_id(
+            &state.conf,
+            &merchant_account.merchant_id,
+            payment_attempt,
+        ),
+        test_mode,
     };
     Ok(router_data)
 }
@@ -323,6 +345,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -354,7 +377,14 @@ pub async fn construct_submit_evidence_router_data<'a>(
         payment_method_token: None,
         connector_customer: None,
         customer_id: None,
+        recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        connector_request_reference_id: get_connector_request_reference_id(
+            &state.conf,
+            &merchant_account.merchant_id,
+            payment_attempt,
+        ),
+        test_mode,
     };
     Ok(router_data)
 }
@@ -380,6 +410,7 @@ pub async fn construct_upload_file_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -416,7 +447,14 @@ pub async fn construct_upload_file_router_data<'a>(
         payment_method_token: None,
         connector_customer: None,
         customer_id: None,
+        recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        connector_request_reference_id: get_connector_request_reference_id(
+            &state.conf,
+            &merchant_account.merchant_id,
+            payment_attempt,
+        ),
+        test_mode,
     };
     Ok(router_data)
 }
@@ -446,6 +484,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -480,7 +519,14 @@ pub async fn construct_defend_dispute_router_data<'a>(
         payment_method_token: None,
         customer_id: None,
         connector_customer: None,
+        recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        connector_request_reference_id: get_connector_request_reference_id(
+            &state.conf,
+            &merchant_account.merchant_id,
+            payment_attempt,
+        ),
+        test_mode,
     };
     Ok(router_data)
 }
@@ -490,7 +536,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
     state: &'a AppState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    file_metadata: &storage_models::file::FileMetadata,
+    file_metadata: &diesel_models::file::FileMetadata,
     connector_id: &str,
 ) -> RouterResult<types::RetrieveFileRouterData> {
     let connector_label = file_metadata
@@ -507,6 +553,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         key_store,
     )
     .await?;
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -517,16 +564,16 @@ pub async fn construct_retrieve_file_router_data<'a>(
         connector: connector_id.to_string(),
         customer_id: None,
         connector_customer: None,
-        payment_id: "irrelevant_payment_id_in_dispute_flow".to_string(),
-        attempt_id: "irrelevant_attempt_id_in_dispute_flow".to_string(),
-        status: storage_models::enums::AttemptStatus::default(),
-        payment_method: storage_models::enums::PaymentMethod::default(),
+        payment_id: IRRELEVANT_PAYMENT_ID_IN_DISPUTE_FLOW.to_string(),
+        attempt_id: IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW.to_string(),
+        status: diesel_models::enums::AttemptStatus::default(),
+        payment_method: diesel_models::enums::PaymentMethod::default(),
         connector_auth_type: auth_type,
         description: None,
         return_url: None,
         payment_method_id: None,
         address: PaymentAddress::default(),
-        auth_type: storage_models::enums::AuthenticationType::default(),
+        auth_type: diesel_models::enums::AuthenticationType::default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: None,
         request: types::RetrieveFileRequestData {
@@ -542,7 +589,36 @@ pub async fn construct_retrieve_file_router_data<'a>(
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        connector_request_reference_id: IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW
+            .to_string(),
+        test_mode,
     };
     Ok(router_data)
+}
+
+pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
+    conf: &settings::Settings,
+    merchant_id: &str,
+) -> bool {
+    let config_map = &conf
+        .connector_request_reference_id_config
+        .merchant_ids_send_payment_id_as_connector_request_id;
+    config_map.contains(merchant_id)
+}
+
+pub fn get_connector_request_reference_id(
+    conf: &settings::Settings,
+    merchant_id: &str,
+    payment_attempt: &diesel_models::payment_attempt::PaymentAttempt,
+) -> String {
+    let is_config_enabled_for_merchant =
+        is_merchant_enabled_for_payment_id_as_connector_request_id(conf, merchant_id);
+    // Send payment_id if config is enabled for a merchant, else send attempt_id
+    if is_config_enabled_for_merchant {
+        payment_attempt.payment_id.clone()
+    } else {
+        payment_attempt.attempt_id.clone()
+    }
 }

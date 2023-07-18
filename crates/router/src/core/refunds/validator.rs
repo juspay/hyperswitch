@@ -144,7 +144,7 @@ pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::Api
 }
 
 pub fn validate_for_valid_refunds(
-    payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
+    payment_attempt: &diesel_models::payment_attempt::PaymentAttempt,
     connector: api_models::enums::Connector,
 ) -> RouterResult<()> {
     let payment_method = payment_attempt
@@ -153,11 +153,10 @@ pub fn validate_for_valid_refunds(
         .get_required_value("payment_method")?;
 
     match payment_method {
-        storage_models::enums::PaymentMethod::PayLater
-        | storage_models::enums::PaymentMethod::Wallet => {
+        diesel_models::enums::PaymentMethod::PayLater
+        | diesel_models::enums::PaymentMethod::Wallet => {
             let payment_method_type = payment_attempt
                 .payment_method_type
-                .clone()
                 .get_required_value("payment_method_type")?;
 
             utils::when(
@@ -165,10 +164,10 @@ pub fn validate_for_valid_refunds(
                     (connector, payment_method_type),
                     (
                         api_models::enums::Connector::Braintree,
-                        storage_models::enums::PaymentMethodType::Paypal,
+                        diesel_models::enums::PaymentMethodType::Paypal,
                     ) | (
                         api_models::enums::Connector::Klarna,
-                        storage_models::enums::PaymentMethodType::Klarna
+                        diesel_models::enums::PaymentMethodType::Klarna
                     )
                 ),
                 || {

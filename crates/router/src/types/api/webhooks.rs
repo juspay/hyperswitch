@@ -1,14 +1,18 @@
+use api_models::admin::MerchantConnectorWebhookDetails;
 pub use api_models::webhooks::{
     IncomingWebhookDetails, IncomingWebhookEvent, MerchantWebhookConfig, ObjectReferenceId,
-    OutgoingWebhook, OutgoingWebhookContent, OutgoingWebhookType, WebhookFlow,
+    OutgoingWebhook, OutgoingWebhookContent, WebhookFlow,
 };
-use error_stack::ResultExt;
+use common_utils::ext_traits::ValueExt;
+use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 
 use super::ConnectorCommon;
 use crate::{
     core::errors::{self, CustomResult},
     db::StorageInterface,
     services,
+    types::domain,
     utils::crypto,
 };
 
@@ -73,10 +77,47 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     async fn get_webhook_source_verification_merchant_secret(
         &self,
-        _db: &dyn StorageInterface,
-        _merchant_id: &str,
+        db: &dyn StorageInterface,
+        merchant_id: &str,
+        connector_label: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        Ok(Vec::new())
+        let debug_suffix = format!(
+            "For merchant_id: {}, and connector_label: {}",
+            merchant_id, connector_label
+        );
+        let merchant_connector_webhook_details = db
+            .find_merchant_connector_account_by_merchant_id_connector_label(
+                merchant_id,
+                connector_label,
+                key_store,
+            )
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .attach_printable_lazy(|| {
+                format!(
+                    "Fetch merchant_webhook_secret from MCA table failed {}",
+                    debug_suffix
+                )
+            })?
+            .connector_webhook_details;
+        let merchant_secret = merchant_connector_webhook_details
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .into_report()
+            .attach_printable_lazy(|| format!("Merchant Secret not configured {}", debug_suffix))?
+            .expose()
+            .parse_value::<MerchantConnectorWebhookDetails>("MerchantConnectorWebhookDetails")
+            .change_context_lazy(|| errors::ConnectorError::WebhookSourceVerificationFailed)
+            .attach_printable_lazy(|| {
+                format!(
+                    "Deserializing MerchantConnectorWebhookDetails failed {}",
+                    debug_suffix
+                )
+            })?
+            .merchant_secret
+            .expose();
+        //need to fetch merchant secret from config table with caching in future for enhanced performance
+        Ok(merchant_secret.into_bytes())
     }
 
     fn get_webhook_source_verification_signature(
@@ -100,6 +141,8 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         db: &dyn StorageInterface,
         request: &IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
+        connector_label: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(request)
@@ -109,7 +152,12 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret = self
-            .get_webhook_source_verification_merchant_secret(db, merchant_id)
+            .get_webhook_source_verification_merchant_secret(
+                db,
+                merchant_id,
+                connector_label,
+                key_store,
+            )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let message = self

@@ -1,1 +1,1 @@
-pub use storage_models::query::*;
+pub use diesel_models::query::*;
