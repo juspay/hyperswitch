@@ -1,5 +1,6 @@
 pub mod api_error_response;
 pub mod error_handlers;
+pub mod transformers;
 pub mod utils;
 
 use std::fmt::Display;
@@ -7,10 +8,10 @@ use std::fmt::Display;
 use actix_web::{body::BoxBody, http::StatusCode, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use config::ConfigError;
+use diesel_models::errors as storage_errors;
 use error_stack;
 pub use redis_interface::errors::RedisError;
 use router_env::opentelemetry::metrics::MetricsError;
-use storage_models::errors as storage_errors;
 
 pub use self::{
     api_error_response::ApiErrorResponse,
@@ -98,6 +99,7 @@ impl StorageError {
                 err.current_context(),
                 storage_errors::DatabaseError::NotFound
             ),
+            Self::ValueNotFound(_) => true,
             _ => false,
         }
     }
@@ -307,6 +309,8 @@ pub enum ConnectorError {
     FileValidationFailed { reason: String },
     #[error("Missing 3DS redirection payload: {field_name}")]
     MissingConnectorRedirectionPayload { field_name: &'static str },
+    #[error("Payment Method Type not found")]
+    MissingPaymentMethodType,
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -1,5 +1,5 @@
+use diesel_models::payment_method::PaymentMethodUpdateInternal;
 use error_stack::IntoReport;
-use storage_models::payment_method::PaymentMethodUpdateInternal;
 
 use super::{MockDb, Store};
 use crate::{

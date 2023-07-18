@@ -180,8 +180,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         router_data: &mut types::PaymentsAuthorizeRouterData,
         app_state: &routes::AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
-        if router_data.auth_type == storage_models::enums::AuthenticationType::ThreeDs
-            && router_data.payment_method == storage_models::enums::PaymentMethod::Card
+        if router_data.auth_type == diesel_models::enums::AuthenticationType::ThreeDs
+            && router_data.payment_method == diesel_models::enums::PaymentMethod::Card
         {
             let integ: Box<
                 &(dyn ConnectorIntegration<

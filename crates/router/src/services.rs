@@ -214,7 +214,7 @@ impl Store {
     #[cfg(feature = "kv_store")]
     pub(crate) async fn push_to_drainer_stream<T>(
         &self,
-        redis_entry: storage_models::kv::TypedSql,
+        redis_entry: diesel_models::kv::TypedSql,
         partition_key: crate::utils::storage_partitioning::PartitionKey<'_>,
     ) -> crate::core::errors::CustomResult<(), crate::core::errors::StorageError>
     where
