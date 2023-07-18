@@ -1,7 +1,7 @@
-use api_models::payments::{Address, Card};
+use api_models::payments::Card;
 use common_utils::pii::Email;
 use diesel_models::enums::RefundStatus;
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -24,7 +24,8 @@ pub struct PowertranzPaymentsRequest {
     three_d_secure: bool,
     source: Source,
     order_identifier: String,
-    billing_address: Option<PowertranzAddressDetails>,
+    // billing_address: Option<PowertranzAddressDetails>,
+    // shipping_address: Option<PowertranzAddressDetails>,
     extended_data: Option<ExtendedData>,
 }
 
@@ -102,7 +103,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
                 "Payment method".to_string(),
             )),
         }?;
-        let billing_address = get_address_details(&item.address.billing, &item.request.email);
+        // let billing_address = get_address_details(&item.address.billing, &item.request.email);
+        // let shipping_address = get_address_details(&item.address.shipping, &item.request.email);
         let (three_d_secure, extended_data) = match item.auth_type {
             diesel_models::enums::AuthenticationType::ThreeDs => {
                 (true, Some(ExtendedData::try_from(item)?))
@@ -120,7 +122,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
             three_d_secure,
             source,
             order_identifier: item.payment_id.clone(),
-            billing_address,
+            // billing_address,
+            // shipping_address,
             extended_data,
         })
     }
@@ -159,7 +162,7 @@ impl TryFrom<&types::BrowserInformation> for BrowserInfo {
     }
 }
 
-fn get_address_details(
+/*fn get_address_details(
     address: &Option<Address>,
     email: &Option<Email>,
 ) -> Option<PowertranzAddressDetails> {
@@ -189,7 +192,7 @@ fn get_address_details(
             email_address: email.clone(),
             phone_number,
         })
-}
+}*/
 
 impl From<&Card> for Source {
     fn from(card: &Card) -> Self {
