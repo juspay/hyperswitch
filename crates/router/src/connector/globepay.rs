@@ -327,22 +327,152 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Globepay
 {
+    fn get_headers(
+        &self,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let query_params = get_globlepay_query_params(&req.connector_auth_type)?;
+        Ok(format!(
+            "{}api/v1.0/gateway/partners/{}/orders/{}/refunds/{}{query_params}",
+            self.base_url(connectors),
+            get_partner_code(&req.connector_auth_type)?,
+            req.payment_id,
+            req.request.refund_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::RefundsRouterData<api::Execute>,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = globepay::GlobepayRefundRequest::try_from(req)?;
+        let globepay_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<globepay::GlobepayRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(globepay_req))
+    }
+
     fn build_request(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("Refund".to_string()).into())
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Put)
+                .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::RefundExecuteType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::RefundExecuteType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::RefundsRouterData<api::Execute>,
+        res: Response,
+    ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
+        let response: globepay::GlobepayRefundResponse = res
+            .response
+            .parse_struct("Globalpay RefundResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
     }
 }
 
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Globepay {
+    fn get_headers(
+        &self,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let query_params = get_globlepay_query_params(&req.connector_auth_type)?;
+        Ok(format!(
+            "{}api/v1.0/gateway/partners/{}/orders/{}/refunds/{}{query_params}",
+            self.base_url(connectors),
+            get_partner_code(&req.connector_auth_type)?,
+            req.payment_id,
+            req.request.refund_id
+        ))
+    }
+
     fn build_request(
         &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("Refund Sync".to_string()).into())
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Get)
+                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::RefundSyncRouterData,
+        res: Response,
+    ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
+        let response: globepay::GlobepayRefundResponse = res
+            .response
+            .parse_struct("Globalpay RefundResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
     }
 }
 

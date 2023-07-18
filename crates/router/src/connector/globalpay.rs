@@ -23,7 +23,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    db, headers,
+    headers,
     services::{
         self,
         request::{self, Mask},
@@ -812,24 +812,6 @@ impl api::IncomingWebhook for Globalpay {
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
         Ok(Box::new(crypto::Sha512))
-    }
-
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn db::StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
     }
 
     fn get_webhook_source_verification_signature(

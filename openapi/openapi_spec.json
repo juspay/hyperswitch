@@ -129,7 +129,47 @@
         ]
       }
     },
-    "/customer/{customer_id}/payment_methods": {
+    "/customers": {
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Create Customer",
+        "description": "Create Customer\n\nCreate a customer object and store the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.",
+        "operationId": "Create a Customer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Customer Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/customers/payment_methods": {
       "get": {
         "tags": [
           "Payment Methods"
@@ -138,6 +178,15 @@
         "description": "List payment methods for a Customer\n\nTo filter and list the applicable payment methods for a particular Customer ID",
         "operationId": "List all Payment Methods for a Customer",
         "parameters": [
+          {
+            "name": "client-secret",
+            "in": "path",
+            "description": "A secret known only to your application and the authorization server",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "customer_id",
             "in": "path",
@@ -212,7 +261,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Payment Methods retrieved",
+            "description": "Payment Methods retrieved for customer tied to its respective client-secret passed in the param",
             "content": {
               "application/json": {
                 "schema": {
@@ -230,50 +279,7 @@
         },
         "security": [
           {
-            "api_key": []
-          },
-          {
-            "ephemeral_key": []
-          }
-        ]
-      }
-    },
-    "/customers": {
-      "post": {
-        "tags": [
-          "Customers"
-        ],
-        "summary": "Create Customer",
-        "description": "Create Customer\n\nCreate a customer object and store the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.",
-        "operationId": "Create a Customer",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CustomerRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Customer Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CustomerResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid data"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
+            "publishable_key": []
           }
         ]
       }
@@ -401,6 +407,112 @@
           },
           "404": {
             "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/customers/{customer_id}/payment_methods": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "List payment methods for a Customer",
+        "description": "List payment methods for a Customer\n\nTo filter and list the applicable payment methods for a particular Customer ID",
+        "operationId": "List all Payment Methods for a Customer",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "description": "The unique identifier for the customer account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accepted_country",
+            "in": "query",
+            "description": "The two-letter ISO currency code",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "accepted_currency",
+            "in": "path",
+            "description": "The three-letter ISO currency code",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Currency"
+              }
+            }
+          },
+          {
+            "name": "minimum_amount",
+            "in": "query",
+            "description": "The minimum amount accepted for processing by the particular payment method.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "maximum_amount",
+            "in": "query",
+            "description": "The maximum amount amount accepted for processing by the particular payment method.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "recurring_payment_enabled",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for recurring payments",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "installment_payment_enabled",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for installment payments",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Methods retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          },
+          "404": {
+            "description": "Payment Methods does not exist in records"
           }
         },
         "security": [
@@ -1739,10 +1851,10 @@
           }
         }
       },
-      "AliPay": {
+      "AliPayHkRedirection": {
         "type": "object"
       },
-      "AliPayHkRedirection": {
+      "AliPayQr": {
         "type": "object"
       },
       "AliPayRedirection": {
@@ -1932,6 +2044,34 @@
             "$ref": "#/components/schemas/SdkNextAction"
           }
         }
+      },
+      "AttemptStatus": {
+        "type": "string",
+        "enum": [
+          "started",
+          "authentication_failed",
+          "router_declined",
+          "authentication_pending",
+          "authentication_successful",
+          "authorized",
+          "authorization_failed",
+          "charged",
+          "authorizing",
+          "cod_initiated",
+          "voided",
+          "void_initiated",
+          "capture_initiated",
+          "capture_failed",
+          "void_failed",
+          "auto_refunded",
+          "partial_charged",
+          "unresolved",
+          "pending",
+          "failure",
+          "payment_method_awaited",
+          "confirmation_awaited",
+          "device_data_collection_pending"
+        ]
       },
       "AuthenticationType": {
         "type": "string",
@@ -2306,6 +2446,17 @@
                     "nullable": true
                   }
                 }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bizum"
+            ],
+            "properties": {
+              "bizum": {
+                "type": "object"
               }
             }
           },
@@ -2959,6 +3110,7 @@
           "shift4",
           "stripe",
           "trustpay",
+          "tsys",
           "worldline",
           "worldpay",
           "zen"
@@ -4195,12 +4347,6 @@
           "on_session"
         ]
       },
-      "GcashRedirection": {
-        "type": "object"
-      },
-      "GoPayRedirection": {
-        "type": "object"
-      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -4827,6 +4973,11 @@
             "example": 900,
             "nullable": true,
             "minimum": 0.0
+          },
+          "organization_id": {
+            "type": "string",
+            "description": "The id of the organization to which the merchant belongs to",
+            "nullable": true
           }
         }
       },
@@ -4971,6 +5122,11 @@
             "type": "integer",
             "format": "int64",
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+            "nullable": true
+          },
+          "organization_id": {
+            "type": "string",
+            "description": "The organization id merchant is associated with",
             "nullable": true
           }
         }
@@ -5211,6 +5367,14 @@
             "description": "Business Sub label of the merchant",
             "example": "chase",
             "nullable": true
+          },
+          "connector_webhook_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -5408,6 +5572,14 @@
               }
             ],
             "nullable": true
+          },
+          "connector_webhook_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -5496,6 +5668,26 @@
               }
             ],
             "nullable": true
+          },
+          "connector_webhook_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "MerchantConnectorWebhookDetails": {
+        "type": "object",
+        "required": [
+          "merchant_secret"
+        ],
+        "properties": {
+          "merchant_secret": {
+            "type": "string",
+            "example": "12345678900987654321"
           }
         }
       },
@@ -5969,6 +6161,121 @@
           "token": {
             "type": "string",
             "description": "Token generated for the Apple pay"
+          }
+        }
+      },
+      "PaymentAttemptResponse": {
+        "type": "object",
+        "required": [
+          "attempt_id",
+          "status",
+          "amount"
+        ],
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "description": "Unique identifier for the attempt"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AttemptStatus"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,"
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "connector": {
+            "type": "string",
+            "description": "The connector used for the payment",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "If there was an error while calling the connector the error message is received here",
+            "nullable": true
+          },
+          "payment_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethod"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_transaction_id": {
+            "type": "string",
+            "description": "A unique identifier for a payment provided by the connector",
+            "nullable": true
+          },
+          "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
+          },
+          "authentication_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationType"
+              }
+            ],
+            "nullable": true
+          },
+          "cancellation_reason": {
+            "type": "string",
+            "description": "If the payment was cancelled the reason provided here",
+            "nullable": true
+          },
+          "mandate_id": {
+            "type": "string",
+            "description": "A unique identifier to link the payment to a mandate, can be use instead of payment_method_data",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "If there was an error while calling the connectors the code is received here",
+            "nullable": true
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "Provide a reference to a stored payment method",
+            "nullable": true
+          },
+          "connector_metadata": {
+            "description": "additional data related to some connectors",
+            "nullable": true
+          },
+          "payment_experience": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentExperience"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "reference_id": {
+            "type": "string",
+            "description": "reference to the payment at connector side",
+            "example": "993672945374576J",
+            "nullable": true
           }
         }
       },
@@ -6488,6 +6795,7 @@
           "bancontact_card",
           "becs",
           "blik",
+          "bizum",
           "classic",
           "credit",
           "crypto_currency",
@@ -6496,8 +6804,6 @@
           "evoucher",
           "giropay",
           "google_pay",
-          "go_pay",
-          "gcash",
           "ideal",
           "interac",
           "klarna",
@@ -6587,6 +6893,11 @@
           "client_secret": {
             "type": "string",
             "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
+          },
+          "expand_attempts": {
+            "type": "boolean",
+            "description": "If enabled provides list of attempts linked to payment intent",
             "nullable": true
           }
         }
@@ -7425,6 +7736,14 @@
             "description": "List of dispute that happened on this intent",
             "nullable": true
           },
+          "attempts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentAttemptResponse"
+            },
+            "description": "List of attempts that happened on this intent",
+            "nullable": true
+          },
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate, can be use instead of payment_method_data",
@@ -7715,6 +8034,11 @@
           "client_secret": {
             "type": "string",
             "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
+          },
+          "expand_attempts": {
+            "type": "boolean",
+            "description": "If enabled provides list of attempts linked to payment intent",
             "nullable": true
           }
         }
@@ -8555,11 +8879,11 @@
           {
             "type": "object",
             "required": [
-              "ali_pay"
+              "ali_pay_qr"
             ],
             "properties": {
-              "ali_pay": {
-                "$ref": "#/components/schemas/AliPay"
+              "ali_pay_qr": {
+                "$ref": "#/components/schemas/AliPayQr"
               }
             }
           },
@@ -8582,39 +8906,6 @@
             "properties": {
               "ali_pay_hk_redirect": {
                 "$ref": "#/components/schemas/AliPayHkRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "kakao_pay_redirect"
-            ],
-            "properties": {
-              "kakao_pay_redirect": {
-                "$ref": "#/components/schemas/KakaoPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "go_pay_redirect"
-            ],
-            "properties": {
-              "go_pay_redirect": {
-                "$ref": "#/components/schemas/GoPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "gcash_redirect"
-            ],
-            "properties": {
-              "gcash_redirect": {
-                "$ref": "#/components/schemas/GcashRedirection"
               }
             }
           },
@@ -8760,10 +9051,24 @@
                 "$ref": "#/components/schemas/WeChatPay"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "we_chat_pay_qr"
+            ],
+            "properties": {
+              "we_chat_pay_qr": {
+                "$ref": "#/components/schemas/WeChatPayQr"
+              }
+            }
           }
         ]
       },
       "WeChatPay": {
+        "type": "object"
+      },
+      "WeChatPayQr": {
         "type": "object"
       },
       "WeChatPayRedirection": {
