@@ -6823,6 +6823,7 @@
           "sofort",
           "swish",
           "trustly",
+          "twint",
           "upi_collect",
           "walley",
           "we_chat_pay"
@@ -9038,6 +9039,18 @@
             "properties": {
               "samsung_pay": {
                 "$ref": "#/components/schemas/SamsungPayWalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "twint_redirect"
+            ],
+            "properties": {
+              "twint_redirect": {
+                "type": "object",
+                "description": "Wallet data for Twint Redirection"
               }
             }
           },

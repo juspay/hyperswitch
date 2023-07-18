@@ -305,6 +305,7 @@ pub enum AdyenPaymentMethod<'a> {
     SepaDirectDebit(Box<SepaDirectDebitData>),
     BacsDirectDebit(Box<BacsDirectDebitData>),
     SamsungPay(Box<SamsungPayPmData>),
+    Twint(Box<TwintWalletData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -659,6 +660,12 @@ pub struct AdyenApplePay {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TwintWalletData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenPayLaterData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
@@ -735,6 +742,7 @@ pub enum PaymentType {
     #[serde(rename = "directdebit_GB")]
     BacsDirectDebit,
     Samsungpay,
+    Twint,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -1208,6 +1216,12 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                     samsung_pay_token: samsung_data.token.to_owned(),
                 };
                 Ok(AdyenPaymentMethod::SamsungPay(Box::new(data)))
+            }
+            api_models::payments::WalletData::TwintRedirect { .. } => {
+                let data = TwintWalletData {
+                    payment_type: PaymentType::Twint,
+                };
+                Ok(AdyenPaymentMethod::Twint(Box::new(data)))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
