@@ -8916,17 +8916,6 @@
           {
             "type": "object",
             "required": [
-              "go_pay_redirect"
-            ],
-            "properties": {
-              "go_pay_redirect": {
-                "$ref": "#/components/schemas/GoPayRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
               "kakao_pay_redirect"
             ],
             "properties": {
