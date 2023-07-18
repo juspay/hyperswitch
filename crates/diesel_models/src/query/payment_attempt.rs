@@ -180,6 +180,30 @@ impl PaymentAttempt {
         )
         .await
     }
+
+    #[instrument(skip(conn))]
+    pub async fn find_by_merchant_id_payment_id(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        payment_id: &str,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::payment_id.eq(payment_id.to_owned())),
+            None,
+            None,
+            None,
+        )
+        .await
+    }
+
     pub async fn get_filters_for_payments(
         conn: &PgPooledConn,
         pi: &[PaymentIntent],

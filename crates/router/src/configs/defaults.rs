@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 
@@ -56,7 +56,6 @@ impl Default for super::settings::Locker {
             host: "localhost".into(),
             mock_locker: true,
             basilisk_host: "localhost".into(),
-            locker_setup: super::settings::LockerSetup::LegacyLocker,
             locker_signing_key_id: "1".into(),
         }
     }
@@ -139,6 +138,89 @@ impl Default for super::settings::DrainerSettings {
             max_read_count: 100,
             shutdown_interval: 1000,
             loop_interval: 500,
+        }
+    }
+}
+
+use super::settings::{
+    Mandates, SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
+    SupportedPaymentMethodsForMandate,
+};
+
+impl Default for Mandates {
+    fn default() -> Self {
+        Self {
+            supported_payment_methods: SupportedPaymentMethodsForMandate(HashMap::from([
+                (
+                    enums::PaymentMethod::PayLater,
+                    SupportedPaymentMethodTypesForMandate(HashMap::from([(
+                        enums::PaymentMethodType::Klarna,
+                        SupportedConnectorsForMandate {
+                            connector_list: HashSet::from([enums::Connector::Adyen]),
+                        },
+                    )])),
+                ),
+                (
+                    enums::PaymentMethod::Wallet,
+                    SupportedPaymentMethodTypesForMandate(HashMap::from([
+                        (
+                            enums::PaymentMethodType::GooglePay,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([
+                                    enums::Connector::Stripe,
+                                    enums::Connector::Adyen,
+                                ]),
+                            },
+                        ),
+                        (
+                            enums::PaymentMethodType::ApplePay,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([
+                                    enums::Connector::Stripe,
+                                    enums::Connector::Adyen,
+                                ]),
+                            },
+                        ),
+                    ])),
+                ),
+                (
+                    enums::PaymentMethod::Card,
+                    SupportedPaymentMethodTypesForMandate(HashMap::from([
+                        (
+                            enums::PaymentMethodType::Credit,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([
+                                    enums::Connector::Stripe,
+                                    enums::Connector::Adyen,
+                                    enums::Connector::Authorizedotnet,
+                                    enums::Connector::Globalpay,
+                                    enums::Connector::Worldpay,
+                                    enums::Connector::Multisafepay,
+                                    enums::Connector::Nmi,
+                                    enums::Connector::Nexinets,
+                                    enums::Connector::Noon,
+                                ]),
+                            },
+                        ),
+                        (
+                            enums::PaymentMethodType::Debit,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([
+                                    enums::Connector::Stripe,
+                                    enums::Connector::Adyen,
+                                    enums::Connector::Authorizedotnet,
+                                    enums::Connector::Globalpay,
+                                    enums::Connector::Worldpay,
+                                    enums::Connector::Multisafepay,
+                                    enums::Connector::Nmi,
+                                    enums::Connector::Nexinets,
+                                    enums::Connector::Noon,
+                                ]),
+                            },
+                        ),
+                    ])),
+                ),
+            ])),
         }
     }
 }
