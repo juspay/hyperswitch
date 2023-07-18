@@ -1,16 +1,22 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
+use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 pub use diesel_models::{
     errors,
+    payment_attempt::PaymentAttempt,
     payment_intent::{
         PaymentIntent, PaymentIntentNew, PaymentIntentUpdate, PaymentIntentUpdateInternal,
     },
-    schema::payment_intent::dsl,
+    schema::{
+        payment_attempt::{self, dsl as dsl1},
+        payment_intent::dsl,
+    },
 };
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 use crate::{connection::PgPooledConn, core::errors::CustomResult, types::api};
+
+const JOIN_LIMIT: i64 = 20;
 
 #[cfg(feature = "kv_store")]
 impl crate::utils::storage_partitioning::KvStorePartition for PaymentIntent {}
@@ -28,6 +34,12 @@ pub trait PaymentIntentDbExt: Sized {
         merchant_id: &str,
         pc: &api::TimeRange,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
+
+    async fn apply_filters_on_payments(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        constraints: &api::PaymentListFilterConstraints,
+    ) -> CustomResult<Vec<(PaymentIntent, PaymentAttempt)>, errors::DatabaseError>;
 }
 
 #[async_trait::async_trait]
@@ -120,5 +132,58 @@ impl PaymentIntentDbExt for PaymentIntent {
             .into_report()
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering records by time range")
+    }
+
+    #[instrument(skip(conn))]
+    async fn apply_filters_on_payments(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        constraints: &api::PaymentListFilterConstraints,
+    ) -> CustomResult<Vec<(Self, PaymentAttempt)>, errors::DatabaseError> {
+        let offset = constraints.offset.unwrap_or_default();
+        let mut filter = Self::table()
+            .inner_join(payment_attempt::table.on(dsl1::attempt_id.eq(dsl::active_attempt_id)))
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .order(dsl::created_at.desc())
+            .into_boxed();
+
+        match &constraints.payment_id {
+            Some(pid) => {
+                filter = filter.filter(dsl::payment_id.eq(pid.to_owned()));
+            }
+            None => {
+                filter = filter.limit(JOIN_LIMIT).offset(offset);
+            }
+        };
+
+        if let Some(time_range) = constraints.time_range {
+            filter = filter.filter(dsl::created_at.ge(time_range.start_time));
+
+            if let Some(end_time) = time_range.end_time {
+                filter = filter.filter(dsl::created_at.le(end_time));
+            }
+        }
+
+        if let Some(connector) = constraints.connector.clone() {
+            filter = filter.filter(dsl1::connector.eq_any(connector));
+        }
+
+        if let Some(filter_currency) = constraints.currency.clone() {
+            filter = filter.filter(dsl::currency.eq_any(filter_currency));
+        }
+
+        if let Some(status) = constraints.status.clone() {
+            filter = filter.filter(dsl::status.eq_any(status));
+        }
+        if let Some(payment_method) = constraints.payment_methods.clone() {
+            filter = filter.filter(dsl1::payment_method.eq_any(payment_method));
+        }
+
+        filter
+            .get_results_async(conn)
+            .await
+            .into_report()
+            .change_context(errors::DatabaseError::Others)
+            .attach_printable("Error filtering payment records")
     }
 }

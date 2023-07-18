@@ -43,6 +43,14 @@ pub trait PaymentIntentInterface {
         time_range: &api::TimeRange,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn apply_filters_on_payments_list(
+        &self,
+        merchant_id: &str,
+        constraints: &api::PaymentListFilterConstraints,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<(types::PaymentIntent, types::PaymentAttempt)>, errors::StorageError>;
 }
 
 #[cfg(feature = "kv_store")]
@@ -267,6 +275,26 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
             }
         }
+
+        #[cfg(feature = "olap")]
+        async fn apply_filters_on_payments_list(
+            &self,
+            merchant_id: &str,
+            constraints: &api::PaymentListFilterConstraints,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<(PaymentIntent, PaymentAttempt)>, errors::StorageError> {
+            match storage_scheme {
+                enums::MerchantStorageScheme::PostgresOnly => {
+                    let conn = connection::pg_connection_read(self).await?;
+                    PaymentIntent::apply_filters_on_payments(&conn, merchant_id, constraints)
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
+                }
+
+                enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
+            }
+        }
     }
 }
 
@@ -347,6 +375,21 @@ mod storage {
                 .map_err(Into::into)
                 .into_report()
         }
+
+        #[cfg(feature = "olap")]
+        async fn apply_filters_on_payments_list(
+            &self,
+            merchant_id: &str,
+            constraints: &api::PaymentListFilterConstraints,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<(types::PaymentIntent, types::PaymentAttempt)>, errors::StorageError>
+        {
+            let conn = connection::pg_connection_read(self).await?;
+            PaymentIntent::apply_filters_on_payments(&conn, merchant_id, constraints)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        }
     }
 }
 
@@ -369,6 +412,17 @@ impl PaymentIntentInterface for MockDb {
         _time_range: &api::TimeRange,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn apply_filters_on_payments_list(
+        &self,
+        _merchant_id: &str,
+        _constraints: &api::PaymentListFilterConstraints,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<(types::PaymentIntent, types::PaymentAttempt)>, errors::StorageError>
+    {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
