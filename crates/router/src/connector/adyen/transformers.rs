@@ -288,6 +288,7 @@ pub enum AdyenPaymentMethod<'a> {
     #[serde(rename = "gopay_wallet")]
     GoPay(Box<GoPayData>),
     Ideal(Box<BankRedirectionWithIssuer<'a>>),
+    Kakaopay(Box<KakaoPayData>),
     Mandate(Box<AdyenMandate>),
     Mbway(Box<MbwayData>),
     MobilePay(Box<MobilePayData>),
@@ -644,6 +645,9 @@ pub struct AliPayHkData {
 pub struct GoPayData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KakaoPayData {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
     #[serde(rename = "type")]
     payment_type: PaymentType,
@@ -715,6 +719,7 @@ pub enum PaymentType {
     GoPay,
     Ideal,
     Klarna,
+    Kakaopay,
     Mbway,
     MobilePay,
     #[serde(rename = "onlineBanking_CZ")]
@@ -1190,6 +1195,10 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
             api_models::payments::WalletData::GoPayRedirect(_) => {
                 let go_pay_data = GoPayData {};
                 Ok(AdyenPaymentMethod::GoPay(Box::new(go_pay_data)))
+            }
+            api_models::payments::WalletData::KakaoPayRedirect(_) => {
+                let kakao_pay_data = KakaoPayData {};
+                Ok(AdyenPaymentMethod::Kakaopay(Box::new(kakao_pay_data)))
             }
             api_models::payments::WalletData::MbWayRedirect(data) => {
                 let mbway_data = MbwayData {
@@ -1685,7 +1694,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)>
         let channel = get_channel_type(&item.request.payment_method_type);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item)?;
-        let return_url = item.request.get_return_url()?;
+        let return_url = item.request.get_router_return_url()?;
         let shopper_email = get_shopper_email(&item.request, store_payment_method.is_some())?;
         Ok(AdyenPaymentRequest {
             amount,

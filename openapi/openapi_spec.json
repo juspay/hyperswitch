@@ -4627,6 +4627,9 @@
           "requires_capture"
         ]
       },
+      "KakaoPayRedirection": {
+        "type": "object"
+      },
       "KlarnaSessionTokenResponse": {
         "type": "object",
         "required": [
@@ -6809,6 +6812,7 @@
           "ideal",
           "interac",
           "klarna",
+          "kakao_pay",
           "mb_way",
           "mobile_pay",
           "multibanco",
@@ -8908,6 +8912,17 @@
             "properties": {
               "ali_pay_hk_redirect": {
                 "$ref": "#/components/schemas/AliPayHkRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kakao_pay_redirect"
+            ],
+            "properties": {
+              "kakao_pay_redirect": {
+                "$ref": "#/components/schemas/KakaoPayRedirection"
               }
             }
           },
