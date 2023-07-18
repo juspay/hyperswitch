@@ -560,6 +560,7 @@ pub enum PaymentMethodType {
     BancontactCard,
     Becs,
     Blik,
+    Bizum,
     #[serde(rename = "classic")]
     ClassicReward,
     Credit,
@@ -569,6 +570,7 @@ pub enum PaymentMethodType {
     Evoucher,
     Giropay,
     GooglePay,
+    GoPay,
     Ideal,
     Interac,
     Klarna,
@@ -587,7 +589,9 @@ pub enum PaymentMethodType {
     Sofort,
     Swish,
     Trustly,
+    Twint,
     UpiCollect,
+    Vipps,
     Walley,
     WeChatPay,
 }

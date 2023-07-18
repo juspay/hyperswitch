@@ -7,6 +7,7 @@ use crate::{
     errors,
     routes::AppState,
     scheduler::{consumer, process_data, utils},
+    services,
     types::{
         api,
         storage::{self, enums, ProcessTrackerExt},
@@ -54,6 +55,7 @@ impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
             operations::PaymentStatus,
             tracking_data.clone(),
             payment_flows::CallConnectorAction::Trigger,
+            services::AuthFlow::Client,
         )
         .await?;
 
