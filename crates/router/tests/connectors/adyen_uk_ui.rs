@@ -241,10 +241,7 @@ async fn should_make_adyen_dana_payment(driver: WebDriver) -> Result<(), WebDriv
                 "12345678901",
             )), // Mobile Number can be any random 11 digit number
             Event::Trigger(Trigger::Click(By::Css("button"))),
-            Event::Trigger(Trigger::SendKeys(
-                By::Css("input[type='number']"),
-                "111111",
-            )), // PIN can be any random 11 digit number
+            Event::Trigger(Trigger::SendKeys(By::Css("input[type='number']"), "111111")), // PIN can be any random 11 digit number
             Event::Trigger(Trigger::Click(By::ClassName("btn-next"))),
             Event::Trigger(Trigger::Sleep(3)),
             Event::Trigger(Trigger::Click(By::ClassName("btn-next"))),
