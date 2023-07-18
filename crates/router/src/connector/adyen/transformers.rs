@@ -291,7 +291,6 @@ pub enum AdyenPaymentMethod<'a> {
     GoPay(Box<GoPayData>),
     Ideal(Box<BankRedirectionWithIssuer<'a>>),
     Kakaopay(Box<KakaoPayData>),
-    Kakaopay(Box<KakaoPayData>),
     Mandate(Box<AdyenMandate>),
     Mbway(Box<MbwayData>),
     MobilePay(Box<MobilePayData>),
