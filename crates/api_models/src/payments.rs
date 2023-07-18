@@ -979,6 +979,8 @@ pub enum WalletData {
     PaypalSdk(PayPalWalletData),
     /// The wallet data for Samsung Pay
     SamsungPay(Box<SamsungPayWalletData>),
+    /// Wallet data for Twint Redirection
+    TwintRedirect {},
     /// The wallet data for WeChat Pay Redirection
     WeChatPayRedirect(Box<WeChatPayRedirection>),
     /// The wallet data for WeChat Pay
