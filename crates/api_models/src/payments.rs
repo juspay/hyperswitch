@@ -11,7 +11,6 @@ use router_derive::Setter;
 use time::PrimitiveDateTime;
 use url::Url;
 use utoipa::ToSchema;
-
 use crate::{
     admin, disputes, enums as api_enums, ephemeral_key::EphemeralKeyCreateResponse, refunds,
 };
@@ -717,17 +716,39 @@ pub enum PaymentMethodData {
     Reward(RewardData),
     Upi(UpiData),
 }
+    // Card {
+    //     card_issuer: Option<String>,
+    //     card_network: Option<api_enums::CardNetwork>,
+    //     card_type: Option<String>,
+    //     card_issuing_country: Option<String>,
+    //     bank_code: Option<String>,
+    //     last4: String,
+    //     card_exp_month: String,
+    //     card_exp_year: String,
+    //     card_holder_name: String,
+    // },
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct AdditionalCardInfo {
+    pub card_issuer: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code: Option<String>,
+    pub last4: String,
+    pub card_exp_month: String,
+    pub card_exp_year: String,
+    pub card_holder_name: String,
+}
+
+
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AdditionalPaymentData {
-    Card {
-        card_issuer: Option<String>,
-        card_network: Option<api_enums::CardNetwork>,
-        card_type: Option<String>,
-        card_issuing_country: Option<String>,
-        bank_code: Option<String>,
-    },
+
+    Card(AdditionalCardInfo),
     BankRedirect {
         bank_name: Option<api_enums::BankNames>,
     },
@@ -1096,11 +1117,16 @@ pub struct ApplepayPaymentMethod {
     pub pm_type: String,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct CardResponse {
-    last4: String,
-    exp_month: String,
-    exp_year: String,
+    pub last4: String,
+    pub exp_month: String,
+    pub exp_year: String,
+    pub card_holder_name: String,
+    pub card_type: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_issuer: Option<String>,
+    pub card_issuing_country: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1110,7 +1136,7 @@ pub struct RewardData {
     pub merchant_id: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
@@ -1762,38 +1788,43 @@ impl From<PaymentsStartRequest> for PaymentsRequest {
     }
 }
 
-impl From<Card> for CardResponse {
-    fn from(card: Card) -> Self {
-        let card_number_length = card.card_number.peek().clone().len();
-        Self {
-            last4: card.card_number.peek().clone()[card_number_length - 4..card_number_length]
-                .to_string(),
-            exp_month: card.card_exp_month.peek().clone(),
-            exp_year: card.card_exp_year.peek().clone(),
-        }
-    }
-}
+// impl From<Card> for CardResponse {
+//     fn from(card: Card) -> Self {
+//         let card_number_length = card.card_number.peek().clone().len();
+//         Self {
+//             last4: card.card_number.peek().clone()[card_number_length - 4..card_number_length]
+//                 .to_string(),
+//             exp_month: card.card_exp_month.peek().clone(),
+//             exp_year: card.card_exp_year.peek().clone(),
+//             card_holder_name: card.card_holder_name.peek().clone(),
+//             card_type: card.card_type,
+//             card_network: card.card_network,
+//             card_issuer: card.card_issuer,
+//             card_issuing_country: card.card_issuing_country,
+//         }
+//     }
+// }
 
-impl From<PaymentMethodData> for PaymentMethodDataResponse {
-    fn from(payment_method_data: PaymentMethodData) -> Self {
-        match payment_method_data {
-            PaymentMethodData::Card(card) => Self::Card(CardResponse::from(card)),
-            PaymentMethodData::PayLater(pay_later_data) => Self::PayLater(pay_later_data),
-            PaymentMethodData::Wallet(wallet_data) => Self::Wallet(wallet_data),
-            PaymentMethodData::BankRedirect(bank_redirect_data) => {
-                Self::BankRedirect(bank_redirect_data)
-            }
-            PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                Self::BankTransfer(*bank_transfer_data)
-            }
-            PaymentMethodData::Crypto(crpto_data) => Self::Crypto(crpto_data),
-            PaymentMethodData::BankDebit(bank_debit_data) => Self::BankDebit(bank_debit_data),
-            PaymentMethodData::MandatePayment => Self::MandatePayment,
-            PaymentMethodData::Reward(reward_data) => Self::Reward(reward_data),
-            PaymentMethodData::Upi(upi_data) => Self::Upi(upi_data),
-        }
-    }
-}
+// impl ForeignFrom<(PaymentMethodData, AdditionalPaymentData)> for PaymentMethodDataResponse {
+//     fn foreign_from(payment_method_data: PaymentMethodData, additonal_data: AdditionalPaymentData) -> Self {
+//         match payment_method_data {
+//             PaymentMethodData::Card(card) => Self::Card(CardResponse::from(card)),
+//             PaymentMethodData::PayLater(pay_later_data) => Self::PayLater(pay_later_data),
+//             PaymentMethodData::Wallet(wallet_data) => Self::Wallet(wallet_data),
+//             PaymentMethodData::BankRedirect(bank_redirect_data) => {
+//                 Self::BankRedirect(bank_redirect_data)
+//             }
+//             PaymentMethodData::BankTransfer(bank_transfer_data) => {
+//                 Self::BankTransfer(*bank_transfer_data)
+//             }
+//             PaymentMethodData::Crypto(crpto_data) => Self::Crypto(crpto_data),
+//             PaymentMethodData::BankDebit(bank_debit_data) => Self::BankDebit(bank_debit_data),
+//             PaymentMethodData::MandatePayment => Self::MandatePayment,
+//             PaymentMethodData::Reward(reward_data) => Self::Reward(reward_data),
+//             PaymentMethodData::Upi(upi_data) => Self::Upi(upi_data),
+//         }
+//     }
+// }
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PgRedirectResponse {

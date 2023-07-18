@@ -1,4 +1,4 @@
-use api_models::enums as api_enums;
+use api_models::{enums as api_enums, payments::AdditionalPaymentData, payments::CardResponse,};
 use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -8,6 +8,7 @@ use super::domain;
 use crate::{
     core::errors,
     types::{api as api_types, storage},
+    logger,
 };
 
 pub trait ForeignInto<T> {
@@ -523,3 +524,81 @@ impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttem
         }
     }
 }
+
+// impl ForeignFrom<AdditionalPaymentData::Card> for CardResponse {
+//     fn foreign_from(addtional_data: AdditionalPaymentData::Card) -> Self {
+//         match addtional_data {
+//             AdditionalPaymentData::Card {card_issuer,
+//                 card_network,
+//                 card_issuing_country,
+//                 last4,
+//                 card_exp_month,
+//                 card_exp_year,
+//                 card_type,
+//                 bank_code: _,
+//                 card_holder_name, } => Self {
+//                     last4,
+//                     exp_month: card_exp_month,
+//                     exp_year: card_exp_year,
+//                     card_holder_name,
+//                     card_type,
+//                     card_network,
+//                     card_issuer,
+//                     card_issuing_country,
+//                 },
+//             }
+//         }
+// }
+
+impl ForeignFrom<api_models::payments::AdditionalCardInfo> for CardResponse {
+    fn foreign_from(additional_data: api_models::payments::AdditionalCardInfo) -> Self {
+        let api_models::payments::AdditionalCardInfo {
+            card_issuer,
+            card_network,
+            card_issuing_country,
+            last4,
+            card_exp_month,
+            card_exp_year,
+            card_type,
+            bank_code: _,
+            card_holder_name,
+        } = additional_data;
+
+        Self {
+            last4,
+            exp_month: card_exp_month,
+            exp_year: card_exp_year,
+            card_holder_name,
+            card_type,
+            card_network,
+            card_issuer,
+            card_issuing_country,
+        }
+    }
+}
+
+
+
+impl ForeignFrom<(api_models::payments::PaymentMethodData, AdditionalPaymentData)> for api_models::payments::PaymentMethodDataResponse {
+    fn foreign_from(item: (api_models::payments::PaymentMethodData, AdditionalPaymentData)) -> Self {
+        let (payment_method, additional_data) = item;
+        match (payment_method, additional_data) {
+            (api_models::payments::PaymentMethodData::Card(_card_data), AdditionalPaymentData::Card(addi_data)) => Self::Card(api_models::payments::CardResponse::foreign_from(addi_data)),
+            (api_models::payments::PaymentMethodData::PayLater(pay_later_data), _) => Self::PayLater(pay_later_data),
+            (api_models::payments::PaymentMethodData::Wallet(wallet_data), _) => Self::Wallet(wallet_data),
+            (api_models::payments::PaymentMethodData::BankRedirect(bank_redirect_data), _) => {
+                Self::BankRedirect(bank_redirect_data)
+            }
+            (api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data), _) => {
+                Self::BankTransfer(*bank_transfer_data)
+            }
+            (api_models::payments::PaymentMethodData::Crypto(crypto_data), _) => Self::Crypto(crypto_data),
+            (api_models::payments::PaymentMethodData::BankDebit(bank_debit_data), _) => Self::BankDebit(bank_debit_data),
+            (api_models::payments::PaymentMethodData::MandatePayment, _) => Self::MandatePayment,
+            (api_models::payments::PaymentMethodData::Reward(reward_data), _) => Self::Reward(reward_data),
+            (api_models::payments::PaymentMethodData::Upi(upi_data), _) => Self::Upi(upi_data),
+            _ => todo!(),
+        }
+    }
+}
+

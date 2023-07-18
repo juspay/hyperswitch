@@ -228,6 +228,22 @@ where
         _server: &Server,
         _operation: Op,
     ) -> RouterResponse<Self> {
+        let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> = data.payment_attempt
+                    .payment_method_data
+                    .clone()
+                    .map(|data| data.parse_value("payment_method_data"))
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_method_data",
+                    })?;
+        let payment_method_data_final = data.payment_method_data.and_then(|data| {
+            additional_payment_method_data.map(|additional_data| {
+                ForeignFrom::foreign_from((
+                    data,
+                    additional_data,
+                ))
+            })
+        });
         Ok(services::ApplicationResponse::Json(Self {
             verify_id: Some(data.payment_intent.payment_id),
             merchant_id: Some(data.payment_intent.merchant_id),
@@ -244,9 +260,10 @@ where
                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
             mandate_id: data.mandate_id.map(|mandate_ids| mandate_ids.mandate_id),
             payment_method: data.payment_attempt.payment_method,
-            payment_method_data: data
-                .payment_method_data
-                .map(api::PaymentMethodDataResponse::from),
+            payment_method_data : payment_method_data_final,
+            // payment_method_data: data
+            //     .payment_method_data
+            //     .map(api::PaymentMethodDataResponse::from),
             payment_token: data.token,
             error_code: data.payment_attempt.error_code,
             error_message: data.payment_attempt.error_message,
@@ -321,6 +338,22 @@ where
         .as_ref()
         .map(ToString::to_string)
         .unwrap_or("".to_owned());
+    let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> = payment_attempt
+                    .payment_method_data
+                    .clone()
+                    .map(|data| data.parse_value("payment_method_data"))
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_method_data",
+                    })?;
+    let payment_method_data_final = payment_method_data.clone().and_then(|data| {
+            additional_payment_method_data.map(|additional_data| {
+                ForeignFrom::foreign_from((
+                    data,
+                    additional_data,
+                ))
+            })
+        });
 
     let output = Ok(match payment_request {
         Some(_request) => {
@@ -389,6 +422,7 @@ where
 
                 let amount_captured = payment_intent.amount_captured.unwrap_or_default();
                 let amount_capturable = Some(payment_attempt.amount - amount_captured);
+                // println!("ADDITIONAL data {:?}", additional_payment_method_data.clone());
                 services::ApplicationResponse::Json(
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
@@ -431,7 +465,7 @@ where
                             auth_flow == services::AuthFlow::Merchant,
                         )
                         .set_payment_method_data(
-                            payment_method_data.map(api::PaymentMethodDataResponse::from),
+                            payment_method_data_final,
                             auth_flow == services::AuthFlow::Merchant,
                         )
                         .set_payment_token(payment_attempt.payment_token)
@@ -490,7 +524,8 @@ where
             capture_method: payment_attempt.capture_method,
             error_message: payment_attempt.error_message,
             error_code: payment_attempt.error_code,
-            payment_method_data: payment_method_data.map(api::PaymentMethodDataResponse::from),
+            // payment_method_data: payment_method_data.map(api::PaymentMethodDataResponse::from),
+            payment_method_data: payment_method_data_final,
             email: customer
                 .as_ref()
                 .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),

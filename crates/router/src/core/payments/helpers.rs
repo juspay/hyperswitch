@@ -2496,19 +2496,25 @@ pub async fn get_additional_payment_data(
 ) -> api_models::payments::AdditionalPaymentData {
     match pm_data {
         api_models::payments::PaymentMethodData::Card(card_data) => {
+            let card_number_length = card_data.card_number.peek().clone().len();
             if card_data.card_issuer.is_some()
                 && card_data.card_network.is_some()
                 && card_data.card_type.is_some()
                 && card_data.card_issuing_country.is_some()
                 && card_data.bank_code.is_some()
             {
-                api_models::payments::AdditionalPaymentData::Card {
+                api_models::payments::AdditionalPaymentData::Card(api_models::payments::AdditionalCardInfo {
                     card_issuer: card_data.card_issuer.to_owned(),
                     card_network: card_data.card_network.clone(),
                     card_type: card_data.card_type.to_owned(),
                     card_issuing_country: card_data.card_issuing_country.to_owned(),
                     bank_code: card_data.bank_code.to_owned(),
-                }
+                    last4:card_data.card_number.peek().clone()[card_number_length - 4..card_number_length]
+                            .to_string(),
+                    card_exp_month:card_data.card_exp_month.peek().clone(),
+                    card_exp_year:card_data.card_exp_year.peek().clone(),
+                    card_holder_name:card_data.card_holder_name.peek().clone(),
+                })
             } else {
                 let card_number = card_data.clone().card_number;
                 let card_info = db
@@ -2518,21 +2524,31 @@ pub async fn get_additional_payment_data(
                     .ok()
                     .flatten()
                     .map(
-                        |card_info| api_models::payments::AdditionalPaymentData::Card {
+                        |card_info| (api_models::payments::AdditionalPaymentData::Card(api_models::payments::AdditionalCardInfo {
                             card_issuer: card_info.card_issuer,
                             card_network: card_info.card_network.clone(),
                             bank_code: card_info.bank_code,
                             card_type: card_info.card_type,
                             card_issuing_country: card_info.card_issuing_country,
+                            last4:card_data.card_number.peek().clone()[card_number_length - 4..card_number_length]
+                            .to_string(),
+                            card_exp_month:card_data.card_exp_month.peek().clone(),
+                            card_exp_year:card_data.card_exp_year.peek().clone(),
+                            card_holder_name:card_data.card_holder_name.peek().clone(),
                         },
-                    );
-                card_info.unwrap_or(api_models::payments::AdditionalPaymentData::Card {
+                    )));
+                card_info.unwrap_or((api_models::payments::AdditionalPaymentData::Card(api_models::payments::AdditionalCardInfo {
                     card_issuer: None,
                     card_network: None,
                     bank_code: None,
                     card_type: None,
                     card_issuing_country: None,
-                })
+                    last4:card_data.card_number.peek().clone()[card_number_length - 4..card_number_length]
+                            .to_string(),
+                    card_exp_month:card_data.card_exp_month.peek().clone(),
+                    card_exp_year:card_data.card_exp_year.peek().clone(),
+                    card_holder_name:card_data.card_holder_name.peek().clone(),
+                })))
             }
         }
         api_models::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
