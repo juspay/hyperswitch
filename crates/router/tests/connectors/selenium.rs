@@ -311,7 +311,7 @@ pub trait SeleniumTest {
                     Trigger::SwitchTab(position) => match position {
                         Position::Next => {
                             let windows = driver.windows().await?;
-                            if let Some(window) = windows.iter().rev().next() {
+                            if let Some(window) = windows.iter().next_back() {
                                 driver.switch_to_window(window.to_owned()).await?;
                             }
                         }
@@ -425,6 +425,55 @@ pub trait SeleniumTest {
         self.complete_actions(&web_driver, default_actions).await?;
         self.complete_actions(&web_driver, actions).await
     }
+    async fn make_affirm_payment(
+        &self,
+        driver: WebDriver,
+        url: &str,
+        actions: Vec<Event<'_>>,
+    ) -> Result<(), WebDriverError> {
+        self.complete_actions(
+            &driver,
+            vec![
+                Event::Trigger(Trigger::Goto(url)),
+                Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            ],
+        )
+        .await?;
+        let mut affirm_actions = vec![
+            Event::RunIf(
+                Assert::IsPresent("Big purchase? No problem."),
+                vec![
+                    Event::Trigger(Trigger::SendKeys(
+                        By::Css("input.focusable-form-field.pro11TnYcue.pro284gg8sY"),
+                        "(833) 549-5574", // any test phone number accepted by affirm
+                    )),
+                    Event::Trigger(Trigger::Click(By::Css(
+                        "button.sc-aXZVg.gCRVeN.pro35Wfly4z.pro300N0DVx.profBy8oj9g",
+                    ))),
+                    Event::Trigger(Trigger::SendKeys(
+                        By::Css("input.focusable-form-field.pro3g2JlS3A.pro284gg8sY"),
+                        "1234",
+                    )),
+                ],
+            ),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button.sc-aXZVg.fiBhTR.sc-gEkIjz.lfdPCG.pro35Wfly4z.pro4JEtdJCo.profBy8oj9g",
+            ))),
+            Event::Trigger(Trigger::Click(By::Css(
+                "div.proXxAyyoTg.pro1jhMLxqa.pro3Q3lI-I9",
+            ))),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button.sc-aXZVg.gCRVeN.pro35Wfly4z.pro300N0DVx.pro3JiyGdDb.pro1Ss7c7oj",
+            ))),
+            Event::Trigger(Trigger::Click(By::Css("div.pro1O60NO1I.pro2uav9pZk"))),
+            Event::Trigger(Trigger::Click(By::Css("div.pro1O60NO1I.pro1xh5zNal"))),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button.sc-aXZVg.gCRVeN.pro35Wfly4z.pro300N0DVx.profBy8oj9g",
+            ))),
+        ];
+        affirm_actions.extend(actions);
+        self.complete_actions(&driver, affirm_actions).await
+    }
     async fn make_paypal_payment(
         &self,
         web_driver: WebDriver,
@@ -492,6 +541,53 @@ pub trait SeleniumTest {
         ];
         pypl_actions.extend(actions);
         self.complete_actions(&web_driver, pypl_actions).await
+    }
+    async fn make_clearpay_payment(
+        &self,
+        driver: WebDriver,
+        url: &str,
+        actions: Vec<Event<'_>>,
+    ) -> Result<(), WebDriverError> {
+        self.complete_actions(
+            &driver,
+            vec![
+                Event::Trigger(Trigger::Goto(url)),
+                Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            ],
+        )
+        .await?;
+        let (email, pass) = (
+            &self
+                .get_configs()
+                .automation_configs
+                .unwrap()
+                .clearpay_email
+                .unwrap(),
+            &self
+                .get_configs()
+                .automation_configs
+                .unwrap()
+                .clearpay_pass
+                .unwrap(),
+        );
+        let mut clearpay_actions = vec![
+            Event::Trigger(Trigger::Sleep(3)),
+            Event::EitherOr(
+                Assert::IsPresent("Review your order | Clearpay"),
+                vec![Event::Trigger(Trigger::Click(By::ClassName("ai_az")))],
+                vec![
+                    Event::Trigger(Trigger::SendKeys(By::ClassName("n8_fl"), email)),
+                    Event::Trigger(Trigger::Click(By::ClassName("ai_az"))),
+                    Event::Trigger(Trigger::Sleep(3)),
+                    Event::Trigger(Trigger::SendKeys(By::ClassName("n8_fl"), pass)),
+                    Event::Trigger(Trigger::Click(By::ClassName("ai_az"))),
+                    Event::Trigger(Trigger::Sleep(10)), //Time needed for login
+                    Event::Trigger(Trigger::Click(By::ClassName("ai_az"))),
+                ],
+            ),
+        ];
+        clearpay_actions.extend(actions);
+        self.complete_actions(&driver, clearpay_actions).await
     }
 }
 async fn is_text_present_now(driver: &WebDriver, key: &str) -> WebDriverResult<bool> {
@@ -574,7 +670,7 @@ pub fn make_capabilities(browser: &str) -> Capabilities {
         "firefox" => {
             let mut caps = DesiredCapabilities::firefox();
             let ignore_profile = env::var("IGNORE_BROWSER_PROFILE").ok();
-            if ignore_profile.is_none() {
+            if ignore_profile.is_none() || ignore_profile.unwrap() == "false" {
                 let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
                 caps.add_firefox_arg(profile_path).unwrap();
             } else {
