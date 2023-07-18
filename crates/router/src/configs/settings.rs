@@ -440,6 +440,7 @@ pub struct Connectors {
     pub powertranz: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
+    pub stax: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub tsys: ConnectorParams,
