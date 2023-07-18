@@ -170,8 +170,8 @@ pub async fn list_customer_payment_method_api(
     path: web::Path<String>,
     json_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
-    let customer_id = path.into_inner();
     let payload = json_payload.into_inner();
+    let customer_id = path.into_inner();
     let flow = Flow::CustomerPaymentMethodsList;
 
     wrap::compatibility_api_wrap::<
@@ -189,12 +189,12 @@ pub async fn list_customer_payment_method_api(
         &req,
         payload,
         |state, auth, req| {
-            cards::list_customer_payment_method(
+            cards::do_list_customer_pm_fetch_customer_if_not_passed(
                 state,
                 auth.merchant_account,
                 auth.key_store,
-                req,
-                &customer_id,
+                Some(req),
+                Some(customer_id.as_str()),
             )
         },
         &auth::ApiKeyAuth,
