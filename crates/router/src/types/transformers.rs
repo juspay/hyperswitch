@@ -174,6 +174,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::MbWay
             | api_enums::PaymentMethodType::MobilePay
             | api_enums::PaymentMethodType::SamsungPay
+            | api_enums::PaymentMethodType::Twint
             | api_enums::PaymentMethodType::WeChatPay
             | api_enums::PaymentMethodType::GoPay => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
