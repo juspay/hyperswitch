@@ -574,16 +574,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
     for Powertranz
 {
-    fn build_request(
-        &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Refund Sync".to_string(),
-            connector: "PowerTranz".to_string(),
-        })?
-    }
 }
 
 #[async_trait::async_trait]
