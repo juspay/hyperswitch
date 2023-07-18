@@ -398,7 +398,7 @@ pub async fn payouts_fulfill_core(
         helpers::make_payout_method_data(
             state,
             None,
-            payout_attempt.payout_token.as_ref().map(|p| p.as_ref()),
+            payout_attempt.payout_token.as_deref(),
             &payout_attempt.customer_id,
             &payout_attempt.merchant_id,
             &payout_attempt.payout_id,

@@ -298,7 +298,7 @@ mollie = {long_lived_token = false, payment_method = "card"}
 
 [connector_customer]
 connector_list = "bluesnap,stripe"
-payout_connector_list = ["adyen", "wise"]
+payout_connector_list = "wise"
 
 [dummy_connector]
 payment_ttl = 172800

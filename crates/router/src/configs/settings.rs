@@ -100,6 +100,7 @@ pub struct ConnectorCustomer {
     #[serde(deserialize_with = "connector_deser")]
     pub connector_list: HashSet<api_models::enums::Connector>,
     #[cfg(feature = "payouts")]
+    #[serde(deserialize_with = "payout_connector_deser")]
     pub payout_connector_list: HashSet<api_models::enums::PayoutConnectors>,
 }
 
@@ -114,6 +115,21 @@ where
         .trim()
         .split(',')
         .flat_map(api_models::enums::Connector::from_str)
+        .collect())
+}
+
+#[cfg(feature = "payouts")]
+fn payout_connector_deser<'a, D>(
+    deserializer: D,
+) -> Result<HashSet<api_models::enums::PayoutConnectors>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <String>::deserialize(deserializer)?;
+    Ok(value
+        .trim()
+        .split(',')
+        .flat_map(api_models::enums::PayoutConnectors::from_str)
         .collect())
 }
 

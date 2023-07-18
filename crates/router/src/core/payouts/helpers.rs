@@ -44,7 +44,6 @@ pub async fn make_payout_method_data<'a>(
             api_enums::PaymentMethod::foreign_from(
                 payout_type.get_required_value("payout_type")?.to_owned()
             )
-            .to_string()
         );
 
         let redis_conn = state.store.get_redis_conn();
@@ -85,7 +84,7 @@ pub async fn make_payout_method_data<'a>(
         (Some(payout_method), payout_token) => {
             let lookup_key = vault::Vault::store_payout_method_data_in_locker(
                 state,
-                payout_token.clone().map(|p| p.to_string()),
+                payout_token.to_owned(),
                 payout_method,
                 Some(customer_id.to_owned()),
             )
@@ -98,8 +97,8 @@ pub async fn make_payout_method_data<'a>(
                     last_modified_at: Some(common_utils::date_time::now()),
                 };
                 db.update_payout_attempt_by_merchant_id_payout_id(
-                    &merchant_id,
-                    &payout_id,
+                    merchant_id,
+                    payout_id,
                     payout_update,
                 )
                 .await
@@ -176,7 +175,7 @@ pub async fn save_payout_data_to_locker(
     let stored_resp = cards::call_to_card_hs(
         state,
         &card_details,
-        encrypted_card_data.as_ref().map(|s| s.as_str()),
+        encrypted_card_data.as_deref(),
         &payout_attempt.customer_id,
         merchant_account,
     )
