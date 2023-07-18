@@ -1578,6 +1578,13 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::UpiCollect => Self::Upi,
             PaymentMethodType::Walley => Self::PayLater,
             PaymentMethodType::WeChatPay => Self::Wallet,
+            PaymentMethodType::Boleto
+            | PaymentMethodType::Efecty
+            | PaymentMethodType::PagoEfectivo
+            | PaymentMethodType::Pix
+            | PaymentMethodType::Pse
+            | PaymentMethodType::RedCompra
+            | PaymentMethodType::RedPagos => Self::Voucher,
         }
     }
 }

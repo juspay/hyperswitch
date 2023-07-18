@@ -8925,13 +8925,11 @@
             "properties": {
               "boleto": {
                 "type": "object",
-                "required": [
-                  "social_security_number"
-                ],
                 "properties": {
                   "social_security_number": {
                     "type": "string",
-                    "description": "The shopper's social security number"
+                    "description": "The shopper's social security number",
+                    "nullable": true
                   }
                 }
               }
