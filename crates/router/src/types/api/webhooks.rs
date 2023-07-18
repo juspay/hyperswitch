@@ -101,32 +101,26 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                 )
             })?
             .connector_webhook_details;
-        let merchant_secret = match merchant_connector_webhook_details {
-            Some(merchant_connector_webhook_details) => Some(
-                merchant_connector_webhook_details
-                    .parse_value::<MerchantConnectorWebhookDetails>(
-                        "MerchantConnectorWebhookDetails",
-                    )
-                    .change_context_lazy(|| errors::ConnectorError::WebhookSourceVerificationFailed)
-                    .attach_printable_lazy(|| {
-                        format!(
-                            "Deserializing MerchantConnectorWebhookDetails failed {}",
-                            debug_suffix
-                        )
-                    })?
-                    .merchant_secret
-                    .expose(),
-            ),
-            None => None,
-        };
 
+        let merchant_secret = match merchant_connector_webhook_details {
+            Some(merchant_connector_webhook_details) => merchant_connector_webhook_details
+                .parse_value::<MerchantConnectorWebhookDetails>("MerchantConnectorWebhookDetails")
+                .change_context_lazy(|| errors::ConnectorError::WebhookSourceVerificationFailed)
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Deserializing MerchantConnectorWebhookDetails failed {}",
+                        debug_suffix
+                    )
+                })?
+                .merchant_secret
+                .expose(),
+            None => "default_secret".to_string(),
+        };
         //need to fetch merchant secret from config table with caching in future for enhanced performance
 
         //If merchant has not set the secret for webhook source verification, "default_secret" is returned.
         //So it will fail during verification step and goes to psync flow.
-        Ok(merchant_secret
-            .unwrap_or("default_secret".into())
-            .into_bytes())
+        Ok(merchant_secret.into_bytes())
     }
 
     fn get_webhook_source_verification_signature(
