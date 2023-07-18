@@ -328,6 +328,8 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         frm_routing_algorithm -> Nullable<Jsonb>,
+        #[max_length = 32]
+        organization_id -> Nullable<Varchar>,
     }
 }
 
@@ -359,6 +361,7 @@ diesel::table! {
         frm_configs -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        connector_webhook_details -> Nullable<Jsonb>,
     }
 }
 
