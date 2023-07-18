@@ -15,6 +15,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         api::{self, PaymentIdTypeExt},
         domain,
@@ -39,6 +40,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
+        auth_flow: services::AuthFlow,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -63,6 +65,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .setup_future_usage
             .or(payment_intent.setup_future_usage);
 
+        helpers::validate_customer_access(&payment_intent, auth_flow, request)?;
+
         helpers::validate_card_data(request.payment_method_data.clone())?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
@@ -75,14 +79,20 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             "update",
         )?;
 
-        let (token, payment_method, payment_method_type, setup_mandate, mandate_connector) =
-            helpers::get_token_pm_type_mandate_details(
-                state,
-                request,
-                mandate_type.clone(),
-                merchant_account,
-            )
-            .await?;
+        let (
+            token,
+            payment_method,
+            payment_method_type,
+            setup_mandate,
+            recurring_mandate_payment_data,
+            mandate_connector,
+        ) = helpers::get_token_pm_type_mandate_details(
+            state,
+            request,
+            mandate_type.clone(),
+            merchant_account,
+        )
+        .await?;
 
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
@@ -325,6 +335,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                recurring_mandate_payment_data,
                 ephemeral_key: None,
                 redirect_response: None,
                 capture: None,
@@ -549,7 +560,6 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentUpdate
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
-
         let given_payment_id = match &request.payment_id {
             Some(id_type) => Some(
                 id_type
