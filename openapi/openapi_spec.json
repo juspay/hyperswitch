@@ -4348,6 +4348,9 @@
           "on_session"
         ]
       },
+      "GcashRedirection": {
+        "type": "object"
+      },
       "GoPayRedirection": {
         "type": "object"
       },
@@ -6809,6 +6812,7 @@
           "giropay",
           "google_pay",
           "go_pay",
+          "gcash",
           "ideal",
           "interac",
           "klarna",
@@ -8934,6 +8938,17 @@
             "properties": {
               "go_pay_redirect": {
                 "$ref": "#/components/schemas/GoPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "gcash_redirect"
+            ],
+            "properties": {
+              "gcash_redirect": {
+                "$ref": "#/components/schemas/GcashRedirection"
               }
             }
           },
