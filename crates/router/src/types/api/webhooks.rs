@@ -4,7 +4,7 @@ pub use api_models::webhooks::{
     OutgoingWebhook, OutgoingWebhookContent, WebhookFlow,
 };
 use common_utils::ext_traits::ValueExt;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::ExposeInterface;
 
 use super::ConnectorCommon;
