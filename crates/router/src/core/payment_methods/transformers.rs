@@ -20,7 +20,7 @@ pub struct StoreCardReq<'a> {
     pub merchant_id: &'a str,
     pub merchant_customer_id: String,
     pub card: Card,
-    pub encrypted_card_data: Option<String>,
+    pub enc_card_data: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -275,7 +275,7 @@ pub async fn mk_add_card_request_hs(
         merchant_id,
         merchant_customer_id,
         card,
-        encrypted_card_data: enc_value.map(|e| e.to_string()),
+        enc_card_data: enc_value.map(|e| e.to_string()),
     };
     let payload = utils::Encode::<StoreCardReq<'_>>::encode_to_vec(&store_card_req)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
