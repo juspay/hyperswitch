@@ -1341,7 +1341,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.payment_id.to_string(),
+            reference: item.connector_request_reference_id.clone(),
             return_url,
             shopper_interaction,
             recurring_processing_model,
@@ -1379,7 +1379,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::Card)> for AdyenPay
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.payment_id.to_string(),
+            reference: item.connector_request_reference_id.clone(),
             return_url,
             shopper_interaction,
             recurring_processing_model,
@@ -1427,7 +1427,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.payment_id.to_string(),
+            reference: item.connector_request_reference_id.clone(),
             return_url,
             browser_info,
             shopper_interaction,
@@ -1478,7 +1478,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.payment_id.to_string(),
+            reference: item.connector_request_reference_id.clone(),
             return_url,
             shopper_interaction,
             recurring_processing_model,
@@ -1542,7 +1542,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.payment_id.to_string(),
+            reference: item.connector_request_reference_id.clone(),
             return_url,
             shopper_interaction,
             recurring_processing_model,
@@ -1590,7 +1590,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::PayLaterData)>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.payment_id.to_string(),
+            reference: item.connector_request_reference_id.clone(),
             return_url,
             shopper_interaction,
             recurring_processing_model,
@@ -1616,7 +1616,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for AdyenCancelRequest {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             merchant_account: auth_type.merchant_account,
-            reference: item.payment_id.to_string(),
+            reference: item.connector_request_reference_id.clone(),
         })
     }
 }
@@ -1698,7 +1698,7 @@ pub fn get_adyen_response(
         mandate_reference,
         connector_metadata: None,
         network_txn_id,
-        connector_response_reference_id: None,
+        connector_response_reference_id: Some(response.merchant_reference),
     };
     Ok((status, error, payments_response_data))
 }
@@ -1803,7 +1803,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for AdyenCaptureRequest {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             merchant_account: auth_type.merchant_account,
-            reference: item.payment_id.to_string(),
+            reference: item.connector_request_reference_id.clone(),
             amount: Amount {
                 currency: item.request.currency.to_string(),
                 value: item.request.amount_to_capture,
