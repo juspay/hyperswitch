@@ -42,6 +42,7 @@ pub struct ConnectorAuthentication {
     pub powertranz: Option<BodyKey>,
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
+    pub stax: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
     pub stripe_au: Option<HeaderKey>,
     pub stripe_uk: Option<HeaderKey>,
