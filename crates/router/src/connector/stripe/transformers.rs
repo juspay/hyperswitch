@@ -1451,20 +1451,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
 fn get_payment_method_type_for_saved_payment_method_payment(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<StripePaymentMethodType, error_stack::Report<errors::ConnectorError>> {
+    //payment_method_type is unavailable, stripe takes Card as default
     let stripe_payment_method_type = match item.recurring_mandate_payment_data.clone() {
         Some(recurring_payment_method_data) => {
             match recurring_payment_method_data.payment_method_type {
                 Some(payment_method_type) => StripePaymentMethodType::try_from(payment_method_type),
-                None => Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_type",
-                }
-                .into()),
+                None => Ok(StripePaymentMethodType::Card), //default type for Stripe is Card
             }
         }
-        None => Err(errors::ConnectorError::MissingRequiredField {
-            field_name: "recurring_mandate_payment_data",
-        }
-        .into()),
+        None => Ok(StripePaymentMethodType::Card), //default type for Stripe is Card
     }?;
     match stripe_payment_method_type {
         //Stripe converts Ideal, Bancontact & Sofort Bank redirect methods to Sepa direct debit and attaches to the customer for future usage
