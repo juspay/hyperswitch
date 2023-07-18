@@ -290,6 +290,7 @@ pub enum AdyenPaymentMethod<'a> {
     #[serde(rename = "gopay_wallet")]
     GoPay(Box<GoPayData>),
     Ideal(Box<BankRedirectionWithIssuer<'a>>),
+    #[serde(rename = "kakaopay")]
     Kakaopay(Box<KakaoPayData>),
     Mandate(Box<AdyenMandate>),
     Mbway(Box<MbwayData>),
