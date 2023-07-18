@@ -239,6 +239,7 @@ pub struct HostedUrlResponse {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename = "query-charge-response")]
 #[serde(rename_all = "kebab-case")]
 pub struct BokuPsyncResponse {
     // result: ResultData,
@@ -387,7 +388,7 @@ impl From<BokuRefundStatus> for enums::RefundStatus {
 
 //TODO: Fill the struct with respective fields
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename = "refunt-charge-response")]
+#[serde(rename = "refund-charge-response")]
 pub struct RefundResponse {
     // result: ResultData,
     // merchant_id: Secret<String>,
@@ -413,17 +414,77 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename = "query-refund-request")]
+#[serde(rename_all = "kebab-case")]
+pub struct BokuRsyncRequest {
+    country: String,
+    merchant_id: Secret<String>,
+    merchant_transaction_id: Secret<String>,
+}
+
+impl TryFrom<&types::RefundSyncRouterData> for BokuRsyncRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
+        let country = match get_country_code(item) {
+            Some(cn_code) => cn_code.to_string(),
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "country",
+            })?,
+        };
+        let auth_type = BokuAuthType::try_from(&item.connector_auth_type)?;
+
+        Ok(Self {
+            country,
+            merchant_id: auth_type.merchant_id,
+            merchant_transaction_id: Secret::new(item.payment_id.to_string()),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename = "query-refund-response")]
+#[serde(rename_all = "kebab-case")]
+pub struct BokuRsyncResponse {
+    // result: ResultData,
+    refunds: RefundResponseData,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct RefundResponseData {
+    refund: SingleRefundResponseData,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct SingleRefundResponseData {
+    // result: ResultData,
+    refund_status: BokuRefundStatus,
+    // merchant_transaction_id: String,
+    // merchant_id: String,
+    // merchant_id_description: String,
+    refund_id: String,
+    // timestamp: String,
+    // country: CountryAlpha2,
+    // netword_id: String,
+    // currency: Currency,
+    // refund_amount: Amount,
+}
+
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, BokuRsyncResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, BokuRsyncResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.charge_id,
-                refund_status: enums::RefundStatus::from(item.response.refund_status),
+                connector_refund_id: item.response.refunds.refund.refund_id,
+                refund_status: enums::RefundStatus::from(
+                    item.response.refunds.refund.refund_status,
+                ),
             }),
             ..item.data
         })

@@ -508,10 +508,28 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let boku_url = get_country_url(
+            req.connector_meta_data.clone(),
+            self.base_url(connectors).to_string(),
+        )?;
+
+        Ok(format!("{}/billing/3.0/query-refund", boku_url))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::RefundSyncRouterData,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = boku::BokuRsyncRequest::try_from(req)?;
+        let boku_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<boku::BokuPaymentsRequest>::encode_to_string_of_xml,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(boku_req))
     }
 
     fn build_request(
@@ -535,10 +553,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: boku::RefundResponse =
-            res.response
-                .parse_struct("boku RefundSyncResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: boku::BokuRsyncResponse = res
+            .response
+            .parse_struct("boku BokuRsyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
