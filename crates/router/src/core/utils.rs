@@ -599,7 +599,7 @@ pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
     let config_map = &conf
         .connector_request_reference_id_config
         .merchant_ids_send_payment_id_as_connector_request_id;
-    config_map.contains(merchant_id)
+    config_map.contains(&merchant_id.to_string())
 }
 
 pub fn get_connector_request_reference_id(
