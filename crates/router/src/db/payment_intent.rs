@@ -415,7 +415,7 @@ impl PaymentIntentInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
-
+    #[cfg(feature = "olap")]
     async fn apply_filters_on_payments_list(
         &self,
         _merchant_id: &str,
