@@ -171,6 +171,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Paypal
             | api_enums::PaymentMethodType::AliPay
             | api_enums::PaymentMethodType::AliPayHk
+            | api_enums::PaymentMethodType::Dana
             | api_enums::PaymentMethodType::MbWay
             | api_enums::PaymentMethodType::MobilePay
             | api_enums::PaymentMethodType::SamsungPay
@@ -179,6 +180,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::WeChatPay
             | api_enums::PaymentMethodType::GoPay => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
+            | api_enums::PaymentMethodType::Alma
             | api_enums::PaymentMethodType::AfterpayClearpay
             | api_enums::PaymentMethodType::Klarna
             | api_enums::PaymentMethodType::PayBright
