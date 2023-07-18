@@ -570,6 +570,7 @@ pub enum PaymentMethodType {
     Evoucher,
     Giropay,
     GooglePay,
+    GoPay,
     Ideal,
     Interac,
     Klarna,
