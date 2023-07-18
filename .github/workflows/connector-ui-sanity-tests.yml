@@ -70,7 +70,8 @@ jobs:
         connector:
           # do not use more than 2 runners, try to group less time taking connectors together
           - stripe,airwallex,bluesnap,checkout,trustpay_3ds,payu,noon
-          - adyen_uk,shift4,worldline,multisafepay,paypal,mollie
+          - adyen_uk,shift4,worldline,multisafepay,paypal,mollie,aci
+          
 
     steps:
       - name: Ignore Tests incase of pull request

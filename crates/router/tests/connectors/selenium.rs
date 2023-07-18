@@ -542,6 +542,53 @@ pub trait SeleniumTest {
         pypl_actions.extend(actions);
         self.complete_actions(&web_driver, pypl_actions).await
     }
+    async fn make_clearpay_payment(
+        &self,
+        driver: WebDriver,
+        url: &str,
+        actions: Vec<Event<'_>>,
+    ) -> Result<(), WebDriverError> {
+        self.complete_actions(
+            &driver,
+            vec![
+                Event::Trigger(Trigger::Goto(url)),
+                Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            ],
+        )
+        .await?;
+        let (email, pass) = (
+            &self
+                .get_configs()
+                .automation_configs
+                .unwrap()
+                .clearpay_email
+                .unwrap(),
+            &self
+                .get_configs()
+                .automation_configs
+                .unwrap()
+                .clearpay_pass
+                .unwrap(),
+        );
+        let mut clearpay_actions = vec![
+            Event::Trigger(Trigger::Sleep(3)),
+            Event::EitherOr(
+                Assert::IsPresent("Review your order | Clearpay"),
+                vec![Event::Trigger(Trigger::Click(By::ClassName("ai_az")))],
+                vec![
+                    Event::Trigger(Trigger::SendKeys(By::ClassName("n8_fl"), email)),
+                    Event::Trigger(Trigger::Click(By::ClassName("ai_az"))),
+                    Event::Trigger(Trigger::Sleep(3)),
+                    Event::Trigger(Trigger::SendKeys(By::ClassName("n8_fl"), pass)),
+                    Event::Trigger(Trigger::Click(By::ClassName("ai_az"))),
+                    Event::Trigger(Trigger::Sleep(10)), //Time needed for login
+                    Event::Trigger(Trigger::Click(By::ClassName("ai_az"))),
+                ],
+            ),
+        ];
+        clearpay_actions.extend(actions);
+        self.complete_actions(&driver, clearpay_actions).await
+    }
 }
 async fn is_text_present_now(driver: &WebDriver, key: &str) -> WebDriverResult<bool> {
     let mut xpath = "//*[contains(text(),'".to_owned();
@@ -623,7 +670,7 @@ pub fn make_capabilities(browser: &str) -> Capabilities {
         "firefox" => {
             let mut caps = DesiredCapabilities::firefox();
             let ignore_profile = env::var("IGNORE_BROWSER_PROFILE").ok();
-            if ignore_profile.is_none() {
+            if ignore_profile.is_none() || ignore_profile.unwrap() == "false" {
                 let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
                 caps.add_firefox_arg(profile_path).unwrap();
             } else {

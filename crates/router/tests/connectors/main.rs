@@ -7,6 +7,7 @@
 use test_utils::connector_auth;
 
 mod aci;
+mod aci_ui;
 mod adyen;
 mod adyen_uk_ui;
 mod airwallex;
@@ -55,6 +56,7 @@ mod rapyd;
 mod selenium;
 mod shift4;
 mod shift4_ui;
+mod stax;
 mod stripe;
 mod stripe_ui;
 mod trustpay;

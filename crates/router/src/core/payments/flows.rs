@@ -137,6 +137,7 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -161,7 +162,6 @@ default_imp_for_complete_authorize!(
     connector::Payeezy,
     connector::Payme,
     connector::Payu,
-    connector::Powertranz,
     connector::Rapyd,
     connector::Stripe,
     connector::Trustpay,
@@ -199,6 +199,7 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -270,6 +271,7 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -312,6 +314,7 @@ macro_rules! default_imp_for_connector_request_id{
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -384,6 +387,7 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -476,6 +480,7 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -545,6 +550,7 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -614,6 +620,7 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -684,6 +691,7 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,

@@ -6,9 +6,10 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    connector::utils::{self, CardData},
+    connector::utils::{self, CardData, PaymentsAuthorizeRequestData},
     consts,
     core::errors,
+    services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
@@ -23,6 +24,36 @@ pub struct PowertranzPaymentsRequest {
     order_identifier: String,
     billing_address: Option<PowertranzAddressDetails>,
     shipping_address: Option<PowertranzAddressDetails>,
+    extended_data: Option<ExtendedData>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ExtendedData {
+    three_d_secure: ThreeDSecure,
+    merchant_response_url: String,
+    browser_info: BrowserInfo,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct BrowserInfo {
+    java_enabled: Option<bool>,
+    javascript_enabled: Option<bool>,
+    accept_header: Option<String>,
+    language: Option<String>,
+    screen_height: Option<String>,
+    screen_width: Option<String>,
+    time_zone: Option<String>,
+    user_agent: Option<String>,
+    i_p: Option<std::net::IpAddr>,
+    color_depth: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ThreeDSecure {
+    challenge_window_size: u8,
 }
 
 #[derive(Debug, Serialize)]
@@ -55,6 +86,12 @@ pub struct PowertranzAddressDetails {
     phone_number: Option<Secret<String>>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct RedirectResponsePayload {
+    pub spi_token: String,
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
@@ -66,6 +103,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
         }?;
         let billing_address = get_address_details(&item.address.billing, &item.request.email);
         let shipping_address = get_address_details(&item.address.shipping, &item.request.email);
+        let (three_d_secure, extended_data) = match item.auth_type {
+            diesel_models::enums::AuthenticationType::ThreeDs => {
+                (true, Some(ExtendedData::try_from(item)?))
+            }
+            diesel_models::enums::AuthenticationType::NoThreeDs => (false, None),
+        };
         Ok(Self {
             transaction_identifier: Uuid::new_v4().to_string(),
             total_amount: utils::to_currency_base_unit_asf64(
@@ -74,11 +117,45 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
             )?,
             currency_code: diesel_models::enums::Currency::iso_4217(&item.request.currency)
                 .to_string(),
-            three_d_secure: false,
+            three_d_secure,
             source,
             order_identifier: item.payment_id.clone(),
             billing_address,
             shipping_address,
+            extended_data,
+        })
+    }
+}
+
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for ExtendedData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            three_d_secure: ThreeDSecure {
+                /// Merchants preferred sized of challenge window presented to cardholder.
+                /// 5 maps to 100% of challenge window size
+                challenge_window_size: 5,
+            },
+            merchant_response_url: item.request.get_complete_authorize_url()?,
+            browser_info: BrowserInfo::try_from(&item.request.get_browser_info()?)?,
+        })
+    }
+}
+
+impl TryFrom<&types::BrowserInformation> for BrowserInfo {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::BrowserInformation) -> Result<Self, Self::Error> {
+        Ok(Self {
+            java_enabled: item.java_enabled,
+            javascript_enabled: item.java_script_enabled,
+            accept_header: item.accept_header.clone(),
+            language: item.language.clone(),
+            screen_height: item.screen_height.map(|height| height.to_string()),
+            screen_width: item.screen_width.map(|width| width.to_string()),
+            time_zone: item.time_zone.map(|zone| zone.to_string()),
+            user_agent: item.user_agent.clone(),
+            i_p: item.ip_address,
+            color_depth: item.color_depth.map(|depth| depth.to_string()),
         })
     }
 }
@@ -155,18 +232,31 @@ pub struct PowertranzBaseResponse {
     transaction_identifier: String,
     original_trxn_identifier: Option<String>,
     errors: Option<Vec<Error>>,
+    iso_response_code: String,
+    redirect_data: Option<String>,
 }
 
-impl ForeignFrom<(u8, bool)> for enums::AttemptStatus {
-    fn foreign_from((transaction_type, approved): (u8, bool)) -> Self {
+impl ForeignFrom<(u8, bool, bool)> for enums::AttemptStatus {
+    fn foreign_from((transaction_type, approved, is_3ds): (u8, bool, bool)) -> Self {
         match transaction_type {
             // Auth
             1 => match approved {
                 true => Self::Authorized,
-                false => Self::Failure,
+                false => match is_3ds {
+                    true => Self::AuthenticationPending,
+                    false => Self::Failure,
+                },
             },
-            // Sale or Capture
-            2 | 3 => match approved {
+            // Sale
+            2 => match approved {
+                true => Self::Charged,
+                false => match is_3ds {
+                    true => Self::AuthenticationPending,
+                    false => Self::Failure,
+                },
+            },
+            // Capture
+            3 => match approved {
                 true => Self::Charged,
                 false => Self::Failure,
             },
@@ -203,10 +293,16 @@ impl<F, T>
             .response
             .original_trxn_identifier
             .unwrap_or(item.response.transaction_identifier);
+        let redirection_data =
+            item.response
+                .redirect_data
+                .map(|redirect_data| services::RedirectForm::Html {
+                    html_data: redirect_data,
+                });
         let response = error_response.map_or(
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(connector_transaction_id),
-                redirection_data: None,
+                redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
@@ -218,11 +314,16 @@ impl<F, T>
             status: enums::AttemptStatus::foreign_from((
                 item.response.transaction_type,
                 item.response.approved,
+                is_3ds_payment(item.response.iso_response_code),
             )),
             response,
             ..item.data
         })
     }
+}
+
+fn is_3ds_payment(response_code: String) -> bool {
+    matches!(response_code.as_str(), "SP4")
 }
 
 // Type definition for Capture, Void, Refund Request
