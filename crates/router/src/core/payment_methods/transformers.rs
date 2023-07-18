@@ -154,14 +154,14 @@ pub async fn get_decrypted_response_payload(
     jwe_body: encryption::JweBody,
 ) -> CustomResult<String, errors::VaultError> {
     #[cfg(feature = "kms")]
-    let public_key = jwekey.jwekey.peek().vault_encryption_key.clone();
+    let public_key = jwekey.jwekey.peek().vault_encryption_key.as_bytes();
     #[cfg(feature = "kms")]
-    let private_key = jwekey.jwekey.peek().vault_private_key.clone();
+    let private_key = jwekey.jwekey.peek().vault_private_key.as_bytes();
 
     #[cfg(not(feature = "kms"))]
-    let public_key = jwekey.vault_encryption_key.to_owned();
+    let public_key = jwekey.vault_encryption_key.as_bytes();
     #[cfg(not(feature = "kms"))]
-    let private_key = jwekey.vault_private_key.to_owned();
+    let private_key = jwekey.vault_private_key.as_bytes();
 
     let jwt = get_dotted_jwe(jwe_body);
     let alg = jwe::RSA_OAEP;
@@ -181,7 +181,7 @@ pub async fn get_decrypted_response_payload(
         .change_context(errors::VaultError::ResponseDeserializationFailed)?;
     let jws_body = get_dotted_jws(jws);
 
-    encryption::verify_sign(jws_body, &public_key)
+    encryption::verify_sign(jws_body, public_key)
         .change_context(errors::VaultError::SaveCardFailed)
         .attach_printable("Jws Decryption failed for JwsBody for vault")
 }
@@ -207,10 +207,10 @@ pub async fn mk_basilisk_req(
         .change_context(errors::VaultError::SaveCardFailed)?;
 
     #[cfg(feature = "kms")]
-    let public_key = jwekey.jwekey.peek().vault_encryption_key.clone();
+    let public_key = jwekey.jwekey.peek().vault_encryption_key.as_bytes();
 
     #[cfg(not(feature = "kms"))]
-    let public_key = jwekey.vault_encryption_key.to_owned();
+    let public_key = jwekey.vault_encryption_key.as_bytes();
 
     let jwe_encrypted = encryption::encrypt_jwe(&payload, public_key)
         .await
@@ -260,10 +260,10 @@ pub async fn mk_add_card_request_hs(
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
     #[cfg(feature = "kms")]
-    let private_key = jwekey.jwekey.peek().vault_private_key.clone();
+    let private_key = jwekey.jwekey.peek().vault_private_key.as_bytes();
 
     #[cfg(not(feature = "kms"))]
-    let private_key = jwekey.vault_private_key.to_owned();
+    let private_key = jwekey.vault_private_key.as_bytes();
 
     let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
         .await
@@ -406,10 +406,10 @@ pub async fn mk_get_card_request_hs(
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
     #[cfg(feature = "kms")]
-    let private_key = jwekey.jwekey.peek().vault_private_key.clone();
+    let private_key = jwekey.jwekey.peek().vault_private_key.as_bytes();
 
     #[cfg(not(feature = "kms"))]
-    let private_key = jwekey.vault_private_key.to_owned();
+    let private_key = jwekey.vault_private_key.as_bytes();
 
     let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
         .await
@@ -486,10 +486,10 @@ pub async fn mk_delete_card_request_hs(
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
     #[cfg(feature = "kms")]
-    let private_key = jwekey.jwekey.peek().vault_private_key.clone();
+    let private_key = jwekey.jwekey.peek().vault_private_key.as_bytes();
 
     #[cfg(not(feature = "kms"))]
-    let private_key = jwekey.vault_private_key.to_owned();
+    let private_key = jwekey.vault_private_key.as_bytes();
 
     let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
         .await

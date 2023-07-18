@@ -119,7 +119,7 @@ pub fn decrypt(mut data: Vec<u8>, key: &[u8]) -> CustomResult<String, errors::En
 
 pub async fn encrypt_jwe(
     payload: &[u8],
-    public_key: String,
+    public_key: impl AsRef<[u8]>,
 ) -> CustomResult<String, errors::EncryptionError> {
     let alg = jwe::RSA_OAEP_256;
     let enc = "A256GCM";
@@ -146,7 +146,7 @@ pub enum KeyIdCheck<'a> {
 pub async fn decrypt_jwe(
     jwt: &str,
     key_ids: KeyIdCheck<'_>,
-    private_key: String,
+    private_key: impl AsRef<[u8]>,
     alg: jwe::alg::rsaes::RsaesJweAlgorithm,
 ) -> CustomResult<String, errors::EncryptionError> {
     if let KeyIdCheck::RequestResponseKeyId((req_key_id, resp_key_id)) = key_ids {
@@ -176,7 +176,7 @@ pub async fn decrypt_jwe(
 pub async fn jws_sign_payload(
     payload: &[u8],
     kid: &str,
-    private_key: String,
+    private_key: impl AsRef<[u8]>,
 ) -> CustomResult<String, errors::EncryptionError> {
     let alg = jws::RS256;
     let mut src_header = jws::JwsHeader::new();
@@ -195,7 +195,7 @@ pub async fn jws_sign_payload(
 
 pub fn verify_sign(
     jws_body: String,
-    key: &String,
+    key: impl AsRef<[u8]>,
 ) -> CustomResult<String, errors::EncryptionError> {
     let alg = jws::RS256;
     let input = jws_body.as_bytes();

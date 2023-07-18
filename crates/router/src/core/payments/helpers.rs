@@ -2113,10 +2113,15 @@ pub async fn get_merchant_connector_account(
                 )?;
 
             #[cfg(feature = "kms")]
-            let private_key = state.kms_secrets.jwekey.peek().tunnel_private_key.clone();
+            let private_key = state
+                .kms_secrets
+                .jwekey
+                .peek()
+                .tunnel_private_key
+                .as_bytes();
 
             #[cfg(not(feature = "kms"))]
-            let private_key = state.conf.jwekey.tunnel_private_key.to_owned();
+            let private_key = state.conf.jwekey.tunnel_private_key.as_bytes();
 
             let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
                                      .await
