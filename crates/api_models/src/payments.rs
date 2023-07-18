@@ -947,11 +947,15 @@ pub struct BankDebitBilling {
 #[serde(rename_all = "snake_case")]
 pub enum WalletData {
     /// The wallet data for Ali Pay QrCode
-    AliPay(Box<AliPay>),
+    AliPayQr(Box<AliPayQr>),
     /// The wallet data for Ali Pay redirect
     AliPayRedirect(AliPayRedirection),
     /// The wallet data for Ali Pay HK redirect
     AliPayHkRedirect(AliPayHkRedirection),
+    /// The wallet data for KakaoPay redirect
+    KakaoPayRedirect(KakaoPayRedirection),
+    /// The wallet data for GoPay redirect
+    GoPayRedirect(GoPayRedirection),
     /// The wallet data for Apple pay
     ApplePay(ApplePayWalletData),
     /// Wallet data for apple pay redirect flow
@@ -973,10 +977,14 @@ pub enum WalletData {
     PaypalSdk(PayPalWalletData),
     /// The wallet data for Samsung Pay
     SamsungPay(Box<SamsungPayWalletData>),
+    /// Wallet data for Twint Redirection
+    TwintRedirect {},
     /// The wallet data for WeChat Pay Redirection
     WeChatPayRedirect(Box<WeChatPayRedirection>),
     /// The wallet data for WeChat Pay
     WeChatPay(Box<WeChatPay>),
+    /// The wallet data for WeChat Pay Display QrCode
+    WeChatPayQr(Box<WeChatPayQr>),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1020,16 +1028,25 @@ pub struct WeChatPayRedirection {}
 pub struct WeChatPay {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct WeChatPayQr {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaypalRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct AliPay {}
+pub struct AliPayQr {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AliPayRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AliPayHkRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct KakaoPayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GoPayRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MobilePayRedirection {}
@@ -1423,6 +1440,7 @@ pub struct PaymentsResponse {
     pub mandate_id: Option<String>,
 
     /// Provided mandate information for creating a mandate
+    #[auth_based]
     pub mandate_data: Option<MandateData>,
 
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.

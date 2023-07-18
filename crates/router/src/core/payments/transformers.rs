@@ -62,6 +62,8 @@ where
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
     })?;
 
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
+
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -124,12 +126,14 @@ where
         reference_id: None,
         payment_method_token: payment_data.pm_token,
         connector_customer: payment_data.connector_customer_id,
+        recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
             &merchant_account.merchant_id,
             &payment_data.payment_attempt,
         ),
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
+        test_mode,
     };
 
     Ok(router_data)
@@ -179,6 +183,7 @@ where
             &operation,
             payment_data.ephemeral_key,
             payment_data.sessions_token,
+            payment_data.setup_mandate,
         )
     }
 }
@@ -269,6 +274,7 @@ pub fn payments_to_payments_response<R, Op>(
     operation: &Op,
     ephemeral_key_option: Option<ephemeral_key::EphemeralKey>,
     session_tokens: Vec<api::SessionToken>,
+    mandate_data: Option<api_models::payments::MandateData>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
@@ -412,6 +418,10 @@ where
                                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
                         )
                         .set_mandate_id(mandate_id)
+                        .set_mandate_data(
+                            mandate_data.map(api::MandateData::from),
+                            auth_flow == services::AuthFlow::Merchant,
+                        )
                         .set_description(payment_intent.description)
                         .set_refunds(refunds_response) // refunds.iter().map(refund_to_refund_response),
                         .set_disputes(disputes_response)

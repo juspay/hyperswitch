@@ -60,12 +60,18 @@ pub enum StripeWallet {
     ApplePay(payments::ApplePayWalletData),
 }
 
-#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
+pub struct StripeUpi {
+    pub vpa_id: masking::Secret<String>,
+}
+
+#[derive(Debug, Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodType {
     #[default]
     Card,
     Wallet,
+    Upi,
 }
 
 impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
@@ -73,6 +79,7 @@ impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
         match item {
             StripePaymentMethodType::Card => Self::Card,
             StripePaymentMethodType::Wallet => Self::Wallet,
+            StripePaymentMethodType::Upi => Self::Upi,
         }
     }
 }
@@ -92,6 +99,7 @@ pub struct StripePaymentMethodData {
 pub enum StripePaymentMethodDetails {
     Card(StripeCard),
     Wallet(StripeWallet),
+    Upi(StripeUpi),
 }
 
 impl From<StripeCard> for payments::Card {
@@ -120,6 +128,14 @@ impl From<StripeWallet> for payments::WalletData {
     }
 }
 
+impl From<StripeUpi> for payments::UpiData {
+    fn from(upi: StripeUpi) -> Self {
+        Self {
+            vpa_id: Some(upi.vpa_id),
+        }
+    }
+}
+
 impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
     fn from(item: StripePaymentMethodDetails) -> Self {
         match item {
@@ -127,6 +143,7 @@ impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
             StripePaymentMethodDetails::Wallet(wallet) => {
                 Self::Wallet(payments::WalletData::from(wallet))
             }
+            StripePaymentMethodDetails::Upi(upi) => Self::Upi(payments::UpiData::from(upi)),
         }
     }
 }

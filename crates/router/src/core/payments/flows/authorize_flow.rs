@@ -333,6 +333,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentMethodTokenizationD
     fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.payment_method_data,
+            browser_info: data.browser_info,
         })
     }
 }
