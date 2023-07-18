@@ -12,6 +12,7 @@ mod adyen_uk_ui;
 mod airwallex;
 mod airwallex_ui;
 mod authorizedotnet;
+mod authorizedotnet_ui;
 mod bambora;
 mod bambora_ui;
 mod bitpay;
