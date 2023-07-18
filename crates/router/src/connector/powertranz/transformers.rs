@@ -24,6 +24,8 @@ pub struct PowertranzPaymentsRequest {
     three_d_secure: bool,
     source: Source,
     order_identifier: String,
+    // billing and shipping are optional fields and requires state in iso codes, hence commenting it
+    // can be added later if we have iso code for state
     // billing_address: Option<PowertranzAddressDetails>,
     // shipping_address: Option<PowertranzAddressDetails>,
     extended_data: Option<ExtendedData>,
