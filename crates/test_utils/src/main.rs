@@ -46,7 +46,6 @@ fn main() {
     // variables set up for certificate, will consider those variables and will fail.
 
     let mut newman_command = cmd::new("newman");
-
     newman_command.args(["run", &collection_path]);
     newman_command.args(["--env-var", &format!("admin_api_key={admin_api_key}")]);
     newman_command.args(["--env-var", &format!("baseUrl={base_url}")]);
@@ -97,11 +96,11 @@ fn main() {
             }
             // Handle other ConnectorAuthType variants
             _ => {
-                eprintln!("Invalid authentication type.");
+                eprintln!("\x1b[31mInvalid authentication type.\x1b[0m");
             }
         }
     } else {
-        eprintln!("Connector not found.");
+        eprintln!("\x1b[31mConnector not found.\x1b[0m");
     }
 
     // Add additional environment variables if present
@@ -130,7 +129,7 @@ fn main() {
     let mut child = match output {
         Ok(child) => child,
         Err(err) => {
-            eprintln!("Failed to execute command: {err}");
+            eprintln!("\x1b[31mFailed to execute command: {err}\x1b[0m");
             exit(1);
         }
     };
@@ -139,15 +138,18 @@ fn main() {
     let exit_code = match status {
         Ok(exit_status) => {
             if exit_status.success() {
-                println!("Command executed successfully!");
+                println!("\x1b[32mCommand executed successfully!\x1b[0m");
                 exit_status.code().unwrap_or(0)
             } else {
-                eprintln!("Command failed with exit code: {:?}", exit_status.code());
+                eprintln!(
+                    "\x1b[31mCommand failed with exit code: {:?}\x1b[0m",
+                    exit_status.code()
+                );
                 exit_status.code().unwrap_or(1)
             }
         }
         Err(err) => {
-            eprintln!("Failed to wait for command execution: {}", err);
+            eprintln!("\x1b[31mFailed to wait for command execution: {err}\x1b[0m");
             exit(1);
         }
     };

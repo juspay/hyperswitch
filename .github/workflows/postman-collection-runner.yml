@@ -1,8 +1,8 @@
-name: PR Postman Tests
+name: Run collections against your PRs
 
 on:
   workflow_dispatch:
-  pull_request:
+  merge_group:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,14 +19,6 @@ jobs:
   Setup:
     name: Setup Rust and Server
     runs-on: ubuntu-latest
-
-    env:
-      ADMIN_API_KEY: ${{ secrets.LOCAL_ADMIN_API_KEY }}
-      BASE_URL: ${{ env.LOCAL_HOST }}
-      CONNECTOR_AUTH_FILE_PATH: ${{ needs.setup_local_server.outputs.CONNECTOR_CONFIG_PATH }}
-      GATEWAY_MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
-      GPAY_CERTIFICATE: ${{ secrets.STRIPE_GPAY_CERTIFICATE }}
-      GPAY_CERTIFICATE_KEYS: ${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
 
     strategy:
       fail-fast: false
@@ -69,10 +61,19 @@ jobs:
         shell: bash
         run: ./scripts/decrypt_connector_auth.sh
 
-      - name: Set connector auth file path in env
+      - name: Set paths in env
         id: config_path
         shell: bash
-        run: echo "CONNECTOR_CONFIG_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
+        run: |
+          echo "CONNECTOR_AUTH_FILE_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
+
+      - name: Fetch keys
+        env:
+          TOML_PATH: "./config/development.toml"
+        run: |
+          KEY_LINE=$(grep -E '^\[secrets\]$|^\s*admin_api_key\s*=' "$TOML_PATH")
+          LOCAL_ADMIN_API_KEY=$(awk -F ' *= *' '/^admin_api_key/ {gsub(/"/, "", $2); print $2}' "$TOML_PATH")
+          echo "ADMIN_API_KEY=$LOCAL_ADMIN_API_KEY" >> $GITHUB_ENV
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -80,12 +81,6 @@ jobs:
           toolchain: stable
 
       - uses: Swatinem/rust-cache@v2.4.0
-
-      - name: Install PostgreSQL
-        run: |
-          sudo apt update
-          sudo apt install postgresql postgresql-contrib libpq-dev
-          systemctl start postgresql.service
 
       - uses: baptiste0928/cargo-install@v2.1.0
         with:
@@ -100,20 +95,30 @@ jobs:
         run: diesel migration run
 
       - name: Setup Local Server
-        env:
-          LOCAL_HOST: http://localhost:8080
         run: |
-          cargo run
+          cargo run &
+          COUNT=0
+          # Wait for the server to start in port 8080
+          while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do 
+              # Wait for 15 mins to start otherwise kill the task
+              if [ $COUNT -gt 90 ];
+              then
+                  exit 1
+              else 
+                  COUNT=$((COUNT+1))
+                  sleep 10
+              fi
+          done
 
       - name: Run Tests
         env:
-
-        uses: nick-fields/retry@v2
-        with:
-          timeout_minutes: 30
-          max_attempts: 3
-          retry_on: error
-          command: |
-            for i in $(echo $IN | tr "," "\n"); do
-              cargo run --package test_utils --bin test_utils -- --connector_name=${{ matrix.connector }} --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY
-            done
+          BASE_URL: "http://localhost:8080"
+          GATEWAY_MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
+          GPAY_CERTIFICATE: ${{ secrets.STRIPE_GPAY_CERTIFICATE }}
+          GPAY_CERTIFICATE_KEYS: ${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
+          INPUT: ${{ matrix.connector }}
+        shell: bash
+        run: |
+          for i in $(echo $INPUT | tr "," "\n"); do
+            cargo run --package test_utils --bin test_utils -- --connector_name=$i --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY
+          done
