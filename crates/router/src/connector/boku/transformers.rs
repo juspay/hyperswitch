@@ -7,11 +7,12 @@ use api_models::{
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
+use uuid::Uuid;
 
 //use common_utils::ext_traits::XmlExt;
 use crate::{
     core::errors,
-    services,
+    services::{self, RedirectForm},
     types::{self, api, storage::enums},
 };
 
@@ -31,7 +32,8 @@ pub struct SingleChargeData {
     currency: String,
     country: String,
     merchant_id: Secret<String>,
-    merchant_request_id: Secret<String>,
+    merchant_transaction_id: Secret<String>,
+    merchant_request_id: String,
     merchant_item_description: String,
     payment_method: String,
     charge_type: String,
@@ -106,7 +108,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BokuPaymentsRequest {
             currency: item.request.currency.to_string(),
             country,
             merchant_id: auth_type.merchant_id,
-            merchant_request_id: Secret::new(item.payment_id.to_string()),
+            merchant_transaction_id: Secret::new(item.payment_id.to_string()),
+            merchant_request_id: Uuid::new_v4().to_string(),
             merchant_item_description,
             payment_method: BokuPaymentType::AuPay.to_string(),
             charge_type: BokuChargeType::Hosted.to_string(),
@@ -149,6 +152,34 @@ impl TryFrom<&types::ConnectorAuthType> for BokuAuthType {
     }
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename = "query-charge-request")]
+#[serde(rename_all = "kebab-case")]
+pub struct BokuPsyncRequest {
+    country: String,
+    merchant_id: Secret<String>,
+    merchant_transaction_id: Secret<String>,
+}
+
+impl TryFrom<&types::PaymentsSyncRouterData> for BokuPsyncRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
+        let country = match get_country_code(item) {
+            Some(cn_code) => cn_code.to_string(),
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "country",
+            })?,
+        };
+        let auth_type = BokuAuthType::try_from(&item.connector_auth_type)?;
+
+        Ok(Self {
+            country,
+            merchant_id: auth_type.merchant_id,
+            merchant_transaction_id: Secret::new(item.payment_id.to_string()),
+        })
+    }
+}
+
 // Connector Meta Data
 #[derive(Debug, Clone, Deserialize)]
 pub struct BokuMetaData {
@@ -156,10 +187,9 @@ pub struct BokuMetaData {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum BokuPaymentStatus {
-    #[serde(rename = "0")]
     Success,
-    #[serde(rename = "3")]
     Failure,
 }
 
@@ -172,12 +202,20 @@ impl From<BokuPaymentStatus> for enums::AttemptStatus {
     }
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BokuResponse {
+    BeginSingleChargeResponse(BokuPaymentsResponse),
+    QueryChargeResponse(BokuPsyncResponse),
+}
+
 //TODO: Fill the struct with respective fields
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename = "begin-single-charge-response")]
 #[serde(rename_all = "kebab-case")]
 pub struct BokuPaymentsResponse {
-    result: ResultData,
+    // result: ResultData,
+    charge_status: BokuPaymentStatus,
+    // merchant_transaction_id: String,
     // merchant_id: String,
     // merchant_request_id: String,
     // payment_method: String,
@@ -185,14 +223,14 @@ pub struct BokuPaymentsResponse {
     hosted: Option<HostedUrlResponse>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct ResultData {
-    #[serde(rename = "@value")]
-    reason_code: BokuPaymentStatus,
-    // message: String,
-    // retriable: String,
-}
+// #[derive(Debug, Clone, Deserialize)]
+// #[serde(rename_all = "kebab-case")]
+// pub struct ResultData {
+//     #[serde(rename = "@value")]
+//     reason_code: String,
+// message: String,
+// retriable: String,
+// }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -200,27 +238,51 @@ pub struct HostedUrlResponse {
     redirect_url: Option<Url>,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, BokuPaymentsResponse, T, types::PaymentsResponseData>>
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct BokuPsyncResponse {
+    // result: ResultData,
+    charges: ChargeResponseData,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct ChargeResponseData {
+    charge: SingleChargeResponseData,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct SingleChargeResponseData {
+    // result: ResultData,
+    charge_status: BokuPaymentStatus,
+    // merchant_transaction_id: String,
+    // merchant_id: String,
+    // merchant_id_description: String,
+    charge_id: String,
+    // timestamp: String,
+    // country: CountryAlpha2,
+    // netword_id: String,
+    // currency: Currency,
+    // total_amount: Amount,
+}
+
+impl<F, T> TryFrom<types::ResponseRouterData<F, BokuResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, BokuPaymentsResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<F, BokuResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = match item.response.hosted {
-            Some(hosted_value) => Ok(hosted_value
-                .redirect_url
-                .map(|url| services::RedirectForm::from((url, services::Method::Get)))),
-            None => Err(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "redirect_url",
-            }),
+        let (status, transaction_id, redirection_data) = match item.response {
+            BokuResponse::BeginSingleChargeResponse(response) => get_authorize_response(response),
+            BokuResponse::QueryChargeResponse(response) => get_psync_response(response),
         }?;
 
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.result.reason_code),
+            status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.charge_id),
+                resource_id: types::ResponseId::ConnectorTransactionId(transaction_id),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -232,50 +294,106 @@ impl<F, T>
     }
 }
 
+fn get_authorize_response(
+    response: BokuPaymentsResponse,
+) -> Result<(enums::AttemptStatus, String, Option<RedirectForm>), errors::ConnectorError> {
+    let status = enums::AttemptStatus::from(response.charge_status);
+    let redirection_data = match response.hosted {
+        Some(hosted_value) => Ok(hosted_value
+            .redirect_url
+            .map(|url| services::RedirectForm::from((url, services::Method::Get)))),
+        None => Err(errors::ConnectorError::MissingConnectorRedirectionPayload {
+            field_name: "redirect_url",
+        }),
+    }?;
+
+    Ok((status, response.charge_id, redirection_data))
+}
+
+fn get_psync_response(
+    response: BokuPsyncResponse,
+) -> Result<(enums::AttemptStatus, String, Option<RedirectForm>), errors::ConnectorError> {
+    let status = enums::AttemptStatus::from(response.charges.charge.charge_status);
+
+    Ok((status, response.charges.charge.charge_id, None))
+}
+
 //TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename = "refund-charge-request")]
 pub struct BokuRefundRequest {
-    pub amount: i64,
+    refund_amount: i64,
+    merchant_id: Secret<String>,
+    merchant_request_id: String,
+    merchant_refund_id: Secret<String>,
+    charge_id: String,
+    reason_code: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum BokuRefundReasonCode {
+    // UnauthorizedKnown,
+    // UnauthorizedUnknown,
+    // UnauthorizedMinor,
+    NonFulfillment,
+    // Fraud,
+    // Goodwill,
+}
+
+impl fmt::Display for BokuRefundReasonCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NonFulfillment => write!(f, "8"),
+        }
+    }
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for BokuRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.request.refund_amount,
-        })
+        let auth_type = BokuAuthType::try_from(&item.connector_auth_type)?;
+        let payment_data = Self {
+            refund_amount: item.request.payment_amount,
+            merchant_id: auth_type.merchant_id,
+            merchant_refund_id: Secret::new(item.payment_id.to_string()),
+            merchant_request_id: Uuid::new_v4().to_string(),
+            charge_id: item.request.connector_transaction_id.to_string(),
+            reason_code: BokuRefundReasonCode::NonFulfillment.to_string(),
+        };
+
+        Ok(payment_data)
     }
 }
 
 // Type definition for Refund Response
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+#[derive(Debug, Deserialize, Clone)]
+pub enum BokuRefundStatus {
+    Success,
+    Failure,
 }
 
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+impl From<BokuRefundStatus> for enums::RefundStatus {
+    fn from(item: BokuRefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            BokuRefundStatus::Success => Self::Success,
+            BokuRefundStatus::Failure => Self::Failure,
         }
     }
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename = "refunt-charge-response")]
 pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
+    // result: ResultData,
+    // merchant_id: Secret<String>,
+    // merchant_request_id: String,
+    charge_id: String,
+    refund_status: BokuRefundStatus,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -287,8 +405,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.charge_id,
+                refund_status: enums::RefundStatus::from(item.response.refund_status),
             }),
             ..item.data
         })
@@ -304,8 +422,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.charge_id,
+                refund_status: enums::RefundStatus::from(item.response.refund_status),
             }),
             ..item.data
         })
@@ -326,7 +444,9 @@ pub struct BokuConnMetaData {
     country: String,
 }
 
-fn get_country_code(item: &types::PaymentsAuthorizeRouterData) -> Option<CountryAlpha2> {
+fn get_country_code<Flow, Request, Response>(
+    item: &types::RouterData<Flow, Request, Response>,
+) -> Option<CountryAlpha2> {
     item.address
         .billing
         .as_ref()
@@ -339,8 +459,8 @@ fn get_hosted_data(item: &types::PaymentsAuthorizeRouterData) -> Option<BokuHost
         .map(|url| BokuHostedData { forward_url: url })
 }
 
-fn get_item_description(
-    item: &types::PaymentsAuthorizeRouterData,
+fn get_item_description<Flow, Request, Response>(
+    item: &types::RouterData<Flow, Request, Response>,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     match item.description.clone() {
         Some(desc) => Ok(desc),

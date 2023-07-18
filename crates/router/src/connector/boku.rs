@@ -226,7 +226,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let response = response_data
-            .parse_xml::<boku::BokuPaymentsResponse>()
+            .parse_xml::<boku::BokuResponse>()
             .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
@@ -262,10 +262,28 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let boku_url = get_country_url(
+            req.connector_meta_data.clone(),
+            self.base_url(connectors).to_string(),
+        )?;
+
+        Ok(format!("{}/billing/3.0/query-charge", boku_url))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = boku::BokuPsyncRequest::try_from(req)?;
+        let boku_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<boku::BokuPsyncRequest>::encode_to_string_of_xml,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(boku_req))
     }
 
     fn build_request(
@@ -279,6 +297,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .body(types::PaymentsSyncType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -293,7 +312,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let response = response_data
-            .parse_xml::<boku::BokuPaymentsResponse>()
+            .parse_xml::<boku::BokuResponse>()
             .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
@@ -365,10 +384,15 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: boku::BokuPaymentsResponse = res
-            .response
-            .parse_struct("Boku PaymentsCaptureResponse")
+        let response_data = String::from_utf8(res.response.to_vec())
+            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response = response_data
+            .parse_xml::<boku::BokuResponse>()
+            .into_report()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -404,10 +428,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let boku_url = get_country_url(
+            req.connector_meta_data.clone(),
+            self.base_url(connectors).to_string(),
+        )?;
+
+        Ok(format!("{}/billing/3.0/refund-charge", boku_url))
     }
 
     fn get_request_body(
@@ -417,7 +446,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let req_obj = boku::BokuRefundRequest::try_from(req)?;
         let boku_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
-            utils::Encode::<boku::BokuRefundRequest>::encode_to_string_of_json,
+            utils::Encode::<boku::BokuRefundRequest>::encode_to_string_of_xml,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(boku_req))
