@@ -57,10 +57,10 @@ vault_encryption_key = ""
 vault_private_key = ""
 
 [redis]
-host = "redis-queue"
+host = "redis-standalone"
 port = 6379
-cluster_enabled = true
-cluster_urls = ["redis-queue:6379"]
+cluster_enabled = false
+cluster_urls = ["redis-cluster:6379"]
 
 [refund]
 max_attempts = 10
@@ -93,6 +93,7 @@ globepay.base_url = "https://pay.globepay.co/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
+mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nmi.base_url = "https://secure.nmi.com/"
@@ -104,14 +105,16 @@ payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
 paypal.base_url = "https://www.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
-powertranz.base_url = "https://staging.ptranz.com/api/spi/"
+powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
+stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+tsys.base_url = "https://stagegw.transnox.com/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 
@@ -153,8 +156,10 @@ cards = [
     "payu",
     "powertranz",
     "shift4",
+    "stax",
     "stripe",
     "trustpay",
+    "tsys",
     "worldline",
     "worldpay",
     "zen",
@@ -170,6 +175,12 @@ stream = "SCHEDULER_STREAM"
 [scheduler.consumer]
 disabled = false
 consumer_group = "SCHEDULER_GROUP"
+
+#tokenization configuration which describe token lifetime and payment method for specific connector
+[tokenization]
+stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
+checkout = { long_lived_token = false, payment_method = "wallet" }
+mollie = {long_lived_token = false, payment_method = "card"}
 
 [dummy_connector]
 payment_ttl = 172800
