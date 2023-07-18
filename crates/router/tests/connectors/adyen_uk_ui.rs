@@ -293,6 +293,7 @@ async fn should_make_adyen_bacs_payment(web_driver: WebDriver) -> Result<(), Web
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/54"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("Status")),
             Event::Assert(Assert::IsPresent("processing")), //final status of this payment method will remain in processing state
         ],
     )
@@ -337,6 +338,7 @@ async fn should_make_adyen_blik_payment(web_driver: WebDriver) -> Result<(), Web
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/64"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("Status")),
             Event::Assert(Assert::IsPresent("processing")), //final status of this payment method will remain in processing state
         ],
     )
@@ -400,6 +402,7 @@ async fn should_make_adyen_mbway_payment(web_driver: WebDriver) -> Result<(), We
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/196"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("Status")),
             Event::Assert(Assert::IsPresent("processing")), //final status of this payment method will remain in processing state
         ],
     )
