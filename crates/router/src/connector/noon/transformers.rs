@@ -38,7 +38,7 @@ pub struct NoonSubscriptionData {
 #[serde(rename_all = "camelCase")]
 pub struct NoonOrder {
     amount: String,
-    currency: Option<storage_models::enums::Currency>,
+    currency: Option<diesel_models::enums::Currency>,
     channel: NoonChannels,
     category: Option<String>,
     reference: String,
@@ -342,6 +342,7 @@ impl<F, T>
                     mandate_reference,
                     connector_metadata: None,
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 }),
             },
             ..item.data
@@ -353,7 +354,7 @@ impl<F, T>
 #[serde(rename_all = "camelCase")]
 pub struct NoonActionTransaction {
     amount: String,
-    currency: storage_models::enums::Currency,
+    currency: diesel_models::enums::Currency,
 }
 
 #[derive(Debug, Serialize)]

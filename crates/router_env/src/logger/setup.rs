@@ -1,6 +1,6 @@
 //! Setup logging subsystem.
 
-use std::{collections::HashSet, time::Duration};
+use std::time::Duration;
 
 use opentelemetry::{
     global, runtime,
@@ -66,6 +66,7 @@ pub fn setup(
             config.file.level,
             &crates_to_filter,
         );
+        println!("Using file logging filter: {file_filter}");
 
         Some(FormattingLayer::new(service_name, file_writer).with_filter(file_filter))
     } else {
@@ -88,6 +89,7 @@ pub fn setup(
             config.console.level,
             &crates_to_filter,
         );
+        println!("Using console logging filter: {console_filter}");
 
         match config.console.log_format {
             config::LogFormat::Default => {
@@ -227,9 +229,7 @@ fn get_envfilter(
         })
         .unwrap_or_else(|| {
             // Construct a default target filter otherwise
-            let mut workspace_members = std::env!("CARGO_WORKSPACE_MEMBERS")
-                .split(',')
-                .collect::<HashSet<_>>();
+            let mut workspace_members = crate::cargo_workspace_members!();
             workspace_members.extend(crates_to_filter.as_ref());
 
             workspace_members

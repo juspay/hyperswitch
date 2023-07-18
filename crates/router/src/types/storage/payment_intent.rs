@@ -1,14 +1,14 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
-use error_stack::{IntoReport, ResultExt};
-use router_env::{instrument, tracing};
-pub use storage_models::{
+pub use diesel_models::{
     errors,
     payment_intent::{
         PaymentIntent, PaymentIntentNew, PaymentIntentUpdate, PaymentIntentUpdateInternal,
     },
     schema::payment_intent::dsl,
 };
+use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 
 use crate::{connection::PgPooledConn, core::errors::CustomResult, types::api};
 
@@ -21,6 +21,12 @@ pub trait PaymentIntentDbExt: Sized {
         conn: &PgPooledConn,
         merchant_id: &str,
         pc: &api::PaymentListConstraints,
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
+
+    async fn filter_by_time_constraints(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        pc: &api::TimeRange,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 }
 
@@ -40,7 +46,7 @@ impl PaymentIntentDbExt for PaymentIntent {
         // when https://github.com/rust-lang/rust/issues/52662 becomes stable
         let mut filter = <Self as HasTable>::table()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
-            .order(dsl::modified_at.desc())
+            .order(dsl::created_at.desc())
             .into_boxed();
 
         if let Some(customer_id) = customer_id {
@@ -84,5 +90,35 @@ impl PaymentIntentDbExt for PaymentIntent {
             .into_report()
             .change_context(errors::DatabaseError::NotFound)
             .attach_printable_lazy(|| "Error filtering records by predicate")
+    }
+
+    #[instrument(skip(conn))]
+    async fn filter_by_time_constraints(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        time_range: &api::TimeRange,
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+        let start_time = time_range.start_time;
+        let end_time = time_range
+            .end_time
+            .unwrap_or_else(common_utils::date_time::now);
+
+        //[#350]: Replace this with Boxable Expression and pass it into generic filter
+        // when https://github.com/rust-lang/rust/issues/52662 becomes stable
+        let mut filter = <Self as HasTable>::table()
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .order(dsl::modified_at.desc())
+            .into_boxed();
+
+        filter = filter.filter(dsl::created_at.ge(start_time));
+
+        filter = filter.filter(dsl::created_at.le(end_time));
+
+        filter
+            .get_results_async(conn)
+            .await
+            .into_report()
+            .change_context(errors::DatabaseError::Others)
+            .attach_printable("Error filtering records by time range")
     }
 }

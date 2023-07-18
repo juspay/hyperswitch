@@ -1,0 +1,150 @@
+name: Connector UI Sanity Tests
+
+on:
+  workflow_dispatch:
+  
+  pull_request:
+  merge_group:
+    types:
+      - checks_requested
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Disable incremental compilation.
+  #
+  # Incremental compilation is useful as part of an edit-build-test-edit cycle,
+  # as it lets the compiler avoid recompiling code that hasn't changed. However,
+  # on CI, we're not making small edits; we're almost always building the entire
+  # project from scratch. Thus, incremental compilation on CI actually
+  # introduces *additional* overhead to support making future builds
+  # faster...but no future builds will ever occur in any given CI environment.
+  #
+  # See https://matklad.github.io/2021/09/04/fast-rust-builds.html#ci-workflow
+  # for details.
+  CARGO_INCREMENTAL: 1
+  # Allow more retries for network requests in cargo (downloading crates) and
+  # rustup (installing toolchains). This should help to reduce flaky CI failures
+  # from transient network timeouts or other issues.
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+  # Don't emit giant backtraces in the CI logs.
+  RUST_BACKTRACE: short
+  # Use cargo's sparse index protocol
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
+jobs:
+  test_connectors:
+    name: Run connector UI tests
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      postgres:
+        image: postgres:14.5
+        env:
+          POSTGRES_USER: db_user
+          POSTGRES_PASSWORD: db_pass
+          POSTGRES_DB: hyperswitch_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    strategy:
+      fail-fast: false
+      matrix:
+        connector:
+          # do not use more than 2 runners, try to group less time taking connectors together
+          - stripe,airwallex,bluesnap,checkout,trustpay_3ds,payu
+          - adyen_uk,shift4,worldline,multisafepay,paypal,mollie
+
+    steps:
+      - name: Ignore Tests incase of pull request
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          echo "Skipped tests as the event is pull request" 
+          exit 0
+
+      - name: Checkout repository
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v3
+
+      - name: Decrypt connector auth file
+        if: github.event_name != 'pull_request'
+        env:
+          CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
+        shell: bash
+        run: ./scripts/decrypt_connector_auth.sh
+
+      - name: Set connector auth file path in env
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: echo "CONNECTOR_AUTH_FILE_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
+
+      - name: Set connector tests file path in env
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: echo "CONNECTOR_TESTS_FILE_PATH=$HOME/target/test/connector_tests.json" >> $GITHUB_ENV
+
+      - name: Set ignore_browser_profile usage in env
+        if: github.event_name != 'pull_request'  
+        shell: bash
+        run: echo "IGNORE_BROWSER_PROFILE=true" >> $GITHUB_ENV
+
+      - name: Install latest compiler
+        if: github.event_name != 'pull_request'  
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@v2.4.0
+
+      - uses: baptiste0928/cargo-install@v2.1.0
+        if: github.event_name != 'pull_request'  
+        with:
+          crate: diesel_cli
+          features: postgres
+          args: "--no-default-features"
+
+      - name: Diesel migration run
+        if: github.event_name != 'pull_request'  
+        shell: bash
+        env:
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
+        run: diesel migration run
+
+      - name: Start server and run tests
+        if: github.event_name != 'pull_request'  
+        env:
+          UI_TESTCASES_PATH: ${{ secrets.UI_TESTCASES_PATH }}
+          INPUT: ${{ matrix.connector }}
+        shell: bash
+        run: sh .github/scripts/run_ui_tests.sh
+
+      - name: View test results
+        if: github.event_name != 'pull_request'  
+        shell: bash
+        run: cat tests/test_results.log
+
+      - name: Check test results
+        if: github.event_name != 'pull_request'  
+        shell: bash
+        run: |
+          if test "$( grep 'test result: FAILED' -r tests/test_results.log | wc -l )" -gt "0"; then
+            exit 1
+          fi

@@ -28,7 +28,7 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
         redis_shutdown_signal_rx,
         tx.clone(),
     ));
-    let _guard = logger::setup(&state.conf.log);
+    let _guard = logger::setup(&state.conf.log, [router_env::service_name!()]);
 
     logger::debug!(startup_config=?state.conf);
 

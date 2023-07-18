@@ -1,6 +1,5 @@
-use std::{collections::HashMap, env, path::MAIN_SEPARATOR, time::Duration};
+use std::{collections::HashMap, env, io::Read, path::MAIN_SEPARATOR, time::Duration};
 
-use actix_web::cookie::SameSite;
 use async_trait::async_trait;
 use thirtyfour::{components::SelectElement, prelude::*, WebDriver};
 
@@ -47,13 +46,27 @@ pub enum Assert<'a> {
     Contains(Selector, &'a str),
     ContainsAny(Selector, Vec<&'a str>),
     IsPresent(&'a str),
+    IsElePresent(By),
     IsPresentNow(&'a str),
 }
 
 pub static CHEKOUT_BASE_URL: &str = "https://hs-payments-test.netlify.app";
-pub static CHEKOUT_DOMAIN: &str = "hs-payments-test.netlify.app";
 #[async_trait]
 pub trait SeleniumTest {
+    fn get_saved_testcases(&self) -> serde_json::Value {
+        let env_value = env::var("CONNECTOR_TESTS_FILE_PATH").ok();
+        if env_value.is_none() {
+            return serde_json::json!("");
+        }
+        let path = env_value.unwrap();
+        let mut file = &std::fs::File::open(path).expect("Failed to open file");
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)
+            .expect("Failed to read file");
+
+        // Parse the JSON data
+        serde_json::from_str(&contents).expect("Failed to parse JSON")
+    }
     fn get_configs(&self) -> connector_auth::ConnectorAuthentication {
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
             .expect("connector authentication file path not set");
@@ -91,6 +104,9 @@ pub trait SeleniumTest {
                     Assert::IsPresent(text) => {
                         assert!(is_text_present(driver, text).await?)
                     }
+                    Assert::IsElePresent(selector) => {
+                        assert!(is_element_present(driver, selector).await?)
+                    }
                     Assert::IsPresentNow(text) => {
                         assert!(is_text_present_now(driver, text).await?)
                     }
@@ -121,6 +137,11 @@ pub trait SeleniumTest {
                     }
                     Assert::IsPresent(text) => {
                         if is_text_present(driver, text).await.is_ok() {
+                            self.complete_actions(driver, events).await?;
+                        }
+                    }
+                    Assert::IsElePresent(text) => {
+                        if is_element_present(driver, text).await.is_ok() {
                             self.complete_actions(driver, events).await?;
                         }
                     }
@@ -183,6 +204,17 @@ pub trait SeleniumTest {
                         )
                         .await?;
                     }
+                    Assert::IsElePresent(by) => {
+                        self.complete_actions(
+                            driver,
+                            if is_element_present(driver, by).await.is_ok() {
+                                success
+                            } else {
+                                failure
+                            },
+                        )
+                        .await?;
+                    }
                     Assert::IsPresentNow(text) => {
                         self.complete_actions(
                             driver,
@@ -197,7 +229,8 @@ pub trait SeleniumTest {
                 },
                 Event::Trigger(trigger) => match trigger {
                     Trigger::Goto(url) => {
-                        driver.goto(url).await?;
+                        let saved_tests =
+                            serde_json::to_string(&self.get_saved_testcases()).unwrap();
                         let conf = serde_json::to_string(&self.get_configs()).unwrap();
                         let hs_base_url = self
                             .get_configs()
@@ -213,7 +246,13 @@ pub trait SeleniumTest {
                             .unwrap();
                         let script = &[
                             format!("localStorage.configs='{configs_url}'").as_str(),
+                            "localStorage.current_env='local'",
+                            "localStorage.hs_api_key=''",
+                            "localStorage.hs_api_keys=''",
+                            format!("localStorage.base_url='{hs_base_url}'").as_str(),
                             format!("localStorage.hs_api_configs='{conf}'").as_str(),
+                            format!("localStorage.saved_payments=JSON.stringify({saved_tests})")
+                                .as_str(),
                             "localStorage.force_sync='true'",
                             format!(
                                 "localStorage.current_connector=\"{}\";",
@@ -222,19 +261,15 @@ pub trait SeleniumTest {
                             .as_str(),
                         ]
                         .join(";");
-
+                        driver.goto(url).await?;
                         driver.execute(script, Vec::new()).await?;
-                        driver
-                            .add_cookie(new_cookie("hs_base_url", hs_base_url).clone())
-                            .await?;
                     }
                     Trigger::Click(by) => {
-                        let ele = driver.query(by).first().await?;
-                        ele.wait_until().enabled().await?;
-                        ele.wait_until().displayed().await?;
-                        ele.wait_until().clickable().await?;
-                        ele.scroll_into_view().await?;
-                        ele.click().await?;
+                        let res = self.click_element(driver, by.clone()).await;
+                        if res.is_err() {
+                            tokio::time::sleep(Duration::from_secs(5)).await;
+                            self.click_element(driver, by).await?;
+                        }
                     }
                     Trigger::ClickNth(by, n) => {
                         let ele = driver.query(by).all().await?.into_iter().nth(n).unwrap();
@@ -276,7 +311,7 @@ pub trait SeleniumTest {
                     Trigger::SwitchTab(position) => match position {
                         Position::Next => {
                             let windows = driver.windows().await?;
-                            if let Some(window) = windows.iter().rev().next() {
+                            if let Some(window) = windows.iter().next_back() {
                                 driver.switch_to_window(window.to_owned()).await?;
                             }
                         }
@@ -298,21 +333,54 @@ pub trait SeleniumTest {
         Ok(())
     }
 
+    async fn click_element(&self, driver: &WebDriver, by: By) -> Result<(), WebDriverError> {
+        let ele = driver.query(by).first().await?;
+        ele.wait_until().enabled().await?;
+        ele.wait_until().displayed().await?;
+        ele.wait_until().clickable().await?;
+        ele.scroll_into_view().await?;
+        ele.click().await
+    }
+
     async fn make_redirection_payment(
         &self,
-        c: WebDriver,
+        web_driver: WebDriver,
+        actions: Vec<Event<'_>>,
+    ) -> Result<(), WebDriverError> {
+        // To support failure retries
+        let result = self
+            .execute_steps(web_driver.clone(), actions.clone())
+            .await;
+        if result.is_err() {
+            self.execute_steps(web_driver, actions).await
+        } else {
+            result
+        }
+    }
+    async fn execute_steps(
+        &self,
+        web_driver: WebDriver,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
         let config = self.get_configs().automation_configs.unwrap();
         if config.run_minimum_steps.unwrap() {
-            self.complete_actions(&c, actions[..3].to_vec()).await
+            self.complete_actions(&web_driver, actions[..3].to_vec())
+                .await
         } else {
-            self.complete_actions(&c, actions).await
+            self.complete_actions(&web_driver, actions).await
         }
     }
     async fn make_gpay_payment(
         &self,
-        c: WebDriver,
+        web_driver: WebDriver,
+        url: &str,
+        actions: Vec<Event<'_>>,
+    ) -> Result<(), WebDriverError> {
+        self.execute_gpay_steps(web_driver, url, actions).await
+    }
+    async fn execute_gpay_steps(
+        &self,
+        web_driver: WebDriver,
         url: &str,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
@@ -334,6 +402,7 @@ pub trait SeleniumTest {
                             Event::Trigger(Trigger::SendKeys(By::Name("Passwd"), pass)),
                             Event::Trigger(Trigger::Sleep(2)),
                             Event::Trigger(Trigger::Click(By::Id("passwordNext"))),
+                            Event::Trigger(Trigger::Sleep(10)),
                         ],
                         vec![
                             Event::Trigger(Trigger::SendKeys(By::Id("identifierId"), email)),
@@ -341,29 +410,92 @@ pub trait SeleniumTest {
                             Event::Trigger(Trigger::SendKeys(By::Name("Passwd"), pass)),
                             Event::Trigger(Trigger::Sleep(2)),
                             Event::Trigger(Trigger::Click(By::Id("passwordNext"))),
+                            Event::Trigger(Trigger::Sleep(10)),
                         ],
                     ),
                 ],
             ),
-            Event::Trigger(Trigger::SwitchFrame(By::Id("sM432dIframe"))),
+            Event::Trigger(Trigger::SwitchFrame(By::Css(
+                ".bootstrapperIframeContainerElement iframe",
+            ))),
             Event::Assert(Assert::IsPresent("Gpay Tester")),
             Event::Trigger(Trigger::Click(By::ClassName("jfk-button-action"))),
             Event::Trigger(Trigger::SwitchTab(Position::Prev)),
         ];
-        self.complete_actions(&c, default_actions).await?;
-        self.complete_actions(&c, actions).await
+        self.complete_actions(&web_driver, default_actions).await?;
+        self.complete_actions(&web_driver, actions).await
     }
-    async fn make_paypal_payment(
+    async fn make_affirm_payment(
         &self,
-        c: WebDriver,
+        driver: WebDriver,
         url: &str,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
         self.complete_actions(
-            &c,
+            &driver,
             vec![
                 Event::Trigger(Trigger::Goto(url)),
-                Event::Trigger(Trigger::Click(By::Id("pypl-redirect-btn"))),
+                Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            ],
+        )
+        .await?;
+        let mut affirm_actions = vec![
+            Event::RunIf(
+                Assert::IsPresent("Big purchase? No problem."),
+                vec![
+                    Event::Trigger(Trigger::SendKeys(
+                        By::Css("input.focusable-form-field.pro11TnYcue.pro284gg8sY"),
+                        "(833) 549-5574", // any test phone number accepted by affirm
+                    )),
+                    Event::Trigger(Trigger::Click(By::Css(
+                        "button.sc-aXZVg.gCRVeN.pro35Wfly4z.pro300N0DVx.profBy8oj9g",
+                    ))),
+                    Event::Trigger(Trigger::SendKeys(
+                        By::Css("input.focusable-form-field.pro3g2JlS3A.pro284gg8sY"),
+                        "1234",
+                    )),
+                ],
+            ),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button.sc-aXZVg.fiBhTR.sc-gEkIjz.lfdPCG.pro35Wfly4z.pro4JEtdJCo.profBy8oj9g",
+            ))),
+            Event::Trigger(Trigger::Click(By::Css(
+                "div.proXxAyyoTg.pro1jhMLxqa.pro3Q3lI-I9",
+            ))),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button.sc-aXZVg.gCRVeN.pro35Wfly4z.pro300N0DVx.pro3JiyGdDb.pro1Ss7c7oj",
+            ))),
+            Event::Trigger(Trigger::Click(By::Css("div.pro1O60NO1I.pro2uav9pZk"))),
+            Event::Trigger(Trigger::Click(By::Css("div.pro1O60NO1I.pro1xh5zNal"))),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button.sc-aXZVg.gCRVeN.pro35Wfly4z.pro300N0DVx.profBy8oj9g",
+            ))),
+        ];
+        affirm_actions.extend(actions);
+        self.complete_actions(&driver, affirm_actions).await
+    }
+    async fn make_paypal_payment(
+        &self,
+        web_driver: WebDriver,
+        url: &str,
+        actions: Vec<Event<'_>>,
+    ) -> Result<(), WebDriverError> {
+        let pypl_url = url.to_string();
+        // To support failure retries
+        self.execute_paypal_steps(web_driver.clone(), &pypl_url, actions.clone())
+            .await
+    }
+    async fn execute_paypal_steps(
+        &self,
+        web_driver: WebDriver,
+        url: &str,
+        actions: Vec<Event<'_>>,
+    ) -> Result<(), WebDriverError> {
+        self.complete_actions(
+            &web_driver,
+            vec![
+                Event::Trigger(Trigger::Goto(url)),
+                Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             ],
         )
         .await?;
@@ -383,22 +515,79 @@ pub trait SeleniumTest {
         );
         let mut pypl_actions = vec![
             Event::EitherOr(
-                Assert::IsPresent("Password"),
-                vec![
-                    Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
-                    Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
-                ],
+                Assert::IsPresent("Forgot email?"),
                 vec![
                     Event::Trigger(Trigger::SendKeys(By::Id("email"), email)),
                     Event::Trigger(Trigger::Click(By::Id("btnNext"))),
                     Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
                     Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
                 ],
+                vec![
+                    Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
+                    Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
+                ],
             ),
-            Event::Trigger(Trigger::Click(By::Id("payment-submit-btn"))),
+            Event::EitherOr(
+                Assert::IsPresent("See Offers and Apply for PayPal Credit"),
+                vec![
+                    Event::RunIf(
+                        Assert::IsElePresent(By::Id("spinner")),
+                        vec![Event::Trigger(Trigger::Sleep(5))],
+                    ),
+                    Event::Trigger(Trigger::Click(By::Css(".reviewButton"))),
+                ],
+                vec![Event::Trigger(Trigger::Click(By::Id("payment-submit-btn")))],
+            ),
         ];
         pypl_actions.extend(actions);
-        self.complete_actions(&c, pypl_actions).await
+        self.complete_actions(&web_driver, pypl_actions).await
+    }
+    async fn make_clearpay_payment(
+        &self,
+        driver: WebDriver,
+        url: &str,
+        actions: Vec<Event<'_>>,
+    ) -> Result<(), WebDriverError> {
+        self.complete_actions(
+            &driver,
+            vec![
+                Event::Trigger(Trigger::Goto(url)),
+                Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            ],
+        )
+        .await?;
+        let (email, pass) = (
+            &self
+                .get_configs()
+                .automation_configs
+                .unwrap()
+                .clearpay_email
+                .unwrap(),
+            &self
+                .get_configs()
+                .automation_configs
+                .unwrap()
+                .clearpay_pass
+                .unwrap(),
+        );
+        let mut clearpay_actions = vec![
+            Event::Trigger(Trigger::Sleep(3)),
+            Event::EitherOr(
+                Assert::IsPresent("Review your order | Clearpay"),
+                vec![Event::Trigger(Trigger::Click(By::ClassName("ai_az")))],
+                vec![
+                    Event::Trigger(Trigger::SendKeys(By::ClassName("n8_fl"), email)),
+                    Event::Trigger(Trigger::Click(By::ClassName("ai_az"))),
+                    Event::Trigger(Trigger::Sleep(3)),
+                    Event::Trigger(Trigger::SendKeys(By::ClassName("n8_fl"), pass)),
+                    Event::Trigger(Trigger::Click(By::ClassName("ai_az"))),
+                    Event::Trigger(Trigger::Sleep(10)), //Time needed for login
+                    Event::Trigger(Trigger::Click(By::ClassName("ai_az"))),
+                ],
+            ),
+        ];
+        clearpay_actions.extend(actions);
+        self.complete_actions(&driver, clearpay_actions).await
     }
 }
 async fn is_text_present_now(driver: &WebDriver, key: &str) -> WebDriverResult<bool> {
@@ -415,12 +604,9 @@ async fn is_text_present(driver: &WebDriver, key: &str) -> WebDriverResult<bool>
     let result = driver.query(By::XPath(&xpath)).first().await?;
     result.is_present().await
 }
-fn new_cookie(name: &str, value: String) -> Cookie<'_> {
-    let mut base_url_cookie = Cookie::new(name, value);
-    base_url_cookie.set_same_site(Some(SameSite::Lax));
-    base_url_cookie.set_domain(CHEKOUT_DOMAIN);
-    base_url_cookie.set_path("/");
-    base_url_cookie
+async fn is_element_present(driver: &WebDriver, by: By) -> WebDriverResult<bool> {
+    let element = driver.query(by).first().await?;
+    element.is_present().await
 }
 
 #[macro_export]
@@ -451,9 +637,9 @@ macro_rules! tester_inner {
             // make sure we close, even if an assertion fails
             let client = driver.clone();
             let x = runtime.block_on(async move {
-                let r = tokio::spawn($execute(driver)).await;
+                let run = tokio::spawn($execute(driver)).await;
                 let _ = client.quit().await;
-                r
+                run
             });
             drop(runtime);
             x.expect("test panicked")
@@ -479,30 +665,29 @@ pub fn get_browser() -> String {
     "firefox".to_string()
 }
 
-pub fn make_capabilities(s: &str) -> Capabilities {
-    match s {
+pub fn make_capabilities(browser: &str) -> Capabilities {
+    match browser {
         "firefox" => {
             let mut caps = DesiredCapabilities::firefox();
-            let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
-            caps.add_firefox_arg(profile_path).unwrap();
-            // let mut prefs = FirefoxPreferences::new();
-            // prefs.set("-browser.link.open_newwindow", 3).unwrap();
-            // caps.set_preferences(prefs).unwrap();
+            let ignore_profile = env::var("IGNORE_BROWSER_PROFILE").ok();
+            if ignore_profile.is_none() || ignore_profile.unwrap() == "false" {
+                let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
+                caps.add_firefox_arg(profile_path).unwrap();
+            } else {
+                caps.add_firefox_arg("--headless").ok();
+            }
             caps.into()
         }
         "chrome" => {
             let mut caps = DesiredCapabilities::chrome();
             let profile_path = &format!("user-data-dir={}", get_chrome_profile_path().unwrap());
             caps.add_chrome_arg(profile_path).unwrap();
-            // caps.set_headless().unwrap();
-            // caps.set_no_sandbox().unwrap();
-            // caps.set_disable_gpu().unwrap();
-            // caps.set_disable_dev_shm_usage().unwrap();
             caps.into()
         }
         &_ => DesiredCapabilities::safari().into(),
     }
 }
+
 fn get_chrome_profile_path() -> Result<String, WebDriverError> {
     let exe = env::current_exe()?;
     let dir = exe.parent().expect("Executable must be in some directory");
@@ -514,9 +699,10 @@ fn get_chrome_profile_path() -> Result<String, WebDriverError> {
             fp.join(&MAIN_SEPARATOR.to_string())
         })
         .unwrap();
-    base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#);
+    base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#); //Issue: 1573
     Ok(base_path)
 }
+
 fn get_firefox_profile_path() -> Result<String, WebDriverError> {
     let exe = env::current_exe()?;
     let dir = exe.parent().expect("Executable must be in some directory");
@@ -528,12 +714,12 @@ fn get_firefox_profile_path() -> Result<String, WebDriverError> {
             fp.join(&MAIN_SEPARATOR.to_string())
         })
         .unwrap();
-    base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#);
+    base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#); //Issue: 1573
     Ok(base_path)
 }
 
-pub fn make_url(s: &str) -> &'static str {
-    match s {
+pub fn make_url(browser: &str) -> &'static str {
+    match browser {
         "firefox" => "http://localhost:4444",
         "chrome" => "http://localhost:9515",
         &_ => "",
@@ -545,13 +731,13 @@ pub fn handle_test_error(
 ) -> bool {
     match res {
         Ok(Ok(_)) => true,
-        Ok(Err(e)) => {
-            eprintln!("test future failed to resolve: {:?}", e);
+        Ok(Err(web_driver_error)) => {
+            eprintln!("test future failed to resolve: {:?}", web_driver_error);
             false
         }
         Err(e) => {
-            if let Some(e) = e.downcast_ref::<WebDriverError>() {
-                eprintln!("test future panicked: {:?}", e);
+            if let Some(web_driver_error) = e.downcast_ref::<WebDriverError>() {
+                eprintln!("test future panicked: {:?}", web_driver_error);
             } else {
                 eprintln!("test future panicked; an assertion probably failed");
             }

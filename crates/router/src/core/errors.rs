@@ -1,5 +1,6 @@
 pub mod api_error_response;
 pub mod error_handlers;
+pub mod transformers;
 pub mod utils;
 
 use std::fmt::Display;
@@ -7,10 +8,10 @@ use std::fmt::Display;
 use actix_web::{body::BoxBody, http::StatusCode, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use config::ConfigError;
+use diesel_models::errors as storage_errors;
 use error_stack;
 pub use redis_interface::errors::RedisError;
 use router_env::opentelemetry::metrics::MetricsError;
-use storage_models::errors as storage_errors;
 
 pub use self::{
     api_error_response::ApiErrorResponse,
@@ -98,6 +99,7 @@ impl StorageError {
                 err.current_context(),
                 storage_errors::DatabaseError::NotFound
             ),
+            Self::ValueNotFound(_) => true,
             _ => false,
         }
     }
@@ -267,6 +269,8 @@ pub enum ConnectorError {
     FlowNotSupported { flow: String, connector: String },
     #[error("Capture method not supported")]
     CaptureMethodNotSupported,
+    #[error("Missing connector mandate ID")]
+    MissingConnectorMandateID,
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]
@@ -305,6 +309,8 @@ pub enum ConnectorError {
     FileValidationFailed { reason: String },
     #[error("Missing 3DS redirection payload: {field_name}")]
     MissingConnectorRedirectionPayload { field_name: &'static str },
+    #[error("Payment Method Type not found")]
+    MissingPaymentMethodType,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -385,6 +391,8 @@ pub enum ProcessTrackerError {
     EParsingError(error_stack::Report<ParsingError>),
     #[error("Validation Error Received: {0}")]
     EValidationError(error_stack::Report<ValidationError>),
+    #[error("Type Conversion error")]
+    TypeConversionError,
 }
 
 macro_rules! error_to_process_tracker_error {

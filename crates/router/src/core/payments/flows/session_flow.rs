@@ -154,14 +154,7 @@ async fn create_applepay_session_token(
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
-    let connectors_with_delayed_response = &state
-        .conf
-        .delayed_session_response
-        .connectors_with_delayed_session_response;
-
-    let connector_name = connector.connector_name;
-    let delayed_response = connectors_with_delayed_response.contains(&connector_name);
-
+    let delayed_response = is_session_response_delayed(state, connector);
     if delayed_response {
         let delayed_response_apple_pay_session =
             Some(payment_types::ApplePaySessionResponse::NoSessionResponse);
@@ -169,7 +162,7 @@ async fn create_applepay_session_token(
             router_data,
             delayed_response_apple_pay_session,
             None, // Apple pay payment request will be none for delayed session response
-            connector_name.to_string(),
+            connector.connector_name.to_string(),
             delayed_response,
             payment_types::NextActionCall::Confirm,
         )
@@ -197,7 +190,7 @@ async fn create_applepay_session_token(
                 .change_context(errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "country_code",
                 })?,
-            currency_code: router_data.request.currency.to_string(),
+            currency_code: router_data.request.currency,
             total: amount_info,
             merchant_capabilities: applepay_metadata
                 .data
@@ -249,7 +242,7 @@ async fn create_applepay_session_token(
             router_data,
             session_response,
             Some(applepay_payment_request),
-            connector_name.to_string(),
+            connector.connector_name.to_string(),
             delayed_response,
             payment_types::NextActionCall::Confirm,
         )
@@ -289,53 +282,90 @@ fn create_apple_pay_session_response(
 }
 
 fn create_gpay_session_token(
+    state: &routes::AppState,
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let connector_metadata = router_data.connector_meta_data.clone();
+    let delayed_response = is_session_response_delayed(state, connector);
 
-    let gpay_data = connector_metadata
-        .clone()
-        .parse_value::<payment_types::GpaySessionTokenData>("GpaySessionTokenData")
-        .change_context(errors::ConnectorError::NoConnectorMetaData)
-        .attach_printable(format!(
-            "cannot parse gpay metadata from the given value {connector_metadata:?}"
-        ))
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_metadata".to_string(),
-            expected_format: "gpay_metadata_format".to_string(),
-        })?;
+    if delayed_response {
+        Ok(types::PaymentsSessionRouterData {
+            response: Ok(types::PaymentsResponseData::SessionResponse {
+                session_token: payment_types::SessionToken::GooglePay(Box::new(
+                    payment_types::GpaySessionTokenResponse::ThirdPartyResponse(
+                        payment_types::GooglePayThirdPartySdk {
+                            delayed_session_token: true,
+                            connector: connector.connector_name.to_string(),
+                            sdk_next_action: payment_types::SdkNextAction {
+                                next_action: payment_types::NextActionCall::Confirm,
+                            },
+                        },
+                    ),
+                )),
+            }),
+            ..router_data.clone()
+        })
+    } else {
+        let gpay_data = connector_metadata
+            .clone()
+            .parse_value::<payment_types::GpaySessionTokenData>("GpaySessionTokenData")
+            .change_context(errors::ConnectorError::NoConnectorMetaData)
+            .attach_printable(format!(
+                "cannot parse gpay metadata from the given value {connector_metadata:?}"
+            ))
+            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "connector_metadata".to_string(),
+                expected_format: "gpay_metadata_format".to_string(),
+            })?;
 
-    let session_data = router_data.request.clone();
-    let transaction_info = payment_types::GpayTransactionInfo {
-        country_code: session_data.country.unwrap_or_default(),
-        currency_code: router_data.request.currency.to_string(),
-        total_price_status: "Final".to_string(),
-        total_price: utils::to_currency_base_unit(
-            router_data.request.amount,
-            router_data.request.currency,
-        )
-        .attach_printable("Cannot convert given amount to base currency denomination".to_string())
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "amount",
-        })?,
-    };
+        let session_data = router_data.request.clone();
+        let transaction_info = payment_types::GpayTransactionInfo {
+            country_code: session_data.country.unwrap_or_default(),
+            currency_code: router_data.request.currency,
+            total_price_status: "Final".to_string(),
+            total_price: utils::to_currency_base_unit(
+                router_data.request.amount,
+                router_data.request.currency,
+            )
+            .attach_printable(
+                "Cannot convert given amount to base currency denomination".to_string(),
+            )
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "amount",
+            })?,
+        };
 
-    let response_router_data = types::PaymentsSessionRouterData {
-        response: Ok(types::PaymentsResponseData::SessionResponse {
-            session_token: payment_types::SessionToken::GooglePay(Box::new(
-                payment_types::GpaySessionTokenResponse {
-                    merchant_info: gpay_data.data.merchant_info,
-                    allowed_payment_methods: gpay_data.data.allowed_payment_methods,
-                    transaction_info,
-                    connector: connector.connector_name.to_string(),
-                },
-            )),
-        }),
-        ..router_data.clone()
-    };
+        Ok(types::PaymentsSessionRouterData {
+            response: Ok(types::PaymentsResponseData::SessionResponse {
+                session_token: payment_types::SessionToken::GooglePay(Box::new(
+                    payment_types::GpaySessionTokenResponse::GooglePaySession(
+                        payment_types::GooglePaySessionResponse {
+                            merchant_info: gpay_data.data.merchant_info,
+                            allowed_payment_methods: gpay_data.data.allowed_payment_methods,
+                            transaction_info,
+                            connector: connector.connector_name.to_string(),
+                            sdk_next_action: payment_types::SdkNextAction {
+                                next_action: payment_types::NextActionCall::Confirm,
+                            },
+                            delayed_session_token: false,
+                            secrets: None,
+                        },
+                    ),
+                )),
+            }),
+            ..router_data.clone()
+        })
+    }
+}
 
-    Ok(response_router_data)
+fn is_session_response_delayed(state: &routes::AppState, connector: &api::ConnectorData) -> bool {
+    let connectors_with_delayed_response = &state
+        .conf
+        .delayed_session_response
+        .connectors_with_delayed_session_response;
+
+    connectors_with_delayed_response.contains(&connector.connector_name)
 }
 
 fn log_session_response_if_error(
@@ -360,7 +390,7 @@ impl types::PaymentsSessionRouterData {
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<Self> {
         match connector.get_token {
-            api::GetToken::GpayMetadata => create_gpay_session_token(self, connector),
+            api::GetToken::GpayMetadata => create_gpay_session_token(state, self, connector),
             api::GetToken::ApplePayMetadata => {
                 create_applepay_session_token(state, self, connector).await
             }

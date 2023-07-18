@@ -20,7 +20,10 @@ use masking::Secret;
 
 use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::PaymentAddress;
-use crate::{core::errors, services};
+use crate::{
+    core::{errors, payments::RecurringMandatePaymentData},
+    services,
+};
 
 pub type PaymentsAuthorizeRouterData =
     RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
@@ -194,6 +197,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
     pub payment_method_token: Option<String>,
+    pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub preprocessing_id: Option<String>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
@@ -204,6 +208,10 @@ pub struct RouterData<Flow, Request, Response> {
 
     /// Contains any error response that the connector returns.
     pub payment_method_id: Option<String>,
+
+    /// Contains a reference ID that should be sent in the connector request
+    pub connector_request_reference_id: String,
+    pub test_mode: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -264,13 +272,16 @@ pub struct ConnectorCustomerData {
 #[derive(Debug, Clone)]
 pub struct PaymentMethodTokenizationData {
     pub payment_method_data: payments::PaymentMethodData,
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PaymentsPreProcessingData {
+    pub payment_method_data: Option<payments::PaymentMethodData>,
+    pub amount: Option<i64>,
     pub email: Option<Email>,
     pub currency: Option<storage_enums::Currency>,
-    pub amount: Option<i64>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Clone)]
@@ -337,6 +348,7 @@ pub struct VerifyRequestData {
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
     pub router_return_url: Option<String>,
+    pub browser_info: Option<BrowserInformation>,
     pub email: Option<Email>,
     pub return_url: Option<String>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
@@ -402,6 +414,7 @@ pub enum PaymentsResponseData {
         mandate_reference: Option<MandateReference>,
         connector_metadata: Option<serde_json::Value>,
         network_txn_id: Option<String>,
+        connector_response_reference_id: Option<String>,
     },
     SessionResponse {
         session_token: api::SessionToken,
@@ -413,6 +426,7 @@ pub enum PaymentsResponseData {
         resource_id: ResponseId,
         //to add more info on cypto response, like `unresolved` reason(overpaid, underpaid, delayed)
         reason: Option<api::enums::UnresolvedResponseReason>,
+        connector_response_reference_id: Option<String>,
     },
     TokenizationResponse {
         token: String,
@@ -430,6 +444,7 @@ pub enum PaymentsResponseData {
         pre_processing_id: PreprocessingResponseId,
         connector_metadata: Option<serde_json::Value>,
         session_token: Option<api::SessionToken>,
+        connector_response_reference_id: Option<String>,
     },
 }
 
@@ -765,7 +780,7 @@ impl From<&VerifyRouterData> for PaymentsAuthorizeData {
             capture_method: None,
             webhook_url: None,
             complete_authorize_url: None,
-            browser_info: None,
+            browser_info: data.request.browser_info.clone(),
             order_details: None,
             order_category: None,
             session_token: None,
@@ -809,6 +824,9 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_method_token: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
+            recurring_mandate_payment_data: data.recurring_mandate_payment_data.clone(),
+            connector_request_reference_id: data.connector_request_reference_id.clone(),
+            test_mode: data.test_mode,
         }
     }
 }

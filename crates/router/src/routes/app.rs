@@ -147,7 +147,9 @@ impl Payments {
 
         #[cfg(feature = "olap")]
         {
-            route = route.service(web::resource("/list").route(web::get().to(payments_list)));
+            route = route
+                .service(web::resource("/list").route(web::get().to(payments_list)))
+                .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
         }
         #[cfg(feature = "oltp")]
         {
@@ -220,14 +222,18 @@ impl Customers {
             route = route
                 .service(web::resource("").route(web::post().to(customers_create)))
                 .service(
-                    web::resource("/{customer_id}")
-                        .route(web::get().to(customers_retrieve))
-                        .route(web::post().to(customers_update))
-                        .route(web::delete().to(customers_delete)),
+                    web::resource("/payment_methods")
+                        .route(web::get().to(list_customer_payment_method_api_client)),
                 )
                 .service(
                     web::resource("/{customer_id}/payment_methods")
                         .route(web::get().to(list_customer_payment_method_api)),
+                )
+                .service(
+                    web::resource("/{customer_id}")
+                        .route(web::get().to(customers_retrieve))
+                        .route(web::post().to(customers_update))
+                        .route(web::delete().to(customers_delete)),
                 );
         }
         route
@@ -243,7 +249,9 @@ impl Refunds {
 
         #[cfg(feature = "olap")]
         {
-            route = route.service(web::resource("/list").route(web::get().to(refunds_list)));
+            route = route
+                .service(web::resource("/list").route(web::post().to(refunds_list)))
+                .service(web::resource("/filter").route(web::post().to(refunds_filter_list)));
         }
         #[cfg(feature = "oltp")]
         {
@@ -406,7 +414,7 @@ impl Webhooks {
         web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
-                web::resource("/{merchant_id}/{connector}")
+                web::resource("/{merchant_id}/{connector_label}")
                     .route(
                         web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     )

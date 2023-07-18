@@ -13,6 +13,7 @@ doctest = false
 
 [dependencies]
 darling = "0.14.4"
+indexmap = "2.0.0"
 proc-macro2 = "1.0.56"
 quote = "1.0.26"
 syn = { version = "1.0.109", features = ["full", "extra-traits"] } # the full feature does not seem to encompass all the features

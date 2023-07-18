@@ -25,7 +25,7 @@ impl utils::Connector for AdyenTest {
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         types::ConnectorAuthType::from(
             connector_auth::ConnectorAuthentication::new()
-                .adyen
+                .adyen_uk
                 .expect("Missing connector authentication configuration"),
         )
     }
@@ -70,6 +70,10 @@ impl AdyenTest {
                 card_cvc: Secret::new(card_cvc.to_string()),
                 card_issuer: None,
                 card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
+                nick_name: Some(masking::Secret::new("nick_name".into())),
             }),
             confirm: true,
             statement_descriptor_suffix: None,

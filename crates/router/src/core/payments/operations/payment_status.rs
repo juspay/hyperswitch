@@ -14,6 +14,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         api, domain,
         storage::{self, enums},
@@ -93,8 +94,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         &'a self,
         state: &'a AppState,
         payment_attempt: &storage::PaymentAttempt,
+        requeue: bool,
+        schedule_time: Option<time::PrimitiveDateTime>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        helpers::add_domain_task_to_pt(self, state, payment_attempt).await
+        helpers::add_domain_task_to_pt(self, state, payment_attempt, requeue, schedule_time).await
     }
 
     async fn get_connector<'a>(
@@ -161,6 +164,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
         _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
+        _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         PaymentData<F>,
@@ -231,6 +235,19 @@ async fn get_tracker_for_sync<
     )
     .await?;
 
+    let attempts = match request.expand_attempts {
+        Some(true) => {
+            Some(db
+                .find_attempts_by_merchant_id_payment_id(merchant_id, &payment_id_str, storage_scheme)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    format!("Error while retrieving attempt list for, merchant_id: {merchant_id}, payment_id: {payment_id_str}")
+                })?)
+        },
+        _ => None,
+    };
+
     let refunds = db
         .find_refund_by_payment_id_merchant_id(&payment_id_str, merchant_id, storage_scheme)
         .await
@@ -298,11 +315,13 @@ async fn get_tracker_for_sync<
             payment_attempt,
             refunds,
             disputes,
+            attempts,
             sessions_token: vec![],
             card_cvc: None,
             creds_identifier,
             pm_token: None,
             connector_customer_id: None,
+            recurring_mandate_payment_data: None,
             ephemeral_key: None,
             redirect_response: None,
         },
@@ -333,6 +352,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRetrieveRequest> for Payme
                 payment_id: request.resource_id.clone(),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }

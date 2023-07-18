@@ -49,11 +49,10 @@ diesel = { version = "2.1.0", features = ["postgres"] }
 dyn-clone = "1.0.11"
 encoding_rs = "0.8.32"
 error-stack = "0.3.1"
-frunk = "0.4.1"
-frunk_core = "0.4.1"
 futures = "0.3.28"
 hex = "0.4.3"
 http = "0.2.9"
+image = "0.23.14"
 infer = "0.13.0"
 josekit = "0.8.3"
 jsonwebtoken = "8.3.0"
@@ -65,6 +64,7 @@ moka = { version = "0.11", features = ["future"] }
 nanoid = "0.4.0"
 num_cpus = "1.15.0"
 once_cell = "1.18.0"
+qrcode = "0.12.0"
 rand = "0.8.5"
 regex = "1.8.4"
 reqwest = { version = "0.11.18", features = ["json", "native-tls", "gzip", "multipart"] }
@@ -94,7 +94,7 @@ masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
-storage_models = { version = "0.1.0", path = "../storage_models", features = ["kv_store"] }
+diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"] }
@@ -113,6 +113,9 @@ time = { version = "0.3.21", features = ["macros"] }
 tokio = "1.28.2"
 toml = "0.7.4"
 wiremock = "0.5"
+
+# First party dev-dependencies
+test_utils = { version = "0.1.0", path = "../test_utils" }
 
 [[bin]]
 name = "router"

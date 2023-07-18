@@ -4,15 +4,14 @@ use std::fmt::Debug;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
+use diesel_models::enums as storage_enums;
 use error_stack::{IntoReport, ResultExt};
 use ring::hmac;
 use router_env::{instrument, tracing};
-use storage_models::enums as storage_enums;
 
 use self::transformers as adyen;
 use crate::{
     configs::settings,
-    connector::utils as conn_utils,
     consts,
     core::errors::{self, CustomResult},
     db::StorageInterface,
@@ -24,6 +23,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
+        domain,
         transformers::ForeignFrom,
     },
     utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt},
@@ -526,7 +526,7 @@ impl
             .parse_struct("AdyenPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let is_manual_capture =
-            data.request.capture_method == Some(storage_models::enums::CaptureMethod::Manual);
+            data.request.capture_method == Some(diesel_models::enums::CaptureMethod::Manual);
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,
@@ -826,35 +826,24 @@ impl api::IncomingWebhook for Adyen {
         Ok(message.into_bytes())
     }
 
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
-    }
-
     async fn verify_webhook_source(
         &self,
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
+        connector_label: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let signature = self
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret = self
-            .get_webhook_source_verification_merchant_secret(db, merchant_id)
+            .get_webhook_source_verification_merchant_secret(
+                db,
+                merchant_id,
+                connector_label,
+                key_store,
+            )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let message = self
@@ -918,7 +907,7 @@ impl api::IncomingWebhook for Adyen {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        let response: adyen::AdyenResponse = notif.into();
+        let response: adyen::Response = notif.into();
 
         let res_json = serde_json::to_value(response)
             .into_report()

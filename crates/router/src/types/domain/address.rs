@@ -3,9 +3,9 @@ use common_utils::{
     crypto, date_time,
     errors::{CustomResult, ValidationError},
 };
+use diesel_models::{address::AddressUpdateInternal, encryption::Encryption, enums};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
-use storage_models::{address::AddressUpdateInternal, encryption::Encryption, enums};
 use time::{OffsetDateTime, PrimitiveDateTime};
 
 use super::{
@@ -42,11 +42,11 @@ pub struct Address {
 
 #[async_trait]
 impl behaviour::Conversion for Address {
-    type DstType = storage_models::address::Address;
-    type NewDstType = storage_models::address::AddressNew;
+    type DstType = diesel_models::address::Address;
+    type NewDstType = diesel_models::address::AddressNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(storage_models::address::Address {
+        Ok(diesel_models::address::Address {
             id: self.id.ok_or(ValidationError::MissingRequiredField {
                 field_name: "id".to_string(),
             })?,
@@ -129,7 +129,7 @@ impl behaviour::Conversion for Address {
     }
 }
 
-#[derive(Debug, frunk::LabelledGeneric)]
+#[derive(Debug)]
 pub enum AddressUpdate {
     Update {
         city: Option<String>,

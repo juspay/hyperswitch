@@ -64,7 +64,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
         let params: CashToCodeMandatoryParams = get_mandatory_params(item)?;
         let mid = get_mid(&item.request.payment_method_data)?;
         match item.payment_method {
-            storage_models::enums::PaymentMethod::Reward => Ok(Self {
+            diesel_models::enums::PaymentMethod::Reward => Ok(Self {
                 amount: item.request.amount,
                 transaction_id: item.attempt_id.clone(),
                 currency: item.request.currency,
@@ -160,6 +160,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -195,6 +196,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

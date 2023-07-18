@@ -10,6 +10,11 @@ use crate::{
     utils::{self, OptionExt},
 };
 
+// Limit constraints for refunds list flow
+pub const LOWER_LIMIT: i64 = 1;
+pub const UPPER_LIMIT: i64 = 100;
+pub const DEFAULT_LIMIT: i64 = 10;
+
 #[derive(Debug, thiserror::Error)]
 pub enum RefundValidationError {
     #[error("The payment attempt was not successful")]
@@ -125,7 +130,7 @@ pub async fn validate_uniqueness_of_refund_id_against_merchant_id(
 pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::ApiErrorResponse> {
     match limit {
         Some(limit_val) => {
-            if !(1..=100).contains(&limit_val) {
+            if !(LOWER_LIMIT..=UPPER_LIMIT).contains(&limit_val) {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "limit should be in between 1 and 100".to_string(),
                 }
@@ -134,12 +139,12 @@ pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::Api
                 Ok(limit_val)
             }
         }
-        None => Ok(10),
+        None => Ok(DEFAULT_LIMIT),
     }
 }
 
 pub fn validate_for_valid_refunds(
-    payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
+    payment_attempt: &diesel_models::payment_attempt::PaymentAttempt,
     connector: api_models::enums::Connector,
 ) -> RouterResult<()> {
     let payment_method = payment_attempt
@@ -148,11 +153,10 @@ pub fn validate_for_valid_refunds(
         .get_required_value("payment_method")?;
 
     match payment_method {
-        storage_models::enums::PaymentMethod::PayLater
-        | storage_models::enums::PaymentMethod::Wallet => {
+        diesel_models::enums::PaymentMethod::PayLater
+        | diesel_models::enums::PaymentMethod::Wallet => {
             let payment_method_type = payment_attempt
                 .payment_method_type
-                .clone()
                 .get_required_value("payment_method_type")?;
 
             utils::when(
@@ -160,10 +164,10 @@ pub fn validate_for_valid_refunds(
                     (connector, payment_method_type),
                     (
                         api_models::enums::Connector::Braintree,
-                        storage_models::enums::PaymentMethodType::Paypal,
+                        diesel_models::enums::PaymentMethodType::Paypal,
                     ) | (
                         api_models::enums::Connector::Klarna,
-                        storage_models::enums::PaymentMethodType::Klarna
+                        diesel_models::enums::PaymentMethodType::Klarna
                     )
                 ),
                 || {

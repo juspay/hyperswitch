@@ -82,6 +82,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment method")]
     PaymentMethodNotFound,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "{message}")]
+    GenericNotFoundError { message: String },
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such merchant account")]
     MerchantAccountNotFound,
 
@@ -199,6 +202,8 @@ pub enum StripeErrorCode {
     FileNotFound,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File not available")]
     FileNotAvailable,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Not Supported because provider is not Router")]
+    FileProviderNotSupported,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "There was an issue with processing webhooks")]
     WebhookProcessingError,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "payment_method_unactivated", message = "The operation cannot be performed as the payment method used has not been activated. Activate the payment method in the Dashboard, then try again.")]
@@ -391,6 +396,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                     param: field_names.clone().join(", "),
                 }
             }
+            errors::ApiErrorResponse::GenericNotFoundError { message } => {
+                Self::GenericNotFoundError { message }
+            }
             // parameter unknown, invalid request error // actually if we type wrong values in address we get this error. Stripe throws parameter unknown. I don't know if stripe is validating email and stuff
             errors::ApiErrorResponse::InvalidDataFormat {
                 field_name,
@@ -517,6 +525,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::MerchantConnectorAccountDisabled
             }
             errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
+            errors::ApiErrorResponse::FileProviderNotSupported { .. } => {
+                Self::FileProviderNotSupported
+            }
             errors::ApiErrorResponse::WebhookBadRequest
             | errors::ApiErrorResponse::WebhookResourceNotFound
             | errors::ApiErrorResponse::WebhookProcessingFailure
@@ -535,7 +546,7 @@ impl actix_web::ResponseError for StripeErrorCode {
 
         match self {
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
-            Self::InvalidRequestUrl => StatusCode::NOT_FOUND,
+            Self::InvalidRequestUrl | Self::GenericNotFoundError { .. } => StatusCode::NOT_FOUND,
             Self::ParameterUnknown { .. } | Self::HyperswitchUnprocessableEntity { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
             }
@@ -584,6 +595,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::MissingDisputeId
             | Self::FileNotFound
             | Self::FileNotAvailable
+            | Self::FileProviderNotSupported
             | Self::PaymentMethodUnactivated => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::InternalServerError

@@ -372,6 +372,12 @@ impl ClientSecretFetch for api_models::cards_info::CardsInfoRequest {
     }
 }
 
+impl ClientSecretFetch for api_models::payments::PaymentsRetrieveRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
 pub fn get_auth_type_and_flow<A: AppStateInfo + Sync>(
     headers: &HeaderMap,
 ) -> RouterResult<(
@@ -416,7 +422,6 @@ where
         }
         .into());
     }
-
     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
 

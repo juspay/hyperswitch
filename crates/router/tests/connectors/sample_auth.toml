@@ -117,6 +117,9 @@ api_key = "Application API KEY"
 api_secret = "Application Identifier"
 key1 = "Business Identifier"
 
+[opayo]
+api_key="API Key"
+
 [automation_configs]
 hs_base_url="http://localhost:8080"
 hs_test_browser="firefox"
@@ -128,8 +131,31 @@ gmail_email=""
 gmail_pass=""
 
 [payme]
-api_key="API Key"
+# Open api key
+api_key="seller payme id"
+key1="payme client key"
+
+[cryptopay]
+api_key = "api_key"
+key1 = "key1"
 
 [cashtocode]
 api_key="Classic PMT API Key"
 key1 = "Evoucher PMT API Key"
+
+
+[tsys]
+api_key="device id"
+key1 = "transaction key"
+api_secret = "developer id"
+
+[globepay]
+api_key = "Partner code"
+key1 = "Credential code"
+
+[powertranz]
+api_key="PowerTranz-PowerTranzPassword"
+key1 = "PowerTranz-PowerTranzId"
+
+[stax]
+api_key="API Key"

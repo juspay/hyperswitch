@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
+    connector::utils::{self, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -60,14 +61,21 @@ pub struct RedirectUrls {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct PayerInfo {
+    token_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct IatapayPaymentsRequest {
     merchant_id: String,
-    amount: i64,
+    amount: f64,
     currency: String,
     country: String,
     locale: String,
     redirect_urls: RedirectUrls,
     notification_url: String,
+    payer_info: Option<PayerInfo>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
@@ -75,13 +83,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let country = item.get_billing_country()?.to_string();
         let return_url = item.get_return_url()?;
+        let payer_info = match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Upi(upi_data) => {
+                upi_data.vpa_id.map(|id| PayerInfo { token_id: id })
+            }
+            _ => None,
+        };
+        let amount =
+            utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.connector_auth_type)?.merchant_id,
-            amount: item.request.amount,
+            amount,
             currency: item.request.currency.to_string(),
             country: country.clone(),
             locale: format!("en-{}", country),
             redirect_urls: get_redirect_url(return_url),
+            payer_info,
             notification_url: item.request.get_webhook_url()?,
         };
         Ok(payload)
@@ -201,6 +218,7 @@ impl<F, T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 }),
                 |checkout_methods| {
                     Ok(types::PaymentsResponseData::TransactionResponse {
@@ -213,6 +231,7 @@ impl<F, T>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        connector_response_reference_id: None,
                     })
                 },
             ),
