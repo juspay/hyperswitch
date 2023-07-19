@@ -2,7 +2,7 @@ name: Release a new version
 
 on:
   schedule:
-    - cron: "30 12 * * 2-4" # Run workflow at 6 PM IST every Tuesday, Wednesday, Thursday
+    - cron: "30 2 * * 1-5" # Run workflow at 8 AM IST every Monday-Friday
 
   workflow_dispatch:
 
