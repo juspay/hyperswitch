@@ -309,7 +309,6 @@ where
         payment_intent: &storage::payment_intent::PaymentIntent,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<api::ConnectorChoice> {
-        let connectors = &state.conf.connectors;
         let db = &state.store;
 
         let all_connector_accounts = db
@@ -391,11 +390,12 @@ where
             let connector_type =
                 get_connector_type_for_session_token(payment_method_type, request, &connector);
             if let Ok(connector_data) =
-                api::ConnectorData::get_connector_by_name(connectors, &connector, connector_type)
-                    .map_err(|err| {
+                api::ConnectorData::get_connector_by_name(&connector, connector_type).map_err(
+                    |err| {
                         logger::error!(session_token_error=?err);
                         err
-                    })
+                    },
+                )
             {
                 session_connector_data.push(api::SessionConnectorData {
                     payment_method_type,

@@ -64,6 +64,13 @@ pub trait ConnectorCommon {
         "application/json"
     }
 
+    fn validate_auth_type(
+        &self,
+        _val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        Ok(())
+    }
+
     // FIXME write doc - think about this
     // fn headers(&self) -> Vec<(&str, &str)>;
 
@@ -178,11 +185,10 @@ impl ConnectorCallType {
 
 impl ConnectorData {
     pub fn get_connector_by_name(
-        connectors: &Connectors,
         name: &str,
         connector_type: GetToken,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
-        let connector = Self::convert_connector(connectors, name)?;
+        let connector = Self::convert_connector(name)?;
         let connector_name = api_enums::Connector::from_str(name)
             .into_report()
             .change_context(errors::ConnectorError::InvalidConnectorName)
@@ -195,8 +201,7 @@ impl ConnectorData {
         })
     }
 
-    fn convert_connector(
-        _connectors: &Connectors,
+    pub fn convert_connector(
         connector_name: &str,
     ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
         match enums::Connector::from_str(connector_name) {

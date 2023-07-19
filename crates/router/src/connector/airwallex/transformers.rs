@@ -12,7 +12,27 @@ use crate::{
     services,
     types::{self, api, storage::enums},
 };
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AirwallexAuthType {
+    pub x_api_key: String,
+    pub x_client_id: String,
+}
 
+impl TryFrom<&types::ConnectorAuthType> for AirwallexAuthType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
+            Ok(Self {
+                x_api_key: api_key.clone(),
+                x_client_id: key1.clone(),
+            })
+        } else {
+            Err(errors::ConnectorError::FailedToObtainAuthType)?
+        }
+    }
+}
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexIntentRequest {
     // Unique ID to be sent for each transaction/operation request to the connector

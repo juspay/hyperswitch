@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
@@ -6,7 +6,7 @@ use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
-use self::transformers as stripe;
+use self::{stripe::StripeAuthType, transformers as stripe};
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
@@ -39,6 +39,14 @@ impl ConnectorCommon for Stripe {
         "application/x-www-form-urlencoded"
     }
 
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        StripeAuthType::try_from(val)?;
+        Ok(())
+    }
+
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         // &self.base_url
         connectors.stripe.base_url.as_ref()
@@ -48,7 +56,7 @@ impl ConnectorCommon for Stripe {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: stripe::StripeAuthType = auth_type
+        let auth: StripeAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(

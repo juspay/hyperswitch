@@ -19,7 +19,8 @@ use crate::{
     routes::metrics,
     services::{self, api as service_api},
     types::{
-        self, api,
+        self,
+        api::{self, ConnectorData},
         domain::{
             self,
             types::{self as domain_types, AsyncLift},
@@ -482,7 +483,7 @@ pub async fn create_payment_connector(
     };
 
     // Validate Merchant api details and return error if not in correct format
-    let _: types::ConnectorAuthType = req
+    let auth: types::ConnectorAuthType = req
         .connector_account_details
         .clone()
         .parse_value("ConnectorAuthType")
@@ -490,7 +491,12 @@ pub async fn create_payment_connector(
             field_name: "connector_account_details".to_string(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
-
+    let conn_name = ConnectorData::convert_connector(&req.connector_name.to_string())?;
+    conn_name.validate_auth_type(&auth).change_context(
+        errors::ApiErrorResponse::InvalidRequestData {
+            message: "The auth type is not supported for connector".to_string(),
+        },
+    )?;
     let frm_configs = match req.frm_configs {
         Some(frm_value) => {
             let configs_for_frm_value: serde_json::Value =
