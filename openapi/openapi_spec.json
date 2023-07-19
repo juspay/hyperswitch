@@ -5014,7 +5014,8 @@
           "merchant_id",
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
-          "primary_business_details"
+          "primary_business_details",
+          "is_recon_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -5135,6 +5136,10 @@
             "type": "string",
             "description": "The organization id merchant is associated with",
             "nullable": true
+          },
+          "is_recon_enabled": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false"
           }
         }
       },
@@ -6834,6 +6839,7 @@
           "trustly",
           "twint",
           "upi_collect",
+          "vipps",
           "walley",
           "we_chat_pay"
         ]
@@ -9082,6 +9088,18 @@
               "twint_redirect": {
                 "type": "object",
                 "description": "Wallet data for Twint Redirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "vipps_redirect"
+            ],
+            "properties": {
+              "vipps_redirect": {
+                "type": "object",
+                "description": "Wallet data for Vipps Redirection"
               }
             }
           },
