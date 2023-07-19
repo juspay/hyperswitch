@@ -1452,7 +1452,7 @@ fn get_payment_method_type_for_saved_payment_method_payment(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<Option<StripePaymentMethodType>, error_stack::Report<errors::ConnectorError>> {
     if item.payment_method == api_enums::PaymentMethod::Card {
-        Ok(None) //stripe takes ["Card"] as default
+        Ok(Some(StripePaymentMethodType::Card)) //stripe takes ["Card"] as default
     } else {
         let stripe_payment_method_type = match item.recurring_mandate_payment_data.clone() {
             Some(recurring_payment_method_data) => {
