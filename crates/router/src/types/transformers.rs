@@ -1,4 +1,7 @@
-use api_models::{enums as api_enums, payments::AdditionalPaymentData, payments::CardResponse,};
+use api_models::{
+    enums as api_enums,
+    payments::{AdditionalPaymentData, CardResponse},
+};
 use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -7,8 +10,8 @@ use masking::{ExposeInterface, PeekInterface};
 use super::domain;
 use crate::{
     core::errors,
-    types::{api as api_types, storage},
     logger,
+    types::{api as api_types, storage},
 };
 
 pub trait ForeignInto<T> {
@@ -577,28 +580,58 @@ impl ForeignFrom<api_models::payments::AdditionalCardInfo> for CardResponse {
     }
 }
 
-
-
-impl ForeignFrom<(api_models::payments::PaymentMethodData, AdditionalPaymentData)> for api_models::payments::PaymentMethodDataResponse {
-    fn foreign_from(item: (api_models::payments::PaymentMethodData, AdditionalPaymentData)) -> Self {
+impl
+    ForeignTryFrom<(
+        api_models::payments::PaymentMethodData,
+        AdditionalPaymentData,
+    )> for api_models::payments::PaymentMethodDataResponse
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(
+        item: (
+            api_models::payments::PaymentMethodData,
+            AdditionalPaymentData,
+        ),
+    ) -> errors::RouterResult<Self> {
         let (payment_method, additional_data) = item;
         match (payment_method, additional_data) {
-            (api_models::payments::PaymentMethodData::Card(_card_data), AdditionalPaymentData::Card(addi_data)) => Self::Card(api_models::payments::CardResponse::foreign_from(addi_data)),
-            (api_models::payments::PaymentMethodData::PayLater(pay_later_data), _) => Self::PayLater(pay_later_data),
-            (api_models::payments::PaymentMethodData::Wallet(wallet_data), _) => Self::Wallet(wallet_data),
+            (
+                api_models::payments::PaymentMethodData::Card(_card_data),
+                AdditionalPaymentData::Card(addi_data),
+            ) => Ok(Self::Card(
+                api_models::payments::CardResponse::foreign_from(addi_data),
+            )),
+            (api_models::payments::PaymentMethodData::PayLater(pay_later_data), _) => {
+                Ok(Self::PayLater(pay_later_data))
+            }
+            (api_models::payments::PaymentMethodData::Wallet(wallet_data), _) => {
+                Ok(Self::Wallet(wallet_data))
+            }
             (api_models::payments::PaymentMethodData::BankRedirect(bank_redirect_data), _) => {
-                Self::BankRedirect(bank_redirect_data)
+                Ok(Self::BankRedirect(bank_redirect_data))
             }
             (api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data), _) => {
-                Self::BankTransfer(*bank_transfer_data)
+                Ok(Self::BankTransfer(*bank_transfer_data))
             }
-            (api_models::payments::PaymentMethodData::Crypto(crypto_data), _) => Self::Crypto(crypto_data),
-            (api_models::payments::PaymentMethodData::BankDebit(bank_debit_data), _) => Self::BankDebit(bank_debit_data),
-            (api_models::payments::PaymentMethodData::MandatePayment, _) => Self::MandatePayment,
-            (api_models::payments::PaymentMethodData::Reward(reward_data), _) => Self::Reward(reward_data),
-            (api_models::payments::PaymentMethodData::Upi(upi_data), _) => Self::Upi(upi_data),
-            _ => todo!(),
+            (api_models::payments::PaymentMethodData::Crypto(crypto_data), _) => {
+                Ok(Self::Crypto(crypto_data))
+            }
+            (api_models::payments::PaymentMethodData::BankDebit(bank_debit_data), _) => {
+                Ok(Self::BankDebit(bank_debit_data))
+            }
+            (api_models::payments::PaymentMethodData::MandatePayment, _) => {
+                Ok(Self::MandatePayment)
+            }
+            (api_models::payments::PaymentMethodData::Reward(reward_data), _) => {
+                Ok(Self::Reward(reward_data))
+            }
+            (api_models::payments::PaymentMethodData::Upi(upi_data), _) => Ok(Self::Upi(upi_data)),
+            _ => {
+                logger::debug!("Exhaustive pattern found in Payment Method Data");
+                Err(error_stack::Report::from(
+                    errors::ApiErrorResponse::InternalServerError,
+                ))
+            }
         }
     }
 }
-

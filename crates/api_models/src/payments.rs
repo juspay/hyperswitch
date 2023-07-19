@@ -6,11 +6,12 @@ use common_utils::{
     ext_traits::Encode,
     pii::{self, Email},
 };
-use masking::{PeekInterface, Secret};
+use masking::Secret;
 use router_derive::Setter;
 use time::PrimitiveDateTime;
 use url::Url;
 use utoipa::ToSchema;
+
 use crate::{
     admin, disputes, enums as api_enums, ephemeral_key::EphemeralKeyCreateResponse, refunds,
 };
@@ -716,17 +717,17 @@ pub enum PaymentMethodData {
     Reward(RewardData),
     Upi(UpiData),
 }
-    // Card {
-    //     card_issuer: Option<String>,
-    //     card_network: Option<api_enums::CardNetwork>,
-    //     card_type: Option<String>,
-    //     card_issuing_country: Option<String>,
-    //     bank_code: Option<String>,
-    //     last4: String,
-    //     card_exp_month: String,
-    //     card_exp_year: String,
-    //     card_holder_name: String,
-    // },
+// Card {
+//     card_issuer: Option<String>,
+//     card_network: Option<api_enums::CardNetwork>,
+//     card_type: Option<String>,
+//     card_issuing_country: Option<String>,
+//     bank_code: Option<String>,
+//     last4: String,
+//     card_exp_month: String,
+//     card_exp_year: String,
+//     card_holder_name: String,
+// },
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -742,12 +743,9 @@ pub struct AdditionalCardInfo {
     pub card_holder_name: String,
 }
 
-
-
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AdditionalPaymentData {
-
     Card(AdditionalCardInfo),
     BankRedirect {
         bank_name: Option<api_enums::BankNames>,
@@ -1151,6 +1149,7 @@ pub enum PaymentMethodDataResponse {
     MandatePayment,
     Reward(RewardData),
     Upi(UpiData),
+    Default,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
