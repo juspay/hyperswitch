@@ -453,31 +453,31 @@ pub trait SeleniumTest {
                 Assert::IsPresent("Big purchase? No problem."),
                 vec![
                     Event::Trigger(Trigger::SendKeys(
-                        By::Css("input.focusable-form-field.pro11TnYcue.pro284gg8sY"),
+                        By::Css("input[data-testid='phone-number-field']"),
                         "(833) 549-5574", // any test phone number accepted by affirm
                     )),
                     Event::Trigger(Trigger::Click(By::Css(
-                        "button.sc-aXZVg.gCRVeN.pro35Wfly4z.pro300N0DVx.profBy8oj9g",
+                        "button[data-testid='submit-button']",
                     ))),
                     Event::Trigger(Trigger::SendKeys(
-                        By::Css("input.focusable-form-field.pro3g2JlS3A.pro284gg8sY"),
+                        By::Css("input[data-testid='phone-pin-field']"),
                         "1234",
                     )),
                 ],
             ),
             Event::Trigger(Trigger::Click(By::Css(
-                "button.sc-aXZVg.fiBhTR.sc-gEkIjz.lfdPCG.pro35Wfly4z.pro4JEtdJCo.profBy8oj9g",
+                "button[data-testid='skip-payment-button']",
+            ))),
+            Event::Trigger(Trigger::Click(By::Css("div[data-testid='indicator']"))),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button[data-testid='submit-button']",
+            ))),
+            Event::Trigger(Trigger::Click(By::Css("div[data-testid='indicator']"))),
+            Event::Trigger(Trigger::Click(By::Css(
+                "div[data-testid='disclosure-checkbox-indicator']",
             ))),
             Event::Trigger(Trigger::Click(By::Css(
-                "div.proXxAyyoTg.pro1jhMLxqa.pro3Q3lI-I9",
-            ))),
-            Event::Trigger(Trigger::Click(By::Css(
-                "button.sc-aXZVg.gCRVeN.pro35Wfly4z.pro300N0DVx.pro3JiyGdDb.pro1Ss7c7oj",
-            ))),
-            Event::Trigger(Trigger::Click(By::Css("div.pro1O60NO1I.pro2uav9pZk"))),
-            Event::Trigger(Trigger::Click(By::Css("div.pro1O60NO1I.pro1xh5zNal"))),
-            Event::Trigger(Trigger::Click(By::Css(
-                "button.sc-aXZVg.gCRVeN.pro35Wfly4z.pro300N0DVx.profBy8oj9g",
+                "button[data-testid='submit-button']",
             ))),
         ];
         affirm_actions.extend(actions);
