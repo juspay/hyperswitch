@@ -315,8 +315,8 @@ pub async fn get_payment_method_from_hs_locker<'a>(
             .get_required_value("RetrieveCardRespPayload")
             .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
         retrieve_card_resp
-            .encrypted_card_data
-            .get_required_value("encrypted_card_data")
+            .enc_card_data
+            .get_required_value("enc_card_data")
             .change_context(errors::VaultError::FetchPaymentMethodFailed)
     } else {
         let get_card_resp =
@@ -518,7 +518,7 @@ pub async fn mock_add_card_hs(
         customer_id: customer_id.map(str::to_string),
         name_on_card: card.card_holder_name.to_owned().expose_option(),
         nickname: card.nick_name.to_owned().map(masking::Secret::expose),
-        encrypted_card_data: enc_val.map(|e| e.to_string()),
+        enc_card_data: enc_val.map(|e| e.to_string()),
     };
 
     let response = db
@@ -586,7 +586,7 @@ pub async fn mock_get_payment_method<'a>(
         .find_locker_by_card_id(card_id)
         .await
         .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
-    let dec_data = if let Some(e) = locker_mock_up.encrypted_card_data {
+    let dec_data = if let Some(e) = locker_mock_up.enc_card_data {
         // Fetch key
         let key = key_store.key.get_inner().peek();
         // Decode

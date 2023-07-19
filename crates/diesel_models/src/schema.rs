@@ -253,7 +253,7 @@ diesel::table! {
         card_cvc -> Nullable<Varchar>,
         #[max_length = 64]
         payment_method_id -> Nullable<Varchar>,
-        encrypted_card_data -> Nullable<Text>,
+        enc_card_data -> Nullable<Text>,
     }
 }
 

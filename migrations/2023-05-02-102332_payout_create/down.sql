@@ -11,7 +11,7 @@ DROP TYPE "PayoutType";
 ALTER TABLE
     merchant_account DROP COLUMN payout_routing_algorithm;
 
-ALTER TABLE locker_mock_up DROP COLUMN encrypted_card_data;
+ALTER TABLE locker_mock_up DROP COLUMN enc_card_data;
 
 DELETE FROM pg_enum
 WHERE

@@ -66,7 +66,7 @@ pub struct RetrieveCardResp {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RetrieveCardRespPayload {
     pub card: Option<Card>,
-    pub encrypted_card_data: Option<Secret<String>>,
+    pub enc_card_data: Option<Secret<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

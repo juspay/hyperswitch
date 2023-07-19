@@ -120,7 +120,7 @@ pub async fn save_payout_data_to_locker(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
-    let mut encrypted_card_data = None;
+    let mut enc_card_data = None;
     let (card_details, payment_method_type) = match payout_method_data {
         api_models::payouts::PayoutMethodData::Card(card) => (
             api::CardDetail {
@@ -155,7 +155,7 @@ pub async fn save_payout_data_to_locker(
             .map_or(Err(errors::ApiErrorResponse::InternalServerError), |e| {
                 Ok(hex::encode(e.peek()))
             })?;
-            encrypted_card_data = Some(enc_str);
+            enc_card_data = Some(enc_str);
             (
                 api::CardDetail {
                     card_number: CardNumber::from_str("4111111111111111")
@@ -175,7 +175,7 @@ pub async fn save_payout_data_to_locker(
     let stored_resp = cards::call_to_card_hs(
         state,
         &card_details,
-        encrypted_card_data.as_deref(),
+        enc_card_data.as_deref(),
         &payout_attempt.customer_id,
         merchant_account,
     )

@@ -20,7 +20,7 @@ pub struct LockerMockUp {
     pub duplicate: Option<bool>,
     pub card_cvc: Option<String>,
     pub payment_method_id: Option<String>,
-    pub encrypted_card_data: Option<String>,
+    pub enc_card_data: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -39,5 +39,5 @@ pub struct LockerMockUpNew {
     pub payment_method_id: Option<String>,
     pub customer_id: Option<String>,
     pub nickname: Option<String>,
-    pub encrypted_card_data: Option<String>,
+    pub enc_card_data: Option<String>,
 }
