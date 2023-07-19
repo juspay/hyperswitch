@@ -532,6 +532,33 @@ async fn should_make_adyen_walley_payment(web_driver: WebDriver) -> Result<(), W
     Ok(())
 }
 
+async fn should_make_adyen_dana_payment(driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/175"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::SendKeys(
+                By::Css("input[type='number']"),
+                "12345678901",
+            )), // Mobile Number can be any random 11 digit number
+            Event::Trigger(Trigger::Click(By::Css("button"))),
+            Event::Trigger(Trigger::SendKeys(By::Css("input[type='number']"), "111111")), // PIN can be any random 11 digit number
+            Event::Trigger(Trigger::Click(By::ClassName("btn-next"))),
+            Event::Trigger(Trigger::Sleep(3)),
+            Event::Trigger(Trigger::Click(By::ClassName("btn-next"))),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=succeeded"],
+            )),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
 async fn should_make_adyen_online_banking_fpx_payment(
     web_driver: WebDriver,
 ) -> Result<(), WebDriverError> {
@@ -708,6 +735,12 @@ fn should_make_adyen_giropay_payment_test() {
 #[serial]
 fn should_make_adyen_walley_payment_test() {
     tester!(should_make_adyen_walley_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_dana_payment_test() {
+    tester!(should_make_adyen_dana_payment);
 }
 
 #[test]

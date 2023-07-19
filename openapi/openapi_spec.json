@@ -6188,7 +6188,8 @@
             ],
             "properties": {
               "pay_bright_redirect": {
-                "type": "object"
+                "type": "object",
+                "description": "For PayBright Redirect as PayLater Option"
               }
             }
           },
@@ -6199,7 +6200,20 @@
             ],
             "properties": {
               "walley_redirect": {
-                "type": "object"
+                "type": "object",
+                "description": "For WalleyRedirect as PayLater Option"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "alma_redirect"
+            ],
+            "properties": {
+              "alma_redirect": {
+                "type": "object",
+                "description": "For Alma Redirection as PayLater Option"
               }
             }
           }
@@ -6843,6 +6857,7 @@
           "afterpay_clearpay",
           "ali_pay",
           "ali_pay_hk",
+          "alma",
           "apple_pay",
           "bacs",
           "bancontact_card",
@@ -6852,6 +6867,7 @@
           "classic",
           "credit",
           "crypto_currency",
+          "dana",
           "debit",
           "eps",
           "evoucher",
@@ -9042,6 +9058,18 @@
             "properties": {
               "apple_pay_third_party_sdk": {
                 "$ref": "#/components/schemas/ApplePayThirdPartySdkData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "dana_redirect"
+            ],
+            "properties": {
+              "dana_redirect": {
+                "type": "object",
+                "description": "Wallet data for DANA redirect flow"
               }
             }
           },
