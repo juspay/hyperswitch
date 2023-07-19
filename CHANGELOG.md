@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.6.0+hotfix.2 (2023-07-19)
+
+### Refactors
+
+- **payments:** Dont update client secret on payment intent status update ([#1752](https://github.com/juspay/hyperswitch/pull/1752)) ([`a676da5`](https://github.com/juspay/hyperswitch/commit/a676da51addb78b64251e64557bcabccea0c1448))
+
+**Full Changelog:** [`v1.6.0+hotfix.1...v1.6.0+hotfix.2`](https://github.com/juspay/hyperswitch/compare/v1.6.0+hotfix.1...v1.6.0+hotfix.2)
+
+- - -
+
 ## 1.6.0+hotfix.1 (2023-07-19)
 
 ### Features
