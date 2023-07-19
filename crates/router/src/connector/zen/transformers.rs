@@ -227,7 +227,7 @@ impl
         let (item, voucher_data) = value;
         let browser_info = item.request.get_browser_info()?;
         let ip = browser_info.get_ip_address()?;
-        let amount = get_amount(item.request.amount, item.request.currency)?;
+        let amount = utils::to_currency_base_unit(item.request.amount, item.request.currency)?;
         let payment_specific_data =
             ZenPaymentSpecificData::ZenGeneralPayment(ZenGeneralPaymentData {
                 //Connector Specific for Latam Methods
@@ -278,7 +278,7 @@ impl
         let (item, bank_transfer_data) = value;
         let browser_info = item.request.get_browser_info()?;
         let ip = browser_info.get_ip_address()?;
-        let amount = get_amount(item.request.amount, item.request.currency)?;
+        let amount = utils::to_currency_base_unit(item.request.amount, item.request.currency)?;
         let payment_specific_data =
             ZenPaymentSpecificData::ZenGeneralPayment(ZenGeneralPaymentData {
                 //Connector Specific for Latam Methods
@@ -442,16 +442,6 @@ impl
     }
 }
 
-fn get_amount(
-    amount: i64,
-    currency: storage::enums::Currency,
-) -> CustomResult<String, errors::ConnectorError> {
-    match currency {
-        storage::enums::Currency::CLP => utils::check_and_remove_decimal(amount, currency),
-        _ => utils::to_currency_base_unit(amount, currency),
-    }
-}
-
 fn get_checkout_signature(
     checkout_request: &CheckoutRequest,
     session: &WalletSessionData,
@@ -545,7 +535,7 @@ fn get_item_object(
             Ok(ZenItemObject {
                 name: data.product_name.clone(),
                 quantity: data.quantity,
-                price: get_amount(data.amount, item.request.currency)?,
+                price: utils::to_currency_base_unit(data.amount, item.request.currency)?,
                 line_amount_total: (f64::from(data.quantity)
                     * utils::to_currency_base_unit_asf64(data.amount, item.request.currency)?)
                 .to_string(),

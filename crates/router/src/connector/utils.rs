@@ -920,23 +920,6 @@ pub fn to_currency_base_unit_asf64(
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
-pub fn check_and_remove_decimal(
-    amount: i64,
-    currency: storage::enums::Currency,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    if amount % 100 == 0 {
-        let mut amount_string = utils::to_currency_base_unit(amount, currency)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        amount_string.truncate(amount_string.len() - 3);
-        Ok(amount_string)
-    } else {
-        Err(errors::ConnectorError::InvalidDataFormat {
-            field_name: "amount",
-        })
-        .into_report()
-    }
-}
-
 pub fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,

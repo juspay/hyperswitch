@@ -144,7 +144,22 @@ pub fn to_currency_base_unit_asf64(
     )?;
     let amount_f64 = f64::from(amount_u32);
     let amount = match currency {
-        diesel_models::enums::Currency::JPY | diesel_models::enums::Currency::KRW => amount_f64,
+        diesel_models::enums::Currency::BIF
+        | diesel_models::enums::Currency::CLP
+        | diesel_models::enums::Currency::DJF
+        | diesel_models::enums::Currency::GNF
+        | diesel_models::enums::Currency::JPY
+        | diesel_models::enums::Currency::KMF
+        | diesel_models::enums::Currency::KRW
+        | diesel_models::enums::Currency::MGA
+        | diesel_models::enums::Currency::PYG
+        | diesel_models::enums::Currency::RWF
+        | diesel_models::enums::Currency::UGX
+        | diesel_models::enums::Currency::VND
+        | diesel_models::enums::Currency::VUV
+        | diesel_models::enums::Currency::XAF
+        | diesel_models::enums::Currency::XOF
+        | diesel_models::enums::Currency::XPF => amount_f64,
         diesel_models::enums::Currency::BHD
         | diesel_models::enums::Currency::JOD
         | diesel_models::enums::Currency::KWD

@@ -1,2 +1,0 @@
--- Your SQL goes here
-ALTER TYPE "Currency" ADD VALUE IF NOT EXISTS 'CLP' AFTER 'CHF';
