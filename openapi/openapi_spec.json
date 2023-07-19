@@ -3607,6 +3607,7 @@
           "USD",
           "UYU",
           "UZS",
+          "VND",
           "YER",
           "ZAR"
         ]
@@ -5775,6 +5776,9 @@
       "MobilePayRedirection": {
         "type": "object"
       },
+      "MomoRedirection": {
+        "type": "object"
+      },
       "MultibancoBillingDetails": {
         "type": "object",
         "required": [
@@ -6824,6 +6828,7 @@
           "kakao_pay",
           "mb_way",
           "mobile_pay",
+          "momo",
           "multibanco",
           "online_banking_czech_republic",
           "online_banking_finland",
@@ -8922,6 +8927,17 @@
             "properties": {
               "ali_pay_hk_redirect": {
                 "$ref": "#/components/schemas/AliPayHkRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "momo_redirect"
+            ],
+            "properties": {
+              "momo_redirect": {
+                "$ref": "#/components/schemas/MomoRedirection"
               }
             }
           },
