@@ -301,7 +301,7 @@ mod storage {
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use error_stack::IntoReport;
-    use crate::types::storage::PaymentAttempt;
+
     use super::PaymentIntentInterface;
     #[cfg(feature = "olap")]
     use crate::types::api;
@@ -309,7 +309,7 @@ mod storage {
         connection,
         core::errors::{self, CustomResult},
         services::Store,
-        types::storage::{enums, payment_intent::*},
+        types::storage::{enums, payment_intent::*, PaymentAttempt},
     };
 
     #[async_trait::async_trait]
@@ -382,8 +382,7 @@ mod storage {
             merchant_id: &str,
             constraints: &api::PaymentListFilterConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<Vec<(PaymentIntent, PaymentAttempt)>, errors::StorageError>
-        {
+        ) -> CustomResult<Vec<(PaymentIntent, PaymentAttempt)>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             PaymentIntent::apply_filters_on_payments(&conn, merchant_id, constraints)
                 .await
