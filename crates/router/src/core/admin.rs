@@ -2,7 +2,7 @@ use api_models::admin::PrimaryBusinessDetails;
 use common_utils::{
     crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
     date_time,
-    ext_traits::ValueExt,
+    ext_traits::{Encode, ValueExt},
 };
 use diesel_models::enums;
 use error_stack::{report, FutureExt, ResultExt};
@@ -172,6 +172,8 @@ pub async fn create_merchant_account(
             frm_routing_algorithm: req.frm_routing_algorithm,
             intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
             id: None,
+            organization_id: req.organization_id,
+            is_recon_enabled: false,
         })
     }
     .await
@@ -528,6 +530,18 @@ pub async fn create_payment_connector(
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),
         id: None,
+        connector_webhook_details: match req.connector_webhook_details {
+            Some(connector_webhook_details) => {
+                Encode::<api_models::admin::MerchantConnectorWebhookDetails>::encode_to_value(
+                    &connector_webhook_details,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {}", merchant_id))
+                .map(Some)?
+                .map(masking::Secret::new)
+            }
+            None => None,
+        },
     };
 
     let mca = store
@@ -549,7 +563,6 @@ pub async fn create_payment_connector(
     );
 
     let mca_response = mca.try_into()?;
-
     Ok(service_api::ApplicationResponse::Json(mca_response))
 }
 
@@ -685,6 +698,17 @@ pub async fn update_payment_connector(
         payment_methods_enabled,
         metadata: req.metadata,
         frm_configs,
+        connector_webhook_details: match &req.connector_webhook_details {
+            Some(connector_webhook_details) => {
+                Encode::<api_models::admin::MerchantConnectorWebhookDetails>::encode_to_value(
+                    connector_webhook_details,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .map(Some)?
+                .map(masking::Secret::new)
+            }
+            None => None,
+        },
     };
 
     let updated_mca = db
@@ -715,6 +739,17 @@ pub async fn delete_payment_connector(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
+    let _mca = db
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            &merchant_id,
+            &merchant_connector_id,
+            &key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.clone(),
+        })?;
+
     let is_deleted = db
         .delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
             &merchant_id,
@@ -724,6 +759,7 @@ pub async fn delete_payment_connector(
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_connector_id.clone(),
         })?;
+
     let response = api::MerchantConnectorDeleteResponse {
         merchant_id,
         merchant_connector_id,

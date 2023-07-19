@@ -24,6 +24,7 @@ pub mod diesel_exports {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
 #[serde(rename_all = "snake_case")]
@@ -561,6 +562,7 @@ pub enum PaymentMethodType {
     BancontactCard,
     Becs,
     Blik,
+    Bizum,
     #[serde(rename = "classic")]
     ClassicReward,
     Credit,
@@ -592,7 +594,9 @@ pub enum PaymentMethodType {
     Sofort,
     Swish,
     Trustly,
+    Twint,
     UpiCollect,
+    Vipps,
     Walley,
     WeChatPay,
 }

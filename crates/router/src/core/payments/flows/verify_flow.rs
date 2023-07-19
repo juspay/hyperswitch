@@ -233,6 +233,7 @@ impl TryFrom<types::VerifyRequestData> for types::PaymentMethodTokenizationData 
     fn try_from(data: types::VerifyRequestData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.payment_method_data,
+            browser_info: None,
         })
     }
 }

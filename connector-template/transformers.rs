@@ -45,7 +45,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for {{project-name | downcase 
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct {{project-name | downcase | pascal_case}}AuthType {
-    pub(super) api_key: String
+    pub(super) api_key: Secret<String>
 }
 
 impl TryFrom<&types::ConnectorAuthType> for {{project-name | downcase | pascal_case}}AuthType  {
@@ -53,7 +53,7 @@ impl TryFrom<&types::ConnectorAuthType> for {{project-name | downcase | pascal_c
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: Secret::new(api_key.to_string()),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -97,7 +97,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, {{project-name | downcase | pasca
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
-                network_txn_id: None
+                network_txn_id: None,
                 connector_response_reference_id: None,
             }),
             ..item.data
