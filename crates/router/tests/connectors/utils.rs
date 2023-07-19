@@ -48,7 +48,7 @@ pub trait ConnectorActions: Connector {
         let mut request = self.generate_data(
             types::PaymentsAuthorizeData {
                 confirm: true,
-                capture_method: Some(storage_models::enums::CaptureMethod::Manual),
+                capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..(payment_data.unwrap_or(PaymentAuthorizeType::default().0))
             },
             payment_info,
@@ -75,7 +75,7 @@ pub trait ConnectorActions: Connector {
         let mut request = self.generate_data(
             types::PaymentsAuthorizeData {
                 confirm: true,
-                capture_method: Some(storage_models::enums::CaptureMethod::Automatic),
+                capture_method: Some(diesel_models::enums::CaptureMethod::Automatic),
                 ..(payment_data.unwrap_or(PaymentAuthorizeType::default().0))
             },
             payment_info,
@@ -402,7 +402,10 @@ pub trait ConnectorActions: Connector {
             reference_id: None,
             payment_method_token: None,
             connector_customer: None,
+            recurring_mandate_payment_data: None,
             preprocessing_id: None,
+            connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
+            test_mode: None,
         }
     }
 
@@ -629,6 +632,7 @@ pub fn get_connector_metadata(
             mandate_reference: _,
             connector_metadata,
             network_txn_id: _,
+            connector_response_reference_id: _,
         }) => connector_metadata,
         _ => None,
     }

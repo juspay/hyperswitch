@@ -2,11 +2,11 @@ use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time, pii,
 };
-use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
-use storage_models::{
+use diesel_models::{
     encryption::Encryption, enums, merchant_account::MerchantAccountUpdateInternal,
 };
+use error_stack::ResultExt;
+use masking::{PeekInterface, Secret};
 
 use crate::{
     errors::{CustomResult, ValidationError},
@@ -36,6 +36,8 @@ pub struct MerchantAccount {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub intent_fulfillment_time: Option<i64>,
+    pub organization_id: Option<String>,
+    pub is_recon_enabled: bool,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -61,6 +63,9 @@ pub enum MerchantAccountUpdate {
     },
     StorageSchemeUpdate {
         storage_scheme: enums::MerchantStorageScheme,
+    },
+    ReconUpdate {
+        is_recon_enabled: bool,
     },
 }
 
@@ -109,16 +114,20 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 modified_at: Some(date_time::now()),
                 ..Default::default()
             },
+            MerchantAccountUpdate::ReconUpdate { is_recon_enabled } => Self {
+                is_recon_enabled,
+                ..Default::default()
+            },
         }
     }
 }
 
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for MerchantAccount {
-    type DstType = storage_models::merchant_account::MerchantAccount;
-    type NewDstType = storage_models::merchant_account::MerchantAccountNew;
+    type DstType = diesel_models::merchant_account::MerchantAccount;
+    type NewDstType = diesel_models::merchant_account::MerchantAccountNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(storage_models::merchant_account::MerchantAccount {
+        Ok(diesel_models::merchant_account::MerchantAccount {
             id: self.id.ok_or(ValidationError::MissingRequiredField {
                 field_name: "id".to_string(),
             })?,
@@ -142,6 +151,8 @@ impl super::behaviour::Conversion for MerchantAccount {
             modified_at: self.modified_at,
             intent_fulfillment_time: self.intent_fulfillment_time,
             frm_routing_algorithm: self.frm_routing_algorithm,
+            organization_id: self.organization_id,
+            is_recon_enabled: self.is_recon_enabled,
         })
     }
 
@@ -181,6 +192,8 @@ impl super::behaviour::Conversion for MerchantAccount {
                 created_at: item.created_at,
                 modified_at: item.modified_at,
                 intent_fulfillment_time: item.intent_fulfillment_time,
+                organization_id: item.organization_id,
+                is_recon_enabled: item.is_recon_enabled,
             })
         }
         .await
@@ -191,7 +204,7 @@ impl super::behaviour::Conversion for MerchantAccount {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
-        Ok(storage_models::merchant_account::MerchantAccountNew {
+        Ok(diesel_models::merchant_account::MerchantAccountNew {
             merchant_id: self.merchant_id,
             merchant_name: self.merchant_name.map(Encryption::from),
             merchant_details: self.merchant_details.map(Encryption::from),
@@ -211,6 +224,8 @@ impl super::behaviour::Conversion for MerchantAccount {
             modified_at: now,
             intent_fulfillment_time: self.intent_fulfillment_time,
             frm_routing_algorithm: self.frm_routing_algorithm,
+            organization_id: self.organization_id,
+            is_recon_enabled: self.is_recon_enabled,
         })
     }
 }

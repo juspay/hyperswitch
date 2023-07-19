@@ -4,8 +4,10 @@
     clippy::unwrap_in_result,
     clippy::unwrap_used
 )]
+use test_utils::connector_auth;
 
 mod aci;
+mod aci_ui;
 mod adyen;
 mod adyen_uk_ui;
 mod airwallex;
@@ -20,7 +22,6 @@ mod cashtocode;
 mod checkout;
 mod checkout_ui;
 mod coinbase;
-mod connector_auth;
 mod cryptopay;
 mod cybersource;
 mod dlocal;
@@ -30,6 +31,7 @@ mod fiserv;
 mod forte;
 mod globalpay;
 mod globalpay_ui;
+mod globepay;
 mod iatapay;
 mod mollie;
 mod mollie_ui;
@@ -48,13 +50,17 @@ mod paypal;
 mod paypal_ui;
 mod payu;
 mod payu_ui;
+mod powertranz;
 mod rapyd;
 mod selenium;
 mod shift4;
 mod shift4_ui;
+mod stax;
 mod stripe;
 mod stripe_ui;
 mod trustpay;
+mod trustpay_3ds_ui;
+mod tsys;
 mod utils;
 mod worldline;
 mod worldline_ui;

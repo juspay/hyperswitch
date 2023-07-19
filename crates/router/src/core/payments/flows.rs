@@ -137,9 +137,9 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
-    connector::Authorizedotnet,
     connector::Bitpay,
     connector::Braintree,
     connector::Cashtocode,
@@ -150,6 +150,7 @@ default_imp_for_complete_authorize!(
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
+    connector::Globepay,
     connector::Iatapay,
     connector::Klarna,
     connector::Multisafepay,
@@ -164,6 +165,7 @@ default_imp_for_complete_authorize!(
     connector::Rapyd,
     connector::Stripe,
     connector::Trustpay,
+    connector::Tsys,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen
@@ -197,6 +199,7 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -213,6 +216,7 @@ default_imp_for_create_customer!(
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
+    connector::Globepay,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -227,9 +231,11 @@ default_imp_for_create_customer!(
     connector::Paypal,
     connector::Payme,
     connector::Payu,
+    connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
     connector::Trustpay,
+    connector::Tsys,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen
@@ -265,9 +271,9 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
-    connector::Authorizedotnet,
     connector::Bitpay,
     connector::Braintree,
     connector::Cashtocode,
@@ -277,6 +283,7 @@ default_imp_for_connector_redirect_response!(
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
+    connector::Globepay,
     connector::Iatapay,
     connector::Klarna,
     connector::Multisafepay,
@@ -287,8 +294,10 @@ default_imp_for_connector_redirect_response!(
     connector::Payeezy,
     connector::Payme,
     connector::Payu,
+    connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Tsys,
     connector::Worldline,
     connector::Worldpay
 );
@@ -305,6 +314,7 @@ macro_rules! default_imp_for_connector_request_id{
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -322,6 +332,7 @@ default_imp_for_connector_request_id!(
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
+    connector::Globepay,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -334,10 +345,12 @@ default_imp_for_connector_request_id!(
     connector::Payeezy,
     connector::Payme,
     connector::Payu,
+    connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
     connector::Stripe,
     connector::Trustpay,
+    connector::Tsys,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen
@@ -374,6 +387,7 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -390,6 +404,7 @@ default_imp_for_accept_dispute!(
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
+    connector::Globepay,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -403,10 +418,12 @@ default_imp_for_accept_dispute!(
     connector::Paypal,
     connector::Payme,
     connector::Payu,
+    connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
     connector::Stripe,
     connector::Trustpay,
+    connector::Tsys,
     connector::Opennode,
     connector::Worldline,
     connector::Worldpay,
@@ -463,6 +480,7 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -479,6 +497,7 @@ default_imp_for_file_upload!(
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
+    connector::Globepay,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -492,9 +511,11 @@ default_imp_for_file_upload!(
     connector::Paypal,
     connector::Payme,
     connector::Payu,
+    connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
     connector::Trustpay,
+    connector::Tsys,
     connector::Opennode,
     connector::Worldline,
     connector::Worldpay,
@@ -529,6 +550,7 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -545,6 +567,7 @@ default_imp_for_submit_evidence!(
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
+    connector::Globepay,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -558,9 +581,11 @@ default_imp_for_submit_evidence!(
     connector::Paypal,
     connector::Payme,
     connector::Payu,
+    connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
     connector::Trustpay,
+    connector::Tsys,
     connector::Opennode,
     connector::Worldline,
     connector::Worldpay,
@@ -595,6 +620,7 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -609,6 +635,7 @@ default_imp_for_defend_dispute!(
     connector::Cryptopay,
     connector::Dlocal,
     connector::Fiserv,
+    connector::Globepay,
     connector::Forte,
     connector::Globalpay,
     connector::Iatapay,
@@ -624,10 +651,12 @@ default_imp_for_defend_dispute!(
     connector::Paypal,
     connector::Payme,
     connector::Payu,
+    connector::Powertranz,
     connector::Rapyd,
     connector::Stripe,
     connector::Shift4,
     connector::Trustpay,
+    connector::Tsys,
     connector::Opennode,
     connector::Worldline,
     connector::Worldpay,
@@ -662,6 +691,7 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -680,6 +710,7 @@ default_imp_for_pre_processing_steps!(
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
+    connector::Globepay,
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
@@ -693,8 +724,10 @@ default_imp_for_pre_processing_steps!(
     connector::Paypal,
     connector::Payme,
     connector::Payu,
+    connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Tsys,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen

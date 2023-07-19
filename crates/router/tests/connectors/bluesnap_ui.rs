@@ -16,7 +16,7 @@ async fn should_make_3ds_payment(driver: WebDriver) -> Result<(), WebDriverError
     conn.make_redirection_payment(
         driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/10"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/200"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::RunIf(
                 Assert::IsElePresent(By::Id("Cardinal-CCA-IFrame")),
