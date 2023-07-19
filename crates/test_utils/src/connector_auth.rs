@@ -257,6 +257,7 @@ pub struct AutomationConfigs {
     pub testcases_path: Option<String>,
     pub bluesnap_gateway_merchant_id: Option<String>,
     pub globalpay_gateway_merchant_id: Option<String>,
+    pub authorizedotnet_gateway_merchant_id: Option<String>,
     pub run_minimum_steps: Option<bool>,
     pub airwallex_merchant_name: Option<String>,
 }
