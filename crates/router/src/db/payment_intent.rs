@@ -309,7 +309,7 @@ mod storage {
         connection,
         core::errors::{self, CustomResult},
         services::Store,
-        types::storage::{enums, payment_intent::*, PaymentAttempt},
+        types::storage::{enums, payment_intent::*},
     };
 
     #[async_trait::async_trait]
