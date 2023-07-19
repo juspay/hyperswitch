@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.6.0+hotfix.1 (2023-07-19)
+
+### Features
+
+- **connector:** [Bluesnap] Remove wallet call ([#1620](https://github.com/juspay/hyperswitch/pull/1620)) ([`0a47c7b`](https://github.com/juspay/hyperswitch/commit/0a47c7be11c43a277f159d0f9183df9bd9d49e79))
+
+### Bug Fixes
+
+- **connector:**
+  - [PowerTranz] resolve pr comments and add comments ([#1726](https://github.com/juspay/hyperswitch/pull/1726)) ([`2e32efe`](https://github.com/juspay/hyperswitch/commit/2e32efe3b3c6452a7a99985429918f8c7e1769bb))
+  - [PowerTranz] fix rsync not implemented error ([#1734](https://github.com/juspay/hyperswitch/pull/1734)) ([`66df333`](https://github.com/juspay/hyperswitch/commit/66df333f70586eecc2ec577d7df61c4b7c660211))
+  - [PowerTranz] removing optional field shipping address ([#1737](https://github.com/juspay/hyperswitch/pull/1737)) ([`356bb6b`](https://github.com/juspay/hyperswitch/commit/356bb6b3021566308158c65953230c23b9606fdb))
+  - [PowerTranz] error message from response_code in absence of errors object & comment billing and shipping as it is optional ([#1738](https://github.com/juspay/hyperswitch/pull/1738)) ([`9e64edc`](https://github.com/juspay/hyperswitch/commit/9e64edca062f7c625233d89de060d74d31a985ba))
+  - Deserialization error due to latest_charge stripe ([`7284824`](https://github.com/juspay/hyperswitch/commit/7284824f3122b9d1674c0c000dba6cc14939d128))
+  - Payment_method_type not required for recurring mandate payment through card stripe ([`5efe98d`](https://github.com/juspay/hyperswitch/commit/5efe98d89bd7fb1181a85abac4ef0f5091f04a97))
+- **webhook:** Do not fail webhook verification if merchant_secret is not set by merchant ([`6c7ba5e`](https://github.com/juspay/hyperswitch/commit/6c7ba5ebe06e2d6b417507972f3fd775144f8df9))
+
+**Full Changelog:** [`v1.6.0...v1.6.0+hotfix.1`](https://github.com/juspay/hyperswitch/compare/v1.6.0...v1.6.0+hotfix.1)
+
+- - -
+
 ## 1.6.0 (2023-07-17)
 
 ### Features
