@@ -8,6 +8,51 @@ mod core;
 mod errors;
 mod types;
 mod utils;
+mod consts;
+
+#[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
+pub async fn dummy_connector_authorize_payment(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<String>,
+) -> impl actix_web::Responder {
+    let flow = types::Flow::DummyPaymentAuthorize;
+    let attempt_id = path.into_inner();
+    let payload = types::DummyConnectorPaymentConfirmRequest { attempt_id };
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        |state, _, req| core::payment_authorize(state, req),
+        &auth::NoAuth,
+    )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
+pub async fn dummy_connector_complete_payment(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Query<types::DummyConnectorPaymentCompleteBody>,
+) -> impl actix_web::Responder {
+    let flow = types::Flow::DummyPaymentComplete;
+    let attempt_id = path.into_inner();
+    let payload = types::DummyConnectorPaymentCompleteRequest {
+        attempt_id,
+        confirm: json_payload.confirm,
+    };
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        |state, _, req| core::payment_complete(state, req),
+        &auth::NoAuth,
+    )
+    .await
+}
 
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
 pub async fn dummy_connector_payment(

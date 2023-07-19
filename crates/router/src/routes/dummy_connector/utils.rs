@@ -1,9 +1,10 @@
 use std::{fmt::Debug, sync::Arc};
 
 use error_stack::{report, ResultExt};
+use maud::html;
 use redis_interface::RedisConnectionPool;
 
-use super::{errors, types};
+use super::{consts, errors, types};
 
 pub async fn store_data_in_redis(
     redis_conn: Arc<RedisConnectionPool>,
@@ -34,4 +35,39 @@ pub fn get_flow_from_card_number(
         _ => Err(report!(errors::DummyConnectorErrors::CardNotSupported)
             .attach_printable("The card is not supported")),
     }
+}
+
+pub fn get_authorize_page(amount: f64, return_url: String) -> String {
+    html! {
+        head {
+            title { "Authorize Payment" }
+            style { (consts::THREE_DS_CSS) }
+        }
+        body {
+            img src="https://hyperswitch.io/logos/hyperswitch.svg" alt="Hyperswitch Logo" {}
+            p { (format!("This is a test payment of ${} USD using 3D Secure", amount)) }
+            p { "Complete a required action for this payment" }
+            div{
+                button.authorize  onclick=({println!("Hello");format!("window.location.href='{}?confirm=true'", return_url)})
+                    { "Authorize Payment" }
+                button.reject onclick=(format!("window.location.href='{}?confirm=false'", return_url))
+                    { "Reject Payment" }
+            }
+        }
+    }
+    .into_string()
+}
+
+pub fn get_expired_page() -> String {
+    html! {
+        head {
+            title { "Authorize Payment" }
+            style { (consts::THREE_DS_CSS) }
+        }
+        body {
+            img src="https://hyperswitch.io/logos/hyperswitch.svg" alt="Hyperswitch Logo" {}
+            p { "This is link is not valid or expired" }
+        }
+    }
+    .into_string()
 }

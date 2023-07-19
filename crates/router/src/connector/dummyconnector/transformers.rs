@@ -6,7 +6,8 @@ use url::Url;
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
     core::errors,
-    types::{self, api, storage::enums}, services,
+    services,
+    types::{self, api, storage::enums},
 };
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -14,6 +15,7 @@ pub struct DummyConnectorPaymentsRequest {
     amount: i64,
     currency: Currency,
     payment_method_data: PaymentMethodData,
+    return_url: Option<String>
 }
 
 #[derive(Debug, serde::Serialize, Eq, PartialEq)]
@@ -48,6 +50,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequ
                     amount: item.request.amount,
                     currency: item.request.currency,
                     payment_method_data: PaymentMethodData::Card(card),
+                    return_url: item.return_url.clone(),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),

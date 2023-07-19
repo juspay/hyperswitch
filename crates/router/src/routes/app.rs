@@ -122,6 +122,14 @@ impl DummyConnector {
             route = route.guard(actix_web::guard::Host("localhost"));
         }
         route = route
+            .service(
+                web::resource("/authorize/{attempt_id}")
+                    .route(web::get().to(dummy_connector_authorize_payment)),
+            )
+            .service(
+                web::resource("/complete/{attempt_id}")
+                    .route(web::get().to(dummy_connector_complete_payment)),
+            )
             .service(web::resource("/payment").route(web::post().to(dummy_connector_payment)))
             .service(
                 web::resource("/payments/{payment_id}")

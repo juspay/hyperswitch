@@ -13,6 +13,8 @@ use crate::services;
 pub enum Flow {
     DummyPaymentCreate,
     DummyPaymentRetrieve,
+    DummyPaymentAuthorize,
+    DummyPaymentComplete,
     DummyRefundCreate,
     DummyRefundRetrieve,
 }
@@ -35,6 +37,7 @@ pub struct DummyConnectorPaymentRequest {
     pub amount: i64,
     pub currency: Currency,
     pub payment_method_data: DummyConnectorPaymentMethodData,
+    pub return_url: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
@@ -72,6 +75,7 @@ pub struct DummyConnectorPaymentData {
     pub created: PrimitiveDateTime,
     pub payment_method_type: PaymentMethodType,
     pub next_action: Option<DummyConnectorNextAction>,
+    pub return_url: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -89,6 +93,7 @@ impl DummyConnectorPaymentData {
         created: PrimitiveDateTime,
         payment_method_type: PaymentMethodType,
         redirect_url: Option<DummyConnectorNextAction>,
+        return_url: Option<String>,
     ) -> Self {
         Self {
             payment_id,
@@ -99,6 +104,7 @@ impl DummyConnectorPaymentData {
             created,
             payment_method_type,
             next_action: redirect_url,
+            return_url
         }
     }
 }
@@ -124,7 +130,7 @@ impl From<DummyConnectorPaymentData> for DummyConnectorPaymentResponse {
             currency: value.currency,
             created: value.created,
             payment_method_type: value.payment_method_type,
-            next_action: value.next_action
+            next_action: value.next_action,
         }
     }
 }
@@ -132,6 +138,22 @@ impl From<DummyConnectorPaymentData> for DummyConnectorPaymentResponse {
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DummyConnectorPaymentRetrieveRequest {
     pub payment_id: String,
+}
+
+#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DummyConnectorPaymentConfirmRequest {
+    pub attempt_id: String,
+}
+
+#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DummyConnectorPaymentCompleteRequest {
+    pub attempt_id: String,
+    pub confirm: bool,
+}
+
+#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DummyConnectorPaymentCompleteBody {
+    pub confirm: bool,
 }
 
 #[derive(Default, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
