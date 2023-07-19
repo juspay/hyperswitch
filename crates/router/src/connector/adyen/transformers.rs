@@ -307,14 +307,20 @@ pub enum AdyenPaymentMethod<'a> {
     Blik(Box<BlikRedirectionData>),
     ClearPay(Box<AdyenPayLaterData>),
     Eps(Box<BankRedirectionWithIssuer<'a>>),
+    #[serde(rename = "gcash")]
+    Gcash(Box<GcashData>),
     Giropay(Box<BankRedirectionPMData>),
     Gpay(Box<AdyenGPay>),
     #[serde(rename = "gopay_wallet")]
     GoPay(Box<GoPayData>),
     Ideal(Box<BankRedirectionWithIssuer<'a>>),
+    #[serde(rename = "kakaopay")]
+    Kakaopay(Box<KakaoPayData>),
     Mandate(Box<AdyenMandate>),
     Mbway(Box<MbwayData>),
     MobilePay(Box<MobilePayData>),
+    #[serde(rename = "momo_wallet")]
+    Momo(Box<MomoData>),
     OnlineBankingCzechRepublic(Box<OnlineBankingCzechRepublicData>),
     OnlineBankingFinland(Box<OnlineBankingFinlandData>),
     OnlineBankingPoland(Box<OnlineBankingPolandData>),
@@ -330,6 +336,7 @@ pub enum AdyenPaymentMethod<'a> {
     BacsDirectDebit(Box<BacsDirectDebitData>),
     SamsungPay(Box<SamsungPayPmData>),
     Twint(Box<TwintWalletData>),
+    Vipps(Box<VippsWalletData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -668,6 +675,14 @@ pub struct AliPayHkData {
 pub struct GoPayData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KakaoPayData {}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GcashData {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MomoData {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
     #[serde(rename = "type")]
     payment_type: PaymentType,
@@ -685,6 +700,12 @@ pub struct AdyenApplePay {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TwintWalletData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VippsWalletData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
 }
@@ -735,14 +756,18 @@ pub enum PaymentType {
     Blik,
     ClearPay,
     Eps,
+    Gcash,
     Giropay,
     Googlepay,
     #[serde(rename = "gopay_wallet")]
     GoPay,
     Ideal,
     Klarna,
+    Kakaopay,
     Mbway,
     MobilePay,
+    #[serde(rename = "momo_wallet")]
+    Momo,
     #[serde(rename = "onlineBanking_CZ")]
     OnlineBankingCzechRepublic,
     #[serde(rename = "ebanking_FI")]
@@ -769,6 +794,7 @@ pub enum PaymentType {
     BacsDirectDebit,
     Samsungpay,
     Twint,
+    Vipps,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -1236,6 +1262,18 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 let go_pay_data = GoPayData {};
                 Ok(AdyenPaymentMethod::GoPay(Box::new(go_pay_data)))
             }
+            api_models::payments::WalletData::KakaoPayRedirect(_) => {
+                let kakao_pay_data = KakaoPayData {};
+                Ok(AdyenPaymentMethod::Kakaopay(Box::new(kakao_pay_data)))
+            }
+            api_models::payments::WalletData::GcashRedirect(_) => {
+                let gcash_data = GcashData {};
+                Ok(AdyenPaymentMethod::Gcash(Box::new(gcash_data)))
+            }
+            api_models::payments::WalletData::MomoRedirect(_) => {
+                let momo_data = MomoData {};
+                Ok(AdyenPaymentMethod::Momo(Box::new(momo_data)))
+            }
             api_models::payments::WalletData::MbWayRedirect(data) => {
                 let mbway_data = MbwayData {
                     payment_type: PaymentType::Mbway,
@@ -1267,6 +1305,12 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                     payment_type: PaymentType::Twint,
                 };
                 Ok(AdyenPaymentMethod::Twint(Box::new(data)))
+            }
+            api_models::payments::WalletData::VippsRedirect { .. } => {
+                let data = VippsWalletData {
+                    payment_type: PaymentType::Vipps,
+                };
+                Ok(AdyenPaymentMethod::Vipps(Box::new(data)))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
@@ -1730,7 +1774,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)>
         let channel = get_channel_type(&item.request.payment_method_type);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item)?;
-        let return_url = item.request.get_return_url()?;
+        let return_url = item.request.get_router_return_url()?;
         let shopper_email = get_shopper_email(&item.request, store_payment_method.is_some())?;
         Ok(AdyenPaymentRequest {
             amount,

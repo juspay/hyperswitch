@@ -174,6 +174,7 @@ pub async fn create_merchant_account(
             payout_routing_algorithm: req.payout_routing_algorithm,
             id: None,
             organization_id: req.organization_id,
+            is_recon_enabled: false,
         })
     }
     .await

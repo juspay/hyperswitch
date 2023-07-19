@@ -3880,6 +3880,7 @@
           "USD",
           "UYU",
           "UZS",
+          "VND",
           "YER",
           "ZAR"
         ]
@@ -4629,6 +4630,9 @@
           "on_session"
         ]
       },
+      "GcashRedirection": {
+        "type": "object"
+      },
       "GoPayRedirection": {
         "type": "object"
       },
@@ -4907,6 +4911,9 @@
           "requires_confirmation",
           "requires_capture"
         ]
+      },
+      "KakaoPayRedirection": {
+        "type": "object"
       },
       "KlarnaSessionTokenResponse": {
         "type": "object",
@@ -5297,7 +5304,8 @@
           "merchant_id",
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
-          "primary_business_details"
+          "primary_business_details",
+          "is_recon_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -5426,6 +5434,10 @@
             "type": "string",
             "description": "The organization id merchant is associated with",
             "nullable": true
+          },
+          "is_recon_enabled": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false"
           }
         }
       },
@@ -6067,6 +6079,9 @@
         }
       },
       "MobilePayRedirection": {
+        "type": "object"
+      },
+      "MomoRedirection": {
         "type": "object"
       },
       "MultibancoBillingDetails": {
@@ -7111,11 +7126,14 @@
           "giropay",
           "google_pay",
           "go_pay",
+          "gcash",
           "ideal",
           "interac",
           "klarna",
+          "kakao_pay",
           "mb_way",
           "mobile_pay",
+          "momo",
           "multibanco",
           "online_banking_czech_republic",
           "online_banking_finland",
@@ -7131,6 +7149,7 @@
           "trustly",
           "twint",
           "upi_collect",
+          "vipps",
           "walley",
           "we_chat_pay"
         ]
@@ -9717,11 +9736,44 @@
           {
             "type": "object",
             "required": [
+              "momo_redirect"
+            ],
+            "properties": {
+              "momo_redirect": {
+                "$ref": "#/components/schemas/MomoRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kakao_pay_redirect"
+            ],
+            "properties": {
+              "kakao_pay_redirect": {
+                "$ref": "#/components/schemas/KakaoPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "go_pay_redirect"
             ],
             "properties": {
               "go_pay_redirect": {
                 "$ref": "#/components/schemas/GoPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "gcash_redirect"
+            ],
+            "properties": {
+              "gcash_redirect": {
+                "$ref": "#/components/schemas/GcashRedirection"
               }
             }
           },
@@ -9855,6 +9907,18 @@
               "twint_redirect": {
                 "type": "object",
                 "description": "Wallet data for Twint Redirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "vipps_redirect"
+            ],
+            "properties": {
+              "vipps_redirect": {
+                "type": "object",
+                "description": "Wallet data for Vipps Redirection"
               }
             }
           },

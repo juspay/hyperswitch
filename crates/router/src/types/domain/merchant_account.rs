@@ -38,6 +38,7 @@ pub struct MerchantAccount {
     pub intent_fulfillment_time: Option<i64>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: Option<String>,
+    pub is_recon_enabled: bool,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -64,6 +65,9 @@ pub enum MerchantAccountUpdate {
     },
     StorageSchemeUpdate {
         storage_scheme: enums::MerchantStorageScheme,
+    },
+    ReconUpdate {
+        is_recon_enabled: bool,
     },
 }
 
@@ -114,6 +118,10 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 modified_at: Some(date_time::now()),
                 ..Default::default()
             },
+            MerchantAccountUpdate::ReconUpdate { is_recon_enabled } => Self {
+                is_recon_enabled,
+                ..Default::default()
+            },
         }
     }
 }
@@ -149,6 +157,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             frm_routing_algorithm: self.frm_routing_algorithm,
             payout_routing_algorithm: self.payout_routing_algorithm,
             organization_id: self.organization_id,
+            is_recon_enabled: self.is_recon_enabled,
         })
     }
 
@@ -190,6 +199,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 intent_fulfillment_time: item.intent_fulfillment_time,
                 payout_routing_algorithm: item.payout_routing_algorithm,
                 organization_id: item.organization_id,
+                is_recon_enabled: item.is_recon_enabled,
             })
         }
         .await
@@ -222,6 +232,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             frm_routing_algorithm: self.frm_routing_algorithm,
             payout_routing_algorithm: self.payout_routing_algorithm,
             organization_id: self.organization_id,
+            is_recon_enabled: self.is_recon_enabled,
         })
     }
 }
