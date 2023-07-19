@@ -156,3 +156,6 @@ key1 = "Credential code"
 [powertranz]
 api_key="PowerTranz-PowerTranzPassword"
 key1 = "PowerTranz-PowerTranzId"
+
+[stax]
+api_key="API Key"

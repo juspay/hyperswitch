@@ -270,8 +270,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+        let response: transformers::CashtocodePaymentsSyncResponse = res
+            .response
+            .parse_struct("CashtocodePaymentsSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response: cashtocode::CashtocodePaymentsSyncResponse {},
+            response,
             data: data.clone(),
             http_code: res.status_code,
         })
@@ -367,9 +371,9 @@ impl api::IncomingWebhook for Cashtocode {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let webhook: transformers::CashtocodeObjectId = request
+        let webhook: transformers::CashtocodePaymentsSyncResponse = request
             .body
-            .parse_struct("CashtocodeObjectId")
+            .parse_struct("CashtocodePaymentsSyncResponse")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
@@ -405,9 +409,9 @@ impl api::IncomingWebhook for Cashtocode {
     ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
     {
         let status = "EXECUTED".to_string();
-        let obj: transformers::CashtocodeObjectId = request
+        let obj: transformers::CashtocodePaymentsSyncResponse = request
             .body
-            .parse_struct("CashtocodeObjectId")
+            .parse_struct("CashtocodePaymentsSyncResponse")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         let response: serde_json::Value =
             serde_json::json!({ "status": status, "transactionId" : obj.transaction_id});

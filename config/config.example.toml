@@ -186,6 +186,7 @@ payu.base_url = "https://secure.snd.payu.com/"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
+stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
@@ -228,6 +229,7 @@ cards = [
     "mollie",
     "paypal",
     "shift4",
+    "stax",
     "stripe",
     "worldpay",
     "zen",
