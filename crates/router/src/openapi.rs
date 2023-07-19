@@ -90,6 +90,7 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::routes::payment_methods::create_payment_method_api,
         crate::routes::payment_methods::list_payment_method_api,
         crate::routes::payment_methods::list_customer_payment_method_api,
+        crate::routes::payment_methods::list_customer_payment_method_api_client,
         crate::routes::payment_methods::payment_method_retrieve_api,
         crate::routes::payment_methods::payment_method_update_api,
         crate::routes::payment_methods::payment_method_delete_api,

@@ -1577,7 +1577,9 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Sofort => Self::BankRedirect,
             PaymentMethodType::Swish => Self::BankRedirect,
             PaymentMethodType::Trustly => Self::BankRedirect,
+            PaymentMethodType::Twint => Self::Wallet,
             PaymentMethodType::UpiCollect => Self::Upi,
+            PaymentMethodType::Vipps => Self::Wallet,
             PaymentMethodType::Walley => Self::PayLater,
             PaymentMethodType::WeChatPay => Self::Wallet,
         }
