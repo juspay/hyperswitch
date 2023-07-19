@@ -129,47 +129,6 @@ impl super::settings::SupportedConnectors {
     }
 }
 
-impl super::settings::ConnectorParamsWithMoreUrls {
-    pub fn validate(&self, parent_field: &str) -> Result<(), ApplicationError> {
-        common_utils::fp_utils::when(self.base_url.is_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(format!(
-                "base url must not be empty for {parent_field}"
-            )))
-        })?;
-
-        common_utils::fp_utils::when(self.base_url_bank_redirects.is_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(format!(
-                "base_url_bank_redirects must not be empty for {parent_field}"
-            )))
-        })
-    }
-}
-
-impl super::settings::ConnectorParams {
-    pub fn validate(&self, parent_field: &str) -> Result<(), ApplicationError> {
-        common_utils::fp_utils::when(self.base_url.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(format!(
-                "connector base URL must not be empty for {parent_field}"
-            )))
-        })
-    }
-}
-
-impl super::settings::ConnectorParamsWithFileUploadUrl {
-    pub fn validate(&self, parent_field: &str) -> Result<(), ApplicationError> {
-        common_utils::fp_utils::when(self.base_url.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(format!(
-                "connector base URL must not be empty for {parent_field}"
-            )))
-        })?;
-        common_utils::fp_utils::when(self.base_url_file_upload.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(format!(
-                "connector file upload base URL must not be empty for {parent_field}"
-            )))
-        })
-    }
-}
-
 impl super::settings::SchedulerSettings {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
