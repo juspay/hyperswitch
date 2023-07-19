@@ -270,6 +270,7 @@ pub enum Currency {
     USD,
     UYU,
     UZS,
+    VND,
     YER,
     ZAR,
 }
@@ -381,6 +382,7 @@ impl Currency {
             Self::USD => "840",
             Self::UYU => "858",
             Self::UZS => "860",
+            Self::VND => "704",
             Self::YER => "886",
             Self::ZAR => "710",
         }
@@ -578,6 +580,7 @@ pub enum PaymentMethodType {
     KakaoPay,
     MbWay,
     MobilePay,
+    Momo,
     Multibanco,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,

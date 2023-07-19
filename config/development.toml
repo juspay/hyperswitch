@@ -246,6 +246,7 @@ bizum = {country = "ES", currency = "EUR"}
 go_pay = {country = "ID", currency = "IDR"}
 kakao_pay = {country = "KR", currency = "KRW"}
 gcash = {country = "PH", currency = "PHP"}
+momo = {country = "VN", currency = "VND"}
 
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }
