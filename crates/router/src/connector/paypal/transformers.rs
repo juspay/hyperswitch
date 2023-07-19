@@ -268,7 +268,7 @@ pub struct PaymentsCollectionItem {
     expiration_time: Option<String>,
     id: String,
     final_capture: Option<bool>,
-    status: PaypalOrderStatus,
+    status: PaypalPaymentStatus,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -382,11 +382,23 @@ impl<F, T>
                 types::ResponseId::NoResponseId,
             ),
         };
-        let status = storage_enums::AttemptStatus::foreign_from((
-            item.response.status,
-            item.response.intent,
-        ));
-
+        let payment_collection = &item
+            .response
+            .purchase_units
+            .first()
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+            .payments;
+        let payment_collection_item = match (
+            &payment_collection.authorizations,
+            &payment_collection.captures,
+        ) {
+            (Some(authorizations), None) => authorizations.first(),
+            (None, Some(captures)) => captures.first(),
+            _ => None,
+        }
+        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let status = payment_collection_item.status.clone();
+        let status = storage_enums::AttemptStatus::from(status);
         Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
