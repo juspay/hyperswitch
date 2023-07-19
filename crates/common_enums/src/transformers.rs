@@ -1561,6 +1561,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::KakaoPay => Self::Wallet,
             PaymentMethodType::MbWay => Self::Wallet,
             PaymentMethodType::MobilePay => Self::Wallet,
+            PaymentMethodType::Momo => Self::Wallet,
             PaymentMethodType::Multibanco => Self::BankTransfer,
             PaymentMethodType::Interac => Self::BankRedirect,
             PaymentMethodType::OnlineBankingCzechRepublic => Self::BankRedirect,
