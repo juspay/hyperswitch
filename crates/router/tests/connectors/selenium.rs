@@ -75,14 +75,19 @@ pub trait SeleniumTest {
         )
         .expect("Failed to read connector authentication config file")
     }
-    async fn retry_click(&self, times: i32, interval: u64, driver: &WebDriver, by: By) -> Result<(), WebDriverError> {
+    async fn retry_click(
+        &self,
+        times: i32,
+        interval: u64,
+        driver: &WebDriver,
+        by: By,
+    ) -> Result<(), WebDriverError> {
         let mut res = Ok(());
         for _i in 0..times {
             res = self.click_element(driver, by.clone()).await;
             if res.is_err() {
                 tokio::time::sleep(Duration::from_secs(interval)).await;
-            }
-            else {
+            } else {
                 break;
             }
         }
@@ -534,13 +539,11 @@ pub trait SeleniumTest {
                 vec![
                     Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
                     Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
-                ]
+                ],
             ),
             Event::EitherOr(
                 Assert::IsPresent("See Offers and Apply for PayPal Credit"),
-                vec![
-                    Event::Trigger(Trigger::Click(By::Css(".reviewButton"))),
-                ],
+                vec![Event::Trigger(Trigger::Click(By::Css(".reviewButton")))],
                 vec![Event::Trigger(Trigger::Click(By::Id("payment-submit-btn")))],
             ),
         ];
