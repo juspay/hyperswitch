@@ -562,6 +562,7 @@ pub enum PaymentMethodType {
     Bacs,
     BancontactCard,
     Becs,
+    Benefit,
     Blik,
     Bizum,
     #[serde(rename = "classic")]
@@ -580,6 +581,7 @@ pub enum PaymentMethodType {
     Interac,
     Klarna,
     KakaoPay,
+    Knet,
     MbWay,
     MobilePay,
     Momo,
@@ -625,6 +627,7 @@ pub enum PaymentMethodType {
 pub enum PaymentMethod {
     #[default]
     Card,
+    CardRedirect,
     PayLater,
     Wallet,
     BankRedirect,

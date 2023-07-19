@@ -315,6 +315,8 @@ pub enum AdyenPaymentMethod<'a> {
     SamsungPay(Box<SamsungPayPmData>),
     Twint(Box<TwintWalletData>),
     Vipps(Box<VippsWalletData>),
+    Benefit(Box<PmdForPaymentType>),
+    Knet(Box<PmdForPaymentType>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -334,6 +336,12 @@ pub struct SepaDirectDebitData {
     owner_name: Secret<String>,
     #[serde(rename = "sepa.ibanNumber")]
     iban_number: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PmdForPaymentType {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -779,6 +787,8 @@ pub enum PaymentType {
     Samsungpay,
     Twint,
     Vipps,
+    Knet,
+    Benefit,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -884,6 +894,9 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
                 }
                 api_models::payments::PaymentMethodData::BankDebit(ref bank_debit) => {
                     AdyenPaymentRequest::try_from((item, bank_debit))
+                }
+                api_models::payments::PaymentMethodData::CardRedirect(ref card_redirect_data) => {
+                    AdyenPaymentRequest::try_from((item, card_redirect_data))
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.request.payment_method_type),
@@ -1037,6 +1050,17 @@ fn get_telephone_number(item: &types::PaymentsAuthorizeRouterData) -> Option<Sec
                 .map(|cc| Secret::new(format!("{}{}", cc, number.peek())))
         })
     })
+}
+
+fn get_telephone_number_without_country_code(
+    item: &types::PaymentsAuthorizeRouterData,
+) -> Option<Secret<String>> {
+    let phone = item
+        .address
+        .billing
+        .as_ref()
+        .and_then(|billing| billing.phone.as_ref());
+    phone.as_ref().and_then(|phone| phone.number.to_owned())
 }
 
 fn get_shopper_name(item: &types::PaymentsAuthorizeRouterData) -> Option<ShopperName> {
@@ -1465,6 +1489,33 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
     }
 }
 
+impl<'a> TryFrom<&api_models::enums::PaymentMethodType> for AdyenPaymentMethod<'a> {
+    type Error = Error;
+    fn try_from(
+        payment_method_type: &api_models::enums::PaymentMethodType,
+    ) -> Result<Self, Self::Error> {
+        match payment_method_type {
+            enums::PaymentMethodType::Benefit => {
+                Ok(AdyenPaymentMethod::Benefit(Box::new(PmdForPaymentType {
+                    payment_type: PaymentType::Benefit,
+                })))
+            }
+            enums::PaymentMethodType::Knet => {
+                Ok(AdyenPaymentMethod::Knet(Box::new(PmdForPaymentType {
+                    payment_type: PaymentType::Benefit,
+                })))
+            }
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "This payment method type is not supported for Card redirection"
+                    .to_string(),
+                connector: "Adyen",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            }
+            .into()),
+        }
+    }
+}
+
 impl<'a>
     TryFrom<(
         &types::PaymentsAuthorizeRouterData,
@@ -1821,6 +1872,54 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::PayLaterData)>
             line_items,
             shopper_reference,
             store_payment_method,
+            channel: None,
+        })
+    }
+}
+
+impl<'a>
+    TryFrom<(
+        &types::PaymentsAuthorizeRouterData,
+        &api_models::payments::CardRedirectData,
+    )> for AdyenPaymentRequest<'a>
+{
+    type Error = Error;
+    fn try_from(
+        value: (
+            &types::PaymentsAuthorizeRouterData,
+            &api_models::payments::CardRedirectData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, _card_redirect_data) = value;
+        let amount = get_amount_data(item);
+        let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+        let payment_method_type = item.request.get_payment_method_type()?;
+        let payment_method = AdyenPaymentMethod::try_from(&payment_method_type)?;
+        let shopper_interaction = AdyenShopperInteraction::from(item);
+        let return_url = item.request.get_return_url()?;
+        let shopper_name = get_shopper_name(item);
+        let shopper_email = item.request.email.clone();
+        let telephone_number = get_telephone_number_without_country_code(item);
+        Ok(AdyenPaymentRequest {
+            amount,
+            merchant_account: auth_type.merchant_account,
+            payment_method,
+            reference: item.payment_id.to_string(),
+            return_url,
+            shopper_interaction,
+            recurring_processing_model: None,
+            browser_info: None,
+            additional_data: None,
+            telephone_number,
+            shopper_name,
+            shopper_email,
+            shopper_locale: None,
+            billing_address: None,
+            delivery_address: None,
+            country_code: None,
+            line_items: None,
+            shopper_reference: None,
+            store_payment_method: None,
             channel: None,
         })
     }

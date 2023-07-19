@@ -617,6 +617,9 @@ pub struct Card {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct CardRedirectData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PayLaterData {
     /// For KlarnaRedirect as PayLater Option
@@ -711,6 +714,7 @@ pub enum BankDebitData {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodData {
     Card(Card),
+    CardRedirect(CardRedirectData),
     Wallet(WalletData),
     PayLater(PayLaterData),
     BankRedirect(BankRedirectData),
@@ -743,6 +747,7 @@ pub enum AdditionalPaymentData {
     MandatePayment {},
     Reward {},
     Upi {},
+    CardRedirect {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1150,6 +1155,7 @@ pub enum PaymentMethodDataResponse {
     MandatePayment,
     Reward(RewardData),
     Upi(UpiData),
+    CardRedirect(CardRedirectData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1816,6 +1822,7 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             PaymentMethodData::MandatePayment => Self::MandatePayment,
             PaymentMethodData::Reward(reward_data) => Self::Reward(reward_data),
             PaymentMethodData::Upi(upi_data) => Self::Upi(upi_data),
+            PaymentMethodData::CardRedirect(card_redirect) => Self::CardRedirect(card_redirect),
         }
     }
 }
