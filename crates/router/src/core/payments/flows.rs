@@ -138,9 +138,9 @@ impl<const T: u8>
 
 default_imp_for_complete_authorize!(
     connector::Boku,
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
-    connector::Authorizedotnet,
     connector::Bitpay,
     connector::Braintree,
     connector::Cashtocode,
@@ -163,10 +163,10 @@ default_imp_for_complete_authorize!(
     connector::Payeezy,
     connector::Payme,
     connector::Payu,
-    connector::Powertranz,
     connector::Rapyd,
     connector::Stripe,
     connector::Trustpay,
+    connector::Tsys,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen
@@ -201,6 +201,7 @@ impl<const T: u8>
 
 default_imp_for_create_customer!(
     connector::Boku,
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -236,6 +237,7 @@ default_imp_for_create_customer!(
     connector::Rapyd,
     connector::Shift4,
     connector::Trustpay,
+    connector::Tsys,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen
@@ -272,9 +274,9 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 
 default_imp_for_connector_redirect_response!(
     connector::Boku,
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
-    connector::Authorizedotnet,
     connector::Bitpay,
     connector::Braintree,
     connector::Cashtocode,
@@ -298,6 +300,7 @@ default_imp_for_connector_redirect_response!(
     connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Tsys,
     connector::Worldline,
     connector::Worldpay
 );
@@ -315,6 +318,7 @@ impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {
 
 default_imp_for_connector_request_id!(
     connector::Boku,
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -350,6 +354,7 @@ default_imp_for_connector_request_id!(
     connector::Shift4,
     connector::Stripe,
     connector::Trustpay,
+    connector::Tsys,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen
@@ -387,6 +392,7 @@ impl<const T: u8>
 
 default_imp_for_accept_dispute!(
     connector::Boku,
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -422,6 +428,7 @@ default_imp_for_accept_dispute!(
     connector::Shift4,
     connector::Stripe,
     connector::Trustpay,
+    connector::Tsys,
     connector::Opennode,
     connector::Worldline,
     connector::Worldpay,
@@ -479,6 +486,7 @@ impl<const T: u8>
 
 default_imp_for_file_upload!(
     connector::Boku,
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -513,6 +521,7 @@ default_imp_for_file_upload!(
     connector::Rapyd,
     connector::Shift4,
     connector::Trustpay,
+    connector::Tsys,
     connector::Opennode,
     connector::Worldline,
     connector::Worldpay,
@@ -548,6 +557,7 @@ impl<const T: u8>
 
 default_imp_for_submit_evidence!(
     connector::Boku,
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -582,6 +592,7 @@ default_imp_for_submit_evidence!(
     connector::Rapyd,
     connector::Shift4,
     connector::Trustpay,
+    connector::Tsys,
     connector::Opennode,
     connector::Worldline,
     connector::Worldpay,
@@ -617,6 +628,7 @@ impl<const T: u8>
 
 default_imp_for_defend_dispute!(
     connector::Boku,
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -652,6 +664,7 @@ default_imp_for_defend_dispute!(
     connector::Stripe,
     connector::Shift4,
     connector::Trustpay,
+    connector::Tsys,
     connector::Opennode,
     connector::Worldline,
     connector::Worldpay,
@@ -687,6 +700,7 @@ impl<const T: u8>
 
 default_imp_for_pre_processing_steps!(
     connector::Boku,
+    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -722,6 +736,7 @@ default_imp_for_pre_processing_steps!(
     connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Tsys,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen

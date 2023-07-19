@@ -7,11 +7,13 @@
 use test_utils::connector_auth;
 
 mod aci;
+mod aci_ui;
 mod adyen;
 mod adyen_uk_ui;
 mod airwallex;
 mod airwallex_ui;
 mod authorizedotnet;
+mod authorizedotnet_ui;
 mod bambora;
 mod bambora_ui;
 mod bitpay;
@@ -55,9 +57,12 @@ mod rapyd;
 mod selenium;
 mod shift4;
 mod shift4_ui;
+mod stax;
 mod stripe;
 mod stripe_ui;
 mod trustpay;
+mod trustpay_3ds_ui;
+mod tsys;
 mod utils;
 mod worldline;
 mod worldline_ui;
