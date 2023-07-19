@@ -415,7 +415,6 @@ where
 
                 let amount_captured = payment_intent.amount_captured.unwrap_or_default();
                 let amount_capturable = Some(payment_attempt.amount - amount_captured);
-                // println!("ADDITIONAL data {:?}", additional_payment_method_data.clone());
                 services::ApplicationResponse::Json(
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
