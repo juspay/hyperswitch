@@ -215,7 +215,7 @@ stripe = { banks = "alior_bank,bank_millennium,bank_nowy_bfg_sa,bank_pekao_sa,ba
 # This data is used to call respective connectors for wallets and cards
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
-rewards = ["cashtocode"]
+rewards = ["cashtocode", "zen"]
 cards = [
     "adyen",
     "authorizedotnet",

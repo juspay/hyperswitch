@@ -1130,15 +1130,11 @@ pub struct CardResponse {
     exp_year: String,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct CashtoCodeData {
-    /// The merchant ID with which we have to call the connector
-    pub merchant_id: String,
-}
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum RewardData {
-    Cashtocode(CashtoCodeData),
+pub struct RewardData {
+    /// The merchant ID with which we have to call the connector
+    pub merchant_id: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
