@@ -447,6 +447,22 @@ pub async fn call_connector_payout(
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let payout_attempt = &payout_data.payout_attempt.to_owned();
     let payouts: &diesel_models::payouts::Payouts = &payout_data.payouts.to_owned();
+    // Fetch / store payout_method_data
+    if payout_data.payout_method_data.is_none() || payout_attempt.payout_token.is_none() {
+        payout_data.payout_method_data = Some(
+            helpers::make_payout_method_data(
+                state,
+                req.payout_method_data.as_ref(),
+                payout_attempt.payout_token.as_deref(),
+                &payout_attempt.customer_id,
+                &payout_attempt.merchant_id,
+                &payout_attempt.payout_id,
+                Some(&payouts.payout_type),
+            )
+            .await?
+            .get_required_value("payout_method_data")?,
+        );
+    }
     if let Some(true) = req.confirm {
         // Eligibility flow
         if payouts.payout_type == storage_enums::PayoutType::Card
