@@ -129,48 +129,43 @@ impl super::settings::SupportedConnectors {
     }
 }
 
-impl super::settings::Connectors {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        self.aci.validate()?;
-        self.adyen.validate()?;
-        self.applepay.validate()?;
-        self.authorizedotnet.validate()?;
-        self.braintree.validate()?;
-        self.checkout.validate()?;
-        self.cybersource.validate()?;
-        self.globalpay.validate()?;
-        self.klarna.validate()?;
-        self.shift4.validate()?;
-        self.stripe.validate()?;
-        self.worldpay.validate()?;
+impl super::settings::ConnectorParamsWithMoreUrls {
+    pub fn validate(&self, parent_field: &str) -> Result<(), ApplicationError> {
+        common_utils::fp_utils::when(self.base_url.is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(format!(
+                "base url must not be empty for {parent_field}"
+            )))
+        })?;
 
-        self.supported.validate()?;
-
-        Ok(())
+        common_utils::fp_utils::when(self.base_url_bank_redirects.is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(format!(
+                "base_url_bank_redirects must not be empty for {parent_field}"
+            )))
+        })
     }
 }
 
 impl super::settings::ConnectorParams {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
+    pub fn validate(&self, parent_field: &str) -> Result<(), ApplicationError> {
         common_utils::fp_utils::when(self.base_url.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "connector base URL must not be empty".into(),
-            ))
+            Err(ApplicationError::InvalidConfigurationValueError(format!(
+                "connector base URL must not be empty for {parent_field}"
+            )))
         })
     }
 }
 
 impl super::settings::ConnectorParamsWithFileUploadUrl {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
+    pub fn validate(&self, parent_field: &str) -> Result<(), ApplicationError> {
         common_utils::fp_utils::when(self.base_url.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "connector base URL must not be empty".into(),
-            ))
+            Err(ApplicationError::InvalidConfigurationValueError(format!(
+                "connector base URL must not be empty for {parent_field}"
+            )))
         })?;
         common_utils::fp_utils::when(self.base_url_file_upload.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "connector file upload base URL must not be empty".into(),
-            ))
+            Err(ApplicationError::InvalidConfigurationValueError(format!(
+                "connector file upload base URL must not be empty for {parent_field}"
+            )))
         })
     }
 }

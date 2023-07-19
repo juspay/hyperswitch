@@ -403,7 +403,7 @@ pub struct SupportedConnectors {
     pub wallets: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct Connectors {
     pub aci: ConnectorParams,
@@ -451,9 +451,6 @@ pub struct Connectors {
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub zen: ConnectorParams,
-
-    // Keep this field separate from the remaining fields
-    pub supported: SupportedConnectors,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
