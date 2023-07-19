@@ -41,6 +41,7 @@ mod multisafepay_ui;
 mod nexinets;
 mod nmi;
 mod noon;
+mod noon_ui;
 mod nuvei;
 mod nuvei_ui;
 mod opayo;
