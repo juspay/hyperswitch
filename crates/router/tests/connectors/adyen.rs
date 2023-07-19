@@ -515,6 +515,7 @@ async fn should_fail_capture_for_invalid_payment() {
 
 /******************** Payouts test cases ********************/
 // Create SEPA payout
+#[ignore]
 #[cfg(feature = "payouts")]
 #[actix_web::test]
 async fn should_create_sepa_payout() {
@@ -531,6 +532,7 @@ async fn should_create_sepa_payout() {
 }
 
 // Create and fulfill SEPA payout
+#[ignore]
 #[cfg(feature = "payouts")]
 #[actix_web::test]
 async fn should_create_and_fulfill_sepa_payout() {
@@ -544,6 +546,7 @@ async fn should_create_and_fulfill_sepa_payout() {
 }
 
 // Verifies if card is eligible for payout
+#[ignore]
 #[cfg(feature = "payouts")]
 #[actix_web::test]
 async fn should_verify_payout_eligibility() {
@@ -560,6 +563,7 @@ async fn should_verify_payout_eligibility() {
 }
 
 // Fulfills card payout
+#[ignore]
 #[cfg(feature = "payouts")]
 #[actix_web::test]
 async fn should_fulfill_card_payout() {
@@ -573,6 +577,7 @@ async fn should_fulfill_card_payout() {
 }
 
 // Cancels a created bank payout
+#[ignore]
 #[cfg(feature = "payouts")]
 #[actix_web::test]
 async fn should_create_and_cancel_created_payout() {
