@@ -257,6 +257,7 @@ pub struct StripePaymentIntentRequest {
     pub confirmation_method: Option<String>,                 // not used
     pub error_on_requires_action: Option<String>,            // not used
     pub radar_options: Option<SecretSerdeValue>,             // not used
+    pub connector_metadata: Option<payments::ConnectorMetadata>,
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
@@ -355,7 +356,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("convert to browser info failed")?,
             ),
-
+            connector_metadata: item.connector_metadata,
             ..Self::default()
         });
         request
