@@ -3065,18 +3065,6 @@
           "Maestro"
         ]
       },
-      "CashtoCodeData": {
-        "type": "object",
-        "required": [
-          "merchant_id"
-        ],
-        "properties": {
-          "merchant_id": {
-            "type": "string",
-            "description": "The merchant ID with which we have to call the connector"
-          }
-        }
-      },
       "Connector": {
         "type": "string",
         "enum": [
@@ -3526,6 +3514,7 @@
           "BBD",
           "BDT",
           "BHD",
+          "BIF",
           "BMD",
           "BND",
           "BOB",
@@ -3541,6 +3530,7 @@
           "CRC",
           "CUP",
           "CZK",
+          "DJF",
           "DKK",
           "DOP",
           "DZD",
@@ -3552,6 +3542,7 @@
           "GHS",
           "GIP",
           "GMD",
+          "GNF",
           "GTQ",
           "GYD",
           "HKD",
@@ -3568,6 +3559,7 @@
           "KES",
           "KGS",
           "KHR",
+          "KMF",
           "KRW",
           "KWD",
           "KYD",
@@ -3579,6 +3571,7 @@
           "LSL",
           "MAD",
           "MDL",
+          "MGA",
           "MKD",
           "MMK",
           "MNT",
@@ -3600,9 +3593,11 @@
           "PHP",
           "PKR",
           "PLN",
+          "PYG",
           "QAR",
           "RON",
           "RUB",
+          "RWF",
           "SAR",
           "SCR",
           "SEK",
@@ -3617,10 +3612,15 @@
           "TTD",
           "TWD",
           "TZS",
+          "UGX",
           "USD",
           "UYU",
           "UZS",
           "VND",
+          "VUV",
+          "XAF",
+          "XOF",
+          "XPF",
           "YER",
           "ZAR"
         ]
@@ -8634,19 +8634,16 @@
         }
       },
       "RewardData": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "cashtocode"
-            ],
-            "properties": {
-              "cashtocode": {
-                "$ref": "#/components/schemas/CashtoCodeData"
-              }
-            }
+        "type": "object",
+        "required": [
+          "merchant_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The merchant ID with which we have to call the connector"
           }
-        ]
+        }
       },
       "RoutingAlgorithm": {
         "type": "string",

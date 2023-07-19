@@ -182,7 +182,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::BankDebitBilling,
         api_models::payments::CryptoData,
         api_models::payments::RewardData,
-        api_models::payments::CashtoCodeData,
         api_models::payments::UpiData,
         api_models::payments::VoucherData,
         api_models::payments::Address,
