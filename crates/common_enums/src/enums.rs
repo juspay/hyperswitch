@@ -1194,3 +1194,85 @@ pub enum CanadaStatesAbbreviation {
     SK,
     YT,
 }
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutStatus {
+    Success,
+    Failed,
+    Cancelled,
+    Pending,
+    Ineligible,
+    #[default]
+    RequiresCreation,
+    RequiresPayoutMethodData,
+    RequiresFulfillment,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutType {
+    #[default]
+    Card,
+    Bank,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "PascalCase")]
+#[strum(serialize_all = "PascalCase")]
+pub enum PayoutEntityType {
+    /// Adyen
+    #[default]
+    Individual,
+    Company,
+    NonProfit,
+    PublicSector,
+
+    /// Wise
+    #[strum(serialize = "lowercase")]
+    #[serde(rename = "lowercase")]
+    Business,
+    Personal,
+}
