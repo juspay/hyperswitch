@@ -20,7 +20,7 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     pii::PeekInterface,
-    types::{self, api, storage, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
+    types::{self, api, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
     utils::{self, OptionExt, ValueExt},
 };
 

@@ -13,11 +13,7 @@ use crate::{
     },
     core::errors::{self, CustomResult},
     services::{self, Method},
-    types::{
-        self, api,
-        storage::{self, enums},
-        transformers::ForeignTryFrom,
-    },
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
     utils::OptionExt,
 };
 // Auth Struct
