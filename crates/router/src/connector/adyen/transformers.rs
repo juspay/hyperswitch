@@ -269,7 +269,6 @@ pub struct Amount {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
-#[serde(rename_all = "snake_case")]
 pub enum AdyenPaymentMethod<'a> {
     AdyenAffirm(Box<AdyenPayLaterData>),
     AdyenCard(Box<AdyenCard>),
@@ -1730,7 +1729,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)>
         let channel = get_channel_type(&item.request.payment_method_type);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item)?;
-        let return_url = item.request.get_router_router_return_url()?;
+        let return_url = item.request.get_router_return_url()?;
         let shopper_email = get_shopper_email(&item.request, store_payment_method.is_some())?;
         Ok(AdyenPaymentRequest {
             amount,
@@ -1862,21 +1861,20 @@ pub fn get_adyen_response(
 > {
     let status =
         storage_enums::AttemptStatus::foreign_from((is_capture_manual, response.result_code));
-    let error: Option<types::ErrorResponse> =
-        if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
-            Some(types::ErrorResponse {
-                code: response
-                    .refusal_reason_code
-                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                message: response
-                    .refusal_reason
-                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                reason: None,
-                status_code,
-            })
-        } else {
-            None
-        };
+    let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
+        Some(types::ErrorResponse {
+            code: response
+                .refusal_reason_code
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .refusal_reason
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: None,
+            status_code,
+        })
+    } else {
+        None
+    };
     let mandate_reference = response
         .additional_data
         .as_ref()
