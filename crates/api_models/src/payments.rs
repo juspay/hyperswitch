@@ -717,17 +717,6 @@ pub enum PaymentMethodData {
     Reward(RewardData),
     Upi(UpiData),
 }
-// Card {
-//     card_issuer: Option<String>,
-//     card_network: Option<api_enums::CardNetwork>,
-//     card_type: Option<String>,
-//     card_issuing_country: Option<String>,
-//     bank_code: Option<String>,
-//     last4: String,
-//     card_exp_month: String,
-//     card_exp_year: String,
-//     card_holder_name: String,
-// },
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -738,6 +727,7 @@ pub struct AdditionalCardInfo {
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
     pub last4: String,
+    pub card_isin: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1119,6 +1109,10 @@ pub struct CardResponse {
     pub card_network: Option<api_enums::CardNetwork>,
     pub card_issuer: Option<String>,
     pub card_issuing_country: Option<String>,
+    pub card_isin: String,
+    pub card_exp_month: String,
+    pub card_exp_year: String,
+    pub card_holder_name: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
