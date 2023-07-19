@@ -9,7 +9,7 @@ use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
 use crate::{
-    enums::{self as api_enums, CardNetwork, Connector, PaymentMethod, PaymentMethodType},
+    enums::{self as api_enums},
     payment_methods,
 };
 
@@ -401,7 +401,7 @@ pub struct MerchantConnectorCreate {
     pub connector_type: api_enums::ConnectorType,
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
-    pub connector_name: Connector,
+    pub connector_name: api_enums::Connector,
     // /// Connector label for specific country and Business
     #[serde(skip_deserializing)]
     #[schema(example = "stripe_US_travel")]
@@ -653,7 +653,9 @@ pub struct MerchantConnectorUpdate {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FrmConfigs {
-    pub gateway: Option<Connector>,
+    ///this is the connector that can be used for the payment
+    pub gateway: Option<api_enums::Connector>,
+    ///payment methods that can be used in the payment
     pub payment_methods: Vec<FrmPaymentMethod>,
 }
 
@@ -661,7 +663,9 @@ pub struct FrmConfigs {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FrmPaymentMethod {
-    pub payment_method: Option<PaymentMethod>,
+    ///payment methods(card, wallet, etc) that can be used in the payment
+    pub payment_method: Option<common_enums::PaymentMethod>,
+    ///payment method types(credit, debit) that can be used in the payment
     pub payment_method_types: Vec<FrmPaymentMethodType>,
 }
 
@@ -669,9 +673,13 @@ pub struct FrmPaymentMethod {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FrmPaymentMethodType {
-    pub payment_method_type: Option<PaymentMethodType>,
-    pub card_networks: Option<Vec<CardNetwork>>,
+    ///payment method types(credit, debit) that can be used in the payment
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    ///card networks(like visa mastercard) types that can be used in the payment
+    pub card_networks: Option<Vec<common_enums::CardNetwork>>,
+    ///frm flow type to be used...can be pre/post
     pub flow: api_enums::FrmPreferredFlowTypes,
+    ///action that the frm would take, in case fraud is detected
     pub action: api_enums::FrmAction,
 }
 /// Details of all the payment methods enabled for the connector for the given merchant account
@@ -680,7 +688,7 @@ pub struct FrmPaymentMethodType {
 pub struct PaymentMethodsEnabled {
     /// Type of payment method.
     #[schema(value_type = PaymentMethod,example = "card")]
-    pub payment_method: PaymentMethod,
+    pub payment_method: common_enums::PaymentMethod,
 
     /// Subtype of payment method
     #[schema(value_type = Option<Vec<PaymentMethodType>>,example = json!(["credit"]))]

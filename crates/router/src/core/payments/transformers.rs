@@ -1,6 +1,5 @@
 use std::{fmt::Debug, marker::PhantomData};
 
-use api_models::payments::{FrmMessage, OrderDetailsWithAmount};
 use common_utils::fp_utils;
 use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
 use error_stack::ResultExt;
@@ -273,7 +272,7 @@ pub fn payments_to_payments_response<R, Op>(
     operation: &Op,
     ephemeral_key_option: Option<ephemeral_key::EphemeralKey>,
     session_tokens: Vec<api::SessionToken>,
-    frm_message: Option<FrmMessage>,
+    frm_message: Option<payments::FrmMessage>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
@@ -644,8 +643,8 @@ pub fn bank_transfer_next_steps_check(
 pub fn change_order_details_to_new_type(
     order_amount: i64,
     order_details: api_models::payments::OrderDetails,
-) -> Option<Vec<OrderDetailsWithAmount>> {
-    Some(vec![OrderDetailsWithAmount {
+) -> Option<Vec<api_models::payments::OrderDetailsWithAmount>> {
+    Some(vec![api_models::payments::OrderDetailsWithAmount {
         product_name: order_details.product_name,
         quantity: order_details.quantity,
         amount: order_amount,

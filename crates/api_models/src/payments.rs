@@ -2276,6 +2276,7 @@ pub struct FeatureMetadata {
     pub redirect_response: Option<RedirectResponse>,
 }
 
+///frm message is an object sent inside the payments response...when frm is invoked, its value is Some(...), else its None
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
 pub struct FrmMessage {
     pub frm_name: String,

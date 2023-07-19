@@ -506,7 +506,7 @@ pub async fn create_tokenize(
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let (public_key, private_key) = get_locker_jwe_keys(&state.kms_secrets.clone())
+    let (public_key, private_key) = get_locker_jwe_keys(&state.kms_secrets)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encryption key")?;
@@ -583,7 +583,7 @@ pub async fn get_tokenized_data(
     let payload = serde_json::to_string(&payload_to_be_encrypted)
         .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
 
-    let (public_key, private_key) = get_locker_jwe_keys(&state.kms_secrets.clone())
+    let (public_key, private_key) = get_locker_jwe_keys(&state.kms_secrets)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encryption key")?;

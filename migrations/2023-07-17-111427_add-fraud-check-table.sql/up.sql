@@ -14,7 +14,7 @@ CREATE TYPE "FraudCheckStatus" AS ENUM (
 
 CREATE TABLE fraud_check (
     id SERIAL PRIMARY KEY,
-    frm_id VARCHAR(255) NOT NULL UNIQUE,
+    frm_id VARCHAR(64) NOT NULL UNIQUE,
     payment_id VARCHAR(255) NOT NULL,
     merchant_id VARCHAR(255) NOT NULL,
     attempt_id VARCHAR(255) NOT NULL UNIQUE,
@@ -31,4 +31,4 @@ CREATE TABLE fraud_check (
     modified_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
-CREATE UNIQUE INDEX frm_id_index ON fraud_check (frm_id, attempt_id);
+CREATE UNIQUE INDEX frm_id_index ON fraud_check (payment_id, merchant_id);
