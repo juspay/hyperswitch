@@ -738,9 +738,6 @@ pub struct AdditionalCardInfo {
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
     pub last4: String,
-    pub card_exp_month: String,
-    pub card_exp_year: String,
-    pub card_holder_name: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1118,9 +1115,6 @@ pub struct ApplepayPaymentMethod {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct CardResponse {
     pub last4: String,
-    pub exp_month: String,
-    pub exp_year: String,
-    pub card_holder_name: String,
     pub card_type: Option<String>,
     pub card_network: Option<api_enums::CardNetwork>,
     pub card_issuer: Option<String>,

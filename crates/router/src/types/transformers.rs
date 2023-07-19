@@ -528,31 +528,6 @@ impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttem
     }
 }
 
-// impl ForeignFrom<AdditionalPaymentData::Card> for CardResponse {
-//     fn foreign_from(addtional_data: AdditionalPaymentData::Card) -> Self {
-//         match addtional_data {
-//             AdditionalPaymentData::Card {card_issuer,
-//                 card_network,
-//                 card_issuing_country,
-//                 last4,
-//                 card_exp_month,
-//                 card_exp_year,
-//                 card_type,
-//                 bank_code: _,
-//                 card_holder_name, } => Self {
-//                     last4,
-//                     exp_month: card_exp_month,
-//                     exp_year: card_exp_year,
-//                     card_holder_name,
-//                     card_type,
-//                     card_network,
-//                     card_issuer,
-//                     card_issuing_country,
-//                 },
-//             }
-//         }
-// }
-
 impl ForeignFrom<api_models::payments::AdditionalCardInfo> for CardResponse {
     fn foreign_from(additional_data: api_models::payments::AdditionalCardInfo) -> Self {
         let api_models::payments::AdditionalCardInfo {
@@ -560,18 +535,12 @@ impl ForeignFrom<api_models::payments::AdditionalCardInfo> for CardResponse {
             card_network,
             card_issuing_country,
             last4,
-            card_exp_month,
-            card_exp_year,
             card_type,
             bank_code: _,
-            card_holder_name,
         } = additional_data;
 
         Self {
             last4,
-            exp_month: card_exp_month,
-            exp_year: card_exp_year,
-            card_holder_name,
             card_type,
             card_network,
             card_issuer,

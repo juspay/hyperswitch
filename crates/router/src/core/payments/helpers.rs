@@ -2513,9 +2513,6 @@ pub async fn get_additional_payment_data(
                         last4: card_data.card_number.peek().clone()
                             [card_number_length - 4..card_number_length]
                             .to_string(),
-                        card_exp_month: card_data.card_exp_month.peek().clone(),
-                        card_exp_year: card_data.card_exp_year.peek().clone(),
-                        card_holder_name: card_data.card_holder_name.peek().clone(),
                     },
                 )
             } else {
@@ -2527,7 +2524,7 @@ pub async fn get_additional_payment_data(
                     .ok()
                     .flatten()
                     .map(|card_info| {
-                        (api_models::payments::AdditionalPaymentData::Card(
+                        api_models::payments::AdditionalPaymentData::Card(
                             api_models::payments::AdditionalCardInfo {
                                 card_issuer: card_info.card_issuer,
                                 card_network: card_info.card_network.clone(),
@@ -2537,11 +2534,8 @@ pub async fn get_additional_payment_data(
                                 last4: card_data.card_number.peek().clone()
                                     [card_number_length - 4..card_number_length]
                                     .to_string(),
-                                card_exp_month: card_data.card_exp_month.peek().clone(),
-                                card_exp_year: card_data.card_exp_year.peek().clone(),
-                                card_holder_name: card_data.card_holder_name.peek().clone(),
                             },
-                        ))
+                        )
                     });
                 card_info.unwrap_or(api_models::payments::AdditionalPaymentData::Card(
                     api_models::payments::AdditionalCardInfo {
@@ -2553,9 +2547,6 @@ pub async fn get_additional_payment_data(
                         last4: card_data.card_number.peek().clone()
                             [card_number_length - 4..card_number_length]
                             .to_string(),
-                        card_exp_month: card_data.card_exp_month.peek().clone(),
-                        card_exp_year: card_data.card_exp_year.peek().clone(),
-                        card_holder_name: card_data.card_holder_name.peek().clone(),
                     },
                 ))
             }
