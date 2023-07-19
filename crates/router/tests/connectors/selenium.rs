@@ -75,6 +75,19 @@ pub trait SeleniumTest {
         )
         .expect("Failed to read connector authentication config file")
     }
+    async fn retry_click(&self, times: i32, interval: u64, driver: &WebDriver, by: By) -> Result<(), WebDriverError> {
+        let mut res = Ok(());
+        for _i in 0..times {
+            res = self.click_element(driver, by.clone()).await;
+            if res.is_err() {
+                tokio::time::sleep(Duration::from_secs(interval)).await;
+            }
+            else {
+                break;
+            }
+        }
+        return res;
+    }
     fn get_connector_name(&self) -> String;
     async fn complete_actions(
         &self,
@@ -265,11 +278,7 @@ pub trait SeleniumTest {
                         driver.execute(script, Vec::new()).await?;
                     }
                     Trigger::Click(by) => {
-                        let res = self.click_element(driver, by.clone()).await;
-                        if res.is_err() {
-                            tokio::time::sleep(Duration::from_secs(5)).await;
-                            self.click_element(driver, by).await?;
-                        }
+                        self.retry_click(3, 5, driver, by.clone()).await?;
                     }
                     Trigger::ClickNth(by, n) => {
                         let ele = driver.query(by).all().await?.into_iter().nth(n).unwrap();
@@ -525,15 +534,11 @@ pub trait SeleniumTest {
                 vec![
                     Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
                     Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
-                ],
+                ]
             ),
             Event::EitherOr(
                 Assert::IsPresent("See Offers and Apply for PayPal Credit"),
                 vec![
-                    Event::RunIf(
-                        Assert::IsElePresent(By::Id("spinner")),
-                        vec![Event::Trigger(Trigger::Sleep(5))],
-                    ),
                     Event::Trigger(Trigger::Click(By::Css(".reviewButton"))),
                 ],
                 vec![Event::Trigger(Trigger::Click(By::Id("payment-submit-btn")))],
