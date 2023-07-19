@@ -317,11 +317,15 @@ pub struct Secrets {
     pub jwt_secret: String,
     #[cfg(not(feature = "kms"))]
     pub admin_api_key: String,
+    #[cfg(not(feature = "kms"))]
+    pub recon_admin_api_key: String,
     pub master_enc_key: String,
     #[cfg(feature = "kms")]
     pub kms_encrypted_jwt_secret: String,
     #[cfg(feature = "kms")]
     pub kms_encrypted_admin_api_key: String,
+    #[cfg(feature = "kms")]
+    pub kms_encrypted_recon_admin_api_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -602,7 +606,8 @@ impl Settings {
                     .separator("__")
                     .list_separator(",")
                     .with_list_parse_key("redis.cluster_urls")
-                    .with_list_parse_key("connectors.supported.wallets"),
+                    .with_list_parse_key("connectors.supported.wallets")
+                    .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
             )
             .build()?;
 

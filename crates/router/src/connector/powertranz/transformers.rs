@@ -23,7 +23,6 @@ pub struct PowertranzPaymentsRequest {
     source: Source,
     order_identifier: String,
     billing_address: Option<PowertranzAddressDetails>,
-    shipping_address: Option<PowertranzAddressDetails>,
     extended_data: Option<ExtendedData>,
 }
 
@@ -102,7 +101,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
             )),
         }?;
         let billing_address = get_address_details(&item.address.billing, &item.request.email);
-        let shipping_address = get_address_details(&item.address.shipping, &item.request.email);
         let (three_d_secure, extended_data) = match item.auth_type {
             diesel_models::enums::AuthenticationType::ThreeDs => {
                 (true, Some(ExtendedData::try_from(item)?))
@@ -121,7 +119,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
             source,
             order_identifier: item.payment_id.clone(),
             billing_address,
-            shipping_address,
             extended_data,
         })
     }
@@ -132,6 +129,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ExtendedData {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             three_d_secure: ThreeDSecure {
+                /// Merchants preferred sized of challenge window presented to cardholder.
+                /// 5 maps to 100% of challenge window size
                 challenge_window_size: 5,
             },
             merchant_response_url: item.request.get_complete_authorize_url()?,

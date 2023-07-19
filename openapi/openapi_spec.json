@@ -4348,6 +4348,9 @@
           "on_session"
         ]
       },
+      "GcashRedirection": {
+        "type": "object"
+      },
       "GoPayRedirection": {
         "type": "object"
       },
@@ -4626,6 +4629,9 @@
           "requires_confirmation",
           "requires_capture"
         ]
+      },
+      "KakaoPayRedirection": {
+        "type": "object"
       },
       "KlarnaSessionTokenResponse": {
         "type": "object",
@@ -5008,7 +5014,8 @@
           "merchant_id",
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
-          "primary_business_details"
+          "primary_business_details",
+          "is_recon_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -5129,6 +5136,10 @@
             "type": "string",
             "description": "The organization id merchant is associated with",
             "nullable": true
+          },
+          "is_recon_enabled": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false"
           }
         }
       },
@@ -6822,9 +6833,11 @@
           "giropay",
           "google_pay",
           "go_pay",
+          "gcash",
           "ideal",
           "interac",
           "klarna",
+          "kakao_pay",
           "mb_way",
           "mobile_pay",
           "multibanco",
@@ -8931,11 +8944,33 @@
           {
             "type": "object",
             "required": [
+              "kakao_pay_redirect"
+            ],
+            "properties": {
+              "kakao_pay_redirect": {
+                "$ref": "#/components/schemas/KakaoPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "go_pay_redirect"
             ],
             "properties": {
               "go_pay_redirect": {
                 "$ref": "#/components/schemas/GoPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "gcash_redirect"
+            ],
+            "properties": {
+              "gcash_redirect": {
+                "$ref": "#/components/schemas/GcashRedirection"
               }
             }
           },

@@ -178,7 +178,9 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Twint
             | api_enums::PaymentMethodType::Vipps
             | api_enums::PaymentMethodType::WeChatPay
-            | api_enums::PaymentMethodType::GoPay => Self::Wallet,
+            | api_enums::PaymentMethodType::GoPay
+            | api_enums::PaymentMethodType::Gcash
+            | api_enums::PaymentMethodType::KakaoPay => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::Alma
             | api_enums::PaymentMethodType::AfterpayClearpay
