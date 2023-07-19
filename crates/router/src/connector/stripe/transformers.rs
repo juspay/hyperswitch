@@ -1212,15 +1212,13 @@ fn create_stripe_payment_method(
                         billing_details,
                     ))
                 }
-                _ => Err(
-                    errors::ConnectorError::NotImplemented("this bank transfer".to_string()).into(),
-                ),
+                payments::BankTransferData::Pix {} => Err(errors::ConnectorError::NotImplemented(
+                    "this payment method".to_string(),
+                )
+                .into()),
             }
         }
-        _ => Err(errors::ConnectorError::NotImplemented(
-            "this payment method for stripe".to_string(),
-        )
-        .into()),
+        _ => Err(errors::ConnectorError::NotImplemented("payment method".to_string()).into()),
     }
 }
 
@@ -2868,8 +2866,7 @@ impl
                         })),
                     )),
                     payments::BankTransferData::Pix {} => Err(
-                        errors::ConnectorError::NotImplemented("this bank transfer".to_string())
-                            .into(),
+                        errors::ConnectorError::NotImplemented("payment method".to_string()).into(),
                     ),
                 }
             }
