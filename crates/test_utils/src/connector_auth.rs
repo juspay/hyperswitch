@@ -260,4 +260,6 @@ pub struct AutomationConfigs {
     pub authorizedotnet_gateway_merchant_id: Option<String>,
     pub run_minimum_steps: Option<bool>,
     pub airwallex_merchant_name: Option<String>,
+    pub adyen_bancontact_username: Option<String>,
+    pub adyen_bancontact_pass: Option<String>,
 }
