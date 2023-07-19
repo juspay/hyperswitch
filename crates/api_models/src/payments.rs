@@ -1775,44 +1775,6 @@ impl From<PaymentsStartRequest> for PaymentsRequest {
     }
 }
 
-// impl From<Card> for CardResponse {
-//     fn from(card: Card) -> Self {
-//         let card_number_length = card.card_number.peek().clone().len();
-//         Self {
-//             last4: card.card_number.peek().clone()[card_number_length - 4..card_number_length]
-//                 .to_string(),
-//             exp_month: card.card_exp_month.peek().clone(),
-//             exp_year: card.card_exp_year.peek().clone(),
-//             card_holder_name: card.card_holder_name.peek().clone(),
-//             card_type: card.card_type,
-//             card_network: card.card_network,
-//             card_issuer: card.card_issuer,
-//             card_issuing_country: card.card_issuing_country,
-//         }
-//     }
-// }
-
-// impl ForeignFrom<(PaymentMethodData, AdditionalPaymentData)> for PaymentMethodDataResponse {
-//     fn foreign_from(payment_method_data: PaymentMethodData, additonal_data: AdditionalPaymentData) -> Self {
-//         match payment_method_data {
-//             PaymentMethodData::Card(card) => Self::Card(CardResponse::from(card)),
-//             PaymentMethodData::PayLater(pay_later_data) => Self::PayLater(pay_later_data),
-//             PaymentMethodData::Wallet(wallet_data) => Self::Wallet(wallet_data),
-//             PaymentMethodData::BankRedirect(bank_redirect_data) => {
-//                 Self::BankRedirect(bank_redirect_data)
-//             }
-//             PaymentMethodData::BankTransfer(bank_transfer_data) => {
-//                 Self::BankTransfer(*bank_transfer_data)
-//             }
-//             PaymentMethodData::Crypto(crpto_data) => Self::Crypto(crpto_data),
-//             PaymentMethodData::BankDebit(bank_debit_data) => Self::BankDebit(bank_debit_data),
-//             PaymentMethodData::MandatePayment => Self::MandatePayment,
-//             PaymentMethodData::Reward(reward_data) => Self::Reward(reward_data),
-//             PaymentMethodData::Upi(upi_data) => Self::Upi(upi_data),
-//         }
-//     }
-// }
-
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PgRedirectResponse {
     pub payment_id: String,
