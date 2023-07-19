@@ -230,6 +230,9 @@ pub struct MerchantAccountResponse {
 
     /// The organization id merchant is associated with
     pub organization_id: Option<String>,
+
+    ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
+    pub is_recon_enabled: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

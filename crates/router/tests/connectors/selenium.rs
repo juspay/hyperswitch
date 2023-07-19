@@ -542,6 +542,68 @@ pub trait SeleniumTest {
         pypl_actions.extend(actions);
         self.complete_actions(&web_driver, pypl_actions).await
     }
+    async fn make_clearpay_payment(
+        &self,
+        driver: WebDriver,
+        url: &str,
+        actions: Vec<Event<'_>>,
+    ) -> Result<(), WebDriverError> {
+        self.complete_actions(
+            &driver,
+            vec![
+                Event::Trigger(Trigger::Goto(url)),
+                Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+                Event::Trigger(Trigger::Sleep(5)),
+                Event::RunIf(
+                    Assert::IsPresentNow("Manage Cookies"),
+                    vec![
+                        Event::Trigger(Trigger::Click(By::Css("button.cookie-setting-link"))),
+                        Event::Trigger(Trigger::Click(By::Id("accept-recommended-btn-handler"))),
+                    ],
+                ),
+            ],
+        )
+        .await?;
+        let (email, pass) = (
+            &self
+                .get_configs()
+                .automation_configs
+                .unwrap()
+                .clearpay_email
+                .unwrap(),
+            &self
+                .get_configs()
+                .automation_configs
+                .unwrap()
+                .clearpay_pass
+                .unwrap(),
+        );
+        let mut clearpay_actions = vec![
+            Event::Trigger(Trigger::Sleep(3)),
+            Event::EitherOr(
+                Assert::IsPresent("Please enter your password"),
+                vec![
+                    Event::Trigger(Trigger::SendKeys(By::Css("input[name='password']"), pass)),
+                    Event::Trigger(Trigger::Click(By::Css("button.a_l.a_i.a_n.a_m"))),
+                ],
+                vec![
+                    Event::Trigger(Trigger::SendKeys(
+                        By::Css("input[name='identifier']"),
+                        email,
+                    )),
+                    Event::Trigger(Trigger::Click(By::Css("button[type='submit']"))),
+                    Event::Trigger(Trigger::Sleep(3)),
+                    Event::Trigger(Trigger::SendKeys(By::Css("input[name='password']"), pass)),
+                    Event::Trigger(Trigger::Click(By::Css("button[type='submit']"))),
+                ],
+            ),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button[data-testid='summary-button']",
+            ))),
+        ];
+        clearpay_actions.extend(actions);
+        self.complete_actions(&driver, clearpay_actions).await
+    }
 }
 async fn is_text_present_now(driver: &WebDriver, key: &str) -> WebDriverResult<bool> {
     let mut xpath = "//*[contains(text(),'".to_owned();

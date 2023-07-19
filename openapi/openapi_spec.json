@@ -129,7 +129,47 @@
         ]
       }
     },
-    "/customer/{customer_id}/payment_methods": {
+    "/customers": {
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Create Customer",
+        "description": "Create Customer\n\nCreate a customer object and store the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.",
+        "operationId": "Create a Customer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Customer Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/customers/payment_methods": {
       "get": {
         "tags": [
           "Payment Methods"
@@ -138,6 +178,15 @@
         "description": "List payment methods for a Customer\n\nTo filter and list the applicable payment methods for a particular Customer ID",
         "operationId": "List all Payment Methods for a Customer",
         "parameters": [
+          {
+            "name": "client-secret",
+            "in": "path",
+            "description": "A secret known only to your application and the authorization server",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "customer_id",
             "in": "path",
@@ -212,7 +261,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Payment Methods retrieved",
+            "description": "Payment Methods retrieved for customer tied to its respective client-secret passed in the param",
             "content": {
               "application/json": {
                 "schema": {
@@ -230,50 +279,7 @@
         },
         "security": [
           {
-            "api_key": []
-          },
-          {
-            "ephemeral_key": []
-          }
-        ]
-      }
-    },
-    "/customers": {
-      "post": {
-        "tags": [
-          "Customers"
-        ],
-        "summary": "Create Customer",
-        "description": "Create Customer\n\nCreate a customer object and store the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.",
-        "operationId": "Create a Customer",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CustomerRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Customer Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CustomerResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid data"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
+            "publishable_key": []
           }
         ]
       }
@@ -401,6 +407,112 @@
           },
           "404": {
             "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/customers/{customer_id}/payment_methods": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "List payment methods for a Customer",
+        "description": "List payment methods for a Customer\n\nTo filter and list the applicable payment methods for a particular Customer ID",
+        "operationId": "List all Payment Methods for a Customer",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "description": "The unique identifier for the customer account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accepted_country",
+            "in": "query",
+            "description": "The two-letter ISO currency code",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "accepted_currency",
+            "in": "path",
+            "description": "The three-letter ISO currency code",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Currency"
+              }
+            }
+          },
+          {
+            "name": "minimum_amount",
+            "in": "query",
+            "description": "The minimum amount accepted for processing by the particular payment method.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "maximum_amount",
+            "in": "query",
+            "description": "The maximum amount amount accepted for processing by the particular payment method.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "recurring_payment_enabled",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for recurring payments",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "installment_payment_enabled",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for installment payments",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Methods retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          },
+          "404": {
+            "description": "Payment Methods does not exist in records"
           }
         },
         "security": [
@@ -2996,6 +3108,7 @@
           "powertranz",
           "rapyd",
           "shift4",
+          "stax",
           "stripe",
           "trustpay",
           "tsys",
@@ -3494,6 +3607,7 @@
           "USD",
           "UYU",
           "UZS",
+          "VND",
           "YER",
           "ZAR"
         ]
@@ -4235,6 +4349,12 @@
           "on_session"
         ]
       },
+      "GcashRedirection": {
+        "type": "object"
+      },
+      "GoPayRedirection": {
+        "type": "object"
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -4510,6 +4630,9 @@
           "requires_confirmation",
           "requires_capture"
         ]
+      },
+      "KakaoPayRedirection": {
+        "type": "object"
       },
       "KlarnaSessionTokenResponse": {
         "type": "object",
@@ -4892,7 +5015,8 @@
           "merchant_id",
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
-          "primary_business_details"
+          "primary_business_details",
+          "is_recon_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -5013,6 +5137,10 @@
             "type": "string",
             "description": "The organization id merchant is associated with",
             "nullable": true
+          },
+          "is_recon_enabled": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false"
           }
         }
       },
@@ -5648,6 +5776,9 @@
       "MobilePayRedirection": {
         "type": "object"
       },
+      "MomoRedirection": {
+        "type": "object"
+      },
       "MultibancoBillingDetails": {
         "type": "object",
         "required": [
@@ -6020,7 +6151,8 @@
             ],
             "properties": {
               "pay_bright_redirect": {
-                "type": "object"
+                "type": "object",
+                "description": "For PayBright Redirect as PayLater Option"
               }
             }
           },
@@ -6031,7 +6163,20 @@
             ],
             "properties": {
               "walley_redirect": {
-                "type": "object"
+                "type": "object",
+                "description": "For WalleyRedirect as PayLater Option"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "alma_redirect"
+            ],
+            "properties": {
+              "alma_redirect": {
+                "type": "object",
+                "description": "For Alma Redirection as PayLater Option"
               }
             }
           }
@@ -6675,6 +6820,7 @@
           "afterpay_clearpay",
           "ali_pay",
           "ali_pay_hk",
+          "alma",
           "apple_pay",
           "bacs",
           "bancontact_card",
@@ -6684,16 +6830,21 @@
           "classic",
           "credit",
           "crypto_currency",
+          "dana",
           "debit",
           "eps",
           "evoucher",
           "giropay",
           "google_pay",
+          "go_pay",
+          "gcash",
           "ideal",
           "interac",
           "klarna",
+          "kakao_pay",
           "mb_way",
           "mobile_pay",
+          "momo",
           "multibanco",
           "online_banking_czech_republic",
           "online_banking_finland",
@@ -6707,7 +6858,9 @@
           "sofort",
           "swish",
           "trustly",
+          "twint",
           "upi_collect",
+          "vipps",
           "walley",
           "we_chat_pay"
         ]
@@ -8796,6 +8949,50 @@
           {
             "type": "object",
             "required": [
+              "momo_redirect"
+            ],
+            "properties": {
+              "momo_redirect": {
+                "$ref": "#/components/schemas/MomoRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "kakao_pay_redirect"
+            ],
+            "properties": {
+              "kakao_pay_redirect": {
+                "$ref": "#/components/schemas/KakaoPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "go_pay_redirect"
+            ],
+            "properties": {
+              "go_pay_redirect": {
+                "$ref": "#/components/schemas/GoPayRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "gcash_redirect"
+            ],
+            "properties": {
+              "gcash_redirect": {
+                "$ref": "#/components/schemas/GcashRedirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "apple_pay"
             ],
             "properties": {
@@ -8823,6 +9020,18 @@
             "properties": {
               "apple_pay_third_party_sdk": {
                 "$ref": "#/components/schemas/ApplePayThirdPartySdkData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "dana_redirect"
+            ],
+            "properties": {
+              "dana_redirect": {
+                "type": "object",
+                "description": "Wallet data for DANA redirect flow"
               }
             }
           },
@@ -8911,6 +9120,30 @@
             "properties": {
               "samsung_pay": {
                 "$ref": "#/components/schemas/SamsungPayWalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "twint_redirect"
+            ],
+            "properties": {
+              "twint_redirect": {
+                "type": "object",
+                "description": "Wallet data for Twint Redirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "vipps_redirect"
+            ],
+            "properties": {
+              "vipps_redirect": {
+                "type": "object",
+                "description": "Wallet data for Vipps Redirection"
               }
             }
           },
