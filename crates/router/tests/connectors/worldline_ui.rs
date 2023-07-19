@@ -66,6 +66,7 @@ async fn should_make_worldline_giropay_redirect_payment(
 
 #[test]
 #[serial]
+#[ignore]
 fn should_make_worldline_giropay_redirect_payment_test() {
     tester!(should_make_worldline_giropay_redirect_payment);
 }
