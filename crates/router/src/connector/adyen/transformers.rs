@@ -117,7 +117,6 @@ pub struct AdyenPaymentRequest<'a> {
     country_code: Option<api_enums::CountryAlpha2>,
     line_items: Option<Vec<LineItem>>,
     channel: Option<Channel>,
-    channel: Option<Channel>,
 }
 
 #[derive(Debug, Serialize)]
@@ -270,7 +269,6 @@ pub struct Amount {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
-#[serde(rename_all = "snake_case")]
 pub enum AdyenPaymentMethod<'a> {
     AdyenAffirm(Box<AdyenPayLaterData>),
     AdyenCard(Box<AdyenCard>),
@@ -812,29 +810,6 @@ pub enum PaymentType {
     Samsungpay,
     Twint,
     Vipps,
-}
-
-#[derive(Debug, Eq, PartialEq, Serialize, Clone)]
-#[serde(rename_all = "snake_case")]
-pub enum AdyenIssuerID {
-    FpxAbb,
-    FpxAgrobank,
-    FpxAbmb,
-    FpxAmb,
-    FpxBimb,
-    FpxBmmb,
-    FpxBkrm,
-    FpxBsn,
-    FpxCimbclicks,
-    FpxHlb,
-    FpxHsbc,
-    FpxKfh,
-    FpxMb2u,
-    FpxOcbc,
-    FpxPbb,
-    FpxRhb,
-    FpxScb,
-    FpxUob,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -1955,21 +1930,20 @@ pub fn get_adyen_response(
 > {
     let status =
         storage_enums::AttemptStatus::foreign_from((is_capture_manual, response.result_code));
-    let error: Option<types::ErrorResponse> =
-        if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
-            Some(types::ErrorResponse {
-                code: response
-                    .refusal_reason_code
-                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                message: response
-                    .refusal_reason
-                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                reason: None,
-                status_code,
-            })
-        } else {
-            None
-        };
+    let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
+        Some(types::ErrorResponse {
+            code: response
+                .refusal_reason_code
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .refusal_reason
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: None,
+            status_code,
+        })
+    } else {
+        None
+    };
     let mandate_reference = response
         .additional_data
         .as_ref()
