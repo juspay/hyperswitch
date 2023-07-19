@@ -571,6 +571,7 @@ pub enum PaymentMethodType {
     Giropay,
     GooglePay,
     GoPay,
+    Gcash,
     Ideal,
     Interac,
     Klarna,

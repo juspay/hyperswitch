@@ -283,11 +283,14 @@ pub enum AdyenPaymentMethod<'a> {
     Blik(Box<BlikRedirectionData>),
     ClearPay(Box<AdyenPayLaterData>),
     Eps(Box<BankRedirectionWithIssuer<'a>>),
+    #[serde(rename = "gcash")]
+    Gcash(Box<GcashData>),
     Giropay(Box<BankRedirectionPMData>),
     Gpay(Box<AdyenGPay>),
     #[serde(rename = "gopay_wallet")]
     GoPay(Box<GoPayData>),
     Ideal(Box<BankRedirectionWithIssuer<'a>>),
+    #[serde(rename = "kakaopay")]
     Kakaopay(Box<KakaoPayData>),
     Mandate(Box<AdyenMandate>),
     Mbway(Box<MbwayData>),
@@ -646,6 +649,8 @@ pub struct GoPayData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KakaoPayData {}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GcashData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
@@ -713,6 +718,7 @@ pub enum PaymentType {
     Blik,
     ClearPay,
     Eps,
+    Gcash,
     Giropay,
     Googlepay,
     #[serde(rename = "gopay_wallet")]
@@ -1199,6 +1205,10 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
             api_models::payments::WalletData::KakaoPayRedirect(_) => {
                 let kakao_pay_data = KakaoPayData {};
                 Ok(AdyenPaymentMethod::Kakaopay(Box::new(kakao_pay_data)))
+            }
+            api_models::payments::WalletData::GcashRedirect(_) => {
+                let gcash_data = GcashData {};
+                Ok(AdyenPaymentMethod::Gcash(Box::new(gcash_data)))
             }
             api_models::payments::WalletData::MbWayRedirect(data) => {
                 let mbway_data = MbwayData {
