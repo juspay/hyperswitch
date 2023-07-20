@@ -9,6 +9,7 @@ pub mod files;
 pub mod mandates;
 pub mod payment_methods;
 pub mod payments;
+pub mod payouts;
 pub mod refunds;
 pub mod webhooks;
 
@@ -18,7 +19,7 @@ use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{
     admin::*, api_keys::*, configs::*, customers::*, disputes::*, files::*, payment_methods::*,
-    payments::*, refunds::*, webhooks::*,
+    payments::*, payouts::*, refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{
@@ -111,6 +112,7 @@ pub trait Connector:
     + Dispute
     + FileUpload
     + ConnectorTransactionId
+    + Payouts
 {
 }
 
@@ -128,7 +130,8 @@ impl<
             + ConnectorAccessToken
             + Dispute
             + FileUpload
-            + ConnectorTransactionId,
+            + ConnectorTransactionId
+            + Payouts,
     > Connector for T
 {
 }
@@ -151,6 +154,22 @@ pub struct ConnectorData {
     pub get_token: GetToken,
 }
 
+#[cfg(feature = "payouts")]
+#[derive(Clone)]
+pub struct PayoutConnectorData {
+    pub connector: BoxedConnector,
+    pub connector_name: api_enums::PayoutConnectors,
+    pub get_token: GetToken,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone)]
+pub struct PayoutSessionConnectorData {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub connector: PayoutConnectorData,
+    pub business_sub_label: Option<String>,
+}
+
 #[derive(Clone)]
 pub struct SessionConnectorData {
     pub payment_method_type: api_enums::PaymentMethodType,
@@ -164,15 +183,67 @@ pub enum ConnectorChoice {
     Decide,
 }
 
+#[cfg(feature = "payouts")]
+pub enum PayoutConnectorChoice {
+    SessionMultiple(Vec<PayoutSessionConnectorData>),
+    StraightThrough(serde_json::Value),
+    Decide,
+}
+
 #[derive(Clone)]
 pub enum ConnectorCallType {
     Multiple(Vec<SessionConnectorData>),
     Single(ConnectorData),
 }
 
+#[cfg(feature = "payouts")]
+#[derive(Clone)]
+pub enum PayoutConnectorCallType {
+    Multiple(Vec<PayoutSessionConnectorData>),
+    Single(PayoutConnectorData),
+}
+
 impl ConnectorCallType {
     pub fn is_single(&self) -> bool {
         matches!(self, Self::Single(_))
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl PayoutConnectorData {
+    pub fn get_connector_by_name(
+        connectors: &Connectors,
+        name: &str,
+        connector_type: GetToken,
+    ) -> CustomResult<Self, errors::ApiErrorResponse> {
+        let connector = Self::convert_connector(connectors, name)?;
+        let connector_name = api_enums::PayoutConnectors::from_str(name)
+            .into_report()
+            .change_context(errors::ConnectorError::InvalidConnectorName)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| {
+                format!("unable to parse payout connector name {connector:?}")
+            })?;
+        Ok(Self {
+            connector,
+            connector_name,
+            get_token: connector_type,
+        })
+    }
+
+    fn convert_connector(
+        _connectors: &Connectors,
+        connector_name: &str,
+    ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
+        match enums::PayoutConnectors::from_str(connector_name) {
+            Ok(name) => match name {
+                enums::PayoutConnectors::Adyen => Ok(Box::new(&connector::Adyen)),
+                enums::PayoutConnectors::Wise => Ok(Box::new(&connector::Wise)),
+            },
+            Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
+                .attach_printable(format!("invalid payout connector name: {connector_name}")))
+            .change_context(errors::ApiErrorResponse::InternalServerError),
+        }
     }
 }
 
@@ -248,6 +319,7 @@ impl ConnectorData {
                 enums::Connector::Shift4 => Ok(Box::new(&connector::Shift4)),
                 enums::Connector::Stax => Ok(Box::new(&connector::Stax)),
                 enums::Connector::Stripe => Ok(Box::new(&connector::Stripe)),
+                enums::Connector::Wise => Ok(Box::new(&connector::Wise)),
                 enums::Connector::Worldline => Ok(Box::new(&connector::Worldline)),
                 enums::Connector::Worldpay => Ok(Box::new(&connector::Worldpay)),
                 enums::Connector::Multisafepay => Ok(Box::new(&connector::Multisafepay)),

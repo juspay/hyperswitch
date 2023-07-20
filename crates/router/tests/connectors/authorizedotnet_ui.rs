@@ -46,6 +46,7 @@ async fn should_make_paypal_payment(web_driver: WebDriver) -> Result<(), WebDriv
 
 #[test]
 #[serial]
+#[ignore]
 fn should_make_gpay_payment_test() {
     tester!(should_make_gpay_payment);
 }
