@@ -1885,7 +1885,8 @@ impl services::ConnectorRedirectResponse for Stripe {
                 payments::CallConnectorAction::Trigger,
                 |status| match status {
                     transformers::StripePaymentStatus::Failed
-                    | transformers::StripePaymentStatus::Pending => {
+                    | transformers::StripePaymentStatus::Pending 
+                    | transformers::StripePaymentStatus::Succeeded => {
                         payments::CallConnectorAction::Trigger
                     }
                     _ => payments::CallConnectorAction::StatusUpdate {
