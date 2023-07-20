@@ -21,6 +21,7 @@ pub struct DummyConnectorPaymentsRequest {
 #[derive(Debug, serde::Serialize, Eq, PartialEq)]
 pub enum PaymentMethodData {
     Card(DummyConnectorCard),
+    Wallet(DummyConnectorWallet),
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -31,6 +32,11 @@ pub struct DummyConnectorCard {
     expiry_year: Secret<String>,
     cvc: Secret<String>,
     complete: bool,
+}
+
+#[derive(Debug, serde::Serialize, Eq, PartialEq)]
+pub enum DummyConnectorWallet {
+    GooglePay
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequest {
@@ -50,7 +56,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequ
                     amount: item.request.amount,
                     currency: item.request.currency,
                     payment_method_data: PaymentMethodData::Card(card),
-                    return_url: item.return_url.clone(),
+                    return_url: item.request.router_return_url.clone(),
+                })
+            }
+            api::PaymentMethodData::Wallet(api_models::payments::WalletData::GooglePayRedirect(_)) => {
+                Ok(Self {
+                    amount: item.request.amount,
+                    currency: item.request.currency,
+                    payment_method_data: PaymentMethodData::Wallet(DummyConnectorWallet::GooglePay),
+                    return_url: item.request.router_return_url.clone(),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),

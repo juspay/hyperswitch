@@ -94,6 +94,37 @@ pub async fn payment(
                 }
             }
         }
+        types::DummyConnectorPaymentMethodData::Wallet(types::DummyConnectorWallet::GooglePay) => {
+            let payment_data = types::DummyConnectorPaymentData::new(
+                payment_id.clone(),
+                types::DummyConnectorStatus::Processing,
+                req.amount,
+                req.amount,
+                req.currency,
+                timestamp,
+                types::PaymentMethodType::Card,
+                Some(types::DummyConnectorNextAction::RedirectToUrl(format!(
+                    "{}/dummy-connector/authorize/{}",
+                    state.conf.server.base_url, attempt_id
+                ))),
+                req.return_url,
+            );
+            utils::store_data_in_redis(
+                redis_conn.clone(),
+                payment_id.clone(),
+                payment_data.clone(),
+                state.conf.dummy_connector.payment_ttl,
+            )
+            .await?;
+            utils::store_data_in_redis(
+                redis_conn,
+                attempt_id.clone(),
+                payment_id.clone(),
+                state.conf.dummy_connector.authorize_ttl,
+            )
+            .await?;
+            Ok(api::ApplicationResponse::Json(payment_data.into()))
+        }
     }
 }
 

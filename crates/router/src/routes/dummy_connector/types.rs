@@ -43,6 +43,12 @@ pub struct DummyConnectorPaymentRequest {
 #[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
 pub enum DummyConnectorPaymentMethodData {
     Card(DummyConnectorCard),
+    Wallet(DummyConnectorWallet),
+}
+
+#[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
+pub enum DummyConnectorWallet {
+    GooglePay
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
