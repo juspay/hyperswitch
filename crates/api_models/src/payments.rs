@@ -1113,9 +1113,9 @@ pub struct CardResponse {
     pub card_issuer: Option<String>,
     pub card_issuing_country: Option<String>,
     pub card_isin: String,
-    pub card_exp_month: String,
-    pub card_exp_year: String,
-    pub card_holder_name: String,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_holder_name: Secret<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1130,16 +1130,16 @@ pub struct RewardData {
 pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
     Card(CardResponse),
-    BankTransfer(),
-    Wallet(),
-    PayLater(),
+    BankTransfer,
+    Wallet,
+    PayLater,
     Paypal,
-    BankRedirect(),
-    Crypto(),
-    BankDebit(),
+    BankRedirect,
+    Crypto,
+    BankDebit,
     MandatePayment,
-    Reward(),
-    Upi(),
+    Reward,
+    Upi,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1786,9 +1786,9 @@ impl From<AdditionalCardInfo> for CardResponse {
             card_issuer: card.card_issuer,
             card_issuing_country: card.card_issuing_country,
             card_isin: card.card_isin,
-            card_exp_month: card.card_exp_month,
-            card_exp_year: card.card_exp_year,
-            card_holder_name: card.card_holder_name,
+            card_exp_month: card.card_exp_month.into(),
+            card_exp_year: card.card_exp_year.into(),
+            card_holder_name: card.card_holder_name.into(),
         }
     }
 }
@@ -1797,15 +1797,15 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
     fn from(payment_method_data: AdditionalPaymentData) -> Self {
         match payment_method_data {
             AdditionalPaymentData::Card(card) => Self::Card(CardResponse::from(*card)),
-            AdditionalPaymentData::PayLater {} => Self::PayLater(),
-            AdditionalPaymentData::Wallet {} => Self::Wallet(),
-            AdditionalPaymentData::BankRedirect { bank_name: _ } => Self::BankRedirect(),
-            AdditionalPaymentData::Crypto {} => Self::Crypto(),
-            AdditionalPaymentData::BankDebit {} => Self::BankDebit(),
+            AdditionalPaymentData::PayLater {} => Self::PayLater,
+            AdditionalPaymentData::Wallet {} => Self::Wallet,
+            AdditionalPaymentData::BankRedirect { bank_name: _ } => Self::BankRedirect,
+            AdditionalPaymentData::Crypto {} => Self::Crypto,
+            AdditionalPaymentData::BankDebit {} => Self::BankDebit,
             AdditionalPaymentData::MandatePayment {} => Self::MandatePayment,
-            AdditionalPaymentData::Reward {} => Self::Reward(),
-            AdditionalPaymentData::Upi {} => Self::Upi(),
-            AdditionalPaymentData::BankTransfer {} => Self::BankTransfer(),
+            AdditionalPaymentData::Reward {} => Self::Reward,
+            AdditionalPaymentData::Upi {} => Self::Upi,
+            AdditionalPaymentData::BankTransfer {} => Self::BankTransfer,
         }
     }
 }
