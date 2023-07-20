@@ -236,8 +236,8 @@ pub struct AdyenThreeDS {
 #[serde(untagged)]
 pub enum AdyenPaymentResponse {
     Response(Response),
-    RedirectResponse(RedirectionResponse),
     PresentToShopper(AdyenPTSResponse),
+    RedirectResponse(RedirectionResponse),
     RedirectionErrorResponse(RedirectionErrorResponse),
 }
 
@@ -1123,11 +1123,24 @@ fn get_shopper_name(address: Option<&api_models::payments::Address>) -> Option<S
     })
 }
 
-fn get_country_code(item: &types::PaymentsAuthorizeRouterData) -> Option<api_enums::CountryAlpha2> {
-    item.address
-        .billing
-        .as_ref()
-        .and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
+fn get_country_code(
+    address: Option<&api_models::payments::Address>,
+) -> Option<api_enums::CountryAlpha2> {
+    address.and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
+}
+
+#[cfg(feature = "payouts")]
+fn get_payout_card_details(payout_method_data: &PayoutMethodData) -> Option<PayoutCardDetails> {
+    match payout_method_data {
+        PayoutMethodData::Card(card) => Some(PayoutCardDetails {
+            _type: "scheme".to_string(), // FIXME: Remove hardcoding
+            number: card.card_number.peek().to_string(),
+            expiry_month: card.expiry_month.peek().to_string(),
+            expiry_year: card.expiry_year.peek().to_string(),
+            holder_name: card.card_holder_name.peek().to_string(),
+        }),
+        _ => None,
+    }
 }
 
 fn get_social_security_number(
@@ -1784,6 +1797,7 @@ impl<'a>
             line_items: None,
             shopper_reference: None,
             store_payment_method: None,
+            channel: None,
         };
         Ok(request)
     }
@@ -2172,6 +2186,7 @@ pub fn get_present_to_shopper_response(
         mandate_reference: None,
         connector_metadata: Some(metadata),
         network_txn_id: None,
+        connector_response_reference_id: None,
     };
 
     Ok((status, error, payments_response_data))
@@ -2210,57 +2225,6 @@ pub fn get_redirection_error_response(
     Ok((status, error, payments_response_data))
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AdyenMetaData {
-    download_url: Option<Url>,
-    reference: String,
-}
-
-pub fn get_present_to_shopper_response(
-    response: AdyenPTSResponse,
-    is_manual_capture: bool,
-    status_code: u16,
-) -> errors::CustomResult<
-    (
-        storage_enums::AttemptStatus,
-        Option<types::ErrorResponse>,
-        types::PaymentsResponseData,
-    ),
-    errors::ConnectorError,
-> {
-    let status =
-        storage_enums::AttemptStatus::foreign_from((is_manual_capture, response.result_code));
-    let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
-        Some(types::ErrorResponse {
-            code: response
-                .refusal_reason_code
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: response
-                .refusal_reason
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
-            status_code,
-        })
-    } else {
-        None
-    };
-
-    let metadata = serde_json::json!(AdyenMetaData {
-        download_url: response.action.download_url,
-        reference: response.action.reference,
-    });
-
-    let payments_response_data = types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::ConnectorTransactionId(response.psp_reference),
-        redirection_data: None,
-        mandate_reference: None,
-        connector_metadata: Some(metadata),
-        network_txn_id: None,
-    };
-
-    Ok((status, error, payments_response_data))
-}
-
 impl<F, Req>
     TryFrom<(
         types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
@@ -2277,11 +2241,11 @@ impl<F, Req>
         let item = items.0;
         let is_manual_capture = items.1;
         let (status, error, payment_response_data) = match item.response {
-            AdyenPaymentResponse::Response(response) => {
-                get_adyen_response(response, is_manual_capture, item.http_code)?
-            }
             AdyenPaymentResponse::PresentToShopper(response) => {
                 get_present_to_shopper_response(response, is_manual_capture, item.http_code)?
+            }
+            AdyenPaymentResponse::Response(response) => {
+                get_adyen_response(response, is_manual_capture, item.http_code)?
             }
             AdyenPaymentResponse::RedirectResponse(response) => {
                 get_redirection_response(response, is_manual_capture, item.http_code)?

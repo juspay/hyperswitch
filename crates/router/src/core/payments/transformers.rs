@@ -658,7 +658,7 @@ pub fn bank_transfer_next_steps_check(
 pub fn voucher_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::VoucherNextStepData>> {
-    let voucher_next_step = if let Some(storage_models::enums::PaymentMethod::Voucher) =
+    let voucher_next_step = if let Some(diesel_models::enums::PaymentMethod::Voucher) =
         payment_attempt.payment_method
     {
         let voucher_next_steps: Option<api_models::payments::VoucherNextStepData> = payment_attempt
