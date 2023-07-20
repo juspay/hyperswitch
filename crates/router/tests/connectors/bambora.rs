@@ -104,7 +104,7 @@ async fn should_sync_authorized_payment() {
                     txn_id.unwrap(),
                 ),
                 encoded_data: None,
-                capture_method: Some(storage_models::enums::CaptureMethod::Manual),
+                capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 connector_meta: None,
             }),
             None,

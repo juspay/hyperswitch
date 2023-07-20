@@ -1,11 +1,12 @@
 use std::str::FromStr;
 use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::{
+    core::utils as core_utils,
+    types::{self, api, storage::enums,
+}};
 
-use crate::{
-    connector_auth,
-    utils::{self, ConnectorActions},
-};
+use crate::utils::{self, ConnectorActions};
+use test_utils::connector_auth;
 
 #[derive(Clone, Copy)]
 struct {{project-name | downcase | pascal_case}}Test;
@@ -395,6 +396,215 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         response.response.unwrap_err().message,
         "Refund amount (₹1.50) is greater than charge amount (₹1.00)",
     );
+}
+
+/******************** Payouts test cases ********************/ 
+// Creates a BACS payout at connector's end
+#[actix_web::test]
+async fn should_create_bacs_payout() {
+    let payment_info = PaymentInfo {
+        payout_method_data: Some(api::PayoutMethodData::Bank(
+                api::payouts::BankPayout::Bacs(api::BacsBankTransfer {
+                    bank_sort_code: "231470".to_string(),
+                    bank_account_number: "28821822".to_string(),
+                    bank_name: "Deutsche Bank".to_string(),
+                    bank_country_code: enums::CountryAlpha2::NL,
+                    bank_city: "Amsterdam".to_string(),
+                }),
+            ))
+    };
+    let response = CONNECTOR
+        .create_payout(payment_info)
+        .await
+        .expect("Payout bank creation response");
+    assert_eq!(response.status, enums::PayoutStatus::RequiresFulfillment);
+}
+
+// Fulfills an existing BACS payout at connector's end
+#[actix_web::test]
+async fn should_fulfill_bacs_payout() {
+    let payment_info = PaymentInfo {
+        payout_method_data: Some(api::PayoutMethodData::Bank(
+                api::payouts::BankPayout::Bacs(api::BacsBankTransfer {
+                    bank_sort_code: "231470".to_string(),
+                    bank_account_number: "28821822".to_string(),
+                    bank_name: "Deutsche Bank".to_string(),
+                    bank_country_code: enums::CountryAlpha2::NL,
+                    bank_city: "Amsterdam".to_string(),
+                }),
+            ))
+    };
+    let payout_id = core_utils::get_or_generate_uuid("payout_id", &None)
+    .map_or("payout_3154763247".to_string(), |p| p);
+    let response = CONNECTOR
+        .fulfill_payout(payout_id, payment_info)
+        .await
+        .expect("Payout bank fulfill response");
+    assert_eq!(response.status, enums::PayoutStatus::Success);
+}
+
+// Creates and fulfills BACS payout at connector's end
+#[actix_web::test]
+async fn should_create_and_fulfill_bacs_payout() {
+    let payment_info = PaymentInfo {
+        payout_method_data: Some(api::PayoutMethodData::Bank(
+                api::payouts::BankPayout::Bacs(api::BacsBankTransfer {
+                    bank_sort_code: "231470".to_string(),
+                    bank_account_number: "28821822".to_string(),
+                    bank_name: "Deutsche Bank".to_string(),
+                    bank_country_code: enums::CountryAlpha2::NL,
+                    bank_city: "Amsterdam".to_string(),
+                }),
+            ))
+    };
+    let response = CONNECTOR
+        .create_and_fulfill_payout(None, payment_info)
+        .await
+        .expect("Payout bank creation and fulfill response");
+    assert_eq!(response.status, enums::PayoutStatus::Success);
+}
+
+// Creates a ACH payout at connector's end
+#[actix_web::test]
+async fn should_create_ach_payout() {
+    let payment_info = PaymentInfo {
+        payout_method_data: Some(api::PayoutMethodData::Bank(
+                api::payouts::BankPayout::Ach(api::AchBankTransfer {
+                    bank_sort_code: "231470".to_string(),
+                    bank_account_number: "28821822".to_string(),
+                    bank_name: "Deutsche Bank".to_string(),
+                    bank_country_code: enums::CountryAlpha2::NL,
+                    bank_city: "Amsterdam".to_string(),
+                }),
+            ))
+    };
+    let response = CONNECTOR
+        .create_payout(payment_info)
+        .await
+        .expect("Payout bank creation response");
+    assert_eq!(response.status, enums::PayoutStatus::RequiresFulfillment);
+}
+
+// Fulfills an existing ACH payout at connector's end
+#[actix_web::test]
+async fn should_fulfill_ach_payout() {
+    let payment_info = PaymentInfo {
+        payout_method_data: Some(api::PayoutMethodData::Bank(
+                api::payouts::BankPayout::Ach(api::AchBankTransfer {
+                    bank_sort_code: "231470".to_string(),
+                    bank_account_number: "28821822".to_string(),
+                    bank_name: "Deutsche Bank".to_string(),
+                    bank_country_code: enums::CountryAlpha2::NL,
+                    bank_city: "Amsterdam".to_string(),
+                }),
+            ))
+    };
+    let payout_id = core_utils::get_or_generate_uuid("payout_id", &None)
+    .map_or("payout_3154763247".to_string(), |p| p);
+    let response = CONNECTOR
+        .fulfill_payout(payout_id, payment_info)
+        .await
+        .expect("Payout bank fulfill response");
+    assert_eq!(response.status, enums::PayoutStatus::Success);
+}
+
+// Creates and fulfills ACH payout at connector's end
+#[actix_web::test]
+async fn should_create_and_fulfill_ach_payout() {
+    let payment_info = PaymentInfo {
+        payout_method_data: Some(api::PayoutMethodData::Bank(
+                api::payouts::BankPayout::Ach(api::AchBankTransfer {
+                    bank_sort_code: "231470".to_string(),
+                    bank_account_number: "28821822".to_string(),
+                    bank_name: "Deutsche Bank".to_string(),
+                    bank_country_code: enums::CountryAlpha2::NL,
+                    bank_city: "Amsterdam".to_string(),
+                }),
+            ))
+    };
+    let response = CONNECTOR
+        .create_and_fulfill_payout(None, payment_info)
+        .await
+        .expect("Payout bank creation and fulfill response");
+    assert_eq!(response.status, enums::PayoutStatus::Success);
+}
+
+// Creates a recipient at connector's end
+#[actix_web::test]
+async fn should_create_payout_recipient() {
+    let payment_info = PaymentInfo {
+        payout_method_data: Some(api::PayoutMethodData::Bank(
+                api::payouts::BankPayout::Ach(api::AchBankTransfer {
+                    bank_sort_code: "231470".to_string(),
+                    bank_account_number: "28821822".to_string(),
+                    bank_name: "Deutsche Bank".to_string(),
+                    bank_country_code: enums::CountryAlpha2::NL,
+                    bank_city: "Amsterdam".to_string(),
+                }),
+            ))
+    };
+    let response = CONNECTOR
+        .create_payout_recipient(payment_info)
+        .await
+        .expect("Payout recipient creation response");
+    assert_eq!(response.status, enums::PayoutStatus::RequiresCreation);
+}
+
+// Checks eligibility of given card details at connector's end
+#[actix_web::test]
+async fn should_verify_payout_eligibility() {
+    let payment_info = PaymentInfo {
+        payout_method_data: Some(api::PayoutMethodData::Card(api::payouts::CardPayout {
+            card_number: CardNumber::from_str("4111111111111111").unwrap(),
+            expiry_month: Secret::new("3".to_string()),
+            expiry_year: Secret::new("2030".to_string()),
+            card_holder_name: Secret::new("John Doe".to_string()),
+        }))
+    };
+    let response = CONNECTOR
+        .verify_payout_eligibility(payment_info)
+        .await
+        .expect("Payout eligibility response");
+    assert_eq!(response.status.unwrap(), enums::PayoutStatus::RequiresCreation);
+}
+
+// Fulfills card payout at connector's end
+#[actix_web::test]
+async fn should_fulfill_card_payout() {
+    let payment_info = PaymentInfo {
+        payout_method_data: Some(api::PayoutMethodData::Card(api::payouts::CardPayout {
+            card_number: CardNumber::from_str("4111111111111111").unwrap(),
+            expiry_month: Secret::new("3".to_string()),
+            expiry_year: Secret::new("2030".to_string()),
+            card_holder_name: Secret::new("John Doe".to_string()),
+        }))
+    };
+    let response = CONNECTOR
+        .fulfill_payout(payment_info)
+        .await
+        .expect("Payout fulfill response");
+    assert_eq!(response.status.unwrap(), enums::PayoutStatus::RequiresCreation);
+}
+
+// Attempts cancellation of a created payout at connector's end
+#[actix_web::test]
+async fn should_create_and_cancel_created_payout() {
+    let payment_info = PaymentInfo {
+        payout_method_data: Some(api::PayoutMethodData::Bank(
+                api::payouts::BankPayout::Ach(api::AchBankTransfer {
+                    bank_sort_code: "231470".to_string(),
+                    bank_account_number: "28821822".to_string(),
+                    bank_name: "Deutsche Bank".to_string(),
+                    bank_country_code: enums::CountryAlpha2::NL,
+                    bank_city: "Amsterdam".to_string(),
+                }),
+            ))
+    };
+    let response = CONNECTOR
+        .create_and_cancel_payout(None, payment_info)
+        .await
+        .expect("Payout cancel response");
+    assert_eq!(response.status.unwrap(), enums::PayoutStatus::Success);
 }
 
 // Connector dependent test cases goes here

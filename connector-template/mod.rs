@@ -2,6 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 use error_stack::{ResultExt, IntoReport};
+use masking::ExposeInterface;
 
 use crate::{
     configs::settings,
@@ -80,7 +81,7 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
     fn get_auth_header(&self, auth_type:&types::ConnectorAuthType)-> CustomResult<Vec<(String,request::Maskable<String>)>,errors::ConnectorError> {
         let auth =  {{project-name | downcase}}::{{project-name | downcase | pascal_case}}AuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key.into_masked())])
+        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key.expose().into_masked())])
     }
 
     fn build_error_response(
@@ -143,12 +144,9 @@ impl
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
-    fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
+    fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest::try_from(req)?;
-        let {{project-name | downcase}}_req =
-            utils::Encode::<{{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest>::encode_to_string_of_json(
-                &req_obj,
-            )
+        let {{project-name | downcase}}_req = types::RequestBody::log_and_get_request_body(&req_obj, utils::Encode::<{{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest>::encode_to_string_of_json)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some({{project-name | downcase}}_req))
     }
@@ -284,7 +282,7 @@ impl
     fn get_request_body(
         &self,
         _req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
@@ -356,12 +354,9 @@ impl
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
-    fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<String>,errors::ConnectorError> {
+    fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RefundRequest::try_from(req)?;
-        let {{project-name | downcase}}_req =
-            utils::Encode::<{{project-name | downcase}}::{{project-name | downcase | pascal_case}}RefundRequest>::encode_to_string_of_json(
-                &req_obj,
-            )
+        let {{project-name | downcase}}_req = types::RequestBody::log_and_get_request_body(&req_obj, utils::Encode::<{{project-name | downcase}}::{{project-name | downcase | pascal_case}}RefundRequest>::encode_to_string_of_json)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some({{project-name | downcase}}_req))
     }

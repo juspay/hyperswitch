@@ -21,10 +21,10 @@ pub struct MerchantKeyStore {
 
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for MerchantKeyStore {
-    type DstType = storage_models::merchant_key_store::MerchantKeyStore;
-    type NewDstType = storage_models::merchant_key_store::MerchantKeyStoreNew;
+    type DstType = diesel_models::merchant_key_store::MerchantKeyStore;
+    type NewDstType = diesel_models::merchant_key_store::MerchantKeyStoreNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(storage_models::merchant_key_store::MerchantKeyStore {
+        Ok(diesel_models::merchant_key_store::MerchantKeyStore {
             key: self.key.into(),
             merchant_id: self.merchant_id,
             created_at: self.created_at,
@@ -50,7 +50,7 @@ impl super::behaviour::Conversion for MerchantKeyStore {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        Ok(storage_models::merchant_key_store::MerchantKeyStoreNew {
+        Ok(diesel_models::merchant_key_store::MerchantKeyStoreNew {
             merchant_id: self.merchant_id,
             key: self.key.into(),
             created_at: date_time::now(),

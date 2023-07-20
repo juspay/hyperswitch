@@ -1,8 +1,12 @@
+use std::collections::HashSet;
+
 use cards::CardNumber;
 use common_utils::{crypto::OptionalEncryptableName, pii};
 use serde::de;
 use utoipa::ToSchema;
 
+#[cfg(feature = "payouts")]
+use crate::payouts;
 use crate::{
     admin, enums as api_enums,
     payments::{self, BankCodeResponse},
@@ -86,6 +90,10 @@ pub struct CardDetail {
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
     pub card_holder_name: Option<masking::Secret<String>>,
+
+    /// Card Holder's Nick Name
+    #[schema(value_type = Option<String>,example = "John Doe")]
+    pub nick_name: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -159,6 +167,9 @@ pub struct CardDetailFromLocker {
 
     #[schema(value_type=Option<String>)]
     pub card_fingerprint: Option<masking::Secret<String>>,
+
+    #[schema(value_type=Option<String>)]
+    pub nick_name: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
@@ -207,6 +218,23 @@ pub struct ResponsePaymentMethodTypes {
     pub bank_debits: Option<BankDebitTypes>,
     /// The Bank transfer payment method information, if applicable for a payment method type.
     pub bank_transfers: Option<BankTransferTypes>,
+
+    /// Required fields for the payment_method_type.
+    pub required_fields: Option<HashSet<RequiredFieldInfo>>,
+}
+
+/// Required fields info used while listing the payment_method_data
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema, Hash)]
+pub struct RequiredFieldInfo {
+    /// Required field for a payment_method through a payment_method_type
+    pub required_field: String,
+
+    /// Display name of the required field in the front-end
+    pub display_name: String,
+
+    /// Possible field type of required field
+    #[schema(value_type = FieldType)]
+    pub field_type: api_enums::FieldType,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -293,7 +321,7 @@ pub struct RequestPaymentMethodTypes {
 }
 
 //List Payment Method
-#[derive(Debug, serde::Serialize, Default, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodListRequest {
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
@@ -542,8 +570,13 @@ pub struct CustomerPaymentMethod {
     #[schema(value_type = Option<PrimitiveDateTime>,example = "2023-01-18T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Bank>)]
+    pub bank_transfer: Option<payouts::Bank>,
 }
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodId {
     pub payment_method_id: String,
 }

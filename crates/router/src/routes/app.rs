@@ -5,11 +5,13 @@ use tokio::sync::oneshot;
 
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
+#[cfg(feature = "payouts")]
+use super::payouts::*;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
+use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 #[cfg(feature = "kms")]
@@ -147,7 +149,9 @@ impl Payments {
 
         #[cfg(feature = "olap")]
         {
-            route = route.service(web::resource("/list").route(web::get().to(payments_list)));
+            route = route
+                .service(web::resource("/list").route(web::get().to(payments_list)))
+                .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
         }
         #[cfg(feature = "oltp")]
         {
@@ -220,14 +224,18 @@ impl Customers {
             route = route
                 .service(web::resource("").route(web::post().to(customers_create)))
                 .service(
-                    web::resource("/{customer_id}")
-                        .route(web::get().to(customers_retrieve))
-                        .route(web::post().to(customers_update))
-                        .route(web::delete().to(customers_delete)),
+                    web::resource("/payment_methods")
+                        .route(web::get().to(list_customer_payment_method_api_client)),
                 )
                 .service(
                     web::resource("/{customer_id}/payment_methods")
                         .route(web::get().to(list_customer_payment_method_api)),
+                )
+                .service(
+                    web::resource("/{customer_id}")
+                        .route(web::get().to(customers_retrieve))
+                        .route(web::post().to(customers_update))
+                        .route(web::delete().to(customers_delete)),
                 );
         }
         route
@@ -262,28 +270,22 @@ impl Refunds {
     }
 }
 
+#[cfg(feature = "payouts")]
 pub struct Payouts;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(feature = "payouts")]
 impl Payouts {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/payouts").app_data(web::Data::new(state));
-
-        #[cfg(feature = "olap")]
-        {
-            route =
-                route.service(web::resource("/accounts").route(web::get().to(payouts_accounts)));
-        }
-        #[cfg(feature = "oltp")]
-        {
-            route = route
-                .service(web::resource("/create").route(web::post().to(payouts_create)))
-                .service(web::resource("/retrieve").route(web::get().to(payouts_retrieve)))
-                .service(web::resource("/update").route(web::post().to(payouts_update)))
-                .service(web::resource("/reverse").route(web::post().to(payouts_reverse)))
-                .service(web::resource("/cancel").route(web::post().to(payouts_cancel)));
-        }
+        let route = web::scope("/payouts").app_data(web::Data::new(state));
         route
+            .service(web::resource("/create").route(web::post().to(payouts_create)))
+            .service(web::resource("/{payout_id}/cancel").route(web::post().to(payouts_cancel)))
+            .service(web::resource("/{payout_id}/fulfill").route(web::post().to(payouts_fulfill)))
+            .service(
+                web::resource("/{payout_id}")
+                    .route(web::get().to(payouts_retrieve))
+                    .route(web::put().to(payouts_update)),
+            )
     }
 }
 
@@ -408,7 +410,7 @@ impl Webhooks {
         web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
-                web::resource("/{merchant_id}/{connector}")
+                web::resource("/{merchant_id}/{connector_label}")
                     .route(
                         web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     )

@@ -38,7 +38,6 @@ master_enc_key = "73ad7bbbbc640c845a150f67d058b279849370cd2c1f3c67c4dd6c869213e1
 host = ""
 mock_locker = true
 basilisk_host = ""
-locker_setup = "legacy_locker"
 
 [jwekey]
 locker_key_identifier1 = ""
@@ -72,6 +71,7 @@ cards = [
     "fiserv",
     "forte",
     "globalpay",
+    "globepay",
     "iatapay",
     "mollie",
     "multisafepay",
@@ -85,9 +85,13 @@ cards = [
     "payme",
     "paypal",
     "payu",
+    "powertranz",
     "shift4",
+    "stax",
     "stripe",
     "trustpay",
+    "tsys",
+    "wise",
     "worldline",
     "worldpay",
     "zen",
@@ -109,6 +113,7 @@ hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 [connectors]
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
+adyen.secondary_base_url = "https://pal-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
@@ -126,9 +131,11 @@ dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
+globepay.base_url = "https://pay.globepay.co/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
+mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nmi.base_url = "https://secure.nmi.com/"
@@ -140,13 +147,17 @@ payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
 paypal.base_url = "https://www.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
+powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
+stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
+wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+tsys.base_url = "https://stagegw.transnox.com/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen.com/"
@@ -240,9 +251,11 @@ ach = {country = "US", currency = "USD"}
 bacs = {country = "UK", currency = "GBP"}
 sepa = {country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT", currency = "EUR"}
 ali_pay_hk = {country = "HK", currency = "HKD"}
+bizum = {country = "ES", currency = "EUR"}
 go_pay = {country = "ID", currency = "IDR"}
 kakao_pay = {country = "KR", currency = "KRW"}
 momo = {country = "VN", currency = "VND"}
+gcash = {country = "PH", currency = "PHP"}
 online_banking_fpx = {country = "MY", currency = "MYR"}
 online_banking_thailand = {country = "TH", currency = "THB"}
 
@@ -295,9 +308,11 @@ debit = { currency = "USD" }
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet" }
+mollie = {long_lived_token = false, payment_method = "card"}
 
 [connector_customer]
 connector_list = "bluesnap,stripe"
+payout_connector_list = "wise"
 
 [dummy_connector]
 payment_ttl = 172800
@@ -313,3 +328,16 @@ refund_retrieve_tolerance = 100
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay"
+
+[mandates.supported_payment_methods]
+pay_later.klarna = {connector_list = "adyen"}
+wallet.google_pay = {connector_list = "stripe,adyen"}
+wallet.apple_pay = {connector_list = "stripe,adyen"}
+card.credit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
+card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
+
+[connector_request_reference_id_config]
+merchant_ids_send_payment_id_as_connector_request_id = []
+
+[payouts]
+payout_eligibility = true

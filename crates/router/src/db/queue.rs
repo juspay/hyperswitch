@@ -83,7 +83,9 @@ impl QueueInterface for Store {
         ttl: i64,
     ) -> CustomResult<bool, RedisError> {
         let conn = self.redis_conn()?.clone();
-        let is_lock_acquired = conn.set_key_if_not_exist(lock_key, lock_val).await;
+        let is_lock_acquired = conn
+            .set_key_if_not_exists_with_expiry(lock_key, lock_val, None)
+            .await;
         Ok(match is_lock_acquired {
             Ok(SetnxReply::KeySet) => match conn.set_expiry(lock_key, ttl).await {
                 Ok(()) => true,

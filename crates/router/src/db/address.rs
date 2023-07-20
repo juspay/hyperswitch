@@ -1,6 +1,6 @@
 use common_utils::ext_traits::AsyncExt;
+use diesel_models::address::AddressUpdateInternal;
 use error_stack::{IntoReport, ResultExt};
-use storage_models::address::AddressUpdateInternal;
 
 use super::{MockDb, Store};
 use crate::{

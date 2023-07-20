@@ -6,7 +6,10 @@ use error_stack::report;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
-    compatibility::{stripe::errors, wrap},
+    compatibility::{
+        stripe::{errors, payment_intents::types as stripe_payment_types},
+        wrap,
+    },
     core::payments,
     routes,
     services::{api, authentication as auth},
@@ -71,6 +74,7 @@ pub async fn setup_intents_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
     path: web::Path<String>,
+    query_payload: web::Query<stripe_payment_types::StripePaymentRetrieveBody>,
 ) -> HttpResponse {
     let payload = payment_types::PaymentsRetrieveRequest {
         resource_id: api_types::PaymentIdType::PaymentIntentId(path.to_string()),
@@ -79,12 +83,15 @@ pub async fn setup_intents_retrieve(
         connector: None,
         param: None,
         merchant_connector_details: None,
+        client_secret: query_payload.client_secret.clone(),
+        expand_attempts: None,
     };
 
-    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(report!(err)),
-    };
+    let (auth_type, auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(report!(err)),
+        };
 
     let flow = Flow::PaymentsRetrieve;
 

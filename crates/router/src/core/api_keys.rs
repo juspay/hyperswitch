@@ -1,20 +1,31 @@
 use common_utils::date_time;
+#[cfg(feature = "email")]
+use diesel_models::{api_keys::ApiKey, enums as storage_enums};
 use error_stack::{report, IntoReport, ResultExt};
 #[cfg(feature = "kms")]
 use external_services::kms;
 use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "email")]
+use crate::types::storage::enums;
 use crate::{
     configs::settings,
     consts,
     core::errors::{self, RouterResponse, StorageErrorExt},
     db::StorageInterface,
-    routes::metrics,
+    routes::{metrics, AppState},
     services::ApplicationResponse,
     types::{api, storage, transformers::ForeignInto},
     utils,
 };
+
+#[cfg(feature = "email")]
+const API_KEY_EXPIRY_TAG: &str = "API_KEY";
+#[cfg(feature = "email")]
+const API_KEY_EXPIRY_NAME: &str = "API_KEY_EXPIRY";
+#[cfg(feature = "email")]
+const API_KEY_EXPIRY_RUNNER: &str = "API_KEY_EXPIRY_WORKFLOW";
 
 static HASH_KEY: tokio::sync::OnceCell<StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> =
     tokio::sync::OnceCell::const_new();
@@ -117,12 +128,25 @@ impl PlaintextApiKey {
 
 #[instrument(skip_all)]
 pub async fn create_api_key(
-    store: &dyn StorageInterface,
+    state: &AppState,
     api_key_config: &settings::ApiKeys,
     #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
     api_key: api::CreateApiKeyRequest,
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
+    let store = &*state.store;
+    // We are not fetching merchant account as the merchant key store is needed to search for a
+    // merchant account.
+    // Instead, we're only fetching merchant key store, as it is sufficient to identify
+    // non-existence of a merchant account.
+    store
+        .get_merchant_key_store_by_merchant_id(
+            merchant_id.as_str(),
+            &store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
     let hash_key = get_hash_key(
         api_key_config,
         #[cfg(feature = "kms")]
@@ -154,9 +178,89 @@ pub async fn create_api_key(
         &[metrics::request::add_attributes("merchant", merchant_id)],
     );
 
+    // Add process to process_tracker for email reminder, only if expiry is set to future date
+    #[cfg(feature = "email")]
+    {
+        if api_key.expires_at.is_some() {
+            let expiry_reminder_days = state.conf.api_keys.expiry_reminder_days.clone();
+
+            add_api_key_expiry_task(store, &api_key, expiry_reminder_days)
+                .await
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to insert API key expiry reminder to process tracker")?;
+        }
+    }
+
     Ok(ApplicationResponse::Json(
         (api_key, plaintext_api_key).foreign_into(),
     ))
+}
+
+// Add api_key_expiry task to the process_tracker table.
+// Construct ProcessTrackerNew struct with all required fields, and schedule the first email.
+// After first email has been sent, update the schedule_time based on retry_count in execute_workflow().
+#[cfg(feature = "email")]
+#[instrument(skip_all)]
+pub async fn add_api_key_expiry_task(
+    store: &dyn StorageInterface,
+    api_key: &ApiKey,
+    expiry_reminder_days: Vec<u8>,
+) -> Result<(), errors::ProcessTrackerError> {
+    let current_time = common_utils::date_time::now();
+    let api_key_expiry_tracker = &storage::ApiKeyExpiryWorkflow {
+        key_id: api_key.key_id.clone(),
+        merchant_id: api_key.merchant_id.clone(),
+        // We need API key expiry too, because we need to decide on the schedule_time in
+        // execute_workflow() where we won't be having access to the Api key object.
+        api_key_expiry: api_key.expires_at,
+        expiry_reminder_days: expiry_reminder_days.clone(),
+    };
+    let api_key_expiry_workflow_model = serde_json::to_value(api_key_expiry_tracker)
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!("unable to serialize API key expiry tracker: {api_key_expiry_tracker:?}")
+        })?;
+
+    let schedule_time = expiry_reminder_days
+        .first()
+        .and_then(|expiry_reminder_day| {
+            api_key.expires_at.map(|expires_at| {
+                expires_at.saturating_sub(time::Duration::days(i64::from(*expiry_reminder_day)))
+            })
+        });
+
+    let process_tracker_entry = storage::ProcessTrackerNew {
+        id: generate_task_id_for_api_key_expiry_workflow(api_key.key_id.as_str()),
+        name: Some(String::from(API_KEY_EXPIRY_NAME)),
+        tag: vec![String::from(API_KEY_EXPIRY_TAG)],
+        runner: Some(String::from(API_KEY_EXPIRY_RUNNER)),
+        // Retry count specifies, number of times the current process (email) has been retried.
+        // It also acts as an index of expiry_reminder_days vector
+        retry_count: 0,
+        schedule_time,
+        rule: String::new(),
+        tracking_data: api_key_expiry_workflow_model,
+        business_status: String::from("Pending"),
+        status: enums::ProcessTrackerStatus::New,
+        event: vec![],
+        created_at: current_time,
+        updated_at: current_time,
+    };
+
+    store
+        .insert_process(process_tracker_entry)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting API key expiry reminder to process_tracker: api_key_id: {}",
+                api_key_expiry_tracker.key_id
+            )
+        })?;
+
+    Ok(())
 }
 
 #[instrument(skip_all)]
@@ -177,11 +281,13 @@ pub async fn retrieve_api_key(
 
 #[instrument(skip_all)]
 pub async fn update_api_key(
-    store: &dyn StorageInterface,
+    state: &AppState,
     merchant_id: &str,
     key_id: &str,
     api_key: api::UpdateApiKeyRequest,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
+    let store = &*state.store;
+
     let api_key = store
         .update_api_key(
             merchant_id.to_owned(),
@@ -191,15 +297,124 @@ pub async fn update_api_key(
         .await
         .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
 
+    #[cfg(feature = "email")]
+    {
+        let expiry_reminder_days = state.conf.api_keys.expiry_reminder_days.clone();
+
+        let task_id = generate_task_id_for_api_key_expiry_workflow(key_id);
+        // In order to determine how to update the existing process in the process_tracker table,
+        // we need access to the current entry in the table.
+        let existing_process_tracker_task = store
+            .find_process_by_id(task_id.as_str())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError) // If retrieve failed
+            .attach_printable(
+                "Failed to retrieve API key expiry reminder task from process tracker",
+            )?;
+
+        // If process exist
+        if existing_process_tracker_task.is_some() {
+            if api_key.expires_at.is_some() {
+                // Process exist in process, update the process with new schedule_time
+                update_api_key_expiry_task(store, &api_key, expiry_reminder_days)
+                    .await
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to update API key expiry reminder task in process tracker",
+                    )?;
+            }
+            // If an expiry is set to 'never'
+            else {
+                // Process exist in process, revoke it
+                revoke_api_key_expiry_task(store, key_id)
+                    .await
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to revoke API key expiry reminder task in process tracker",
+                    )?;
+            }
+        }
+        // This case occurs if the expiry for an API key is set to 'never' during its creation. If so,
+        // process in tracker was not created.
+        else if api_key.expires_at.is_some() {
+            // Process doesn't exist in process_tracker table, so create new entry with
+            // schedule_time based on new expiry set.
+            add_api_key_expiry_task(store, &api_key, expiry_reminder_days)
+                .await
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to insert API key expiry reminder task to process tracker",
+                )?;
+        }
+    }
+
     Ok(ApplicationResponse::Json(api_key.foreign_into()))
+}
+
+// Update api_key_expiry task in the process_tracker table.
+// Construct Update variant of ProcessTrackerUpdate with new tracking_data.
+#[cfg(feature = "email")]
+#[instrument(skip_all)]
+pub async fn update_api_key_expiry_task(
+    store: &dyn StorageInterface,
+    api_key: &ApiKey,
+    expiry_reminder_days: Vec<u8>,
+) -> Result<(), errors::ProcessTrackerError> {
+    let current_time = common_utils::date_time::now();
+
+    let task_id = generate_task_id_for_api_key_expiry_workflow(api_key.key_id.as_str());
+
+    let task_ids = vec![task_id.clone()];
+
+    let schedule_time = expiry_reminder_days
+        .first()
+        .and_then(|expiry_reminder_day| {
+            api_key.expires_at.map(|expires_at| {
+                expires_at.saturating_sub(time::Duration::days(i64::from(*expiry_reminder_day)))
+            })
+        });
+
+    let updated_tracking_data = &storage::ApiKeyExpiryWorkflow {
+        key_id: api_key.key_id.clone(),
+        merchant_id: api_key.merchant_id.clone(),
+        api_key_expiry: api_key.expires_at,
+        expiry_reminder_days,
+    };
+
+    let updated_api_key_expiry_workflow_model = serde_json::to_value(updated_tracking_data)
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!("unable to serialize API key expiry tracker: {updated_tracking_data:?}")
+        })?;
+
+    let updated_process_tracker_data = storage::ProcessTrackerUpdate::Update {
+        name: None,
+        retry_count: Some(0),
+        schedule_time,
+        tracking_data: Some(updated_api_key_expiry_workflow_model),
+        business_status: Some("Pending".to_string()),
+        status: Some(storage_enums::ProcessTrackerStatus::New),
+        updated_at: Some(current_time),
+    };
+    store
+        .process_tracker_update_process_status_by_ids(task_ids, updated_process_tracker_data)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    Ok(())
 }
 
 #[instrument(skip_all)]
 pub async fn revoke_api_key(
-    store: &dyn StorageInterface,
+    state: &AppState,
     merchant_id: &str,
     key_id: &str,
 ) -> RouterResponse<api::RevokeApiKeyResponse> {
+    let store = &*state.store;
     let revoked = store
         .revoke_api_key(merchant_id, key_id)
         .await
@@ -207,11 +422,59 @@ pub async fn revoke_api_key(
 
     metrics::API_KEY_REVOKED.add(&metrics::CONTEXT, 1, &[]);
 
+    #[cfg(feature = "email")]
+    {
+        let task_id = generate_task_id_for_api_key_expiry_workflow(key_id);
+        // In order to determine how to update the existing process in the process_tracker table,
+        // we need access to the current entry in the table.
+        let existing_process_tracker_task = store
+            .find_process_by_id(task_id.as_str())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError) // If retrieve failed
+            .attach_printable(
+                "Failed to retrieve API key expiry reminder task from process tracker",
+            )?;
+
+        // If process exist, then revoke it
+        if existing_process_tracker_task.is_some() {
+            revoke_api_key_expiry_task(store, key_id)
+                .await
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to revoke API key expiry reminder task in process tracker",
+                )?;
+        }
+    }
+
     Ok(ApplicationResponse::Json(api::RevokeApiKeyResponse {
         merchant_id: merchant_id.to_owned(),
         key_id: key_id.to_owned(),
         revoked,
     }))
+}
+
+// Function to revoke api_key_expiry task in the process_tracker table when API key is revoked.
+// Construct StatusUpdate variant of ProcessTrackerUpdate by setting status to 'finish'.
+#[cfg(feature = "email")]
+#[instrument(skip_all)]
+pub async fn revoke_api_key_expiry_task(
+    store: &dyn StorageInterface,
+    key_id: &str,
+) -> Result<(), errors::ProcessTrackerError> {
+    let task_id = generate_task_id_for_api_key_expiry_workflow(key_id);
+    let task_ids = vec![task_id];
+    let updated_process_tracker_data = storage::ProcessTrackerUpdate::StatusUpdate {
+        status: storage_enums::ProcessTrackerStatus::Finish,
+        business_status: Some("Revoked".to_string()),
+    };
+
+    store
+        .process_tracker_update_process_status_by_ids(task_ids, updated_process_tracker_data)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    Ok(())
 }
 
 #[instrument(skip_all)]
@@ -232,6 +495,11 @@ pub async fn list_api_keys(
         .collect();
 
     Ok(ApplicationResponse::Json(api_keys))
+}
+
+#[cfg(feature = "email")]
+fn generate_task_id_for_api_key_expiry_workflow(key_id: &str) -> String {
+    format!("{API_KEY_EXPIRY_RUNNER}_{API_KEY_EXPIRY_NAME}_{key_id}")
 }
 
 impl From<&str> for PlaintextApiKey {

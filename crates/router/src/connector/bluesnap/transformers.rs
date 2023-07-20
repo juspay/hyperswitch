@@ -17,11 +17,7 @@ use crate::{
     consts,
     core::errors,
     pii::Secret,
-    types::{
-        self, api,
-        storage::enums,
-        transformers::{ForeignInto, ForeignTryFrom},
-    },
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
     utils::{Encode, OptionExt},
 };
 
@@ -353,7 +349,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                             ),
                         payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
                             country_code: item.data.get_billing_country()?,
-                            currency_code: item.data.request.currency.foreign_into(),
+                            currency_code: item.data.request.currency,
                             total: api_models::payments::AmountInfo {
                                 label: applepay_metadata.data.payment_request_data.label,
                                 total_type: Some("final".to_string()),
@@ -687,12 +683,13 @@ impl<F, T>
             ))?,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.transaction_id,
+                    item.response.transaction_id.clone(),
                 ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: Some(item.response.transaction_id),
             }),
             ..item.data
         })

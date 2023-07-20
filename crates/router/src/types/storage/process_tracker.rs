@@ -1,9 +1,9 @@
-use error_stack::ResultExt;
-use serde::Serialize;
-pub use storage_models::process_tracker::{
+pub use diesel_models::process_tracker::{
     ProcessData, ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate,
     ProcessTrackerUpdateInternal, SchedulerOptions,
 };
+use error_stack::ResultExt;
+use serde::Serialize;
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -23,6 +23,12 @@ pub trait ProcessTrackerExt {
     ) -> Result<ProcessTrackerNew, errors::ProcessTrackerError>
     where
         T: Serialize;
+
+    async fn reset(
+        self,
+        db: &dyn StorageInterface,
+        schedule_time: PrimitiveDateTime,
+    ) -> Result<(), errors::ProcessTrackerError>;
 
     async fn retry(
         self,
@@ -70,6 +76,23 @@ impl ProcessTrackerExt for ProcessTracker {
             created_at: current_time,
             updated_at: current_time,
         })
+    }
+
+    async fn reset(
+        self,
+        db: &dyn StorageInterface,
+        schedule_time: PrimitiveDateTime,
+    ) -> Result<(), errors::ProcessTrackerError> {
+        db.update_process_tracker(
+            self.clone(),
+            ProcessTrackerUpdate::StatusRetryUpdate {
+                status: storage_enums::ProcessTrackerStatus::New,
+                retry_count: 0,
+                schedule_time,
+            },
+        )
+        .await?;
+        Ok(())
     }
 
     async fn retry(
