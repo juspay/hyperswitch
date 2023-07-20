@@ -11,7 +11,7 @@ use common_utils::{
     pii::{self, Email, IpAddress},
 };
 use error_stack::{report, IntoReport, ResultExt};
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
@@ -68,6 +68,10 @@ pub trait RouterData {
     fn get_customer_id(&self) -> Result<String, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
+    #[cfg(feature = "payouts")]
+    fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
+    #[cfg(feature = "payouts")]
+    fn get_quote_id(&self) -> Result<String, Error>;
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -135,7 +139,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     fn is_three_ds(&self) -> bool {
         matches!(
             self.auth_type,
-            storage_models::enums::AuthenticationType::ThreeDs
+            diesel_models::enums::AuthenticationType::ThreeDs
         )
     }
 
@@ -166,12 +170,24 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .to_owned()
             .ok_or_else(missing_field_err("preprocessing_id"))
     }
+    #[cfg(feature = "payouts")]
+    fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error> {
+        self.payout_method_data
+            .to_owned()
+            .ok_or_else(missing_field_err("payout_method_data"))
+    }
+    #[cfg(feature = "payouts")]
+    fn get_quote_id(&self) -> Result<String, Error> {
+        self.quote_id
+            .to_owned()
+            .ok_or_else(missing_field_err("quote_id"))
+    }
 }
 
 pub trait PaymentsPreProcessingData {
     fn get_email(&self) -> Result<Email, Error>;
-    fn get_payment_method_type(&self) -> Result<storage_models::enums::PaymentMethodType, Error>;
-    fn get_currency(&self) -> Result<storage_models::enums::Currency, Error>;
+    fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error>;
+    fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
     fn get_amount(&self) -> Result<i64, Error>;
 }
 
@@ -179,12 +195,12 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
-    fn get_payment_method_type(&self) -> Result<storage_models::enums::PaymentMethodType, Error> {
+    fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error> {
         self.payment_method_type
             .to_owned()
             .ok_or_else(missing_field_err("payment_method_type"))
     }
-    fn get_currency(&self) -> Result<storage_models::enums::Currency, Error> {
+    fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
     fn get_amount(&self) -> Result<i64, Error> {
@@ -204,15 +220,16 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
-    fn get_payment_method_type(&self) -> Result<storage_models::enums::PaymentMethodType, Error>;
+    fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(storage_models::enums::CaptureMethod::Automatic) | None => Ok(true),
-            Some(storage_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
@@ -241,6 +258,13 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("return_url"))
     }
+
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+
     fn connector_mandate_id(&self) -> Option<String> {
         self.mandate_id
             .as_ref()
@@ -273,7 +297,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         matches!(self.payment_method_data, api::PaymentMethodData::Wallet(_))
     }
 
-    fn get_payment_method_type(&self) -> Result<storage_models::enums::PaymentMethodType, Error> {
+    fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error> {
         self.payment_method_type
             .to_owned()
             .ok_or_else(missing_field_err("payment_method_type"))
@@ -349,18 +373,30 @@ impl BrowserInformationData for types::BrowserInformation {
 pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(storage_models::enums::CaptureMethod::Automatic) | None => Ok(true),
-            Some(storage_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error> {
+        self.redirect_response
+            .as_ref()
+            .and_then(|res| res.payload.to_owned())
+            .ok_or(
+                errors::ConnectorError::MissingConnectorRedirectionPayload {
+                    field_name: "request.redirect_response.payload",
+                }
+                .into(),
+            )
     }
 }
 
@@ -372,8 +408,8 @@ pub trait PaymentsSyncRequestData {
 impl PaymentsSyncRequestData for types::PaymentsSyncData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(storage_models::enums::CaptureMethod::Automatic) | None => Ok(true),
-            Some(storage_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
@@ -392,7 +428,7 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
 
 pub trait PaymentsCancelRequestData {
     fn get_amount(&self) -> Result<i64, Error>;
-    fn get_currency(&self) -> Result<storage_models::enums::Currency, Error>;
+    fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
     fn get_cancellation_reason(&self) -> Result<String, Error>;
 }
 
@@ -400,7 +436,7 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
     fn get_amount(&self) -> Result<i64, Error> {
         self.amount.ok_or_else(missing_field_err("amount"))
     }
-    fn get_currency(&self) -> Result<storage_models::enums::Currency, Error> {
+    fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
     fn get_cancellation_reason(&self) -> Result<String, Error> {
@@ -514,6 +550,7 @@ pub trait CardData {
     ) -> Secret<String>;
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
+    fn get_expiry_date_as_yymm(&self) -> Secret<String>;
 }
 
 impl CardData for api::Card {
@@ -553,6 +590,11 @@ impl CardData for api::Card {
         }
         Secret::new(year)
     }
+    fn get_expiry_date_as_yymm(&self) -> Secret<String> {
+        let year = self.get_card_expiry_year_2_digit().expose();
+        let month = self.card_exp_month.clone().expose();
+        Secret::new(format!("{year}{month}"))
+    }
 }
 
 #[track_caller]
@@ -575,6 +617,7 @@ pub trait WalletData {
     fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
+    fn get_encoded_wallet_token(&self) -> Result<String, Error>;
 }
 
 impl WalletData for api::WalletData {
@@ -593,6 +636,20 @@ impl WalletData for api::WalletData {
         serde_json::from_str::<T>(self.get_wallet_token()?.peek())
             .into_report()
             .change_context(errors::ConnectorError::InvalidWalletToken)
+    }
+
+    fn get_encoded_wallet_token(&self) -> Result<String, Error> {
+        match self {
+            Self::GooglePay(_) => {
+                let json_token: serde_json::Value = self.get_wallet_token_as_json()?;
+                let token_as_vec = serde_json::to_vec(&json_token)
+                    .into_report()
+                    .change_context(errors::ConnectorError::InvalidWalletToken)?;
+                let encoded_token = consts::BASE64_ENGINE.encode(token_as_vec);
+                Ok(encoded_token)
+            }
+            _ => Err(errors::ConnectorError::InvalidWalletToken.into()),
+        }
     }
 }
 
@@ -852,7 +909,7 @@ pub fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
 
 pub fn to_currency_base_unit_from_optional_amount(
     amount: Option<i64>,
-    currency: storage_models::enums::Currency,
+    currency: diesel_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     match amount {
         Some(a) => to_currency_base_unit(a, currency),
@@ -865,7 +922,7 @@ pub fn to_currency_base_unit_from_optional_amount(
 
 pub fn to_currency_base_unit(
     amount: i64,
-    currency: storage_models::enums::Currency,
+    currency: diesel_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     utils::to_currency_base_unit(amount, currency)
         .change_context(errors::ConnectorError::RequestEncodingFailed)
@@ -873,7 +930,7 @@ pub fn to_currency_base_unit(
 
 pub fn to_currency_base_unit_asf64(
     amount: i64,
-    currency: storage_models::enums::Currency,
+    currency: diesel_models::enums::Currency,
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
     utils::to_currency_base_unit_asf64(amount, currency)
         .change_context(errors::ConnectorError::RequestEncodingFailed)
@@ -928,8 +985,8 @@ pub fn collect_and_sort_values_by_removing_signature(
 }
 
 #[inline]
-pub fn get_webhook_merchant_secret_key(connector: &str, merchant_id: &str) -> String {
-    format!("whsec_verification_{connector}_{merchant_id}")
+pub fn get_webhook_merchant_secret_key(connector_label: &str, merchant_id: &str) -> String {
+    format!("whsec_verification_{connector_label}_{merchant_id}")
 }
 
 impl ForeignTryFrom<String> for UsStatesAbbreviation {

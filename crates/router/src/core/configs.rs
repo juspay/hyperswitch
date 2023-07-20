@@ -12,7 +12,7 @@ pub async fn set_config(
     config: api::Config,
 ) -> RouterResponse<api::Config> {
     let config = store
-        .insert_config(storage_models::configs::ConfigNew {
+        .insert_config(diesel_models::configs::ConfigNew {
             key: config.key,
             config: config.value,
         })

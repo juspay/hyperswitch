@@ -147,31 +147,18 @@ pub struct StripeSetupIntentRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     pub receipt_ipaddress: Option<String>,
     pub user_agent: Option<String>,
+    pub mandate_data: Option<payment_intent::MandateData>,
 }
 
 impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripeSetupIntentRequest) -> errors::RouterResult<Self> {
-        let (mandate_options, authentication_type) = match item.payment_method_options {
-            Some(pmo) => {
-                let payment_intent::StripePaymentMethodOptions::Card {
-                    request_three_d_secure,
-                    mandate_options,
-                }: payment_intent::StripePaymentMethodOptions = pmo;
-                (
-                    Option::<payments::MandateData>::foreign_try_from((
-                        mandate_options,
-                        item.currency.to_owned(),
-                    ))?,
-                    Some(api_enums::AuthenticationType::foreign_from(
-                        request_three_d_secure,
-                    )),
-                )
-            }
-            None => (None, None),
-        };
         let routable_connector: Option<api_enums::RoutableConnectors> =
-            item.connector.and_then(|v| v.into_iter().next());
+            item.connector.and_then(|v| {
+                v.into_iter()
+                    .next()
+                    .map(api_enums::RoutableConnectors::from)
+            });
 
         let routing = routable_connector
             .map(api_types::RoutingAlgorithm::Single)
@@ -243,9 +230,22 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             client_secret: item.client_secret.map(|s| s.peek().clone()),
             setup_future_usage: item.setup_future_usage,
             merchant_connector_details: item.merchant_connector_details,
-            authentication_type,
             routing,
-            mandate_data: mandate_options,
+            authentication_type: match item.payment_method_options {
+                Some(pmo) => {
+                    let payment_intent::StripePaymentMethodOptions::Card {
+                        request_three_d_secure,
+                    }: payment_intent::StripePaymentMethodOptions = pmo;
+                    Some(api_enums::AuthenticationType::foreign_from(
+                        request_three_d_secure,
+                    ))
+                }
+                None => None,
+            },
+            mandate_data: ForeignTryFrom::foreign_try_from((
+                item.mandate_data,
+                item.currency.to_owned(),
+            ))?,
             browser_info: Some(
                 serde_json::to_value(crate::types::BrowserInformation {
                     ip_address,
