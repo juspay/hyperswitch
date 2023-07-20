@@ -41,7 +41,7 @@ use crate::{
     utils::{Encode, OptionExt, ValueExt},
 };
 
-// #[instrument(skip_all, fields(payment_id, merchant_id))]
+#[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
     merchant_account: domain::MerchantAccount,

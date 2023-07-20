@@ -1799,7 +1799,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::Card(card) => Self::Card(CardResponse::from(*card)),
             AdditionalPaymentData::PayLater {} => Self::PayLater,
             AdditionalPaymentData::Wallet {} => Self::Wallet,
-            AdditionalPaymentData::BankRedirect { bank_name: _ } => Self::BankRedirect,
+            AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect,
             AdditionalPaymentData::Crypto {} => Self::Crypto,
             AdditionalPaymentData::BankDebit {} => Self::BankDebit,
             AdditionalPaymentData::MandatePayment {} => Self::MandatePayment,
