@@ -306,9 +306,9 @@ pub enum BankNames {
     RhbBank,
     StandardCharteredBank,
     UobBank,
-    BangkokBank,	
+    BangkokBank,
     KrungsriBank,
     KrungThaiBank,
     TheSiamCommercialBank,
-    KasikornBank	
+    KasikornBank,
 }
