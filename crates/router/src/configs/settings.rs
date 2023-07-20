@@ -499,7 +499,7 @@ pub struct ConnectorParamsWithFileUploadUrl {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithSecondaryBaseUrl {
     pub base_url: String,
