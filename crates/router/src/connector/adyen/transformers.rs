@@ -1889,9 +1889,8 @@ pub fn get_adyen_response(
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .refusal_reason
-                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.refusal_reason,
+            reason: None,
             status_code,
         })
     } else {
