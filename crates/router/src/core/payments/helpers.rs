@@ -2514,6 +2514,9 @@ pub async fn get_additional_payment_data(
                             [card_number_length - 4..card_number_length]
                             .to_string(),
                         card_isin: card_data.card_number.peek().clone()[..6].to_string(),
+                        card_exp_month: card_data.card_exp_month.peek().clone(),
+                        card_exp_year: card_data.card_exp_year.peek().clone(),
+                        card_holder_name: card_data.card_holder_name.peek().clone(),
                     },
                 )
             } else {
@@ -2536,6 +2539,9 @@ pub async fn get_additional_payment_data(
                                     [card_number_length - 4..card_number_length]
                                     .to_string(),
                                 card_isin: card_data.card_number.peek().clone()[..6].to_string(),
+                                card_exp_month: card_data.card_exp_month.peek().clone(),
+                                card_exp_year: card_data.card_exp_year.peek().clone(),
+                                card_holder_name: card_data.card_holder_name.peek().clone(),
                             },
                         )
                     });
@@ -2550,6 +2556,9 @@ pub async fn get_additional_payment_data(
                             [card_number_length - 4..card_number_length]
                             .to_string(),
                         card_isin: card_data.card_number.peek().clone()[..6].to_string(),
+                        card_exp_month: card_data.card_exp_month.peek().clone(),
+                        card_exp_year: card_data.card_exp_year.peek().clone(),
+                        card_holder_name: card_data.card_holder_name.peek().clone(),
                     },
                 ))
             }

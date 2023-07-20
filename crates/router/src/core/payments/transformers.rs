@@ -237,11 +237,7 @@ where
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "payment_method_data",
                 })?;
-        let payment_method_data_response = data.payment_method_data.and_then(|data| {
-            additional_payment_method_data.and_then(|additional_data| {
-                ForeignTryFrom::foreign_try_from((data, additional_data)).ok()
-            })
-        });
+        let payment_method_data_response = additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
         Ok(services::ApplicationResponse::Json(Self {
             verify_id: Some(data.payment_intent.payment_id),
             merchant_id: Some(data.payment_intent.merchant_id),
@@ -342,11 +338,8 @@ where
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "payment_method_data",
             })?;
-    let payment_method_data_response = payment_method_data.clone().and_then(|data| {
-        additional_payment_method_data.and_then(|additional_data| {
-            ForeignTryFrom::foreign_try_from((data, additional_data)).ok()
-        })
-    });
+    
+    let payment_method_data_response = additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
 
     let output = Ok(match payment_request {
         Some(_request) => {
