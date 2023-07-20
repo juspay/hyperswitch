@@ -150,6 +150,7 @@ hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 [connectors]
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
+adyen.secondary_base_url = "https://pal-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
@@ -189,6 +190,7 @@ shift4.base_url = "https://api.shift4.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
+wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
@@ -311,3 +313,12 @@ afterpay_clearpay = {fields = {stripe = [  # payment_method_type = afterpay_clea
             { required_field = "shipping.address.last_name", display_name = "last_name", field_type = "text" },
             { required_field = "shipping.address.country", display_name = "country", field_type = { drop_down = { options = [ "US", "IN" ] } } },
         ] } }
+
+[payouts]
+payout_eligibility = true   # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility
+
+[pm_filters.adyen]
+online_banking_fpx = {country = "MY", currency = "MYR"}
+
+[bank_config.online_banking_fpx]
+adyen = { banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,may_bank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"}
