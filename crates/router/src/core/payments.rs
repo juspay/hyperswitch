@@ -1095,7 +1095,7 @@ pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
     pub name: Option<Secret<String, masking::WithType>>,

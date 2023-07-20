@@ -1335,7 +1335,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
         //here we will get that field from router_data.recurring_mandate_payment_data
         let payment_method_types = if payment_method.is_some() {
             //if recurring payment get payment_method_type
-            get_payment_method_type_for_saved_payment_method_payment(item).map(Some)?
+            get_payment_method_type_for_saved_payment_method_payment(item)?
         } else {
             payment_method_types
         };
@@ -1450,28 +1450,34 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
 
 fn get_payment_method_type_for_saved_payment_method_payment(
     item: &types::PaymentsAuthorizeRouterData,
-) -> Result<StripePaymentMethodType, error_stack::Report<errors::ConnectorError>> {
-    let stripe_payment_method_type = match item.recurring_mandate_payment_data.clone() {
-        Some(recurring_payment_method_data) => {
-            match recurring_payment_method_data.payment_method_type {
-                Some(payment_method_type) => StripePaymentMethodType::try_from(payment_method_type),
-                None => Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_type",
+) -> Result<Option<StripePaymentMethodType>, error_stack::Report<errors::ConnectorError>> {
+    if item.payment_method == api_enums::PaymentMethod::Card {
+        Ok(Some(StripePaymentMethodType::Card)) //stripe takes ["Card"] as default
+    } else {
+        let stripe_payment_method_type = match item.recurring_mandate_payment_data.clone() {
+            Some(recurring_payment_method_data) => {
+                match recurring_payment_method_data.payment_method_type {
+                    Some(payment_method_type) => {
+                        StripePaymentMethodType::try_from(payment_method_type)
+                    }
+                    None => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "payment_method_type",
+                    }
+                    .into()),
                 }
-                .into()),
             }
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "recurring_mandate_payment_data",
+            }
+            .into()),
+        }?;
+        match stripe_payment_method_type {
+            //Stripe converts Ideal, Bancontact & Sofort Bank redirect methods to Sepa direct debit and attaches to the customer for future usage
+            StripePaymentMethodType::Ideal
+            | StripePaymentMethodType::Bancontact
+            | StripePaymentMethodType::Sofort => Ok(Some(StripePaymentMethodType::Sepa)),
+            _ => Ok(Some(stripe_payment_method_type)),
         }
-        None => Err(errors::ConnectorError::MissingRequiredField {
-            field_name: "recurring_mandate_payment_data",
-        }
-        .into()),
-    }?;
-    match stripe_payment_method_type {
-        //Stripe converts Ideal, Bancontact & Sofort Bank redirect methods to Sepa direct debit and attaches to the customer for future usage
-        StripePaymentMethodType::Ideal
-        | StripePaymentMethodType::Bancontact
-        | StripePaymentMethodType::Sofort => Ok(StripePaymentMethodType::Sepa),
-        _ => Ok(stripe_payment_method_type),
     }
 }
 

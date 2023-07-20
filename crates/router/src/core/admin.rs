@@ -172,6 +172,7 @@ pub async fn create_merchant_account(
             modified_at: date_time::now(),
             frm_routing_algorithm: req.frm_routing_algorithm,
             intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
+            payout_routing_algorithm: req.payout_routing_algorithm,
             id: None,
             organization_id: req.organization_id,
             is_recon_enabled: false,
@@ -314,6 +315,7 @@ pub async fn merchant_account_update(
         primary_business_details,
         frm_routing_algorithm: req.frm_routing_algorithm,
         intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
+        payout_routing_algorithm: req.payout_routing_algorithm,
     };
 
     let response = db
