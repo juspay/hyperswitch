@@ -13,6 +13,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         api::{self, PaymentIdTypeExt},
         domain,
@@ -36,6 +37,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
+        _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
         PaymentData<F>,
@@ -141,11 +143,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 force_sync: None,
                 refunds: vec![],
                 disputes: vec![],
+                attempts: None,
                 sessions_token: vec![],
                 card_cvc: None,
                 creds_identifier: None,
                 pm_token: None,
                 connector_customer_id: None,
+                recurring_mandate_payment_data: None,
                 ephemeral_key: None,
                 redirect_response: None,
             },
@@ -202,6 +206,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentS
                 payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }
@@ -248,7 +253,17 @@ where
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
         Option<api::PaymentMethodData>,
     )> {
-        helpers::make_pm_data(Box::new(self), state, payment_data).await
+        if payment_data
+            .payment_attempt
+            .connector
+            .clone()
+            .map(|connector_name| connector_name == *"bluesnap".to_string())
+            .unwrap_or(false)
+        {
+            helpers::make_pm_data(Box::new(self), state, payment_data).await
+        } else {
+            Ok((Box::new(self), None))
+        }
     }
 
     async fn get_connector<'a>(

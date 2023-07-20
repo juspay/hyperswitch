@@ -20,6 +20,7 @@ pub struct StoreCardReq<'a> {
     pub merchant_id: &'a str,
     pub merchant_customer_id: String,
     pub card: Card,
+    pub enc_card_data: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -65,7 +66,7 @@ pub struct RetrieveCardResp {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RetrieveCardRespPayload {
     pub card: Option<Card>,
-    pub enc_card_data: Option<String>,
+    pub enc_card_data: Option<Secret<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -104,6 +105,24 @@ pub struct AddCardResponse {
     pub nickname: Option<String>,
     pub customer_id: Option<String>,
     pub duplicate: Option<bool>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddPaymentMethodResponse {
+    pub payment_method_id: String,
+    pub external_id: String,
+    #[serde(rename = "merchant_id")]
+    pub merchant_id: Option<String>,
+    pub nickname: Option<String>,
+    pub customer_id: Option<String>,
+    pub duplicate: Option<bool>,
+    pub payment_method_data: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GetPaymentMethodResponse {
+    pub payment_method: AddPaymentMethodResponse,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -238,6 +257,7 @@ pub async fn mk_add_card_request_hs(
     #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
     locker: &settings::Locker,
     card: &api::CardDetail,
+    enc_value: Option<&str>,
     customer_id: &str,
     merchant_id: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
@@ -249,12 +269,13 @@ pub async fn mk_add_card_request_hs(
         card_exp_year: card.card_exp_year.to_owned(),
         card_brand: None,
         card_isin: None,
-        nick_name: None,
+        nick_name: card.nick_name.to_owned().map(masking::Secret::expose),
     };
     let store_card_req = StoreCardReq {
         merchant_id,
         merchant_customer_id,
         card,
+        enc_card_data: enc_value.map(|e| e.to_string()),
     };
     let payload = utils::Encode::<StoreCardReq<'_>>::encode_to_vec(&store_card_req)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
@@ -298,6 +319,7 @@ pub fn mk_add_card_response_hs(
         card_token: None,       // [#256]
         card_fingerprint: None, // fingerprint not send by basilisk-hs need to have this feature in case we need it in future
         card_holder_name: card.card_holder_name,
+        nick_name: card.nick_name,
     };
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
@@ -331,6 +353,7 @@ pub fn mk_add_card_response(
         card_token: Some(response.external_id.into()), // [#256]
         card_fingerprint: Some(response.card_fingerprint),
         card_holder_name: card.card_holder_name,
+        nick_name: card.nick_name,
     };
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
@@ -555,6 +578,7 @@ pub fn get_card_detail(
         card_token: None,
         card_fingerprint: None,
         card_holder_name: response.name_on_card,
+        nick_name: response.nick_name.map(masking::Secret::new),
     };
     Ok(card_detail)
 }

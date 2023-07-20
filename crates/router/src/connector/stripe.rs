@@ -2,21 +2,19 @@ mod transformers;
 
 use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
-use storage_models::enums;
 
 use self::transformers as stripe;
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
-    connector::utils as conn_utils,
     consts,
     core::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers, logger,
     services::{
         self,
@@ -130,12 +128,13 @@ impl
         &self,
         req: &types::PaymentsPreProcessingRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req = stripe::StripeAchSourceRequest::try_from(req)?;
+        let req = stripe::StripeCreditTransferSourceRequest::try_from(req)?;
         let pre_processing_request = types::RequestBody::log_and_get_request_body(
             &req,
-            utils::Encode::<stripe::StripeAchSourceRequest>::url_encode,
+            utils::Encode::<stripe::StripeCreditTransferSourceRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
         Ok(Some(pre_processing_request))
     }
 
@@ -517,9 +516,9 @@ impl
         types::PaymentsCaptureData: Clone,
         types::PaymentsResponseData: Clone,
     {
-        let response: stripe::PaymentIntentSyncResponse = res
+        let response: stripe::PaymentIntentResponse = res
             .response
-            .parse_struct("PaymentIntentSyncResponse")
+            .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
@@ -594,10 +593,11 @@ impl
                 x
             )),
             Ok(x) => Ok(format!(
-                "{}{}/{}",
+                "{}{}/{}{}",
                 self.base_url(connectors),
                 "v1/payment_intents",
-                x
+                x,
+                "?expand[0]=latest_charge" //updated payment_id(if present) reside inside latest_charge field
             )),
             x => x.change_context(errors::ConnectorError::MissingConnectorTransactionID),
         }
@@ -721,7 +721,8 @@ impl
         match &req.request.payment_method_data {
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data.deref() {
-                    api_models::payments::BankTransferData::AchBankTransfer { .. } => {
+                    api_models::payments::BankTransferData::AchBankTransfer { .. }
+                    | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
                         Ok(format!("{}{}", self.base_url(connectors), "v1/charges"))
                     }
                     _ => Ok(format!(
@@ -1690,24 +1691,6 @@ impl api::IncomingWebhook for Stripe {
         .into_bytes())
     }
 
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
-    }
-
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
@@ -1772,7 +1755,9 @@ impl api::IncomingWebhook for Stripe {
             }
             stripe::WebhookEventType::ChargeSucceeded => {
                 if let Some(stripe::WebhookPaymentMethodDetails {
-                    payment_method: stripe::WebhookPaymentMethodType::AchCreditTransfer,
+                    payment_method:
+                        stripe::WebhookPaymentMethodType::AchCreditTransfer
+                        | stripe::WebhookPaymentMethodType::MultibancoBankTransfers,
                 }) = details.event_data.event_object.payment_method_details
                 {
                     api::IncomingWebhookEvent::PaymentIntentSuccess
@@ -1899,7 +1884,9 @@ impl services::ConnectorRedirectResponse for Stripe {
             .map_or(
                 payments::CallConnectorAction::Trigger,
                 |status| match status {
-                    transformers::StripePaymentStatus::Failed => {
+                    transformers::StripePaymentStatus::Failed
+                    | transformers::StripePaymentStatus::Pending
+                    | transformers::StripePaymentStatus::Succeeded => {
                         payments::CallConnectorAction::Trigger
                     }
                     _ => payments::CallConnectorAction::StatusUpdate {
