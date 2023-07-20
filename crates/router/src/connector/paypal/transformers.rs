@@ -376,12 +376,14 @@ impl<F, T>
                 types::ResponseId::NoResponseId,
             ),
         };
+        //payment collection will always have only one element as we only make one transaction per order.
         let payment_collection = &item
             .response
             .purchase_units
             .first()
             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
             .payments;
+        //payment collection item will either have "authorizations" field or "capture" field, not both at a time.
         let payment_collection_item = match (
             &payment_collection.authorizations,
             &payment_collection.captures,
