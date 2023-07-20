@@ -219,7 +219,6 @@ pub enum RoutableConnectors {
     Powertranz,
     Rapyd,
     Shift4,
-    Signifyd,
     Stripe,
     Trustpay,
     // Tsys,
