@@ -530,3 +530,31 @@ impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttem
         }
     }
 }
+
+impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
+    fn foreign_from(value: api_models::payouts::Bank) -> Self {
+        match value {
+            api_models::payouts::Bank::Ach(_) => Self::Ach,
+            api_models::payouts::Bank::Bacs(_) => Self::Bacs,
+            api_models::payouts::Bank::Sepa(_) => Self::Sepa,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethod {
+    fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
+        match value {
+            api_models::payouts::PayoutMethodData::Bank(_) => Self::BankTransfer,
+            api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
+    fn foreign_from(value: api_models::enums::PayoutType) -> Self {
+        match value {
+            api_models::enums::PayoutType::Bank => Self::BankTransfer,
+            api_models::enums::PayoutType::Card => Self::Card,
+        }
+    }
+}

@@ -2379,7 +2379,7 @@ mod payment_id_type {
     }
 }
 
-mod amount {
+pub mod amount {
     use serde::de;
 
     use super::Amount;
