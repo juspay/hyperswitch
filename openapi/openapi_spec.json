@@ -7225,6 +7225,7 @@
           "sepa",
           "sofort",
           "swish",
+          "touch_n_go",
           "trustly",
           "twint",
           "upi_collect",
@@ -9739,6 +9740,9 @@
           }
         }
       },
+      "TouchNGoRedirection": {
+        "type": "object"
+      },
       "UpdateApiKeyRequest": {
         "type": "object",
         "description": "The request body for updating an API Key.",
@@ -10010,6 +10014,17 @@
               "vipps_redirect": {
                 "type": "object",
                 "description": "Wallet data for Vipps Redirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "touch_n_go_redirect"
+            ],
+            "properties": {
+              "touch_n_go_redirect": {
+                "$ref": "#/components/schemas/TouchNGoRedirection"
               }
             }
           },

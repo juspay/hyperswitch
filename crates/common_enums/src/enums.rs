@@ -597,6 +597,7 @@ pub enum PaymentMethodType {
     Sepa,
     Sofort,
     Swish,
+    TouchNGo,
     Trustly,
     Twint,
     UpiCollect,

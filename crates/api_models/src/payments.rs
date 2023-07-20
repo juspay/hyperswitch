@@ -1000,6 +1000,8 @@ pub enum WalletData {
     TwintRedirect {},
     /// Wallet data for Vipps Redirection
     VippsRedirect {},
+    /// The wallet data for Touch n Go Redirection
+    TouchNGoRedirect(Box<TouchNGoRedirection>),
     /// The wallet data for WeChat Pay Redirection
     WeChatPayRedirect(Box<WeChatPayRedirection>),
     /// The wallet data for WeChat Pay
@@ -1099,6 +1101,9 @@ pub struct PayPalWalletData {
     /// Token generated for the Apple pay
     pub token: String,
 }
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct TouchNGoRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GpayTokenizationData {
