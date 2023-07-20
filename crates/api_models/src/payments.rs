@@ -728,7 +728,7 @@ pub struct AdditionalCardInfo {
     pub bank_code: Option<String>,
     pub last4: String,
     pub card_isin: String,
-    pub card_exp_month:String,
+    pub card_exp_month: String,
     pub card_exp_year: String,
     pub card_holder_name: String,
 }
@@ -736,7 +736,7 @@ pub struct AdditionalCardInfo {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AdditionalPaymentData {
-    Card(AdditionalCardInfo),
+    Card(Box<AdditionalCardInfo>),
     BankRedirect {
         bank_name: Option<api_enums::BankNames>,
     },
@@ -1796,20 +1796,19 @@ impl From<AdditionalCardInfo> for CardResponse {
 impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
     fn from(payment_method_data: AdditionalPaymentData) -> Self {
         match payment_method_data {
-            AdditionalPaymentData::Card(card) => Self::Card(CardResponse::from(card)),
-            AdditionalPaymentData::PayLater{} => Self::PayLater(),
-            AdditionalPaymentData::Wallet{} => Self::Wallet(),
-            AdditionalPaymentData::BankRedirect{ bank_name } => Self::BankRedirect(),
-            AdditionalPaymentData::Crypto{} => Self::Crypto(),
-            AdditionalPaymentData::BankDebit{} => Self::BankDebit(),
-            AdditionalPaymentData::MandatePayment{} => Self::MandatePayment,
-            AdditionalPaymentData::Reward{} => Self::Reward(),
-            AdditionalPaymentData::Upi{} => Self::Upi(),
-            AdditionalPaymentData::BankTransfer {  } => Self::BankTransfer(),
+            AdditionalPaymentData::Card(card) => Self::Card(CardResponse::from(*card)),
+            AdditionalPaymentData::PayLater {} => Self::PayLater(),
+            AdditionalPaymentData::Wallet {} => Self::Wallet(),
+            AdditionalPaymentData::BankRedirect { bank_name: _ } => Self::BankRedirect(),
+            AdditionalPaymentData::Crypto {} => Self::Crypto(),
+            AdditionalPaymentData::BankDebit {} => Self::BankDebit(),
+            AdditionalPaymentData::MandatePayment {} => Self::MandatePayment,
+            AdditionalPaymentData::Reward {} => Self::Reward(),
+            AdditionalPaymentData::Upi {} => Self::Upi(),
+            AdditionalPaymentData::BankTransfer {} => Self::BankTransfer(),
         }
     }
 }
-
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PgRedirectResponse {

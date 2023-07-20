@@ -20,7 +20,7 @@ use crate::{
     types::{
         self, api, domain,
         storage::{self, enums},
-        transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt, ValueExt},
 };
@@ -237,7 +237,8 @@ where
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "payment_method_data",
                 })?;
-        let payment_method_data_response = additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
+        let payment_method_data_response =
+            additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
         Ok(services::ApplicationResponse::Json(Self {
             verify_id: Some(data.payment_intent.payment_id),
             merchant_id: Some(data.payment_intent.merchant_id),
@@ -338,8 +339,9 @@ where
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "payment_method_data",
             })?;
-    
-    let payment_method_data_response = additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
+
+    let payment_method_data_response =
+        additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
 
     let output = Ok(match payment_request {
         Some(_request) => {

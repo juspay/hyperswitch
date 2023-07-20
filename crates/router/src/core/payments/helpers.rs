@@ -2503,7 +2503,7 @@ pub async fn get_additional_payment_data(
                 && card_data.card_issuing_country.is_some()
                 && card_data.bank_code.is_some()
             {
-                api_models::payments::AdditionalPaymentData::Card(
+                api_models::payments::AdditionalPaymentData::Card(Box::new(
                     api_models::payments::AdditionalCardInfo {
                         card_issuer: card_data.card_issuer.to_owned(),
                         card_network: card_data.card_network.clone(),
@@ -2518,7 +2518,7 @@ pub async fn get_additional_payment_data(
                         card_exp_year: card_data.card_exp_year.peek().clone(),
                         card_holder_name: card_data.card_holder_name.peek().clone(),
                     },
-                )
+                ))
             } else {
                 let card_number = card_data.clone().card_number;
                 let card_info = db
@@ -2528,7 +2528,7 @@ pub async fn get_additional_payment_data(
                     .ok()
                     .flatten()
                     .map(|card_info| {
-                        api_models::payments::AdditionalPaymentData::Card(
+                        api_models::payments::AdditionalPaymentData::Card(Box::new(
                             api_models::payments::AdditionalCardInfo {
                                 card_issuer: card_info.card_issuer,
                                 card_network: card_info.card_network.clone(),
@@ -2543,9 +2543,9 @@ pub async fn get_additional_payment_data(
                                 card_exp_year: card_data.card_exp_year.peek().clone(),
                                 card_holder_name: card_data.card_holder_name.peek().clone(),
                             },
-                        )
+                        ))
                     });
-                card_info.unwrap_or(api_models::payments::AdditionalPaymentData::Card(
+                card_info.unwrap_or(api_models::payments::AdditionalPaymentData::Card(Box::new(
                     api_models::payments::AdditionalCardInfo {
                         card_issuer: None,
                         card_network: None,
@@ -2560,7 +2560,7 @@ pub async fn get_additional_payment_data(
                         card_exp_year: card_data.card_exp_year.peek().clone(),
                         card_holder_name: card_data.card_holder_name.peek().clone(),
                     },
-                ))
+                )))
             }
         }
         api_models::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {

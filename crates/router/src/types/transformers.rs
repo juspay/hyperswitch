@@ -1,7 +1,4 @@
-use api_models::{
-    enums as api_enums,
-    payments::{AdditionalPaymentData, CardResponse},
-};
+use api_models::enums as api_enums;
 use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -10,7 +7,6 @@ use masking::{ExposeInterface, PeekInterface};
 use super::domain;
 use crate::{
     core::errors,
-    logger,
     types::{api as api_types, storage},
 };
 
@@ -527,84 +523,3 @@ impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttem
         }
     }
 }
-
-// impl
-//     ForeignFrom<(
-//         api_models::payments::Card,
-//         api_models::payments::AdditionalCardInfo,
-//     )> for CardResponse
-// {
-//     fn foreign_from(
-//         item: (
-//             api_models::payments::Card,
-//             api_models::payments::AdditionalCardInfo,
-//         ),
-//     ) -> Self {
-//         let (request_card_info, additional_data) = item;
-//         Self {
-//             last4: additional_data.last4,
-//             card_type: additional_data.card_type,
-//             card_network: additional_data.card_network,
-//             card_issuer: additional_data.card_issuer,
-//             card_issuing_country: additional_data.card_issuing_country,
-//             card_isin: additional_data.card_isin,
-//             card_exp_month: request_card_info.card_exp_month.peek().to_string(),
-//             card_exp_year: request_card_info.card_exp_year.peek().to_string(),
-//             card_holder_name: request_card_info.card_holder_name.peek().to_string(),
-//         }
-//     }
-// }
-
-// impl
-//     From<(
-//         AdditionalPaymentData,
-//     )> for api_models::payments::PaymentMethodDataResponse
-// {
-//     fn from(
-//         item: (
-//             api_models::payments::PaymentMethodData,
-//             AdditionalPaymentData,
-//         ),
-//     ) -> errors::RouterResult<Self> {
-//         let (payment_method, additional_data) = item;
-//         match (payment_method, additional_data) {
-//             (
-//                 api_models::payments::PaymentMethodData::Card(card_data),
-//                 AdditionalPaymentData::Card(addi_data),
-//             ) => Ok(Self::Card(
-//                 api_models::payments::CardResponse::foreign_from((card_data, addi_data)),
-//             )),
-//             (api_models::payments::PaymentMethodData::PayLater(pay_later_data), _) => {
-//                 Ok(Self::PayLater(pay_later_data))
-//             }
-//             (api_models::payments::PaymentMethodData::Wallet(wallet_data), _) => {
-//                 Ok(Self::Wallet(wallet_data))
-//             }
-//             (api_models::payments::PaymentMethodData::BankRedirect(bank_redirect_data), _) => {
-//                 Ok(Self::BankRedirect(bank_redirect_data))
-//             }
-//             (api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data), _) => {
-//                 Ok(Self::BankTransfer(*bank_transfer_data))
-//             }
-//             (api_models::payments::PaymentMethodData::Crypto(crypto_data), _) => {
-//                 Ok(Self::Crypto(crypto_data))
-//             }
-//             (api_models::payments::PaymentMethodData::BankDebit(bank_debit_data), _) => {
-//                 Ok(Self::BankDebit(bank_debit_data))
-//             }
-//             (api_models::payments::PaymentMethodData::MandatePayment, _) => {
-//                 Ok(Self::MandatePayment)
-//             }
-//             (api_models::payments::PaymentMethodData::Reward(reward_data), _) => {
-//                 Ok(Self::Reward(reward_data))
-//             }
-//             (api_models::payments::PaymentMethodData::Upi(upi_data), _) => Ok(Self::Upi(upi_data)),
-//             _ => {
-//                 logger::debug!("Exhaustive pattern found in Payment Method Data");
-//                 Err(error_stack::Report::from(
-//                     errors::ApiErrorResponse::InternalServerError,
-//                 ))
-//             }
-//         }
-//     }
-// }
