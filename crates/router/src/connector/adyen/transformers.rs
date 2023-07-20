@@ -303,6 +303,7 @@ pub enum AdyenPaymentMethod<'a> {
     AliPay(Box<AliPayData>),
     AliPayHk(Box<AliPayHkData>),
     ApplePay(Box<AdyenApplePay>),
+    #[serde(rename = "atome")]
     Atome(Box<AtomeData>),
     BancontactCard(Box<BancontactCardData>),
     Bizum(Box<BankRedirectionPMData>),
