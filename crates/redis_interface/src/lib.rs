@@ -194,8 +194,6 @@ impl RedisConnectionPool {
     }
 }
 
-// Uncommenting this line allows running tests and doc tests, but does not seem like the right solution
-// #[cfg(not(debug_assertions))]
 impl Drop for RedisConnectionPool {
     // safety: panics when invoked without a current tokio runtime
     fn drop(&mut self) {
