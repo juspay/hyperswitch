@@ -199,3 +199,6 @@ refund_retrieve_tolerance = 100
 
 [payouts]
 payout_eligibility = true
+
+[pm_filters.adyen]
+online_banking_fpx = {country = "MY", currency = "MYR"}
