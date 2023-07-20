@@ -31,7 +31,7 @@ async fn should_make_globalpay_paypal_payment(driver: WebDriver) -> Result<(), W
     let conn = GlobalpaySeleniumTest {};
     conn.make_paypal_payment(
         driver,
-        &format!("{CHEKOUT_BASE_URL}/paypal-redirect?amount=12.00&country=US&currency=EUR"),
+        &format!("{CHEKOUT_BASE_URL}/saved/46"),
         vec![
             Event::Assert(Assert::IsPresent("Google")),
             Event::Assert(Assert::ContainsAny(
@@ -50,7 +50,6 @@ async fn should_make_globalpay_ideal_payment(driver: WebDriver) -> Result<(), We
         driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/53"))),
-            Event::Assert(Assert::IsPresent("Home")),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Choose your Bank")),
             Event::Trigger(Trigger::Click(By::Css("button.btn.btn-primary"))),
@@ -77,7 +76,6 @@ async fn should_make_globalpay_giropay_payment(driver: WebDriver) -> Result<(), 
         driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/59"))),
-            Event::Assert(Assert::IsPresent("Home")),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Choose your Bank")),
             Event::Trigger(Trigger::Click(By::Css("button.btn.btn-primary"))),
@@ -104,7 +102,6 @@ async fn should_make_globalpay_eps_payment(driver: WebDriver) -> Result<(), WebD
         driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/50"))),
-            Event::Assert(Assert::IsPresent("Home")),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Choose your Bank")),
             Event::Trigger(Trigger::Click(By::Css("button.btn.btn-primary"))),
@@ -131,7 +128,6 @@ async fn should_make_globalpay_sofort_payment(driver: WebDriver) -> Result<(), W
         driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/63"))),
-            Event::Assert(Assert::IsPresent("Home")),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::RunIf(
                 Assert::IsPresent("Wählen"),

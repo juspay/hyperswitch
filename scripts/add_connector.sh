@@ -4,7 +4,7 @@ function find_prev_connector() {
     git checkout $self
     cp $self $self.tmp
     # add new connector to existing list and sort it
-    connectors=(aci adyen airwallex applepay authorizedotnet bambora bitpay bluesnap braintree cashtocode checkout coinbase cryptopay cybersource dlocal dummyconnector fiserv forte globalpay iatapay klarna mollie multisafepay nexinets noon nuvei opayo opennode payeezy payme paypal payu rapyd shift4 stripe trustpay worldline worldpay "$1")
+    connectors=(aci adyen airwallex applepay authorizedotnet bambora bitpay bluesnap braintree cashtocode checkout coinbase cryptopay cybersource dlocal dummyconnector fiserv forte globalpay globepay iatapay klarna mollie multisafepay nexinets noon nuvei opayo opennode payeezy payme paypal payu powertranz rapyd shift4 stax stripe trustpay tsys wise worldline worldpay "$1")
     IFS=$'\n' sorted=($(sort <<<"${connectors[*]}")); unset IFS
     res=`echo ${sorted[@]}`
     sed -i'' -e "s/^    connectors=.*/    connectors=($res \"\$1\")/" $self.tmp
@@ -53,8 +53,8 @@ sed -i'' -e "s|\"$prvc\" \(.*\)|\"$prvc\" \1\n\t\t\t\"${pg}\" => Ok(Box::new(\&c
 sed -i'' -e "s/pub $prvc: \(.*\)/pub $prvc: \1\n\tpub ${pg}: ConnectorParams,/" $src/configs/settings.rs
 sed -i'' -e "s|$prvc.base_url \(.*\)|$prvc.base_url \1\n${pg}.base_url = \"$base_url\"|" config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml
 sed  -r -i'' -e "s/\"$prvc\",/\"$prvc\",\n    \"${pg}\",/" config/development.toml config/docker_compose.toml config/config.example.toml loadtest/config/development.toml
-sed -i'' -e "s/Dummy,/Dummy,\n\t${pgc},/" crates/api_models/src/enums.rs
 sed -i'' -e "s/pub enum RoutableConnectors {/pub enum RoutableConnectors {\n\t${pgc},/" crates/api_models/src/enums.rs
+sed -i'' -e "s/Dummy,/Dummy,\n\t${pgc},/" crates/api_models/src/enums.rs
 sed -i'' -e "s/^default_imp_for_\(.*\)/default_imp_for_\1\n\tconnector::${pgc},/" $src/core/payments/flows.rs
 
 # remove temporary files created in above step

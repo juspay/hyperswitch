@@ -19,7 +19,7 @@ async fn should_make_paypal_paypal_wallet_payment(
         web_driver,
         &format!("{CHEKOUT_BASE_URL}/saved/21"),
         vec![
-            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::IsPresent("How Search works")),
             Event::Assert(Assert::ContainsAny(
                 Selector::QueryParamStr,
                 vec!["status=succeeded"],

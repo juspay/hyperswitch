@@ -27,7 +27,7 @@ pub async fn payment(
     )
     .await;
 
-    let payment_id = generate_id(20, "dummy_pay_");
+    let payment_id = generate_id(20, "dummy_pay");
     match req.payment_method_data {
         types::DummyConnectorPaymentMethodData::Card(card) => {
             let card_number = card.number.peek();
@@ -139,7 +139,7 @@ pub async fn refund_payment(
             .attach_printable("Payment is not successful to process the refund"));
     }
 
-    let refund_id = generate_id(20, "dummy_ref_");
+    let refund_id = generate_id(20, "dummy_ref");
     payment_data.eligible_amount -= req.amount;
     store_data_in_redis(
         redis_conn.to_owned(),
