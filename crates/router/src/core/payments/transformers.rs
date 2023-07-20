@@ -134,6 +134,10 @@ where
         ),
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
         multiple_capture_status: None,
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
         test_mode,
     };
 

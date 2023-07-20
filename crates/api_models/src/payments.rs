@@ -644,8 +644,12 @@ pub enum PayLaterData {
         #[schema(value_type = String)]
         billing_name: Secret<String>,
     },
+    /// For PayBright Redirect as PayLater Option
     PayBrightRedirect {},
+    /// For WalleyRedirect as PayLater Option
     WalleyRedirect {},
+    /// For Alma Redirection as PayLater Option
+    AlmaRedirect {},
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
@@ -952,14 +956,22 @@ pub enum WalletData {
     AliPayRedirect(AliPayRedirection),
     /// The wallet data for Ali Pay HK redirect
     AliPayHkRedirect(AliPayHkRedirection),
+    /// The wallet data for Momo redirect
+    MomoRedirect(MomoRedirection),
+    /// The wallet data for KakaoPay redirect
+    KakaoPayRedirect(KakaoPayRedirection),
     /// The wallet data for GoPay redirect
     GoPayRedirect(GoPayRedirection),
+    /// The wallet data for Gcash redirect
+    GcashRedirect(GcashRedirection),
     /// The wallet data for Apple pay
     ApplePay(ApplePayWalletData),
     /// Wallet data for apple pay redirect flow
     ApplePayRedirect(Box<ApplePayRedirectData>),
     /// Wallet data for apple pay third party sdk flow
     ApplePayThirdPartySdk(Box<ApplePayThirdPartySdkData>),
+    /// Wallet data for DANA redirect flow
+    DanaRedirect {},
     /// The wallet data for Google pay
     GooglePay(GooglePayWalletData),
     /// Wallet data for google pay redirect flow
@@ -975,6 +987,10 @@ pub enum WalletData {
     PaypalSdk(PayPalWalletData),
     /// The wallet data for Samsung Pay
     SamsungPay(Box<SamsungPayWalletData>),
+    /// Wallet data for Twint Redirection
+    TwintRedirect {},
+    /// Wallet data for Vipps Redirection
+    VippsRedirect {},
     /// The wallet data for WeChat Pay Redirection
     WeChatPayRedirect(Box<WeChatPayRedirection>),
     /// The wallet data for WeChat Pay
@@ -1039,7 +1055,16 @@ pub struct AliPayRedirection {}
 pub struct AliPayHkRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct MomoRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct KakaoPayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GoPayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GcashRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MobilePayRedirection {}
@@ -2354,7 +2379,7 @@ mod payment_id_type {
     }
 }
 
-mod amount {
+pub mod amount {
     use serde::de;
 
     use super::Amount;
