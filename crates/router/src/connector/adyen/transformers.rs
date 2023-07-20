@@ -303,6 +303,8 @@ pub enum AdyenPaymentMethod<'a> {
     AliPay(Box<AliPayData>),
     AliPayHk(Box<AliPayHkData>),
     ApplePay(Box<AdyenApplePay>),
+    #[serde(rename = "atome")]
+    Atome(Box<AtomeData>),
     BancontactCard(Box<BancontactCardData>),
     Bizum(Box<BankRedirectionPMData>),
     Blik(Box<BlikRedirectionData>),
@@ -789,6 +791,9 @@ pub struct VippsWalletData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AtomeData {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenPayLaterData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
@@ -832,6 +837,7 @@ pub enum PaymentType {
     Alma,
     Applepay,
     Bizum,
+    Atome,
     Blik,
     ClearPay,
     Dana,
@@ -1506,6 +1512,9 @@ impl<'a> TryFrom<(&api::PayLaterData, Option<api_enums::CountryAlpha2>)>
                     payment_type: PaymentType::Alma,
                 })),
             ),
+            api_models::payments::PayLaterData::AtomeRedirect { .. } => {
+                Ok(AdyenPaymentMethod::Atome(Box::new(AtomeData {})))
+            }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }

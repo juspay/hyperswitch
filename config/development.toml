@@ -259,6 +259,7 @@ gcash = {country = "PH", currency = "PHP"}
 online_banking_fpx = {country = "MY", currency = "MYR"}
 online_banking_thailand = {country = "TH", currency = "THB"}
 touch_n_go = {country = "MY", currency = "MYR"}
+atome = {country = "MY,SG", currency = "MYR,SGD"}
 
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }

@@ -650,6 +650,7 @@ pub enum PayLaterData {
     WalleyRedirect {},
     /// For Alma Redirection as PayLater Option
     AlmaRedirect {},
+    AtomeRedirect {},
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]

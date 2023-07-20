@@ -6545,6 +6545,17 @@
                 "description": "For Alma Redirection as PayLater Option"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "atome_redirect"
+            ],
+            "properties": {
+              "atome_redirect": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -7188,6 +7199,7 @@
           "ali_pay_hk",
           "alma",
           "apple_pay",
+          "atome",
           "bacs",
           "bancontact_card",
           "becs",

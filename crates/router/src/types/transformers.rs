@@ -188,6 +188,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::AfterpayClearpay
             | api_enums::PaymentMethodType::Klarna
             | api_enums::PaymentMethodType::PayBright
+            | api_enums::PaymentMethodType::Atome
             | api_enums::PaymentMethodType::Walley => Self::PayLater,
             api_enums::PaymentMethodType::Giropay
             | api_enums::PaymentMethodType::Ideal
