@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.6.0+hotfix.3 (2023-07-20)
+
+### Bug Fixes
+
+- **Connector:** Trigger connector for succeeded redirect response to update payment_method_id in mandate table if needed(bank redirect) ([`2d2ce32`](https://github.com/juspay/hyperswitch/commit/2d2ce32643e7264b81de22bb0f7d431bc086a008))
+- **connector:** Apple pay not working because of payment_method_type[] field in stripe ([`fbdc11b`](https://github.com/juspay/hyperswitch/commit/fbdc11b8197c786c6b4fcdc389d0d9bc47b1d7ad))
+
+### Miscellaneous Tasks
+
+- +nightly fmt ([`434c5cc`](https://github.com/juspay/hyperswitch/commit/434c5cc9ebe799a3744bc3971f236909ff0207bd))
+
+**Full Changelog:** [`v1.6.0+hotfix.2...v1.6.0+hotfix.3`](https://github.com/juspay/hyperswitch/compare/v1.6.0+hotfix.2...v1.6.0+hotfix.3)
+
+- - -
+
 ## 1.6.0+hotfix.2 (2023-07-19)
 
 ### Refactors
