@@ -1318,7 +1318,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                     connector_mandate_ids.payment_method_id,
                     connector_mandate_ids.connector_mandate_id,
                     StripeBillingAddress::default(),
-                    None,
+                    get_payment_method_type_for_saved_payment_method_payment(item)?,
                 ),
                 Some(api_models::payments::MandateReferenceId::NetworkMandateId(
                     network_transaction_id,
@@ -1357,15 +1357,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             }
         };
 
-        //if payment_method is Some(), That means, it is a recurring mandate payment.
-        //payment_method_types will not be not be available in router_data.request. But stripe requires that field.
-        //here we will get that field from router_data.recurring_mandate_payment_data
-        let payment_method_types = if payment_method.is_some() {
-            //if recurring payment get payment_method_type
-            get_payment_method_type_for_saved_payment_method_payment(item)?
-        } else {
-            payment_method_types
-        };
         payment_data = match item.request.payment_method_data {
             payments::PaymentMethodData::Wallet(payments::WalletData::ApplePay(_)) => Some(
                 StripePaymentMethodData::Wallet(StripeWallet::ApplepayPayment(ApplepayPayment {
