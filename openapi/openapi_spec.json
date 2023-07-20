@@ -2127,15 +2127,6 @@
       "AliPayRedirection": {
         "type": "object"
       },
-      "KakaoPayRedirection": {
-        "type": "object"
-      },
-      "GcashRedirection": {
-        "type": "object"
-      },
-      "MomoRedirection": {
-        "type": "object"
-      },
       "AmountInfo": {
         "type": "object",
         "required": [
@@ -7234,6 +7225,7 @@
           "sepa",
           "sofort",
           "swish",
+          "touch_n_go",
           "trustly",
           "twint",
           "upi_collect",
@@ -9748,6 +9740,9 @@
           }
         }
       },
+      "TouchNGoRedirection": {
+        "type": "object"
+      },
       "UpdateApiKeyRequest": {
         "type": "object",
         "description": "The request body for updating an API Key.",
@@ -9835,19 +9830,7 @@
           {
             "type": "object",
             "required": [
-            "touch_n_go_redirect"
-            ],
-            "properties": {
-              "touch_n_go_redirect": {
-                "$ref": "#/components/schemas/TouchNGoRedirection"
-              }
-            }
-          },
-          
-          {
-            "type": "object",
-            "required": [
-            "kakao_pay_redirect"
+              "kakao_pay_redirect"
             ],
             "properties": {
               "kakao_pay_redirect": {
@@ -10031,6 +10014,17 @@
               "vipps_redirect": {
                 "type": "object",
                 "description": "Wallet data for Vipps Redirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "touch_n_go_redirect"
+            ],
+            "properties": {
+              "touch_n_go_redirect": {
+                "$ref": "#/components/schemas/TouchNGoRedirection"
               }
             }
           },

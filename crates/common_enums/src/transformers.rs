@@ -1585,6 +1585,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Vipps => Self::Wallet,
             PaymentMethodType::Walley => Self::PayLater,
             PaymentMethodType::WeChatPay => Self::Wallet,
+            PaymentMethodType::TouchNGo => Self::Wallet,
         }
     }
 }
