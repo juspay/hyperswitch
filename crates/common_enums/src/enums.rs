@@ -1,3 +1,5 @@
+use common_utils::errors::ValidationError;
+use error_stack::{IntoReport, ResultExt};
 use router_derive;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -276,6 +278,53 @@ pub enum Currency {
 }
 
 impl Currency {
+    /// Convert the amount to its base denomination based on Currency and return String
+    pub fn to_currency_base_unit(
+        &self,
+        amount: i64,
+    ) -> Result<String, error_stack::Report<ValidationError>> {
+        let amount_f64 = self.to_currency_base_unit_asf64(amount)?;
+        let _ = amount_f64.to_string();
+        Ok(format!("{amount_f64:.2}"))
+    }
+
+    /// Convert the amount to its base denomination based on Currency and return f64
+    pub fn to_currency_base_unit_asf64(
+        &self,
+        amount: i64,
+    ) -> Result<f64, error_stack::Report<ValidationError>> {
+        let amount_u32 =
+            u32::try_from(amount)
+                .into_report()
+                .change_context(ValidationError::InvalidValue {
+                    message: amount.to_string(),
+                })?;
+        let amount_f64 = f64::from(amount_u32);
+        let amount = if self.is_zero_decimal_currency() {
+            amount_f64
+        } else if self.is_three_decimal_currency() {
+            amount_f64 / 1000.00
+        } else {
+            amount_f64 / 100.00
+        };
+        Ok(amount)
+    }
+
+    /// Convert the amount to its base denomination based on Currency and check for zero decimal currency and return String
+    /// Paypal Connector accepts Zero and Two decimal currency but not three decimal and it should be updated as required for 3 decimal currencies.
+    /// Paypal Ref - https://developer.paypal.com/docs/reports/reference/paypal-supported-currencies/
+    pub fn to_currency_base_unit_with_zero_decimal_check(
+        &self,
+        amount: i64,
+    ) -> Result<String, error_stack::Report<errors::ValidationError>> {
+        let amount_f64 = self.to_currency_base_unit_asf64(amount)?;
+        if self.is_zero_decimal_currency() {
+            Ok(amount_f64.to_string())
+        } else {
+            Ok(format!("{amount_f64:.2}"))
+        }
+    }
+
     pub fn iso_4217(&self) -> &'static str {
         match *self {
             Self::AED => "784",
@@ -391,220 +440,14 @@ impl Currency {
     pub fn is_zero_decimal_currency(self) -> bool {
         match self {
             Self::JPY | Self::KRW => true,
-            Self::AED
-            | Self::ALL
-            | Self::AMD
-            | Self::ANG
-            | Self::ARS
-            | Self::AUD
-            | Self::AWG
-            | Self::AZN
-            | Self::BBD
-            | Self::BDT
-            | Self::BHD
-            | Self::BMD
-            | Self::BND
-            | Self::BOB
-            | Self::BRL
-            | Self::BSD
-            | Self::BWP
-            | Self::BZD
-            | Self::CAD
-            | Self::CHF
-            | Self::CNY
-            | Self::COP
-            | Self::CRC
-            | Self::CUP
-            | Self::CZK
-            | Self::DKK
-            | Self::DOP
-            | Self::DZD
-            | Self::EGP
-            | Self::ETB
-            | Self::EUR
-            | Self::FJD
-            | Self::GBP
-            | Self::GHS
-            | Self::GIP
-            | Self::GMD
-            | Self::GTQ
-            | Self::GYD
-            | Self::HKD
-            | Self::HNL
-            | Self::HRK
-            | Self::HTG
-            | Self::HUF
-            | Self::IDR
-            | Self::ILS
-            | Self::INR
-            | Self::JMD
-            | Self::JOD
-            | Self::KES
-            | Self::KGS
-            | Self::KHR
-            | Self::KWD
-            | Self::KYD
-            | Self::KZT
-            | Self::LAK
-            | Self::LBP
-            | Self::LKR
-            | Self::LRD
-            | Self::LSL
-            | Self::MAD
-            | Self::MDL
-            | Self::MKD
-            | Self::MMK
-            | Self::MNT
-            | Self::MOP
-            | Self::MUR
-            | Self::MVR
-            | Self::MWK
-            | Self::MXN
-            | Self::MYR
-            | Self::NAD
-            | Self::NGN
-            | Self::NIO
-            | Self::NOK
-            | Self::NPR
-            | Self::NZD
-            | Self::OMR
-            | Self::PEN
-            | Self::PGK
-            | Self::PHP
-            | Self::PKR
-            | Self::PLN
-            | Self::QAR
-            | Self::RON
-            | Self::RUB
-            | Self::SAR
-            | Self::SCR
-            | Self::SEK
-            | Self::SGD
-            | Self::SLL
-            | Self::SOS
-            | Self::SSP
-            | Self::SVC
-            | Self::SZL
-            | Self::THB
-            | Self::TRY
-            | Self::TTD
-            | Self::TWD
-            | Self::TZS
-            | Self::USD
-            | Self::UYU
-            | Self::UZS
-            | Self::VND
-            | Self::YER
-            | Self::ZAR => false,
+            _ => false,
         }
     }
 
     pub fn is_three_decimal_currency(self) -> bool {
         match self {
             Self::BHD | Self::JOD | Self::KWD | Self::OMR => true,
-            Self::AED
-            | Self::ALL
-            | Self::AMD
-            | Self::ANG
-            | Self::ARS
-            | Self::AUD
-            | Self::AWG
-            | Self::AZN
-            | Self::BBD
-            | Self::BDT
-            | Self::BMD
-            | Self::BND
-            | Self::BOB
-            | Self::BRL
-            | Self::BSD
-            | Self::BWP
-            | Self::BZD
-            | Self::CAD
-            | Self::CHF
-            | Self::CNY
-            | Self::COP
-            | Self::CRC
-            | Self::CUP
-            | Self::CZK
-            | Self::DKK
-            | Self::DOP
-            | Self::DZD
-            | Self::EGP
-            | Self::ETB
-            | Self::EUR
-            | Self::FJD
-            | Self::GBP
-            | Self::GHS
-            | Self::GIP
-            | Self::GMD
-            | Self::GTQ
-            | Self::GYD
-            | Self::HKD
-            | Self::HNL
-            | Self::HRK
-            | Self::HTG
-            | Self::HUF
-            | Self::IDR
-            | Self::ILS
-            | Self::INR
-            | Self::JMD
-            | Self::JPY
-            | Self::KES
-            | Self::KGS
-            | Self::KHR
-            | Self::KRW
-            | Self::KYD
-            | Self::KZT
-            | Self::LAK
-            | Self::LBP
-            | Self::LKR
-            | Self::LRD
-            | Self::LSL
-            | Self::MAD
-            | Self::MDL
-            | Self::MKD
-            | Self::MMK
-            | Self::MNT
-            | Self::MOP
-            | Self::MUR
-            | Self::MVR
-            | Self::MWK
-            | Self::MXN
-            | Self::MYR
-            | Self::NAD
-            | Self::NGN
-            | Self::NIO
-            | Self::NOK
-            | Self::NPR
-            | Self::NZD
-            | Self::PEN
-            | Self::PGK
-            | Self::PHP
-            | Self::PKR
-            | Self::PLN
-            | Self::QAR
-            | Self::RON
-            | Self::RUB
-            | Self::SAR
-            | Self::SCR
-            | Self::SEK
-            | Self::SGD
-            | Self::SLL
-            | Self::SOS
-            | Self::SSP
-            | Self::SVC
-            | Self::SZL
-            | Self::THB
-            | Self::TRY
-            | Self::TTD
-            | Self::TWD
-            | Self::TZS
-            | Self::USD
-            | Self::UYU
-            | Self::UZS
-            | Self::VND
-            | Self::YER
-            | Self::ZAR => false,
+            _ => false,
         }
     }
 }

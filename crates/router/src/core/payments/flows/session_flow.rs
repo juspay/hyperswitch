@@ -5,7 +5,6 @@ use error_stack::{Report, ResultExt};
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
-    connector,
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, transformers, PaymentData},
@@ -172,13 +171,13 @@ async fn create_applepay_session_token(
         let amount_info = payment_types::AmountInfo {
             label: applepay_metadata.data.payment_request_data.label,
             total_type: Some("final".to_string()),
-            amount: connector::utils::to_currency_base_unit(
-                router_data.request.amount,
-                router_data.request.currency,
-            )
-            .change_context(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Failed to convert currency to base unit".to_string(),
-            })?,
+            amount: router_data
+                .request
+                .currency
+                .to_currency_base_unit(router_data.request.amount)
+                .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Failed to convert currency to base unit".to_string(),
+                })?,
         };
 
         let applepay_payment_request = payment_types::ApplePayPaymentRequest {
@@ -324,16 +323,16 @@ fn create_gpay_session_token(
             country_code: session_data.country.unwrap_or_default(),
             currency_code: router_data.request.currency,
             total_price_status: "Final".to_string(),
-            total_price: utils::to_currency_base_unit(
-                router_data.request.amount,
-                router_data.request.currency,
-            )
-            .attach_printable(
-                "Cannot convert given amount to base currency denomination".to_string(),
-            )
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "amount",
-            })?,
+            total_price: router_data
+                .request
+                .currency
+                .to_currency_base_unit(router_data.request.amount)
+                .attach_printable(
+                    "Cannot convert given amount to base currency denomination".to_string(),
+                )
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "amount",
+                })?,
         };
 
         Ok(types::PaymentsSessionRouterData {

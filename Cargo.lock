@@ -1361,6 +1361,7 @@ version = "0.1.0"
 dependencies = [
  "common_utils",
  "diesel",
+ "error-stack",
  "router_derive",
  "serde",
  "serde_json",
