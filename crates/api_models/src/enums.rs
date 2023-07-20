@@ -395,6 +395,11 @@ pub enum BankNames {
     VolkswagenBank,
     AliorBank,
     Boz,
+    BangkokBank,
+    KrungsriBank,
+    KrungThaiBank,
+    TheSiamCommercialBank,
+    KasikornBank,
 }
 
 #[derive(

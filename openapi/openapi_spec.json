@@ -2711,7 +2711,12 @@
           "bank_pekao_sa",
           "volkswagen_bank",
           "alior_bank",
-          "boz"
+          "boz",
+          "bangkok_bank",
+          "krungsri_bank",
+          "krung_thai_bank",
+          "the_siam_commercial_bank",
+          "kasikorn_bank"
         ]
       },
       "BankRedirectBilling": {
@@ -3078,6 +3083,25 @@
             ],
             "properties": {
               "online_banking_fpx": {
+                "type": "object",
+                "required": [
+                  "issuer"
+                ],
+                "properties": {
+                  "issuer": {
+                    "$ref": "#/components/schemas/BankNames"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "online_banking_thailand"
+            ],
+            "properties": {
+              "online_banking_thailand": {
                 "type": "object",
                 "required": [
                   "issuer"
@@ -7188,6 +7212,7 @@
           "mobile_pay",
           "momo",
           "multibanco",
+          "online_banking_thailand",
           "online_banking_czech_republic",
           "online_banking_finland",
           "online_banking_fpx",

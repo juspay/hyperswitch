@@ -860,6 +860,10 @@ pub enum BankRedirectData {
         #[schema(value_type = BankNames)]
         issuer: api_enums::BankNames,
     },
+    OnlineBankingThailand {
+        #[schema(value_type = BankNames)]
+        issuer: api_enums::BankNames,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
