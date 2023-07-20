@@ -9,6 +9,7 @@ pub mod dispute;
 pub mod ephemeral_key;
 pub mod events;
 pub mod file;
+pub mod fraud_check;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
@@ -54,6 +55,7 @@ pub trait StorageInterface:
     + ephemeral_key::EphemeralKeyInterface
     + events::EventInterface
     + file::FileMetadataInterface
+    + fraud_check::FraudCheckInterface
     + locker_mock_up::LockerMockUpInterface
     + mandate::MandateInterface
     + merchant_account::MerchantAccountInterface
