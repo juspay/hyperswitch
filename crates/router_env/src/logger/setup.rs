@@ -196,6 +196,13 @@ fn setup_metrics_pipeline(config: &config::LogTelemetry) -> Option<BasicControll
         .with_exporter(get_opentelemetry_exporter(config))
         .with_period(Duration::from_secs(3))
         .with_timeout(Duration::from_secs(10))
+        .with_resource(Resource::new(vec![KeyValue::new(
+            "pod",
+            std::env::var("POD_NAME").map_or(
+                "hyperswitch-server-default".into(),
+                Into::<opentelemetry::Value>::into,
+            ),
+        )]))
         .build();
 
     if config.ignore_errors {

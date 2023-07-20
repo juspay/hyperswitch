@@ -1,7 +1,4 @@
-use error_stack::ResultExt;
-
 use crate::{
-    core::errors,
     db::{get_and_deserialize_key, StorageInterface},
     types::api,
 };
@@ -45,37 +42,6 @@ pub async fn lookup_webhook_event(
                 })
                 .unwrap_or_else(|_| default_webhook_config())
                 .contains(event)
-        }
-    }
-}
-
-pub trait WebhookApiErrorSwitch<T> {
-    fn switch(self) -> errors::RouterResult<T>;
-}
-
-impl<T> WebhookApiErrorSwitch<T> for errors::CustomResult<T, errors::ConnectorError> {
-    fn switch(self) -> errors::RouterResult<T> {
-        match self {
-            Ok(res) => Ok(res),
-            Err(e) => match e.current_context() {
-                errors::ConnectorError::WebhookSourceVerificationFailed => {
-                    Err(e).change_context(errors::ApiErrorResponse::WebhookAuthenticationFailed)
-                }
-
-                errors::ConnectorError::WebhookSignatureNotFound
-                | errors::ConnectorError::WebhookReferenceIdNotFound
-                | errors::ConnectorError::WebhookResourceObjectNotFound
-                | errors::ConnectorError::WebhookBodyDecodingFailed
-                | errors::ConnectorError::WebhooksNotImplemented => {
-                    Err(e).change_context(errors::ApiErrorResponse::WebhookBadRequest)
-                }
-
-                errors::ConnectorError::WebhookEventTypeNotFound => {
-                    Err(e).change_context(errors::ApiErrorResponse::WebhookUnprocessableEntity)
-                }
-
-                _ => Err(e).change_context(errors::ApiErrorResponse::InternalServerError),
-            },
         }
     }
 }
