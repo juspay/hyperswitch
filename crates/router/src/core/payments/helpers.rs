@@ -2511,9 +2511,9 @@ pub async fn get_additional_payment_data(
                         card_type: card_data.card_type.to_owned(),
                         card_issuing_country: card_data.card_issuing_country.to_owned(),
                         bank_code: card_data.bank_code.to_owned(),
-                        card_exp_month: card_data.card_exp_month.peek().clone(),
-                        card_exp_year: card_data.card_exp_year.peek().clone(),
-                        card_holder_name: card_data.card_holder_name.peek().clone(),
+                        card_exp_month: card_data.card_exp_month.clone(),
+                        card_exp_year: card_data.card_exp_year.clone(),
+                        card_holder_name: card_data.card_holder_name.clone(),
                         last4: last4.clone(),
                         card_isin: card_isin.clone(),
                     },
@@ -2535,9 +2535,9 @@ pub async fn get_additional_payment_data(
                                 card_issuing_country: card_info.card_issuing_country,
                                 last4: last4.clone(),
                                 card_isin: card_isin.clone(),
-                                card_exp_month: card_data.card_exp_month.peek().clone(),
-                                card_exp_year: card_data.card_exp_year.peek().clone(),
-                                card_holder_name: card_data.card_holder_name.peek().clone(),
+                                card_exp_month: card_data.card_exp_month.clone(),
+                                card_exp_year: card_data.card_exp_year.clone(),
+                                card_holder_name: card_data.card_holder_name.clone(),
                             },
                         ))
                     });
@@ -2550,9 +2550,9 @@ pub async fn get_additional_payment_data(
                         card_issuing_country: None,
                         last4,
                         card_isin,
-                        card_exp_month: card_data.card_exp_month.peek().clone(),
-                        card_exp_year: card_data.card_exp_year.peek().clone(),
-                        card_holder_name: card_data.card_holder_name.peek().clone(),
+                        card_exp_month: card_data.card_exp_month.clone(),
+                        card_exp_year: card_data.card_exp_year.clone(),
+                        card_holder_name: card_data.card_holder_name.clone(),
                     },
                 )))
             }

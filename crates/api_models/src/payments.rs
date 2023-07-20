@@ -728,9 +728,9 @@ pub struct AdditionalCardInfo {
     pub bank_code: Option<String>,
     pub last4: String,
     pub card_isin: String,
-    pub card_exp_month: String,
-    pub card_exp_year: String,
-    pub card_holder_name: String,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_holder_name: Secret<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1786,9 +1786,9 @@ impl From<AdditionalCardInfo> for CardResponse {
             card_issuer: card.card_issuer,
             card_issuing_country: card.card_issuing_country,
             card_isin: card.card_isin,
-            card_exp_month: card.card_exp_month.into(),
-            card_exp_year: card.card_exp_year.into(),
-            card_holder_name: card.card_holder_name.into(),
+            card_exp_month: card.card_exp_month,
+            card_exp_year: card.card_exp_year,
+            card_holder_name: card.card_holder_name,
         }
     }
 }
