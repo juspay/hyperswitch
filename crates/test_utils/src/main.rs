@@ -124,6 +124,8 @@ fn main() {
 
     newman_command.arg("--delay-request").arg("5");
 
+    newman_command.arg("--color").arg("on");
+
     // Execute the newman command
     let output = newman_command.spawn();
     let mut child = match output {
