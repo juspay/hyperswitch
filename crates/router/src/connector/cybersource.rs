@@ -397,7 +397,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .parse_struct("Cybersource PaymentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let is_auto_capture =
-            data.request.capture_method == Some(storage_models::enums::CaptureMethod::Automatic);
+            data.request.capture_method == Some(diesel_models::enums::CaptureMethod::Automatic);
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,
@@ -485,7 +485,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let is_auto_capture =
-            data.request.capture_method == Some(storage_models::enums::CaptureMethod::Automatic);
+            data.request.capture_method == Some(diesel_models::enums::CaptureMethod::Automatic);
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,

@@ -152,7 +152,7 @@ async fn should_void_authorized_payment() {
             Some(types::PaymentsCancelData {
                 connector_meta,
                 amount: Some(100),
-                currency: Some(storage_models::enums::Currency::USD),
+                currency: Some(diesel_models::enums::Currency::USD),
                 ..utils::PaymentCancelType::default().0
             }),
             None,

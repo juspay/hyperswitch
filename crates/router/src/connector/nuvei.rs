@@ -17,7 +17,6 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers,
     services::{self, request, ConnectorIntegration},
     types::{
@@ -495,8 +494,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let (enrolled_for_3ds, related_transaction_id) =
             match (router_data.auth_type, router_data.payment_method) {
                 (
-                    storage_models::enums::AuthenticationType::ThreeDs,
-                    storage_models::enums::PaymentMethod::Card,
+                    diesel_models::enums::AuthenticationType::ThreeDs,
+                    diesel_models::enums::PaymentMethod::Card,
                 ) => {
                     let integ: Box<
                         &(dyn ConnectorIntegration<
@@ -859,24 +858,6 @@ impl api::IncomingWebhook for Nuvei {
         hex::decode(signature)
             .into_report()
             .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)
-    }
-
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
     }
 
     fn get_webhook_source_verification_message(
