@@ -633,11 +633,11 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingThailandIssuer {
     type Error = Error;
     fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
         match bank_name {
-            api::enums::BankNames::BangkokBank => Ok(Self::MolpayBangkokbank),
-            api::enums::BankNames::KrungsriBank => Ok(Self::MolpayKrungsribank),
-            api::enums::BankNames::KrungThaiBank => Ok(Self::MolpayKrungthaibank),
-            api::enums::BankNames::TheSiamCommercialBank => Ok(Self::MolpaySiamcommercialbank),
-            api::enums::BankNames::KasikornBank => Ok(Self::MolpayKbank),
+            api::enums::BankNames::BangkokBank => Ok(Self::Bangkokbank),
+            api::enums::BankNames::KrungsriBank => Ok(Self::Krungsribank),
+            api::enums::BankNames::KrungThaiBank => Ok(Self::Krungthaibank),
+            api::enums::BankNames::TheSiamCommercialBank => Ok(Self::Siamcommercialbank),
+            api::enums::BankNames::KasikornBank => Ok(Self::Kbank),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
@@ -900,13 +900,17 @@ pub enum OnlineBankingFpxIssuer {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
-#[serde(rename_all = "snake_case")]
 pub enum OnlineBankingThailandIssuer {
-    MolpayBangkokbank,
-    MolpayKrungsribank,
-    MolpayKrungthaibank,
-    MolpaySiamcommercialbank,
-    MolpayKbank,
+    #[serde(rename = "molpay_bangkokbank")]
+    Bangkokbank,
+    #[serde(rename = "molpay_krungsribank")]
+    Krungsribank,
+    #[serde(rename = "molpay_krungthaibank")]
+    Krungthaibank,
+    #[serde(rename = "molpay_siamcommercialbank")]
+    Siamcommercialbank,
+    #[serde(rename = "molpay_kbank")]
+    Kbank,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
