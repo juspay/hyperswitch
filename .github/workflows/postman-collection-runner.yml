@@ -25,6 +25,8 @@ jobs:
       fail-fast: false
       matrix:
         connector:
+          # Grouping connectors based on their time consumption
+          # This would help in parallelizing the tests
           - aci, checkout, stripe
           - bluesnap, nmi, worldline
 
@@ -121,5 +123,5 @@ jobs:
         run: |
           echo $INPUT | sed 's/./& /g'
           for i in $(echo $INPUT | tr "," "\n"); do
-            cargo run --package test_utils --bin test_utils -- --connector_name=$i --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY
+            cargo run --bin test_utils -- --connector_name=$i --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY
           done

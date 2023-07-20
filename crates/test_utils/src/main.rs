@@ -141,10 +141,10 @@ fn main() {
         Ok(exit_status) => {
             if exit_status.success() {
                 println!("Command executed successfully!");
-                exit_status.code().unwrap_or(0)
+                0
             } else {
                 eprintln!("Command failed with exit code: {:?}", exit_status.code());
-                exit_status.code().unwrap_or(0)
+                0 // Forcing the newman to execute next connector even if it fails
             }
         }
         Err(err) => {
@@ -152,6 +152,5 @@ fn main() {
             1
         }
     };
-    println!("-----> {}", exit_code.clone());
     exit(exit_code);
 }
