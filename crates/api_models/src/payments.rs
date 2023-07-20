@@ -1661,40 +1661,40 @@ pub struct PaymentListResponse {
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentListFilterConstraints {
-    // The identifier for payment
+    /// The identifier for payment
     pub payment_id: Option<String>,
-    // The starting point within a list of objects, limit on number of object will be some constant for join query
+    /// The starting point within a list of objects, limit on number of object will be some constant for join query
     pub offset: Option<i64>,
-    // The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
+    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
     pub time_range: Option<TimeRange>,
-    // The list of connectors to filter payments list
+    /// The list of connectors to filter payments list
     pub connector: Option<Vec<String>>,
-    // The list of currencies to filter payments list
+    /// The list of currencies to filter payments list
     pub currency: Option<Vec<enums::Currency>>,
-    // The list of payment statuses to filter payments list
+    /// The list of payment statuses to filter payments list
     pub status: Option<Vec<enums::IntentStatus>>,
-    // The list of payment methods to filter payments list
+    /// The list of payment methods to filter payments list
     pub payment_methods: Option<Vec<enums::PaymentMethod>>,
 }
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
-    // The list of available connector filters
+    /// The list of available connector filters
     pub connector: Vec<String>,
-    // The list of available currency filters
+    /// The list of available currency filters
     pub currency: Vec<enums::Currency>,
-    // The list of available payment status filters
+    /// The list of available payment status filters
     pub status: Vec<enums::IntentStatus>,
-    // The list of available payment method filters
+    /// The list of available payment method filters
     pub payment_method: Vec<enums::PaymentMethod>,
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
 pub struct TimeRange {
-    // The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
+    /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub start_time: PrimitiveDateTime,
-    // The end time to filter payments list or to get list of filters. If not passed the default time is now
+    /// The end time to filter payments list or to get list of filters. If not passed the default time is now
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub end_time: Option<PrimitiveDateTime>,
 }

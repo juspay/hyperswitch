@@ -148,8 +148,8 @@ impl PaymentIntentDbExt for PaymentIntent {
             .into_boxed();
 
         match &constraints.payment_id {
-            Some(pid) => {
-                filter = filter.filter(dsl::payment_id.eq(pid.to_owned()));
+            Some(payment_id) => {
+                filter = filter.filter(dsl::payment_id.eq(payment_id.to_owned()));
             }
             None => {
                 filter = filter.limit(JOIN_LIMIT).offset(offset);
