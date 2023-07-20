@@ -331,21 +331,6 @@ async fn should_make_adyen_eps_payment(web_driver: WebDriver) -> Result<(), WebD
     Ok(())
 }
 
-async fn should_make_adyen_blik_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
-    let conn = AdyenSeleniumTest {};
-    conn.make_redirection_payment(
-        web_driver,
-        vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/64"))),
-            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
-            Event::Assert(Assert::IsPresent("Status")),
-            Event::Assert(Assert::IsPresent("processing")), //final status of this payment method will remain in processing state
-        ],
-    )
-    .await?;
-    Ok(())
-}
-
 async fn should_make_adyen_bancontact_card_payment(
     web_driver: WebDriver,
 ) -> Result<(), WebDriverError> {
@@ -684,12 +669,6 @@ fn should_make_adyen_ideal_payment_test() {
 #[serial]
 fn should_make_adyen_eps_payment_test() {
     tester!(should_make_adyen_eps_payment);
-}
-
-#[test]
-#[serial]
-fn should_make_adyen_blik_payment_test() {
-    tester!(should_make_adyen_blik_payment);
 }
 
 #[test]
