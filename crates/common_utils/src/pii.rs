@@ -340,14 +340,11 @@ where
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let vpa_str: &str = val.as_ref();
-        match vpa_str.find('@') {
-            Some(at_index) => {
-                let user_identifier = &vpa_str[..at_index];
-                let domain = &vpa_str[at_index..];
-                let masked_user_identifier = "*".repeat(user_identifier.len());
-                write!(f, "{}{}", masked_user_identifier, domain)
-            }
-            None => WithType::fmt(val, f),
+        if let Some((user_identifier, bank_or_psp)) = vpa_str.split_once('@') {
+            let masked_user_identifier = "*".repeat(user_identifier.len());
+            write!(f, "{masked_user_identifier}@{bank_or_psp}")
+        } else {
+            WithType::fmt(val, f)
         }
     }
 }
@@ -458,7 +455,7 @@ mod pii_masking_strategy_tests {
         let secret: Secret<String> = Secret::new("+40712345678".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
     }
-    
+
     #[test]
     fn test_valid_upi_vpa_masking() {
         let secret: Secret<String, UpiVpaMaskingStrategy> = Secret::new("my_name@upi".to_string());
