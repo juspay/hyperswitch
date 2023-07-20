@@ -270,6 +270,7 @@ pub enum Currency {
     USD,
     UYU,
     UZS,
+    VND,
     YER,
     ZAR,
 }
@@ -381,6 +382,7 @@ impl Currency {
             Self::USD => "840",
             Self::UYU => "858",
             Self::UZS => "860",
+            Self::VND => "704",
             Self::YER => "886",
             Self::ZAR => "710",
         }
@@ -555,6 +557,7 @@ pub enum PaymentMethodType {
     AfterpayClearpay,
     AliPay,
     AliPayHk,
+    Alma,
     ApplePay,
     Bacs,
     BancontactCard,
@@ -565,18 +568,21 @@ pub enum PaymentMethodType {
     ClassicReward,
     Credit,
     CryptoCurrency,
+    Dana,
     Debit,
     Eps,
     Evoucher,
     Giropay,
     GooglePay,
     GoPay,
+    Gcash,
     Ideal,
     Interac,
     Klarna,
     KakaoPay,
     MbWay,
     MobilePay,
+    Momo,
     Multibanco,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
@@ -592,6 +598,7 @@ pub enum PaymentMethodType {
     Trustly,
     Twint,
     UpiCollect,
+    Vipps,
     Walley,
     WeChatPay,
 }
@@ -1186,4 +1193,86 @@ pub enum CanadaStatesAbbreviation {
     QC,
     SK,
     YT,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutStatus {
+    Success,
+    Failed,
+    Cancelled,
+    Pending,
+    Ineligible,
+    #[default]
+    RequiresCreation,
+    RequiresPayoutMethodData,
+    RequiresFulfillment,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutType {
+    #[default]
+    Card,
+    Bank,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "PascalCase")]
+#[strum(serialize_all = "PascalCase")]
+pub enum PayoutEntityType {
+    /// Adyen
+    #[default]
+    Individual,
+    Company,
+    NonProfit,
+    PublicSector,
+
+    /// Wise
+    #[strum(serialize = "lowercase")]
+    #[serde(rename = "lowercase")]
+    Business,
+    Personal,
 }
