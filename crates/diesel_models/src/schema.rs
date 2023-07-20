@@ -226,17 +226,24 @@ diesel::table! {
 
     fraud_check (id) {
         id -> Int4,
+        #[max_length = 64]
         frm_id -> Varchar,
+        #[max_length = 255]
         payment_id -> Varchar,
+        #[max_length = 255]
         merchant_id -> Varchar,
+        #[max_length = 255]
         attempt_id -> Varchar,
         created_at -> Timestamp,
+        #[max_length = 255]
         frm_name -> Varchar,
+        #[max_length = 255]
         frm_transaction_id -> Nullable<Varchar>,
         frm_transaction_type -> FraudCheckType,
         frm_status -> FraudCheckStatus,
         frm_score -> Nullable<Int4>,
         frm_reason -> Nullable<Jsonb>,
+        #[max_length = 255]
         frm_error -> Nullable<Varchar>,
         payment_details -> Nullable<Jsonb>,
         metadata -> Nullable<Jsonb>,
