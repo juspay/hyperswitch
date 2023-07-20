@@ -339,7 +339,7 @@ pub enum StripeCreditTransferSourceRequest {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct AchCreditTransferSourceRequest {
     #[serde(rename = "type")]
-    pub transfer_type: StripePaymentMethodType,
+    pub transfer_type: StripeCreditTransferTypes,
     #[serde(flatten)]
     pub payment_method_data: AchTransferData,
     pub currency: enums::Currency,
@@ -348,7 +348,7 @@ pub struct AchCreditTransferSourceRequest {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct MultibancoCreditTransferSourceRequest {
     #[serde(rename = "type")]
-    pub transfer_type: StripePaymentMethodType,
+    pub transfer_type: StripeCreditTransferTypes,
     #[serde(flatten)]
     pub payment_method_data: MultibancoTransferData,
     pub currency: enums::Currency,
@@ -484,34 +484,58 @@ pub struct GooglepayPayment {
     pub payment_method_types: StripePaymentMethodType,
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize, Clone, Copy)]
+// All supported payment_method_types in stripe
+// This enum goes in payment_method_types[] field in stripe request body
+// https://stripe.com/docs/api/payment_intents/create#create_payment_intent-payment_method_types
+#[allow(dead_code)]
+#[derive(Eq, PartialEq, Serialize, Clone, Debug, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodType {
-    Card,
-    Klarna,
+    AcssDebit,
     Affirm,
     AfterpayClearpay,
-    Eps,
-    Giropay,
-    Ideal,
-    Sofort,
-    AchCreditTransfer,
-    ApplePay,
-    #[serde(rename = "us_bank_account")]
-    Ach,
-    #[serde(rename = "sepa_debit")]
-    Sepa,
+    Alipay,
     #[serde(rename = "au_becs_debit")]
     Becs,
     #[serde(rename = "bacs_debit")]
     Bacs,
     Bancontact,
-    #[serde(rename = "wechat_pay")]
-    Wechatpay,
-    Alipay,
+    Blik,
+    Boleto,
+    Card,
+    CardPresent,
+    Cashapp,
+    CustomerBalance,
+    Eps,
+    Fpx,
+    Giropay,
+    Grabpay,
+    Ideal,
+    InteracPresent,
+    Klarna,
+    Konbini,
+    Link,
+    Oxxo,
     #[serde(rename = "p24")]
     Przelewy24,
-    CustomerBalance,
+    Paynow,
+    Paypal,
+    Pix,
+    Promptpay,
+    #[serde(rename = "sepa_debit")]
+    Sepa,
+    Sofort,
+    #[serde(rename = "us_bank_account")]
+    Ach,
+    #[serde(rename = "wechat_pay")]
+    Wechatpay,
+    Zip,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeCreditTransferTypes {
+    AchCreditTransfer,
     Multibanco,
 }
 
@@ -528,7 +552,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             enums::PaymentMethodType::Giropay => Ok(Self::Giropay),
             enums::PaymentMethodType::Ideal => Ok(Self::Ideal),
             enums::PaymentMethodType::Sofort => Ok(Self::Sofort),
-            enums::PaymentMethodType::ApplePay => Ok(Self::ApplePay),
+            enums::PaymentMethodType::ApplePay => Ok(Self::Card),
             enums::PaymentMethodType::Ach => Ok(Self::Ach),
             enums::PaymentMethodType::Sepa => Ok(Self::Sepa),
             enums::PaymentMethodType::Becs => Ok(Self::Becs),
@@ -736,9 +760,9 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
 
 fn validate_shipping_address_against_payment_method(
     shipping_address: &StripeShippingAddress,
-    payment_method: &StripePaymentMethodType,
+    payment_method: Option<&StripePaymentMethodType>,
 ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-    if let StripePaymentMethodType::AfterpayClearpay = payment_method {
+    if let Some(StripePaymentMethodType::AfterpayClearpay) = payment_method {
         let missing_fields = collect_missing_value_keys!(
             ("shipping.address.first_name", shipping_address.name),
             ("shipping.address.line1", shipping_address.line1),
@@ -1034,7 +1058,7 @@ fn create_stripe_payment_method(
 ) -> Result<
     (
         StripePaymentMethodData,
-        StripePaymentMethodType,
+        Option<StripePaymentMethodType>,
         StripeBillingAddress,
     ),
     error_stack::Report<errors::ConnectorError>,
@@ -1054,7 +1078,7 @@ fn create_stripe_payment_method(
                     payment_method_data_card_cvc: card_details.card_cvc.clone(),
                     payment_method_auth_type,
                 }),
-                StripePaymentMethodType::Card,
+                Some(StripePaymentMethodType::Card),
                 StripeBillingAddress::default(),
             ))
         }
@@ -1075,7 +1099,7 @@ fn create_stripe_payment_method(
                 StripePaymentMethodData::PayLater(StripePayLaterData {
                     payment_method_data_type: stripe_pm_type,
                 }),
-                stripe_pm_type,
+                Some(stripe_pm_type),
                 billing_address,
             ))
         }
@@ -1091,7 +1115,7 @@ fn create_stripe_payment_method(
                     bank_name,
                     bank_specific_data,
                 }),
-                pm_type,
+                Some(pm_type),
                 billing_address,
             ))
         }
@@ -1105,7 +1129,7 @@ fn create_stripe_payment_method(
                     pk_token_payment_network: applepay_data.payment_method.network.to_owned(),
                     pk_token_transaction_id: applepay_data.transaction_identifier.to_owned(),
                 })),
-                StripePaymentMethodType::ApplePay,
+                None,
                 StripeBillingAddress::default(),
             )),
             payments::WalletData::WeChatPay(_) => Ok((
@@ -1113,19 +1137,19 @@ fn create_stripe_payment_method(
                     client: WechatClient::Web,
                     payment_method_data_type: StripePaymentMethodType::Wechatpay,
                 })),
-                StripePaymentMethodType::Wechatpay,
+                Some(StripePaymentMethodType::Wechatpay),
                 StripeBillingAddress::default(),
             )),
             payments::WalletData::AliPayRedirect(_) => Ok((
                 StripePaymentMethodData::Wallet(StripeWallet::AlipayPayment(AlipayPayment {
                     payment_method_data_type: StripePaymentMethodType::Alipay,
                 })),
-                StripePaymentMethodType::Alipay,
+                Some(StripePaymentMethodType::Alipay),
                 StripeBillingAddress::default(),
             )),
             payments::WalletData::GooglePay(gpay_data) => Ok((
                 StripePaymentMethodData::try_from(gpay_data)?,
-                StripePaymentMethodType::Card,
+                Some(StripePaymentMethodType::Card),
                 StripeBillingAddress::default(),
             )),
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -1140,7 +1164,7 @@ fn create_stripe_payment_method(
                 bank_specific_data: bank_debit_data,
             });
 
-            Ok((pm_data, pm_type, billing_address))
+            Ok((pm_data, Some(pm_type), billing_address))
         }
         payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
             match bank_transfer_data.deref() {
@@ -1150,7 +1174,7 @@ fn create_stripe_payment_method(
                             email: billing_details.email.to_owned(),
                         }),
                     )),
-                    StripePaymentMethodType::AchCreditTransfer,
+                    None,
                     StripeBillingAddress::default(),
                 )),
                 payments::BankTransferData::MultibancoBankTransfer { billing_details } => Ok((
@@ -1161,7 +1185,7 @@ fn create_stripe_payment_method(
                             },
                         )),
                     ),
-                    StripePaymentMethodType::Multibanco,
+                    None,
                     StripeBillingAddress::default(),
                 )),
                 payments::BankTransferData::SepaBankTransfer {
@@ -1186,7 +1210,7 @@ fn create_stripe_payment_method(
                                 },
                             )),
                         ),
-                        StripePaymentMethodType::CustomerBalance,
+                        Some(StripePaymentMethodType::CustomerBalance),
                         billing_details,
                     ))
                 }
@@ -1208,7 +1232,7 @@ fn create_stripe_payment_method(
                                 },
                             )),
                         ),
-                        StripePaymentMethodType::CustomerBalance,
+                        Some(StripePaymentMethodType::CustomerBalance),
                         billing_details,
                     ))
                 }
@@ -1250,7 +1274,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             Some(mut shipping) => StripeShippingAddress {
                 city: shipping.address.as_mut().and_then(|a| a.city.take()),
                 country: shipping.address.as_mut().and_then(|a| a.country.take()),
-                line1: shipping.address.as_mut().and_then(|a| a.line1.take()),
+                line1: shipping
+                    .address
+                    .as_mut()
+                    .and_then(|a: &mut payments::AddressDetails| a.line1.take()),
                 line2: shipping.address.as_mut().and_then(|a| a.line2.take()),
                 zip: shipping.address.as_mut().and_then(|a| a.zip.take()),
                 state: shipping.address.as_mut().and_then(|a| a.state.take()),
@@ -1316,7 +1343,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
 
                     validate_shipping_address_against_payment_method(
                         &shipping_address,
-                        &payment_method_type,
+                        payment_method_type.as_ref(),
                     )?;
 
                     (
@@ -1324,7 +1351,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         None,
                         None,
                         billing_address,
-                        Some(payment_method_type),
+                        payment_method_type,
                     )
                 }
             }
@@ -2415,7 +2442,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                 match **bank_transfer_data {
                     payments::BankTransferData::MultibancoBankTransfer { .. } => Ok(
                         Self::MultibancoBankTansfer(MultibancoCreditTransferSourceRequest {
-                            transfer_type: StripePaymentMethodType::Multibanco,
+                            transfer_type: StripeCreditTransferTypes::Multibanco,
                             currency,
                             payment_method_data: MultibancoTransferData {
                                 email: item.request.get_email()?,
@@ -2426,7 +2453,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                     ),
                     payments::BankTransferData::AchBankTransfer { .. } => {
                         Ok(Self::AchBankTansfer(AchCreditTransferSourceRequest {
-                            transfer_type: StripePaymentMethodType::AchCreditTransfer,
+                            transfer_type: StripeCreditTransferTypes::AchCreditTransfer,
                             payment_method_data: AchTransferData {
                                 email: item.request.get_email()?,
                             },
@@ -3098,7 +3125,7 @@ mod test_validate_shipping_address_against_payment_method {
         //Act
         let result = validate_shipping_address_against_payment_method(
             &stripe_shipping_address,
-            payment_method,
+            Some(payment_method),
         );
 
         // Assert
@@ -3120,7 +3147,7 @@ mod test_validate_shipping_address_against_payment_method {
         //Act
         let result = validate_shipping_address_against_payment_method(
             &stripe_shipping_address,
-            payment_method,
+            Some(payment_method),
         );
 
         // Assert
@@ -3145,7 +3172,7 @@ mod test_validate_shipping_address_against_payment_method {
         //Act
         let result = validate_shipping_address_against_payment_method(
             &stripe_shipping_address,
-            payment_method,
+            Some(payment_method),
         );
 
         // Assert
@@ -3170,7 +3197,7 @@ mod test_validate_shipping_address_against_payment_method {
         //Act
         let result = validate_shipping_address_against_payment_method(
             &stripe_shipping_address,
-            payment_method,
+            Some(payment_method),
         );
 
         // Assert
@@ -3194,7 +3221,7 @@ mod test_validate_shipping_address_against_payment_method {
         //Act
         let result = validate_shipping_address_against_payment_method(
             &stripe_shipping_address,
-            payment_method,
+            Some(payment_method),
         );
 
         // Assert
@@ -3220,7 +3247,7 @@ mod test_validate_shipping_address_against_payment_method {
         //Act
         let result = validate_shipping_address_against_payment_method(
             &stripe_shipping_address,
-            payment_method,
+            Some(payment_method),
         );
 
         // Assert
