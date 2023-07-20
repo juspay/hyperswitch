@@ -234,7 +234,7 @@ pub struct AdyenThreeDS {
 #[serde(untagged)]
 pub enum AdyenPaymentResponse {
     Response(Response),
-    RedirectResponse(RedirectionResponse),
+    NextActionResponse(NextActionResponse),
     RedirectionErrorResponse(RedirectionErrorResponse),
 }
 
@@ -259,7 +259,7 @@ pub struct RedirectionErrorResponse {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RedirectionResponse {
+pub struct NextActionResponse {
     result_code: AdyenStatus,
     action: AdyenRedirectionAction,
     refusal_reason: Option<String>,
@@ -1965,7 +1965,7 @@ pub fn get_adyen_response(
 }
 
 pub fn get_redirection_response(
-    response: RedirectionResponse,
+    response: NextActionResponse,
     is_manual_capture: bool,
     status_code: u16,
 ) -> errors::CustomResult<
@@ -2099,7 +2099,7 @@ impl<F, Req>
             AdyenPaymentResponse::Response(response) => {
                 get_adyen_response(response, is_manual_capture, item.http_code)?
             }
-            AdyenPaymentResponse::RedirectResponse(response) => {
+            AdyenPaymentResponse::NextActionResponse(response) => {
                 get_redirection_response(response, is_manual_capture, item.http_code)?
             }
             AdyenPaymentResponse::RedirectionErrorResponse(response) => {
