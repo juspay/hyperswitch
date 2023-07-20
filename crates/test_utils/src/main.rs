@@ -141,16 +141,17 @@ fn main() {
         Ok(exit_status) => {
             if exit_status.success() {
                 println!("Command executed successfully!");
-                0
+                exit_status.code().unwrap_or(0)
             } else {
                 eprintln!("Command failed with exit code: {:?}", exit_status.code());
-                0 // Forcing the newman to execute next connector even if it fails
+                exit_status.code().unwrap_or(1)
             }
         }
         Err(err) => {
             eprintln!("Failed to wait for command execution: {err}");
-            1
+            exit(1);
         }
     };
+
     exit(exit_code);
 }

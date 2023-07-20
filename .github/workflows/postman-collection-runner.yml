@@ -1,4 +1,4 @@
-name: Run collections against your PRs
+name: Run collections against your PR
 
 on:
   workflow_dispatch:
@@ -17,7 +17,7 @@ env:
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 jobs:
-  Setup:
+  runner:
     name: Setup Rust and Server
     runs-on: ubuntu-latest
 
@@ -121,7 +121,14 @@ jobs:
           INPUT: ${{ matrix.connector }}
         shell: bash
         run: |
-          echo $INPUT | sed 's/./& /g'
           for i in $(echo $INPUT | tr "," "\n"); do
-            cargo run --bin test_utils -- --connector_name=$i --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY
+            cargo run --bin test_utils -- --connector_name=$i --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY || exit_code=$?
+            exit_codes+=($exit_code)
+          done
+
+          for code in "${exit_codes[@]}"; do
+            if [ $code -ne 0 ]; then
+              echo "One or more connectors failed to run."
+              exit $code
+            fi
           done
