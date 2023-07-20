@@ -586,6 +586,7 @@ pub enum PaymentMethodType {
     Multibanco,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
+    OnlineBankingFpx,
     OnlineBankingPoland,
     OnlineBankingSlovakia,
     PayBright,
