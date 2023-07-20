@@ -300,6 +300,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PayoutEntityType,
         api_models::enums::PayoutStatus,
         api_models::enums::PayoutType,
+        api_models::payments::FrmMessage,
         crate::types::api::admin::MerchantAccountResponse,
         crate::types::api::admin::MerchantConnectorId,
         crate::types::api::admin::MerchantDetails,

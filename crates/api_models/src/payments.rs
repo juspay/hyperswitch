@@ -2308,7 +2308,7 @@ pub struct FeatureMetadata {
 }
 
 ///frm message is an object sent inside the payments response...when frm is invoked, its value is Some(...), else its None
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct FrmMessage {
     pub frm_name: String,
     pub frm_transaction_id: Option<String>,
