@@ -3,6 +3,7 @@ name: Run collections against your PRs
 on:
   workflow_dispatch:
   merge_group:
+    types: [checks_requested]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -71,8 +72,7 @@ jobs:
         env:
           TOML_PATH: "./config/development.toml"
         run: |
-          KEY_LINE=$(grep -E '^\[secrets\]$|^\s*admin_api_key\s*=' "$TOML_PATH")
-          LOCAL_ADMIN_API_KEY=$(awk -F ' *= *' '/^admin_api_key/ {gsub(/"/, "", $2); print $2}' "$TOML_PATH")
+          LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' $TOML_PATH)
           echo "ADMIN_API_KEY=$LOCAL_ADMIN_API_KEY" >> $GITHUB_ENV
 
       - name: Install Rust
@@ -119,6 +119,7 @@ jobs:
           INPUT: ${{ matrix.connector }}
         shell: bash
         run: |
+          echo $INPUT | sed 's/./& /g'
           for i in $(echo $INPUT | tr "," "\n"); do
             cargo run --package test_utils --bin test_utils -- --connector_name=$i --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY
           done

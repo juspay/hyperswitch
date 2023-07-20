@@ -96,11 +96,11 @@ fn main() {
             }
             // Handle other ConnectorAuthType variants
             _ => {
-                eprintln!("\x1b[31mInvalid authentication type.\x1b[0m");
+                eprintln!("Invalid authentication type.");
             }
         }
     } else {
-        eprintln!("\x1b[31mConnector not found.\x1b[0m");
+        eprintln!("Connector not found.");
     }
 
     // Add additional environment variables if present
@@ -131,7 +131,7 @@ fn main() {
     let mut child = match output {
         Ok(child) => child,
         Err(err) => {
-            eprintln!("\x1b[31mFailed to execute command: {err}\x1b[0m");
+            eprintln!("Failed to execute command: {err}");
             exit(1);
         }
     };
@@ -140,21 +140,18 @@ fn main() {
     let exit_code = match status {
         Ok(exit_status) => {
             if exit_status.success() {
-                println!("\x1b[32mCommand executed successfully!\x1b[0m");
+                println!("Command executed successfully!");
                 exit_status.code().unwrap_or(0)
             } else {
-                eprintln!(
-                    "\x1b[31mCommand failed with exit code: {:?}\x1b[0m",
-                    exit_status.code()
-                );
-                exit_status.code().unwrap_or(1)
+                eprintln!("Command failed with exit code: {:?}", exit_status.code());
+                exit_status.code().unwrap_or(0)
             }
         }
         Err(err) => {
-            eprintln!("\x1b[31mFailed to wait for command execution: {err}\x1b[0m");
-            exit(1);
+            eprintln!("Failed to wait for command execution: {err}");
+            1
         }
     };
-
+    println!("-----> {}", exit_code.clone());
     exit(exit_code);
 }
