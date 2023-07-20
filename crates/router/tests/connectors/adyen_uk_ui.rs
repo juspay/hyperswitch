@@ -635,6 +635,7 @@ fn should_make_adyen_alipay_hk_payment_test() {
 
 #[test]
 #[serial]
+#[ignore = "Failing from connector side"]
 fn should_make_adyen_bizum_payment_test() {
     tester!(should_make_adyen_bizum_payment);
 }
