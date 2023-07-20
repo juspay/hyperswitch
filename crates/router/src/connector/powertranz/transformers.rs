@@ -1,7 +1,7 @@
-use api_models::payments::{Address, Card};
+use api_models::payments::Card;
 use common_utils::pii::Email;
 use diesel_models::enums::RefundStatus;
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -13,6 +13,8 @@ use crate::{
     types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
+const ISO_SUCCESS_CODES: [&str; 7] = ["00", "3D0", "3D1", "HP0", "TK0", "SP4", "FC0"];
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PowertranzPaymentsRequest {
@@ -22,8 +24,10 @@ pub struct PowertranzPaymentsRequest {
     three_d_secure: bool,
     source: Source,
     order_identifier: String,
-    billing_address: Option<PowertranzAddressDetails>,
-    shipping_address: Option<PowertranzAddressDetails>,
+    // billing and shipping are optional fields and requires state in iso codes, hence commenting it
+    // can be added later if we have iso code for state
+    // billing_address: Option<PowertranzAddressDetails>,
+    // shipping_address: Option<PowertranzAddressDetails>,
     extended_data: Option<ExtendedData>,
 }
 
@@ -101,8 +105,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
                 "Payment method".to_string(),
             )),
         }?;
-        let billing_address = get_address_details(&item.address.billing, &item.request.email);
-        let shipping_address = get_address_details(&item.address.shipping, &item.request.email);
+        // let billing_address = get_address_details(&item.address.billing, &item.request.email);
+        // let shipping_address = get_address_details(&item.address.shipping, &item.request.email);
         let (three_d_secure, extended_data) = match item.auth_type {
             diesel_models::enums::AuthenticationType::ThreeDs => {
                 (true, Some(ExtendedData::try_from(item)?))
@@ -120,8 +124,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
             three_d_secure,
             source,
             order_identifier: item.payment_id.clone(),
-            billing_address,
-            shipping_address,
+            // billing_address,
+            // shipping_address,
             extended_data,
         })
     }
@@ -160,7 +164,7 @@ impl TryFrom<&types::BrowserInformation> for BrowserInfo {
     }
 }
 
-fn get_address_details(
+/*fn get_address_details(
     address: &Option<Address>,
     email: &Option<Email>,
 ) -> Option<PowertranzAddressDetails> {
@@ -190,7 +194,7 @@ fn get_address_details(
             email_address: email.clone(),
             phone_number,
         })
-}
+}*/
 
 impl From<&Card> for Source {
     fn from(card: &Card) -> Self {
@@ -234,6 +238,7 @@ pub struct PowertranzBaseResponse {
     errors: Option<Vec<Error>>,
     iso_response_code: String,
     redirect_data: Option<String>,
+    response_message: String,
 }
 
 impl ForeignFrom<(u8, bool, bool)> for enums::AttemptStatus {
@@ -405,24 +410,38 @@ fn build_error_response(
     item: &PowertranzBaseResponse,
     status_code: u16,
 ) -> Option<types::ErrorResponse> {
-    item.errors.as_ref().map(|errors| {
-        let first_error = errors.first();
-        let code = first_error.map(|error| error.code.clone());
-        let message = first_error.map(|error| error.message.clone());
+    // errors object has highest precedence to get error message and code
+    let error_response = if item.errors.is_some() {
+        item.errors.as_ref().map(|errors| {
+            let first_error = errors.first();
+            let code = first_error.map(|error| error.code.clone());
+            let message = first_error.map(|error| error.message.clone());
 
-        types::ErrorResponse {
+            types::ErrorResponse {
+                status_code,
+                code: code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: message.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: Some(
+                    errors
+                        .iter()
+                        .map(|error| format!("{} : {}", error.code, error.message))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                ),
+            }
+        })
+    } else if !ISO_SUCCESS_CODES.contains(&item.iso_response_code.as_str()) {
+        // Incase error object is not present the error message and code should be propagated based on iso_response_code
+        Some(types::ErrorResponse {
             status_code,
-            code: code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: message.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: Some(
-                errors
-                    .iter()
-                    .map(|error| format!("{} : {}", error.code, error.message))
-                    .collect::<Vec<_>>()
-                    .join(", "),
-            ),
-        }
-    })
+            code: item.iso_response_code.clone(),
+            message: item.response_message.clone(),
+            reason: Some(item.response_message.clone()),
+        })
+    } else {
+        None
+    };
+    error_response
 }
 
 #[derive(Debug, Deserialize)]

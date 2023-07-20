@@ -20,6 +20,7 @@ pub struct StoreCardReq<'a> {
     pub merchant_id: &'a str,
     pub merchant_customer_id: String,
     pub card: Card,
+    pub enc_card_data: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -65,7 +66,7 @@ pub struct RetrieveCardResp {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RetrieveCardRespPayload {
     pub card: Option<Card>,
-    pub enc_card_data: Option<String>,
+    pub enc_card_data: Option<Secret<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -104,6 +105,24 @@ pub struct AddCardResponse {
     pub nickname: Option<String>,
     pub customer_id: Option<String>,
     pub duplicate: Option<bool>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddPaymentMethodResponse {
+    pub payment_method_id: String,
+    pub external_id: String,
+    #[serde(rename = "merchant_id")]
+    pub merchant_id: Option<String>,
+    pub nickname: Option<String>,
+    pub customer_id: Option<String>,
+    pub duplicate: Option<bool>,
+    pub payment_method_data: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GetPaymentMethodResponse {
+    pub payment_method: AddPaymentMethodResponse,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -238,6 +257,7 @@ pub async fn mk_add_card_request_hs(
     #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
     locker: &settings::Locker,
     card: &api::CardDetail,
+    enc_value: Option<&str>,
     customer_id: &str,
     merchant_id: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
@@ -255,6 +275,7 @@ pub async fn mk_add_card_request_hs(
         merchant_id,
         merchant_customer_id,
         card,
+        enc_card_data: enc_value.map(|e| e.to_string()),
     };
     let payload = utils::Encode::<StoreCardReq<'_>>::encode_to_vec(&store_card_req)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
