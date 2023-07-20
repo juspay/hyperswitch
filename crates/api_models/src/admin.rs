@@ -795,6 +795,7 @@ pub struct MerchantConnectorUpdate {
 #[serde(deny_unknown_fields)]
 pub struct FrmConfigs {
     ///this is the connector that can be used for the payment
+    #[schema(value_type = api_enums::Connector)]
     pub gateway: Option<api_enums::Connector>,
     ///payment methods that can be used in the payment
     pub payment_methods: Vec<FrmPaymentMethod>,
