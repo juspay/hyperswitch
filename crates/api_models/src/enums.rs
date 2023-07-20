@@ -78,6 +78,7 @@ pub enum Connector {
     Bitpay,
     Bambora,
     Bluesnap,
+    Boku,
     Braintree,
     Cashtocode,
     Checkout,
@@ -154,6 +155,7 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
+    Boku,
     Stax,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
