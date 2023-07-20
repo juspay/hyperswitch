@@ -2,7 +2,7 @@ name: Release a new version
 
 on:
   schedule:
-    - cron: "30 12 * * 2-4" # Run workflow at 6 PM IST every Tuesday, Wednesday, Thursday
+    - cron: "30 2 * * 1-5" # Run workflow at 8 AM IST every Monday-Friday
 
   workflow_dispatch:
 
@@ -84,5 +84,5 @@ jobs:
         # Need to consider commits inclusive of previous tag to generate diff link between versions.
         # This would also then require us to remove the last few lines from the changelog.
         run: |
-          git-cliff --config .github/git-cliff-release.toml "${PREVIOUS_TAG}^..${NEW_TAG}" | changelog-gh-usernames | head --lines -8 > release-notes.md
+          git-cliff --config .github/git-cliff-release.toml "${PREVIOUS_TAG}^..${NEW_TAG}" | changelog-gh-usernames | sed "/## ${PREVIOUS_TAG#v}/,\$d" > release-notes.md
           gh release create "${NEW_TAG}" --notes-file release-notes.md --verify-tag --title "Hyperswitch ${NEW_TAG}"

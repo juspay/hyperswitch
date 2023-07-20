@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 
@@ -41,11 +41,15 @@ impl Default for super::settings::Secrets {
             jwt_secret: "secret".into(),
             #[cfg(not(feature = "kms"))]
             admin_api_key: "test_admin".into(),
+            #[cfg(not(feature = "kms"))]
+            recon_admin_api_key: "recon_test_admin".into(),
             master_enc_key: "".into(),
             #[cfg(feature = "kms")]
             kms_encrypted_jwt_secret: "".into(),
             #[cfg(feature = "kms")]
             kms_encrypted_admin_api_key: "".into(),
+            #[cfg(feature = "kms")]
+            kms_encrypted_recon_admin_api_key: "".into(),
         }
     }
 }
@@ -56,7 +60,6 @@ impl Default for super::settings::Locker {
             host: "localhost".into(),
             mock_locker: true,
             basilisk_host: "localhost".into(),
-            locker_setup: super::settings::LockerSetup::LegacyLocker,
             locker_signing_key_id: "1".into(),
         }
     }
@@ -139,6 +142,89 @@ impl Default for super::settings::DrainerSettings {
             max_read_count: 100,
             shutdown_interval: 1000,
             loop_interval: 500,
+        }
+    }
+}
+
+use super::settings::{
+    Mandates, SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
+    SupportedPaymentMethodsForMandate,
+};
+
+impl Default for Mandates {
+    fn default() -> Self {
+        Self {
+            supported_payment_methods: SupportedPaymentMethodsForMandate(HashMap::from([
+                (
+                    enums::PaymentMethod::PayLater,
+                    SupportedPaymentMethodTypesForMandate(HashMap::from([(
+                        enums::PaymentMethodType::Klarna,
+                        SupportedConnectorsForMandate {
+                            connector_list: HashSet::from([enums::Connector::Adyen]),
+                        },
+                    )])),
+                ),
+                (
+                    enums::PaymentMethod::Wallet,
+                    SupportedPaymentMethodTypesForMandate(HashMap::from([
+                        (
+                            enums::PaymentMethodType::GooglePay,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([
+                                    enums::Connector::Stripe,
+                                    enums::Connector::Adyen,
+                                ]),
+                            },
+                        ),
+                        (
+                            enums::PaymentMethodType::ApplePay,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([
+                                    enums::Connector::Stripe,
+                                    enums::Connector::Adyen,
+                                ]),
+                            },
+                        ),
+                    ])),
+                ),
+                (
+                    enums::PaymentMethod::Card,
+                    SupportedPaymentMethodTypesForMandate(HashMap::from([
+                        (
+                            enums::PaymentMethodType::Credit,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([
+                                    enums::Connector::Stripe,
+                                    enums::Connector::Adyen,
+                                    enums::Connector::Authorizedotnet,
+                                    enums::Connector::Globalpay,
+                                    enums::Connector::Worldpay,
+                                    enums::Connector::Multisafepay,
+                                    enums::Connector::Nmi,
+                                    enums::Connector::Nexinets,
+                                    enums::Connector::Noon,
+                                ]),
+                            },
+                        ),
+                        (
+                            enums::PaymentMethodType::Debit,
+                            SupportedConnectorsForMandate {
+                                connector_list: HashSet::from([
+                                    enums::Connector::Stripe,
+                                    enums::Connector::Adyen,
+                                    enums::Connector::Authorizedotnet,
+                                    enums::Connector::Globalpay,
+                                    enums::Connector::Worldpay,
+                                    enums::Connector::Multisafepay,
+                                    enums::Connector::Nmi,
+                                    enums::Connector::Nexinets,
+                                    enums::Connector::Noon,
+                                ]),
+                            },
+                        ),
+                    ])),
+                ),
+            ])),
         }
     }
 }
@@ -760,6 +846,32 @@ impl Default for super::settings::RequiredFields {
                                 vec![RequiredFieldInfo {
                                     required_field: "metadata.order_details".to_string(),
                                     display_name: "order_details".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
+                            )]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::AliPay,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Globepay,
+                                vec![RequiredFieldInfo {
+                                    required_field: "description".to_string(),
+                                    display_name: "description".to_string(),
+                                    field_type: enums::FieldType::Text,
+                                }],
+                            )]),
+                        },
+                    ),
+                    (
+                        enums::PaymentMethodType::WeChatPay,
+                        ConnectorFields {
+                            fields: HashMap::from([(
+                                enums::Connector::Globepay,
+                                vec![RequiredFieldInfo {
+                                    required_field: "description".to_string(),
+                                    display_name: "description".to_string(),
                                     field_type: enums::FieldType::Text,
                                 }],
                             )]),

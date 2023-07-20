@@ -53,7 +53,7 @@ async fn should_only_authorize_payment() {
                     bank_code: None,
                     nick_name: Some(masking::Secret::new("nick_name".into())),
                 }),
-                capture_method: Some(storage_models::enums::CaptureMethod::Manual),
+                capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,

@@ -14,6 +14,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         self,
         api::{self, PaymentIdTypeExt},
@@ -39,6 +40,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
+        _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -59,7 +61,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         payment_intent.setup_future_usage = request
             .setup_future_usage
-            .map(ForeignInto::foreign_into)
             .or(payment_intent.setup_future_usage);
 
         helpers::validate_payment_status_against_not_allowed_statuses(
@@ -71,14 +72,20 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             "confirm",
         )?;
 
-        let (token, payment_method, payment_method_type, setup_mandate, mandate_connector) =
-            helpers::get_token_pm_type_mandate_details(
-                state,
-                request,
-                mandate_type.clone(),
-                merchant_account,
-            )
-            .await?;
+        let (
+            token,
+            payment_method,
+            payment_method_type,
+            setup_mandate,
+            recurring_mandate_payment_data,
+            mandate_connector,
+        ) = helpers::get_token_pm_type_mandate_details(
+            state,
+            request,
+            mandate_type.clone(),
+            merchant_account,
+        )
+        .await?;
 
         let browser_info = request
             .browser_info
@@ -113,9 +120,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         payment_attempt.browser_info = browser_info;
         payment_attempt.payment_method_type =
             payment_method_type.or(payment_attempt.payment_method_type);
-        payment_attempt.payment_experience = request
-            .payment_experience
-            .map(|experience| experience.foreign_into());
+        payment_attempt.payment_experience = request.payment_experience;
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.amount.into();
 
@@ -220,11 +225,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 force_sync: None,
                 refunds: vec![],
                 disputes: vec![],
+                attempts: None,
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
                 creds_identifier: None,
                 pm_token: None,
                 connector_customer_id: None,
+                recurring_mandate_payment_data,
                 ephemeral_key: None,
                 redirect_response,
             },

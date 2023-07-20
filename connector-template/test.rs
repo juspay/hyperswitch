@@ -1,6 +1,9 @@
 use std::str::FromStr;
 use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::{
+    core::utils as core_utils,
+    types::{self, api, storage::enums,
+}};
 
 use crate::utils::{self, ConnectorActions};
 use test_utils::connector_auth;
