@@ -584,6 +584,7 @@ pub enum PaymentMethodType {
     MobilePay,
     Momo,
     Multibanco,
+    OnlineBankingThailand,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
     OnlineBankingFpx,
