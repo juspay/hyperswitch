@@ -140,10 +140,10 @@ impl super::settings::Connectors {
         self.cybersource.validate()?;
         self.globalpay.validate()?;
         self.klarna.validate()?;
+        self.nmi.validate()?;
         self.shift4.validate()?;
         self.stripe.validate()?;
         self.worldpay.validate()?;
-        self.nmi.validate()?;
         self.supported.validate()?;
 
         Ok(())
