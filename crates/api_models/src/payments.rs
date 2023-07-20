@@ -1137,7 +1137,6 @@ pub enum PaymentMethodDataResponse {
     MandatePayment,
     Reward(RewardData),
     Upi(UpiData),
-    Default,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
