@@ -87,9 +87,11 @@ cards = [
     "payu",
     "powertranz",
     "shift4",
+    "stax",
     "stripe",
     "trustpay",
     "tsys",
+    "wise",
     "worldline",
     "worldpay",
     "zen",
@@ -111,6 +113,7 @@ hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 [connectors]
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
+adyen.secondary_base_url = "https://pal-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
@@ -147,8 +150,10 @@ payu.base_url = "https://secure.snd.payu.com/"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
+stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
+wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
@@ -241,6 +246,10 @@ bacs = {country = "UK", currency = "GBP"}
 sepa = {country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT", currency = "EUR"}
 ali_pay_hk = {country = "HK", currency = "HKD"}
 bizum = {country = "ES", currency = "EUR"}
+go_pay = {country = "ID", currency = "IDR"}
+kakao_pay = {country = "KR", currency = "KRW"}
+gcash = {country = "PH", currency = "PHP"}
+momo = {country = "VN", currency = "VND"}
 
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }
@@ -295,6 +304,7 @@ mollie = {long_lived_token = false, payment_method = "card"}
 
 [connector_customer]
 connector_list = "bluesnap,stripe"
+payout_connector_list = "wise"
 
 [dummy_connector]
 payment_ttl = 172800
@@ -320,3 +330,6 @@ card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,
 
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = []
+
+[payouts]
+payout_eligibility = true
