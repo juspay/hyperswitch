@@ -2711,7 +2711,12 @@
           "bank_pekao_sa",
           "volkswagen_bank",
           "alior_bank",
-          "boz"
+          "boz",
+          "bangkok_bank",
+          "krungsri_bank",
+          "krung_thai_bank",
+          "the_siam_commercial_bank",
+          "kasikorn_bank"
         ]
       },
       "BankRedirectBilling": {
@@ -3078,6 +3083,25 @@
             ],
             "properties": {
               "online_banking_fpx": {
+                "type": "object",
+                "required": [
+                  "issuer"
+                ],
+                "properties": {
+                  "issuer": {
+                    "$ref": "#/components/schemas/BankNames"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "online_banking_thailand"
+            ],
+            "properties": {
+              "online_banking_thailand": {
                 "type": "object",
                 "required": [
                   "issuer"
@@ -6521,6 +6545,17 @@
                 "description": "For Alma Redirection as PayLater Option"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "atome_redirect"
+            ],
+            "properties": {
+              "atome_redirect": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -7164,6 +7199,7 @@
           "ali_pay_hk",
           "alma",
           "apple_pay",
+          "atome",
           "bacs",
           "bancontact_card",
           "becs",
@@ -7188,6 +7224,7 @@
           "mobile_pay",
           "momo",
           "multibanco",
+          "online_banking_thailand",
           "online_banking_czech_republic",
           "online_banking_finland",
           "online_banking_fpx",
@@ -7200,6 +7237,7 @@
           "sepa",
           "sofort",
           "swish",
+          "touch_n_go",
           "trustly",
           "twint",
           "upi_collect",
@@ -9714,6 +9752,9 @@
           }
         }
       },
+      "TouchNGoRedirection": {
+        "type": "object"
+      },
       "UpdateApiKeyRequest": {
         "type": "object",
         "description": "The request body for updating an API Key.",
@@ -9985,6 +10026,17 @@
               "vipps_redirect": {
                 "type": "object",
                 "description": "Wallet data for Vipps Redirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "touch_n_go_redirect"
+            ],
+            "properties": {
+              "touch_n_go_redirect": {
+                "$ref": "#/components/schemas/TouchNGoRedirection"
               }
             }
           },
