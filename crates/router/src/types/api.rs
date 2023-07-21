@@ -46,6 +46,16 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     }
 }
 
+pub trait ConnectorErrorTypeMapping {
+    fn get_connector_error_type(
+        &self,
+        _error_code: Option<String>,
+        _error_message: Option<String>,
+    ) -> connector::utils::ConnectorErrorType {
+        connector::utils::ConnectorErrorType::UnknownError
+    }
+}
+
 pub trait ConnectorCommon {
     /// Name of the connector (in lowercase).
     fn id(&self) -> &'static str;
@@ -111,6 +121,7 @@ pub trait Connector:
     + Dispute
     + FileUpload
     + ConnectorTransactionId
+    + ConnectorErrorTypeMapping
 {
 }
 
@@ -128,7 +139,8 @@ impl<
             + ConnectorAccessToken
             + Dispute
             + FileUpload
-            + ConnectorTransactionId,
+            + ConnectorTransactionId
+            + ConnectorErrorTypeMapping,
     > Connector for T
 {
 }

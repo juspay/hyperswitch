@@ -20,7 +20,12 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     pii::PeekInterface,
-    types::{self, api, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
+    types::{
+        self,
+        api::{self, ConnectorErrorTypeMapping},
+        transformers::ForeignTryFrom,
+        PaymentsCancelData, ResponseId,
+    },
     utils::{self, OptionExt, ValueExt},
 };
 
@@ -1070,5 +1075,124 @@ impl ForeignTryFrom<String> for CanadaStatesAbbreviation {
             }
             .into()),
         }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ErrorCodeAndMessage {
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
+//Priority of connector_error_type
+pub enum ConnectorErrorType {
+    UserError = 2,
+    BusinessError = 3,
+    TechnicalError = 4,
+    UnknownError = 1,
+}
+
+//Gets the list of error_code_and_message, sorts based on the priority of error_type and gives most prior error
+// This could be used in connectors where we get list of error_messages and have to choose one error_message
+pub fn get_error_code_error_message_based_on_priority(
+    connector: impl ConnectorErrorTypeMapping,
+    error_list: Vec<ErrorCodeAndMessage>,
+) -> Option<ErrorCodeAndMessage> {
+    let error_type_list = error_list
+        .iter()
+        .map(|error| {
+            connector
+                .get_connector_error_type(error.error_code.clone(), error.error_message.clone())
+        })
+        .collect::<Vec<ConnectorErrorType>>();
+    let mut error_zip_list = error_list
+        .iter()
+        .zip(error_type_list.iter())
+        .collect::<Vec<(&ErrorCodeAndMessage, &ConnectorErrorType)>>();
+    error_zip_list.sort_by_key(|&(_, error_type)| error_type);
+    error_zip_list
+        .first()
+        .map(|&(error_code_message, _)| error_code_message)
+        .cloned()
+}
+
+#[cfg(test)]
+mod error_code_error_message_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+
+    struct TestConnector;
+
+    impl ConnectorErrorTypeMapping for TestConnector {
+        fn get_connector_error_type(
+            &self,
+            error_code: Option<String>,
+            error_message: Option<String>,
+        ) -> ConnectorErrorType {
+            match (error_code.as_deref(), error_message.as_deref()) {
+                (Some("01"), Some("INVALID_MERCHANT")) => ConnectorErrorType::BusinessError,
+                (Some("03"), Some("INVALID_CVV")) => ConnectorErrorType::UserError,
+                (Some("04"), None) => ConnectorErrorType::TechnicalError,
+                _ => ConnectorErrorType::UnknownError,
+            }
+        }
+    }
+
+    #[test]
+    fn test_get_error_code_error_message_based_on_priority() {
+        let error_code_message_list_unknown = vec![
+            ErrorCodeAndMessage {
+                error_code: Some("01".to_string()),
+                error_message: Some("INVALID_MERCHANT".to_string()),
+            },
+            ErrorCodeAndMessage {
+                error_code: Some("05".to_string()),
+                error_message: None,
+            },
+            ErrorCodeAndMessage {
+                error_code: Some("03".to_string()),
+                error_message: Some("INVALID_CVV".to_string()),
+            },
+            ErrorCodeAndMessage {
+                error_code: Some("04".to_string()),
+                error_message: None,
+            },
+        ];
+        let error_code_message_list_user = vec![
+            ErrorCodeAndMessage {
+                error_code: Some("01".to_string()),
+                error_message: Some("INVALID_MERCHANT".to_string()),
+            },
+            ErrorCodeAndMessage {
+                error_code: Some("03".to_string()),
+                error_message: Some("INVALID_CVV".to_string()),
+            },
+        ];
+        let error_code_error_message_unknown = get_error_code_error_message_based_on_priority(
+            TestConnector,
+            error_code_message_list_unknown,
+        );
+        let error_code_error_message_user = get_error_code_error_message_based_on_priority(
+            TestConnector,
+            error_code_message_list_user,
+        );
+        let error_code_error_message_none =
+            get_error_code_error_message_based_on_priority(TestConnector, vec![]);
+        assert_eq!(
+            error_code_error_message_unknown,
+            Some(ErrorCodeAndMessage {
+                error_code: Some("05".to_string()),
+                error_message: None,
+            })
+        );
+        assert_eq!(
+            error_code_error_message_user,
+            Some(ErrorCodeAndMessage {
+                error_code: Some("03".to_string()),
+                error_message: Some("INVALID_CVV".to_string()),
+            })
+        );
+        assert_eq!(error_code_error_message_none, None);
     }
 }
