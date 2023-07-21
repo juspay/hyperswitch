@@ -1540,6 +1540,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::AfterpayClearpay => Self::PayLater,
             PaymentMethodType::AliPay => Self::Wallet,
             PaymentMethodType::AliPayHk => Self::Wallet,
+            PaymentMethodType::Alma => Self::PayLater,
             PaymentMethodType::ApplePay => Self::Wallet,
             PaymentMethodType::Bacs => Self::BankDebit,
             PaymentMethodType::BancontactCard => Self::BankRedirect,
@@ -1549,6 +1550,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::ClassicReward => Self::Reward,
             PaymentMethodType::Credit => Self::Card,
             PaymentMethodType::CryptoCurrency => Self::Crypto,
+            PaymentMethodType::Dana => Self::Wallet,
             PaymentMethodType::Debit => Self::Card,
             PaymentMethodType::Eps => Self::BankRedirect,
             PaymentMethodType::Evoucher => Self::Reward,
@@ -1561,10 +1563,13 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::KakaoPay => Self::Wallet,
             PaymentMethodType::MbWay => Self::Wallet,
             PaymentMethodType::MobilePay => Self::Wallet,
+            PaymentMethodType::Momo => Self::Wallet,
             PaymentMethodType::Multibanco => Self::BankTransfer,
             PaymentMethodType::Interac => Self::BankRedirect,
             PaymentMethodType::OnlineBankingCzechRepublic => Self::BankRedirect,
             PaymentMethodType::OnlineBankingFinland => Self::BankRedirect,
+            PaymentMethodType::OnlineBankingFpx => Self::BankRedirect,
+            PaymentMethodType::OnlineBankingThailand => Self::BankRedirect,
             PaymentMethodType::OnlineBankingPoland => Self::BankRedirect,
             PaymentMethodType::OnlineBankingSlovakia => Self::BankRedirect,
             PaymentMethodType::PayBright => Self::PayLater,
@@ -1580,6 +1585,8 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Vipps => Self::Wallet,
             PaymentMethodType::Walley => Self::PayLater,
             PaymentMethodType::WeChatPay => Self::Wallet,
+            PaymentMethodType::TouchNGo => Self::Wallet,
+            PaymentMethodType::Atome => Self::PayLater,
         }
     }
 }

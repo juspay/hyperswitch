@@ -5,6 +5,8 @@ use common_utils::{crypto::OptionalEncryptableName, pii};
 use serde::de;
 use utoipa::ToSchema;
 
+#[cfg(feature = "payouts")]
+use crate::payouts;
 use crate::{
     admin, enums as api_enums,
     payments::{self, BankCodeResponse},
@@ -568,6 +570,11 @@ pub struct CustomerPaymentMethod {
     #[schema(value_type = Option<PrimitiveDateTime>,example = "2023-01-18T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Bank>)]
+    pub bank_transfer: Option<payouts::Bank>,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodId {
