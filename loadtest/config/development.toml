@@ -109,7 +109,7 @@ zen.base_url = "https://api.zen-test.com/"
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
-rewards = ["cashtocode",]
+rewards = ["cashtocode", "zen"]
 cards = [
     "aci",
     "adyen",

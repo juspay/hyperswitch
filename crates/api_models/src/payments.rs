@@ -1169,12 +1169,16 @@ pub struct RewardData {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
+pub struct BoletoVoucherData {
+    /// The shopper's social security number
+    #[schema(value_type = Option<String>)]
+    social_security_number: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum VoucherData {
-    Boleto {
-        /// The shopper's social security number
-        #[schema(value_type = Option<String>)]
-        social_security_number: Option<Secret<String>>,
-    },
+    Boleto(Box<BoletoVoucherData>),
     Efecty,
     PagoEfectivo,
     Pix,
