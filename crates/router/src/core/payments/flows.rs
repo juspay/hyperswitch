@@ -137,12 +137,12 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
-    connector::Boku,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
     connector::Braintree,
+    connector::Boku,
     connector::Cashtocode,
     connector::Checkout,
     connector::Coinbase,
@@ -201,7 +201,6 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
-    connector::Boku,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
@@ -209,6 +208,7 @@ default_imp_for_create_customer!(
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bitpay,
+    connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
     connector::Checkout,
@@ -275,11 +275,11 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
-    connector::Boku,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
+    connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
     connector::Coinbase,
@@ -320,7 +320,6 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
-    connector::Boku,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
@@ -329,6 +328,7 @@ default_imp_for_connector_request_id!(
     connector::Bambora,
     connector::Bitpay,
     connector::Bluesnap,
+    connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
     connector::Checkout,
@@ -395,7 +395,6 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
-    connector::Boku,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
@@ -404,6 +403,7 @@ default_imp_for_accept_dispute!(
     connector::Bambora,
     connector::Bitpay,
     connector::Bluesnap,
+    connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
     connector::Coinbase,
@@ -490,7 +490,6 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
-    connector::Boku,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
@@ -499,6 +498,7 @@ default_imp_for_file_upload!(
     connector::Bambora,
     connector::Bitpay,
     connector::Bluesnap,
+    connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
     connector::Coinbase,
@@ -562,7 +562,6 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
-    connector::Boku,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
@@ -571,6 +570,7 @@ default_imp_for_submit_evidence!(
     connector::Bambora,
     connector::Bitpay,
     connector::Bluesnap,
+    connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
     connector::Cybersource,
@@ -634,7 +634,6 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
-    connector::Boku,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
@@ -643,6 +642,7 @@ default_imp_for_defend_dispute!(
     connector::Bambora,
     connector::Bitpay,
     connector::Bluesnap,
+    connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
     connector::Cybersource,
@@ -707,7 +707,6 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
-    connector::Boku,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
@@ -716,6 +715,7 @@ default_imp_for_pre_processing_steps!(
     connector::Bambora,
     connector::Bitpay,
     connector::Bluesnap,
+    connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
     connector::Checkout,
@@ -763,13 +763,13 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
-    connector::Boku,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bitpay,
     connector::Bluesnap,
+    connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
     connector::Checkout,
@@ -836,13 +836,13 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
-    connector::Boku,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bitpay,
     connector::Bluesnap,
+    connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
     connector::Checkout,
@@ -912,13 +912,13 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
-    connector::Boku,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bitpay,
     connector::Bluesnap,
+    connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
     connector::Checkout,
@@ -985,13 +985,13 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
-    connector::Boku,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bitpay,
     connector::Bluesnap,
+    connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
     connector::Checkout,
@@ -1058,13 +1058,13 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
-    connector::Boku,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bitpay,
     connector::Bluesnap,
+    connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
     connector::Checkout,
@@ -1131,7 +1131,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
-    connector::Boku,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1139,6 +1138,7 @@ default_imp_for_payouts_quote!(
     connector::Bambora,
     connector::Bitpay,
     connector::Bluesnap,
+    connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
     connector::Checkout,
@@ -1205,7 +1205,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
-    connector::Boku,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1213,6 +1212,7 @@ default_imp_for_payouts_recipient!(
     connector::Bambora,
     connector::Bitpay,
     connector::Bluesnap,
+    connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
     connector::Checkout,

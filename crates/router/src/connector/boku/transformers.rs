@@ -7,7 +7,6 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct BokuPaymentsRequest {
     amount: i64,
@@ -47,7 +46,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BokuPaymentsRequest {
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct BokuAuthType {
     pub(super) api_key: Secret<String>,
@@ -64,8 +62,8 @@ impl TryFrom<&types::ConnectorAuthType> for BokuAuthType {
         }
     }
 }
+
 // PaymentsResponse
-//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum BokuPaymentStatus {
@@ -85,7 +83,6 @@ impl From<BokuPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BokuPaymentsResponse {
     status: BokuPaymentStatus,
@@ -115,9 +112,7 @@ impl<F, T>
     }
 }
 
-//TODO: Fill the struct with respective fields
 // REFUND :
-// Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct BokuRefundRequest {
     pub amount: i64,
@@ -133,7 +128,6 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BokuRefundRequest {
 }
 
 // Type definition for Refund Response
-
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
 pub enum RefundStatus {
@@ -149,12 +143,10 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Succeeded => Self::Success,
             RefundStatus::Failed => Self::Failure,
             RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
@@ -195,7 +187,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BokuErrorResponse {
     pub status_code: u16,

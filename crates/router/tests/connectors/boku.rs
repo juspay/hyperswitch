@@ -12,7 +12,7 @@ impl utils::Connector for BokuTest {
         use router::connector::Boku;
         types::api::ConnectorData {
             connector: Box::new(&Boku),
-            connector_name: types::Connector::Boku,
+            connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
         }
     }
