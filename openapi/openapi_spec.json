@@ -10061,6 +10061,28 @@
                 "$ref": "#/components/schemas/WeChatPay"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "we_chat_pay_qr"
+            ],
+            "properties": {
+              "we_chat_pay_qr": {
+                "$ref": "#/components/schemas/WeChatPayQr"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "swish"
+            ],
+            "properties": {
+              "swish": {
+                "$ref": "#/components/schemas/SwishWalletData"
+              }
+            }
           }
         ]
       },
