@@ -166,11 +166,12 @@ impl<const T: u8>
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
             enums::PaymentMethod::Card => Ok(format!("{}/payment", self.base_url(connectors))),
-            enums::PaymentMethod::Wallet => Ok(format!("{}/payment", self.base_url(connectors))),
+            enums::PaymentMethod::Wallet  => Ok(format!("{}/payment", self.base_url(connectors))),
+            enums::PaymentMethod::PayLater  => Ok(format!("{}/payment", self.base_url(connectors))),
             _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                 message: format!("The payment method {} is not supported", req.payment_method),
                 connector: "dummyconnector",
-                payment_experience: api::enums::PaymentExperience::InvokeSdkClient.to_string(),
+                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
             })),
         }
     }

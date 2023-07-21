@@ -1,6 +1,9 @@
 pub const PAYMENT_ID_PREFIX: &str = "dummy_pay";
 pub const ATTEMPT_ID_PREFIX: &str = "dummy_attempt";
-pub const THREE_DS_CSS: &str = "body {
+pub const THREE_DS_CSS: &str = "
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@500&display=swap');
+    body {
+        font-family: Inter;
         background-color: #242F48; 
         display: flex; 
         justify-content: center; 
@@ -11,7 +14,7 @@ pub const THREE_DS_CSS: &str = "body {
     } 
     img { 
         width: 250px;
-        margin-bottom: 2.5rem;
+        margin-bottom: 3rem;
     }
     .authorize {
         color: white;
@@ -44,7 +47,7 @@ pub const THREE_DS_CSS: &str = "body {
         width: 500px;
         color: white;
         margin: 0.5rem;
-        font-family: arial;
+        font-family: Inter;
         text-align: center;
         font-size: 1.25rem;
     }";

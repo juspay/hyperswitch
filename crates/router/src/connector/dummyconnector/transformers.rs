@@ -15,16 +15,18 @@ pub struct DummyConnectorPaymentsRequest {
     amount: i64,
     currency: Currency,
     payment_method_data: PaymentMethodData,
-    return_url: Option<String>
+    return_url: Option<String>,
 }
 
-#[derive(Debug, serde::Serialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum PaymentMethodData {
     Card(DummyConnectorCard),
     Wallet(DummyConnectorWallet),
+    PayLater(DummyConnectorPayLater),
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct DummyConnectorCard {
     name: Secret<String>,
     number: cards::CardNumber,
@@ -34,9 +36,21 @@ pub struct DummyConnectorCard {
     complete: bool,
 }
 
-#[derive(Debug, serde::Serialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum DummyConnectorWallet {
-    GooglePay
+    GooglePay,
+    Paypal,
+    WeChatPay,
+    MbWay,
+    AliPay,
+    AliPayHK,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub enum DummyConnectorPayLater {
+    Klarna,
+    Affirm,
+    AfterPayClearPay,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequest {
@@ -59,14 +73,82 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequ
                     return_url: item.request.router_return_url.clone(),
                 })
             }
-            api::PaymentMethodData::Wallet(api_models::payments::WalletData::GooglePayRedirect(_)) => {
-                Ok(Self {
+            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                api_models::payments::WalletData::GooglePayRedirect(_) => Ok(Self {
                     amount: item.request.amount,
                     currency: item.request.currency,
                     payment_method_data: PaymentMethodData::Wallet(DummyConnectorWallet::GooglePay),
                     return_url: item.request.router_return_url.clone(),
-                })
-            }
+                }),
+                api_models::payments::WalletData::PaypalRedirect(_) => Ok(Self {
+                    amount: item.request.amount,
+                    currency: item.request.currency,
+                    payment_method_data: PaymentMethodData::Wallet(DummyConnectorWallet::Paypal),
+                    return_url: item.request.router_return_url.clone(),
+                }),
+                api_models::payments::WalletData::WeChatPay(_) => Ok(Self {
+                    amount: item.request.amount,
+                    currency: item.request.currency,
+                    payment_method_data: PaymentMethodData::Wallet(DummyConnectorWallet::WeChatPay),
+                    return_url: item.request.router_return_url.clone(),
+                }),
+                api_models::payments::WalletData::MbWayRedirect(_) => Ok(Self {
+                    amount: item.request.amount,
+                    currency: item.request.currency,
+                    payment_method_data: PaymentMethodData::Wallet(DummyConnectorWallet::MbWay),
+                    return_url: item.request.router_return_url.clone(),
+                }),
+                api_models::payments::WalletData::AliPayRedirect(_) => Ok(Self {
+                    amount: item.request.amount,
+                    currency: item.request.currency,
+                    payment_method_data: PaymentMethodData::Wallet(DummyConnectorWallet::AliPay),
+                    return_url: item.request.router_return_url.clone(),
+                }),
+                api_models::payments::WalletData::AliPayHkRedirect(_) => Ok(Self {
+                    amount: item.request.amount,
+                    currency: item.request.currency,
+                    payment_method_data: PaymentMethodData::Wallet(DummyConnectorWallet::AliPayHK),
+                    return_url: item.request.router_return_url.clone(),
+                }),
+                _ => Err(
+                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
+                ),
+            },
+            api::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
+                api_models::payments::PayLaterData::KlarnaRedirect {
+                    billing_email: _,
+                    billing_country: _,
+                } => Ok(Self {
+                    amount: item.request.amount,
+                    currency: item.request.currency,
+                    payment_method_data: PaymentMethodData::PayLater(
+                        DummyConnectorPayLater::Klarna,
+                    ),
+                    return_url: item.request.router_return_url.clone(),
+                }),
+                api_models::payments::PayLaterData::AffirmRedirect {} => Ok(Self {
+                    amount: item.request.amount,
+                    currency: item.request.currency,
+                    payment_method_data: PaymentMethodData::PayLater(
+                        DummyConnectorPayLater::Affirm,
+                    ),
+                    return_url: item.request.router_return_url.clone(),
+                }),
+                api_models::payments::PayLaterData::AfterpayClearpayRedirect {
+                    billing_email: _,
+                    billing_name: _,
+                } => Ok(Self {
+                    amount: item.request.amount,
+                    currency: item.request.currency,
+                    payment_method_data: PaymentMethodData::PayLater(
+                        DummyConnectorPayLater::AfterPayClearPay,
+                    ),
+                    return_url: item.request.router_return_url.clone(),
+                }),
+                _ => Err(
+                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
+                ),
+            },
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
@@ -109,15 +191,23 @@ impl From<DummyConnectorPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PaymentsResponse {
     status: DummyConnectorPaymentStatus,
     id: String,
     amount: i64,
     currency: Currency,
     created: String,
-    payment_method_type: String,
+    payment_method_type: PaymentMethodType,
     next_action: Option<DummyConnectorNextAction>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum PaymentMethodType {
+    Card,
+    Wallet(DummyConnectorWallet),
+    PayLater(DummyConnectorPayLater),
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentsResponse, T, types::PaymentsResponseData>>

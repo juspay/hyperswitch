@@ -32,7 +32,7 @@ pub enum DummyConnectorStatus {
     Failed,
 }
 
-#[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
 pub struct DummyConnectorPaymentRequest {
     pub amount: i64,
     pub currency: Currency,
@@ -40,15 +40,29 @@ pub struct DummyConnectorPaymentRequest {
     pub return_url: Option<String>,
 }
 
-#[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum DummyConnectorPaymentMethodData {
     Card(DummyConnectorCard),
     Wallet(DummyConnectorWallet),
+    PayLater(DummyConnectorPayLater)
 }
 
-#[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
 pub enum DummyConnectorWallet {
-    GooglePay
+    GooglePay,
+    Paypal,
+    WeChatPay,
+    MbWay,
+    AliPay,
+    AliPayHK
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+pub enum DummyConnectorPayLater {
+    Klarna,
+    Affirm,
+    AfterPayClearPay,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -68,6 +82,8 @@ pub struct DummyConnectorCard {
 pub enum PaymentMethodType {
     #[default]
     Card,
+    Wallet(DummyConnectorWallet),
+    PayLater(DummyConnectorPayLater)
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -110,7 +126,7 @@ impl DummyConnectorPaymentData {
             created,
             payment_method_type,
             next_action: redirect_url,
-            return_url
+            return_url,
         }
     }
 }

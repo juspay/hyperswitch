@@ -1,7 +1,6 @@
 use app::AppState;
 use common_utils::{ext_traits::AsyncExt, generate_id_with_default_len};
-use error_stack::{report, IntoReport, ResultExt};
-use masking::PeekInterface;
+use error_stack::{report, ResultExt};
 use rand::Rng;
 use tokio::time as tokio;
 
@@ -32,100 +31,47 @@ pub async fn payment(
     let payment_id = generate_id_with_default_len(consts::PAYMENT_ID_PREFIX);
     let attempt_id = generate_id_with_default_len(consts::ATTEMPT_ID_PREFIX);
     let redis_conn = state.store.get_redis_conn();
-    match req.payment_method_data {
-        types::DummyConnectorPaymentMethodData::Card(card) => {
-            let card_number = card.number.peek();
-
-            match utils::get_flow_from_card_number(card_number)? {
-                types::DummyConnectorFlow::NoThreeDS(status, error) => {
-                    if let Some(error) = error {
-                        Err(error).into_report()?;
-                    }
-                    let payment_data = types::DummyConnectorPaymentData::new(
-                        payment_id.clone(),
-                        status,
-                        req.amount,
-                        req.amount,
-                        req.currency,
-                        timestamp.clone(),
-                        types::PaymentMethodType::Card,
-                        None,
-                        None,
-                    );
-                    utils::store_data_in_redis(
-                        redis_conn,
-                        payment_id.clone(),
-                        payment_data.clone(),
-                        state.conf.dummy_connector.payment_ttl,
-                    )
-                    .await?;
-                    Ok(api::ApplicationResponse::Json(payment_data.into()))
-                }
-                types::DummyConnectorFlow::ThreeDS(_, _) => {
-                    let payment_data = types::DummyConnectorPaymentData::new(
-                        payment_id.clone(),
-                        types::DummyConnectorStatus::Processing,
-                        req.amount,
-                        req.amount,
-                        req.currency,
-                        timestamp,
-                        types::PaymentMethodType::Card,
-                        Some(types::DummyConnectorNextAction::RedirectToUrl(format!(
-                            "{}/dummy-connector/authorize/{}",
-                            state.conf.server.base_url, attempt_id
-                        ))),
-                        req.return_url,
-                    );
-                    utils::store_data_in_redis(
-                        redis_conn.clone(),
-                        payment_id.clone(),
-                        payment_data.clone(),
-                        state.conf.dummy_connector.payment_ttl,
-                    )
-                    .await?;
-                    utils::store_data_in_redis(
-                        redis_conn,
-                        attempt_id.clone(),
-                        payment_id.clone(),
-                        state.conf.dummy_connector.authorize_ttl,
-                    )
-                    .await?;
-                    Ok(api::ApplicationResponse::Json(payment_data.into()))
-                }
-            }
-        }
-        types::DummyConnectorPaymentMethodData::Wallet(types::DummyConnectorWallet::GooglePay) => {
-            let payment_data = types::DummyConnectorPaymentData::new(
-                payment_id.clone(),
-                types::DummyConnectorStatus::Processing,
-                req.amount,
-                req.amount,
-                req.currency,
-                timestamp,
-                types::PaymentMethodType::Card,
-                Some(types::DummyConnectorNextAction::RedirectToUrl(format!(
-                    "{}/dummy-connector/authorize/{}",
-                    state.conf.server.base_url, attempt_id
-                ))),
-                req.return_url,
-            );
-            utils::store_data_in_redis(
-                redis_conn.clone(),
-                payment_id.clone(),
-                payment_data.clone(),
-                state.conf.dummy_connector.payment_ttl,
-            )
-            .await?;
-            utils::store_data_in_redis(
-                redis_conn,
-                attempt_id.clone(),
-                payment_id.clone(),
-                state.conf.dummy_connector.authorize_ttl,
-            )
-            .await?;
-            Ok(api::ApplicationResponse::Json(payment_data.into()))
-        }
-    }
+    let payment_data = match req.payment_method_data.clone() {
+        types::DummyConnectorPaymentMethodData::Card(card) => utils::handle_cards(
+            state,
+            req,
+            card,
+            timestamp,
+            payment_id.clone(),
+            attempt_id.clone(),
+        )?,
+        types::DummyConnectorPaymentMethodData::Wallet(wallet) => utils::handle_wallets(
+            state,
+            req,
+            wallet,
+            timestamp,
+            payment_id.clone(),
+            attempt_id.clone(),
+        ),
+        types::DummyConnectorPaymentMethodData::PayLater(pay_later) => utils::handle_pay_later(
+            state,
+            req,
+            pay_later,
+            timestamp,
+            payment_id.clone(),
+            attempt_id.clone(),
+        ),
+    };
+    utils::store_data_in_redis(
+        redis_conn.clone(),
+        attempt_id.clone(),
+        payment_id.clone(),
+        state.conf.dummy_connector.authorize_ttl,
+    )
+    .await?;
+    utils::store_data_in_redis(
+        redis_conn,
+        payment_id.clone(),
+        payment_data.clone(),
+        state.conf.dummy_connector.payment_ttl,
+    )
+    .await?;
+    Ok(api::ApplicationResponse::Json(payment_data.into()))
 }
 
 pub async fn payment_data(
@@ -175,7 +121,7 @@ pub async fn payment_authorize(
             state.conf.server.base_url, req.attempt_id
         );
         Ok(api::ApplicationResponse::FileData((
-            utils::get_authorize_page((payment_data_inner.amount / 100) as f64, return_url)
+            utils::get_authorize_page(payment_data_inner.clone(), return_url)
                 .as_bytes()
                 .to_vec(),
             mime::TEXT_HTML,
