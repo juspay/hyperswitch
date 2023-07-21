@@ -2594,12 +2594,21 @@
         "description": "Name of banks supported by Hyperswitch",
         "enum": [
           "american_express",
+          "affin_bank",
+          "agro_bank",
+          "alliance_bank",
+          "am_bank",
           "bank_of_america",
+          "bank_islam",
+          "bank_muamalat",
+          "bank_rakyat",
+          "bank_simpanan_nasional",
           "barclays",
           "blik_p_s_p",
           "capital_one",
           "chase",
           "citi",
+          "cimb_bank",
           "discover",
           "navy_federal_credit_union",
           "pentagon_federal_credit_union",
@@ -2609,8 +2618,11 @@
           "asn_bank",
           "bunq",
           "handelsbanken",
+          "hong_leong_bank",
+          "hsbc_bank",
           "ing",
           "knab",
+          "kuwait_finance_house",
           "moneyou",
           "rabobank",
           "regiobank",
@@ -2646,15 +2658,20 @@
           "komercni_banka",
           "m_bank",
           "marchfelder_bank",
+          "maybank",
           "oberbank_ag",
           "osterreichische_arzte_und_apothekerbank",
+          "ocbc_bank",
           "pay_with_i_n_g",
           "place_z_i_p_k_o",
           "platnosc_online_karta_platnicza",
           "posojilnica_bank_e_gen",
           "postova_banka",
+          "public_bank",
           "raiffeisen_bankengruppe_osterreich",
+          "rhb_bank",
           "schelhammer_capital_bank_ag",
+          "standard_chartered_bank",
           "schoellerbank_ag",
           "sparda_bank_wien",
           "sporo_pay",
@@ -2664,6 +2681,7 @@
           "volksbank_gruppe",
           "volkskreditbank_ag",
           "vr_bank_braunau",
+          "uob_bank",
           "pay_with_alior_bank",
           "banki_spoldzielcze",
           "pay_with_inteligo",
@@ -2693,7 +2711,12 @@
           "bank_pekao_sa",
           "volkswagen_bank",
           "alior_bank",
-          "boz"
+          "boz",
+          "bangkok_bank",
+          "krungsri_bank",
+          "krung_thai_bank",
+          "the_siam_commercial_bank",
+          "kasikorn_bank"
         ]
       },
       "BankRedirectBilling": {
@@ -3048,6 +3071,44 @@
                 "properties": {
                   "country": {
                     "$ref": "#/components/schemas/CountryAlpha2"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "online_banking_fpx"
+            ],
+            "properties": {
+              "online_banking_fpx": {
+                "type": "object",
+                "required": [
+                  "issuer"
+                ],
+                "properties": {
+                  "issuer": {
+                    "$ref": "#/components/schemas/BankNames"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "online_banking_thailand"
+            ],
+            "properties": {
+              "online_banking_thailand": {
+                "type": "object",
+                "required": [
+                  "issuer"
+                ],
+                "properties": {
+                  "issuer": {
+                    "$ref": "#/components/schemas/BankNames"
                   }
                 }
               }
@@ -6551,6 +6612,17 @@
                 "description": "For Alma Redirection as PayLater Option"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "atome_redirect"
+            ],
+            "properties": {
+              "atome_redirect": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -7194,6 +7266,7 @@
           "ali_pay_hk",
           "alma",
           "apple_pay",
+          "atome",
           "bacs",
           "bancontact_card",
           "becs",
@@ -7218,8 +7291,10 @@
           "mobile_pay",
           "momo",
           "multibanco",
+          "online_banking_thailand",
           "online_banking_czech_republic",
           "online_banking_finland",
+          "online_banking_fpx",
           "online_banking_poland",
           "online_banking_slovakia",
           "pay_bright",
@@ -7229,6 +7304,7 @@
           "sepa",
           "sofort",
           "swish",
+          "touch_n_go",
           "trustly",
           "twint",
           "upi_collect",
@@ -9751,6 +9827,9 @@
           }
         }
       },
+      "TouchNGoRedirection": {
+        "type": "object"
+      },
       "UpdateApiKeyRequest": {
         "type": "object",
         "description": "The request body for updating an API Key.",
@@ -10022,6 +10101,17 @@
               "vipps_redirect": {
                 "type": "object",
                 "description": "Wallet data for Vipps Redirection"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "touch_n_go_redirect"
+            ],
+            "properties": {
+              "touch_n_go_redirect": {
+                "$ref": "#/components/schemas/TouchNGoRedirection"
               }
             }
           },

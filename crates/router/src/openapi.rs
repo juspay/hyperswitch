@@ -180,6 +180,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AliPayQr,
         api_models::payments::AliPayRedirection,
         api_models::payments::MomoRedirection,
+        api_models::payments::TouchNGoRedirection,
         api_models::payments::GcashRedirection,
         api_models::payments::KakaoPayRedirection,
         api_models::payments::AliPayHkRedirection,
