@@ -177,7 +177,7 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Capture, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-            this.update_with_attempt_id(&conn, capture)
+            this.update_with_capture_id(&conn, capture)
                 .await
                 .map_err(Into::into)
                 .into_report()
