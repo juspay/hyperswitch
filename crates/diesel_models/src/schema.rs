@@ -57,14 +57,13 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    captures (id) {
-        id -> Int4,
+    captures (capture_id) {
+        #[max_length = 255]
+        capture_id -> Varchar,
         #[max_length = 255]
         payment_id -> Varchar,
         #[max_length = 255]
         merchant_id -> Varchar,
-        #[max_length = 255]
-        attempt_id -> Varchar,
         status -> CaptureStatus,
         amount -> Int8,
         currency -> Nullable<Currency>,

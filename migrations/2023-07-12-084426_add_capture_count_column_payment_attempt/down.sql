@@ -4,5 +4,4 @@ DROP COLUMN multiple_capture_count,
 DROP COLUMN succeeded_capture_count;
 
 ALTER TABLE captures
-DROP COLUMN connector_transaction_id,
-ALTER COLUMN capture_sequence TYPE INTEGER;
+DROP COLUMN connector_transaction_id;
