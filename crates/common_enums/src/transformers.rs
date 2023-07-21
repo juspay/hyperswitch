@@ -1568,6 +1568,8 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Interac => Self::BankRedirect,
             PaymentMethodType::OnlineBankingCzechRepublic => Self::BankRedirect,
             PaymentMethodType::OnlineBankingFinland => Self::BankRedirect,
+            PaymentMethodType::OnlineBankingFpx => Self::BankRedirect,
+            PaymentMethodType::OnlineBankingThailand => Self::BankRedirect,
             PaymentMethodType::OnlineBankingPoland => Self::BankRedirect,
             PaymentMethodType::OnlineBankingSlovakia => Self::BankRedirect,
             PaymentMethodType::PayBright => Self::PayLater,
@@ -1583,6 +1585,8 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Vipps => Self::Wallet,
             PaymentMethodType::Walley => Self::PayLater,
             PaymentMethodType::WeChatPay => Self::Wallet,
+            PaymentMethodType::TouchNGo => Self::Wallet,
+            PaymentMethodType::Atome => Self::PayLater,
         }
     }
 }
