@@ -5,7 +5,7 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        to_connector_meta, AccessTokenRequestInfo, AddressDetailsData, CardData,
+        self, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData, CardData,
         PaymentsAuthorizeRequestData,
     },
     core::errors,
@@ -105,7 +105,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                 };
                 let amount = OrderAmount {
                     currency_code: item.request.currency,
-                    value: item.request.amount.to_string(),
+                    value: utils::to_currency_base_unit(
+                        item.request.amount,
+                        item.request.currency,
+                    )?,
                 };
                 let reference_id = item.attempt_id.clone();
 
@@ -135,7 +138,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                     let intent = PaypalPaymentIntent::Capture;
                     let amount = OrderAmount {
                         currency_code: item.request.currency,
-                        value: item.request.amount.to_string(),
+                        value: utils::to_currency_base_unit(
+                            item.request.amount,
+                            item.request.currency,
+                        )?,
                     };
                     let reference_id = item.attempt_id.clone();
                     let purchase_units = vec![PurchaseUnitRequest {
@@ -486,7 +492,10 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaypalPaymentsCaptureRequest
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let amount = OrderAmount {
             currency_code: item.request.currency,
-            value: item.request.amount_to_capture.to_string(),
+            value: utils::to_currency_base_unit(
+                item.request.amount_to_capture,
+                item.request.currency,
+            )?,
         };
         Ok(Self {
             amount,
@@ -622,7 +631,10 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PaypalRefundRequest {
         Ok(Self {
             amount: OrderAmount {
                 currency_code: item.request.currency,
-                value: item.request.refund_amount.to_string(),
+                value: utils::to_currency_base_unit(
+                    item.request.refund_amount,
+                    item.request.currency,
+                )?,
             },
         })
     }
