@@ -175,6 +175,22 @@ impl super::settings::ConnectorParamsWithFileUploadUrl {
     }
 }
 
+#[cfg(feature = "payouts")]
+impl super::settings::ConnectorParamsWithSecondaryBaseUrl {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        common_utils::fp_utils::when(self.base_url.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "connector base URL must not be empty".into(),
+            ))
+        })?;
+        common_utils::fp_utils::when(self.secondary_base_url.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "connector secondary base URL must not be empty".into(),
+            ))
+        })
+    }
+}
+
 impl super::settings::SchedulerSettings {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;

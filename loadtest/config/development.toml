@@ -59,6 +59,7 @@ hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 [connectors]
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
+adyen.secondary_base_url = "https://pal-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
@@ -95,12 +96,14 @@ payu.base_url = "https://secure.snd.payu.com/"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
+stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
+wise.base_url = "https://api.sandbox.transferwise.tech/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 
@@ -141,9 +144,11 @@ cards = [
     "payu",
     "powertranz",
     "shift4",
+    "stax",
     "stripe",
     "trustpay",
     "tsys",
+    "wise",
     "worldline",
     "worldpay",
     "zen",
@@ -166,3 +171,6 @@ refund_duration = 1000
 refund_tolerance = 100
 refund_retrieve_duration = 500
 refund_retrieve_tolerance = 100
+
+[payouts]
+payout_eligibility = true

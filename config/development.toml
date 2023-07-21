@@ -87,9 +87,11 @@ cards = [
     "payu",
     "powertranz",
     "shift4",
+    "stax",
     "stripe",
     "trustpay",
     "tsys",
+    "wise",
     "worldline",
     "worldpay",
     "zen",
@@ -111,6 +113,7 @@ hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 [connectors]
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
+adyen.secondary_base_url = "https://pal-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
@@ -147,8 +150,10 @@ payu.base_url = "https://secure.snd.payu.com/"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
+stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
+wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
@@ -188,6 +193,12 @@ adyen = { banks = "blik_psp,place_zipko,m_bank,pay_with_ing,santander_przelew24,
 
 [bank_config.przelewy24]
 stripe = { banks = "alior_bank,bank_millennium,bank_nowy_bfg_sa,bank_pekao_sa,banki_spbdzielcze,blik,bnp_paribas,boz,citi,credit_agricole,e_transfer_pocztowy24,getin_bank,idea_bank,inteligo,mbank_mtransfer,nest_przelew,noble_pay,pbac_z_ipko,plus_bank,santander_przelew24,toyota_bank,volkswagen_bank" }
+
+[bank_config.online_banking_fpx]
+adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,may_bank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
+
+[bank_config.online_banking_thailand]
+adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_bank,kasikorn_bank"
 
 [pm_filters.default]
 google_pay = { country = "AL,DZ,AS,AO,AG,AR,AU,AT,AZ,BH,BY,BE,BR,BG,CA,CL,CO,HR,CZ,DK,DO,EG,EE,FI,FR,DE,GR,HK,HU,IN,ID,IE,IL,IT,JP,JO,KZ,KE,KW,LV,LB,LT,LU,MY,MX,NL,NZ,NO,OM,PK,PA,PE,PH,PL,PT,QA,RO,RU,SA,SG,SK,ZA,ES,LK,SE,CH,TW,TH,TR,UA,AE,GB,US,UY,VN" }
@@ -241,6 +252,14 @@ bacs = {country = "UK", currency = "GBP"}
 sepa = {country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT", currency = "EUR"}
 ali_pay_hk = {country = "HK", currency = "HKD"}
 bizum = {country = "ES", currency = "EUR"}
+go_pay = {country = "ID", currency = "IDR"}
+kakao_pay = {country = "KR", currency = "KRW"}
+momo = {country = "VN", currency = "VND"}
+gcash = {country = "PH", currency = "PHP"}
+online_banking_fpx = {country = "MY", currency = "MYR"}
+online_banking_thailand = {country = "TH", currency = "THB"}
+touch_n_go = {country = "MY", currency = "MYR"}
+atome = {country = "MY,SG", currency = "MYR,SGD"}
 
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }
@@ -295,6 +314,7 @@ mollie = {long_lived_token = false, payment_method = "card"}
 
 [connector_customer]
 connector_list = "bluesnap,stripe"
+payout_connector_list = "wise"
 
 [dummy_connector]
 payment_ttl = 172800
@@ -320,3 +340,6 @@ card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,
 
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = []
+
+[payouts]
+payout_eligibility = true
