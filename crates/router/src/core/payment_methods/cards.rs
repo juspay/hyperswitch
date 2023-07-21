@@ -2079,8 +2079,8 @@ pub async fn delete_payment_method(
         if response.status == "SUCCESS" {
             logger::info!("Card From locker deleted Successfully!");
         } else {
-            logger::info!("Error: Deleting Card From Locker! {:#?}", response);
-            return Err(errors::ApiErrorResponse::InternalServerError)?;
+            logger::error!("Error: Deleting Card From Locker!\n{:#?}", response);
+            Err(errors::ApiErrorResponse::InternalServerError)?
         }
     }
 
