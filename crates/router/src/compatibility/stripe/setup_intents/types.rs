@@ -176,7 +176,11 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripeSetupIntentRequest) -> errors::RouterResult<Self> {
         let routable_connector: Option<api_enums::RoutableConnectors> =
-            item.connector.and_then(|v| v.into_iter().next());
+            item.connector.and_then(|v| {
+                v.into_iter()
+                    .next()
+                    .map(api_enums::RoutableConnectors::from)
+            });
 
         let routing = routable_connector
             .map(api_types::RoutingAlgorithm::Single)

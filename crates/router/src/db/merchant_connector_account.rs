@@ -582,6 +582,7 @@ mod merchant_connector_account_cache_tests {
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
+    #[ignore = "blocked on MockDb implementation of merchant key store"]
     async fn test_connector_label_cache() {
         let db = MockDb::new(&Default::default()).await;
 
