@@ -499,8 +499,12 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
     }
 }
 
-impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttemptResponse {
-    fn foreign_from(payment_attempt: storage::PaymentAttempt) -> Self {
+impl ForeignFrom<(storage::PaymentAttempt, Vec<storage::Capture>)>
+    for api_models::payments::PaymentAttemptResponse
+{
+    fn foreign_from(
+        (payment_attempt, captures): (storage::PaymentAttempt, Vec<storage::Capture>),
+    ) -> Self {
         Self {
             attempt_id: payment_attempt.attempt_id,
             status: payment_attempt.status,
@@ -519,7 +523,30 @@ impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttem
             connector_metadata: payment_attempt.connector_metadata,
             payment_experience: payment_attempt.payment_experience,
             payment_method_type: payment_attempt.payment_method_type,
+            captures: Some(
+                captures
+                    .into_iter()
+                    .map(ForeignFrom::foreign_from)
+                    .collect(),
+            ),
             reference_id: payment_attempt.connector_response_reference_id,
+        }
+    }
+}
+
+impl ForeignFrom<storage::Capture> for api_models::payments::CaptureReposnse {
+    fn foreign_from(capture: storage::Capture) -> Self {
+        Self {
+            capture_id: capture.capture_id,
+            status: capture.status,
+            amount: capture.amount,
+            currency: capture.currency,
+            connector: capture.connector,
+            error_message: capture.error_message,
+            error_code: capture.error_code,
+            authorized_attempt_id: capture.authorized_attempt_id,
+            capture_sequence: capture.capture_sequence,
+            connector_transaction_id: capture.connector_transaction_id,
         }
     }
 }

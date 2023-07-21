@@ -25,6 +25,12 @@ pub trait CaptureInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::Capture>, errors::StorageError>;
 
+    async fn find_all_captures_by_authorized_attempt_ids(
+        &self,
+        authorized_attempt_id: Vec<String>,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<types::Capture>, errors::StorageError>;
+
     async fn find_all_charged_captures_by_authorized_attempt_id(
         &self,
         authorized_attempt_id: &str,
@@ -107,7 +113,22 @@ mod storage {
         ) -> CustomResult<Vec<Capture>, errors::StorageError> {
             let db_call = || async {
                 let conn = connection::pg_connection_write(self).await?;
-                Capture::find_all_by_authorized_attempt_id(authorized_attempt_id, &conn)
+                Capture::find_all_by_authorized_attempt_id(&conn, authorized_attempt_id)
+                    .await
+                    .map_err(Into::into)
+                    .into_report()
+            };
+            db_call().await
+        }
+
+        async fn find_all_captures_by_authorized_attempt_ids(
+            &self,
+            authorized_attempt_ids: Vec<String>,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<Capture>, errors::StorageError> {
+            let db_call = || async {
+                let conn = connection::pg_connection_write(self).await?;
+                Capture::find_all_by_authorized_attempt_id_list(&conn, authorized_attempt_ids)
                     .await
                     .map_err(Into::into)
                     .into_report()
@@ -197,6 +218,21 @@ mod storage {
             db_call().await
         }
 
+        async fn find_all_captures_by_authorized_attempt_ids(
+            &self,
+            authorized_attempt_ids: Vec<String>,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<Capture>, errors::StorageError> {
+            let db_call = || async {
+                let conn = connection::pg_connection_write(self).await?;
+                Capture::find_all_by_authorized_attempt_id_list(&conn, authorized_attempt_ids)
+                    .await
+                    .map_err(Into::into)
+                    .into_report()
+            };
+            db_call().await
+        }
+
         async fn find_all_charged_captures_by_authorized_attempt_id(
             &self,
             authorized_attempt_id: &str,
@@ -269,6 +305,14 @@ impl CaptureInterface for MockDb {
     async fn find_all_captures_by_authorized_attempt_id(
         &self,
         _authorized_attempt_id: &str,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<types::Capture>, errors::StorageError> {
+        //Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+    async fn find_all_captures_by_authorized_attempt_ids(
+        &self,
+        _authorized_attempt_id: Vec<String>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::Capture>, errors::StorageError> {
         //Implement function for `MockDb`

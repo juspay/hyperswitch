@@ -265,7 +265,7 @@ pub fn payments_to_payments_response<R, Op>(
     payment_intent: storage::PaymentIntent,
     refunds: Vec<storage::Refund>,
     disputes: Vec<storage::Dispute>,
-    option_attempts: Option<Vec<storage::PaymentAttempt>>,
+    option_attempts: Option<Vec<(storage::PaymentAttempt, Vec<storage::Capture>)>>,
     payment_method_data: Option<api::PaymentMethodData>,
     customer: Option<domain::Customer>,
     auth_flow: services::AuthFlow,

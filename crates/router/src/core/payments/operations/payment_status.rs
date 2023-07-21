@@ -238,7 +238,7 @@ async fn get_tracker_for_sync<
     let attempts = match request.expand_attempts {
         Some(true) => {
             Some(db
-                .find_attempts_by_merchant_id_payment_id(merchant_id, &payment_id_str, storage_scheme)
+                .find_attempts_by_merchant_id_payment_id_with_captures(merchant_id, &payment_id_str, storage_scheme)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable_lazy(|| {

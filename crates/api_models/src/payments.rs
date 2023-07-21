@@ -341,6 +341,37 @@ pub struct PaymentAttemptResponse {
     /// reference to the payment at connector side
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub reference_id: Option<String>,
+    /// List of captures done for this payment_attempt
+    #[schema(value_type = Option<Vec<CaptureReposnse>>)]
+    pub captures: Option<Vec<CaptureReposnse>>,
+}
+
+#[derive(
+    Default, Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema,
+)]
+pub struct CaptureReposnse {
+    /// Unique identifier for the capture
+    pub capture_id: String,
+    /// Status of the Capture
+    #[schema(value_type = CaptureStatus, example = "charged")]
+    pub status: enums::CaptureStatus,
+    /// Amount captured in this capture
+    pub amount: i64,
+    /// The currency of the amount of the capture
+    #[schema(value_type = Option<Currency>, example = "usd")]
+    pub currency: Option<enums::Currency>,
+    /// The connector used for the capture
+    pub connector: Option<String>,
+    // If there was an error while calling the connector the error message is received here
+    pub error_message: Option<String>,
+    /// If there was an error while calling the connectors the code is received here
+    pub error_code: Option<String>,
+    /// attempt_id of the authorization attempt for which this capture was made
+    pub authorized_attempt_id: String,
+    /// secquence number of this capture for the authorized attempt
+    pub capture_sequence: i16,
+    /// A unique identifier for a capture provided by the connector
+    pub connector_transaction_id: Option<String>,
 }
 
 impl PaymentsRequest {

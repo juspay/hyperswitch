@@ -56,6 +56,14 @@ pub trait PaymentAttemptInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
+    async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id_with_captures(
+        &self,
+        payment_id: &str,
+        merchant_id: &str,
+        attempt_id: &str,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<(types::PaymentAttempt, Vec<types::Capture>), errors::StorageError>;
+
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
         preprocessing_id: &str,
@@ -69,6 +77,13 @@ pub trait PaymentAttemptInterface {
         payment_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentAttempt>, errors::StorageError>;
+
+    async fn find_attempts_by_merchant_id_payment_id_with_captures(
+        &self,
+        merchant_id: &str,
+        payment_id: &str,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<(types::PaymentAttempt, Vec<types::Capture>)>, errors::StorageError>;
 
     async fn get_filters_for_payments(
         &self,
@@ -265,6 +280,17 @@ impl PaymentAttemptInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
+    async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id_with_captures(
+        &self,
+        _payment_id: &str,
+        _merchant_id: &str,
+        _attempt_id: &str,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<(types::PaymentAttempt, Vec<types::Capture>), errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
     async fn get_filters_for_payments(
         &self,
         _pi: &[diesel_models::payment_intent::PaymentIntent],
@@ -312,6 +338,15 @@ impl PaymentAttemptInterface for MockDb {
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentAttempt>, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn find_attempts_by_merchant_id_payment_id_with_captures(
+        &self,
+        _merchant_id: &str,
+        _payment_id: &str,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<(types::PaymentAttempt, Vec<types::Capture>)>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 
@@ -427,8 +462,10 @@ impl PaymentAttemptInterface for MockDb {
 
 #[cfg(feature = "kv_store")]
 mod storage {
+    use std::collections::HashMap;
+
     use common_utils::date_time;
-    use diesel_models::reverse_lookup::ReverseLookup;
+    use diesel_models::{capture::Capture, reverse_lookup::ReverseLookup};
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
 
@@ -436,7 +473,7 @@ mod storage {
     use crate::{
         connection,
         core::errors::{self, CustomResult},
-        db::reverse_lookup::ReverseLookupInterface,
+        db::{capture::CaptureInterface, reverse_lookup::ReverseLookupInterface},
         services::Store,
         types::storage::{enums, kv, payment_attempt::*, ReverseLookupNew},
         utils::db_utils,
@@ -866,6 +903,33 @@ mod storage {
             }
         }
 
+        async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id_with_captures(
+            &self,
+            payment_id: &str,
+            merchant_id: &str,
+            attempt_id: &str,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<(PaymentAttempt, Vec<Capture>), errors::StorageError> {
+            let payment_attempt = self
+                .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                    payment_id,
+                    merchant_id,
+                    attempt_id,
+                    storage_scheme,
+                )
+                .await?;
+            let captures = if payment_attempt.multiple_capture_count.unwrap_or(0) >= 1 {
+                let conn = connection::pg_connection_read(self).await?;
+                Capture::find_all_by_authorized_attempt_id(&conn, &payment_attempt.attempt_id)
+                    .await
+                    .map_err(Into::into)
+                    .into_report()?
+            } else {
+                Vec::new()
+            };
+            Ok((payment_attempt, captures))
+        }
+
         async fn find_attempts_by_merchant_id_payment_id(
             &self,
             merchant_id: &str,
@@ -893,6 +957,52 @@ mod storage {
                         .change_context(errors::StorageError::KVError)
                 }
             }
+        }
+
+        async fn find_attempts_by_merchant_id_payment_id_with_captures(
+            &self,
+            merchant_id: &str,
+            payment_id: &str,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Vec<(PaymentAttempt, Vec<Capture>)>, errors::StorageError> {
+            let attempts = self
+                .find_attempts_by_merchant_id_payment_id(merchant_id, payment_id, storage_scheme)
+                .await?;
+            let authorized_attempt_ids = attempts
+                .iter()
+                .map(|attempt| attempt.attempt_id.to_owned())
+                .collect();
+            let mut captures_map = self
+                .find_all_captures_by_authorized_attempt_ids(authorized_attempt_ids, storage_scheme)
+                .await?
+                .into_iter()
+                .fold(
+                    HashMap::<String, Vec<Capture>>::new(),
+                    |mut map, capture| {
+                        let authorized_attempt_id = capture.authorized_attempt_id.clone();
+                        match map.get_mut(&authorized_attempt_id) {
+                            Some(list) => {
+                                list.push(capture);
+                            }
+                            None => {
+                                map.insert(authorized_attempt_id, vec![capture]);
+                            }
+                        };
+                        map
+                    },
+                );
+            Ok(attempts
+                .into_iter()
+                .map(|attempt| {
+                    let attempt_id = attempt.attempt_id.clone();
+                    (
+                        attempt,
+                        captures_map
+                            .remove(&attempt_id)
+                            .unwrap_or(Vec::<Capture>::new()),
+                    )
+                })
+                .collect::<Vec<(PaymentAttempt, Vec<Capture>)>>())
         }
 
         async fn get_filters_for_payments(

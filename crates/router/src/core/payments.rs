@@ -1083,7 +1083,7 @@ where
     pub payment_method_data: Option<api::PaymentMethodData>,
     pub refunds: Vec<storage::Refund>,
     pub disputes: Vec<storage::Dispute>,
-    pub attempts: Option<Vec<storage::PaymentAttempt>>,
+    pub attempts: Option<Vec<(storage::PaymentAttempt, Vec<storage::Capture>)>>,
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<Secret<String>>,
     pub email: Option<pii::Email>,

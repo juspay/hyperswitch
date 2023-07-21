@@ -74,8 +74,8 @@ impl Capture {
 
     #[instrument(skip(conn))]
     pub async fn find_all_by_authorized_attempt_id(
-        authorized_attempt_id: &str,
         conn: &PgPooledConn,
+        authorized_attempt_id: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
@@ -85,6 +85,26 @@ impl Capture {
         >(
             conn,
             dsl::authorized_attempt_id.eq(authorized_attempt_id.to_owned()),
+            None,
+            None,
+            None,
+        )
+        .await
+    }
+
+    #[instrument(skip(conn))]
+    pub async fn find_all_by_authorized_attempt_id_list(
+        conn: &PgPooledConn,
+        authorized_attempt_ids: Vec<String>,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::authorized_attempt_id.eq_any(authorized_attempt_ids),
             None,
             None,
             None,
