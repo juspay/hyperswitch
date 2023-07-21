@@ -9834,14 +9834,7 @@
             ],
             "properties": {
               "boleto": {
-                "type": "object",
-                "properties": {
-                  "social_security_number": {
-                    "type": "string",
-                    "description": "The shopper's social security number",
-                    "nullable": true
-                  }
-                }
+                "$ref": "#/components/schemas/BoletoVoucherData"
               }
             }
           },
