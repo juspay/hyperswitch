@@ -303,6 +303,7 @@ refund_retrieve_tolerance = 100  # Fake delay tolerance for dummy connector refu
 
 [mandates.supported_payment_methods]
 card.credit = {connector_list = "stripe,adyen"}     # Mandate supported payment method type and connector for card
+wallet.paypal = {connector_list = "adyen"}          # Mandate supported payment method type and connector for wallets
 pay_later.klarna = {connector_list = "adyen"}       # Mandate supported payment method type and connector for pay_later
 
 # Required fields info used while listing the payment_method_data
