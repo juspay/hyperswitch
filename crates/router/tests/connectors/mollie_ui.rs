@@ -11,10 +11,10 @@ impl SeleniumTest for MollieSeleniumTest {
     }
 }
 
-async fn should_make_mollie_paypal_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_mollie_paypal_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = MollieSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/32"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
@@ -34,10 +34,10 @@ async fn should_make_mollie_paypal_payment(c: WebDriver) -> Result<(), WebDriver
     Ok(())
 }
 
-async fn should_make_mollie_sofort_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_mollie_sofort_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = MollieSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/29"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
@@ -57,10 +57,10 @@ async fn should_make_mollie_sofort_payment(c: WebDriver) -> Result<(), WebDriver
     Ok(())
 }
 
-async fn should_make_mollie_ideal_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_mollie_ideal_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn: MollieSeleniumTest = MollieSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/36"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
@@ -73,21 +73,17 @@ async fn should_make_mollie_ideal_payment(c: WebDriver) -> Result<(), WebDriverE
             Event::Trigger(Trigger::Click(By::Css(
                 "button[class='button form__button']",
             ))),
-            Event::Assert(Assert::IsPresent("Google")),
-            Event::Assert(Assert::Contains(
-                Selector::QueryParamStr,
-                "status=succeeded",
-            )),
+            Event::Assert(Assert::IsPresent("succeeded")),
         ],
     )
     .await?;
     Ok(())
 }
 
-async fn should_make_mollie_eps_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_mollie_eps_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = MollieSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/38"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
@@ -107,10 +103,10 @@ async fn should_make_mollie_eps_payment(c: WebDriver) -> Result<(), WebDriverErr
     Ok(())
 }
 
-async fn should_make_mollie_giropay_payment(c: WebDriver) -> Result<(), WebDriverError> {
+async fn should_make_mollie_giropay_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
     let conn = MollieSeleniumTest {};
     conn.make_redirection_payment(
-        c,
+        web_driver,
         vec![
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/41"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
@@ -176,6 +172,25 @@ async fn should_make_mollie_przelewy24_payment(c: WebDriver) -> Result<(), WebDr
     Ok(())
 }
 
+async fn should_make_mollie_3ds_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = MollieSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/148"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("Test profile")),
+            Event::Trigger(Trigger::Click(By::Css("input[value='paid']"))),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button[class='button form__button']",
+            ))),
+            Event::Assert(Assert::IsPresent("succeeded")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
 #[test]
 #[serial]
 fn should_make_mollie_paypal_payment_test() {
@@ -216,4 +231,10 @@ fn should_make_mollie_bancontact_card_payment_test() {
 #[serial]
 fn should_make_mollie_przelewy24_payment_test() {
     tester!(should_make_mollie_przelewy24_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_mollie_3ds_payment_test() {
+    tester!(should_make_mollie_3ds_payment);
 }

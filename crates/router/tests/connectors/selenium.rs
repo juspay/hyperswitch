@@ -75,6 +75,24 @@ pub trait SeleniumTest {
         )
         .expect("Failed to read connector authentication config file")
     }
+    async fn retry_click(
+        &self,
+        times: i32,
+        interval: u64,
+        driver: &WebDriver,
+        by: By,
+    ) -> Result<(), WebDriverError> {
+        let mut res = Ok(());
+        for _i in 0..times {
+            res = self.click_element(driver, by.clone()).await;
+            if res.is_err() {
+                tokio::time::sleep(Duration::from_secs(interval)).await;
+            } else {
+                break;
+            }
+        }
+        return res;
+    }
     fn get_connector_name(&self) -> String;
     async fn complete_actions(
         &self,
@@ -265,11 +283,7 @@ pub trait SeleniumTest {
                         driver.execute(script, Vec::new()).await?;
                     }
                     Trigger::Click(by) => {
-                        let res = self.click_element(driver, by.clone()).await;
-                        if res.is_err() {
-                            tokio::time::sleep(Duration::from_secs(5)).await;
-                            self.click_element(driver, by).await?;
-                        }
+                        self.retry_click(3, 5, driver, by.clone()).await?;
                     }
                     Trigger::ClickNth(by, n) => {
                         let ele = driver.query(by).all().await?.into_iter().nth(n).unwrap();
@@ -311,7 +325,7 @@ pub trait SeleniumTest {
                     Trigger::SwitchTab(position) => match position {
                         Position::Next => {
                             let windows = driver.windows().await?;
-                            if let Some(window) = windows.iter().rev().next() {
+                            if let Some(window) = windows.iter().next_back() {
                                 driver.switch_to_window(window.to_owned()).await?;
                             }
                         }
@@ -425,6 +439,55 @@ pub trait SeleniumTest {
         self.complete_actions(&web_driver, default_actions).await?;
         self.complete_actions(&web_driver, actions).await
     }
+    async fn make_affirm_payment(
+        &self,
+        driver: WebDriver,
+        url: &str,
+        actions: Vec<Event<'_>>,
+    ) -> Result<(), WebDriverError> {
+        self.complete_actions(
+            &driver,
+            vec![
+                Event::Trigger(Trigger::Goto(url)),
+                Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            ],
+        )
+        .await?;
+        let mut affirm_actions = vec![
+            Event::RunIf(
+                Assert::IsPresent("Big purchase? No problem."),
+                vec![
+                    Event::Trigger(Trigger::SendKeys(
+                        By::Css("input[data-testid='phone-number-field']"),
+                        "(833) 549-5574", // any test phone number accepted by affirm
+                    )),
+                    Event::Trigger(Trigger::Click(By::Css(
+                        "button[data-testid='submit-button']",
+                    ))),
+                    Event::Trigger(Trigger::SendKeys(
+                        By::Css("input[data-testid='phone-pin-field']"),
+                        "1234",
+                    )),
+                ],
+            ),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button[data-testid='skip-payment-button']",
+            ))),
+            Event::Trigger(Trigger::Click(By::Css("div[data-testid='indicator']"))),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button[data-testid='submit-button']",
+            ))),
+            Event::Trigger(Trigger::Click(By::Css("div[data-testid='indicator']"))),
+            Event::Trigger(Trigger::Click(By::Css(
+                "div[data-testid='disclosure-checkbox-indicator']",
+            ))),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button[data-testid='submit-button']",
+            ))),
+        ];
+        affirm_actions.extend(actions);
+        self.complete_actions(&driver, affirm_actions).await
+    }
     async fn make_paypal_payment(
         &self,
         web_driver: WebDriver,
@@ -480,18 +543,74 @@ pub trait SeleniumTest {
             ),
             Event::EitherOr(
                 Assert::IsPresent("See Offers and Apply for PayPal Credit"),
-                vec![
-                    Event::RunIf(
-                        Assert::IsElePresent(By::Id("spinner")),
-                        vec![Event::Trigger(Trigger::Sleep(5))],
-                    ),
-                    Event::Trigger(Trigger::Click(By::Css(".reviewButton"))),
-                ],
+                vec![Event::Trigger(Trigger::Click(By::Css(".reviewButton")))],
                 vec![Event::Trigger(Trigger::Click(By::Id("payment-submit-btn")))],
             ),
         ];
         pypl_actions.extend(actions);
         self.complete_actions(&web_driver, pypl_actions).await
+    }
+    async fn make_clearpay_payment(
+        &self,
+        driver: WebDriver,
+        url: &str,
+        actions: Vec<Event<'_>>,
+    ) -> Result<(), WebDriverError> {
+        self.complete_actions(
+            &driver,
+            vec![
+                Event::Trigger(Trigger::Goto(url)),
+                Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+                Event::Trigger(Trigger::Sleep(5)),
+                Event::RunIf(
+                    Assert::IsPresentNow("Manage Cookies"),
+                    vec![
+                        Event::Trigger(Trigger::Click(By::Css("button.cookie-setting-link"))),
+                        Event::Trigger(Trigger::Click(By::Id("accept-recommended-btn-handler"))),
+                    ],
+                ),
+            ],
+        )
+        .await?;
+        let (email, pass) = (
+            &self
+                .get_configs()
+                .automation_configs
+                .unwrap()
+                .clearpay_email
+                .unwrap(),
+            &self
+                .get_configs()
+                .automation_configs
+                .unwrap()
+                .clearpay_pass
+                .unwrap(),
+        );
+        let mut clearpay_actions = vec![
+            Event::Trigger(Trigger::Sleep(3)),
+            Event::EitherOr(
+                Assert::IsPresent("Please enter your password"),
+                vec![
+                    Event::Trigger(Trigger::SendKeys(By::Css("input[name='password']"), pass)),
+                    Event::Trigger(Trigger::Click(By::Css("button.a_l.a_i.a_n.a_m"))),
+                ],
+                vec![
+                    Event::Trigger(Trigger::SendKeys(
+                        By::Css("input[name='identifier']"),
+                        email,
+                    )),
+                    Event::Trigger(Trigger::Click(By::Css("button[type='submit']"))),
+                    Event::Trigger(Trigger::Sleep(3)),
+                    Event::Trigger(Trigger::SendKeys(By::Css("input[name='password']"), pass)),
+                    Event::Trigger(Trigger::Click(By::Css("button[type='submit']"))),
+                ],
+            ),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button[data-testid='summary-button']",
+            ))),
+        ];
+        clearpay_actions.extend(actions);
+        self.complete_actions(&driver, clearpay_actions).await
     }
 }
 async fn is_text_present_now(driver: &WebDriver, key: &str) -> WebDriverResult<bool> {
@@ -574,7 +693,7 @@ pub fn make_capabilities(browser: &str) -> Capabilities {
         "firefox" => {
             let mut caps = DesiredCapabilities::firefox();
             let ignore_profile = env::var("IGNORE_BROWSER_PROFILE").ok();
-            if ignore_profile.is_none() {
+            if ignore_profile.is_none() || ignore_profile.unwrap() == "false" {
                 let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
                 caps.add_firefox_arg(profile_path).unwrap();
             } else {

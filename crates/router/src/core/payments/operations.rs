@@ -26,6 +26,7 @@ use crate::{
     core::errors::{self, CustomResult, RouterResult},
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         self, api, domain,
         storage::{self, enums},
@@ -94,6 +95,7 @@ pub trait GetTracker<F, D, R>: Send {
         mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
+        auth_flow: services::AuthFlow,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>;
 }
 

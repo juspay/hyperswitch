@@ -9,263 +9,15 @@ pub mod diesel_exports {
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbMandateType as MandateType,
         DbMerchantStorageScheme as MerchantStorageScheme,
-        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
-        DbProcessTrackerStatus as ProcessTrackerStatus, DbRefundStatus as RefundStatus,
-        DbRefundType as RefundType,
+        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPayoutStatus as PayoutStatus,
+        DbPayoutType as PayoutType, DbProcessTrackerStatus as ProcessTrackerStatus,
+        DbRefundStatus as RefundStatus, DbRefundType as RefundType,
     };
 }
-
 pub use common_enums::*;
 use common_utils::pii;
 use diesel::serialize::{Output, ToSql};
 use time::PrimitiveDateTime;
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum AttemptStatus {
-    Started,
-    AuthenticationFailed,
-    RouterDeclined,
-    AuthenticationPending,
-    AuthenticationSuccessful,
-    Authorized,
-    AuthorizationFailed,
-    Charged,
-    Authorizing,
-    CodInitiated,
-    Voided,
-    VoidInitiated,
-    CaptureInitiated,
-    CaptureFailed,
-    VoidFailed,
-    AutoRefunded,
-    PartialCharged,
-    Unresolved,
-    #[default]
-    Pending,
-    Failure,
-    PaymentMethodAwaited,
-    ConfirmationAwaited,
-    DeviceDataCollectionPending,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum AuthenticationType {
-    ThreeDs,
-    #[default]
-    NoThreeDs,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum CaptureMethod {
-    #[default]
-    Automatic,
-    Manual,
-    ManualMultiple,
-    Scheduled,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    strum::Display,
-    strum::EnumString,
-    serde::Deserialize,
-    serde::Serialize,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub enum ConnectorType {
-    /// PayFacs, Acquirers, Gateways, BNPL etc
-    PaymentProcessor,
-    /// Fraud, Currency Conversion, Crypto etc
-    PaymentVas,
-    /// Accounting, Billing, Invoicing, Tax etc
-    FinOperations,
-    /// Inventory, ERP, CRM, KYC etc
-    FizOperations,
-    /// Payment Networks like Visa, MasterCard etc
-    Networks,
-    /// All types of banks including corporate / commercial / personal / neo banks
-    BankingEntities,
-    /// All types of non-banking financial institutions including Insurance, Credit / Lending etc
-    NonBankingFinance,
-}
-
-#[allow(clippy::upper_case_acronyms)]
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-pub enum Currency {
-    AED,
-    ALL,
-    AMD,
-    ANG,
-    ARS,
-    AUD,
-    AWG,
-    AZN,
-    BBD,
-    BDT,
-    BHD,
-    BMD,
-    BND,
-    BOB,
-    BRL,
-    BSD,
-    BWP,
-    BZD,
-    CAD,
-    CHF,
-    CNY,
-    COP,
-    CRC,
-    CUP,
-    CZK,
-    DKK,
-    DOP,
-    DZD,
-    EGP,
-    ETB,
-    EUR,
-    FJD,
-    GBP,
-    GHS,
-    GIP,
-    GMD,
-    GTQ,
-    GYD,
-    HKD,
-    HNL,
-    HRK,
-    HTG,
-    HUF,
-    IDR,
-    ILS,
-    INR,
-    JMD,
-    JOD,
-    JPY,
-    KES,
-    KGS,
-    KHR,
-    KRW,
-    KWD,
-    KYD,
-    KZT,
-    LAK,
-    LBP,
-    LKR,
-    LRD,
-    LSL,
-    MAD,
-    MDL,
-    MKD,
-    MMK,
-    MNT,
-    MOP,
-    MUR,
-    MVR,
-    MWK,
-    MXN,
-    MYR,
-    NAD,
-    NGN,
-    NIO,
-    NOK,
-    NPR,
-    NZD,
-    OMR,
-    PEN,
-    PGK,
-    PHP,
-    PKR,
-    PLN,
-    QAR,
-    RON,
-    RUB,
-    SAR,
-    SCR,
-    SEK,
-    SGD,
-    SLL,
-    SOS,
-    SSP,
-    SVC,
-    SZL,
-    THB,
-    TRY,
-    TTD,
-    TWD,
-    TZS,
-    #[default]
-    USD,
-    UYU,
-    UZS,
-    YER,
-    ZAR,
-}
 
 #[derive(
     Clone,
@@ -311,89 +63,6 @@ pub enum EventObjectType {
     Clone,
     Copy,
     Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum EventType {
-    PaymentSucceeded,
-    PaymentFailed,
-    PaymentProcessing,
-    ActionRequired,
-    RefundSucceeded,
-    RefundFailed,
-    DisputeOpened,
-    DisputeExpired,
-    DisputeAccepted,
-    DisputeCancelled,
-    DisputeChallenged,
-    DisputeWon,
-    DisputeLost,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum IntentStatus {
-    Succeeded,
-    Failed,
-    Cancelled,
-    Processing,
-    RequiresCustomerAction,
-    RequiresMerchantAction,
-    RequiresPaymentMethod,
-    #[default]
-    RequiresConfirmation,
-    RequiresCapture,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum FutureUsage {
-    #[default]
-    OffSession,
-    OnSession,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
     Default,
     Eq,
     PartialEq,
@@ -409,84 +78,6 @@ pub enum MerchantStorageScheme {
     #[default]
     PostgresOnly,
     RedisKv,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub enum PaymentMethodIssuerCode {
-    JpHdfc,
-    JpIcici,
-    JpGooglepay,
-    JpApplepay,
-    JpPhonepay,
-    JpWechat,
-    JpSofort,
-    JpGiropay,
-    JpSepa,
-    JpBacs,
-}
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "text")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum PaymentMethod {
-    #[default]
-    Card,
-    PayLater,
-    Wallet,
-    BankRedirect,
-    BankTransfer,
-    Crypto,
-    BankDebit,
-    Reward,
-    Upi,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "lowercase")]
-#[strum(serialize_all = "lowercase")]
-pub enum WalletIssuer {
-    GooglePay,
-    ApplePay,
 }
 
 #[derive(
@@ -516,31 +107,7 @@ pub enum ProcessTrackerStatus {
     Finish,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub enum RefundStatus {
-    Failure,
-    ManualReview,
-    #[default]
-    Pending,
-    Success,
-    TransactionFailure,
-}
-
+// Refund
 #[derive(
     Clone,
     Copy,
@@ -584,7 +151,6 @@ pub enum MandateType {
     #[default]
     MultiUse,
 }
-
 use diesel::{
     backend::Backend,
     deserialize::{FromSql, FromSqlRow},
@@ -638,95 +204,12 @@ pub struct MandateAmountData {
     Copy,
     Debug,
     Eq,
-    PartialEq,
-    Default,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum MandateStatus {
-    #[default]
-    Active,
-    Inactive,
-    Pending,
-    Revoked,
-}
-
-#[derive(
-    Clone,
-    Debug,
-    Eq,
     Hash,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "text")]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub enum PaymentMethodType {
-    Ach,
-    Affirm,
-    AfterpayClearpay,
-    AliPay,
-    AliPayHk,
-    ApplePay,
-    Bacs,
-    BancontactCard,
-    Becs,
-    Blik,
-    #[serde(rename = "classic")]
-    ClassicReward,
-    Credit,
-    CryptoCurrency,
-    Debit,
-    Eps,
-    Evoucher,
-    Giropay,
-    GooglePay,
-    Ideal,
-    Interac,
-    Klarna,
-    MbWay,
-    MobilePay,
-    Multibanco,
-    OnlineBankingCzechRepublic,
-    OnlineBankingFinland,
-    OnlineBankingPoland,
-    OnlineBankingSlovakia,
-    PayBright,
-    Paypal,
-    Przelewy24,
-    SamsungPay,
-    Sepa,
-    Sofort,
-    Swish,
-    Trustly,
-    UpiCollect,
-    Walley,
-    WeChatPay,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[strum(serialize_all = "snake_case")]
@@ -805,107 +288,27 @@ pub enum BankNames {
     VolkswagenBank,
     AliorBank,
     Boz,
-}
-
-#[derive(
-    Clone,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "text")]
-pub enum CardNetwork {
-    Visa,
-    Mastercard,
-    AmericanExpress,
-    JCB,
-    DinersClub,
-    Discover,
-    CartesBancaires,
-    UnionPay,
-    Interac,
-    RuPay,
-    Maestro,
-}
-
-#[derive(
-    Eq,
-    PartialEq,
-    Hash,
-    Clone,
-    Debug,
-    serde::Serialize,
-    serde::Deserialize,
-    Default,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "text")]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub enum PaymentExperience {
-    #[default]
-    RedirectToUrl,
-    InvokeSdkClient,
-    DisplayQrCode,
-    OneClick,
-    LinkWallet,
-    InvokePaymentApp,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Default,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum DisputeStage {
-    PreDispute,
-    #[default]
-    Dispute,
-    PreArbitration,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Default,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum DisputeStatus {
-    #[default]
-    DisputeOpened,
-    DisputeExpired,
-    DisputeAccepted,
-    DisputeCancelled,
-    DisputeChallenged,
-    DisputeWon,
-    DisputeLost,
+    AffinBank,
+    AgroBank,
+    AllianceBank,
+    AmBank,
+    BankIslam,
+    BankMuamalat,
+    BankRakyat,
+    BankSimpananNasional,
+    CimbBank,
+    HongLeongBank,
+    HsbcBank,
+    KuwaitFinanceHouse,
+    Maybank,
+    OcbcBank,
+    PublicBank,
+    RhbBank,
+    StandardCharteredBank,
+    UobBank,
+    BangkokBank,
+    KrungsriBank,
+    KrungThaiBank,
+    TheSiamCommercialBank,
+    KasikornBank,
 }
