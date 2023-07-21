@@ -17,6 +17,7 @@ use image::Luma;
 use nanoid::nanoid;
 use qrcode;
 use serde::de::DeserializeOwned;
+use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
 use crate::{
@@ -74,6 +75,11 @@ pub mod error_parser {
 #[inline]
 pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid!(length, &consts::ALPHABETS))
+}
+
+#[inline]
+pub fn generate_uuid() -> String {
+    Uuid::new_v4().to_string()
 }
 
 pub trait ConnectorResponseExt: Sized {
