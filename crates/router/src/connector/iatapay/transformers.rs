@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use masking::{abs::SwitchStrategy, Secret};
+use masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
 
 use crate::{
