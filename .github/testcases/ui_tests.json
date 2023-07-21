@@ -1342,7 +1342,7 @@
     "id": 224,
     "name": "Oxxo",
     "connector": "adyen_uk",
-    "request": "{\"amount\":6540,\"currency\":\"IDR\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com/\",\"payment_method\":\"voucher\",\"payment_method_type\":\"oxxo\",\"payment_method_data\":{\"voucher\":{\"oxxo\":{}}}}"
+    "request": "{\"amount\":6540,\"currency\":\"MXN\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com/\",\"payment_method\":\"voucher\",\"payment_method_type\":\"oxxo\",\"payment_method_data\":{\"voucher\":{\"oxxo\":{}}}}"
   },
   "225": {
     "id": 225,
