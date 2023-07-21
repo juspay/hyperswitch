@@ -36,7 +36,14 @@ async fn should_make_paypal_payment(web_driver: WebDriver) -> Result<(), WebDriv
         web_driver,
         &format!("{CHEKOUT_BASE_URL}/saved/156"),
         vec![
-            Event::Trigger(Trigger::Click(By::Css(".reviewButton"))),
+            Event::EitherOr(Assert::IsElePresent(By::Css(".reviewButton")), 
+                vec![
+                    Event::Trigger(Trigger::Click(By::Css(".reviewButton")))
+                ],
+                vec![
+                    Event::Trigger(Trigger::Click(By::Id("payment-submit-btn")))
+                ]
+        ),
             Event::Assert(Assert::IsPresent("status")),
             Event::Assert(Assert::IsPresent("processing")), // This connector status will be processing for one day
         ],
