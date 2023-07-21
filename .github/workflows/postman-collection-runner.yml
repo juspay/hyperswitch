@@ -82,9 +82,11 @@ jobs:
         with:
           toolchain: stable
 
-      - uses: Swatinem/rust-cache@v2.4.0
+      - name: Build and Cache Rust Dependencies
+        uses: Swatinem/rust-cache@v2.4.0
 
-      - uses: baptiste0928/cargo-install@v2.1.0
+      - name: Install Diesel CLI with Postgres Support
+        uses: baptiste0928/cargo-install@v2.1.0
         with:
           crate: diesel_cli
           features: postgres
@@ -121,14 +123,17 @@ jobs:
           INPUT: ${{ matrix.connector }}
         shell: bash
         run: |
+          RED='\033[0;31m'
+          RESET='\033[0m'
+          fail=false
           for i in $(echo $INPUT | tr "," "\n"); do
             cargo run --bin test_utils -- --connector_name=$i --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY || exit_code=$?
-            exit_codes+=($exit_code)
-          done
-
-          for code in "${exit_codes[@]}"; do
-            if [ $code -ne 0 ]; then
-              echo "One or more connectors failed to run."
-              exit $code
+            if [ $exit_code -ne 0 ]; then
+              fail=true
             fi
           done
+
+          if [ $fail ]; then
+            echo -e -n "${RED}One or more connectors failed to run.${RESET}"
+            exit 1
+          fi
