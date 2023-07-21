@@ -19,6 +19,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        domain,
         storage::{self},
         ErrorResponse, Response,
     },
@@ -45,10 +46,7 @@ fn get_auth_cashtocode(
     payment_method_type: &Option<storage::enums::PaymentMethodType>,
     auth_type: &types::ConnectorAuthType,
 ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-    match payment_method_type
-        .clone()
-        .ok_or_else(conn_utils::missing_field_err("payment_method_type"))
-    {
+    match (*payment_method_type).ok_or_else(conn_utils::missing_field_err("payment_method_type")) {
         Ok(reward_type) => match reward_type {
             storage::enums::PaymentMethodType::ClassicReward => match auth_type {
                 types::ConnectorAuthType::BodyKey { api_key, .. } => Ok(vec![(
@@ -264,8 +262,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+        let response: transformers::CashtocodePaymentsSyncResponse = res
+            .response
+            .parse_struct("CashtocodePaymentsSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response: cashtocode::CashtocodePaymentsSyncResponse {},
+            response,
             data: data.clone(),
             http_code: res.status_code,
         })
@@ -326,35 +328,24 @@ impl api::IncomingWebhook for Cashtocode {
         Ok(signature)
     }
 
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
-    }
-
     async fn verify_webhook_source(
         &self,
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
+        connector_label: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let signature = self
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret = self
-            .get_webhook_source_verification_merchant_secret(db, merchant_id)
+            .get_webhook_source_verification_merchant_secret(
+                db,
+                merchant_id,
+                connector_label,
+                key_store,
+            )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret_auth = String::from_utf8(secret.to_vec())
@@ -372,9 +363,9 @@ impl api::IncomingWebhook for Cashtocode {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let webhook: transformers::CashtocodeObjectId = request
+        let webhook: transformers::CashtocodePaymentsSyncResponse = request
             .body
-            .parse_struct("CashtocodeObjectId")
+            .parse_struct("CashtocodePaymentsSyncResponse")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
@@ -410,9 +401,9 @@ impl api::IncomingWebhook for Cashtocode {
     ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
     {
         let status = "EXECUTED".to_string();
-        let obj: transformers::CashtocodeObjectId = request
+        let obj: transformers::CashtocodePaymentsSyncResponse = request
             .body
-            .parse_struct("CashtocodeObjectId")
+            .parse_struct("CashtocodePaymentsSyncResponse")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         let response: serde_json::Value =
             serde_json::json!({ "status": status, "transactionId" : obj.transaction_id});

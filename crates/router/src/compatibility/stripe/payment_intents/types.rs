@@ -60,12 +60,18 @@ pub enum StripeWallet {
     ApplePay(payments::ApplePayWalletData),
 }
 
-#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
+pub struct StripeUpi {
+    pub vpa_id: masking::Secret<String>,
+}
+
+#[derive(Debug, Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodType {
     #[default]
     Card,
     Wallet,
+    Upi,
 }
 
 impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
@@ -73,6 +79,7 @@ impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
         match item {
             StripePaymentMethodType::Card => Self::Card,
             StripePaymentMethodType::Wallet => Self::Wallet,
+            StripePaymentMethodType::Upi => Self::Upi,
         }
     }
 }
@@ -92,6 +99,7 @@ pub struct StripePaymentMethodData {
 pub enum StripePaymentMethodDetails {
     Card(StripeCard),
     Wallet(StripeWallet),
+    Upi(StripeUpi),
 }
 
 impl From<StripeCard> for payments::Card {
@@ -120,6 +128,14 @@ impl From<StripeWallet> for payments::WalletData {
     }
 }
 
+impl From<StripeUpi> for payments::UpiData {
+    fn from(upi: StripeUpi) -> Self {
+        Self {
+            vpa_id: Some(upi.vpa_id),
+        }
+    }
+}
+
 impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
     fn from(item: StripePaymentMethodDetails) -> Self {
         match item {
@@ -127,6 +143,7 @@ impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
             StripePaymentMethodDetails::Wallet(wallet) => {
                 Self::Wallet(payments::WalletData::from(wallet))
             }
+            StripePaymentMethodDetails::Upi(upi) => Self::Upi(payments::UpiData::from(upi)),
         }
     }
 }
@@ -240,13 +257,18 @@ pub struct StripePaymentIntentRequest {
     pub confirmation_method: Option<String>,                 // not used
     pub error_on_requires_action: Option<String>,            // not used
     pub radar_options: Option<SecretSerdeValue>,             // not used
+    pub connector_metadata: Option<payments::ConnectorMetadata>,
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripePaymentIntentRequest) -> errors::RouterResult<Self> {
         let routable_connector: Option<api_enums::RoutableConnectors> =
-            item.connector.and_then(|v| v.into_iter().next());
+            item.connector.and_then(|v| {
+                v.into_iter()
+                    .next()
+                    .map(api_enums::RoutableConnectors::from)
+            });
 
         let routing = routable_connector
             .map(crate::types::api::RoutingAlgorithm::Single)
@@ -338,7 +360,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("convert to browser info failed")?,
             ),
-
+            connector_metadata: item.connector_metadata,
             ..Self::default()
         });
         request

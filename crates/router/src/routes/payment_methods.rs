@@ -98,7 +98,7 @@ pub async fn list_payment_method_api(
 /// To filter and list the applicable payment methods for a particular Customer ID
 #[utoipa::path(
     get,
-    path = "/customer/{customer_id}/payment_methods",
+    path = "/customers/{customer_id}/payment_methods",
     params (
         ("customer_id" = String, Path, description = "The unique identifier for the customer account"),
         ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
@@ -115,38 +115,93 @@ pub async fn list_payment_method_api(
     ),
     tag = "Payment Methods",
     operation_id = "List all Payment Methods for a Customer",
-    security(("api_key" = []), ("ephemeral_key" = []))
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
     customer_id: web::Path<(String,)>,
     req: HttpRequest,
-    json_payload: web::Query<payment_methods::PaymentMethodListRequest>,
+    query_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
     let flow = Flow::CustomerPaymentMethodsList;
-    let customer_id = customer_id.into_inner().0;
-
-    let auth_type = match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await
-    {
-        Ok(auth_type) => auth_type,
-        Err(err) => return api::log_and_return_error_response(err),
+    let payload = query_payload.into_inner();
+    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        Ok((auth, _auth_flow)) => (auth, _auth_flow),
+        Err(e) => return api::log_and_return_error_response(e),
     };
-
+    let customer_id = customer_id.into_inner().0;
     api::server_wrap(
         flow,
         state.get_ref(),
         &req,
-        json_payload.into_inner(),
-        |state, auth, _| {
-            cards::list_customer_payment_method(
+        payload,
+        |state, auth, req| {
+            cards::do_list_customer_pm_fetch_customer_if_not_passed(
                 state,
                 auth.merchant_account,
                 auth.key_store,
-                &customer_id,
+                Some(req),
+                Some(&customer_id),
             )
         },
-        &*auth_type,
+        &*auth,
+    )
+    .await
+}
+
+/// List payment methods for a Customer
+///
+/// To filter and list the applicable payment methods for a particular Customer ID
+#[utoipa::path(
+    get,
+    path = "/customers/payment_methods",
+    params (
+        ("client-secret" = String, Path, description = "A secret known only to your application and the authorization server"),
+        ("customer_id" = String, Path, description = "The unique identifier for the customer account"),
+        ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
+        ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
+        ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
+        ("maximum_amount" = i64, Query, description = "The maximum amount amount accepted for processing by the particular payment method."),
+        ("recurring_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
+        ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
+    ),
+    responses(
+        (status = 200, description = "Payment Methods retrieved for customer tied to its respective client-secret passed in the param", body = CustomerPaymentMethodsListResponse),
+        (status = 400, description = "Invalid Data"),
+        (status = 404, description = "Payment Methods does not exist in records")
+    ),
+    tag = "Payment Methods",
+    operation_id = "List all Payment Methods for a Customer",
+    security(("publishable_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
+pub async fn list_customer_payment_method_api_client(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_payload: web::Query<payment_methods::PaymentMethodListRequest>,
+) -> HttpResponse {
+    let flow = Flow::CustomerPaymentMethodsList;
+    let payload = query_payload.into_inner();
+    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        Ok((auth, _auth_flow)) => (auth, _auth_flow),
+        Err(e) => return api::log_and_return_error_response(e),
+    };
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        |state, auth, req| {
+            cards::do_list_customer_pm_fetch_customer_if_not_passed(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                Some(req),
+                None,
+            )
+        },
+        &*auth,
     )
     .await
 }
@@ -185,7 +240,7 @@ pub async fn payment_method_retrieve_api(
         state.get_ref(),
         &req,
         payload,
-        |state, auth, pm| cards::retrieve_payment_method(state, pm, auth.merchant_account),
+        |state, _auth, pm| cards::retrieve_payment_method(state, pm),
         &auth::ApiKeyAuth,
     )
     .await

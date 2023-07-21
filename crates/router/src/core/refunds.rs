@@ -700,7 +700,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             refund_id: refund.refund_id,
             amount: refund.refund_amount,
             currency: refund.currency.to_string(),
-            reason: refund.description,
+            reason: refund.refund_reason,
             status: refund.refund_status.foreign_into(),
             metadata: refund.metadata,
             error_message: refund.refund_error_message,

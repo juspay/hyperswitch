@@ -62,6 +62,8 @@ where
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
     })?;
 
+    let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
+
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -124,12 +126,18 @@ where
         reference_id: None,
         payment_method_token: payment_data.pm_token,
         connector_customer: payment_data.connector_customer_id,
+        recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
             &merchant_account.merchant_id,
             &payment_data.payment_attempt,
         ),
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode,
     };
 
     Ok(router_data)
@@ -169,6 +177,7 @@ where
             payment_data.payment_intent,
             payment_data.refunds,
             payment_data.disputes,
+            payment_data.attempts,
             payment_data.payment_method_data,
             customer,
             auth_flow,
@@ -178,6 +187,7 @@ where
             &operation,
             payment_data.ephemeral_key,
             payment_data.sessions_token,
+            payment_data.setup_mandate,
         )
     }
 }
@@ -222,6 +232,17 @@ where
         _server: &Server,
         _operation: Op,
     ) -> RouterResponse<Self> {
+        let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
+            data.payment_attempt
+                .payment_method_data
+                .clone()
+                .map(|data| data.parse_value("payment_method_data"))
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payment_method_data",
+                })?;
+        let payment_method_data_response =
+            additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
         Ok(services::ApplicationResponse::Json(Self {
             verify_id: Some(data.payment_intent.payment_id),
             merchant_id: Some(data.payment_intent.merchant_id),
@@ -237,13 +258,8 @@ where
                 .as_ref()
                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
             mandate_id: data.mandate_id.map(|mandate_ids| mandate_ids.mandate_id),
-            payment_method: data
-                .payment_attempt
-                .payment_method
-                .map(ForeignInto::foreign_into),
-            payment_method_data: data
-                .payment_method_data
-                .map(api::PaymentMethodDataResponse::from),
+            payment_method: data.payment_attempt.payment_method,
+            payment_method_data: payment_method_data_response,
             payment_token: data.token,
             error_code: data.payment_attempt.error_code,
             error_message: data.payment_attempt.error_message,
@@ -261,6 +277,7 @@ pub fn payments_to_payments_response<R, Op>(
     payment_intent: storage::PaymentIntent,
     refunds: Vec<storage::Refund>,
     disputes: Vec<storage::Dispute>,
+    option_attempts: Option<Vec<storage::PaymentAttempt>>,
     payment_method_data: Option<api::PaymentMethodData>,
     customer: Option<domain::Customer>,
     auth_flow: services::AuthFlow,
@@ -270,6 +287,7 @@ pub fn payments_to_payments_response<R, Op>(
     operation: &Op,
     ephemeral_key_option: Option<ephemeral_key::EphemeralKey>,
     session_tokens: Vec<api::SessionToken>,
+    mandate_data: Option<api_models::payments::MandateData>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
@@ -299,6 +317,12 @@ where
                 .collect(),
         )
     };
+    let attempts_response = option_attempts.map(|attempts| {
+        attempts
+            .into_iter()
+            .map(ForeignInto::foreign_into)
+            .collect()
+    });
     let merchant_id = payment_attempt.merchant_id.to_owned();
     let payment_method_type = payment_attempt
         .payment_method_type
@@ -310,6 +334,18 @@ where
         .as_ref()
         .map(ToString::to_string)
         .unwrap_or("".to_owned());
+    let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
+        payment_attempt
+            .payment_method_data
+            .clone()
+            .map(|data| data.parse_value("payment_method_data"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "payment_method_data",
+            })?;
+
+    let payment_method_data_response =
+        additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
 
     let output = Ok(match payment_request {
         Some(_request) => {
@@ -349,12 +385,14 @@ where
                                 mobile_redirection_url: qr_code_data.mobile_redirection_url,
                             }
                         }))
-                        .or(Some(api_models::payments::NextActionData::RedirectToUrl {
-                            redirect_to_url: helpers::create_startpay_url(
-                                server,
-                                &payment_attempt,
-                                &payment_intent,
-                            ),
+                        .or(redirection_data.map(|_| {
+                            api_models::payments::NextActionData::RedirectToUrl {
+                                redirect_to_url: helpers::create_startpay_url(
+                                    server,
+                                    &payment_attempt,
+                                    &payment_intent,
+                                ),
+                            }
                         }));
                 };
 
@@ -385,7 +423,7 @@ where
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
                         .set_merchant_id(Some(payment_attempt.merchant_id))
-                        .set_status(payment_intent.status.foreign_into())
+                        .set_status(payment_intent.status)
                         .set_amount(payment_attempt.amount)
                         .set_amount_capturable(amount_capturable)
                         .set_amount_received(payment_intent.amount_captured)
@@ -410,17 +448,20 @@ where
                                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
                         )
                         .set_mandate_id(mandate_id)
+                        .set_mandate_data(
+                            mandate_data.map(api::MandateData::from),
+                            auth_flow == services::AuthFlow::Merchant,
+                        )
                         .set_description(payment_intent.description)
                         .set_refunds(refunds_response) // refunds.iter().map(refund_to_refund_response),
                         .set_disputes(disputes_response)
+                        .set_attempts(attempts_response)
                         .set_payment_method(
-                            payment_attempt
-                                .payment_method
-                                .map(ForeignInto::foreign_into),
+                            payment_attempt.payment_method,
                             auth_flow == services::AuthFlow::Merchant,
                         )
                         .set_payment_method_data(
-                            payment_method_data.map(api::PaymentMethodDataResponse::from),
+                            payment_method_data_response,
                             auth_flow == services::AuthFlow::Merchant,
                         )
                         .set_payment_token(payment_attempt.payment_token)
@@ -431,33 +472,13 @@ where
                         .set_next_action(next_action_response)
                         .set_return_url(payment_intent.return_url)
                         .set_cancellation_reason(payment_attempt.cancellation_reason)
-                        .set_authentication_type(
-                            payment_attempt
-                                .authentication_type
-                                .map(ForeignInto::foreign_into),
-                        )
+                        .set_authentication_type(payment_attempt.authentication_type)
                         .set_statement_descriptor_name(payment_intent.statement_descriptor_name)
                         .set_statement_descriptor_suffix(payment_intent.statement_descriptor_suffix)
-                        .set_setup_future_usage(
-                            payment_intent
-                                .setup_future_usage
-                                .map(ForeignInto::foreign_into),
-                        )
-                        .set_capture_method(
-                            payment_attempt
-                                .capture_method
-                                .map(ForeignInto::foreign_into),
-                        )
-                        .set_payment_experience(
-                            payment_attempt
-                                .payment_experience
-                                .map(ForeignInto::foreign_into),
-                        )
-                        .set_payment_method_type(
-                            payment_attempt
-                                .payment_method_type
-                                .map(ForeignInto::foreign_into),
-                        )
+                        .set_setup_future_usage(payment_intent.setup_future_usage)
+                        .set_capture_method(payment_attempt.capture_method)
+                        .set_payment_experience(payment_attempt.payment_experience)
+                        .set_payment_method_type(payment_attempt.payment_method_type)
                         .set_metadata(payment_intent.metadata)
                         .set_order_details(payment_intent.order_details)
                         .set_connector_label(connector_label)
@@ -483,7 +504,7 @@ where
         None => services::ApplicationResponse::Json(api::PaymentsResponse {
             payment_id: Some(payment_attempt.payment_id),
             merchant_id: Some(payment_attempt.merchant_id),
-            status: payment_intent.status.foreign_into(),
+            status: payment_intent.status,
             amount: payment_attempt.amount,
             amount_capturable: None,
             amount_received: payment_intent.amount_captured,
@@ -494,15 +515,12 @@ where
             description: payment_intent.description,
             refunds: refunds_response,
             disputes: disputes_response,
-            payment_method: payment_attempt
-                .payment_method
-                .map(ForeignInto::foreign_into),
-            capture_method: payment_attempt
-                .capture_method
-                .map(ForeignInto::foreign_into),
+            attempts: attempts_response,
+            payment_method: payment_attempt.payment_method,
+            capture_method: payment_attempt.capture_method,
             error_message: payment_attempt.error_message,
             error_code: payment_attempt.error_code,
-            payment_method_data: payment_method_data.map(api::PaymentMethodDataResponse::from),
+            payment_method_data: payment_method_data_response,
             email: customer
                 .as_ref()
                 .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
@@ -593,7 +611,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
         Self {
             payment_id: Some(pi.payment_id),
             merchant_id: Some(pi.merchant_id),
-            status: pi.status.foreign_into(),
+            status: pi.status,
             amount: pi.amount,
             amount_capturable: pi.amount_captured,
             client_secret: pi.client_secret.map(|s| s.into()),
@@ -604,8 +622,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             order_details: pi.order_details,
             customer_id: pi.customer_id,
             connector: pa.connector,
-            payment_method: pa.payment_method.map(ForeignInto::foreign_into),
-            payment_method_type: pa.payment_method_type.map(ForeignInto::foreign_into),
+            payment_method: pa.payment_method,
+            payment_method_type: pa.payment_method_type,
             ..Default::default()
         }
     }
@@ -615,21 +633,9 @@ impl ForeignFrom<PaymentListFilters> for api_models::payments::PaymentListFilter
     fn foreign_from(item: PaymentListFilters) -> Self {
         Self {
             connector: item.connector,
-            currency: item
-                .currency
-                .into_iter()
-                .map(ForeignInto::foreign_into)
-                .collect(),
-            status: item
-                .status
-                .into_iter()
-                .map(ForeignInto::foreign_into)
-                .collect(),
-            payment_method: item
-                .payment_method
-                .into_iter()
-                .map(ForeignInto::foreign_into)
-                .collect(),
+            currency: item.currency,
+            status: item.status,
+            payment_method: item.payment_method,
         }
     }
 }
@@ -963,7 +969,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             email: payment_data.email,
             return_url: payment_data.payment_intent.return_url,
             browser_info,
-            payment_method_type: attempt.payment_method_type.clone(),
+            payment_method_type: attempt.payment_method_type,
         })
     }
 }

@@ -16,7 +16,7 @@ use crate::{
         api::{self, disputes},
         domain,
         storage::enums as storage_enums,
-        transformers::{ForeignFrom, ForeignInto},
+        transformers::ForeignFrom,
         AcceptDisputeRequestData, AcceptDisputeResponse, DefendDisputeRequestData,
         DefendDisputeResponse, SubmitEvidenceRequestData, SubmitEvidenceResponse,
     },
@@ -145,10 +145,7 @@ pub async fn accept_dispute(
                 reason: err.reason,
             })?;
     let update_dispute = diesel_models::dispute::DisputeUpdate::StatusUpdate {
-        dispute_status: accept_dispute_response
-            .dispute_status
-            .clone()
-            .foreign_into(),
+        dispute_status: accept_dispute_response.dispute_status,
         connector_status: accept_dispute_response.connector_status.clone(),
     };
     let updated_dispute = db
@@ -308,7 +305,7 @@ pub async fn submit_evidence(
             )
         };
     let update_dispute = diesel_models::dispute::DisputeUpdate::StatusUpdate {
-        dispute_status: dispute_status.foreign_into(),
+        dispute_status,
         connector_status,
     };
     let updated_dispute = db
