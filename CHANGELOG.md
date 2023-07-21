@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.6.0+hotfix.4 (2023-07-21)
+
+### Bug Fixes
+
+- **connector:** [Paypal] fix amount to its currency base unit ([#1771](https://github.com/juspay/hyperswitch/pull/1771)) ([`d2a1464`](https://github.com/juspay/hyperswitch/commit/d2a14643e6ff9dd1b36bae6f4d19db9f139b18db))
+
+**Full Changelog:** [`v1.6.0+hotfix.3...v1.6.0+hotfix.4`](https://github.com/juspay/hyperswitch/compare/v1.6.0+hotfix.3...v1.6.0+hotfix.4)
+
+- - -
+
 ## 1.6.0+hotfix.3 (2023-07-20)
 
 ### Bug Fixes
