@@ -235,16 +235,16 @@ pub struct AdyenThreeDS {
 #[serde(untagged)]
 pub enum AdyenPaymentResponse {
     Response(Response),
+    QrCodeResponse(QrCodeResponse),
     RedirectionResponse(RedirectionResponse),
     RedirectionErrorResponse(RedirectionErrorResponse),
-    QrCodeResonse(QrCodeResponse),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QrCodeResponse {
     result_code: AdyenStatus,
-    action: QrCodeAction,
+    action: AdyenQrCodeAction,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
 }
@@ -2256,8 +2256,8 @@ pub fn get_qr_code_response(
         None
     };
 
-    let connector_metadata = get_qr_connector_metadata(&response)
-        .or(Err(errors::ConnectorError::NoConnectorMetaData))?;
+    let connector_metadata =
+        get_connector_metadata(&response).or(Err(errors::ConnectorError::NoConnectorMetaData))?;
 
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
@@ -2271,7 +2271,7 @@ pub fn get_qr_code_response(
     Ok((status, error, payments_response_data))
 }
 
-pub fn get_qr_connector_metadata(
+pub fn get_connector_metadata(
     next_action: &QrCodeResponse,
 ) -> Result<Option<serde_json::Value>, error_stack::Report<common_utils::errors::QrCodeError>> {
     let qr_code_data = match next_action.action.type_of_response {
@@ -2310,7 +2310,7 @@ impl<F, Req>
             AdyenPaymentResponse::RedirectionErrorResponse(response) => {
                 get_redirection_error_response(response, is_manual_capture, item.http_code)?
             }
-            AdyenPaymentResponse::QrCode(response) => {
+            AdyenPaymentResponse::QrCodeResponse(response) => {
                 get_qr_code_response(response, is_manual_capture, item.http_code)?
             }
         };

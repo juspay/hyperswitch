@@ -682,7 +682,6 @@ fn should_make_adyen_alipay_hk_payment_test() {
     tester!(should_make_adyen_alipay_hk_payment);
 }
 
-
 #[test]
 #[serial]
 fn should_make_adyen_swish_payment_test() {
