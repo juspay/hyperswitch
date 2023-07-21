@@ -601,7 +601,11 @@ async fn should_make_adyen_touch_n_go_payment(web_driver: WebDriver) -> Result<(
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/185"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
-            Event::Assert(Assert::IsPresent("succeeded")),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=succeeded"],
+            )),
         ],
     )
     .await?;
