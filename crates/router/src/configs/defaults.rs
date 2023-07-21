@@ -7,11 +7,11 @@ use super::settings::{ConnectorFields, PaymentMethodType};
 impl Default for super::settings::Server {
     fn default() -> Self {
         Self {
-            port: 8082,
+            port: 8080,
             workers: num_cpus::get_physical(),
             host: "localhost".into(),
             request_body_limit: 16 * 1024, // POST request body is limited to 16KiB
-            base_url: "http://localhost:8082".into(),
+            base_url: "http://localhost:8080".into(),
             shutdown_timeout: 30,
         }
     }
