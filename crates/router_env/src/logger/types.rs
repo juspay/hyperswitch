@@ -128,16 +128,21 @@ pub enum Flow {
     PaymentsStart,
     /// Payments list flow.
     PaymentsList,
+    #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
+    #[cfg(feature = "payouts")]
     /// Payouts retrieve flow.
     PayoutsRetrieve,
+    #[cfg(feature = "payouts")]
     /// Payouts update flow.
     PayoutsUpdate,
-    /// Payouts reverse flow.
-    PayoutsReverse,
+    #[cfg(feature = "payouts")]
     /// Payouts cancel flow.
     PayoutsCancel,
+    #[cfg(feature = "payouts")]
+    /// Payouts fulfill flow.
+    PayoutsFulfill,
     /// Payouts accounts flow.
     PayoutsAccounts,
     /// Payments Redirect flow.

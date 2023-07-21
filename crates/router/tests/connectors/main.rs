@@ -64,6 +64,7 @@ mod trustpay;
 mod trustpay_3ds_ui;
 mod tsys;
 mod utils;
+mod wise;
 mod worldline;
 mod worldline_ui;
 mod worldpay;
