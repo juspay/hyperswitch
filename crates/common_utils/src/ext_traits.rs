@@ -5,7 +5,7 @@
 
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret, Strategy};
-use quick_xml::{de, se};
+use quick_xml::de;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -144,7 +144,7 @@ where
     where
         Self: Serialize,
     {
-        se::to_string(self)
+        quick_xml::se::to_string(self)
             .into_report()
             .change_context(errors::ParsingError::EncodeError("xml"))
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
