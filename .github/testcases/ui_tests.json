@@ -1,4 +1,5 @@
 {
+  "tests_to_ignore": [],
   "1": {
     "id": 1,
     "name": "stripe giropay",

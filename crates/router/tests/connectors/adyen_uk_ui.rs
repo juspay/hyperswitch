@@ -247,6 +247,7 @@ async fn should_make_adyen_paypal_payment(web_driver: WebDriver) -> Result<(), W
         web_driver,
         &format!("{CHEKOUT_BASE_URL}/saved/202"),
         vec![
+            Event::Trigger(Trigger::Click(By::Id("payment-submit-btn"))),
             Event::Assert(Assert::IsPresent("Google")),
             Event::Assert(Assert::ContainsAny(
                 Selector::QueryParamStr,
