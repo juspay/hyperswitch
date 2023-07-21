@@ -795,7 +795,7 @@ pub struct MerchantConnectorUpdate {
 #[serde(deny_unknown_fields)]
 pub struct FrmConfigs {
     ///this is the connector that can be used for the payment
-    #[schema(value_type = api_enums::Connector)]
+    #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub gateway: Option<api_enums::Connector>,
     ///payment methods that can be used in the payment
     pub payment_methods: Vec<FrmPaymentMethod>,
@@ -806,6 +806,7 @@ pub struct FrmConfigs {
 #[serde(deny_unknown_fields)]
 pub struct FrmPaymentMethod {
     ///payment methods(card, wallet, etc) that can be used in the payment
+    #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: Option<common_enums::PaymentMethod>,
     ///payment method types(credit, debit) that can be used in the payment
     pub payment_method_types: Vec<FrmPaymentMethodType>,
@@ -816,12 +817,16 @@ pub struct FrmPaymentMethod {
 #[serde(deny_unknown_fields)]
 pub struct FrmPaymentMethodType {
     ///payment method types(credit, debit) that can be used in the payment
+    #[schema(value_type = PaymentMethodType)]
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     ///card networks(like visa mastercard) types that can be used in the payment
+    #[schema(value_type = CardNetwork)]
     pub card_networks: Option<Vec<common_enums::CardNetwork>>,
     ///frm flow type to be used...can be pre/post
+    #[schema(value_type = FrmPreferredFlowTypes)]
     pub flow: api_enums::FrmPreferredFlowTypes,
     ///action that the frm would take, in case fraud is detected
+    #[schema(value_type = FrmAction)]
     pub action: api_enums::FrmAction,
 }
 /// Details of all the payment methods enabled for the connector for the given merchant account

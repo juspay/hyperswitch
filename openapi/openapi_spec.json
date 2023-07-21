@@ -4589,7 +4589,7 @@
         ],
         "properties": {
           "gateway": {
-            "$ref": "#/components/schemas/api_enums.Connector"
+            "$ref": "#/components/schemas/ConnectorType"
           },
           "payment_methods": {
             "type": "array",
@@ -4633,6 +4633,50 @@
           "frm_error": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "FrmPaymentMethod": {
+        "type": "object",
+        "description": "Details of FrmPaymentMethod are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table",
+        "required": [
+          "payment_method",
+          "payment_method_types"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FrmPaymentMethodType"
+            },
+            "description": "payment method types(credit, debit) that can be used in the payment"
+          }
+        }
+      },
+      "FrmPaymentMethodType": {
+        "type": "object",
+        "description": "Details of FrmPaymentMethodType are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table",
+        "required": [
+          "payment_method_type",
+          "card_networks",
+          "flow",
+          "action"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "card_networks": {
+            "$ref": "#/components/schemas/CardNetwork"
+          },
+          "flow": {
+            "$ref": "#/components/schemas/FrmPreferredFlowTypes"
+          },
+          "action": {
+            "$ref": "#/components/schemas/FrmAction"
           }
         }
       },
