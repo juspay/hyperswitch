@@ -4,5 +4,4 @@ ADD COLUMN multiple_capture_count SMALLINT, --number of captures available for t
 ADD COLUMN succeeded_capture_count SMALLINT; --number of succeeded captures available for this payment attempt in capture table
 
 ALTER TABLE captures
-ADD COLUMN connector_transaction_id VARCHAR(128),
-ALTER COLUMN capture_sequence TYPE SMALLINT;
+ADD COLUMN connector_transaction_id VARCHAR(128);

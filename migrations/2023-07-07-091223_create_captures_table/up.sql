@@ -6,10 +6,9 @@ CREATE TYPE "CaptureStatus" AS ENUM (
     'failure'
 );
 CREATE TABLE captures(
-    id SERIAL PRIMARY KEY,
+    capture_id VARCHAR(255) NOT NULL PRIMARY KEY,
     payment_id VARCHAR(255) NOT NULL,
     merchant_id VARCHAR(255) NOT NULL,
-    attempt_id VARCHAR(255) NOT NULL,
     status "CaptureStatus" NOT NULL,
     amount BIGINT NOT NULL,
     currency "Currency",
@@ -21,5 +20,5 @@ CREATE TABLE captures(
     created_at TIMESTAMP NOT NULL,
     modified_at TIMESTAMP NOT NULL,
     authorized_attempt_id VARCHAR(255) NOT NULL,
-    capture_sequence INTEGER NOT NULL
+    capture_sequence SMALLINT NOT NULL
 );

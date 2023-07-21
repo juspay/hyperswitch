@@ -47,7 +47,7 @@ impl Capture {
         .await
     }
     #[instrument(skip(conn))]
-    pub async fn update_with_attempt_id(
+    pub async fn update_with_capture_id(
         self,
         conn: &PgPooledConn,
         capture: CaptureUpdate,
@@ -59,7 +59,7 @@ impl Capture {
             _,
         >(
             conn,
-            dsl::attempt_id.eq(self.attempt_id.to_owned()),
+            dsl::capture_id.eq(self.capture_id.to_owned()),
             CaptureUpdateInternal::from(capture),
         )
         .await

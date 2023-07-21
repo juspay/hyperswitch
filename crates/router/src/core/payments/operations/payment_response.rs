@@ -455,7 +455,7 @@ async fn capture_payment_response_update_tracker<F: Clone>(
 
         payment_data.capture = match capture_update.zip(payment_data.capture) {
             Some((capture_update, capture)) => Some(
-                db.update_capture_with_attempt_id(capture, capture_update, storage_scheme)
+                db.update_capture_with_capture_id(capture, capture_update, storage_scheme)
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
             ),

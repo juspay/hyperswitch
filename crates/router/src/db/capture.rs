@@ -31,7 +31,7 @@ pub trait CaptureInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::Capture>, errors::StorageError>;
 
-    async fn update_capture_with_attempt_id(
+    async fn update_capture_with_capture_id(
         &self,
         this: types::Capture,
         capture: types::CaptureUpdate,
@@ -84,7 +84,7 @@ mod storage {
             db_call().await
         }
 
-        async fn update_capture_with_attempt_id(
+        async fn update_capture_with_capture_id(
             &self,
             this: Capture,
             capture: CaptureUpdate,
@@ -92,7 +92,7 @@ mod storage {
         ) -> CustomResult<Capture, errors::StorageError> {
             let db_call = || async {
                 let conn = connection::pg_connection_write(self).await?;
-                this.update_with_attempt_id(&conn, capture)
+                this.update_with_capture_id(&conn, capture)
                     .await
                     .map_err(Into::into)
                     .into_report()
@@ -170,7 +170,7 @@ mod storage {
                 .map_err(Into::into)
                 .into_report()
         }
-        async fn update_capture_with_attempt_id(
+        async fn update_capture_with_capture_id(
             &self,
             this: Capture,
             capture: CaptureUpdate,
@@ -223,14 +223,12 @@ impl CaptureInterface for MockDb {
     ) -> CustomResult<types::Capture, errors::StorageError> {
         let mut captures = self.captures.lock().await;
         #[allow(clippy::as_conversions)]
-        let id = captures.len() as i32;
         let time = common_utils::date_time::now();
 
         let capture = types::Capture {
-            id,
+            capture_id: capture.capture_id,
             payment_id: capture.payment_id,
             merchant_id: capture.merchant_id,
-            attempt_id: capture.attempt_id,
             status: capture.status,
             amount: capture.amount,
             currency: capture.currency,
@@ -259,7 +257,7 @@ impl CaptureInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn update_capture_with_attempt_id(
+    async fn update_capture_with_capture_id(
         &self,
         _this: types::Capture,
         _capture: types::CaptureUpdate,

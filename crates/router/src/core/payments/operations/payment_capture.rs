@@ -259,7 +259,7 @@ impl PaymentCapture {
         storage::CaptureNew {
             payment_id: authorized_attempt.payment_id.clone(),
             merchant_id: authorized_attempt.merchant_id.clone(),
-            attempt_id: format!("{}_{}", authorized_attempt.attempt_id, capture_sequence),
+            capture_id: format!("{}_{}", authorized_attempt.attempt_id, capture_sequence),
             status: enums::CaptureStatus::Started,
             amount: authorized_attempt
                 .amount_to_capture
