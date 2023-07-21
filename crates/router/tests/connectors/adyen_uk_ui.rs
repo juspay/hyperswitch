@@ -576,6 +576,38 @@ async fn should_make_adyen_online_banking_fpx_payment(
     Ok(())
 }
 
+async fn should_make_adyen_online_banking_thailand_payment(
+    web_driver: WebDriver,
+) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/184"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
+            Event::Assert(Assert::IsPresent("succeeded")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_touch_n_go_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/185"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
+            Event::Assert(Assert::IsPresent("succeeded")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
 #[test]
 #[serial]
 #[ignore]
@@ -748,4 +780,16 @@ fn should_make_adyen_dana_payment_test() {
 #[serial]
 fn should_make_adyen_online_banking_fpx_payment_test() {
     tester!(should_make_adyen_online_banking_fpx_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_online_banking_thailand_payment_test() {
+    tester!(should_make_adyen_online_banking_thailand_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_touch_n_go_payment_test() {
+    tester!(should_make_adyen_touch_n_go_payment);
 }

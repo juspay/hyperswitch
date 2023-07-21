@@ -303,6 +303,8 @@ pub enum AdyenPaymentMethod<'a> {
     AliPay(Box<AliPayData>),
     AliPayHk(Box<AliPayHkData>),
     ApplePay(Box<AdyenApplePay>),
+    #[serde(rename = "atome")]
+    Atome(Box<AtomeData>),
     BancontactCard(Box<BancontactCardData>),
     Bizum(Box<BankRedirectionPMData>),
     Blik(Box<BlikRedirectionData>),
@@ -323,12 +325,16 @@ pub enum AdyenPaymentMethod<'a> {
     MobilePay(Box<MobilePayData>),
     #[serde(rename = "momo_wallet")]
     Momo(Box<MomoData>),
+    #[serde(rename = "touchngo")]
+    TouchNGo(Box<TouchNGoData>),
     OnlineBankingCzechRepublic(Box<OnlineBankingCzechRepublicData>),
     OnlineBankingFinland(Box<OnlineBankingFinlandData>),
     OnlineBankingPoland(Box<OnlineBankingPolandData>),
     OnlineBankingSlovakia(Box<OnlineBankingSlovakiaData>),
     #[serde(rename = "molpay_ebanking_fpx_MY")]
     OnlineBankingFpx(Box<OnlineBankingFpxData>),
+    #[serde(rename = "molpay_ebanking_TH")]
+    OnlineBankingThailand(Box<OnlineBankingThailandData>),
     PayBright(Box<PayBrightData>),
     Sofort(Box<BankRedirectionPMData>),
     Trustly(Box<BankRedirectionPMData>),
@@ -559,7 +565,13 @@ pub struct OnlineBankingSlovakiaData {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OnlineBankingFpxData {
-    issuer: AdyenIssuerID,
+    issuer: OnlineBankingFpxIssuer,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OnlineBankingThailandData {
+    issuer: OnlineBankingThailandIssuer,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -590,7 +602,7 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingSlovakiaBanks {
     }
 }
 
-impl TryFrom<&api_enums::BankNames> for AdyenIssuerID {
+impl TryFrom<&api_enums::BankNames> for OnlineBankingFpxIssuer {
     type Error = Error;
     fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
         match bank_name {
@@ -612,6 +624,24 @@ impl TryFrom<&api_enums::BankNames> for AdyenIssuerID {
             api::enums::BankNames::RhbBank => Ok(Self::FpxRhb),
             api::enums::BankNames::StandardCharteredBank => Ok(Self::FpxScb),
             api::enums::BankNames::UobBank => Ok(Self::FpxUob),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: String::from("BankRedirect"),
+                connector: "Adyen",
+                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
+            })?,
+        }
+    }
+}
+
+impl TryFrom<&api_enums::BankNames> for OnlineBankingThailandIssuer {
+    type Error = Error;
+    fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
+        match bank_name {
+            api::enums::BankNames::BangkokBank => Ok(Self::Bangkokbank),
+            api::enums::BankNames::KrungsriBank => Ok(Self::Krungsribank),
+            api::enums::BankNames::KrungThaiBank => Ok(Self::Krungthaibank),
+            api::enums::BankNames::TheSiamCommercialBank => Ok(Self::Siamcommercialbank),
+            api::enums::BankNames::KasikornBank => Ok(Self::Kbank),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
@@ -724,6 +754,9 @@ pub struct GcashData {}
 pub struct MomoData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TouchNGoData {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
     #[serde(rename = "type")]
     payment_type: PaymentType,
@@ -756,6 +789,9 @@ pub struct VippsWalletData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AtomeData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenPayLaterData {
@@ -801,6 +837,7 @@ pub enum PaymentType {
     Alma,
     Applepay,
     Bizum,
+    Atome,
     Blik,
     ClearPay,
     Dana,
@@ -827,6 +864,8 @@ pub enum PaymentType {
     OnlineBankingSlovakia,
     #[serde(rename = "molpay_ebanking_fpx_MY")]
     OnlineBankingFpx,
+    #[serde(rename = "molpay_ebanking_TH")]
+    OnlineBankingThailand,
     PayBright,
     Paypal,
     Scheme,
@@ -835,6 +874,8 @@ pub enum PaymentType {
     #[serde(rename = "networkToken")]
     NetworkToken,
     Trustly,
+    #[serde(rename = "touchngo")]
+    TouchNGo,
     Walley,
     #[serde(rename = "wechatpayWeb")]
     WeChatPayWeb,
@@ -850,7 +891,7 @@ pub enum PaymentType {
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
-pub enum AdyenIssuerID {
+pub enum OnlineBankingFpxIssuer {
     FpxAbb,
     FpxAgrobank,
     FpxAbmb,
@@ -869,6 +910,20 @@ pub enum AdyenIssuerID {
     FpxRhb,
     FpxScb,
     FpxUob,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Clone)]
+pub enum OnlineBankingThailandIssuer {
+    #[serde(rename = "molpay_bangkokbank")]
+    Bangkokbank,
+    #[serde(rename = "molpay_krungsribank")]
+    Krungsribank,
+    #[serde(rename = "molpay_krungthaibank")]
+    Krungthaibank,
+    #[serde(rename = "molpay_siamcommercialbank")]
+    Siamcommercialbank,
+    #[serde(rename = "molpay_kbank")]
+    Kbank,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -1348,6 +1403,10 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 let momo_data = MomoData {};
                 Ok(AdyenPaymentMethod::Momo(Box::new(momo_data)))
             }
+            api_models::payments::WalletData::TouchNGoRedirect(_) => {
+                let touch_n_go_data = TouchNGoData {};
+                Ok(AdyenPaymentMethod::TouchNGo(Box::new(touch_n_go_data)))
+            }
             api_models::payments::WalletData::MbWayRedirect(data) => {
                 let mbway_data = MbwayData {
                     payment_type: PaymentType::Mbway,
@@ -1453,6 +1512,9 @@ impl<'a> TryFrom<(&api::PayLaterData, Option<api_enums::CountryAlpha2>)>
                     payment_type: PaymentType::Alma,
                 })),
             ),
+            api_models::payments::PayLaterData::AtomeRedirect { .. } => {
+                Ok(AdyenPaymentMethod::Atome(Box::new(AtomeData {})))
+            }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
@@ -1561,7 +1623,12 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             ),
             api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => Ok(
                 AdyenPaymentMethod::OnlineBankingFpx(Box::new(OnlineBankingFpxData {
-                    issuer: AdyenIssuerID::try_from(issuer)?,
+                    issuer: OnlineBankingFpxIssuer::try_from(issuer)?,
+                })),
+            ),
+            api_models::payments::BankRedirectData::OnlineBankingThailand { issuer } => Ok(
+                AdyenPaymentMethod::OnlineBankingThailand(Box::new(OnlineBankingThailandData {
+                    issuer: OnlineBankingThailandIssuer::try_from(issuer)?,
                 })),
             ),
             api_models::payments::BankRedirectData::Sofort { .. } => Ok(
