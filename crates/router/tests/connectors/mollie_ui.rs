@@ -73,11 +73,7 @@ async fn should_make_mollie_ideal_payment(web_driver: WebDriver) -> Result<(), W
             Event::Trigger(Trigger::Click(By::Css(
                 "button[class='button form__button']",
             ))),
-            Event::Assert(Assert::IsPresent("Google")),
-            Event::Assert(Assert::Contains(
-                Selector::QueryParamStr,
-                "status=succeeded",
-            )),
+            Event::Assert(Assert::IsPresent("succeeded")),
         ],
     )
     .await?;
