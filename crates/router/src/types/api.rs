@@ -50,8 +50,8 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
 pub trait ConnectorErrorTypeMapping {
     fn get_connector_error_type(
         &self,
-        _error_code: Option<String>,
-        _error_message: Option<String>,
+        _error_code: String,
+        _error_message: String,
     ) -> connector::utils::ConnectorErrorType {
         connector::utils::ConnectorErrorType::UnknownError
     }

@@ -1096,8 +1096,8 @@ impl ForeignTryFrom<String> for CanadaStatesAbbreviation {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ErrorCodeAndMessage {
-    pub error_code: Option<String>,
-    pub error_message: Option<String>,
+    pub error_code: String,
+    pub error_message: String,
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
@@ -1143,13 +1143,13 @@ mod error_code_error_message_tests {
     impl ConnectorErrorTypeMapping for TestConnector {
         fn get_connector_error_type(
             &self,
-            error_code: Option<String>,
-            error_message: Option<String>,
+            error_code: String,
+            error_message: String,
         ) -> ConnectorErrorType {
-            match (error_code.as_deref(), error_message.as_deref()) {
-                (Some("01"), Some("INVALID_MERCHANT")) => ConnectorErrorType::BusinessError,
-                (Some("03"), Some("INVALID_CVV")) => ConnectorErrorType::UserError,
-                (Some("04"), None) => ConnectorErrorType::TechnicalError,
+            match (error_code.as_str(), error_message.as_str()) {
+                ("01", "INVALID_MERCHANT") => ConnectorErrorType::BusinessError,
+                ("03", "INVALID_CVV") => ConnectorErrorType::UserError,
+                ("04", "04") => ConnectorErrorType::TechnicalError,
                 _ => ConnectorErrorType::UnknownError,
             }
         }
@@ -1159,30 +1159,30 @@ mod error_code_error_message_tests {
     fn test_get_error_code_error_message_based_on_priority() {
         let error_code_message_list_unknown = vec![
             ErrorCodeAndMessage {
-                error_code: Some("01".to_string()),
-                error_message: Some("INVALID_MERCHANT".to_string()),
+                error_code: "01".to_string(),
+                error_message: "INVALID_MERCHANT".to_string(),
             },
             ErrorCodeAndMessage {
-                error_code: Some("05".to_string()),
-                error_message: None,
+                error_code: "05".to_string(),
+                error_message: "05".to_string(),
             },
             ErrorCodeAndMessage {
-                error_code: Some("03".to_string()),
-                error_message: Some("INVALID_CVV".to_string()),
+                error_code: "03".to_string(),
+                error_message: "INVALID_CVV".to_string(),
             },
             ErrorCodeAndMessage {
-                error_code: Some("04".to_string()),
-                error_message: None,
+                error_code: "04".to_string(),
+                error_message: "04".to_string(),
             },
         ];
         let error_code_message_list_user = vec![
             ErrorCodeAndMessage {
-                error_code: Some("01".to_string()),
-                error_message: Some("INVALID_MERCHANT".to_string()),
+                error_code: "01".to_string(),
+                error_message: "INVALID_MERCHANT".to_string(),
             },
             ErrorCodeAndMessage {
-                error_code: Some("03".to_string()),
-                error_message: Some("INVALID_CVV".to_string()),
+                error_code: "03".to_string(),
+                error_message: "INVALID_CVV".to_string(),
             },
         ];
         let error_code_error_message_unknown = get_error_code_error_message_based_on_priority(
@@ -1198,15 +1198,15 @@ mod error_code_error_message_tests {
         assert_eq!(
             error_code_error_message_unknown,
             Some(ErrorCodeAndMessage {
-                error_code: Some("05".to_string()),
-                error_message: None,
+                error_code: "05".to_string(),
+                error_message: "05".to_string(),
             })
         );
         assert_eq!(
             error_code_error_message_user,
             Some(ErrorCodeAndMessage {
-                error_code: Some("03".to_string()),
-                error_message: Some("INVALID_CVV".to_string()),
+                error_code: "03".to_string(),
+                error_message: "INVALID_CVV".to_string(),
             })
         );
         assert_eq!(error_code_error_message_none, None);
