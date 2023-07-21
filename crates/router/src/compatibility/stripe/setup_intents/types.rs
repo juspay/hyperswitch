@@ -120,7 +120,7 @@ impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
             StripePaymentMethodDetails::Card(card) => Self::Card(payments::Card::from(card)),
             StripePaymentMethodDetails::Wallet(wallet) => {
                 Self::Wallet(payments::WalletData::from(wallet))
-            },
+            }
         }
     }
 }
@@ -146,7 +146,7 @@ impl From<Shipping> for payments::Address {
     }
 }
 
-#[derive(Default, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Deserialize, Clone)]
 pub struct StripeSetupIntentRequest {
     pub confirm: Option<bool>,
     pub customer: Option<String>,
@@ -169,6 +169,7 @@ pub struct StripeSetupIntentRequest {
     pub receipt_ipaddress: Option<String>,
     pub user_agent: Option<String>,
     pub mandate_data: Option<payment_intent::MandateData>,
+    pub connector_metadata: Option<payments::ConnectorMetadata>,
 }
 
 impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
@@ -273,7 +274,7 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("convert to browser info failed")?,
             ),
-
+            connector_metadata: item.connector_metadata,
             ..Default::default()
         });
         request
