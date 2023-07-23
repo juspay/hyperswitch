@@ -106,6 +106,7 @@ tsys.base_url = "https://stagegw.transnox.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
+zen.secondary_base_url = "https://secure.zen-test.com/"
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
