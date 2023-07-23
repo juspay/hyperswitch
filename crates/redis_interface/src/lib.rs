@@ -6,12 +6,11 @@
 //!
 //!  # Examples
 //! ```
-//! pub mod types;
-//! use self::types;
+//! use redis_interface::{types::RedisSettings, RedisConnectionPool};
 //!
 //! #[tokio::main]
-//! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let redis_conn = RedisConnectionPool::new(types::RedisSettings::default()).await;
+//! async fn main() {
+//!     let redis_conn = RedisConnectionPool::new(&RedisSettings::default()).await;
 //!     // ... redis_conn ready to use
 //! }
 //! ```
