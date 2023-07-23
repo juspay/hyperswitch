@@ -95,12 +95,15 @@ pub trait PaymentAttemptInterface {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
+    use std::collections::HashMap;
+
     use error_stack::IntoReport;
 
     use super::PaymentAttemptInterface;
     use crate::{
         connection,
         core::errors::{self, CustomResult},
+        db::capture::CaptureInterface,
         services::Store,
         types::storage::{capture::*, enums, payment_attempt::*},
     };
