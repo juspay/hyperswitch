@@ -57,7 +57,7 @@ fn payment_method_details(amount: i64) -> Option<types::PaymentsAuthorizeData> {
 #[actix_web::test]
 async fn should_only_authorize_payment() {
     let response = CONNECTOR
-        .authorize_payment(payment_method_details(100), get_default_payment_info())
+        .authorize_payment(payment_method_details(101), get_default_payment_info())
         .await
         .expect("Authorize payment response");
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
@@ -68,7 +68,7 @@ async fn should_only_authorize_payment() {
 async fn should_capture_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_capture_payment(
-            payment_method_details(120),
+            payment_method_details(100),
             None,
             get_default_payment_info(),
         )
@@ -142,8 +142,14 @@ async fn should_refund_manually_captured_payment() {
     let response = CONNECTOR
         .capture_payment_and_refund(
             payment_method_details(160),
-            None,
-            None,
+            Some(types::PaymentsCaptureData {
+                amount_to_capture: 160,
+                ..utils::PaymentCaptureType::default().0
+            }),
+            Some(types::RefundsData {
+                refund_amount: 160,
+                ..utils::PaymentRefundType::default().0
+            }),
             get_default_payment_info(),
         )
         .await
@@ -160,7 +166,10 @@ async fn should_partially_refund_manually_captured_payment() {
     let response = CONNECTOR
         .capture_payment_and_refund(
             payment_method_details(170),
-            None,
+            Some(types::PaymentsCaptureData {
+                amount_to_capture: 170,
+                ..utils::PaymentCaptureType::default().0
+            }),
             Some(types::RefundsData {
                 refund_amount: 50,
                 ..utils::PaymentRefundType::default().0
@@ -181,8 +190,14 @@ async fn should_sync_manually_captured_refund() {
     let refund_response = CONNECTOR
         .capture_payment_and_refund(
             payment_method_details(180),
-            None,
-            None,
+            Some(types::PaymentsCaptureData {
+                amount_to_capture: 180,
+                ..utils::PaymentCaptureType::default().0
+            }),
+            Some(types::RefundsData {
+                refund_amount: 180,
+                ..utils::PaymentRefundType::default().0
+            }),
             get_default_payment_info(),
         )
         .await
@@ -246,7 +261,10 @@ async fn should_refund_auto_captured_payment() {
     let response = CONNECTOR
         .make_payment_and_refund(
             payment_method_details(220),
-            None,
+            Some(types::RefundsData {
+                refund_amount: 220,
+                ..utils::PaymentRefundType::default().0
+            }),
             get_default_payment_info(),
         )
         .await
