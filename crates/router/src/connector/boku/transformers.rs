@@ -1,27 +1,21 @@
 use std::fmt;
 
-use api_models::{
-    enums::{CountryAlpha2, Currency},
-    payments::Amount,
-};
+use api_models::enums::CountryAlpha2;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use uuid::Uuid;
 
-//use common_utils::ext_traits::XmlExt;
 use crate::{
     core::errors,
     services::{self, RedirectForm},
     types::{self, api, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum BokuPaymentsRequest {
     BeginSingleCharge(SingleChargeData),
-    // MultiCharge(MultiChargeData),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -42,16 +36,21 @@ pub struct SingleChargeData {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum BokuPaymentType {
-    // PayPay,
-    // LinePay,
-    // RakutenPay,
-    AuPay,
+    Dana,
+    Momo,
+    Gcash,
+    GoPay,
+    Kakaopay,
 }
 
 impl fmt::Display for BokuPaymentType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::AuPay => write!(f, "aupay"),
+            Self::Dana => write!(f, "Dana"),
+            Self::Momo => write!(f, "Momo"),
+            Self::Gcash => write!(f, "Gcash"),
+            Self::GoPay => write!(f, "GoPay"),
+            Self::Kakaopay => write!(f, "Kakaopay"),
         }
     }
 }
@@ -59,10 +58,6 @@ impl fmt::Display for BokuPaymentType {
 #[derive(Debug, Clone, Serialize)]
 pub enum BokuChargeType {
     Hosted,
-    // #[serde(rename = "validate-optin")]
-    // Validate,
-    // #[serde(rename = "confirm-optin")]
-    // Confirm,
 }
 
 impl fmt::Display for BokuChargeType {
@@ -79,27 +74,35 @@ struct BokuHostedData {
     forward_url: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct MultiChargeData {
-    total_amount: Amount,
-    currency: Currency,
-    country: CountryAlpha2,
-    merchant_id: Secret<String>,
-    merchant_request_id: String,
-    merchant_item_description: String,
-    optin_id: Secret<String>,
-}
-
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BokuPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data.clone() {
+            api_models::payments::PaymentMethodData::Wallet(wallet_data) => {
+                Self::try_from((item,&wallet_data))
+            },
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: format!("{:?}", item.request.payment_method_type),
+                connector: "Adyen",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                    .to_string(),
+            })?,
+            
+        }
+    }
+}
+
+impl TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)> for BokuPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value : (&types::PaymentsAuthorizeRouterData, &api::WalletData)) -> Result<Self,Self::Error> {
+        let (item, wallet_data) = value;
         let country = match get_country_code(item) {
             Some(cn_code) => cn_code.to_string(),
             None => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "country",
             })?,
         };
+        let payment_method = get_wallet_type(wallet_data)?;
         let hosted = get_hosted_data(item);
         let auth_type = BokuAuthType::try_from(&item.connector_auth_type)?;
         let merchant_item_description = get_item_description(item)?;
@@ -111,26 +114,33 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BokuPaymentsRequest {
             merchant_transaction_id: Secret::new(item.payment_id.to_string()),
             merchant_request_id: Uuid::new_v4().to_string(),
             merchant_item_description,
-            payment_method: BokuPaymentType::AuPay.to_string(),
+            payment_method,
             charge_type: BokuChargeType::Hosted.to_string(),
             hosted,
         };
 
-        match item.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
-                api_models::payments::WalletData::MbWayRedirect { .. } => {
-                    Ok(Self::BeginSingleCharge(payment_data))
-                }
-                _ => {
-                    Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-                }
-            },
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: format!("{:?}", item.request.payment_method_type),
-                connector: "Boku",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
-            })?,
+        Ok(Self::BeginSingleCharge(payment_data))
+    }
+}
+
+fn get_wallet_type(wallet_data: &api::WalletData) -> Result<String, errors::ConnectorError> {
+    match wallet_data {
+        api_models::payments::WalletData::DanaRedirect { .. } => {
+            Ok(BokuPaymentType::Dana.to_string())
         }
+        api_models::payments::WalletData::MomoRedirect{ .. } => {
+            Ok(BokuPaymentType::Momo.to_string())
+        }
+        api_models::payments::WalletData::GcashRedirect{ .. } => {
+            Ok(BokuPaymentType::Gcash.to_string())
+        }
+        api_models::payments::WalletData::GoPayRedirect{ .. } => {
+            Ok(BokuPaymentType::GoPay.to_string())
+        }
+        api_models::payments::WalletData::KakaoPayRedirect{ .. } => {
+            Ok(BokuPaymentType::Kakaopay.to_string())
+        }
+        _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
     }
 }
 
