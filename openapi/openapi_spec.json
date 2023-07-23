@@ -9719,7 +9719,7 @@
           }
         }
       },
-      "SwishWalletData": {
+      "SwishQrData": {
         "type": "object"
       },
       "ThirdPartySdkSessionResponse": {
@@ -10076,11 +10076,11 @@
           {
             "type": "object",
             "required": [
-              "swish"
+              "swish_qr"
             ],
             "properties": {
-              "swish": {
-                "$ref": "#/components/schemas/SwishWalletData"
+              "swish_qr": {
+                "$ref": "#/components/schemas/SwishQrData"
               }
             }
           }

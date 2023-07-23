@@ -1482,7 +1482,7 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 };
                 Ok(AdyenPaymentMethod::Dana(Box::new(data)))
             }
-            api_models::payments::WalletData::Swish(_) => {
+            api_models::payments::WalletData::SwishQr(_) => {
                 let swish_data: SwishData = SwishData {};
                 Ok(AdyenPaymentMethod::Swish(Box::new(swish_data)))
             }
