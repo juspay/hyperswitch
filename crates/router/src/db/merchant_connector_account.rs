@@ -377,7 +377,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .await
             .iter()
             .find(|account| {
-                account.merchant_id == merchant_id && account.connector_name == connector
+                account.merchant_id == merchant_id && account.connector_label == connector
             })
             .cloned()
             .async_map(|account| async {
@@ -565,6 +565,8 @@ mod merchant_connector_account_cache_tests {
     use common_utils::date_time;
     use diesel_models::enums::ConnectorType;
     use error_stack::ResultExt;
+    use masking::PeekInterface;
+    use time::macros::datetime;
 
     use crate::{
         cache::{CacheKind, ACCOUNTS_CACHE},
@@ -573,7 +575,7 @@ mod merchant_connector_account_cache_tests {
             cache, merchant_connector_account::MerchantConnectorAccountInterface,
             merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface, MockDb,
         },
-        services::{PubSubInterface, RedisConnInterface},
+        services::{self, PubSubInterface, RedisConnInterface},
         types::{
             domain::{self, behaviour::Conversion, types as domain_types},
             storage,
@@ -582,12 +584,11 @@ mod merchant_connector_account_cache_tests {
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
-    #[ignore = "blocked on MockDb implementation of merchant key store"]
     async fn test_connector_label_cache() {
         let db = MockDb::new(&Default::default()).await;
 
         let redis_conn = db.get_redis_conn();
-        let key = db.get_master_key();
+        let master_key = db.get_master_key();
         redis_conn
             .subscribe("hyperswitch_invalidate")
             .await
@@ -597,13 +598,34 @@ mod merchant_connector_account_cache_tests {
         let connector_label = "stripe_USA";
         let merchant_connector_id = "simple_merchant_connector_id";
 
+        db.insert_merchant_key_store(
+            domain::MerchantKeyStore {
+                merchant_id: merchant_id.into(),
+                key: domain_types::encrypt(
+                    services::generate_aes256_key().unwrap().to_vec().into(),
+                    master_key,
+                )
+                .await
+                .unwrap(),
+                created_at: datetime!(2023-02-01 0:00),
+            },
+            &master_key.to_vec().into(),
+        )
+        .await
+        .unwrap();
+
+        let merchant_key = db
+            .get_merchant_key_store_by_merchant_id(merchant_id, &master_key.to_vec().into())
+            .await
+            .unwrap();
+
         let mca = domain::MerchantConnectorAccount {
             id: Some(1),
             merchant_id: merchant_id.to_string(),
             connector_name: "stripe".to_string(),
             connector_account_details: domain_types::encrypt(
                 serde_json::Value::default().into(),
-                key,
+                merchant_key.key.get_inner().peek(),
             )
             .await
             .unwrap(),
@@ -623,19 +645,14 @@ mod merchant_connector_account_cache_tests {
             connector_webhook_details: None,
         };
 
-        let key_store = db
-            .get_merchant_key_store_by_merchant_id(merchant_id, &key.to_vec().into())
-            .await
-            .unwrap();
-
-        db.insert_merchant_connector_account(mca, &key_store)
+        db.insert_merchant_connector_account(mca, &merchant_key)
             .await
             .unwrap();
         let find_call = || async {
             db.find_merchant_connector_account_by_merchant_id_connector_label(
                 merchant_id,
                 connector_label,
-                &key_store,
+                &merchant_key,
             )
             .await
             .unwrap()
