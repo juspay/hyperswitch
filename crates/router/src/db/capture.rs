@@ -210,7 +210,7 @@ mod storage {
         ) -> CustomResult<Vec<Capture>, errors::StorageError> {
             let db_call = || async {
                 let conn = connection::pg_connection_write(self).await?;
-                Capture::find_all_by_authorized_attempt_id(authorized_attempt_id, &conn)
+                Capture::find_all_by_authorized_attempt_id(&conn, authorized_attempt_id)
                     .await
                     .map_err(Into::into)
                     .into_report()

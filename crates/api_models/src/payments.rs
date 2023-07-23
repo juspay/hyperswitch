@@ -368,7 +368,7 @@ pub struct CaptureReposnse {
     pub error_code: Option<String>,
     /// attempt_id of the authorization attempt for which this capture was made
     pub authorized_attempt_id: String,
-    /// secquence number of this capture for the authorized attempt
+    /// sequence number of this capture for the authorized attempt
     pub capture_sequence: i16,
     /// A unique identifier for a capture provided by the connector
     pub connector_transaction_id: Option<String>,

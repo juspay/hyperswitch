@@ -3275,6 +3275,75 @@
           "scheduled"
         ]
       },
+      "CaptureReposnse": {
+        "type": "object",
+        "required": [
+          "capture_id",
+          "status",
+          "amount",
+          "authorized_attempt_id",
+          "capture_sequence"
+        ],
+        "properties": {
+          "capture_id": {
+            "type": "string",
+            "description": "Unique identifier for the capture"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CaptureStatus"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Amount captured in this capture"
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "connector": {
+            "type": "string",
+            "description": "The connector used for the capture",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "If there was an error while calling the connectors the code is received here",
+            "nullable": true
+          },
+          "authorized_attempt_id": {
+            "type": "string",
+            "description": "attempt_id of the authorization attempt for which this capture was made"
+          },
+          "capture_sequence": {
+            "type": "integer",
+            "format": "int32",
+            "description": "sequence number of this capture for the authorized attempt"
+          },
+          "connector_transaction_id": {
+            "type": "string",
+            "description": "A unique identifier for a capture provided by the connector",
+            "nullable": true
+          }
+        }
+      },
+      "CaptureStatus": {
+        "type": "string",
+        "enum": [
+          "started",
+          "charged",
+          "pending",
+          "failure"
+        ]
+      },
       "Card": {
         "type": "object",
         "required": [
@@ -6682,6 +6751,14 @@
             "type": "string",
             "description": "reference to the payment at connector side",
             "example": "993672945374576J",
+            "nullable": true
+          },
+          "captures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaptureReposnse"
+            },
+            "description": "List of captures done for this payment_attempt",
             "nullable": true
           }
         }
