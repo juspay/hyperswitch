@@ -532,7 +532,8 @@ pub enum StripePaymentMethodType {
     Zip,
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize, Clone, Copy)]
+#[allow(dead_code)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StripeCreditTransferTypes {
     AchCreditTransfer,
