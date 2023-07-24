@@ -13,11 +13,10 @@ CREATE TYPE "FraudCheckStatus" AS ENUM (
 );
 
 CREATE TABLE fraud_check (
-    id SERIAL PRIMARY KEY,
     frm_id VARCHAR(64) NOT NULL UNIQUE,
-    payment_id VARCHAR(255) NOT NULL,
-    merchant_id VARCHAR(255) NOT NULL,
-    attempt_id VARCHAR(255) NOT NULL UNIQUE,
+    payment_id VARCHAR(64) NOT NULL,
+    merchant_id VARCHAR(64) NOT NULL,
+    attempt_id VARCHAR(64) NOT NULL UNIQUE,
     created_at TIMESTAMP NOT NULL DEFAULT now(),
     frm_name VARCHAR(255) NOT NULL,
     frm_transaction_id VARCHAR(255) UNIQUE,

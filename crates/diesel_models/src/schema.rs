@@ -224,15 +224,14 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    fraud_check (id) {
-        id -> Int4,
+    fraud_check (payment_id, merchant_id) {
         #[max_length = 64]
         frm_id -> Varchar,
-        #[max_length = 255]
+        #[max_length = 64]
         payment_id -> Varchar,
-        #[max_length = 255]
+        #[max_length = 64]
         merchant_id -> Varchar,
-        #[max_length = 255]
+        #[max_length = 64]
         attempt_id -> Varchar,
         created_at -> Timestamp,
         #[max_length = 255]

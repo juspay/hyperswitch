@@ -24,6 +24,7 @@ pub trait FraudCheckInterface {
     async fn find_fraud_check_by_payment_id(
         &self,
         payment_id: String,
+        merchant_id: String,
     ) -> CustomResult<FraudCheck, errors::StorageError>;
 }
 
@@ -50,9 +51,10 @@ impl FraudCheckInterface for Store {
     async fn find_fraud_check_by_payment_id(
         &self,
         payment_id: String,
+        merchant_id: String,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        FraudCheck::get_with_payment_id(&conn, payment_id)
+        FraudCheck::get_with_payment_id(&conn, payment_id, merchant_id)
             .await
             .map_err(Into::into)
             .into_report()
@@ -77,6 +79,7 @@ impl FraudCheckInterface for MockDb {
     async fn find_fraud_check_by_payment_id(
         &self,
         _payment_id: String,
+        _merchant_id: String,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
@@ -101,7 +104,8 @@ impl FraudCheckInterface for super::KafkaStore {
 
     async fn find_fraud_check_by_payment_id(
         &self,
-        payment_id: String,
+        _payment_id: String,
+        _merchant_id: String,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }

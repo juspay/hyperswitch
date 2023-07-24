@@ -268,7 +268,7 @@ async fn get_tracker_for_sync<
         })?;
 
     let frm_response = db
-        .find_fraud_check_by_payment_id(payment_id_str.to_string())
+        .find_fraud_check_by_payment_id(payment_id_str.to_string(), merchant_id.to_string())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {

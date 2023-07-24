@@ -44,10 +44,13 @@ impl FraudCheck {
     pub async fn get_with_payment_id(
         conn: &PgPooledConn,
         payment_id: String,
+        merchant_id: String,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::payment_id.eq(payment_id),
+            dsl::payment_id
+                .eq(payment_id)
+                .and(dsl::merchant_id.eq(merchant_id)),
         )
         .await
     }
