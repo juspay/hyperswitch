@@ -4,9 +4,16 @@ use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::PeekInterface;
 use maud::html;
+use tokio::time as tokio;
 
 use super::{consts, errors, types};
 use crate::routes::AppState;
+
+pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
+    let mut rng = rand::thread_rng();
+    let effective_delay = rng.gen_range((delay - tolerance)..(delay + tolerance));
+    tokio::sleep(tokio::Duration::from_millis(effective_delay)).await
+}
 
 pub async fn store_data_in_redis(
     state: &AppState,

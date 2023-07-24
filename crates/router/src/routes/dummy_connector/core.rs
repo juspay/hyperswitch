@@ -11,17 +11,11 @@ use crate::{
     utils::OptionExt,
 };
 
-pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
-    let mut rng = rand::thread_rng();
-    let effective_delay = rng.gen_range((delay - tolerance)..(delay + tolerance));
-    tokio::sleep(tokio::Duration::from_millis(effective_delay)).await
-}
-
 pub async fn payment(
     state: &AppState,
     req: types::DummyConnectorPaymentRequest,
 ) -> types::DummyConnectorResponse<types::DummyConnectorPaymentResponse> {
-    tokio_mock_sleep(
+    utils::tokio_mock_sleep(
         state.conf.dummy_connector.payment_duration,
         state.conf.dummy_connector.payment_tolerance,
     )
@@ -51,7 +45,7 @@ pub async fn payment_data(
     state: &AppState,
     req: types::DummyConnectorPaymentRetrieveRequest,
 ) -> types::DummyConnectorResponse<types::DummyConnectorPaymentResponse> {
-    tokio_mock_sleep(
+    utils::tokio_mock_sleep(
         state.conf.dummy_connector.payment_retrieve_duration,
         state.conf.dummy_connector.payment_retrieve_tolerance,
     )
@@ -144,7 +138,7 @@ pub async fn refund_payment(
     state: &AppState,
     req: types::DummyConnectorRefundRequest,
 ) -> types::DummyConnectorResponse<types::DummyConnectorRefundResponse> {
-    tokio_mock_sleep(
+    utils::tokio_mock_sleep(
         state.conf.dummy_connector.refund_duration,
         state.conf.dummy_connector.refund_tolerance,
     )
@@ -157,7 +151,8 @@ pub async fn refund_payment(
             field_name: "payment_id",
         })?;
 
-    let mut payment_data = utils::get_payment_data_from_payment_id(state, payment_id.clone()).await?;
+    let mut payment_data =
+        utils::get_payment_data_from_payment_id(state, payment_id.clone()).await?;
 
     if payment_data.eligible_amount < req.amount {
         return Err(
@@ -206,7 +201,7 @@ pub async fn refund_data(
     req: types::DummyConnectorRefundRetrieveRequest,
 ) -> types::DummyConnectorResponse<types::DummyConnectorRefundResponse> {
     let refund_id = req.refund_id;
-    tokio_mock_sleep(
+    utils::tokio_mock_sleep(
         state.conf.dummy_connector.refund_retrieve_duration,
         state.conf.dummy_connector.refund_retrieve_tolerance,
     )

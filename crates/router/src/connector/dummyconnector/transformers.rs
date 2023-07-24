@@ -141,7 +141,7 @@ impl TryFrom<api_models::payments::PayLaterData> for DummyConnectorPayLater {
                 billing_email: _,
                 billing_name: _,
             } => Ok(Self::AfterPayClearPay),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented("Dummy pay later".to_string()).into()),
         }
     }
 }
@@ -149,27 +149,22 @@ impl TryFrom<api_models::payments::PayLaterData> for DummyConnectorPayLater {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => Ok(Self {
-                amount: item.request.amount,
-                currency: item.request.currency,
-                payment_method_data: PaymentMethodData::Card(req_card.into()),
-                return_url: item.request.router_return_url.clone(),
-            }),
-            api::PaymentMethodData::Wallet(wallet_data) => Ok(Self {
-                amount: item.request.amount,
-                currency: item.request.currency,
-                payment_method_data: PaymentMethodData::Wallet(wallet_data.try_into()?),
-                return_url: item.request.router_return_url.clone(),
-            }),
-            api::PaymentMethodData::PayLater(pay_later_data) => Ok(Self {
-                amount: item.request.amount,
-                currency: item.request.currency,
-                payment_method_data: PaymentMethodData::PayLater(pay_later_data.try_into()?),
-                return_url: item.request.router_return_url.clone(),
-            }),
+        let payment_method_data = match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Card(req_card) => Ok(PaymentMethodData::Card(req_card.into())),
+            api::PaymentMethodData::Wallet(wallet_data) => {
+                Ok(PaymentMethodData::Wallet(wallet_data.try_into()?))
+            }
+            api::PaymentMethodData::PayLater(pay_later_data) => {
+                Ok(PaymentMethodData::PayLater(pay_later_data.try_into()?))
+            }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        }
+        };
+        Ok(Self {
+            amount: item.request.amount,
+            currency: item.request.currency,
+            payment_method_data: payment_method_data?,
+            return_url: item.request.router_return_url.clone(),
+        })
     }
 }
 
