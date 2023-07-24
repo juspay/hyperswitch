@@ -7,8 +7,14 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConnectorAuthentication {
     pub aci: Option<BodyKey>,
+    #[cfg(not(feature = "payouts"))]
     pub adyen: Option<BodyKey>,
+    #[cfg(feature = "payouts")]
+    pub adyen: Option<SignatureKey>,
+    #[cfg(not(feature = "payouts"))]
     pub adyen_uk: Option<BodyKey>,
+    #[cfg(feature = "payouts")]
+    pub adyen_uk: Option<SignatureKey>,
     pub airwallex: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
@@ -48,6 +54,7 @@ pub struct ConnectorAuthentication {
     pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,
     pub tsys: Option<SignatureKey>,
+    pub wise: Option<BodyKey>,
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
     pub zen: Option<HeaderKey>,
@@ -257,6 +264,9 @@ pub struct AutomationConfigs {
     pub testcases_path: Option<String>,
     pub bluesnap_gateway_merchant_id: Option<String>,
     pub globalpay_gateway_merchant_id: Option<String>,
+    pub authorizedotnet_gateway_merchant_id: Option<String>,
     pub run_minimum_steps: Option<bool>,
     pub airwallex_merchant_name: Option<String>,
+    pub adyen_bancontact_username: Option<String>,
+    pub adyen_bancontact_pass: Option<String>,
 }
