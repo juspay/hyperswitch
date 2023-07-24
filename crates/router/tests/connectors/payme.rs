@@ -63,6 +63,9 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
         return_url: None,
         connector_customer: None,
         payment_method_token: None,
+        country: None,
+        currency: None,
+        payout_method_data: None,
     })
 }
 
