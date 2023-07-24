@@ -268,5 +268,5 @@ pub struct AutomationConfigs {
     pub run_minimum_steps: Option<bool>,
     pub airwallex_merchant_name: Option<String>,
     pub adyen_bancontact_username: Option<String>,
-    pub adyen_bancontact_pass: Option<String>
+    pub adyen_bancontact_pass: Option<String>,
 }
