@@ -46,6 +46,9 @@ fn get_default_payment_info(
         return_url: None,
         connector_customer,
         payment_method_token,
+        payout_method_data: None,
+        currency: None,
+        country: None,
     })
 }
 

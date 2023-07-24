@@ -493,7 +493,7 @@ pub trait ConnectorActions: Connector {
             session_token: None,
             reference_id: None,
             payment_method_token: info.clone().and_then(|a| a.payment_method_token),
-            connector_customer: info.and_then(|a| a.connector_customer),
+            connector_customer: info.clone().and_then(|a| a.connector_customer),
             recurring_mandate_payment_data: None,
             preprocessing_id: None,
             connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
