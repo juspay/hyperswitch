@@ -24,7 +24,6 @@ pub async fn set_config(
                 err.change_context(errors::ApiErrorResponse::InternalServerError)
             }
         })
-        // .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unknown error, while setting config key")?;
 
     Ok(ApplicationResponse::Json(config.foreign_into()))
