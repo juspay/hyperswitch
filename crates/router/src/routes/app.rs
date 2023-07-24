@@ -151,7 +151,7 @@ impl Payments {
                 .service(
                     web::resource("/list")
                         .route(web::get().to(payments_list))
-                        .route(web::post().to(apply_filters_on_payments)),
+                        .route(web::post().to(payments_list_by_filter)),
                 )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
         }

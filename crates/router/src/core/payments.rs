@@ -1269,7 +1269,7 @@ pub async fn apply_filters_on_payments(
     let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
         .apply_filters_on_payments_list(
             &merchant.merchant_id,
-            &constraints, // fix it later as per use case
+            &constraints,
             merchant.storage_scheme,
         )
         .await

@@ -715,7 +715,7 @@ pub async fn payments_list(
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
-pub async fn apply_filters_on_payments(
+pub async fn payments_list_by_filter(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     payload: web::Json<payment_types::PaymentListFilterConstraints>,
