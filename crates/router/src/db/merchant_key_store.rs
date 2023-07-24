@@ -8,12 +8,9 @@ use crate::{
     core::errors::{self, CustomResult},
     db::MockDb,
     services::Store,
-    types::{
-        domain::{
-            self,
-            behaviour::{Conversion, ReverseConversion},
-        },
-        storage,
+    types::domain::{
+        self,
+        behaviour::{Conversion, ReverseConversion},
     },
 };
 
@@ -108,14 +105,15 @@ impl MerchantKeyStoreInterface for MockDb {
             .iter()
             .any(|merchant_key| merchant_key.merchant_id == merchant_key_store.merchant_id)
         {
-            Err(errors::StorageError::MockDbError)?;
+            Err(errors::StorageError::DuplicateValue {
+                entity: "merchant_key_store",
+                key: Some(merchant_key_store.merchant_id.clone()),
+            })?;
         }
 
-        let merchant_key = storage::MerchantKeyStore {
-            merchant_id: merchant_key_store.merchant_id,
-            key: merchant_key_store.key.into(),
-            created_at: merchant_key_store.created_at,
-        };
+        let merchant_key = Conversion::convert(merchant_key_store)
+            .await
+            .change_context(errors::StorageError::MockDbError)?;
         locked_merchant_key_store.push(merchant_key.clone());
 
         merchant_key
@@ -135,7 +133,9 @@ impl MerchantKeyStoreInterface for MockDb {
             .iter()
             .find(|merchant_key| merchant_key.merchant_id == merchant_id)
             .cloned()
-            .ok_or(errors::StorageError::MockDbError)?
+            .ok_or(errors::StorageError::ValueNotFound(String::from(
+                "merchant_key_store",
+            )))?
             .convert(key)
             .await
             .change_context(errors::StorageError::DecryptionError)
