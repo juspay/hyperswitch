@@ -137,7 +137,6 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -163,6 +162,7 @@ default_imp_for_complete_authorize!(
     connector::Payme,
     connector::Payu,
     connector::Rapyd,
+    connector::Stax,
     connector::Stripe,
     connector::Trustpay,
     connector::Tsys,
@@ -199,7 +199,6 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -271,7 +270,6 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -297,6 +295,7 @@ default_imp_for_connector_redirect_response!(
     connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Stax,
     connector::Tsys,
     connector::Worldline,
     connector::Worldpay
@@ -314,7 +313,6 @@ macro_rules! default_imp_for_connector_request_id{
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -348,6 +346,7 @@ default_imp_for_connector_request_id!(
     connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Stax,
     connector::Stripe,
     connector::Trustpay,
     connector::Tsys,
@@ -387,7 +386,6 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -421,6 +419,7 @@ default_imp_for_accept_dispute!(
     connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Stax,
     connector::Stripe,
     connector::Trustpay,
     connector::Tsys,
@@ -480,7 +479,6 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -514,6 +512,7 @@ default_imp_for_file_upload!(
     connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Stax,
     connector::Trustpay,
     connector::Tsys,
     connector::Opennode,
@@ -550,7 +549,6 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -584,6 +582,7 @@ default_imp_for_submit_evidence!(
     connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Stax,
     connector::Trustpay,
     connector::Tsys,
     connector::Opennode,
@@ -620,7 +619,6 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -653,8 +651,9 @@ default_imp_for_defend_dispute!(
     connector::Payu,
     connector::Powertranz,
     connector::Rapyd,
-    connector::Stripe,
     connector::Shift4,
+    connector::Stax,
+    connector::Stripe,
     connector::Trustpay,
     connector::Tsys,
     connector::Opennode,
@@ -691,7 +690,6 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -727,6 +725,7 @@ default_imp_for_pre_processing_steps!(
     connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Stax,
     connector::Tsys,
     connector::Worldline,
     connector::Worldpay,

@@ -1,6 +1,7 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr, time::Duration};
 
 use async_trait::async_trait;
+use common_utils::pii::Email;
 use error_stack::Report;
 use masking::Secret;
 use router::{
@@ -33,6 +34,8 @@ pub struct PaymentInfo {
     pub access_token: Option<AccessToken>,
     pub connector_meta_data: Option<serde_json::Value>,
     pub return_url: Option<String>,
+    pub connector_customer: Option<String>,
+    pub payment_method_token: Option<String>,
 }
 
 #[async_trait]
@@ -50,6 +53,52 @@ pub trait ConnectorActions: Connector {
                 confirm: true,
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..(payment_data.unwrap_or(PaymentAuthorizeType::default().0))
+            },
+            payment_info,
+        );
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let state = routes::AppState::with_storage(
+            Settings::new().unwrap(),
+            StorageImpl::PostgresqlTest,
+            tx,
+        )
+        .await;
+        integration.execute_pretasks(&mut request, &state).await?;
+        call_connector(request, integration).await
+    }
+
+    async fn create_connector_customer(
+        &self,
+        payment_data: Option<types::ConnectorCustomerData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::ConnectorCustomerRouterData, Report<ConnectorError>> {
+        let integration = self.get_data().connector.get_connector_integration();
+        let mut request = self.generate_data(
+            types::ConnectorCustomerData {
+                ..(payment_data.unwrap_or(CustomerType::default().0))
+            },
+            payment_info,
+        );
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let state = routes::AppState::with_storage(
+            Settings::new().unwrap(),
+            StorageImpl::PostgresqlTest,
+            tx,
+        )
+        .await;
+        integration.execute_pretasks(&mut request, &state).await?;
+        call_connector(request, integration).await
+    }
+
+    async fn create_connector_pm_token(
+        &self,
+        payment_data: Option<types::PaymentMethodTokenizationData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::TokenizationRouterData, Report<ConnectorError>> {
+        let integration = self.get_data().connector.get_connector_integration();
+        let mut request = self.generate_data(
+            types::PaymentMethodTokenizationData {
+                ..(payment_data.unwrap_or(TokenType::default().0))
             },
             payment_info,
         );
@@ -397,11 +446,11 @@ pub trait ConnectorActions: Connector {
                 .clone()
                 .and_then(|a| a.connector_meta_data.map(masking::Secret::new)),
             amount_captured: None,
-            access_token: info.and_then(|a| a.access_token),
+            access_token: info.clone().and_then(|a| a.access_token),
             session_token: None,
             reference_id: None,
-            payment_method_token: None,
-            connector_customer: None,
+            payment_method_token: info.clone().and_then(|a| a.payment_method_token),
+            connector_customer: info.and_then(|a| a.connector_customer),
             recurring_mandate_payment_data: None,
             preprocessing_id: None,
             connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
@@ -481,6 +530,8 @@ pub struct PaymentSyncType(pub types::PaymentsSyncData);
 pub struct PaymentRefundType(pub types::RefundsData);
 pub struct CCardType(pub api::Card);
 pub struct BrowserInfoType(pub types::BrowserInformation);
+pub struct CustomerType(pub types::ConnectorCustomerData);
+pub struct TokenType(pub types::PaymentMethodTokenizationData);
 
 impl Default for CCardType {
     fn default() -> Self {
@@ -599,6 +650,41 @@ impl Default for PaymentRefundType {
             connector_metadata: None,
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,
+        };
+        Self(data)
+    }
+}
+
+impl Default for CustomerType {
+    fn default() -> Self {
+        let data = types::ConnectorCustomerData {
+            description: None,
+            email: Some(Email::from(Secret::new("test@juspay.in".to_string()))),
+            phone: None,
+            name: None,
+            preprocessing_id: None,
+        };
+        Self(data)
+    }
+}
+
+impl Default for TokenType {
+    fn default() -> Self {
+        let data = types::PaymentMethodTokenizationData {
+            payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
+                card_exp_month: Secret::new("10".to_string()),
+                card_exp_year: Secret::new("2025".to_string()),
+                card_holder_name: Secret::new("John Doe".to_string()),
+                card_cvc: Secret::new("999".to_string()),
+                card_issuer: None,
+                card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
+                nick_name: Some(masking::Secret::new("nick_name".into())),
+            }),
+            browser_info: None,
         };
         Self(data)
     }
