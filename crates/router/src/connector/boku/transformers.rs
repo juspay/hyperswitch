@@ -79,22 +79,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BokuPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             api_models::payments::PaymentMethodData::Wallet(wallet_data) => {
-                Self::try_from((item,&wallet_data))
-            },
+                Self::try_from((item, &wallet_data))
+            }
             _ => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_type),
                 connector: "Adyen",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                    .to_string(),
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
-            
         }
     }
 }
 
 impl TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)> for BokuPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value : (&types::PaymentsAuthorizeRouterData, &api::WalletData)) -> Result<Self,Self::Error> {
+    fn try_from(
+        value: (&types::PaymentsAuthorizeRouterData, &api::WalletData),
+    ) -> Result<Self, Self::Error> {
         let (item, wallet_data) = value;
         let country = match get_country_code(item) {
             Some(cn_code) => cn_code.to_string(),
@@ -128,19 +128,19 @@ fn get_wallet_type(wallet_data: &api::WalletData) -> Result<String, errors::Conn
         api_models::payments::WalletData::DanaRedirect { .. } => {
             Ok(BokuPaymentType::Dana.to_string())
         }
-        api_models::payments::WalletData::MomoRedirect{ .. } => {
+        api_models::payments::WalletData::MomoRedirect { .. } => {
             Ok(BokuPaymentType::Momo.to_string())
         }
-        api_models::payments::WalletData::GcashRedirect{ .. } => {
+        api_models::payments::WalletData::GcashRedirect { .. } => {
             Ok(BokuPaymentType::Gcash.to_string())
         }
-        api_models::payments::WalletData::GoPayRedirect{ .. } => {
+        api_models::payments::WalletData::GoPayRedirect { .. } => {
             Ok(BokuPaymentType::GoPay.to_string())
         }
-        api_models::payments::WalletData::KakaoPayRedirect{ .. } => {
+        api_models::payments::WalletData::KakaoPayRedirect { .. } => {
             Ok(BokuPaymentType::Kakaopay.to_string())
         }
-        _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+        _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string())),
     }
 }
 
