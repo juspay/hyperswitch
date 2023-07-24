@@ -135,7 +135,11 @@ pub fn to_currency_base_unit(
     currency: diesel_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ValidationError>> {
     let amount_f64 = to_currency_base_unit_asf64(amount, currency)?;
-    Ok(format!("{amount_f64:.2}"))
+    if currency.is_zero_decimal_currency() {
+        Ok(amount_f64.to_string())
+    } else {
+        Ok(format!("{amount_f64:.2}"))
+    }
 }
 
 /// Convert the amount to its base denomination based on Currency and return f64
@@ -149,13 +153,12 @@ pub fn to_currency_base_unit_asf64(
         },
     )?;
     let amount_f64 = f64::from(amount_u32);
-    let amount = match currency {
-        diesel_models::enums::Currency::JPY | diesel_models::enums::Currency::KRW => amount_f64,
-        diesel_models::enums::Currency::BHD
-        | diesel_models::enums::Currency::JOD
-        | diesel_models::enums::Currency::KWD
-        | diesel_models::enums::Currency::OMR => amount_f64 / 1000.00,
-        _ => amount_f64 / 100.00,
+    let amount = if currency.is_zero_decimal_currency() {
+        amount_f64
+    } else if currency.is_three_decimal_currency() {
+        amount_f64 / 1000.00
+    } else {
+        amount_f64 / 100.00
     };
     Ok(amount)
 }
