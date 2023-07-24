@@ -201,22 +201,6 @@ pub struct BokuMetaData {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum BokuPaymentStatus {
-    Success,
-    Failure,
-}
-
-impl From<BokuPaymentStatus> for enums::AttemptStatus {
-    fn from(item: BokuPaymentStatus) -> Self {
-        match item {
-            BokuPaymentStatus::Success => Self::Charged,
-            BokuPaymentStatus::Failure => Self::Failure,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum BokuResponse {
     BeginSingleChargeResponse(BokuPaymentsResponse),
@@ -226,7 +210,7 @@ pub enum BokuResponse {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct BokuPaymentsResponse {
-    charge_status: BokuPaymentStatus,
+    charge_status: String, // xml parse only string to fields
     charge_id: String,
     hosted: Option<HostedUrlResponse>,
 }
@@ -253,7 +237,7 @@ pub struct ChargeResponseData {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SingleChargeResponseData {
-    charge_status: BokuPaymentStatus,
+    charge_status: String,
     charge_id: String,
 }
 
@@ -284,10 +268,18 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, BokuResponse, T, types::Payments
     }
 }
 
+fn get_response_status(status: String) -> enums::AttemptStatus {
+    match status.as_str() {
+        "Success" => enums::AttemptStatus::Charged,
+        "Failure" => enums::AttemptStatus::Failure,
+        _ => enums::AttemptStatus::Unresolved,
+    }
+}
+
 fn get_authorize_response(
     response: BokuPaymentsResponse,
 ) -> Result<(enums::AttemptStatus, String, Option<RedirectForm>), errors::ConnectorError> {
-    let status = enums::AttemptStatus::from(response.charge_status);
+    let status = get_response_status(response.charge_status);
     let redirection_data = match response.hosted {
         Some(hosted_value) => Ok(hosted_value
             .redirect_url
@@ -303,7 +295,7 @@ fn get_authorize_response(
 fn get_psync_response(
     response: BokuPsyncResponse,
 ) -> Result<(enums::AttemptStatus, String, Option<RedirectForm>), errors::ConnectorError> {
-    let status = enums::AttemptStatus::from(response.charges.charge.charge_status);
+    let status = get_response_status(response.charges.charge.charge_status);
 
     Ok((status, response.charges.charge.charge_id, None))
 }
@@ -350,28 +342,20 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BokuRefundRequest {
     }
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone)]
-pub enum BokuRefundStatus {
-    Success,
-    Failure,
-}
-
-impl From<BokuRefundStatus> for enums::RefundStatus {
-    fn from(item: BokuRefundStatus) -> Self {
-        match item {
-            BokuRefundStatus::Success => Self::Success,
-            BokuRefundStatus::Failure => Self::Failure,
-        }
-    }
-}
-
 //TODO: Fill the struct with respective fields
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename = "refund-charge-response")]
 pub struct RefundResponse {
     charge_id: String,
-    refund_status: BokuRefundStatus,
+    refund_status: String,
+}
+
+fn get_refund_status(status: String) -> enums::RefundStatus {
+    match status.as_str() {
+        "Success" => enums::RefundStatus::Success,
+        "Failure" => enums::RefundStatus::Failure,
+        _ => enums::RefundStatus::TransactionFailure,
+    }
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -384,7 +368,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.charge_id,
-                refund_status: enums::RefundStatus::from(item.response.refund_status),
+                refund_status: get_refund_status(item.response.refund_status),
             }),
             ..item.data
         })
@@ -435,7 +419,7 @@ pub struct RefundResponseData {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SingleRefundResponseData {
-    refund_status: BokuRefundStatus,
+    refund_status: String, // quick-xml only parse string as a field
     refund_id: String,
 }
 
@@ -449,9 +433,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BokuRsyncResponse>>
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.refunds.refund.refund_id,
-                refund_status: enums::RefundStatus::from(
-                    item.response.refunds.refund.refund_status,
-                ),
+                refund_status: get_refund_status(item.response.refunds.refund.refund_status),
             }),
             ..item.data
         })
