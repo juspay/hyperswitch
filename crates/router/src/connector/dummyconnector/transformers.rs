@@ -4,11 +4,58 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
     core::errors,
     services,
     types::{self, api, storage::enums},
 };
+
+#[derive(Debug, Serialize, strum::Display, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum DummyConnectors {
+    #[serde(rename = "phonypay")]
+    #[strum(serialize = "phonypay")]
+    PhonyPay,
+    #[serde(rename = "fauxpay")]
+    #[strum(serialize = "fauxpay")]
+    FauxPay,
+    #[serde(rename = "pretendpay")]
+    #[strum(serialize = "pretendpay")]
+    PretendPay,
+    StripeTest,
+    AdyenTest,
+    CheckoutTest,
+    PaypalTest,
+}
+
+impl DummyConnectors {
+    pub fn get_dummy_connector_id(self) -> &'static str {
+        match self {
+            Self::PhonyPay => "phonypay",
+            Self::FauxPay => "fauxpay",
+            Self::PretendPay => "pretendpay",
+            Self::StripeTest => "stripe_test",
+            Self::AdyenTest => "adyen_test",
+            Self::CheckoutTest => "checkout_test",
+            Self::PaypalTest => "paypal_test",
+        }
+    }
+}
+
+impl From<u8> for DummyConnectors {
+    fn from(value: u8) -> Self {
+        match value {
+            1 => Self::PhonyPay,
+            2 => Self::FauxPay,
+            3 => Self::PretendPay,
+            4 => Self::StripeTest,
+            5 => Self::AdyenTest,
+            6 => Self::CheckoutTest,
+            7 => Self::PaypalTest,
+            _ => Self::PhonyPay,
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct DummyConnectorPaymentsRequest {
@@ -33,7 +80,18 @@ pub struct DummyConnectorCard {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvc: Secret<String>,
-    complete: bool,
+}
+
+impl From<api_models::payments::Card> for DummyConnectorCard {
+    fn from(value: api_models::payments::Card) -> Self {
+        Self {
+            name: value.card_holder_name,
+            number: value.card_number,
+            expiry_month: value.card_exp_month,
+            expiry_year: value.card_exp_year,
+            cvc: value.card_cvc,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -46,6 +104,23 @@ pub enum DummyConnectorWallet {
     AliPayHK,
 }
 
+impl TryFrom<api_models::payments::WalletData> for DummyConnectorWallet {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: api_models::payments::WalletData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::WalletData::GooglePayRedirect(_) => {
+                Ok(DummyConnectorWallet::GooglePay)
+            }
+            api_models::payments::WalletData::PaypalRedirect(_) => Ok(DummyConnectorWallet::Paypal),
+            api_models::payments::WalletData::WeChatPay(_) => Ok(Self::WeChatPay),
+            api_models::payments::WalletData::MbWayRedirect(_) => Ok(Self::MbWay),
+            api_models::payments::WalletData::AliPayRedirect(_) => Ok(Self::AliPay),
+            api_models::payments::WalletData::AliPayHkRedirect(_) => Ok(Self::AliPayHK),
+            _ => Err(errors::ConnectorError::NotImplemented("Dummy wallet".to_string()).into()),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum DummyConnectorPayLater {
     Klarna,
@@ -53,105 +128,55 @@ pub enum DummyConnectorPayLater {
     AfterPayClearPay,
 }
 
+impl TryFrom<api_models::payments::PayLaterData> for DummyConnectorPayLater {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: api_models::payments::PayLaterData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::PayLaterData::KlarnaRedirect {
+                billing_email: _,
+                billing_country: _,
+            } => Ok(Self::Klarna),
+            api_models::payments::PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
+            api_models::payments::PayLaterData::AfterpayClearpayRedirect {
+                billing_email: _,
+                billing_name: _,
+            } => Ok(Self::AfterPayClearPay),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        }
+    }
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
-                let card = DummyConnectorCard {
-                    name: req_card.card_holder_name,
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.request.amount,
-                    currency: item.request.currency,
-                    payment_method_data: PaymentMethodData::Card(card),
-                    return_url: item.request.router_return_url.clone(),
-                })
-            }
-            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::GooglePayRedirect(_) => Ok(Self {
-                    amount: item.request.amount,
-                    currency: item.request.currency,
-                    payment_method_data: PaymentMethodData::Wallet(DummyConnectorWallet::GooglePay),
-                    return_url: item.request.router_return_url.clone(),
-                }),
-                api_models::payments::WalletData::PaypalRedirect(_) => Ok(Self {
-                    amount: item.request.amount,
-                    currency: item.request.currency,
-                    payment_method_data: PaymentMethodData::Wallet(DummyConnectorWallet::Paypal),
-                    return_url: item.request.router_return_url.clone(),
-                }),
-                api_models::payments::WalletData::WeChatPay(_) => Ok(Self {
-                    amount: item.request.amount,
-                    currency: item.request.currency,
-                    payment_method_data: PaymentMethodData::Wallet(DummyConnectorWallet::WeChatPay),
-                    return_url: item.request.router_return_url.clone(),
-                }),
-                api_models::payments::WalletData::MbWayRedirect(_) => Ok(Self {
-                    amount: item.request.amount,
-                    currency: item.request.currency,
-                    payment_method_data: PaymentMethodData::Wallet(DummyConnectorWallet::MbWay),
-                    return_url: item.request.router_return_url.clone(),
-                }),
-                api_models::payments::WalletData::AliPayRedirect(_) => Ok(Self {
-                    amount: item.request.amount,
-                    currency: item.request.currency,
-                    payment_method_data: PaymentMethodData::Wallet(DummyConnectorWallet::AliPay),
-                    return_url: item.request.router_return_url.clone(),
-                }),
-                api_models::payments::WalletData::AliPayHkRedirect(_) => Ok(Self {
-                    amount: item.request.amount,
-                    currency: item.request.currency,
-                    payment_method_data: PaymentMethodData::Wallet(DummyConnectorWallet::AliPayHK),
-                    return_url: item.request.router_return_url.clone(),
-                }),
-                _ => Err(
-                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
-                ),
-            },
-            api::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
-                api_models::payments::PayLaterData::KlarnaRedirect {
-                    billing_email: _,
-                    billing_country: _,
-                } => Ok(Self {
-                    amount: item.request.amount,
-                    currency: item.request.currency,
-                    payment_method_data: PaymentMethodData::PayLater(
-                        DummyConnectorPayLater::Klarna,
-                    ),
-                    return_url: item.request.router_return_url.clone(),
-                }),
-                api_models::payments::PayLaterData::AffirmRedirect {} => Ok(Self {
-                    amount: item.request.amount,
-                    currency: item.request.currency,
-                    payment_method_data: PaymentMethodData::PayLater(
-                        DummyConnectorPayLater::Affirm,
-                    ),
-                    return_url: item.request.router_return_url.clone(),
-                }),
-                api_models::payments::PayLaterData::AfterpayClearpayRedirect {
-                    billing_email: _,
-                    billing_name: _,
-                } => Ok(Self {
-                    amount: item.request.amount,
-                    currency: item.request.currency,
-                    payment_method_data: PaymentMethodData::PayLater(
-                        DummyConnectorPayLater::AfterPayClearPay,
-                    ),
-                    return_url: item.request.router_return_url.clone(),
-                }),
-                _ => Err(
-                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
-                ),
-            },
+            api::PaymentMethodData::Card(req_card) => Ok(Self {
+                amount: item.request.amount,
+                currency: item.request.currency,
+                payment_method_data: PaymentMethodData::Card(req_card.into()),
+                return_url: item.request.router_return_url.clone(),
+            }),
+            api::PaymentMethodData::Wallet(wallet_data) => Ok(Self {
+                amount: item.request.amount,
+                currency: item.request.currency,
+                payment_method_data: PaymentMethodData::Wallet(wallet_data.try_into()?),
+                return_url: item.request.router_return_url.clone(),
+            }),
+            api::PaymentMethodData::PayLater(pay_later_data) => Ok(Self {
+                amount: item.request.amount,
+                currency: item.request.currency,
+                payment_method_data: PaymentMethodData::PayLater(pay_later_data.try_into()?),
+                return_url: item.request.router_return_url.clone(),
+            }),
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
+}
+
+pub struct DummyconnectorPaymentAttempt {
+    request: DummyConnectorPaymentsRequest,
+    attempt_id: String,
+    payment_id: String,
 }
 
 // Auth Struct
@@ -224,7 +249,6 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentsResponse, T, types::Paym
             .map(|redirection_url| {
                 services::RedirectForm::from((redirection_url, services::Method::Get))
             });
-        println!("redirection_data: {:#?}", redirection_data);
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {

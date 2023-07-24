@@ -1,5 +1,5 @@
 use app::AppState;
-use common_utils::{ext_traits::AsyncExt, generate_id_with_default_len};
+use common_utils::generate_id_with_default_len;
 use error_stack::{report, ResultExt};
 use rand::Rng;
 use tokio::time as tokio;
@@ -27,46 +27,19 @@ pub async fn payment(
     )
     .await;
 
-    let timestamp = common_utils::date_time::now();
-    let payment_id = generate_id_with_default_len(consts::PAYMENT_ID_PREFIX);
-    let attempt_id = generate_id_with_default_len(consts::ATTEMPT_ID_PREFIX);
-    let redis_conn = state.store.get_redis_conn();
-    let payment_data = match req.payment_method_data.clone() {
-        types::DummyConnectorPaymentMethodData::Card(card) => utils::handle_cards(
-            state,
-            req,
-            card,
-            timestamp,
-            payment_id.clone(),
-            attempt_id.clone(),
-        )?,
-        types::DummyConnectorPaymentMethodData::Wallet(wallet) => utils::handle_wallets(
-            state,
-            req,
-            wallet,
-            timestamp,
-            payment_id.clone(),
-            attempt_id.clone(),
-        ),
-        types::DummyConnectorPaymentMethodData::PayLater(pay_later) => utils::handle_pay_later(
-            state,
-            req,
-            pay_later,
-            timestamp,
-            payment_id.clone(),
-            attempt_id.clone(),
-        ),
-    };
+    let payment_attempt: types::DummyConnectorPaymentAttempt = req.into();
+    let payment_data = payment_attempt.process_payment_attempt(state)?;
+
     utils::store_data_in_redis(
-        redis_conn.clone(),
-        attempt_id.clone(),
-        payment_id.clone(),
+        state,
+        payment_data.attempt_id.clone(),
+        payment_data.payment_id.clone(),
         state.conf.dummy_connector.authorize_ttl,
     )
     .await?;
     utils::store_data_in_redis(
-        redis_conn,
-        payment_id.clone(),
+        state,
+        payment_data.payment_id.clone(),
         payment_data.clone(),
         state.conf.dummy_connector.payment_ttl,
     )
@@ -78,7 +51,6 @@ pub async fn payment_data(
     state: &AppState,
     req: types::DummyConnectorPaymentRetrieveRequest,
 ) -> types::DummyConnectorResponse<types::DummyConnectorPaymentResponse> {
-    let payment_id = req.payment_id;
     tokio_mock_sleep(
         state.conf.dummy_connector.payment_retrieve_duration,
         state.conf.dummy_connector.payment_retrieve_tolerance,
@@ -86,14 +58,7 @@ pub async fn payment_data(
     .await;
 
     let redis_conn = state.store.get_redis_conn();
-    let payment_data = redis_conn
-        .get_and_deserialize_key::<types::DummyConnectorPaymentData>(
-            payment_id.as_str(),
-            "DummyConnectorPaymentData",
-        )
-        .await
-        .change_context(errors::DummyConnectorErrors::PaymentNotFound)?;
-
+    let payment_data = utils::get_payment_data_from_payment_id(state, req.payment_id).await?;
     Ok(api::ApplicationResponse::Json(payment_data.into()))
 }
 
@@ -102,18 +67,7 @@ pub async fn payment_authorize(
     req: types::DummyConnectorPaymentConfirmRequest,
 ) -> types::DummyConnectorResponse<String> {
     let redis_conn = state.store.get_redis_conn();
-    let payment_data = redis_conn
-        .get_and_deserialize_key::<String>(req.attempt_id.as_str(), "String")
-        .await
-        .async_and_then(|payment_id| async move {
-            redis_conn
-                .get_and_deserialize_key::<types::DummyConnectorPaymentData>(
-                    payment_id.as_str(),
-                    "DummyConnectorPaymentData",
-                )
-                .await
-        })
-        .await;
+    let payment_data = utils::get_payment_data_by_attempt_id(state, req.attempt_id.clone()).await;
 
     if let Ok(payment_data_inner) = payment_data {
         let return_url = format!(
@@ -139,42 +93,27 @@ pub async fn payment_complete(
     req: types::DummyConnectorPaymentCompleteRequest,
 ) -> types::DummyConnectorResponse<()> {
     let redis_conn = state.store.get_redis_conn();
-    let payment_data = redis_conn
-        .get_and_deserialize_key::<String>(req.attempt_id.as_str(), "String")
-        .await
-        .async_and_then(|payment_id| async move {
-            let redis_conn = state.store.get_redis_conn();
-            redis_conn
-                .get_and_deserialize_key::<types::DummyConnectorPaymentData>(
-                    payment_id.as_str(),
-                    "DummyConnectorPaymentData",
-                )
-                .await
-        })
-        .await;
+    let payment_data = utils::get_payment_data_by_attempt_id(state, req.attempt_id.clone()).await;
 
     let payment_status = if req.confirm {
         types::DummyConnectorStatus::Succeeded
     } else {
         types::DummyConnectorStatus::Failed
     };
+
+    let redis_conn = state.store.get_redis_conn();
     let _ = redis_conn.delete_key(req.attempt_id.as_str()).await;
+
     if let Ok(payment_data) = payment_data {
-        let payment_data_new = types::DummyConnectorPaymentData::new(
-            payment_data.payment_id,
-            payment_status,
-            payment_data.amount,
-            payment_data.eligible_amount,
-            payment_data.currency,
-            payment_data.created,
-            payment_data.payment_method_type,
-            None,
-            payment_data.return_url,
-        );
+        let updated_payment_data = types::DummyConnectorPaymentData {
+            status: payment_status,
+            next_action: None,
+            ..payment_data
+        };
         utils::store_data_in_redis(
-            redis_conn,
-            payment_data_new.payment_id.clone(),
-            payment_data_new.clone(),
+            state,
+            updated_payment_data.payment_id.clone(),
+            updated_payment_data.clone(),
             state.conf.dummy_connector.payment_ttl,
         )
         .await?;
@@ -182,9 +121,9 @@ pub async fn payment_complete(
             api_models::payments::RedirectionResponse {
                 return_url: String::new(),
                 params: vec![],
-                return_url_with_query_params: payment_data_new
+                return_url_with_query_params: updated_payment_data
                     .return_url
-                    .unwrap_or("https://google.com".to_string()),
+                    .unwrap_or(consts::DEFAULT_RETURN_URL),
                 http_method: "GET".to_string(),
                 headers: vec![],
             },
@@ -194,7 +133,7 @@ pub async fn payment_complete(
         api_models::payments::RedirectionResponse {
             return_url: String::new(),
             params: vec![],
-            return_url_with_query_params: "https://google.com".to_string(),
+            return_url_with_query_params: consts::DEFAULT_RETURN_URL,
             http_method: "GET".to_string(),
             headers: vec![],
         },
@@ -218,14 +157,7 @@ pub async fn refund_payment(
             field_name: "payment_id",
         })?;
 
-    let redis_conn = state.store.get_redis_conn();
-    let mut payment_data = redis_conn
-        .get_and_deserialize_key::<types::DummyConnectorPaymentData>(
-            payment_id.as_str(),
-            "DummyConnectorPaymentData",
-        )
-        .await
-        .change_context(errors::DummyConnectorErrors::PaymentNotFound)?;
+    let mut payment_data = utils::get_payment_data_from_payment_id(state, payment_id.clone()).await?;
 
     if payment_data.eligible_amount < req.amount {
         return Err(
@@ -239,10 +171,11 @@ pub async fn refund_payment(
             .attach_printable("Payment is not successful to process the refund"));
     }
 
-    let refund_id = generate_id_with_default_len("dummy_ref");
+    let refund_id = generate_id_with_default_len(consts::REFUND_ID_PREFIX);
     payment_data.eligible_amount -= req.amount;
+
     utils::store_data_in_redis(
-        redis_conn.to_owned(),
+        state,
         payment_id,
         payment_data.to_owned(),
         state.conf.dummy_connector.payment_ttl,
@@ -259,7 +192,7 @@ pub async fn refund_payment(
     );
 
     utils::store_data_in_redis(
-        redis_conn,
+        state,
         refund_id,
         refund_data.to_owned(),
         state.conf.dummy_connector.refund_ttl,

@@ -1,19 +1,21 @@
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 
+use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::PeekInterface;
 use maud::html;
-use redis_interface::RedisConnectionPool;
 
 use super::{consts, errors, types};
 use crate::routes::AppState;
 
 pub async fn store_data_in_redis(
-    redis_conn: Arc<RedisConnectionPool>,
+    state: &AppState,
     key: String,
     data: impl serde::Serialize + Debug,
     ttl: i64,
 ) -> types::DummyConnectorResult<()> {
+    let redis_conn = state.store.get_redis_conn();
+
     redis_conn
         .serialize_and_set_key_with_expiry(&key, data, ttl)
         .await
@@ -22,21 +24,38 @@ pub async fn store_data_in_redis(
     Ok(())
 }
 
-pub fn get_flow_from_card_number(
-    card_number: &str,
-) -> types::DummyConnectorResult<types::DummyConnectorFlow> {
-    match card_number {
-        "4111111111111111" | "4242424242424242" => Ok(types::DummyConnectorFlow::NoThreeDS(
-            types::DummyConnectorStatus::Succeeded,
-            None,
-        )),
-        "4000003800000446" => Ok(types::DummyConnectorFlow::ThreeDS(
-            types::DummyConnectorStatus::Succeeded,
-            None,
-        )),
-        _ => Err(report!(errors::DummyConnectorErrors::CardNotSupported)
-            .attach_printable("The card is not supported")),
-    }
+pub async fn get_payment_data_from_payment_id(
+    state: &AppState,
+    payment_id: String,
+) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
+    let redis_conn = state.store.get_redis_conn();
+    redis_conn
+        .get_and_deserialize_key::<types::DummyConnectorPaymentData>(
+            payment_id.as_str(),
+            "types DummyConnectorPaymentData",
+        )
+        .await
+        .change_context(errors::DummyConnectorErrors::PaymentNotFound)
+}
+
+pub async fn get_payment_data_by_attempt_id(
+    state: &AppState,
+    attempt_id: String,
+) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
+    let redis_conn = state.store.get_redis_conn();
+    redis_conn
+        .get_and_deserialize_key::<String>(attempt_id.as_str(), "String")
+        .await
+        .async_and_then(|payment_id| async move {
+            redis_conn
+                .get_and_deserialize_key::<types::DummyConnectorPaymentData>(
+                    payment_id.as_str(),
+                    "DummyConnectorPaymentData",
+                )
+                .await
+        })
+        .await
+        .change_context(errors::DummyConnectorErrors::PaymentNotFound)
 }
 
 pub fn get_authorize_page(
@@ -113,95 +132,115 @@ pub fn get_expired_page() -> String {
     .into_string()
 }
 
-pub fn handle_cards(
-    state: &AppState,
-    payment_request: types::DummyConnectorPaymentRequest,
-    card: types::DummyConnectorCard,
-    timestamp: time::PrimitiveDateTime,
-    payment_id: String,
-    attempt_id: String,
-) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
-    let card_number = card.number.peek();
-    match get_flow_from_card_number(card_number)? {
-        types::DummyConnectorFlow::NoThreeDS(status, error) => {
-            if let Some(error) = error {
-                Err(error).into_report()?;
+pub trait ProcessPaymentAttempt {
+    fn build_payment_data_from_payment_attempt(
+        self,
+        payment_attempt: types::DummyConnectorPaymentAttempt,
+        redirect_url: String,
+    ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData>;
+}
+
+impl ProcessPaymentAttempt for types::DummyConnectorCard {
+    fn build_payment_data_from_payment_attempt(
+        self,
+        payment_attempt: types::DummyConnectorPaymentAttempt,
+        redirect_url: String,
+    ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
+        match self.get_flow_from_card_number()? {
+            types::DummyConnectorFlow::NoThreeDS(status, error) => {
+                if let Some(error) = error {
+                    Err(error).into_report()?;
+                }
+                Ok(payment_attempt.build_payment_data(status, None, None))
             }
-            Ok(types::DummyConnectorPaymentData::new(
-                payment_id.clone(),
-                status,
-                payment_request.amount,
-                payment_request.amount,
-                payment_request.currency,
-                timestamp.clone(),
-                types::PaymentMethodType::Card,
-                None,
-                None,
-            ))
+            types::DummyConnectorFlow::ThreeDS(_, _) => Ok(payment_attempt.build_payment_data(
+                types::DummyConnectorStatus::Processing,
+                Some(types::DummyConnectorNextAction::RedirectToUrl(redirect_url)),
+                payment_attempt.payment_request.return_url,
+            )),
         }
-        types::DummyConnectorFlow::ThreeDS(_, _) => Ok(types::DummyConnectorPaymentData::new(
-            payment_id.clone(),
-            types::DummyConnectorStatus::Processing,
-            payment_request.amount,
-            payment_request.amount,
-            payment_request.currency,
-            timestamp,
-            types::PaymentMethodType::Card,
-            Some(types::DummyConnectorNextAction::RedirectToUrl(format!(
-                "{}/dummy-connector/authorize/{}",
-                state.conf.server.base_url, attempt_id
-            ))),
-            payment_request.return_url,
-        )),
     }
 }
 
-pub fn handle_wallets(
-    state: &AppState,
-    payment_request: types::DummyConnectorPaymentRequest,
-    wallet: types::DummyConnectorWallet,
-    timestamp: time::PrimitiveDateTime,
-    payment_id: String,
-    attempt_id: String,
-) -> types::DummyConnectorPaymentData {
-    let payment_data = types::DummyConnectorPaymentData::new(
-        payment_id.clone(),
-        types::DummyConnectorStatus::Processing,
-        payment_request.amount,
-        payment_request.amount,
-        payment_request.currency,
-        timestamp,
-        types::PaymentMethodType::Wallet(wallet),
-        Some(types::DummyConnectorNextAction::RedirectToUrl(format!(
-            "{}/dummy-connector/authorize/{}",
-            state.conf.server.base_url, attempt_id
-        ))),
-        payment_request.return_url,
-    );
-    payment_data
+impl types::DummyConnectorCard {
+    pub fn get_flow_from_card_number(
+        self,
+    ) -> types::DummyConnectorResult<types::DummyConnectorFlow> {
+        let card_number = self.number.peek();
+        match card_number.as_str() {
+            "4111111111111111" | "4242424242424242" => Ok(types::DummyConnectorFlow::NoThreeDS(
+                types::DummyConnectorStatus::Succeeded,
+                None,
+            )),
+            "4000003800000446" => Ok(types::DummyConnectorFlow::ThreeDS(
+                types::DummyConnectorStatus::Succeeded,
+                None,
+            )),
+            _ => Err(report!(errors::DummyConnectorErrors::CardNotSupported)
+                .attach_printable("The card is not supported")),
+        }
+    }
 }
 
-pub fn handle_pay_later(
-    state: &AppState,
-    payment_request: types::DummyConnectorPaymentRequest,
-    pay_later: types::DummyConnectorPayLater,
-    timestamp: time::PrimitiveDateTime,
-    payment_id: String,
-    attempt_id: String,
-) -> types::DummyConnectorPaymentData {
-    let payment_data = types::DummyConnectorPaymentData::new(
-        payment_id.clone(),
-        types::DummyConnectorStatus::Processing,
-        payment_request.amount,
-        payment_request.amount,
-        payment_request.currency,
-        timestamp,
-        types::PaymentMethodType::PayLater(pay_later),
-        Some(types::DummyConnectorNextAction::RedirectToUrl(format!(
+impl ProcessPaymentAttempt for types::DummyConnectorWallet {
+    fn build_payment_data_from_payment_attempt(
+        self,
+        payment_attempt: types::DummyConnectorPaymentAttempt,
+        redirect_url: String,
+    ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
+        Ok(payment_attempt.build_payment_data(
+            types::DummyConnectorStatus::Processing,
+            Some(types::DummyConnectorNextAction::RedirectToUrl(redirect_url)),
+            payment_attempt.payment_request.return_url,
+        ))
+    }
+}
+
+impl ProcessPaymentAttempt for types::DummyConnectorPayLater {
+    fn build_payment_data_from_payment_attempt(
+        self,
+        payment_attempt: types::DummyConnectorPaymentAttempt,
+        redirect_url: String,
+    ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
+        Ok(payment_attempt.build_payment_data(
+            types::DummyConnectorStatus::Processing,
+            Some(types::DummyConnectorNextAction::RedirectToUrl(redirect_url)),
+            payment_attempt.payment_request.return_url,
+        ))
+    }
+}
+
+impl ProcessPaymentAttempt for types::PaymentMethodData {
+    fn build_payment_data_from_payment_attempt(
+        self,
+        payment_attempt: types::DummyConnectorPaymentAttempt,
+        redirect_url: String,
+    ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
+        match self {
+            types::PaymentMethodData::Card(card) => {
+                card.build_payment_data_from_payment_attempt(payment_attempt, redirect_url)
+            }
+            types::PaymentMethodData::Wallet(wallet) => {
+                wallet.build_payment_data_from_payment_attempt(payment_attempt, redirect_url)
+            }
+            types::PaymentMethodData::PayLater(pay_later) => {
+                pay_later.build_payment_data_from_payment_attempt(payment_attempt, redirect_url)
+            }
+        }
+    }
+}
+
+impl types::DummyConnectorPaymentAttempt {
+    pub fn process_payment_attempt(
+        self,
+        state: &AppState,
+    ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
+        let redirect_url = format!(
             "{}/dummy-connector/authorize/{}",
-            state.conf.server.base_url, attempt_id
-        ))),
-        payment_request.return_url,
-    );
-    payment_data
+            state.conf.server.base_url, self.attempt_id
+        );
+        self.payment_request
+            .payment_method_data
+            .build_payment_data_from_payment_attempt(self, redirect_url)
+    }
 }

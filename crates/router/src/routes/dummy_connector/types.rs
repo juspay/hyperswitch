@@ -1,11 +1,11 @@
 use api_models::enums::Currency;
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, generate_id_with_default_len};
 use masking::Secret;
 use router_env::types::FlowMetric;
 use strum::Display;
 use time::PrimitiveDateTime;
 
-use super::errors::DummyConnectorErrors;
+use super::{errors::DummyConnectorErrors, consts};
 use crate::services;
 
 #[derive(Debug, Display, Clone, PartialEq, Eq)]
@@ -33,19 +33,84 @@ pub enum DummyConnectorStatus {
 }
 
 #[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
+pub struct DummyConnectorPaymentAttempt {
+    pub timestamp: PrimitiveDateTime,
+    pub attempt_id: String,
+    pub payment_id: String,
+    pub payment_request: DummyConnectorPaymentRequest,
+}
+
+impl From<DummyConnectorPaymentRequest> for DummyConnectorPaymentAttempt {
+    fn from(payment_request: DummyConnectorPaymentRequest) -> Self {
+        let timestamp = common_utils::date_time::now();
+        let payment_id = generate_id_with_default_len(consts::PAYMENT_ID_PREFIX);
+        let attempt_id = generate_id_with_default_len(consts::ATTEMPT_ID_PREFIX);
+        DummyConnectorPaymentAttempt {
+            timestamp,
+            attempt_id,
+            payment_id,
+            payment_request,
+        }
+    }
+}
+
+impl DummyConnectorPaymentAttempt {
+    pub fn build_payment_data(
+        self,
+        status: DummyConnectorStatus,
+        next_action: Option<DummyConnectorNextAction>,
+        return_url: Option<String>,
+    ) -> DummyConnectorPaymentData {
+        DummyConnectorPaymentData {
+            attempt_id: self.attempt_id,
+            payment_id: self.payment_id,
+            status,
+            amount: self.payment_request.amount,
+            eligible_amount: self.payment_request.amount,
+            created: self.timestamp,
+            currency: self.payment_request.currency,
+            payment_method_type: self.payment_request.payment_method_data.into(),
+            next_action,
+            return_url,
+        }
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
 pub struct DummyConnectorPaymentRequest {
     pub amount: i64,
     pub currency: Currency,
-    pub payment_method_data: DummyConnectorPaymentMethodData,
+    pub payment_method_data: PaymentMethodData,
     pub return_url: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum DummyConnectorPaymentMethodData {
+pub enum PaymentMethodData {
     Card(DummyConnectorCard),
     Wallet(DummyConnectorWallet),
-    PayLater(DummyConnectorPayLater)
+    PayLater(DummyConnectorPayLater),
+}
+
+#[derive(
+    Default, serde::Serialize, serde::Deserialize, strum::Display, PartialEq, Debug, Clone,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum PaymentMethodType {
+    #[default]
+    Card,
+    Wallet(DummyConnectorWallet),
+    PayLater(DummyConnectorPayLater),
+}
+
+impl From<PaymentMethodData> for PaymentMethodType {
+    fn from(value: PaymentMethodData) -> Self {
+        match value {
+            PaymentMethodData::Card(_) => Self::Card,
+            PaymentMethodData::Wallet(wallet) => Self::Wallet(wallet),
+            PaymentMethodData::PayLater(pay_later) => Self::PayLater(pay_later),
+        }
+    }
 }
 
 #[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
@@ -55,7 +120,7 @@ pub enum DummyConnectorWallet {
     WeChatPay,
     MbWay,
     AliPay,
-    AliPayHK
+    AliPayHK,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
@@ -75,19 +140,9 @@ pub struct DummyConnectorCard {
     pub complete: bool,
 }
 
-#[derive(
-    Default, serde::Serialize, serde::Deserialize, strum::Display, PartialEq, Debug, Clone,
-)]
-#[serde(rename_all = "lowercase")]
-pub enum PaymentMethodType {
-    #[default]
-    Card,
-    Wallet(DummyConnectorWallet),
-    PayLater(DummyConnectorPayLater)
-}
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct DummyConnectorPaymentData {
+    pub attempt_id: String,
     pub payment_id: String,
     pub status: DummyConnectorStatus,
     pub amount: i64,
@@ -100,35 +155,30 @@ pub struct DummyConnectorPaymentData {
     pub return_url: Option<String>,
 }
 
+// impl Default for DummyConnectorPaymentData {
+//     fn default() -> Self {
+//         Self {
+//             attempt_id: String::new(),
+//             payment_id: String::new(),
+//             status: DummyConnectorStatus::Processing,
+//             amount: 0,
+//             eligible_amount: 0,
+//             currency: Currency::USD,
+//             created: common_utils::date_time::now(),
+//             payment_method_type: PaymentMethodType::Card,
+//             next_action: None,
+//             return_url: None,
+//         }
+//     }
+// }
+//
+impl DummyConnectorPaymentData {
+    fn from_payment_attempt(payment_attempt: DummyConnectorPaymentAttempt) -> Self {}
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub enum DummyConnectorNextAction {
     RedirectToUrl(String),
-}
-
-impl DummyConnectorPaymentData {
-    pub fn new(
-        payment_id: String,
-        status: DummyConnectorStatus,
-        amount: i64,
-        eligible_amount: i64,
-        currency: Currency,
-        created: PrimitiveDateTime,
-        payment_method_type: PaymentMethodType,
-        redirect_url: Option<DummyConnectorNextAction>,
-        return_url: Option<String>,
-    ) -> Self {
-        Self {
-            payment_id,
-            status,
-            amount,
-            eligible_amount,
-            currency,
-            created,
-            payment_method_type,
-            next_action: redirect_url,
-            return_url,
-        }
-    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
