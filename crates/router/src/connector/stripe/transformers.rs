@@ -501,6 +501,7 @@ pub enum StripePaymentMethodType {
     #[serde(rename = "bacs_debit")]
     Bacs,
     Bancontact,
+    Blik,
     Card,
     CustomerBalance,
     Eps,
