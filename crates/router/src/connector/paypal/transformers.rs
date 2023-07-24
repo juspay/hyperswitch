@@ -105,7 +105,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                 };
                 let amount = OrderAmount {
                     currency_code: item.request.currency,
-                    value: utils::to_currency_base_unit(
+                    value: utils::to_currency_base_unit_with_zero_decimal_check(
                         item.request.amount,
                         item.request.currency,
                     )?,
@@ -138,7 +138,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                     let intent = PaypalPaymentIntent::Capture;
                     let amount = OrderAmount {
                         currency_code: item.request.currency,
-                        value: utils::to_currency_base_unit(
+                        value: utils::to_currency_base_unit_with_zero_decimal_check(
                             item.request.amount,
                             item.request.currency,
                         )?,
@@ -492,7 +492,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaypalPaymentsCaptureRequest
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let amount = OrderAmount {
             currency_code: item.request.currency,
-            value: utils::to_currency_base_unit(
+            value: utils::to_currency_base_unit_with_zero_decimal_check(
                 item.request.amount_to_capture,
                 item.request.currency,
             )?,
@@ -631,7 +631,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PaypalRefundRequest {
         Ok(Self {
             amount: OrderAmount {
                 currency_code: item.request.currency,
-                value: utils::to_currency_base_unit(
+                value: utils::to_currency_base_unit_with_zero_decimal_check(
                     item.request.refund_amount,
                     item.request.currency,
                 )?,

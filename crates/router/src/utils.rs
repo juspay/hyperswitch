@@ -135,6 +135,15 @@ pub fn to_currency_base_unit(
     currency: diesel_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ValidationError>> {
     let amount_f64 = to_currency_base_unit_asf64(amount, currency)?;
+    Ok(format!("{amount_f64:.2}"))
+}
+
+/// Convert the amount to its base denomination based on Currency and check for zero decimal currency and return String
+pub fn to_currency_base_unit_with_zero_decimal_check(
+    amount: i64,
+    currency: diesel_models::enums::Currency,
+) -> Result<String, error_stack::Report<errors::ValidationError>> {
+    let amount_f64 = to_currency_base_unit_asf64(amount, currency)?;
     if currency.is_zero_decimal_currency() {
         Ok(amount_f64.to_string())
     } else {
