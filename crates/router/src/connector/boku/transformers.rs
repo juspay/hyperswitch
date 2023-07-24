@@ -140,7 +140,9 @@ fn get_wallet_type(wallet_data: &api::WalletData) -> Result<String, errors::Conn
         api_models::payments::WalletData::KakaoPayRedirect { .. } => {
             Ok(BokuPaymentType::Kakaopay.to_string())
         }
-        _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string())),
+        _ => Err(errors::ConnectorError::NotImplemented(
+            "Payment method".to_string(),
+        )),
     }
 }
 
