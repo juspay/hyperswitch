@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
 use error_stack::{IntoReport, ResultExt};
 
@@ -119,6 +121,13 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
+    async fn find_merchant_connector_account_by_merchant_id_connector_name(
+        &self,
+        merchant_id: &str,
+        connector_label: &str,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
+
     async fn insert_merchant_connector_account(
         &self,
         t: domain::MerchantConnectorAccount,
@@ -197,6 +206,44 @@ impl MerchantConnectorAccountInterface for Store {
                     .change_context(errors::StorageError::DecryptionError)
             })
             .await
+        }
+    }
+
+    async fn find_merchant_connector_account_by_merchant_id_connector_name(
+        &self,
+        merchant_id: &str,
+        connector_name: &str,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
+        let find_call = || async {
+            let conn: bb8::PooledConnection<
+                '_,
+                async_bb8_diesel::ConnectionManager<diesel::PgConnection>,
+            > = connection::pg_connection_read(self).await?;
+            storage::MerchantConnectorAccount::find_by_merchant_id_connector_name(
+                &conn,
+                merchant_id,
+                connector_name,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
+        };
+        let mca_list = find_call().await?;
+        match mca_list.len().cmp(&1) {
+            Ordering::Less | Ordering::Greater => {
+                Err(errors::StorageError::ValueNotFound("MerchantConnectorAccount".into()).into())
+            }
+            Ordering::Equal => match mca_list.first() {
+                Some(mca) => mca
+                    .to_owned()
+                    .convert(key_store.key.get_inner())
+                    .await
+                    .change_context(errors::StorageError::DeserializationFailed),
+                None => Err(
+                    errors::StorageError::ValueNotFound("MerchantConnectorAccount".into()).into(),
+                ),
+            },
         }
     }
 
@@ -377,7 +424,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .await
             .iter()
             .find(|account| {
-                account.merchant_id == merchant_id && account.connector_name == connector
+                account.merchant_id == merchant_id && account.connector_label == connector
             })
             .cloned()
             .async_map(|account| async {
@@ -396,6 +443,15 @@ impl MerchantConnectorAccountInterface for MockDb {
                 .into())
             }
         }
+    }
+
+    async fn find_merchant_connector_account_by_merchant_id_connector_name(
+        &self,
+        _merchant_id: &str,
+        _connector_name: &str,
+        _key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
+        Err(errors::StorageError::MockDbError.into())
     }
 
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
