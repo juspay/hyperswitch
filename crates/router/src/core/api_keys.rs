@@ -208,6 +208,21 @@ pub async fn add_api_key_expiry_task(
     expiry_reminder_days: Vec<u8>,
 ) -> Result<(), errors::ProcessTrackerError> {
     let current_time = common_utils::date_time::now();
+
+    let schedule_time = expiry_reminder_days
+        .first()
+        .and_then(|expiry_reminder_day| {
+            api_key.expires_at.map(|expires_at| {
+                expires_at.saturating_sub(time::Duration::days(i64::from(*expiry_reminder_day)))
+            })
+        });
+
+    if let Some(schedule_time) = schedule_time {
+        if schedule_time <= current_time {
+            return Ok(());
+        }
+    }
+
     let api_key_expiry_tracker = &storage::ApiKeyExpiryWorkflow {
         key_id: api_key.key_id.clone(),
         merchant_id: api_key.merchant_id.clone(),
@@ -222,14 +237,6 @@ pub async fn add_api_key_expiry_task(
         .attach_printable_lazy(|| {
             format!("unable to serialize API key expiry tracker: {api_key_expiry_tracker:?}")
         })?;
-
-    let schedule_time = expiry_reminder_days
-        .first()
-        .and_then(|expiry_reminder_day| {
-            api_key.expires_at.map(|expires_at| {
-                expires_at.saturating_sub(time::Duration::days(i64::from(*expiry_reminder_day)))
-            })
-        });
 
     let process_tracker_entry = storage::ProcessTrackerNew {
         id: generate_task_id_for_api_key_expiry_workflow(api_key.key_id.as_str()),
@@ -365,10 +372,6 @@ pub async fn update_api_key_expiry_task(
 ) -> Result<(), errors::ProcessTrackerError> {
     let current_time = common_utils::date_time::now();
 
-    let task_id = generate_task_id_for_api_key_expiry_workflow(api_key.key_id.as_str());
-
-    let task_ids = vec![task_id.clone()];
-
     let schedule_time = expiry_reminder_days
         .first()
         .and_then(|expiry_reminder_day| {
@@ -376,6 +379,16 @@ pub async fn update_api_key_expiry_task(
                 expires_at.saturating_sub(time::Duration::days(i64::from(*expiry_reminder_day)))
             })
         });
+
+    if let Some(schedule_time) = schedule_time {
+        if schedule_time <= current_time {
+            return Ok(());
+        }
+    }
+
+    let task_id = generate_task_id_for_api_key_expiry_workflow(api_key.key_id.as_str());
+
+    let task_ids = vec![task_id.clone()];
 
     let updated_tracking_data = &storage::ApiKeyExpiryWorkflow {
         key_id: api_key.key_id.clone(),
