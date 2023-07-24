@@ -32,7 +32,7 @@ pub fn validate_config(input: syn::DeriveInput) -> Result<proc_macro2::TokenStre
                         self.#field_ident.is_empty(),
                         || {
                             Err(ApplicationError::InvalidConfigurationValueError(
-                                format!("{} must not be empty for {parent_field}", #field_ident_string).into(),
+                                format!("{} must not be empty for {}", #field_ident_string, parent_field).into(),
                             ))
                         }
                     )?;
