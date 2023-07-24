@@ -177,6 +177,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::SamsungPay
             | api_enums::PaymentMethodType::Twint
             | api_enums::PaymentMethodType::Vipps
+            | api_enums::PaymentMethodType::TouchNGo
             | api_enums::PaymentMethodType::WeChatPay
             | api_enums::PaymentMethodType::GoPay
             | api_enums::PaymentMethodType::Gcash
@@ -187,6 +188,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::AfterpayClearpay
             | api_enums::PaymentMethodType::Klarna
             | api_enums::PaymentMethodType::PayBright
+            | api_enums::PaymentMethodType::Atome
             | api_enums::PaymentMethodType::Walley => Self::PayLater,
             api_enums::PaymentMethodType::Giropay
             | api_enums::PaymentMethodType::Ideal
@@ -194,8 +196,10 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Eps
             | api_enums::PaymentMethodType::BancontactCard
             | api_enums::PaymentMethodType::Blik
+            | api_enums::PaymentMethodType::OnlineBankingThailand
             | api_enums::PaymentMethodType::OnlineBankingCzechRepublic
             | api_enums::PaymentMethodType::OnlineBankingFinland
+            | api_enums::PaymentMethodType::OnlineBankingFpx
             | api_enums::PaymentMethodType::OnlineBankingPoland
             | api_enums::PaymentMethodType::OnlineBankingSlovakia
             | api_enums::PaymentMethodType::Przelewy24
