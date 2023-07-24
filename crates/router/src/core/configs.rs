@@ -17,7 +17,14 @@ pub async fn set_config(
             config: config.value,
         })
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .map_err(|err| {
+            if err.current_context().is_db_unique_violation() {
+                err.change_context(errors::ApiErrorResponse::DuplicateConfig)
+            } else {
+                err.change_context(errors::ApiErrorResponse::InternalServerError)
+            }
+        })
+        // .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unknown error, while setting config key")?;
 
     Ok(ApplicationResponse::Json(config.foreign_into()))
