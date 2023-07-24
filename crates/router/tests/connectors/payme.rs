@@ -61,6 +61,9 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
         access_token: None,
         connector_meta_data: None,
         return_url: None,
+        country: None,
+        currency: None,
+        payout_method_data: None,
     })
 }
 
