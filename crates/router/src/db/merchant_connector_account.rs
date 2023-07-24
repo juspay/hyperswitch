@@ -231,8 +231,11 @@ impl MerchantConnectorAccountInterface for Store {
         };
         let mca_list = find_call().await?;
         match mca_list.len().cmp(&1) {
-            Ordering::Less | Ordering::Greater => {
-                Err(errors::StorageError::ValueNotFound("MerchantConnectorAccount".into()).into())
+            Ordering::Less =>{
+                Err(errors::StorageError::ValueNotFound("MerchantConnectorAccount".into()).into()).attach_printable(format!("No records found for {} and {}",merchant_id, connector_name))
+            },
+            Ordering::Greater => {
+                Err(errors::StorageError::ValueNotFound("MerchantConnectorAccount".into()).into()).attach_printable(format!("Found multiple records for {} and {}",merchant_id, connector_name))
             }
             Ordering::Equal => match mca_list.first() {
                 Some(mca) => mca
