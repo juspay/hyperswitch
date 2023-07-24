@@ -221,7 +221,7 @@ mod storage {
         async fn find_all_captures_by_authorized_attempt_ids(
             &self,
             authorized_attempt_ids: Vec<String>,
-            storage_scheme: enums::MerchantStorageScheme,
+            _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<Capture>, errors::StorageError> {
             let db_call = || async {
                 let conn = connection::pg_connection_write(self).await?;
