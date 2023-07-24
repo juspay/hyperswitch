@@ -21,6 +21,7 @@ use crate::{
 };
 use crate::{core::errors, types};
 
+#[cfg(feature = "payouts")]
 pub struct WiseAuthType {
     pub(super) api_key: Secret<String>,
     #[allow(dead_code)]
