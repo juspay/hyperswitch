@@ -179,6 +179,7 @@ pub async fn create_api_key(
     );
 
     // Add process to process_tracker for email reminder, only if expiry is set to future date
+    // If the `api_key` is set to expire in less than 7 days, the merchant is not notified about it's expiry
     #[cfg(feature = "email")]
     {
         if api_key.expires_at.is_some() {
@@ -200,6 +201,7 @@ pub async fn create_api_key(
 // Add api_key_expiry task to the process_tracker table.
 // Construct ProcessTrackerNew struct with all required fields, and schedule the first email.
 // After first email has been sent, update the schedule_time based on retry_count in execute_workflow().
+// A task is not scheduled if the time for the first email is in the past.
 #[cfg(feature = "email")]
 #[instrument(skip_all)]
 pub async fn add_api_key_expiry_task(
@@ -363,6 +365,7 @@ pub async fn update_api_key(
 
 // Update api_key_expiry task in the process_tracker table.
 // Construct Update variant of ProcessTrackerUpdate with new tracking_data.
+// A task is not scheduled if the time for the first email is in the past.
 #[cfg(feature = "email")]
 #[instrument(skip_all)]
 pub async fn update_api_key_expiry_task(
