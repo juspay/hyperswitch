@@ -1,6 +1,9 @@
 pub fn get_field_type(field_type: syn::Type) -> Option<syn::Ident> {
     if let syn::Type::Path(path) = field_type {
-        path.path.get_ident().cloned()
+        path.path
+            .segments
+            .last()
+            .map(|last_path_segment| last_path_segment.ident.to_owned())
     } else {
         None
     }
@@ -15,11 +18,16 @@ pub fn validate_config(input: syn::DeriveInput) -> Result<proc_macro2::TokenStre
     let function_expansions = fields
         .into_iter()
         .flat_map(|field| field.ident.to_owned().zip(get_field_type(field.ty)))
-        .map(|(field_ident, field_type_ident)| {
+        .filter_map(|(field_ident, field_type_ident)| {
             // Check if a field is a leaf field, only String ( connector urls ) is supported for now
-            let is_leaf_field = field_type_ident.eq("String");
+
             let field_ident_string = field_ident.to_string();
-            if is_leaf_field {
+            let is_optional_field = field_type_ident.eq("Option");
+
+            // Do not call validate if it is an optional field
+            if !is_optional_field {
+                let is_leaf_field = field_type_ident.eq("String");
+                let validate_expansion = if is_leaf_field {
                 quote::quote!(common_utils::fp_utils::when(
                         self.#field_ident.is_empty(),
                         || {
@@ -29,11 +37,16 @@ pub fn validate_config(input: syn::DeriveInput) -> Result<proc_macro2::TokenStre
                         }
                     )?;
                 )
+                } else {
+                    quote::quote!(
+                        self.#field_ident.validate(#field_ident_string)?;
+                    )
+                };
+                Some(validate_expansion)
             } else {
-                quote::quote!(
-                    self.#field_ident.validate(#field_ident_string)?;
-                )
+                None
             }
+
         })
         .collect::<Vec<_>>();
 
