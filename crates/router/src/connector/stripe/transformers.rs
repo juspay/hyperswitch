@@ -487,11 +487,9 @@ pub struct GooglepayPayment {
 // All supported payment_method_types in stripe
 // This enum goes in payment_method_types[] field in stripe request body
 // https://stripe.com/docs/api/payment_intents/create#create_payment_intent-payment_method_types
-#[allow(dead_code)]
 #[derive(Eq, PartialEq, Serialize, Clone, Debug, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodType {
-    AcssDebit,
     Affirm,
     AfterpayClearpay,
     Alipay,
@@ -500,28 +498,14 @@ pub enum StripePaymentMethodType {
     #[serde(rename = "bacs_debit")]
     Bacs,
     Bancontact,
-    Blik,
-    Boleto,
     Card,
-    CardPresent,
-    Cashapp,
     CustomerBalance,
     Eps,
-    Fpx,
     Giropay,
-    Grabpay,
     Ideal,
-    InteracPresent,
     Klarna,
-    Konbini,
-    Link,
-    Oxxo,
     #[serde(rename = "p24")]
     Przelewy24,
-    Paynow,
-    Paypal,
-    Pix,
-    Promptpay,
     #[serde(rename = "sepa_debit")]
     Sepa,
     Sofort,
@@ -529,7 +513,6 @@ pub enum StripePaymentMethodType {
     Ach,
     #[serde(rename = "wechat_pay")]
     Wechatpay,
-    Zip,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
