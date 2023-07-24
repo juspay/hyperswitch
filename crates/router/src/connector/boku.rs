@@ -3,16 +3,19 @@ mod transformers;
 use std::fmt::Debug;
 
 use common_utils::ext_traits::XmlExt;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{IntoReport, Report, ResultExt};
 use masking::{ExposeInterface, Secret, WithType};
 use ring::hmac;
+use roxmltree;
 use time::OffsetDateTime;
 use transformers as boku;
 
 use crate::{
     configs::settings,
+    consts,
     core::errors::{self, CustomResult},
-    headers,
+    headers, logger,
+    routes::metrics,
     services::{
         self,
         request::{self, Mask},
@@ -121,17 +124,20 @@ impl ConnectorCommon for Boku {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: boku::BokuErrorResponse = res
+        let response_data: Result<boku::BokuErrorResponse, Report<errors::ConnectorError>> = res
             .response
-            .parse_struct("BokuErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .parse_struct("boku::BokuErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
-        })
+        match response_data {
+            Ok(response) => Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response.code,
+                message: response.message,
+                reason: response.reason,
+            }),
+            Err(_) => get_xml_deserialized(res),
+        }
     }
 }
 
@@ -599,10 +605,36 @@ impl api::IncomingWebhook for Boku {
 fn get_country_url(
     meta_data: Option<Secret<serde_json::Value, WithType>>,
     base_url: String,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+) -> Result<String, Report<errors::ConnectorError>> {
     let conn_meta_data: boku::BokuMetaData = meta_data
         .parse_value("Object")
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
     Ok(base_url.replace("country", &conn_meta_data.country.to_lowercase()))
+}
+
+// validate xml format for the error
+fn get_xml_deserialized(res: Response) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes("connector", "boku")],
+    );
+
+    let response_data = String::from_utf8(res.response.to_vec())
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+    match roxmltree::Document::parse(&response_data) {
+        Ok(_) => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        Err(_) => {
+            logger::error!(response_data);
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: res.status_code.to_string(),
+                message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
+                reason: Some(response_data),
+            })
+        }
+    }
 }

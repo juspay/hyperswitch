@@ -29,6 +29,7 @@ pub struct SingleChargeData {
     merchant_transaction_id: Secret<String>,
     merchant_request_id: String,
     merchant_item_description: String,
+    notification_url: Option<String>,
     payment_method: String,
     charge_type: String,
     hosted: Option<BokuHostedData>,
@@ -114,6 +115,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)> for BokuPa
             merchant_transaction_id: Secret::new(item.payment_id.to_string()),
             merchant_request_id: Uuid::new_v4().to_string(),
             merchant_item_description,
+            notification_url: item.request.webhook_url.clone(),
             payment_method,
             charge_type: BokuChargeType::Hosted.to_string(),
             hosted,
@@ -221,28 +223,13 @@ pub enum BokuResponse {
     QueryChargeResponse(BokuPsyncResponse),
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct BokuPaymentsResponse {
-    // result: ResultData,
     charge_status: BokuPaymentStatus,
-    // merchant_transaction_id: String,
-    // merchant_id: String,
-    // merchant_request_id: String,
-    // payment_method: String,
     charge_id: String,
     hosted: Option<HostedUrlResponse>,
 }
-
-// #[derive(Debug, Clone, Deserialize)]
-// #[serde(rename_all = "kebab-case")]
-// pub struct ResultData {
-//     #[serde(rename = "@value")]
-//     reason_code: String,
-// message: String,
-// retriable: String,
-// }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -254,7 +241,6 @@ pub struct HostedUrlResponse {
 #[serde(rename = "query-charge-response")]
 #[serde(rename_all = "kebab-case")]
 pub struct BokuPsyncResponse {
-    // result: ResultData,
     charges: ChargeResponseData,
 }
 
@@ -267,17 +253,8 @@ pub struct ChargeResponseData {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SingleChargeResponseData {
-    // result: ResultData,
     charge_status: BokuPaymentStatus,
-    // merchant_transaction_id: String,
-    // merchant_id: String,
-    // merchant_id_description: String,
     charge_id: String,
-    // timestamp: String,
-    // country: CountryAlpha2,
-    // netword_id: String,
-    // currency: Currency,
-    // total_amount: Amount,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, BokuResponse, T, types::PaymentsResponseData>>
@@ -331,9 +308,7 @@ fn get_psync_response(
     Ok((status, response.charges.charge.charge_id, None))
 }
 
-//TODO: Fill the struct with respective fields
 // REFUND :
-// Type definition for RefundRequest
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename = "refund-charge-request")]
 pub struct BokuRefundRequest {
@@ -347,12 +322,7 @@ pub struct BokuRefundRequest {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum BokuRefundReasonCode {
-    // UnauthorizedKnown,
-    // UnauthorizedUnknown,
-    // UnauthorizedMinor,
     NonFulfillment,
-    // Fraud,
-    // Goodwill,
 }
 
 impl fmt::Display for BokuRefundReasonCode {
@@ -380,8 +350,6 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BokuRefundRequest {
     }
 }
 
-// Type definition for Refund Response
-
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Clone)]
 pub enum BokuRefundStatus {
@@ -402,9 +370,6 @@ impl From<BokuRefundStatus> for enums::RefundStatus {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename = "refund-charge-response")]
 pub struct RefundResponse {
-    // result: ResultData,
-    // merchant_id: Secret<String>,
-    // merchant_request_id: String,
     charge_id: String,
     refund_status: BokuRefundStatus,
 }
@@ -458,7 +423,6 @@ impl TryFrom<&types::RefundSyncRouterData> for BokuRsyncRequest {
 #[serde(rename = "query-refund-response")]
 #[serde(rename_all = "kebab-case")]
 pub struct BokuRsyncResponse {
-    // result: ResultData,
     refunds: RefundResponseData,
 }
 
@@ -471,17 +435,8 @@ pub struct RefundResponseData {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SingleRefundResponseData {
-    // result: ResultData,
     refund_status: BokuRefundStatus,
-    // merchant_transaction_id: String,
-    // merchant_id: String,
-    // merchant_id_description: String,
     refund_id: String,
-    // timestamp: String,
-    // country: CountryAlpha2,
-    // netword_id: String,
-    // currency: Currency,
-    // refund_amount: Amount,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, BokuRsyncResponse>>
@@ -503,7 +458,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BokuRsyncResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BokuErrorResponse {
     pub status_code: u16,
