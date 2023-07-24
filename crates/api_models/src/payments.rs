@@ -879,6 +879,16 @@ pub enum BankRedirectData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VoucherData {
+    BoletoBancario {
+        /// The shopper's social security number
+        #[schema(value_type = String)]
+        social_security_number: Secret<String>,
+    },
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AchBillingDetails {
     /// The Email ID for ACH billing
     #[schema(value_type = String, example = "example@me.com")]
@@ -1182,6 +1192,7 @@ pub enum PaymentMethodDataResponse {
     MandatePayment,
     Reward,
     Upi,
+    Voucher,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1848,6 +1859,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::Reward {} => Self::Reward,
             AdditionalPaymentData::Upi {} => Self::Upi,
             AdditionalPaymentData::BankTransfer {} => Self::BankTransfer,
+            AdditionalPaymentData::Voucher {} => Self::Voucher,
         }
     }
 }
