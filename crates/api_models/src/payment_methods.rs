@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use cards::CardNumber;
 use common_utils::{crypto::OptionalEncryptableName, pii};
@@ -220,7 +220,7 @@ pub struct ResponsePaymentMethodTypes {
     pub bank_transfers: Option<BankTransferTypes>,
 
     /// Required fields for the payment_method_type.
-    pub required_fields: Option<HashSet<RequiredFieldInfo>>,
+    pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
 }
 
 /// Required fields info used while listing the payment_method_data
@@ -235,6 +235,8 @@ pub struct RequiredFieldInfo {
     /// Possible field type of required field
     #[schema(value_type = FieldType)]
     pub field_type: api_enums::FieldType,
+
+    pub value: String,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]

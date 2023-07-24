@@ -280,9 +280,9 @@ pub struct ConnectorFields {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct RequiredFieldFinal {
-    pub mandate: Vec<RequiredFieldInfo>,
-    pub non_mandate: Vec<RequiredFieldInfo>,
-    pub common: Vec<RequiredFieldInfo>,
+    pub mandate: HashMap<String, RequiredFieldInfo>,
+    pub non_mandate: HashMap<String, RequiredFieldInfo>,
+    pub common: HashMap<String, RequiredFieldInfo>,
 }
 
 fn string_set_deser<'a, D>(
