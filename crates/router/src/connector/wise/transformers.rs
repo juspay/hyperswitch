@@ -2,7 +2,6 @@
 use api_models::payouts::PayoutMethodData;
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
-#[cfg(feature = "payouts")]
 use masking::Secret;
 use serde::Deserialize;
 #[cfg(feature = "payouts")]
@@ -21,7 +20,6 @@ use crate::{
 };
 use crate::{core::errors, types};
 
-#[cfg(feature = "payouts")]
 pub struct WiseAuthType {
     pub(super) api_key: Secret<String>,
     #[allow(dead_code)]

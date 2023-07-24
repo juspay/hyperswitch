@@ -2,6 +2,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "payouts")]
 use masking::PeekInterface;
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
