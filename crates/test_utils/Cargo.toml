@@ -8,9 +8,9 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["dummy_connector"]
+default = ["dummy_connector", "payouts"]
 dummy_connector = ["api_models/dummy_connector"]
-
+payouts = []
 
 [dependencies]
 clap = { version = "4.3.2", default-features = false, features = ["derive"] }
