@@ -1,4 +1,4 @@
-name: Run collections against your PR
+name: Run postman tests
 
 on:
   workflow_dispatch:
