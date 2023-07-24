@@ -33,7 +33,7 @@ jobs:
 
     services:
       redis:
-        image: redis
+        image: "${{ github.event_name != 'pull_request' && 'redis' || '' }}"
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -42,7 +42,7 @@ jobs:
         ports:
           - 6379:6379
       postgres:
-        image: postgres:14.5
+        image: "${{ github.event_name != 'pull_request' && 'postgres:14.5' || '' }}"
         env:
           POSTGRES_USER: db_user
           POSTGRES_PASSWORD: db_pass
@@ -143,15 +143,16 @@ jobs:
         run: |
           RED='\033[0;31m'
           RESET='\033[0m'
-          fail=false
-          for i in $(echo $INPUT | tr "," "\n"); do
-            cargo run --bin test_utils -- --connector_name=$i --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY || exit_code=$?
-            if [ $exit_code -ne 0 ]; then
-              fail=true
+          failed_connectors=()
+
+          for i in $(echo "$INPUT" | tr "," "\n"); do
+            if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY"; then
+              failed_connectors+=("$i")
             fi
           done
 
-          if [ $fail ]; then
-            echo -e -n "${RED}One or more connectors failed to run.${RESET}"
+          if [ ${#failed_connectors[@]} -gt 0 ]; then
+            echo -e "${RED}One or more connectors failed to run:${RESET}"
+            printf '%s\n' "${failed_connectors[@]}"
             exit 1
           fi
