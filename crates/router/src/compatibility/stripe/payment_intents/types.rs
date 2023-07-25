@@ -54,6 +54,7 @@ pub struct StripeCard {
     pub holder_name: Option<masking::Secret<String>>,
 }
 
+// ApplePay wallet param is not available in stripe Docs
 #[derive(Serialize, PartialEq, Eq, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum StripeWallet {
