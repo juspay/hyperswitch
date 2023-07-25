@@ -46,7 +46,6 @@ fn main() {
     // variables set up for certificate, will consider those variables and will fail.
 
     let mut newman_command = cmd::new("newman");
-
     newman_command.args(["run", &collection_path]);
     newman_command.args(["--env-var", &format!("admin_api_key={admin_api_key}")]);
     newman_command.args(["--env-var", &format!("baseUrl={base_url}")]);
@@ -125,6 +124,8 @@ fn main() {
 
     newman_command.arg("--delay-request").arg("5");
 
+    newman_command.arg("--color").arg("on");
+
     // Execute the newman command
     let output = newman_command.spawn();
     let mut child = match output {
@@ -147,7 +148,7 @@ fn main() {
             }
         }
         Err(err) => {
-            eprintln!("Failed to wait for command execution: {}", err);
+            eprintln!("Failed to wait for command execution: {err}");
             exit(1);
         }
     };
