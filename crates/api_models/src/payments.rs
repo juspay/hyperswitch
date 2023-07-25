@@ -1342,7 +1342,7 @@ pub enum NextActionData {
         /// The url for Qr code given by the connector
         #[schema(value_type = String)]
         qr_code_url: Option<Url>,
-    }
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

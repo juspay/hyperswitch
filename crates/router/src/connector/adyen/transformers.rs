@@ -242,15 +242,6 @@ pub enum AdyenPaymentResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct QrCodeResponse {
-    result_code: AdyenStatus,
-    action: AdyenQrCodeAction,
-    refusal_reason: Option<String>,
-    refusal_reason_code: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Response {
     psp_reference: String,
     result_code: AdyenStatus,
@@ -275,30 +266,6 @@ pub struct AdyenNextActionResponse {
     action: AdyenNextAction,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AdyenQrCodeAction {
-    payment_data: Option<String>,
-    payment_method_type: String,
-    #[serde(rename = "url")]
-    mobile_redirect_url: Option<Url>,
-    qr_code_data: String,
-    #[serde(rename = "type")]
-    type_of_response: ActionType,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AdyenQrCodeAction {
-    payment_data: Option<String>,
-    payment_method_type: String,
-    #[serde(rename = "url")]
-    mobile_redirect_url: Option<Url>,
-    qr_code_data: String,
-    #[serde(rename = "type")]
-    type_of_response: ActionType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2311,9 +2278,6 @@ impl<F, Req>
             AdyenPaymentResponse::RedirectionErrorResponse(response) => {
                 get_redirection_error_response(response, is_manual_capture, item.http_code)?
             }
-            AdyenPaymentResponse::QrCodeResponse(response) => {
-                get_qr_code_response(response, is_manual_capture, item.http_code)?
-            }
         };
 
         Ok(Self {
@@ -2491,12 +2455,6 @@ pub enum DisputeStatus {
     Lost,
     Accepted,
     Won,
-}
-
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct QrCodeNextStepData {
-    pub image_data_source: String,
-    pub mobile_redirection_url: Option<Url>,
 }
 
 #[derive(Debug, Deserialize)]
