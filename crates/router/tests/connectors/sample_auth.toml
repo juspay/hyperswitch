@@ -159,10 +159,6 @@ api_key = "Partner code"
 key1 = "Credential code"
 
 [powertranz]
-api_key="API Key"
-
-
-[boku]
 api_key="PowerTranz-PowerTranzPassword"
 key1 = "PowerTranz-PowerTranzId"
 
@@ -171,4 +167,4 @@ api_key="API Key"
 
 [boku]
 api_key="API Key"
-key1 = "transaction key"
+key1 = "MERCHANT ID"
