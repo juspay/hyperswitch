@@ -148,6 +148,7 @@ pub struct PaymentsRequest {
     #[serde(flatten)]
     pub return_url: ReturnUrl,
     pub capture: bool,
+    pub reference: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -246,6 +247,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
             three_ds,
             return_url,
             capture,
+            reference: item.connector_request_reference_id.clone(),
         })
     }
 }
@@ -323,6 +325,7 @@ pub struct PaymentsResponse {
     #[serde(rename = "_links")]
     links: Links,
     balances: Option<Balances>,
+    reference: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
@@ -347,12 +350,14 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                 item.data.request.capture_method,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    item.response.reference.unwrap_or(item.response.id),
+                ),
             }),
             ..item.data
         })
@@ -376,12 +381,14 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
                 item.response.balances,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    item.response.reference.unwrap_or(item.response.id),
+                ),
             }),
             ..item.data
         })
