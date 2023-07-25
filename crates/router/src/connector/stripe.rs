@@ -6,7 +6,7 @@ use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
-use self::{stripe::StripeAuthType, transformers as stripe};
+use self::transformers as stripe;
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
@@ -43,7 +43,7 @@ impl ConnectorCommon for Stripe {
         &self,
         val: &types::ConnectorAuthType,
     ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        StripeAuthType::try_from(val)?;
+        stripe::StripeAuthType::try_from(val)?;
         Ok(())
     }
 
@@ -56,7 +56,7 @@ impl ConnectorCommon for Stripe {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: StripeAuthType = auth_type
+        let auth: stripe::StripeAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(

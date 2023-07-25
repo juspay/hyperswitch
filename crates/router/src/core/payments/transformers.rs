@@ -94,7 +94,7 @@ where
         router_base_url: state.conf.server.base_url.clone(),
         connector_name: connector_id.to_string(),
         payment_data: payment_data.clone(),
-        _state: state,
+        state,
     };
 
     let customer_id = customer.to_owned().map(|customer| customer.customer_id);
@@ -690,7 +690,7 @@ where
     router_base_url: String,
     connector_name: String,
     payment_data: PaymentData<F>,
-    _state: &'a AppState,
+    state: &'a AppState,
 }
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
@@ -849,6 +849,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         let connector = api::ConnectorData::get_connector_by_name(
+            &additional_data.state.conf.connectors,
             &additional_data.connector_name,
             api::GetToken::Connector,
         )?;
@@ -875,6 +876,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         let connector = api::ConnectorData::get_connector_by_name(
+            &additional_data.state.conf.connectors,
             &additional_data.connector_name,
             api::GetToken::Connector,
         )?;

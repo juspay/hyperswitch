@@ -388,14 +388,15 @@ where
             connector_and_supporting_payment_method_type
         {
             let connector_type = api::GetToken::from(payment_method_type);
-            if let Ok(connector_data) =
-                api::ConnectorData::get_connector_by_name(&connector, connector_type).map_err(
-                    |err| {
-                        logger::error!(session_token_error=?err);
-                        err
-                    },
-                )
-            {
+            if let Ok(connector_data) = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &connector,
+                connector_type,
+            )
+            .map_err(|err| {
+                logger::error!(session_token_error=?err);
+                err
+            }) {
                 session_connector_data.push(api::SessionConnectorData {
                     payment_method_type,
                     connector: connector_data,

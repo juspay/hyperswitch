@@ -86,6 +86,7 @@ pub async fn validate_file_upload(
                     dispute_id: dispute_id.to_string(),
                 })?;
             let connector_data = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
                 &dispute.connector,
                 api::GetToken::Connector,
             )?;
@@ -163,8 +164,11 @@ pub async fn retrieve_file_from_connector(
             .attach_printable("Missing file upload provider")?,
     )?
     .to_string();
-    let connector_data =
-        api::ConnectorData::get_connector_by_name(connector, api::GetToken::Connector)?;
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        connector,
+        api::GetToken::Connector,
+    )?;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api::Retrieve,
@@ -288,6 +292,7 @@ pub async fn upload_and_get_provider_provider_file_id_connector_label(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound { dispute_id })?;
             let connector_data = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
                 &dispute.connector,
                 api::GetToken::Connector,
             )?;

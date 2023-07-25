@@ -328,8 +328,11 @@ pub trait PaymentRedirectFlow: Sync {
                 field_name: "payment_id",
             })?;
 
-        let connector_data =
-            api::ConnectorData::get_connector_by_name(&connector, api::GetToken::Connector)?;
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            &connector,
+            api::GetToken::Connector,
+        )?;
 
         let flow_type = connector_data
             .connector
@@ -760,6 +763,7 @@ where
     match connector_name {
         Some(connector_name) => {
             let connector = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
                 &connector_name,
                 api::GetToken::Connector,
             )?;
@@ -1417,10 +1421,13 @@ where
     F: Send + Clone,
 {
     if let Some(ref connector_name) = payment_data.payment_attempt.connector {
-        let connector_data =
-            api::ConnectorData::get_connector_by_name(connector_name, api::GetToken::Connector)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("invalid connector name received in payment attempt")?;
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            connector_name,
+            api::GetToken::Connector,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("invalid connector name received in payment attempt")?;
 
         return Ok(api::ConnectorCallType::Single(connector_data));
     }
@@ -1464,16 +1471,19 @@ where
 }
 
 pub fn decide_connector(
-    _state: &AppState,
+    state: &AppState,
     merchant_account: &domain::MerchantAccount,
     request_straight_through: Option<api::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
 ) -> RouterResult<api::ConnectorCallType> {
     if let Some(ref connector_name) = routing_data.routed_through {
-        let connector_data =
-            api::ConnectorData::get_connector_by_name(connector_name, api::GetToken::Connector)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Invalid connector name received in 'routed_through'")?;
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            connector_name,
+            api::GetToken::Connector,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Invalid connector name received in 'routed_through'")?;
 
         return Ok(api::ConnectorCallType::Single(connector_data));
     }
@@ -1483,10 +1493,13 @@ pub fn decide_connector(
             api::StraightThroughAlgorithm::Single(conn) => conn.to_string(),
         };
 
-        let connector_data =
-            api::ConnectorData::get_connector_by_name(&connector_name, api::GetToken::Connector)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Invalid connector name received in routing algorithm")?;
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            &connector_name,
+            api::GetToken::Connector,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Invalid connector name received in routing algorithm")?;
 
         routing_data.routed_through = Some(connector_name);
         routing_data.algorithm = Some(routing_algorithm);
@@ -1498,10 +1511,13 @@ pub fn decide_connector(
             api::StraightThroughAlgorithm::Single(conn) => conn.to_string(),
         };
 
-        let connector_data =
-            api::ConnectorData::get_connector_by_name(&connector_name, api::GetToken::Connector)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Invalid connector name received in routing algorithm")?;
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            &connector_name,
+            api::GetToken::Connector,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Invalid connector name received in routing algorithm")?;
 
         routing_data.routed_through = Some(connector_name);
         return Ok(api::ConnectorCallType::Single(connector_data));
@@ -1522,10 +1538,13 @@ pub fn decide_connector(
         api::RoutingAlgorithm::Single(conn) => conn.to_string(),
     };
 
-    let connector_data =
-        api::ConnectorData::get_connector_by_name(&connector_name, api::GetToken::Connector)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Routing algorithm gave invalid connector")?;
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector_name,
+        api::GetToken::Connector,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Routing algorithm gave invalid connector")?;
 
     routing_data.routed_through = Some(connector_name);
 

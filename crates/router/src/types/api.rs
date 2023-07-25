@@ -256,10 +256,11 @@ impl PayoutConnectorData {
 
 impl ConnectorData {
     pub fn get_connector_by_name(
+        connectors: &Connectors,
         name: &str,
         connector_type: GetToken,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
-        let connector = Self::convert_connector(name)?;
+        let connector = Self::convert_connector(connectors, name)?;
         let connector_name = api_enums::Connector::from_str(name)
             .into_report()
             .change_context(errors::ConnectorError::InvalidConnectorName)
@@ -273,6 +274,7 @@ impl ConnectorData {
     }
 
     pub fn convert_connector(
+        _connectors: &Connectors,
         connector_name: &str,
     ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
         match enums::Connector::from_str(connector_name) {

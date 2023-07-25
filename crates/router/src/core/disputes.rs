@@ -104,8 +104,11 @@ pub async fn accept_dispute(
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
-    let connector_data =
-        api::ConnectorData::get_connector_by_name(&dispute.connector, api::GetToken::Connector)?;
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &dispute.connector,
+        api::GetToken::Connector,
+    )?;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api::Accept,
@@ -214,7 +217,7 @@ pub async fn submit_evidence(
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
     let connector_data =
-        api::ConnectorData::get_connector_by_name(&dispute.connector, api::GetToken::Connector)?;
+        api::ConnectorData::get_connector_by_name( &state.conf.connectors,&dispute.connector, api::GetToken::Connector)?;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         api::Evidence,

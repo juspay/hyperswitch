@@ -642,12 +642,15 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
         )],
     );
 
-    let connector =
-        api::ConnectorData::get_connector_by_name(connector_name, api::GetToken::Connector)
-            .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "invalid connnector name received".to_string(),
-            })
-            .attach_printable("Failed construction of ConnectorData")?;
+    let connector = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        connector_name,
+        api::GetToken::Connector,
+    )
+    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+        message: "invalid connnector name received".to_string(),
+    })
+    .attach_printable("Failed construction of ConnectorData")?;
 
     let connector = connector.connector;
     let mut request_details = api::IncomingWebhookRequestDetails {
