@@ -149,7 +149,11 @@ impl TryFrom<api_models::payments::PayLaterData> for DummyConnectorPayLater {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let payment_method_data: Result<PaymentMethodData, _> = match item.request.payment_method_data.clone() {
+        let payment_method_data: Result<PaymentMethodData, _> = match item
+            .request
+            .payment_method_data
+            .clone()
+        {
             api::PaymentMethodData::Card(req_card) => Ok(PaymentMethodData::Card(req_card.into())),
             api::PaymentMethodData::Wallet(wallet_data) => {
                 Ok(PaymentMethodData::Wallet(wallet_data.try_into()?))

@@ -5,11 +5,11 @@ use router_env::{instrument, tracing};
 use super::app;
 use crate::services::{api, authentication as auth};
 
+mod consts;
 mod core;
 mod errors;
 mod types;
 mod utils;
-mod consts;
 
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
 pub async fn dummy_connector_authorize_payment(
@@ -62,7 +62,10 @@ pub async fn dummy_connector_payment(
     json_payload: web::Json<serde_json::Value>,
 ) -> impl actix_web::Responder {
     println!("payment request is: {:#?}", json_payload);
-    let payload: types::DummyConnectorPaymentRequest = json_payload.clone().parse_value("DummyconnectorPaymentRequest").unwrap();
+    let payload: types::DummyConnectorPaymentRequest = json_payload
+        .clone()
+        .parse_value("DummyconnectorPaymentRequest")
+        .unwrap();
     let flow = types::Flow::DummyPaymentCreate;
     api::server_wrap(
         flow,
