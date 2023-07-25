@@ -8,12 +8,12 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["dummy_connector"]
+default = ["dummy_connector", "payouts"]
 dummy_connector = ["api_models/dummy_connector"]
-
+payouts = []
 
 [dependencies]
-clap = { version = "4.3.2", default-features = false, features = ["std", "derive", "help", "usage", "cargo"] }
+clap = { version = "4.3.2", default-features = false, features = ["derive"] }
 serde = { version = "1.0.163", features = ["derive"] }
 serde_json = "1.0.96"
 serde_path_to_error = "0.1.11"
