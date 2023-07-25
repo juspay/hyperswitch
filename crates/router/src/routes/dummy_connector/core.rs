@@ -1,8 +1,6 @@
 use app::AppState;
 use common_utils::generate_id_with_default_len;
-use error_stack::{report, ResultExt};
-use rand::Rng;
-use tokio::time as tokio;
+use error_stack::ResultExt;
 
 use super::{errors, types, utils};
 use crate::{
@@ -154,17 +152,7 @@ pub async fn refund_payment(
     let mut payment_data =
         utils::get_payment_data_from_payment_id(state, payment_id.clone()).await?;
 
-    if payment_data.eligible_amount < req.amount {
-        return Err(
-            report!(errors::DummyConnectorErrors::RefundAmountExceedsPaymentAmount)
-                .attach_printable("Eligible amount is lesser than refund amount"),
-        );
-    }
-
-    if payment_data.status != types::DummyConnectorStatus::Succeeded {
-        return Err(report!(errors::DummyConnectorErrors::PaymentNotSuccessful)
-            .attach_printable("Payment is not successful to process the refund"));
-    }
+    payment_data.is_eligible_for_refund(req.amount)?;
 
     let refund_id = generate_id_with_default_len(consts::REFUND_ID_PREFIX);
     payment_data.eligible_amount -= req.amount;

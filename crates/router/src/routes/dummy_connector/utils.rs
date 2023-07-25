@@ -4,6 +4,7 @@ use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::PeekInterface;
 use maud::html;
+use rand::Rng;
 use tokio::time as tokio;
 
 use super::{consts, errors, types};

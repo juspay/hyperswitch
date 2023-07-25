@@ -1,11 +1,12 @@
 use api_models::enums::Currency;
 use common_utils::{errors::CustomResult, generate_id_with_default_len};
+use error_stack::report;
 use masking::Secret;
 use router_env::types::FlowMetric;
 use strum::Display;
 use time::PrimitiveDateTime;
 
-use super::{errors::DummyConnectorErrors, consts};
+use super::{consts, errors::DummyConnectorErrors};
 use crate::services;
 
 #[derive(Debug, Display, Clone, PartialEq, Eq)]
@@ -155,25 +156,20 @@ pub struct DummyConnectorPaymentData {
     pub return_url: Option<String>,
 }
 
-// impl Default for DummyConnectorPaymentData {
-//     fn default() -> Self {
-//         Self {
-//             attempt_id: String::new(),
-//             payment_id: String::new(),
-//             status: DummyConnectorStatus::Processing,
-//             amount: 0,
-//             eligible_amount: 0,
-//             currency: Currency::USD,
-//             created: common_utils::date_time::now(),
-//             payment_method_type: PaymentMethodType::Card,
-//             next_action: None,
-//             return_url: None,
-//         }
-//     }
-// }
-//
 impl DummyConnectorPaymentData {
-    fn from_payment_attempt(payment_attempt: DummyConnectorPaymentAttempt) -> Self {}
+    pub fn is_eligible_for_refund(&self, refund_amount: i64) -> DummyConnectorResult<()> {
+        if self.eligible_amount < refund_amount {
+            return Err(
+                report!(DummyConnectorErrors::RefundAmountExceedsPaymentAmount)
+                    .attach_printable("Eligible amount is lesser than refund amount"),
+            );
+        }
+
+        if self.status != DummyConnectorStatus::Succeeded {
+            return Err(report!(DummyConnectorErrors::PaymentNotSuccessful)
+                .attach_printable("Payment is not successful to process the refund"));
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
