@@ -812,6 +812,7 @@ pub struct BluesnapAuthErrorResponse {
 pub enum BluesnapErrors {
     PaymentError(BluesnapErrorResponse),
     AuthError(BluesnapAuthErrorResponse),
+    GeneralError(String),
 }
 
 fn get_card_holder_info(
