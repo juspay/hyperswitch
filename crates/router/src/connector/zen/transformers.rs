@@ -223,7 +223,10 @@ impl
         let (item, voucher_data) = value;
         let browser_info = item.request.get_browser_info()?;
         let ip = browser_info.get_ip_address()?;
-        let amount = utils::to_currency_base_unit(item.request.amount, item.request.currency)?;
+        let mut amount = utils::to_currency_base_unit(item.request.amount, item.request.currency)?;
+        if item.request.currency.is_zero_decimal_currency() {
+            amount.truncate(amount.len() - 3);
+        }
         let payment_specific_data =
             ZenPaymentSpecificData::ZenGeneralPayment(ZenGeneralPaymentData {
                 //Connector Specific for Latam Methods
@@ -528,10 +531,14 @@ fn get_item_object(
     order_details
         .iter()
         .map(|data| {
+            let mut price = utils::to_currency_base_unit(data.amount, item.request.currency)?;
+            if item.request.currency.is_zero_decimal_currency() {
+                price.truncate(price.len() - 3);
+            }
             Ok(ZenItemObject {
                 name: data.product_name.clone(),
                 quantity: data.quantity,
-                price: utils::to_currency_base_unit(data.amount, item.request.currency)?,
+                price,
                 line_amount_total: (f64::from(data.quantity)
                     * utils::to_currency_base_unit_asf64(data.amount, item.request.currency)?)
                 .to_string(),

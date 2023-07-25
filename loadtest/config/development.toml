@@ -157,6 +157,18 @@ cards = [
     "zen",
 ]
 
+[pm_filters.zen]
+credit = { not_available_flows = { capture_method = "manual" } }
+debit = { not_available_flows = { capture_method = "manual" } }
+boleto = { country = "BR", currency = "BRL" }
+efecty = { country = "CO", currency = "COP" }
+multibanco = { country = "PT", currency = "EUR" }
+pago_efectivo = { country = "PE", currency = "PEN" }
+pse = { country = "CO", currency = "COP" }
+pix = { country = "BR", currency = "BRL" }
+red_compra = { country = "CL", currency = "CLP" }
+red_pagos = { country = "UY", currency = "UYU" }
+
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
