@@ -474,7 +474,9 @@ Once you're done with configuring the application, proceed with
      than the provided default, update the `data` field present
      in the `routing_algorithm` field to your liking.
 
-   Click on the "Send" button to create a merchant account.
+   Click on the "Send" button to create a merchant account
+   (You may need to "create a fork" to fork this collection to your own
+   workspace to send a request).
    You should obtain a response containing most of the data included in the
    request, along with some additional fields.
    Store the merchant ID and publishable key returned in the response.

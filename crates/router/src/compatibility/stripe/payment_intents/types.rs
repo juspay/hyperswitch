@@ -257,13 +257,18 @@ pub struct StripePaymentIntentRequest {
     pub confirmation_method: Option<String>,                 // not used
     pub error_on_requires_action: Option<String>,            // not used
     pub radar_options: Option<SecretSerdeValue>,             // not used
+    pub connector_metadata: Option<payments::ConnectorMetadata>,
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripePaymentIntentRequest) -> errors::RouterResult<Self> {
         let routable_connector: Option<api_enums::RoutableConnectors> =
-            item.connector.and_then(|v| v.into_iter().next());
+            item.connector.and_then(|v| {
+                v.into_iter()
+                    .next()
+                    .map(api_enums::RoutableConnectors::from)
+            });
 
         let routing = routable_connector
             .map(crate::types::api::RoutingAlgorithm::Single)
@@ -355,7 +360,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("convert to browser info failed")?,
             ),
-
+            connector_metadata: item.connector_metadata,
             ..Self::default()
         });
         request
@@ -762,7 +767,9 @@ pub enum StripeNextAction {
         session_token: Option<payments::SessionToken>,
     },
     QrCodeInformation {
+        /// Hyperswitch generated image data source url
         image_data_url: Option<url::Url>,
+        /// The url for Qr code given by the connector
         qr_code_url: Option<url::Url>,
     },
 }
