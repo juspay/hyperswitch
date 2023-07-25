@@ -108,10 +108,8 @@ impl TryFrom<api_models::payments::WalletData> for DummyConnectorWallet {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: api_models::payments::WalletData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::WalletData::GooglePayRedirect(_) => {
-                Ok(DummyConnectorWallet::GooglePay)
-            }
-            api_models::payments::WalletData::PaypalRedirect(_) => Ok(DummyConnectorWallet::Paypal),
+            api_models::payments::WalletData::GooglePayRedirect(_) => Ok(Self::GooglePay),
+            api_models::payments::WalletData::PaypalRedirect(_) => Ok(Self::Paypal),
             api_models::payments::WalletData::WeChatPay(_) => Ok(Self::WeChatPay),
             api_models::payments::WalletData::MbWayRedirect(_) => Ok(Self::MbWay),
             api_models::payments::WalletData::AliPayRedirect(_) => Ok(Self::AliPay),
@@ -149,7 +147,7 @@ impl TryFrom<api_models::payments::PayLaterData> for DummyConnectorPayLater {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let payment_method_data: Result<PaymentMethodData, _> = match item
+        let payment_method_data: Result<PaymentMethodData, Self::Error> = match item
             .request
             .payment_method_data
             .clone()
@@ -170,12 +168,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequ
             return_url: item.request.router_return_url.clone(),
         })
     }
-}
-
-pub struct DummyconnectorPaymentAttempt {
-    request: DummyConnectorPaymentsRequest,
-    attempt_id: String,
-    payment_id: String,
 }
 
 // Auth Struct
@@ -264,6 +256,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentsResponse, T, types::Paym
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum DummyConnectorNextAction {
     RedirectToUrl(Url),
 }

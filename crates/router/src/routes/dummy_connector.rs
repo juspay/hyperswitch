@@ -59,13 +59,9 @@ pub async fn dummy_connector_complete_payment(
 pub async fn dummy_connector_payment(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    json_payload: web::Json<serde_json::Value>,
+    json_payload: web::Json<types::DummyConnectorPaymentRequest>,
 ) -> impl actix_web::Responder {
-    println!("payment request is: {:#?}", json_payload);
-    let payload: types::DummyConnectorPaymentRequest = json_payload
-        .clone()
-        .parse_value("DummyconnectorPaymentRequest")
-        .unwrap();
+    let payload = json_payload.into_inner();
     let flow = types::Flow::DummyPaymentCreate;
     api::server_wrap(
         flow,

@@ -119,10 +119,6 @@ pub struct DummyConnector;
 impl DummyConnector {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/dummy-connector").app_data(web::Data::new(state));
-        #[cfg(not(feature = "external_access_dc"))]
-        {
-            route = route.guard(actix_web::guard::Host("localhost"));
-        }
         route = route
             .service(
                 web::resource("/authorize/{attempt_id}")
@@ -132,17 +128,31 @@ impl DummyConnector {
                 web::resource("/complete/{attempt_id}")
                     .route(web::get().to(dummy_connector_complete_payment)),
             )
-            .service(web::resource("/payment").route(web::post().to(dummy_connector_payment)))
             .service(
-                web::resource("/payments/{payment_id}")
-                    .route(web::get().to(dummy_connector_payment_data)),
+                web::resource("/payment")
+                    .route(web::post().to(dummy_connector_payment))
+                    .guard(actix_web::guard::Host("localhost")),
             )
             .service(
-                web::resource("/{payment_id}/refund").route(web::post().to(dummy_connector_refund)),
+                web::resource("/payments/{payment_id}").route(
+                    web::get()
+                        .to(dummy_connector_payment_data)
+                        .guard(actix_web::guard::Host("localhost")),
+                ),
             )
             .service(
-                web::resource("/refunds/{refund_id}")
-                    .route(web::get().to(dummy_connector_refund_data)),
+                web::resource("/{payment_id}/refund").route(
+                    web::post()
+                        .to(dummy_connector_refund)
+                        .guard(actix_web::guard::Host("localhost")),
+                ),
+            )
+            .service(
+                web::resource("/refunds/{refund_id}").route(
+                    web::get()
+                        .to(dummy_connector_refund_data)
+                        .guard(actix_web::guard::Host("localhost")),
+                ),
             );
         route
     }

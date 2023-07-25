@@ -46,7 +46,7 @@ impl From<DummyConnectorPaymentRequest> for DummyConnectorPaymentAttempt {
         let timestamp = common_utils::date_time::now();
         let payment_id = generate_id_with_default_len(consts::PAYMENT_ID_PREFIX);
         let attempt_id = generate_id_with_default_len(consts::ATTEMPT_ID_PREFIX);
-        DummyConnectorPaymentAttempt {
+        Self {
             timestamp,
             attempt_id,
             payment_id,
@@ -81,13 +81,13 @@ impl DummyConnectorPaymentAttempt {
 pub struct DummyConnectorPaymentRequest {
     pub amount: i64,
     pub currency: Currency,
-    pub payment_method_data: PaymentMethodData,
+    pub payment_method_data: DummyConnectorPaymentMethodData,
     pub return_url: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum PaymentMethodData {
+pub enum DummyConnectorPaymentMethodData {
     Card(DummyConnectorCard),
     Wallet(DummyConnectorWallet),
     PayLater(DummyConnectorPayLater),
@@ -97,19 +97,19 @@ pub enum PaymentMethodData {
     Default, serde::Serialize, serde::Deserialize, strum::Display, PartialEq, Debug, Clone,
 )]
 #[serde(rename_all = "lowercase")]
-pub enum PaymentMethodType {
+pub enum DummyConnectorPaymentMethodType {
     #[default]
     Card,
     Wallet(DummyConnectorWallet),
     PayLater(DummyConnectorPayLater),
 }
 
-impl From<PaymentMethodData> for PaymentMethodType {
-    fn from(value: PaymentMethodData) -> Self {
+impl From<DummyConnectorPaymentMethodData> for DummyConnectorPaymentMethodType {
+    fn from(value: DummyConnectorPaymentMethodData) -> Self {
         match value {
-            PaymentMethodData::Card(_) => Self::Card,
-            PaymentMethodData::Wallet(wallet) => Self::Wallet(wallet),
-            PaymentMethodData::PayLater(pay_later) => Self::PayLater(pay_later),
+            DummyConnectorPaymentMethodData::Card(_) => Self::Card,
+            DummyConnectorPaymentMethodData::Wallet(wallet) => Self::Wallet(wallet),
+            DummyConnectorPaymentMethodData::PayLater(pay_later) => Self::PayLater(pay_later),
         }
     }
 }
@@ -138,7 +138,11 @@ pub struct DummyConnectorCard {
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
     pub cvc: Secret<String>,
-    pub complete: bool,
+}
+
+pub enum DummyConnectorCardFlow {
+    NoThreeDS(DummyConnectorStatus, Option<DummyConnectorErrors>),
+    ThreeDS(DummyConnectorStatus, Option<DummyConnectorErrors>),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -151,7 +155,7 @@ pub struct DummyConnectorPaymentData {
     pub currency: Currency,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
-    pub payment_method_type: PaymentMethodType,
+    pub payment_method_type: DummyConnectorPaymentMethodType,
     pub next_action: Option<DummyConnectorNextAction>,
     pub return_url: Option<String>,
 }
@@ -164,15 +168,16 @@ impl DummyConnectorPaymentData {
                     .attach_printable("Eligible amount is lesser than refund amount"),
             );
         }
-
         if self.status != DummyConnectorStatus::Succeeded {
             return Err(report!(DummyConnectorErrors::PaymentNotSuccessful)
                 .attach_printable("Payment is not successful to process the refund"));
         }
+        Ok(())
     }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum DummyConnectorNextAction {
     RedirectToUrl(String),
 }
@@ -185,7 +190,7 @@ pub struct DummyConnectorPaymentResponse {
     pub currency: Currency,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
-    pub payment_method_type: PaymentMethodType,
+    pub payment_method_type: DummyConnectorPaymentMethodType,
     pub next_action: Option<DummyConnectorNextAction>,
 }
 
@@ -270,8 +275,3 @@ pub type DummyConnectorResponse<T> =
     CustomResult<services::ApplicationResponse<T>, DummyConnectorErrors>;
 
 pub type DummyConnectorResult<T> = CustomResult<T, DummyConnectorErrors>;
-
-pub enum DummyConnectorFlow {
-    NoThreeDS(DummyConnectorStatus, Option<DummyConnectorErrors>),
-    ThreeDS(DummyConnectorStatus, Option<DummyConnectorErrors>),
-}
