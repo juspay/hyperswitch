@@ -139,6 +139,8 @@ pub fn to_currency_base_unit(
 }
 
 /// Convert the amount to its base denomination based on Currency and check for zero decimal currency and return String
+/// Paypal Connector accepts Zero and Two decimal currency but not three decimal and it should be updated as required for 3 decimal currencies.
+/// Paypal Ref - https://developer.paypal.com/docs/reports/reference/paypal-supported-currencies/
 pub fn to_currency_base_unit_with_zero_decimal_check(
     amount: i64,
     currency: diesel_models::enums::Currency,
