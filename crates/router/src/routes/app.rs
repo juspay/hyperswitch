@@ -118,8 +118,26 @@ pub struct DummyConnector;
 #[cfg(feature = "dummy_connector")]
 impl DummyConnector {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/dummy-connector").app_data(web::Data::new(state));
-        route = route
+        let mut routes_with_restriced_access = web::scope("")
+            .service(web::resource("/payment").route(web::post().to(dummy_connector_payment)))
+            .service(
+                web::resource("/payments/{payment_id}")
+                    .route(web::get().to(dummy_connector_payment_data)),
+            )
+            .service(
+                web::resource("/{payment_id}/refund").route(web::post().to(dummy_connector_refund)),
+            )
+            .service(
+                web::resource("/refunds/{refund_id}")
+                    .route(web::get().to(dummy_connector_refund_data)),
+            );
+        #[cfg(not(feature = "external_access_dc"))]
+        {
+            routes_with_restriced_access =
+                routes_with_restriced_access.guard(actix_web::guard::Host("localhost"));
+        }
+        let route = web::scope("/dummy-connector")
+            .app_data(web::Data::new(state))
             .service(
                 web::resource("/authorize/{attempt_id}")
                     .route(web::get().to(dummy_connector_authorize_payment)),
@@ -128,32 +146,7 @@ impl DummyConnector {
                 web::resource("/complete/{attempt_id}")
                     .route(web::get().to(dummy_connector_complete_payment)),
             )
-            .service(
-                web::resource("/payment")
-                    .route(web::post().to(dummy_connector_payment))
-                    .guard(actix_web::guard::Host("localhost")),
-            )
-            .service(
-                web::resource("/payments/{payment_id}").route(
-                    web::get()
-                        .to(dummy_connector_payment_data)
-                        .guard(actix_web::guard::Host("localhost")),
-                ),
-            )
-            .service(
-                web::resource("/{payment_id}/refund").route(
-                    web::post()
-                        .to(dummy_connector_refund)
-                        .guard(actix_web::guard::Host("localhost")),
-                ),
-            )
-            .service(
-                web::resource("/refunds/{refund_id}").route(
-                    web::get()
-                        .to(dummy_connector_refund_data)
-                        .guard(actix_web::guard::Host("localhost")),
-                ),
-            );
+            .service(routes_with_restriced_access);
         route
     }
 }
