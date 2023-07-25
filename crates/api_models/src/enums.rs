@@ -43,19 +43,6 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
-    Aci,
-    Adyen,
-    Airwallex,
-    Authorizedotnet,
-    Bitpay,
-    Bluesnap,
-    Braintree,
-    Cashtocode,
-    Checkout,
-    Coinbase,
-    Cryptopay,
-    Cybersource,
-    Iatapay,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
@@ -84,12 +71,26 @@ pub enum Connector {
     #[serde(rename = "paypal_test")]
     #[strum(serialize = "paypal_test")]
     DummyConnector7,
+    Aci,
+    Adyen,
+    Airwallex,
+    Authorizedotnet,
+    Bitpay,
     Bambora,
+    Bluesnap,
+    // Boku, added as template code for future usage
+    Braintree,
+    Cashtocode,
+    Checkout,
+    Coinbase,
+    Cryptopay,
+    Cybersource,
     Dlocal,
     Fiserv,
     Forte,
     Globalpay,
     Globepay,
+    Iatapay,
     Klarna,
     Mollie,
     Multisafepay,
@@ -106,9 +107,12 @@ pub enum Connector {
     Powertranz,
     Rapyd,
     Shift4,
+    Stax,
     Stripe,
     Trustpay,
+    // Tsys,
     Tsys,
+    Wise,
     Worldline,
     Worldpay,
     Zen,
@@ -151,6 +155,7 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
+    Stax,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
@@ -186,6 +191,7 @@ pub enum RoutableConnectors {
     Bitpay,
     Bambora,
     Bluesnap,
+    // Boku, added as template code for future usage
     Braintree,
     Cashtocode,
     Checkout,
@@ -216,10 +222,43 @@ pub enum RoutableConnectors {
     Shift4,
     Stripe,
     Trustpay,
+    // Tsys,
     Tsys,
+    Wise,
     Worldline,
     Worldpay,
     Zen,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutConnectors {
+    Adyen,
+    Wise,
+}
+
+#[cfg(feature = "payouts")]
+impl From<PayoutConnectors> for RoutableConnectors {
+    fn from(value: PayoutConnectors) -> Self {
+        match value {
+            PayoutConnectors::Adyen => Self::Adyen,
+            PayoutConnectors::Wise => Self::Wise,
+        }
+    }
 }
 
 /// Name of banks supported by Hyperswitch
@@ -240,12 +279,21 @@ pub enum RoutableConnectors {
 #[serde(rename_all = "snake_case")]
 pub enum BankNames {
     AmericanExpress,
+    AffinBank,
+    AgroBank,
+    AllianceBank,
+    AmBank,
     BankOfAmerica,
+    BankIslam,
+    BankMuamalat,
+    BankRakyat,
+    BankSimpananNasional,
     Barclays,
     BlikPSP,
     CapitalOne,
     Chase,
     Citi,
+    CimbBank,
     Discover,
     NavyFederalCreditUnion,
     PentagonFederalCreditUnion,
@@ -255,8 +303,11 @@ pub enum BankNames {
     AsnBank,
     Bunq,
     Handelsbanken,
+    HongLeongBank,
+    HsbcBank,
     Ing,
     Knab,
+    KuwaitFinanceHouse,
     Moneyou,
     Rabobank,
     Regiobank,
@@ -292,15 +343,20 @@ pub enum BankNames {
     KomercniBanka,
     MBank,
     MarchfelderBank,
+    Maybank,
     OberbankAg,
     OsterreichischeArzteUndApothekerbank,
+    OcbcBank,
     PayWithING,
     PlaceZIPKO,
     PlatnoscOnlineKartaPlatnicza,
     PosojilnicaBankEGen,
     PostovaBanka,
+    PublicBank,
     RaiffeisenBankengruppeOsterreich,
+    RhbBank,
     SchelhammerCapitalBankAg,
+    StandardCharteredBank,
     SchoellerbankAg,
     SpardaBankWien,
     SporoPay,
@@ -310,6 +366,7 @@ pub enum BankNames {
     VolksbankGruppe,
     VolkskreditbankAg,
     VrBankBraunau,
+    UobBank,
     PayWithAliorBank,
     BankiSpoldzielcze,
     PayWithInteligo,
@@ -340,6 +397,11 @@ pub enum BankNames {
     VolkswagenBank,
     AliorBank,
     Boz,
+    BangkokBank,
+    KrungsriBank,
+    KrungThaiBank,
+    TheSiamCommercialBank,
+    KasikornBank,
 }
 
 #[derive(

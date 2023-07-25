@@ -19,7 +19,7 @@ use super::{
     CustomerDetails, PaymentData,
 };
 use crate::{
-    configs::settings::Server,
+    configs::settings::{ConnectorRequestReferenceIdConfig, Server},
     consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
@@ -2067,6 +2067,7 @@ pub async fn insert_merchant_connector_creds_to_config(
     }
 }
 
+#[derive(Clone)]
 pub enum MerchantConnectorAccountType {
     DbVal(domain::MerchantConnectorAccount),
     CacheVal(api_models::admin::MerchantConnectorDetails),
@@ -2123,10 +2124,15 @@ pub async fn get_merchant_connector_account(
                 )?;
 
             #[cfg(feature = "kms")]
-            let private_key = state.kms_secrets.jwekey.peek().tunnel_private_key.clone();
+            let private_key = state
+                .kms_secrets
+                .jwekey
+                .peek()
+                .tunnel_private_key
+                .as_bytes();
 
             #[cfg(not(feature = "kms"))]
-            let private_key = state.conf.jwekey.tunnel_private_key.to_owned();
+            let private_key = state.conf.jwekey.tunnel_private_key.as_bytes();
 
             let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
                                      .await
@@ -2197,6 +2203,10 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         preprocessing_id: router_data.preprocessing_id,
         recurring_mandate_payment_data: router_data.recurring_mandate_payment_data,
         connector_request_reference_id: router_data.connector_request_reference_id,
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
         test_mode: router_data.test_mode,
     }
 }
@@ -2431,8 +2441,10 @@ impl AttemptType {
 pub fn is_manual_retry_allowed(
     intent_status: &storage_enums::IntentStatus,
     attempt_status: &storage_enums::AttemptStatus,
+    connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+    merchant_id: &str,
 ) -> Option<bool> {
-    match intent_status {
+    let is_payment_status_eligible_for_retry = match intent_status {
         enums::IntentStatus::Failed => match attempt_status {
             enums::AttemptStatus::Started
             | enums::AttemptStatus::AuthenticationPending
@@ -2472,7 +2484,12 @@ pub fn is_manual_retry_allowed(
         | enums::IntentStatus::RequiresMerchantAction
         | enums::IntentStatus::RequiresPaymentMethod
         | enums::IntentStatus::RequiresConfirmation => None,
-    }
+    };
+    let is_merchant_id_enabled_for_retries = !connector_request_reference_id_config
+        .merchant_ids_send_payment_id_as_connector_request_id
+        .contains(merchant_id);
+    is_payment_status_eligible_for_retry
+        .map(|payment_status_check| payment_status_check && is_merchant_id_enabled_for_retries)
 }
 
 #[cfg(test)]
@@ -2615,17 +2632,8 @@ pub fn validate_customer_access(
     request: &api::PaymentsRequest,
 ) -> Result<(), errors::ApiErrorResponse> {
     if auth_flow == services::AuthFlow::Client && request.customer_id.is_some() {
-        let is_not_same_customer = request
-            .clone()
-            .customer_id
-            .and_then(|customer| {
-                payment_intent
-                    .clone()
-                    .customer_id
-                    .map(|payment_customer| payment_customer != customer)
-            })
-            .unwrap_or(false);
-        if is_not_same_customer {
+        let is_same_customer = request.customer_id == payment_intent.customer_id;
+        if !is_same_customer {
             Err(errors::ApiErrorResponse::GenericUnauthorized {
                 message: "Unauthorised access to update customer".to_string(),
             })?;

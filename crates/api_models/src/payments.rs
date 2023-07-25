@@ -644,8 +644,13 @@ pub enum PayLaterData {
         #[schema(value_type = String)]
         billing_name: Secret<String>,
     },
+    /// For PayBright Redirect as PayLater Option
     PayBrightRedirect {},
+    /// For WalleyRedirect as PayLater Option
     WalleyRedirect {},
+    /// For Alma Redirection as PayLater Option
+    AlmaRedirect {},
+    AtomeRedirect {},
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
@@ -860,6 +865,15 @@ pub enum BankRedirectData {
         #[schema(value_type = CountryAlpha2, example = "US")]
         country: api_enums::CountryAlpha2,
     },
+    OnlineBankingFpx {
+        // Issuer banks
+        #[schema(value_type = BankNames)]
+        issuer: api_enums::BankNames,
+    },
+    OnlineBankingThailand {
+        #[schema(value_type = BankNames)]
+        issuer: api_enums::BankNames,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -938,6 +952,7 @@ pub enum BankTransferData {
         /// The billing details for Multibanco
         billing_details: MultibancoBillingDetails,
     },
+    Pix {},
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
@@ -961,14 +976,22 @@ pub enum WalletData {
     AliPayRedirect(AliPayRedirection),
     /// The wallet data for Ali Pay HK redirect
     AliPayHkRedirect(AliPayHkRedirection),
+    /// The wallet data for Momo redirect
+    MomoRedirect(MomoRedirection),
+    /// The wallet data for KakaoPay redirect
+    KakaoPayRedirect(KakaoPayRedirection),
     /// The wallet data for GoPay redirect
     GoPayRedirect(GoPayRedirection),
+    /// The wallet data for Gcash redirect
+    GcashRedirect(GcashRedirection),
     /// The wallet data for Apple pay
     ApplePay(ApplePayWalletData),
     /// Wallet data for apple pay redirect flow
     ApplePayRedirect(Box<ApplePayRedirectData>),
     /// Wallet data for apple pay third party sdk flow
     ApplePayThirdPartySdk(Box<ApplePayThirdPartySdkData>),
+    /// Wallet data for DANA redirect flow
+    DanaRedirect {},
     /// The wallet data for Google pay
     GooglePay(GooglePayWalletData),
     /// Wallet data for google pay redirect flow
@@ -984,6 +1007,12 @@ pub enum WalletData {
     PaypalSdk(PayPalWalletData),
     /// The wallet data for Samsung Pay
     SamsungPay(Box<SamsungPayWalletData>),
+    /// Wallet data for Twint Redirection
+    TwintRedirect {},
+    /// Wallet data for Vipps Redirection
+    VippsRedirect {},
+    /// The wallet data for Touch n Go Redirection
+    TouchNGoRedirect(Box<TouchNGoRedirection>),
     /// The wallet data for WeChat Pay Redirection
     WeChatPayRedirect(Box<WeChatPayRedirection>),
     /// The wallet data for WeChat Pay
@@ -1048,7 +1077,16 @@ pub struct AliPayRedirection {}
 pub struct AliPayHkRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct MomoRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct KakaoPayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GoPayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GcashRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MobilePayRedirection {}
@@ -1074,6 +1112,9 @@ pub struct PayPalWalletData {
     /// Token generated for the Apple pay
     pub token: String,
 }
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct TouchNGoRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GpayTokenizationData {
@@ -1291,8 +1332,12 @@ pub enum NextActionData {
     ThirdPartySdkSessionToken { session_token: Option<SessionToken> },
     /// Contains url for Qr code image, this qr code has to be shown in sdk
     QrCodeInformation {
+        /// Hyperswitch generated image data source url
         #[schema(value_type = String)]
-        image_data_url: Url,
+        image_data_url: Option<Url>,
+        /// The url for Qr code given by the connector
+        #[schema(value_type = String)]
+        qr_code_url: Option<Url>,
     },
 }
 
@@ -1307,7 +1352,10 @@ pub struct BankTransferNextStepsData {
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct QrCodeNextStepsInstruction {
-    pub image_data_url: Url,
+    /// Hyperswitch generated image data source url
+    pub image_data_url: Option<Url>,
+    /// The url for Qr code given by the connector
+    pub qr_code_url: Option<Url>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -2369,7 +2417,7 @@ mod payment_id_type {
     }
 }
 
-mod amount {
+pub mod amount {
     use serde::de;
 
     use super::Amount;
