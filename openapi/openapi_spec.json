@@ -3197,6 +3197,17 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix"
+            ],
+            "properties": {
+              "pix": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -6249,11 +6260,17 @@
             "description": "Contains url for Qr code image, this qr code has to be shown in sdk",
             "required": [
               "image_data_url",
+              "qr_code_url",
               "type"
             ],
             "properties": {
               "image_data_url": {
-                "type": "string"
+                "type": "string",
+                "description": "Hyperswitch generated image data source url"
+              },
+              "qr_code_url": {
+                "type": "string",
+                "description": "The url for Qr code given by the connector"
               },
               "type": {
                 "type": "string",
@@ -7232,6 +7249,7 @@
           "online_banking_slovakia",
           "pay_bright",
           "paypal",
+          "pix",
           "przelewy24",
           "samsung_pay",
           "sepa",
