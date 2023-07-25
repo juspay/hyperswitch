@@ -22,6 +22,15 @@ impl utils::Connector for AdyenTest {
         }
     }
 
+    fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
+        use router::connector::Adyen;
+        Some(types::api::PayoutConnectorData {
+            connector: Box::new(&Adyen),
+            connector_name: types::PayoutConnectors::Adyen,
+            get_token: types::api::GetToken::Connector,
+        })
+    }
+
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         types::ConnectorAuthType::from(
             connector_auth::ConnectorAuthentication::new()
@@ -42,12 +51,59 @@ impl AdyenTest {
                 billing: Some(Address {
                     address: Some(AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::US),
+                        state: Some(Secret::new("California".to_string())),
+                        city: Some("San Francisco".to_string()),
+                        zip: Some(Secret::new("94122".to_string())),
+                        line1: Some(Secret::new("1467".to_string())),
+                        line2: Some(Secret::new("Harrison Street".to_string())),
                         ..Default::default()
                     }),
                     phone: None,
                 }),
                 ..Default::default()
             }),
+            ..Default::default()
+        })
+    }
+
+    fn get_payout_info(payout_type: enums::PayoutType) -> Option<PaymentInfo> {
+        Some(PaymentInfo {
+            country: Some(api_models::enums::CountryAlpha2::NL),
+            currency: Some(enums::Currency::EUR),
+            address: Some(PaymentAddress {
+                billing: Some(Address {
+                    address: Some(AddressDetails {
+                        country: Some(api_models::enums::CountryAlpha2::US),
+                        state: Some(Secret::new("California".to_string())),
+                        city: Some("San Francisco".to_string()),
+                        zip: Some(Secret::new("94122".to_string())),
+                        line1: Some(Secret::new("1467".to_string())),
+                        line2: Some(Secret::new("Harrison Street".to_string())),
+                        ..Default::default()
+                    }),
+                    phone: None,
+                }),
+                ..Default::default()
+            }),
+            payout_method_data: match payout_type {
+                enums::PayoutType::Card => {
+                    Some(api::PayoutMethodData::Card(api::payouts::CardPayout {
+                        card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
+                        expiry_month: Secret::new("3".to_string()),
+                        expiry_year: Secret::new("2030".to_string()),
+                        card_holder_name: Secret::new("John Doe".to_string()),
+                    }))
+                }
+                enums::PayoutType::Bank => Some(api::PayoutMethodData::Bank(
+                    api::payouts::BankPayout::Sepa(api::SepaBankTransfer {
+                        iban: "NL46TEST0136169112".to_string().into(),
+                        bic: Some("ABNANL2A".to_string().into()),
+                        bank_name: "Deutsche Bank".to_string(),
+                        bank_country_code: enums::CountryAlpha2::NL,
+                        bank_city: "Amsterdam".to_string(),
+                    }),
+                )),
+            },
             ..Default::default()
         })
     }
@@ -455,6 +511,83 @@ async fn should_fail_capture_for_invalid_payment() {
         capture_response.response.unwrap_err().message,
         String::from("Original pspReference required for this operation")
     );
+}
+
+/******************** Payouts test cases ********************/
+// Create SEPA payout
+#[ignore]
+#[cfg(feature = "payouts")]
+#[actix_web::test]
+async fn should_create_sepa_payout() {
+    let payout_type = enums::PayoutType::Bank;
+    let payout_info = AdyenTest::get_payout_info(payout_type);
+    let response = CONNECTOR
+        .create_payout(None, payout_type, payout_info)
+        .await
+        .expect("Payout bank creation response");
+    assert_eq!(
+        response.status.unwrap(),
+        enums::PayoutStatus::RequiresFulfillment
+    );
+}
+
+// Create and fulfill SEPA payout
+#[ignore]
+#[cfg(feature = "payouts")]
+#[actix_web::test]
+async fn should_create_and_fulfill_sepa_payout() {
+    let payout_type = enums::PayoutType::Bank;
+    let payout_info = AdyenTest::get_payout_info(payout_type);
+    let response = CONNECTOR
+        .create_and_fulfill_payout(None, payout_type, payout_info)
+        .await
+        .expect("Payout bank creation and fulfill response");
+    assert_eq!(response.status.unwrap(), enums::PayoutStatus::Success);
+}
+
+// Verifies if card is eligible for payout
+#[ignore]
+#[cfg(feature = "payouts")]
+#[actix_web::test]
+async fn should_verify_payout_eligibility() {
+    let payout_type = enums::PayoutType::Card;
+    let payout_info = AdyenTest::get_payout_info(payout_type);
+    let response = CONNECTOR
+        .verify_payout_eligibility(payout_type, payout_info)
+        .await
+        .expect("Payout eligibility response");
+    assert_eq!(
+        response.status.unwrap(),
+        enums::PayoutStatus::RequiresFulfillment
+    );
+}
+
+// Fulfills card payout
+#[ignore]
+#[cfg(feature = "payouts")]
+#[actix_web::test]
+async fn should_fulfill_card_payout() {
+    let payout_type = enums::PayoutType::Card;
+    let payout_info: Option<PaymentInfo> = AdyenTest::get_payout_info(payout_type);
+    let response = CONNECTOR
+        .fulfill_payout(None, payout_type, payout_info)
+        .await
+        .expect("Payout fulfill response");
+    assert_eq!(response.status.unwrap(), enums::PayoutStatus::Success);
+}
+
+// Cancels a created bank payout
+#[ignore]
+#[cfg(feature = "payouts")]
+#[actix_web::test]
+async fn should_create_and_cancel_created_payout() {
+    let payout_type = enums::PayoutType::Bank;
+    let payout_info = AdyenTest::get_payout_info(payout_type);
+    let response = CONNECTOR
+        .create_and_cancel_payout(None, payout_type, payout_info)
+        .await
+        .expect("Payout cancel response");
+    assert_eq!(response.status.unwrap(), enums::PayoutStatus::Cancelled);
 }
 
 // Connector dependent test cases goes here
