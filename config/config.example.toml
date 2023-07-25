@@ -183,7 +183,7 @@ opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
-paypal.base_url = "https://www.sandbox.paypal.com/"
+paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
@@ -304,6 +304,7 @@ refund_retrieve_tolerance = 100  # Fake delay tolerance for dummy connector refu
 
 [mandates.supported_payment_methods]
 card.credit = {connector_list = "stripe,adyen"}     # Mandate supported payment method type and connector for card
+wallet.paypal = {connector_list = "adyen"}          # Mandate supported payment method type and connector for wallets
 pay_later.klarna = {connector_list = "adyen"}       # Mandate supported payment method type and connector for pay_later
 
 # Required fields info used while listing the payment_method_data
