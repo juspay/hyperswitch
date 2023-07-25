@@ -416,7 +416,22 @@ impl Currency {
 
     pub fn is_zero_decimal_currency(self) -> bool {
         match self {
-            Self::JPY | Self::KRW => true,
+            Self::BIF
+            | Self::CLP
+            | Self::DJF
+            | Self::GNF
+            | Self::JPY
+            | Self::KMF
+            | Self::KRW
+            | Self::MGA
+            | Self::PYG
+            | Self::RWF
+            | Self::UGX
+            | Self::VND
+            | Self::VUV
+            | Self::XAF
+            | Self::XOF
+            | Self::XPF => true,
             Self::AED
             | Self::ALL
             | Self::AMD
@@ -519,7 +534,6 @@ impl Currency {
             | Self::USD
             | Self::UYU
             | Self::UZS
-            | Self::VND
             | Self::YER
             | Self::ZAR => false,
         }
@@ -538,6 +552,7 @@ impl Currency {
             | Self::AZN
             | Self::BBD
             | Self::BDT
+            | Self::BIF
             | Self::BMD
             | Self::BND
             | Self::BOB
@@ -547,11 +562,13 @@ impl Currency {
             | Self::BZD
             | Self::CAD
             | Self::CHF
+            | Self::CLP
             | Self::CNY
             | Self::COP
             | Self::CRC
             | Self::CUP
             | Self::CZK
+            | Self::DJF
             | Self::DKK
             | Self::DOP
             | Self::DZD
@@ -563,6 +580,7 @@ impl Currency {
             | Self::GHS
             | Self::GIP
             | Self::GMD
+            | Self::GNF
             | Self::GTQ
             | Self::GYD
             | Self::HKD
@@ -578,6 +596,7 @@ impl Currency {
             | Self::KES
             | Self::KGS
             | Self::KHR
+            | Self::KMF
             | Self::KRW
             | Self::KYD
             | Self::KZT
@@ -588,6 +607,7 @@ impl Currency {
             | Self::LSL
             | Self::MAD
             | Self::MDL
+            | Self::MGA
             | Self::MKD
             | Self::MMK
             | Self::MNT
@@ -608,9 +628,11 @@ impl Currency {
             | Self::PHP
             | Self::PKR
             | Self::PLN
+            | Self::PYG
             | Self::QAR
             | Self::RON
             | Self::RUB
+            | Self::RWF
             | Self::SAR
             | Self::SCR
             | Self::SEK
@@ -625,10 +647,15 @@ impl Currency {
             | Self::TTD
             | Self::TWD
             | Self::TZS
+            | Self::UGX
             | Self::USD
             | Self::UYU
             | Self::UZS
             | Self::VND
+            | Self::VUV
+            | Self::XAF
+            | Self::XPF
+            | Self::XOF
             | Self::YER
             | Self::ZAR => false,
         }
