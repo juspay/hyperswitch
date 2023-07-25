@@ -810,8 +810,9 @@ pub struct BluesnapAuthErrorResponse {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum BluesnapErrors {
-    PaymentError(BluesnapErrorResponse),
-    AuthError(BluesnapAuthErrorResponse),
+    Payment(BluesnapErrorResponse),
+    Auth(BluesnapAuthErrorResponse),
+    General(String),
 }
 
 fn get_card_holder_info(
