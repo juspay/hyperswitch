@@ -67,10 +67,8 @@ pub trait ConnectorCommon {
 
     fn validate_auth_type(
         &self,
-        _val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        Ok(())
-    }
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>>;
 
     // FIXME write doc - think about this
     // fn headers(&self) -> Vec<(&str, &str)>;
