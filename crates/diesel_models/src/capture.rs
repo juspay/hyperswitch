@@ -59,19 +59,19 @@ pub enum CaptureUpdate {
         status: storage_enums::CaptureStatus,
     },
     ResponseUpdate {
-        status: storage_enums::CaptureStatus,
+        status: Option<storage_enums::CaptureStatus>,
         connector: Option<String>,
         connector_transaction_id: Option<String>,
-        error_code: Option<Option<String>>,
-        error_message: Option<Option<String>>,
-        error_reason: Option<Option<String>>,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        error_reason: Option<String>,
     },
     ErrorUpdate {
         connector: Option<String>,
-        status: storage_enums::CaptureStatus,
-        error_code: Option<Option<String>>,
-        error_message: Option<Option<String>>,
-        error_reason: Option<Option<String>>,
+        status: Option<storage_enums::CaptureStatus>,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        error_reason: Option<String>,
     },
 }
 
@@ -79,11 +79,10 @@ pub enum CaptureUpdate {
 #[diesel(table_name = captures)]
 pub struct CaptureUpdateInternal {
     pub status: Option<storage_enums::CaptureStatus>,
-    pub currency: Option<Option<storage_enums::Currency>>,
-    pub connector: Option<Option<String>>,
-    pub error_message: Option<Option<String>>,
-    pub error_code: Option<Option<String>>,
-    pub error_reason: Option<Option<String>>,
+    pub connector: Option<String>,
+    pub error_message: Option<String>,
+    pub error_code: Option<String>,
+    pub error_reason: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
     pub capture_sequence: Option<i16>,
     pub connector_transaction_id: Option<String>,
@@ -94,11 +93,10 @@ impl CaptureUpdate {
         let capture_update: CaptureUpdateInternal = self.into();
         Capture {
             status: capture_update.status.unwrap_or(source.status),
-            currency: capture_update.currency.unwrap_or(source.currency),
-            connector: capture_update.connector.unwrap_or(source.connector),
-            error_message: capture_update.error_message.unwrap_or(source.error_message),
-            error_code: capture_update.error_code.unwrap_or(source.error_code),
-            error_reason: capture_update.error_reason.unwrap_or(source.error_reason),
+            connector: capture_update.connector.or(source.connector),
+            error_message: capture_update.error_message.or(source.error_message),
+            error_code: capture_update.error_code.or(source.error_code),
+            error_reason: capture_update.error_reason.or(source.error_reason),
             modified_at: common_utils::date_time::now(),
             capture_sequence: capture_update
                 .capture_sequence
@@ -110,10 +108,11 @@ impl CaptureUpdate {
 
 impl From<CaptureUpdate> for CaptureUpdateInternal {
     fn from(payment_attempt_child_update: CaptureUpdate) -> Self {
+        let now = Some(common_utils::date_time::now());
         match payment_attempt_child_update {
             CaptureUpdate::StatusUpdate { status } => Self {
                 status: Some(status),
-                modified_at: Some(common_utils::date_time::now()),
+                modified_at: now,
                 ..Self::default()
             },
             CaptureUpdate::ResponseUpdate {
@@ -124,13 +123,13 @@ impl From<CaptureUpdate> for CaptureUpdateInternal {
                 error_message,
                 error_reason,
             } => Self {
-                status: Some(status),
-                connector: Some(connector),
+                status,
+                connector,
                 connector_transaction_id,
                 error_code,
                 error_message,
                 error_reason,
-                modified_at: Some(common_utils::date_time::now()),
+                modified_at: now,
                 ..Self::default()
             },
             CaptureUpdate::ErrorUpdate {
@@ -140,12 +139,12 @@ impl From<CaptureUpdate> for CaptureUpdateInternal {
                 error_message,
                 error_reason,
             } => Self {
-                status: Some(status),
-                connector: Some(connector),
+                status,
+                connector,
                 error_code,
                 error_message,
                 error_reason,
-                modified_at: Some(common_utils::date_time::now()),
+                modified_at: now,
                 ..Self::default()
             },
         }

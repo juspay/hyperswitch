@@ -335,12 +335,12 @@ async fn capture_payment_response_update_tracker<F: Clone>(
                 Some(storage::CaptureUpdate::ErrorUpdate {
                     connector: None,
                     status: match err.status_code {
-                        500..=511 => storage::enums::CaptureStatus::Pending,
-                        _ => storage::enums::CaptureStatus::Failure,
+                        500..=511 => Some(storage::enums::CaptureStatus::Pending),
+                        _ => Some(storage::enums::CaptureStatus::Failure),
                     },
-                    error_message: Some(Some(err.message)),
-                    error_code: Some(Some(err.code)),
-                    error_reason: Some(err.reason),
+                    error_message: Some(err.message),
+                    error_code: Some(err.code),
+                    error_reason: err.reason,
                 }),
                 Some(storage::ConnectorResponseUpdate::ErrorUpdate {
                     connector_name: Some(router_data.connector.clone()),
@@ -367,24 +367,17 @@ async fn capture_payment_response_update_tracker<F: Clone>(
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Could not parse the connector response")?;
 
-                    // incase of success, update error code and error message
-                    let error_status = if router_data.status == enums::AttemptStatus::Charged {
-                        Some(None)
-                    } else {
-                        None
-                    };
-
                     if router_data.status == enums::AttemptStatus::Charged {
                         metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
                     }
 
                     let capture_update = storage::CaptureUpdate::ResponseUpdate {
-                        status: capture_status,
+                        status: Some(capture_status),
                         connector: None,
                         connector_transaction_id: connector_transaction_id.clone(),
-                        error_code: error_status.clone(),
-                        error_message: error_status.clone(),
-                        error_reason: error_status,
+                        error_code: None,
+                        error_message: None,
+                        error_reason: None,
                     };
                     let amount_captured = router_data
                         .amount_captured
