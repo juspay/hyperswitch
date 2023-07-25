@@ -22,7 +22,7 @@ async fn should_make_paypal_paypal_wallet_payment(
             Event::Assert(Assert::IsPresent("How Search works")),
             Event::Assert(Assert::ContainsAny(
                 Selector::QueryParamStr,
-                vec!["status=succeeded"],
+                vec!["status=processing"],
             )),
         ],
     )
