@@ -20,12 +20,7 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     pii::PeekInterface,
-    types::{
-        self,
-        api::{self, ConnectorErrorTypeMapping},
-        transformers::ForeignTryFrom,
-        PaymentsCancelData, ResponseId,
-    },
+    types::{self, api, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
     utils::{self, OptionExt, ValueExt},
 };
 
@@ -1091,6 +1086,16 @@ impl ForeignTryFrom<String> for CanadaStatesAbbreviation {
             }
             .into()),
         }
+    }
+}
+
+pub trait ConnectorErrorTypeMapping {
+    fn get_connector_error_type(
+        &self,
+        _error_code: String,
+        _error_message: String,
+    ) -> ConnectorErrorType {
+        ConnectorErrorType::UnknownError
     }
 }
 
