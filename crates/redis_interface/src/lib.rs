@@ -33,7 +33,6 @@ pub use self::{commands::*, types::*};
 pub struct RedisConnectionPool {
     pub pool: fred::pool::RedisPool,
     config: RedisConfig,
-    _join_handles: Vec<fred::types::ConnectHandle>,
     pub subscriber: SubscriberClient,
     pub publisher: RedisClient,
     pub is_redis_available: Arc<atomic::AtomicBool>,
@@ -136,7 +135,6 @@ impl RedisConnectionPool {
             .into_report()
             .change_context(errors::RedisError::RedisConnectionError)?;
 
-        let _join_handles = pool.connect();
         pool.wait_for_connect()
             .await
             .into_report()
@@ -147,7 +145,6 @@ impl RedisConnectionPool {
         Ok(Self {
             pool,
             config,
-            _join_handles,
             is_redis_available: Arc::new(atomic::AtomicBool::new(true)),
             subscriber,
             publisher,
