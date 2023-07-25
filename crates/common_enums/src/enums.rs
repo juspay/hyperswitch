@@ -1,5 +1,5 @@
-use common_utils::errors::ValidationError;
-use error_stack::{IntoReport, ResultExt};
+use std::num::TryFromIntError;
+
 use router_derive;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -279,27 +279,14 @@ pub enum Currency {
 
 impl Currency {
     /// Convert the amount to its base denomination based on Currency and return String
-    pub fn to_currency_base_unit(
-        &self,
-        amount: i64,
-    ) -> Result<String, error_stack::Report<ValidationError>> {
+    pub fn to_currency_base_unit(&self, amount: i64) -> Result<String, TryFromIntError> {
         let amount_f64 = self.to_currency_base_unit_asf64(amount)?;
-        let _ = amount_f64.to_string();
         Ok(format!("{amount_f64:.2}"))
     }
 
     /// Convert the amount to its base denomination based on Currency and return f64
-    pub fn to_currency_base_unit_asf64(
-        &self,
-        amount: i64,
-    ) -> Result<f64, error_stack::Report<ValidationError>> {
-        let amount_u32 =
-            u32::try_from(amount)
-                .into_report()
-                .change_context(ValidationError::InvalidValue {
-                    message: amount.to_string(),
-                })?;
-        let amount_f64 = f64::from(amount_u32);
+    pub fn to_currency_base_unit_asf64(&self, amount: i64) -> Result<f64, TryFromIntError> {
+        let amount_f64: f64 = u32::try_from(amount)?.into();
         let amount = if self.is_zero_decimal_currency() {
             amount_f64
         } else if self.is_three_decimal_currency() {
@@ -316,7 +303,7 @@ impl Currency {
     pub fn to_currency_base_unit_with_zero_decimal_check(
         &self,
         amount: i64,
-    ) -> Result<String, error_stack::Report<errors::ValidationError>> {
+    ) -> Result<String, TryFromIntError> {
         let amount_f64 = self.to_currency_base_unit_asf64(amount)?;
         if self.is_zero_decimal_currency() {
             Ok(amount_f64.to_string())
@@ -438,17 +425,11 @@ impl Currency {
     }
 
     pub fn is_zero_decimal_currency(self) -> bool {
-        match self {
-            Self::JPY | Self::KRW => true,
-            _ => false,
-        }
+        matches!(self, Self::JPY | Self::KRW)
     }
 
     pub fn is_three_decimal_currency(self) -> bool {
-        match self {
-            Self::BHD | Self::JOD | Self::KWD | Self::OMR => true,
-            _ => false,
-        }
+        matches!(self, Self::BHD | Self::JOD | Self::KWD | Self::OMR)
     }
 }
 

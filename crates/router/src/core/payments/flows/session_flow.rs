@@ -1,7 +1,7 @@
 use api_models::payments as payment_types;
 use async_trait::async_trait;
 use common_utils::ext_traits::ByteSliceExt;
-use error_stack::{Report, ResultExt};
+use error_stack::{IntoReport, Report, ResultExt};
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -175,6 +175,7 @@ async fn create_applepay_session_token(
                 .request
                 .currency
                 .to_currency_base_unit(router_data.request.amount)
+                .into_report()
                 .change_context(errors::ApiErrorResponse::PreconditionFailed {
                     message: "Failed to convert currency to base unit".to_string(),
                 })?,
@@ -327,6 +328,7 @@ fn create_gpay_session_token(
                 .request
                 .currency
                 .to_currency_base_unit(router_data.request.amount)
+                .into_report()
                 .attach_printable(
                     "Cannot convert given amount to base currency denomination".to_string(),
                 )

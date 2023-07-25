@@ -926,6 +926,7 @@ pub fn to_currency_base_unit(
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit(amount)
+        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
@@ -933,7 +934,9 @@ pub fn to_currency_base_unit_with_zero_decimal_check(
     amount: i64,
     currency: diesel_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    utils::to_currency_base_unit_with_zero_decimal_check(amount, currency)
+    currency
+        .to_currency_base_unit_with_zero_decimal_check(amount)
+        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
@@ -943,6 +946,7 @@ pub fn to_currency_base_unit_asf64(
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_base_unit_asf64(amount)
+        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 

@@ -3,7 +3,7 @@ use std::{fmt::Debug, marker::PhantomData};
 use api_models::payments::OrderDetailsWithAmount;
 use common_utils::fp_utils;
 use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
@@ -304,6 +304,7 @@ where
         .get_required_value("currency")?;
     let amount = currency
         .to_currency_base_unit(payment_attempt.amount)
+        .into_report()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "amount",
         })?;
