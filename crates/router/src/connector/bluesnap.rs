@@ -98,7 +98,7 @@ impl ConnectorCommon for Bluesnap {
         router_env::logger::info!(error_response=?response);
 
         let response_error_message = match response {
-            bluesnap::BluesnapErrors::PaymentError(error_res) => error_res.message.first().map_or(
+            bluesnap::BluesnapErrors::Payment(error_res) => error_res.message.first().map_or(
                 ErrorResponse {
                     status_code: res.status_code,
                     code: consts::NO_ERROR_CODE.to_string(),
@@ -112,13 +112,13 @@ impl ConnectorCommon for Bluesnap {
                     reason: Some(error_response.description.clone()),
                 },
             ),
-            bluesnap::BluesnapErrors::AuthError(error_res) => ErrorResponse {
+            bluesnap::BluesnapErrors::Auth(error_res) => ErrorResponse {
                 status_code: res.status_code,
                 code: error_res.error_code.clone(),
                 message: error_res.error_description.clone(),
                 reason: Some(error_res.error_description),
             },
-            bluesnap::BluesnapErrors::GeneralError(error_response) => ErrorResponse {
+            bluesnap::BluesnapErrors::General(error_response) => ErrorResponse {
                 status_code: res.status_code,
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: error_response.clone(),
