@@ -157,6 +157,7 @@ authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
+boku.base_url = "https://country-api4-stage.boku.com"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
@@ -182,7 +183,7 @@ opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
-paypal.base_url = "https://www.sandbox.paypal.com/"
+paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
@@ -303,6 +304,7 @@ refund_retrieve_tolerance = 100  # Fake delay tolerance for dummy connector refu
 
 [mandates.supported_payment_methods]
 card.credit = {connector_list = "stripe,adyen"}     # Mandate supported payment method type and connector for card
+wallet.paypal = {connector_list = "adyen"}          # Mandate supported payment method type and connector for wallets
 pay_later.klarna = {connector_list = "adyen"}       # Mandate supported payment method type and connector for pay_later
 
 # Required fields info used while listing the payment_method_data
@@ -316,3 +318,15 @@ afterpay_clearpay = {fields = {stripe = [  # payment_method_type = afterpay_clea
 
 [payouts]
 payout_eligibility = true   # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility
+
+[pm_filters.adyen]
+online_banking_fpx = {country = "MY", currency = "MYR"}
+online_banking_thailand = {country = "TH", currency = "THB"}
+touch_n_go = {country = "MY", currency = "MYR"}
+atome = {country = "MY,SG", currency = "MYR,SGD"}
+
+[bank_config.online_banking_fpx]
+adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,may_bank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
+
+[bank_config.online_banking_thailand]
+adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_bank,kasikorn_bank"

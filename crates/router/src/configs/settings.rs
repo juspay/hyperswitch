@@ -437,6 +437,7 @@ pub struct Connectors {
     pub bambora: ConnectorParams,
     pub bitpay: ConnectorParams,
     pub bluesnap: ConnectorParams,
+    pub boku: ConnectorParams,
     pub braintree: ConnectorParams,
     pub cashtocode: ConnectorParams,
     pub checkout: ConnectorParams,
