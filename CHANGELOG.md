@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.6.0+hotfix.5 (2023-07-25)
+
+### Bug Fixes
+
+- **router:** Add additional card info in payment response ([#1745](https://github.com/juspay/hyperswitch/pull/1745)) ([`fba0ce1`](https://github.com/juspay/hyperswitch/commit/fba0ce18ce6e84e8d494dfa5e81ac0038734a216))
+
+### Revert
+
+- Connector_label in webhook url is reverted back to connector_name ([#1779](https://github.com/juspay/hyperswitch/pull/1779)) ([`4357a4b`](https://github.com/juspay/hyperswitch/commit/4357a4bf7850c38c588784c6ba4662823c64abe4))
+
+**Full Changelog:** [`v1.6.0+hotfix.4...v1.6.0+hotfix.5`](https://github.com/juspay/hyperswitch/compare/v1.6.0+hotfix.4...v1.6.0+hotfix.5)
+
+- - -
+
 ## 1.6.0+hotfix.4 (2023-07-21)
 
 ### Bug Fixes
