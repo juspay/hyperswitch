@@ -49,17 +49,26 @@ pub struct StripeCard {
     pub cvc: pii::Secret<String>,
 }
 
+// ApplePay wallet param is not available in stripe Docs
+#[derive(Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeWallet {
+    ApplePay(payments::ApplePayWalletData),
+}
+
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodType {
     #[default]
     Card,
+    Wallet,
 }
 
 impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
     fn from(item: StripePaymentMethodType) -> Self {
         match item {
             StripePaymentMethodType::Card => Self::Card,
+            StripePaymentMethodType::Wallet => Self::Wallet,
         }
     }
 }
@@ -77,6 +86,7 @@ pub struct StripePaymentMethodData {
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodDetails {
     Card(StripeCard),
+    Wallet(StripeWallet),
 }
 
 impl From<StripeCard> for payments::Card {
@@ -96,10 +106,22 @@ impl From<StripeCard> for payments::Card {
         }
     }
 }
+
+impl From<StripeWallet> for payments::WalletData {
+    fn from(wallet: StripeWallet) -> Self {
+        match wallet {
+            StripeWallet::ApplePay(data) => Self::ApplePay(data),
+        }
+    }
+}
+
 impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
     fn from(item: StripePaymentMethodDetails) -> Self {
         match item {
             StripePaymentMethodDetails::Card(card) => Self::Card(payments::Card::from(card)),
+            StripePaymentMethodDetails::Wallet(wallet) => {
+                Self::Wallet(payments::WalletData::from(wallet))
+            }
         }
     }
 }
@@ -125,7 +147,7 @@ impl From<Shipping> for payments::Address {
     }
 }
 
-#[derive(Default, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Deserialize, Clone)]
 pub struct StripeSetupIntentRequest {
     pub confirm: Option<bool>,
     pub customer: Option<String>,
@@ -148,6 +170,7 @@ pub struct StripeSetupIntentRequest {
     pub receipt_ipaddress: Option<String>,
     pub user_agent: Option<String>,
     pub mandate_data: Option<payment_intent::MandateData>,
+    pub connector_metadata: Option<payments::ConnectorMetadata>,
 }
 
 impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
@@ -256,7 +279,7 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("convert to browser info failed")?,
             ),
-
+            connector_metadata: item.connector_metadata,
             ..Default::default()
         });
         request
