@@ -19,28 +19,13 @@ fn get_inner_path_ident(attribute: &syn::Attribute) -> syn::Result<Vec<syn::Iden
         .collect::<Vec<_>>())
 }
 
-fn get_struct_fields(data: syn::Data) -> syn::Result<Punctuated<syn::Field, syn::token::Comma>> {
-    if let syn::Data::Struct(syn::DataStruct {
-        fields: syn::Fields::Named(syn::FieldsNamed { ref named, .. }),
-        ..
-    }) = data
-    {
-        Ok(named.to_owned())
-    } else {
-        Err(syn::Error::new(
-            proc_macro2::Span::call_site(),
-            "This macro cannot be used on structs with no fields",
-        ))
-    }
-}
-
 pub fn polymorphic_macro_derive_inner(
     input: syn::DeriveInput,
 ) -> syn::Result<proc_macro2::TokenStream> {
     let schemas_to_create =
         helpers::get_metadata_inner::<syn::Ident>("generate_schemas", &input.attrs)?;
 
-    let fields = get_struct_fields(input.data)
+    let fields = helpers::get_struct_fields(input.data)
         .map_err(|error| syn::Error::new(proc_macro2::Span::call_site(), error))?;
 
     // Go through all the fields and create a mapping of required fields for a schema
