@@ -54,6 +54,7 @@ pub struct StripeCard {
     pub holder_name: Option<masking::Secret<String>>,
 }
 
+// ApplePay wallet param is not available in stripe Docs
 #[derive(Serialize, PartialEq, Eq, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum StripeWallet {
@@ -767,9 +768,10 @@ pub enum StripeNextAction {
         session_token: Option<payments::SessionToken>,
     },
     QrCodeInformation {
-        image_data_source: Option<String>,
+        /// Hyperswitch generated image data source url
         image_data_url: Option<url::Url>,
-        mobile_redirection_url: Option<url::Url>,
+        /// The url for Qr code given by the connector
+        qr_code_url: Option<url::Url>,
     },
 }
 
@@ -795,13 +797,11 @@ pub(crate) fn into_stripe_next_action(
             StripeNextAction::ThirdPartySdkSessionToken { session_token }
         }
         payments::NextActionData::QrCodeInformation {
-            image_data_source,
             image_data_url,
-            mobile_redirection_url,
+            qr_code_url,
         } => StripeNextAction::QrCodeInformation {
-            image_data_source,
             image_data_url,
-            mobile_redirection_url,
+            qr_code_url,
         },
     })
 }

@@ -19,7 +19,7 @@ use super::{
     CustomerDetails, PaymentData,
 };
 use crate::{
-    configs::settings::Server,
+    configs::settings::{ConnectorRequestReferenceIdConfig, Server},
     consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
@@ -2431,8 +2431,10 @@ impl AttemptType {
 pub fn is_manual_retry_allowed(
     intent_status: &storage_enums::IntentStatus,
     attempt_status: &storage_enums::AttemptStatus,
+    connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+    merchant_id: &str,
 ) -> Option<bool> {
-    match intent_status {
+    let is_payment_status_eligible_for_retry = match intent_status {
         enums::IntentStatus::Failed => match attempt_status {
             enums::AttemptStatus::Started
             | enums::AttemptStatus::AuthenticationPending
@@ -2472,7 +2474,12 @@ pub fn is_manual_retry_allowed(
         | enums::IntentStatus::RequiresMerchantAction
         | enums::IntentStatus::RequiresPaymentMethod
         | enums::IntentStatus::RequiresConfirmation => None,
-    }
+    };
+    let is_merchant_id_enabled_for_retries = !connector_request_reference_id_config
+        .merchant_ids_send_payment_id_as_connector_request_id
+        .contains(merchant_id);
+    is_payment_status_eligible_for_retry
+        .map(|payment_status_check| payment_status_check && is_merchant_id_enabled_for_retries)
 }
 
 #[cfg(test)]
@@ -2615,17 +2622,8 @@ pub fn validate_customer_access(
     request: &api::PaymentsRequest,
 ) -> Result<(), errors::ApiErrorResponse> {
     if auth_flow == services::AuthFlow::Client && request.customer_id.is_some() {
-        let is_not_same_customer = request
-            .clone()
-            .customer_id
-            .and_then(|customer| {
-                payment_intent
-                    .clone()
-                    .customer_id
-                    .map(|payment_customer| payment_customer != customer)
-            })
-            .unwrap_or(false);
-        if is_not_same_customer {
+        let is_same_customer = request.customer_id == payment_intent.customer_id;
+        if !is_same_customer {
             Err(errors::ApiErrorResponse::GenericUnauthorized {
                 message: "Unauthorised access to update customer".to_string(),
             })?;

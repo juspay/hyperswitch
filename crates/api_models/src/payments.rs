@@ -951,6 +951,7 @@ pub enum BankTransferData {
         /// The billing details for Multibanco
         billing_details: MultibancoBillingDetails,
     },
+    Pix {},
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
@@ -1335,13 +1336,13 @@ pub enum NextActionData {
     ThirdPartySdkSessionToken { session_token: Option<SessionToken> },
     /// Contains url for Qr code image, this qr code has to be shown in sdk
     QrCodeInformation {
-        #[schema(value_type = String)]
-        image_data_source: Option<String>,
+        /// Hyperswitch generated image data source url
         #[schema(value_type = String)]
         image_data_url: Option<Url>,
+        /// The url for Qr code given by the connector
         #[schema(value_type = String)]
-        mobile_redirection_url: Option<Url>,
-    },
+        qr_code_url: Option<Url>,
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1355,9 +1356,10 @@ pub struct BankTransferNextStepsData {
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct QrCodeNextStepsInstruction {
-    pub image_data_source: Option<String>,
+    /// Hyperswitch generated image data source url
     pub image_data_url: Option<Url>,
-    pub mobile_redirection_url: Option<Url>,
+    /// The url for Qr code given by the connector
+    pub qr_code_url: Option<Url>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

@@ -143,6 +143,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::ConfigNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Config key does not exist in our records.", None))
+            },
+            Self::DuplicateConfig => {
+                AER::BadRequest(ApiError::new("HE", 1, "The config with the specified key already exists in our records", None))
             }
             Self::PaymentNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Payment does not exist in our records", None))

@@ -1572,6 +1572,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::OnlineBankingThailand => Self::BankRedirect,
             PaymentMethodType::OnlineBankingPoland => Self::BankRedirect,
             PaymentMethodType::OnlineBankingSlovakia => Self::BankRedirect,
+            PaymentMethodType::Pix => Self::BankTransfer,
             PaymentMethodType::PayBright => Self::PayLater,
             PaymentMethodType::Paypal => Self::Wallet,
             PaymentMethodType::Przelewy24 => Self::BankRedirect,

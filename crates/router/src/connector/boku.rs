@@ -3,7 +3,8 @@ mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
-use transformers as tsys;
+use masking::ExposeInterface;
+use transformers as boku;
 
 use crate::{
     configs::settings,
@@ -11,7 +12,7 @@ use crate::{
     headers,
     services::{
         self,
-        request::{self},
+        request::{self, Mask},
         ConnectorIntegration,
     },
     types::{
@@ -23,50 +24,55 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Tsys;
+pub struct Boku;
 
-impl api::Payment for Tsys {}
-impl api::PaymentSession for Tsys {}
-impl api::ConnectorAccessToken for Tsys {}
-impl api::PreVerify for Tsys {}
-impl api::PaymentAuthorize for Tsys {}
-impl api::PaymentSync for Tsys {}
-impl api::PaymentCapture for Tsys {}
-impl api::PaymentVoid for Tsys {}
-impl api::Refund for Tsys {}
-impl api::RefundExecute for Tsys {}
-impl api::RefundSync for Tsys {}
-impl api::PaymentToken for Tsys {}
+impl api::Payment for Boku {}
+impl api::PaymentSession for Boku {}
+impl api::ConnectorAccessToken for Boku {}
+impl api::PreVerify for Boku {}
+impl api::PaymentAuthorize for Boku {}
+impl api::PaymentSync for Boku {}
+impl api::PaymentCapture for Boku {}
+impl api::PaymentVoid for Boku {}
+impl api::Refund for Boku {}
+impl api::RefundExecute for Boku {}
+impl api::RefundSync for Boku {}
+impl api::PaymentToken for Boku {}
 
 impl
     ConnectorIntegration<
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
-    > for Tsys
+    > for Boku
 {
+    // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Tsys
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Boku
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Request, Response>,
+        req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let header = vec![(
+        let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            Self::get_content_type(self).to_string().into(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
         )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
         Ok(header)
     }
 }
 
-impl ConnectorCommon for Tsys {
+impl ConnectorCommon for Boku {
     fn id(&self) -> &'static str {
-        "tsys"
+        "boku"
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -74,27 +80,57 @@ impl ConnectorCommon for Tsys {
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
-        connectors.tsys.base_url.as_ref()
+        connectors.boku.base_url.as_ref()
+    }
+
+    fn get_auth_header(
+        &self,
+        auth_type: &types::ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        let auth = boku::BokuAuthType::try_from(auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth.api_key.expose().into_masked(),
+        )])
+    }
+
+    fn build_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: boku::BokuErrorResponse = res
+            .response
+            .parse_struct("BokuErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.code,
+            message: response.message,
+            reason: response.reason,
+        })
     }
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Tsys
+    for Boku
 {
+    //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Tsys
+    for Boku
 {
 }
 
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Tsys
+    for Boku
 {
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Tsys
+    for Boku
 {
     fn get_headers(
         &self,
@@ -111,25 +147,22 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}servlets/transnox_api_server",
-            self.base_url(connectors)
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = tsys::TsysPaymentsRequest::try_from(req)?;
-        let tsys_req = types::RequestBody::log_and_get_request_body(
+        let req_obj = boku::BokuPaymentsRequest::try_from(req)?;
+        let boku_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
-            utils::Encode::<tsys::TsysPaymentsRequest>::encode_to_string_of_json,
+            utils::Encode::<boku::BokuPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(tsys_req))
+        Ok(Some(boku_req))
     }
 
     fn build_request(
@@ -157,9 +190,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: tsys::TsysPaymentsResponse = res
+        let response: boku::BokuPaymentsResponse = res
             .response
-            .parse_struct("Tsys PaymentsAuthorizeResponse")
+            .parse_struct("Boku PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -177,7 +210,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 }
 
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Tsys
+    for Boku
 {
     fn get_headers(
         &self,
@@ -194,25 +227,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     fn get_url(
         &self,
         _req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}servlets/transnox_api_server",
-            self.base_url(connectors)
-        ))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = tsys::TsysSyncRequest::try_from(req)?;
-        let tsys_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<tsys::TsysSyncRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(tsys_req))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
@@ -222,11 +239,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
-                .method(services::Method::Post)
+                .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsSyncType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -236,9 +252,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: tsys::TsysSyncResponse = res
+        let response: boku::BokuPaymentsResponse = res
             .response
-            .parse_struct("tsys PaymentsSyncResponse")
+            .parse_struct("boku PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -256,7 +272,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 }
 
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Tsys
+    for Boku
 {
     fn get_headers(
         &self,
@@ -273,25 +289,16 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_url(
         &self,
         _req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}servlets/transnox_api_server",
-            self.base_url(connectors)
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsCaptureRouterData,
+        _req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = tsys::TsysPaymentsCaptureRequest::try_from(req)?;
-        let tsys_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<tsys::TsysPaymentsCaptureRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(tsys_req))
+        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
     fn build_request(
@@ -317,9 +324,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: tsys::TsysPaymentsResponse = res
+        let response: boku::BokuPaymentsResponse = res
             .response
-            .parse_struct("Tsys PaymentsCaptureResponse")
+            .parse_struct("Boku PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -337,82 +344,11 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 }
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Tsys
+    for Boku
 {
-    fn get_headers(
-        &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}servlets/transnox_api_server",
-            self.base_url(connectors),
-        ))
-    }
-    fn get_request_body(
-        &self,
-        req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = tsys::TsysPaymentsCancelRequest::try_from(req)?;
-        let tsys_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<tsys::TsysPaymentsCancelRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(tsys_req))
-    }
-
-    fn build_request(
-        &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
-            .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
-            .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-            .body(types::PaymentsVoidType::get_request_body(self, req)?)
-            .build();
-
-        Ok(Some(request))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsCancelRouterData,
-        res: Response,
-    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: tsys::TsysPaymentsResponse = res
-            .response
-            .parse_struct("PaymentCancelResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
 }
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Tsys {
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Boku {
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -428,25 +364,22 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_url(
         &self,
         _req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}servlets/transnox_api_server",
-            self.base_url(connectors)
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = tsys::TsysRefundRequest::try_from(req)?;
-        let tsys_req = types::RequestBody::log_and_get_request_body(
+        let req_obj = boku::BokuRefundRequest::try_from(req)?;
+        let boku_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
-            utils::Encode::<tsys::TsysRefundRequest>::encode_to_string_of_json,
+            utils::Encode::<boku::BokuRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(tsys_req))
+        Ok(Some(boku_req))
     }
 
     fn build_request(
@@ -471,9 +404,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: tsys::RefundResponse = res
+        let response: boku::RefundResponse = res
             .response
-            .parse_struct("tsys RefundResponse")
+            .parse_struct("boku RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -490,7 +423,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Tsys {
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Boku {
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,
@@ -506,25 +439,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_url(
         &self,
         _req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}servlets/transnox_api_server",
-            self.base_url(connectors),
-        ))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &types::RefundSyncRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = tsys::TsysSyncRequest::try_from(req)?;
-        let tsys_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<tsys::TsysSyncRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(tsys_req))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
@@ -534,7 +451,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
-                .method(services::Method::Post)
+                .method(services::Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
@@ -548,10 +465,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: tsys::TsysSyncResponse = res
-            .response
-            .parse_struct("tsys RefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: boku::RefundResponse =
+            res.response
+                .parse_struct("boku RefundSyncResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -568,7 +485,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Tsys {
+impl api::IncomingWebhook for Boku {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,

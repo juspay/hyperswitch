@@ -3186,6 +3186,17 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix"
+            ],
+            "properties": {
+              "pix": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -6239,7 +6250,6 @@
             "required": [
               "image_data_source",
               "image_data_url",
-              "mobile_redirection_url",
               "type"
             ],
             "properties": {
@@ -6247,7 +6257,12 @@
                 "type": "string"
               },
               "image_data_url": {
-                "type": "string"
+                "type": "string",
+                "description": "Hyperswitch generated image data source url"
+              },
+              "qr_code_url": {
+                "type": "string",
+                "description": "The url for Qr code given by the connector"
               },
               "mobile_redirection_url": {
                 "type": "string"
@@ -7229,6 +7244,7 @@
           "online_banking_slovakia",
           "pay_bright",
           "paypal",
+          "pix",
           "przelewy24",
           "samsung_pay",
           "sepa",
