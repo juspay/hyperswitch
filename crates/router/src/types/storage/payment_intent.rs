@@ -1,5 +1,5 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
+use diesel::{associations::HasTable, debug_query, pg::Pg, ExpressionMethods, JoinOnDsl, QueryDsl};
 pub use diesel_models::{
     errors,
     payment_attempt::PaymentAttempt,
@@ -94,7 +94,7 @@ impl PaymentIntentDbExt for PaymentIntent {
 
         filter = filter.limit(pc.limit);
 
-        crate::logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
+        crate::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 
         filter
             .get_results_async(conn)
@@ -179,6 +179,7 @@ impl PaymentIntentDbExt for PaymentIntent {
             filter = filter.filter(dsl1::payment_method.eq_any(payment_method));
         }
 
+        router_env::logger::debug!(filter = %debug_query::<Pg, _>(&filter).to_string());
         filter
             .get_results_async(conn)
             .await
