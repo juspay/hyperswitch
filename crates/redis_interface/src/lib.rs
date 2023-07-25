@@ -135,6 +135,7 @@ impl RedisConnectionPool {
             .into_report()
             .change_context(errors::RedisError::RedisConnectionError)?;
 
+        pool.connect();
         pool.wait_for_connect()
             .await
             .into_report()
