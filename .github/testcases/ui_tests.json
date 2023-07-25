@@ -1,4 +1,5 @@
 {
+  "tests_to_ignore": [],
   "1": {
     "id": 1,
     "name": "stripe giropay",
@@ -1107,7 +1108,7 @@
     "id": 185,
     "name": "Adyen Touch n go",
     "connector": "adyen_uk",
-    "request": "{\"amount\":6540,\"currency\":\"MYR\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com/\",\"payment_method\":\"wallet\",\"payment_method_type\":\"touch_n_go\",\"payment_method_data\":{\"wallet\":{\"touch_n_go_redirect\":{}}}}"
+    "request": "{\"amount\":6540,\"currency\":\"MYR\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://hs-payments-test.netlify.app/payments\",\"payment_method\":\"wallet\",\"payment_method_type\":\"touch_n_go\",\"payment_method_data\":{\"wallet\":{\"touch_n_go_redirect\":{}}}}"
   },
   "186": {
     "id": 186,
@@ -1341,7 +1342,7 @@
     "id": 224,
     "name": "Oxxo",
     "connector": "adyen_uk",
-    "request": "{\"amount\":6540,\"currency\":\"IDR\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com/\",\"payment_method\":\"voucher\",\"payment_method_type\":\"oxxo\",\"payment_method_data\":{\"voucher\":{\"oxxo\":{}}}}"
+    "request": "{\"amount\":6540,\"currency\":\"MXN\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com/\",\"payment_method\":\"voucher\",\"payment_method_type\":\"oxxo\",\"payment_method_data\":{\"voucher\":{\"oxxo\":{}}}}"
   },
   "225": {
     "id": 225,

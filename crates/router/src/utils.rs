@@ -174,6 +174,21 @@ pub fn to_currency_base_unit(
     }
 }
 
+/// Convert the amount to its base denomination based on Currency and check for zero decimal currency and return String
+/// Paypal Connector accepts Zero and Two decimal currency but not three decimal and it should be updated as required for 3 decimal currencies.
+/// Paypal Ref - https://developer.paypal.com/docs/reports/reference/paypal-supported-currencies/
+pub fn to_currency_base_unit_with_zero_decimal_check(
+    amount: i64,
+    currency: diesel_models::enums::Currency,
+) -> Result<String, error_stack::Report<errors::ValidationError>> {
+    let amount_f64 = to_currency_base_unit_asf64(amount, currency)?;
+    if currency.is_zero_decimal_currency() {
+        Ok(amount_f64.to_string())
+    } else {
+        Ok(format!("{amount_f64:.2}"))
+    }
+}
+
 /// Convert the amount to its base denomination based on Currency and return f64
 pub fn to_currency_base_unit_asf64(
     amount: i64,
@@ -185,9 +200,9 @@ pub fn to_currency_base_unit_asf64(
         },
     )?;
     let amount_f64 = f64::from(amount_u32);
-    let amount = if is_zero_decimal_currency(currency) {
+    let amount = if currency.is_zero_decimal_currency() {
         amount_f64
-    } else if is_three_decimal_currency(currency) {
+    } else if currency.is_three_decimal_currency() {
         amount_f64 / 1000.00
     } else {
         amount_f64 / 100.00
