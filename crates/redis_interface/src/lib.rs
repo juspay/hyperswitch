@@ -33,7 +33,7 @@ pub use self::{commands::*, types::*};
 pub struct RedisConnectionPool {
     pub pool: fred::pool::RedisPool,
     config: RedisConfig,
-    join_handles: Vec<fred::types::ConnectHandle>,
+    _join_handles: Vec<fred::types::ConnectHandle>,
     pub subscriber: SubscriberClient,
     pub publisher: RedisClient,
     pub is_redis_available: Arc<atomic::AtomicBool>,
@@ -136,7 +136,7 @@ impl RedisConnectionPool {
             .into_report()
             .change_context(errors::RedisError::RedisConnectionError)?;
 
-        let join_handles = pool.connect();
+        let _join_handles = pool.connect();
         pool.wait_for_connect()
             .await
             .into_report()
@@ -147,35 +147,11 @@ impl RedisConnectionPool {
         Ok(Self {
             pool,
             config,
-            join_handles,
+            _join_handles,
             is_redis_available: Arc::new(atomic::AtomicBool::new(true)),
             subscriber,
             publisher,
         })
-    }
-
-    pub async fn close_connections(&mut self) {
-        self.pool.quit_pool().await;
-
-        self.publisher
-            .quit()
-            .await
-            .map_err(|err| logger::error!(redis_quit_err=?err))
-            .ok();
-
-        self.subscriber
-            .quit()
-            .await
-            .map_err(|err| logger::error!(redis_quit_err=?err))
-            .ok();
-
-        for handle in self.join_handles.drain(..) {
-            match handle.await {
-                Ok(Ok(_)) => (),
-                Ok(Err(error)) => logger::error!(%error),
-                Err(error) => logger::error!(%error),
-            };
-        }
     }
 
     pub async fn on_error(&self, tx: tokio::sync::oneshot::Sender<()>) {
@@ -191,14 +167,6 @@ impl RedisConnectionPool {
                 break;
             }
         }
-    }
-}
-
-impl Drop for RedisConnectionPool {
-    // safety: panics when invoked without a current tokio runtime
-    fn drop(&mut self) {
-        let rt = tokio::runtime::Handle::current();
-        rt.block_on(self.close_connections())
     }
 }
 
