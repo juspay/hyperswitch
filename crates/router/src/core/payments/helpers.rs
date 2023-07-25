@@ -2615,17 +2615,8 @@ pub fn validate_customer_access(
     request: &api::PaymentsRequest,
 ) -> Result<(), errors::ApiErrorResponse> {
     if auth_flow == services::AuthFlow::Client && request.customer_id.is_some() {
-        let is_not_same_customer = request
-            .clone()
-            .customer_id
-            .and_then(|customer| {
-                payment_intent
-                    .clone()
-                    .customer_id
-                    .map(|payment_customer| payment_customer != customer)
-            })
-            .unwrap_or(false);
-        if is_not_same_customer {
+        let is_same_customer = request.customer_id == payment_intent.customer_id;
+        if !is_same_customer {
             Err(errors::ApiErrorResponse::GenericUnauthorized {
                 message: "Unauthorised access to update customer".to_string(),
             })?;
