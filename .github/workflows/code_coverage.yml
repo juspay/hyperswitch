@@ -10,8 +10,12 @@ on:
 jobs:
   code_coverage:
     runs-on: ubuntu-latest
+    
+    permissions: 
+      pull-requests: write  # Corrected indentation
 
     steps:
+    
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@master
 
