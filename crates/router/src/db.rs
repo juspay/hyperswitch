@@ -123,6 +123,7 @@ pub struct MockDb {
     lockers: Arc<Mutex<Vec<storage::LockerMockUp>>>,
     mandates: Arc<Mutex<Vec<storage::Mandate>>>,
     captures: Arc<Mutex<Vec<storage::Capture>>>,
+    merchant_key_store: Arc<Mutex<Vec<storage::MerchantKeyStore>>>,
 }
 
 impl MockDb {
@@ -148,6 +149,7 @@ impl MockDb {
             lockers: Default::default(),
             mandates: Default::default(),
             captures: Default::default(),
+            merchant_key_store: Default::default(),
         }
     }
 }

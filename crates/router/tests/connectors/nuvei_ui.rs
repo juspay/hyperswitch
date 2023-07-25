@@ -60,6 +60,7 @@ async fn should_make_nuvei_pypl_payment(c: WebDriver) -> Result<(), WebDriverErr
         c,
         &format!("{CHEKOUT_BASE_URL}/saved/5"),
         vec![
+            Event::Trigger(Trigger::Click(By::Id("payment-submit-btn"))),
             Event::Assert(Assert::IsPresent("Google")),
             Event::Assert(Assert::ContainsAny(
                 Selector::QueryParamStr,
