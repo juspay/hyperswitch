@@ -444,12 +444,12 @@ impl TryFrom<&types::ConnectorAuthType> for MollieAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: Secret::new(api_key.to_owned()),
+                api_key: api_key.to_owned(),
                 profile_token: None,
             }),
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                api_key: Secret::new(api_key.to_owned()),
-                profile_token: Some(Secret::new(key1.to_owned())),
+                api_key: api_key.to_owned(),
+                profile_token: Some(key1.to_owned()),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }

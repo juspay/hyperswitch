@@ -1636,6 +1636,9 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub connector_transaction_id: Option<String>,
 
+    /// Frm message contains information about the frm response
+    pub frm_message: Option<FrmMessage>,
+
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -2354,6 +2357,18 @@ pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     #[schema(value_type = Option<RedirectResponse>)]
     pub redirect_response: Option<RedirectResponse>,
+}
+
+///frm message is an object sent inside the payments response...when frm is invoked, its value is Some(...), else its None
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct FrmMessage {
+    pub frm_name: String,
+    pub frm_transaction_id: Option<String>,
+    pub frm_transaction_type: Option<String>,
+    pub frm_status: Option<String>,
+    pub frm_score: Option<i32>,
+    pub frm_reason: Option<serde_json::Value>,
+    pub frm_error: Option<String>,
 }
 
 mod payment_id_type {
