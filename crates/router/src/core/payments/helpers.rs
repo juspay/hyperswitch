@@ -19,7 +19,7 @@ use super::{
     CustomerDetails, PaymentData,
 };
 use crate::{
-    configs::settings::Server,
+    configs::settings::{ConnectorRequestReferenceIdConfig, Server},
     consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
@@ -2432,8 +2432,10 @@ impl AttemptType {
 pub fn is_manual_retry_allowed(
     intent_status: &storage_enums::IntentStatus,
     attempt_status: &storage_enums::AttemptStatus,
+    connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+    merchant_id: &str,
 ) -> Option<bool> {
-    match intent_status {
+    let is_payment_status_eligible_for_retry = match intent_status {
         enums::IntentStatus::Failed => match attempt_status {
             enums::AttemptStatus::Started
             | enums::AttemptStatus::AuthenticationPending
@@ -2473,7 +2475,12 @@ pub fn is_manual_retry_allowed(
         | enums::IntentStatus::RequiresMerchantAction
         | enums::IntentStatus::RequiresPaymentMethod
         | enums::IntentStatus::RequiresConfirmation => None,
-    }
+    };
+    let is_merchant_id_enabled_for_retries = !connector_request_reference_id_config
+        .merchant_ids_send_payment_id_as_connector_request_id
+        .contains(merchant_id);
+    is_payment_status_eligible_for_retry
+        .map(|payment_status_check| payment_status_check && is_merchant_id_enabled_for_retries)
 }
 
 #[cfg(test)]

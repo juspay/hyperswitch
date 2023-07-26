@@ -258,6 +258,7 @@ where
         auth_flow,
         &state.conf.server,
         operation,
+        &state.conf.connector_request_reference_id_config,
     )
 }
 
