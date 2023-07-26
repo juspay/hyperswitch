@@ -34,8 +34,8 @@ pub enum TransactionType {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MerchantAuthentication {
-    pub name: String,
-    pub transaction_key: String,
+    name: String,
+    transaction_key: String,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
