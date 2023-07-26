@@ -839,6 +839,11 @@ pub enum BankRedirectData {
         #[schema(value_type = BankNames)]
         issuer: api_enums::BankNames,
     },
+    OpenBankingUk {
+        // Issuer banks
+        #[schema(value_type = BankNames)]
+        issuer: api_enums::BankNames,
+    },
     Przelewy24 {
         //Issuer banks
         #[schema(value_type = Option<BankNames>)]

@@ -811,6 +811,7 @@ pub enum PaymentMethodType {
     OnlineBankingFpx,
     OnlineBankingPoland,
     OnlineBankingSlovakia,
+    OpenBankingUK,
     PayBright,
     Paypal,
     Pix,

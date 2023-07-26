@@ -402,6 +402,9 @@ pub enum BankNames {
     KrungThaiBank,
     TheSiamCommercialBank,
     KasikornBank,
+    OpenBankSuccess,
+    OpenBankFailure,
+    OpenBankCancelled,
 }
 
 #[derive(

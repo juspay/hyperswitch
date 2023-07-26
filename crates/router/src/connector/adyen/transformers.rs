@@ -340,6 +340,7 @@ pub enum AdyenPaymentMethod<'a> {
     OnlineBankingFpx(Box<OnlineBankingFpxData>),
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand(Box<OnlineBankingThailandData>),
+    OpenBankingUK(Box<OpenBankingUKData>),
     PayBright(Box<PmdForPaymentType>),
     Sofort(Box<PmdForPaymentType>),
     Trustly(Box<PmdForPaymentType>),
@@ -562,6 +563,14 @@ pub struct OnlineBankingThailandData {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenBankingUKData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+    issuer: OpenBankingUKIssuer,
+}
+
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum OnlineBankingSlovakiaBanks {
     Vub,
@@ -629,6 +638,22 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingThailandIssuer {
             api::enums::BankNames::KrungThaiBank => Ok(Self::Krungthaibank),
             api::enums::BankNames::TheSiamCommercialBank => Ok(Self::Siamcommercialbank),
             api::enums::BankNames::KasikornBank => Ok(Self::Kbank),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: String::from("BankRedirect"),
+                connector: "Adyen",
+                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
+            })?,
+        }
+    }
+}
+
+impl TryFrom<&api_enums::BankNames> for OpenBankingUKIssuer {
+    type Error = Error;
+    fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
+        match bank_name {
+            api::enums::BankNames::OpenBankSuccess => Ok(Self::RedirectSuccess),
+            api::enums::BankNames::OpenBankFailure => Ok(Self::RedirectFailure),
+            api::enums::BankNames::OpenBankCancelled => Ok(Self::RedirectCancelled),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
@@ -808,6 +833,8 @@ pub enum PaymentType {
     OnlineBankingFpx,
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand,
+    #[serde(rename = "openbanking_UK")]
+    OpenBankingUK,
     PayBright,
     Paypal,
     Scheme,
@@ -867,6 +894,17 @@ pub enum OnlineBankingThailandIssuer {
     Siamcommercialbank,
     #[serde(rename = "molpay_kbank")]
     Kbank,
+}
+
+
+#[derive(Debug, Eq, PartialEq, Serialize, Clone)]
+pub enum OpenBankingUKIssuer {
+    #[serde(rename = "uk-test-open-banking-redirect")]
+    RedirectSuccess,
+    #[serde(rename = "uk-test-open-banking-redirect-failed")]
+    RedirectFailure,
+    #[serde(rename = "uk-test-open-banking-redirect-cancelled")]
+    RedirectCancelled,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -1575,6 +1613,12 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             api_models::payments::BankRedirectData::OnlineBankingThailand { issuer } => Ok(
                 AdyenPaymentMethod::OnlineBankingThailand(Box::new(OnlineBankingThailandData {
                     issuer: OnlineBankingThailandIssuer::try_from(issuer)?,
+                })),
+            ),
+            api_models::payments::BankRedirectData::OpenBankingUk { issuer } => Ok(
+                AdyenPaymentMethod::OpenBankingUK(Box::new(OpenBankingUKData {
+                    payment_type: PaymentType::OpenBankingUK,
+                    issuer: OpenBankingUKIssuer::try_from(issuer)?,
                 })),
             ),
             api_models::payments::BankRedirectData::Sofort { .. } => {
