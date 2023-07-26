@@ -22,7 +22,7 @@ use crate::{
     },
 };
 
-#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct StripeBillingDetails {
     pub address: Option<payments::AddressDetails>,
     pub email: Option<Email>,
@@ -54,7 +54,7 @@ pub struct StripeCard {
     pub holder_name: Option<masking::Secret<String>>,
 }
 
-#[derive(Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum StripeWallet {
     ApplePay(payments::ApplePayWalletData),
@@ -84,7 +84,7 @@ impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
     }
 }
 
-#[derive(Default, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct StripePaymentMethodData {
     #[serde(rename = "type")]
     pub stype: StripePaymentMethodType,
@@ -94,7 +94,7 @@ pub struct StripePaymentMethodData {
     pub metadata: Option<SecretSerdeValue>,
 }
 
-#[derive(PartialEq, Eq, Deserialize, Clone)]
+#[derive(PartialEq, Eq, Deserialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodDetails {
     Card(StripeCard),
