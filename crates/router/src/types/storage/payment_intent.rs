@@ -126,6 +126,7 @@ impl PaymentIntentDbExt for PaymentIntent {
 
         filter = filter.filter(dsl::created_at.le(end_time));
 
+        crate::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
         filter
             .get_results_async(conn)
             .await
@@ -179,7 +180,7 @@ impl PaymentIntentDbExt for PaymentIntent {
             filter = filter.filter(dsl1::payment_method.eq_any(payment_method));
         }
 
-        router_env::logger::debug!(filter = %debug_query::<Pg, _>(&filter).to_string());
+        crate::logger::debug!(filter = %debug_query::<Pg, _>(&filter).to_string());
         filter
             .get_results_async(conn)
             .await
