@@ -24,8 +24,8 @@ impl TryFrom<&types::ConnectorAuthType> for AirwallexAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
-                x_api_key: api_key.clone().into(),
-                x_client_id: key1.clone().into(),
+                x_api_key: api_key.clone(),
+                x_client_id: key1.clone(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -189,7 +189,7 @@ fn get_wallet_details(
 pub struct AirwallexAuthUpdateResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     expires_at: PrimitiveDateTime,
-    token: String,
+    token: Secret<String>,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, types::AccessToken>>

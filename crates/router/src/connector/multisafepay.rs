@@ -3,6 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use transformers as multisafepay;
 
 use crate::{
@@ -147,7 +148,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         let url = self.base_url(connectors);
         let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
-            .api_key;
+            .api_key
+            .expose();
         let ord_id = req.payment_id.clone();
         Ok(format!("{url}v1/json/orders/{ord_id}?api_key={api_key}"))
     }
@@ -231,7 +233,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let url = self.base_url(connectors);
         let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
-            .api_key;
+            .api_key
+            .expose();
         Ok(format!("{url}v1/json/orders?api_key={api_key}"))
     }
 
@@ -321,7 +324,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let url = self.base_url(connectors);
         let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
-            .api_key;
+            .api_key
+            .expose();
         let ord_id = req.payment_id.clone();
         Ok(format!(
             "{url}v1/json/orders/{ord_id}/refunds?api_key={api_key}"
@@ -407,7 +411,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let url = self.base_url(connectors);
         let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
-            .api_key;
+            .api_key
+            .expose();
         let ord_id = req.payment_id.clone();
         Ok(format!(
             "{url}v1/json/orders/{ord_id}/refunds?api_key={api_key}"

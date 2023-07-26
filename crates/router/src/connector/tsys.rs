@@ -205,7 +205,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}servlets/Transnox_API_server",
+            "{}servlets/transnox_api_server",
             self.base_url(connectors)
         ))
     }
@@ -284,7 +284,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}servlets/Transnox_API_server",
+            "{}servlets/transnox_api_server",
             self.base_url(connectors)
         ))
     }
@@ -365,7 +365,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}servlets/Transnox_API_server",
+            "{}servlets/transnox_api_server",
             self.base_url(connectors),
         ))
     }
@@ -439,7 +439,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}servlets/Transnox_API_server",
+            "{}servlets/transnox_api_server",
             self.base_url(connectors)
         ))
     }
@@ -517,7 +517,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}servlets/Transnox_API_server",
+            "{}servlets/transnox_api_server",
             self.base_url(connectors),
         ))
     }

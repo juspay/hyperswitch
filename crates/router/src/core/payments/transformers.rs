@@ -1,6 +1,5 @@
 use std::{fmt::Debug, marker::PhantomData};
 
-use api_models::payments::OrderDetailsWithAmount;
 use common_utils::fp_utils;
 use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
 use error_stack::ResultExt;
@@ -8,7 +7,7 @@ use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
-    configs::settings::Server,
+    configs::settings::{ConnectorRequestReferenceIdConfig, Server},
     connector::{Nexinets, Paypal},
     core::{
         errors::{self, RouterResponse, RouterResult},
@@ -155,6 +154,7 @@ where
         auth_flow: services::AuthFlow,
         server: &Server,
         operation: Op,
+        connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     ) -> RouterResponse<Self>;
 }
 
@@ -170,6 +170,7 @@ where
         auth_flow: services::AuthFlow,
         server: &Server,
         operation: Op,
+        connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     ) -> RouterResponse<Self> {
         payments_to_payments_response(
             req,
@@ -187,7 +188,9 @@ where
             &operation,
             payment_data.ephemeral_key,
             payment_data.sessions_token,
+            payment_data.frm_message,
             payment_data.setup_mandate,
+            connector_request_reference_id_config,
         )
     }
 }
@@ -205,6 +208,7 @@ where
         _auth_flow: services::AuthFlow,
         _server: &Server,
         _operation: Op,
+        _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     ) -> RouterResponse<Self> {
         Ok(services::ApplicationResponse::Json(Self {
             session_token: payment_data.sessions_token,
@@ -231,6 +235,7 @@ where
         _auth_flow: services::AuthFlow,
         _server: &Server,
         _operation: Op,
+        _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     ) -> RouterResponse<Self> {
         let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
             data.payment_attempt
@@ -287,7 +292,9 @@ pub fn payments_to_payments_response<R, Op>(
     operation: &Op,
     ephemeral_key_option: Option<ephemeral_key::EphemeralKey>,
     session_tokens: Vec<api::SessionToken>,
+    frm_message: Option<payments::FrmMessage>,
     mandate_data: Option<api_models::payments::MandateData>,
+    connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
@@ -370,6 +377,7 @@ where
 
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                     || bank_transfer_next_steps.is_some()
+                    || next_action_containing_qr_code.is_some()
                 {
                     next_action_response = bank_transfer_next_steps
                         .map(|bank_transfer| {
@@ -380,6 +388,7 @@ where
                         .or(next_action_containing_qr_code.map(|qr_code_data| {
                             api_models::payments::NextActionData::QrCodeInformation {
                                 image_data_url: qr_code_data.image_data_url,
+                                qr_code_url: qr_code_data.qr_code_url,
                             }
                         }))
                         .or(redirection_data.map(|_| {
@@ -486,9 +495,12 @@ where
                             payment_intent.allowed_payment_method_types,
                         )
                         .set_ephemeral_key(ephemeral_key_option.map(ForeignFrom::foreign_from))
+                        .set_frm_message(frm_message)
                         .set_manual_retry_allowed(helpers::is_manual_retry_allowed(
                             &payment_intent.status,
                             &payment_attempt.status,
+                            connector_request_reference_id_config,
+                            &merchant_id,
                         ))
                         .set_connector_transaction_id(payment_attempt.connector_transaction_id)
                         .set_feature_metadata(payment_intent.feature_metadata)
@@ -536,8 +548,11 @@ where
             manual_retry_allowed: helpers::is_manual_retry_allowed(
                 &payment_intent.status,
                 &payment_attempt.status,
+                connector_request_reference_id_config,
+                &merchant_id,
             ),
             order_details: payment_intent.order_details,
+            frm_message,
             connector_transaction_id: payment_attempt.connector_transaction_id,
             feature_metadata: payment_intent.feature_metadata,
             connector_metadata: payment_intent.connector_metadata,
@@ -651,31 +666,26 @@ impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralK
 pub fn bank_transfer_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::BankTransferNextStepsData>> {
-    let bank_transfer_next_step = if let Some(diesel_models::enums::PaymentMethod::BankTransfer) =
-        payment_attempt.payment_method
-    {
-        let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
-            payment_attempt
-                .connector_metadata
-                .map(|metadata| {
-                    metadata
-                        .parse_value("NextStepsRequirements")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse the Value to NextRequirements struct")
-                })
-                .transpose()?;
-        bank_transfer_next_steps
-    } else {
-        None
-    };
-    Ok(bank_transfer_next_step)
+    let bank_transfer_next_steps: Result<
+        Option<api_models::payments::BankTransferNextStepsData>,
+        _,
+    > = payment_attempt
+        .connector_metadata
+        .map(|metadata| {
+            metadata
+                .parse_value("BankTransferNextStepsData")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse the Value to NextRequirements struct")
+        })
+        .transpose();
+    Ok(bank_transfer_next_steps.ok().flatten())
 }
 
 pub fn change_order_details_to_new_type(
     order_amount: i64,
     order_details: api_models::payments::OrderDetails,
-) -> Option<Vec<OrderDetailsWithAmount>> {
-    Some(vec![OrderDetailsWithAmount {
+) -> Option<Vec<api_models::payments::OrderDetailsWithAmount>> {
+    Some(vec![api_models::payments::OrderDetailsWithAmount {
         product_name: order_details.product_name,
         quantity: order_details.quantity,
         amount: order_amount,

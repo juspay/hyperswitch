@@ -19,7 +19,7 @@ use super::{
     CustomerDetails, PaymentData,
 };
 use crate::{
-    configs::settings::Server,
+    configs::settings::{ConnectorRequestReferenceIdConfig, Server},
     consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
@@ -1279,6 +1279,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::BankDebit(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Upi(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Reward(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethodData::GiftCard(_)), _) => Ok(pm.to_owned()),
         (pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
                 state,
@@ -1446,6 +1447,7 @@ pub fn get_handle_response_url(
         redirection_response,
         payments_return_url,
         response.client_secret.as_ref(),
+        response.manual_retry_allowed,
     )
     .attach_printable("Failed to make merchant url with response")?;
 
@@ -1457,6 +1459,7 @@ pub fn make_merchant_url_with_response(
     redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
     client_secret: Option<&masking::Secret<String>>,
+    manual_retry_allowed: Option<bool>,
 ) -> RouterResult<String> {
     // take return url if provided in the request else use merchant return url
     let url = request_return_url
@@ -1479,6 +1482,10 @@ pub fn make_merchant_url_with_response(
                     "payment_intent_client_secret",
                     payment_client_secret.peek().to_string(),
                 ),
+                (
+                    "manual_retry_allowed",
+                    manual_retry_allowed.unwrap_or(false).to_string(),
+                ),
             ],
         )
         .into_report()
@@ -1495,6 +1502,10 @@ pub fn make_merchant_url_with_response(
                     payment_client_secret.peek().to_string(),
                 ),
                 ("amount", amount.to_string()),
+                (
+                    "manual_retry_allowed",
+                    manual_retry_allowed.unwrap_or(false).to_string(),
+                ),
             ],
         )
         .into_report()
@@ -2431,8 +2442,10 @@ impl AttemptType {
 pub fn is_manual_retry_allowed(
     intent_status: &storage_enums::IntentStatus,
     attempt_status: &storage_enums::AttemptStatus,
+    connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+    merchant_id: &str,
 ) -> Option<bool> {
-    match intent_status {
+    let is_payment_status_eligible_for_retry = match intent_status {
         enums::IntentStatus::Failed => match attempt_status {
             enums::AttemptStatus::Started
             | enums::AttemptStatus::AuthenticationPending
@@ -2472,7 +2485,12 @@ pub fn is_manual_retry_allowed(
         | enums::IntentStatus::RequiresMerchantAction
         | enums::IntentStatus::RequiresPaymentMethod
         | enums::IntentStatus::RequiresConfirmation => None,
-    }
+    };
+    let is_merchant_id_enabled_for_retries = !connector_request_reference_id_config
+        .merchant_ids_send_payment_id_as_connector_request_id
+        .contains(merchant_id);
+    is_payment_status_eligible_for_retry
+        .map(|payment_status_check| payment_status_check && is_merchant_id_enabled_for_retries)
 }
 
 #[cfg(test)]
@@ -2605,6 +2623,9 @@ pub async fn get_additional_payment_data(
         }
         api_models::payments::PaymentMethodData::Upi(_) => {
             api_models::payments::AdditionalPaymentData::Upi {}
+        }
+        api_models::payments::PaymentMethodData::GiftCard(_) => {
+            api_models::payments::AdditionalPaymentData::GiftCard {}
         }
     }
 }

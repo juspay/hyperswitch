@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::ext_traits::{ByteSliceExt, ValueExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as airwallex;
 
 use super::utils::{AccessTokenRequestInfo, RefundsRequestData};
@@ -50,7 +51,7 @@ where
 
         let auth_header = (
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", access_token.token).into_masked(),
+            format!("Bearer {}", access_token.token.peek()).into_masked(),
         );
 
         headers.push(auth_header);

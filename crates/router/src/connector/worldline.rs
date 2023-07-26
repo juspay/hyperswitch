@@ -6,6 +6,7 @@ use base64::Engine;
 use common_utils::ext_traits::ByteSliceExt;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
+use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
 use time::{format_description, OffsetDateTime};
 use transformers as worldline;
@@ -54,10 +55,10 @@ impl Worldline {
             api_secret,
             ..
         } = auth;
-        let key = hmac::Key::new(hmac::HMAC_SHA256, api_secret.as_bytes());
+        let key = hmac::Key::new(hmac::HMAC_SHA256, api_secret.expose().as_bytes());
         let signed_data = consts::BASE64_ENGINE.encode(hmac::sign(&key, signature_data.as_bytes()));
 
-        Ok(format!("GCS v1HMAC:{api_key}:{signed_data}"))
+        Ok(format!("GCS v1HMAC:{}:{signed_data}", api_key.peek()))
     }
 
     pub fn get_current_date_time() -> CustomResult<String, errors::ConnectorError> {
@@ -192,7 +193,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
         let auth: worldline::AuthType = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchant_account_id = auth.merchant_account_id;
+        let merchant_account_id = auth.merchant_account_id.expose();
         let payment_id: &str = req.request.connector_transaction_id.as_ref();
         Ok(format!(
             "{base_url}v1/{merchant_account_id}/payments/{payment_id}/cancel"
@@ -272,7 +273,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         let base_url = self.base_url(connectors);
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchant_account_id = auth.merchant_account_id;
+        let merchant_account_id = auth.merchant_account_id.expose();
         Ok(format!(
             "{base_url}v1/{merchant_account_id}/payments/{payment_id}"
         ))
@@ -348,7 +349,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         let payment_id = req.request.connector_transaction_id.clone();
         let base_url = self.base_url(connectors);
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchant_account_id = auth.merchant_account_id;
+        let merchant_account_id = auth.merchant_account_id.expose();
         Ok(format!(
             "{base_url}v1/{merchant_account_id}/payments/{payment_id}/approve"
         ))
@@ -465,7 +466,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchant_account_id = auth.merchant_account_id;
+        let merchant_account_id = auth.merchant_account_id.expose();
         Ok(format!("{base_url}v1/{merchant_account_id}/payments"))
     }
 
@@ -556,7 +557,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let payment_id = req.request.connector_transaction_id.clone();
         let base_url = self.base_url(connectors);
         let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchant_account_id = auth.merchant_account_id;
+        let merchant_account_id = auth.merchant_account_id.expose();
         Ok(format!(
             "{base_url}v1/{merchant_account_id}/payments/{payment_id}/refund"
         ))
@@ -646,7 +647,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let refund_id = req.request.get_connector_refund_id()?;
         let base_url = self.base_url(connectors);
         let auth: worldline::AuthType = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchant_account_id = auth.merchant_account_id;
+        let merchant_account_id = auth.merchant_account_id.expose();
         Ok(format!(
             "{base_url}v1/{merchant_account_id}/refunds/{refund_id}/"
         ))

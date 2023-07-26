@@ -6,6 +6,7 @@ use std::fmt::Debug;
 
 use ::common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use serde_json::Value;
 
 use self::{
@@ -63,7 +64,7 @@ where
             ("X-GP-Version".to_string(), "2021-03-22".to_string().into()),
             (
                 headers::AUTHORIZATION.to_string(),
-                format!("Bearer {}", access_token.token).into_masked(),
+                format!("Bearer {}", access_token.token.peek()).into_masked(),
             ),
         ])
     }
