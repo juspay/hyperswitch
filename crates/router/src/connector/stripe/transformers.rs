@@ -1232,10 +1232,10 @@ fn create_stripe_payment_method(
                         billing_details,
                     ))
                 }
-                payments::BankTransferData::Pix {} => Err(errors::ConnectorError::NotImplemented(
-                    "this payment method".to_string(),
-                )
-                .into()),
+                payments::BankTransferData::Pix {} | payments::BankTransferData::Pse {} => Err(
+                    errors::ConnectorError::NotImplemented("this payment method".to_string())
+                        .into(),
+                ),
             }
         }
         _ => Err(errors::ConnectorError::NotImplemented("payment method".to_string()).into()),
@@ -2900,7 +2900,7 @@ impl
                             payment_method_type: StripePaymentMethodType::CustomerBalance,
                         })),
                     )),
-                    payments::BankTransferData::Pix {} => Err(
+                    payments::BankTransferData::Pix {} | payments::BankTransferData::Pse {} => Err(
                         errors::ConnectorError::NotImplemented("payment method".to_string()).into(),
                     ),
                 }

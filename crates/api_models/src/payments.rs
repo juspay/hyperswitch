@@ -967,6 +967,7 @@ pub enum BankTransferData {
         billing_details: MultibancoBillingDetails,
     },
     Pix {},
+    Pse {},
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
@@ -1194,7 +1195,6 @@ pub enum VoucherData {
     Boleto(Box<BoletoVoucherData>),
     Efecty,
     PagoEfectivo,
-    Pse,
     RedCompra,
     RedPagos,
 }

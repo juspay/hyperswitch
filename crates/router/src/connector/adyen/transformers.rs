@@ -1606,7 +1606,8 @@ impl<'a> TryFrom<&api_models::payments::BankTransferData> for AdyenPaymentMethod
             api_models::payments::BankTransferData::AchBankTransfer { .. }
             | api_models::payments::BankTransferData::SepaBankTransfer { .. }
             | api_models::payments::BankTransferData::BacsBankTransfer { .. }
-            | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
+            | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
+            | api_models::payments::BankTransferData::Pse { .. } => {
                 Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
             }
         }

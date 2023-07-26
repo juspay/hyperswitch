@@ -3208,6 +3208,17 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pse"
+            ],
+            "properties": {
+              "pse": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -9903,12 +9914,6 @@
             "type": "string",
             "enum": [
               "pago_efectivo"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "pse"
             ]
           },
           {

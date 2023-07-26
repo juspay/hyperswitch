@@ -241,7 +241,6 @@ impl
             api_models::payments::VoucherData::PagoEfectivo => {
                 ZenPaymentChannels::PclBoacompraPagoefectivo
             }
-            api_models::payments::VoucherData::Pse => ZenPaymentChannels::PclBoacompraPse,
             api_models::payments::VoucherData::RedCompra => {
                 ZenPaymentChannels::PclBoacompraRedcompra
             }
@@ -289,6 +288,9 @@ impl
             }
             api_models::payments::BankTransferData::Pix { .. } => {
                 ZenPaymentChannels::PclBoacompraPix
+            }
+            api_models::payments::BankTransferData::Pse { .. } => {
+                ZenPaymentChannels::PclBoacompraPse
             }
             _ => Err(errors::ConnectorError::NotImplemented(
                 "payment method".to_string(),
