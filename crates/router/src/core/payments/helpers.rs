@@ -1372,17 +1372,6 @@ pub(crate) fn validate_payment_method_fields_present(
     )?;
 
     utils::when(
-        req.payment_method.is_some()
-            && req.payment_method_data.is_none()
-            && req.payment_token.is_none(),
-        || {
-            Err(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_data",
-            })
-        },
-    )?;
-
-    utils::when(
         !matches!(
             req.payment_method,
             Some(api_enums::PaymentMethod::Card) | None
@@ -1390,6 +1379,17 @@ pub(crate) fn validate_payment_method_fields_present(
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method_type",
+            })
+        },
+    )?;
+
+    utils::when(
+        req.payment_method.is_some()
+            && req.payment_method_data.is_none()
+            && req.payment_token.is_none(),
+        || {
+            Err(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "payment_method_data",
             })
         },
     )?;
