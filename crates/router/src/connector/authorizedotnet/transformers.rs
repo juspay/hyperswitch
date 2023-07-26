@@ -7,7 +7,7 @@ use masking::{PeekInterface, Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{CardData, PaymentsSyncRequestData, RefundsRequestData, WalletData},
+    connector::utils::{self, CardData, PaymentsSyncRequestData, RefundsRequestData, WalletData},
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -34,8 +34,8 @@ pub enum TransactionType {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct MerchantAuthentication {
-    name: String,
-    transaction_key: String,
+    name: Secret<String>,
+    transaction_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
@@ -44,8 +44,8 @@ impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
-                name: api_key.clone(),
-                transaction_key: key1.clone(),
+                name: api_key.to_owned(),
+                transaction_key: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -174,7 +174,7 @@ fn get_pm_and_subsequent_auth_detail(
 #[serde(rename_all = "camelCase")]
 struct TransactionRequest {
     transaction_type: TransactionType,
-    amount: i64,
+    amount: f64,
     currency_code: String,
     payment: PaymentDetails,
     processing_options: Option<ProcessingOptions>,
@@ -218,7 +218,8 @@ struct AuthorizationIndicator {
 #[serde(rename_all = "camelCase")]
 struct TransactionVoidOrCaptureRequest {
     transaction_type: TransactionType,
-    amount: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    amount: Option<f64>,
     ref_trans_id: String,
 }
 
@@ -276,7 +277,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CreateTransactionRequest {
             });
         let transaction_request = TransactionRequest {
             transaction_type: TransactionType::from(item.request.capture_method),
-            amount: item.request.amount,
+            amount: utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?,
             payment: payment_details,
             currency_code: item.request.currency.to_string(),
             processing_options,
@@ -299,7 +300,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelOrCaptureTransactionReq
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let transaction_request = TransactionVoidOrCaptureRequest {
-            amount: item.request.amount,
+            amount: None, //amount is not required for void
             transaction_type: TransactionType::Void,
             ref_trans_id: item.request.connector_transaction_id.to_string(),
         };
@@ -319,7 +320,10 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CancelOrCaptureTransactionRe
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let transaction_request = TransactionVoidOrCaptureRequest {
-            amount: Some(item.request.amount_to_capture),
+            amount: Some(utils::to_currency_base_unit_asf64(
+                item.request.amount_to_capture,
+                item.request.currency,
+            )?),
             transaction_type: TransactionType::Capture,
             ref_trans_id: item.request.connector_transaction_id.to_string(),
         };
@@ -449,7 +453,6 @@ pub struct AuthorizedotnetVoidResponse {
 #[serde(rename_all = "camelCase")]
 pub struct VoidResponse {
     response_code: AuthorizedotnetVoidStatus,
-    auth_code: String,
     #[serde(rename = "transId")]
     transaction_id: String,
     network_trans_id: Option<String>,
@@ -622,7 +625,7 @@ impl<F, T>
 #[serde(rename_all = "camelCase")]
 struct RefundTransactionRequest {
     transaction_type: TransactionType,
-    amount: i64,
+    amount: f64,
     currency_code: String,
     payment: PaymentDetails,
     #[serde(rename = "refTransId")]
@@ -660,7 +663,10 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
 
         let transaction_request = RefundTransactionRequest {
             transaction_type: TransactionType::Refund,
-            amount: item.request.refund_amount,
+            amount: utils::to_currency_base_unit_asf64(
+                item.request.refund_amount,
+                item.request.currency,
+            )?,
             payment: payment_details
                 .parse_value("PaymentDetails")
                 .change_context(errors::ConnectorError::MissingRequiredField {

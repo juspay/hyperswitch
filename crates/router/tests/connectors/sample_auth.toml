@@ -8,6 +8,7 @@ key1 = "MyEntityId"
 [adyen]
 api_key = "Bearer MyApiKey"
 key1 = "MerchantId"
+api_secret = "Secondary key"
 
 [authorizedotnet]
 api_key = "MyMerchantName"
@@ -120,6 +121,10 @@ key1 = "Business Identifier"
 [opayo]
 api_key="API Key"
 
+[wise]
+api_key = "API Key"
+key1 = "Profile ID"
+
 [automation_configs]
 hs_base_url="http://localhost:8080"
 hs_test_browser="firefox"
@@ -159,3 +164,7 @@ key1 = "PowerTranz-PowerTranzId"
 
 [stax]
 api_key="API Key"
+
+[boku]
+api_key="API Key"
+key1 = "transaction key"

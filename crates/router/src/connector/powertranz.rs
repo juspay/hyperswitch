@@ -110,26 +110,13 @@ impl ConnectorCommon for Powertranz {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: powertranz::PowertranzErrorResponse = res
-            .response
-            .parse_struct("PowertranzErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let first_error = response.errors.first();
-        let code = first_error.map(|error| error.code.clone());
-        let message = first_error.map(|error| error.message.clone());
-
+        // For error scenerios connector respond with 200 http status code and error response object in response
+        // For http status code other than 200 they send empty response back
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: message.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: Some(
-                response
-                    .errors
-                    .iter()
-                    .map(|error| format!("{} : {}", error.code, error.message))
-                    .collect::<Vec<_>>()
-                    .join(", "),
-            ),
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: consts::NO_ERROR_MESSAGE.to_string(),
+            reason: None,
         })
     }
 }
@@ -274,7 +261,7 @@ impl
             .get_redirect_response_payload()?
             .parse_value("PowerTranz RedirectResponsePayload")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let spi_token = format!("\"{}\"", redirect_payload.spi_token);
+        let spi_token = format!(r#""{}""#, redirect_payload.spi_token);
         let powertranz_req =
             types::RequestBody::log_and_get_request_body(&spi_token, |spi_token| {
                 Ok(spi_token.to_string())
@@ -332,16 +319,7 @@ impl
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Powertranz
 {
-    fn build_request(
-        &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Payment Sync".to_string(),
-            connector: "PowerTranz".to_string(),
-        })?
-    }
+    // default implementation of build_request method will be executed
 }
 
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
@@ -574,16 +552,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
     for Powertranz
 {
-    fn build_request(
-        &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Refund Sync".to_string(),
-            connector: "PowerTranz".to_string(),
-        })?
-    }
+    // default implementation of build_request method will be executed
 }
 
 #[async_trait::async_trait]

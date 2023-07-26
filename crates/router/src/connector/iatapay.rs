@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as iatapay;
 
 use self::iatapay::IatapayPaymentsResponse;
@@ -73,7 +74,7 @@ where
 
         let auth_header = (
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", access_token.token).into_masked(),
+            format!("Bearer {}", access_token.token.peek()).into_masked(),
         );
         headers.push(auth_header);
         Ok(headers)
@@ -153,7 +154,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             iatapay::IatapayAuthType::try_from(&req.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
-        let auth_id = format!("{}:{}", auth.client_id, auth.client_secret);
+        let auth_id = format!("{}:{}", auth.client_id.peek(), auth.client_secret.peek());
         let auth_val: String = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_id));
 
         Ok(vec![

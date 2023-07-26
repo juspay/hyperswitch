@@ -16,7 +16,11 @@ RegioBank = "RegioBank"
 SOM = "SOM"  # Somalia country code
 THA = "THA"  # Thailand country code
 ZAR = "ZAR"  # South African Rand currency code
+passord = "passord" # name of a css class for adyen ui test
+bottm = "bottm" # name of a css class for nexinets ui test
 klick = "klick" # Swedish word for clicks
+optin = "optin" # Boku preflow name
+optin_id = "optin_id" # Boku's id for optin flow
 
 [default.extend-words]
 aci = "aci"                   # Name of a connector

@@ -57,10 +57,10 @@ vault_encryption_key = ""
 vault_private_key = ""
 
 [redis]
-host = "redis-queue"
+host = "redis-standalone"
 port = 6379
-cluster_enabled = true
-cluster_urls = ["redis-queue:6379"]
+cluster_enabled = false
+cluster_urls = ["redis-cluster:6379"]
 
 [refund]
 max_attempts = 10
@@ -72,12 +72,14 @@ hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 [connectors]
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
+adyen.secondary_base_url = "https://pal-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
+boku.base_url = "https://country-api4-stage.boku.com"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
@@ -103,7 +105,7 @@ opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
-paypal.base_url = "https://www.sandbox.paypal.com/"
+paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
@@ -111,6 +113,7 @@ shift4.base_url = "https://api.shift4.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
+wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
@@ -130,6 +133,7 @@ cards = [
     "bambora",
     "bitpay",
     "bluesnap",
+    "boku",
     "braintree",
     "checkout",
     "coinbase",
@@ -160,6 +164,7 @@ cards = [
     "stripe",
     "trustpay",
     "tsys",
+    "wise",
     "worldline",
     "worldpay",
     "zen",
@@ -193,3 +198,26 @@ refund_duration = 1000
 refund_tolerance = 100
 refund_retrieve_duration = 500
 refund_retrieve_tolerance = 100
+
+[payouts]
+payout_eligibility = true
+
+[pm_filters.adyen]
+online_banking_fpx = {country = "MY", currency = "MYR"}
+online_banking_thailand = {country = "TH", currency = "THB"}
+touch_n_go = {country = "MY", currency = "MYR"}
+atome = {country = "MY,SG", currency = "MYR,SGD"}
+
+[bank_config.online_banking_fpx]
+adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,may_bank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
+
+[bank_config.online_banking_thailand]
+adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_bank,kasikorn_bank"
+
+[mandates.supported_payment_methods]
+pay_later.klarna = {connector_list = "adyen"}
+wallet.google_pay = {connector_list = "stripe,adyen"}
+wallet.apple_pay = {connector_list = "stripe,adyen"}
+wallet.paypal = {connector_list = "adyen"}
+card.credit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
+card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}

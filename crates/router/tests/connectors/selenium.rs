@@ -1,6 +1,13 @@
-use std::{collections::HashMap, env, io::Read, path::MAIN_SEPARATOR, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    env,
+    io::Read,
+    path::MAIN_SEPARATOR,
+    time::Duration,
+};
 
 use async_trait::async_trait;
+use serde_json::json;
 use thirtyfour::{components::SelectElement, prelude::*, WebDriver};
 
 use crate::connector_auth;
@@ -54,26 +61,28 @@ pub static CHEKOUT_BASE_URL: &str = "https://hs-payments-test.netlify.app";
 #[async_trait]
 pub trait SeleniumTest {
     fn get_saved_testcases(&self) -> serde_json::Value {
-        let env_value = env::var("CONNECTOR_TESTS_FILE_PATH").ok();
-        if env_value.is_none() {
-            return serde_json::json!("");
-        }
-        let path = env_value.unwrap();
-        let mut file = &std::fs::File::open(path).expect("Failed to open file");
-        let mut contents = String::new();
-        file.read_to_string(&mut contents)
-            .expect("Failed to read file");
-
-        // Parse the JSON data
-        serde_json::from_str(&contents).expect("Failed to parse JSON")
+        get_saved_testcases()
     }
     fn get_configs(&self) -> connector_auth::ConnectorAuthentication {
-        let path = env::var("CONNECTOR_AUTH_FILE_PATH")
-            .expect("connector authentication file path not set");
-        toml::from_str(
-            &std::fs::read_to_string(path).expect("connector authentication config file not found"),
-        )
-        .expect("Failed to read connector authentication config file")
+        get_configs()
+    }
+    async fn retry_click(
+        &self,
+        times: i32,
+        interval: u64,
+        driver: &WebDriver,
+        by: By,
+    ) -> Result<(), WebDriverError> {
+        let mut res = Ok(());
+        for _i in 0..times {
+            res = self.click_element(driver, by.clone()).await;
+            if res.is_err() {
+                tokio::time::sleep(Duration::from_secs(interval)).await;
+            } else {
+                break;
+            }
+        }
+        return res;
     }
     fn get_connector_name(&self) -> String;
     async fn complete_actions(
@@ -265,11 +274,7 @@ pub trait SeleniumTest {
                         driver.execute(script, Vec::new()).await?;
                     }
                     Trigger::Click(by) => {
-                        let res = self.click_element(driver, by.clone()).await;
-                        if res.is_err() {
-                            tokio::time::sleep(Duration::from_secs(5)).await;
-                            self.click_element(driver, by).await?;
-                        }
+                        self.retry_click(3, 5, driver, by.clone()).await?;
                     }
                     Trigger::ClickNth(by, n) => {
                         let ele = driver.query(by).all().await?.into_iter().nth(n).unwrap();
@@ -444,31 +449,31 @@ pub trait SeleniumTest {
                 Assert::IsPresent("Big purchase? No problem."),
                 vec![
                     Event::Trigger(Trigger::SendKeys(
-                        By::Css("input.focusable-form-field.pro11TnYcue.pro284gg8sY"),
+                        By::Css("input[data-testid='phone-number-field']"),
                         "(833) 549-5574", // any test phone number accepted by affirm
                     )),
                     Event::Trigger(Trigger::Click(By::Css(
-                        "button.sc-aXZVg.gCRVeN.pro35Wfly4z.pro300N0DVx.profBy8oj9g",
+                        "button[data-testid='submit-button']",
                     ))),
                     Event::Trigger(Trigger::SendKeys(
-                        By::Css("input.focusable-form-field.pro3g2JlS3A.pro284gg8sY"),
+                        By::Css("input[data-testid='phone-pin-field']"),
                         "1234",
                     )),
                 ],
             ),
             Event::Trigger(Trigger::Click(By::Css(
-                "button.sc-aXZVg.fiBhTR.sc-gEkIjz.lfdPCG.pro35Wfly4z.pro4JEtdJCo.profBy8oj9g",
+                "button[data-testid='skip-payment-button']",
+            ))),
+            Event::Trigger(Trigger::Click(By::Css("div[data-testid='indicator']"))),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button[data-testid='submit-button']",
+            ))),
+            Event::Trigger(Trigger::Click(By::Css("div[data-testid='indicator']"))),
+            Event::Trigger(Trigger::Click(By::Css(
+                "div[data-testid='disclosure-checkbox-indicator']",
             ))),
             Event::Trigger(Trigger::Click(By::Css(
-                "div.proXxAyyoTg.pro1jhMLxqa.pro3Q3lI-I9",
-            ))),
-            Event::Trigger(Trigger::Click(By::Css(
-                "button.sc-aXZVg.gCRVeN.pro35Wfly4z.pro300N0DVx.pro3JiyGdDb.pro1Ss7c7oj",
-            ))),
-            Event::Trigger(Trigger::Click(By::Css("div.pro1O60NO1I.pro2uav9pZk"))),
-            Event::Trigger(Trigger::Click(By::Css("div.pro1O60NO1I.pro1xh5zNal"))),
-            Event::Trigger(Trigger::Click(By::Css(
-                "button.sc-aXZVg.gCRVeN.pro35Wfly4z.pro300N0DVx.profBy8oj9g",
+                "button[data-testid='submit-button']",
             ))),
         ];
         affirm_actions.extend(actions);
@@ -482,8 +487,15 @@ pub trait SeleniumTest {
     ) -> Result<(), WebDriverError> {
         let pypl_url = url.to_string();
         // To support failure retries
-        self.execute_paypal_steps(web_driver.clone(), &pypl_url, actions.clone())
-            .await
+        let result = self
+            .execute_paypal_steps(web_driver.clone(), &pypl_url, actions.clone())
+            .await;
+        if result.is_err() {
+            self.execute_paypal_steps(web_driver.clone(), &pypl_url, actions.clone())
+                .await
+        } else {
+            result
+        }
     }
     async fn execute_paypal_steps(
         &self,
@@ -514,29 +526,20 @@ pub trait SeleniumTest {
                 .unwrap(),
         );
         let mut pypl_actions = vec![
-            Event::EitherOr(
-                Assert::IsPresent("Forgot email?"),
+            Event::Trigger(Trigger::Sleep(8)),
+            Event::RunIf(
+                Assert::IsPresentNow("Enter your email address to get started"),
                 vec![
                     Event::Trigger(Trigger::SendKeys(By::Id("email"), email)),
                     Event::Trigger(Trigger::Click(By::Id("btnNext"))),
-                    Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
-                    Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
-                ],
-                vec![
-                    Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
-                    Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
                 ],
             ),
-            Event::EitherOr(
-                Assert::IsPresent("See Offers and Apply for PayPal Credit"),
+            Event::RunIf(
+                Assert::IsPresentNow("Password"),
                 vec![
-                    Event::RunIf(
-                        Assert::IsElePresent(By::Id("spinner")),
-                        vec![Event::Trigger(Trigger::Sleep(5))],
-                    ),
-                    Event::Trigger(Trigger::Click(By::Css(".reviewButton"))),
+                    Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
+                    Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
                 ],
-                vec![Event::Trigger(Trigger::Click(By::Id("payment-submit-btn")))],
             ),
         ];
         pypl_actions.extend(actions);
@@ -553,6 +556,14 @@ pub trait SeleniumTest {
             vec![
                 Event::Trigger(Trigger::Goto(url)),
                 Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+                Event::Trigger(Trigger::Sleep(5)),
+                Event::RunIf(
+                    Assert::IsPresentNow("Manage Cookies"),
+                    vec![
+                        Event::Trigger(Trigger::Click(By::Css("button.cookie-setting-link"))),
+                        Event::Trigger(Trigger::Click(By::Id("accept-recommended-btn-handler"))),
+                    ],
+                ),
             ],
         )
         .await?;
@@ -573,18 +584,25 @@ pub trait SeleniumTest {
         let mut clearpay_actions = vec![
             Event::Trigger(Trigger::Sleep(3)),
             Event::EitherOr(
-                Assert::IsPresent("Review your order | Clearpay"),
-                vec![Event::Trigger(Trigger::Click(By::ClassName("ai_az")))],
+                Assert::IsPresent("Please enter your password"),
                 vec![
-                    Event::Trigger(Trigger::SendKeys(By::ClassName("n8_fl"), email)),
-                    Event::Trigger(Trigger::Click(By::ClassName("ai_az"))),
+                    Event::Trigger(Trigger::SendKeys(By::Css("input[name='password']"), pass)),
+                    Event::Trigger(Trigger::Click(By::Css("button[type='submit']"))),
+                ],
+                vec![
+                    Event::Trigger(Trigger::SendKeys(
+                        By::Css("input[name='identifier']"),
+                        email,
+                    )),
+                    Event::Trigger(Trigger::Click(By::Css("button[type='submit']"))),
                     Event::Trigger(Trigger::Sleep(3)),
-                    Event::Trigger(Trigger::SendKeys(By::ClassName("n8_fl"), pass)),
-                    Event::Trigger(Trigger::Click(By::ClassName("ai_az"))),
-                    Event::Trigger(Trigger::Sleep(10)), //Time needed for login
-                    Event::Trigger(Trigger::Click(By::ClassName("ai_az"))),
+                    Event::Trigger(Trigger::SendKeys(By::Css("input[name='password']"), pass)),
+                    Event::Trigger(Trigger::Click(By::Css("button[type='submit']"))),
                 ],
             ),
+            Event::Trigger(Trigger::Click(By::Css(
+                "button[data-testid='summary-button']",
+            ))),
         ];
         clearpay_actions.extend(actions);
         self.complete_actions(&driver, clearpay_actions).await
@@ -595,6 +613,10 @@ async fn is_text_present_now(driver: &WebDriver, key: &str) -> WebDriverResult<b
     xpath.push_str(key);
     xpath.push_str("')]");
     let result = driver.find(By::XPath(&xpath)).await?;
+    let display: &str = &result.css_value("display").await?;
+    if display.is_empty() || display == "none" {
+        return Err(WebDriverError::CustomError("Element is hidden".to_string()));
+    }
     result.is_present().await
 }
 async fn is_text_present(driver: &WebDriver, key: &str) -> WebDriverResult<bool> {
@@ -651,14 +673,68 @@ macro_rules! tester_inner {
 }
 
 #[macro_export]
+macro_rules! function {
+    () => {{
+        fn f() {}
+        fn type_name_of<T>(_: T) -> &'static str {
+            std::any::type_name::<T>()
+        }
+        let name = type_name_of(f);
+        &name[..name.len() - 3]
+    }};
+}
+
+#[macro_export]
 macro_rules! tester {
     ($f:ident) => {{
-        use $crate::tester_inner;
+        use $crate::{function, tester_inner};
+        let test_name = format!("{:?}", function!());
+        if (should_ignore_test(&test_name)) {
+            return;
+        }
         let browser = get_browser();
         let url = make_url(&browser);
         let caps = make_capabilities(&browser);
         tester_inner!($f, WebDriver::new(url, caps));
     }};
+}
+
+fn get_saved_testcases() -> serde_json::Value {
+    let env_value = env::var("CONNECTOR_TESTS_FILE_PATH").ok();
+    if env_value.is_none() {
+        return serde_json::json!("");
+    }
+    let path = env_value.unwrap();
+    let mut file = &std::fs::File::open(path).expect("Failed to open file");
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)
+        .expect("Failed to read file");
+
+    // Parse the JSON data
+    serde_json::from_str(&contents).expect("Failed to parse JSON")
+}
+fn get_configs() -> connector_auth::ConnectorAuthentication {
+    let path =
+        env::var("CONNECTOR_AUTH_FILE_PATH").expect("connector authentication file path not set");
+    toml::from_str(
+        &std::fs::read_to_string(path).expect("connector authentication config file not found"),
+    )
+    .expect("Failed to read connector authentication config file")
+}
+
+pub fn should_ignore_test(name: &str) -> bool {
+    let conf = get_saved_testcases()
+        .get("tests_to_ignore")
+        .unwrap_or(&json!([]))
+        .clone();
+    let tests_to_ignore: HashSet<String> =
+        serde_json::from_value(conf).unwrap_or_else(|_| HashSet::new());
+    // let tests_to_ignore = conf.automation_configs.unwrap().tests_to_ignore.unwrap_or_else(|| HashSet::new());
+    let modules: Vec<_> = name.split("::").collect();
+    let file_match = format!("{}::*", <&str>::clone(&modules[1]));
+    let module_name = modules[1..3].join("::");
+    // Ignore if it matches patterns like nuvei_ui::*, nuvei_ui::should_make_nuvei_eps_payment_test
+    tests_to_ignore.contains(&file_match) || tests_to_ignore.contains(&module_name)
 }
 
 pub fn get_browser() -> String {
