@@ -3,7 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::PeekInterface;
 use transformers as stax;
 
 use super::utils::{to_connector_meta, RefundsRequestData};
@@ -11,7 +11,7 @@ use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
-    headers, logger,
+    headers,
     services::{
         self,
         request::{self, Mask},
@@ -84,7 +84,7 @@ impl ConnectorCommon for Stax {
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key.expose()).into_masked(),
+            format!("Bearer {}", auth.api_key.peek()).into_masked(),
         )])
     }
 
@@ -247,7 +247,6 @@ impl
             .response
             .parse_struct("StaxCustomerResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -288,11 +287,7 @@ impl
         _req: &types::TokenizationRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}{}",
-            self.base_url(connectors),
-            "payment-method/"
-        ))
+        Ok(format!("{}payment-method/", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -337,7 +332,6 @@ impl
             .response
             .parse_struct("StaxTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -478,9 +472,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
         Ok(format!(
-            "{}/transaction/{}",
+            "{}/transaction/{connector_payment_id}",
             self.base_url(connectors),
-            connector_payment_id,
         ))
     }
 
@@ -690,7 +683,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_transaction_id = if req.request.connector_metadata.is_some() {
-            let stax_capture: stax::StaxCaptureId =
+            let stax_capture: stax::StaxMetaData =
                 to_connector_meta(req.request.connector_metadata.clone())?;
             stax_capture.id
         } else {

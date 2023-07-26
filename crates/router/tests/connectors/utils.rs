@@ -954,19 +954,7 @@ impl Default for CustomerType {
 impl Default for TokenType {
     fn default() -> Self {
         let data = types::PaymentMethodTokenizationData {
-            payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
-                card_exp_month: Secret::new("10".to_string()),
-                card_exp_year: Secret::new("2025".to_string()),
-                card_holder_name: Secret::new("John Doe".to_string()),
-                card_cvc: Secret::new("999".to_string()),
-                card_issuer: None,
-                card_network: None,
-                card_type: None,
-                card_issuing_country: None,
-                bank_code: None,
-                nick_name: Some(masking::Secret::new("nick_name".into())),
-            }),
+            payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
             browser_info: None,
         };
         Self(data)

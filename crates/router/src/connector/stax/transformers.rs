@@ -1,20 +1,20 @@
 use common_utils::pii::Email;
 use error_stack::IntoReport;
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{CardData, RouterData},
+    connector::utils::{CardData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     types::{self, api, storage::enums},
 };
 
-#[derive(Debug, Default, Eq, PartialEq, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct StaxPaymentsRequestMetaData {
     tax: i64,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct StaxPaymentsRequest {
     payment_method_id: Secret<String>,
     total: i64,
@@ -28,10 +28,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => {
-                let mut pre_auth = false;
-                if let Some(enums::CaptureMethod::Manual) = item.request.capture_method {
-                    pre_auth = true;
-                }
+                let pre_auth = !item.request.is_auto_capture()?;
                 Ok(Self {
                     meta: StaxPaymentsRequestMetaData { tax: 0 },
                     total: item.request.amount,
@@ -63,7 +60,6 @@ impl TryFrom<&types::ConnectorAuthType> for StaxAuthType {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct StaxCustomerRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     email: Option<Email>,
@@ -82,7 +78,6 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for StaxCustomerRequest {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct StaxCustomerResponse {
     id: Secret<String>,
 }
@@ -104,7 +99,7 @@ impl<F, T>
     }
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct StaxTokenizeData {
     person_name: Secret<String>,
     card_number: cards::CardNumber,
@@ -136,7 +131,15 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                 };
                 Ok(Self::Card(stax_card_data))
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
+            api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotImplemented(
                 "Payment Method".to_string(),
             ))
             .into_report(),
@@ -144,9 +147,9 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct StaxTokenResponse {
-    id: String,
+    id: Secret<String>,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, StaxTokenResponse, T, types::PaymentsResponseData>>
@@ -158,7 +161,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, StaxTokenResponse, T, types::Pay
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
-                token: item.response.id,
+                token: item.response.id.peek().to_string(),
             }),
             ..item.data
         })
@@ -166,7 +169,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, StaxTokenResponse, T, types::Pay
 }
 
 // PaymentsResponse
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum StaxPaymentStatus {
     Succeeded,
@@ -185,19 +188,19 @@ impl From<StaxPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StaxPaymentResponseTypes {
     Charge,
     PreAuth,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct StaxChildCapture {
     id: String,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct StaxPaymentsResponse {
     success: bool,
     id: String,
@@ -208,8 +211,8 @@ pub struct StaxPaymentsResponse {
     payment_response_type: StaxPaymentResponseTypes,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub struct StaxCaptureId {
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct StaxMetaData {
     pub id: String,
 }
 
@@ -229,8 +232,8 @@ impl<F, T>
                     0 => enums::AttemptStatus::Authorized,
                     _ => {
                         connector_metadata =
-                            item.response.child_captures.get(0).map(|child_captures| {
-                                serde_json::json!(StaxCaptureId {
+                            item.response.child_captures.first().map(|child_captures| {
+                                serde_json::json!(StaxMetaData {
                                     id: child_captures.id.clone()
                                 })
                             });
@@ -275,7 +278,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for StaxCaptureRequest {
 
 // REFUND :
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct StaxRefundRequest {
     pub total: i64,
 }
@@ -289,16 +292,14 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for StaxRefundRequest {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct ChildTransactionsInResponse {
     id: String,
     success: bool,
 }
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RefundResponse {
     id: String,
-    total_refunded: i64,
-    total: i64,
     success: bool,
     child_transactions: Vec<ChildTransactionsInResponse>,
 }
@@ -310,14 +311,22 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let first_child_transaction = item.response.child_transactions[0].clone();
-        let refund_status = match first_child_transaction.success {
-            true => enums::RefundStatus::Success,
-            false => enums::RefundStatus::Failure,
-        };
+        let (connector_refund_id, refund_status) = item.response.child_transactions.first().map_or(
+            ("".to_string(), enums::RefundStatus::Failure),
+            |child_transaction| {
+                (
+                    child_transaction.id.clone(),
+                    match child_transaction.success {
+                        true => enums::RefundStatus::Success,
+                        false => enums::RefundStatus::Failure,
+                    },
+                )
+            },
+        );
+
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: first_child_transaction.id,
+                connector_refund_id,
                 refund_status,
             }),
             ..item.data
