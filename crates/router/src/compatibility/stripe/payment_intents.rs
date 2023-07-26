@@ -20,6 +20,7 @@ pub async fn payment_intents_create(
     req: HttpRequest,
     form_payload: web::Bytes,
 ) -> HttpResponse {
+    println!("##py-req-{:?}\nform_payload-{:?}", req, form_payload);
     let payload: types::StripePaymentIntentRequest = match qs_config
         .deserialize_bytes(&form_payload)
         .map_err(|err| report!(errors::StripeErrorCode::from(err)))
@@ -28,11 +29,12 @@ pub async fn payment_intents_create(
         Err(err) => return api::log_and_return_error_response(err),
     };
 
+    println!("##payload-{:?}", payload.payment_method_data);
     let create_payment_req: payment_types::PaymentsRequest = match payload.try_into() {
         Ok(req) => req,
         Err(err) => return api::log_and_return_error_response(err),
     };
-
+    println!("##create_payment_req-{:?}", create_payment_req);
     let flow = Flow::PaymentsCreate;
 
     wrap::compatibility_api_wrap::<
