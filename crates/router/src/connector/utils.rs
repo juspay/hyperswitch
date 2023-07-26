@@ -38,11 +38,11 @@ pub fn missing_field_err(
 type Error = error_stack::Report<errors::ConnectorError>;
 
 pub trait AccessTokenRequestInfo {
-    fn get_request_id(&self) -> Result<String, Error>;
+    fn get_request_id(&self) -> Result<Secret<String>, Error>;
 }
 
 impl AccessTokenRequestInfo for types::RefreshTokenRouterData {
-    fn get_request_id(&self) -> Result<String, Error> {
+    fn get_request_id(&self) -> Result<Secret<String>, Error> {
         self.request
             .id
             .clone()
