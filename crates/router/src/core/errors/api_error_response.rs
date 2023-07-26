@@ -207,6 +207,8 @@ pub enum ApiErrorResponse {
     MissingFileContentType,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_05", message = "{message}")]
     GenericNotFoundError { message: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_05", message = "{message}")]
+    GenericDuplicateError { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::ObjectNotFound, code = "WE_04", message = "Webhook resource not found")]
