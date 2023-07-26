@@ -9,7 +9,7 @@ use crate::{
     compatibility::{stripe::errors, wrap},
     core::payments,
     routes,
-    services::{api, authentication as auth},
+    services::{api, authentication as auth, logger},
     types::api::{self as api_types},
 };
 
@@ -21,6 +21,9 @@ pub async fn payment_intents_create(
     form_payload: web::Bytes,
 ) -> HttpResponse {
     println!("##py-req-{:?}\nform_payload-{:?}", req, form_payload);
+    logger::info!(form_payload =? form_payload);
+    logger::info!(request =? req);
+
     let payload: types::StripePaymentIntentRequest = match qs_config
         .deserialize_bytes(&form_payload)
         .map_err(|err| report!(errors::StripeErrorCode::from(err)))
@@ -30,6 +33,7 @@ pub async fn payment_intents_create(
     };
 
     println!("##payload-{:?}", payload.payment_method_data);
+    logger::info!(payload =? payload.payment_method_data);
     let create_payment_req: payment_types::PaymentsRequest = match payload.try_into() {
         Ok(req) => req,
         Err(err) => return api::log_and_return_error_response(err),
