@@ -9212,26 +9212,8 @@
         }
       },
       "RefundListRequest": {
-        "type": "object",
-        "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "The identifier for the payment",
-            "nullable": true
-          },
-          "limit": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Limit on the number of objects to return",
-            "nullable": true
-          },
-          "offset": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The starting point within a list of objects",
-            "nullable": true
-          },
-          "time_range": {
+        "allOf": [
+          {
             "allOf": [
               {
                 "$ref": "#/components/schemas/TimeRange"
@@ -9239,31 +9221,53 @@
             ],
             "nullable": true
           },
-          "connector": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "The list of connectors to filter refunds list",
-            "nullable": true
-          },
-          "currency": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Currency"
-            },
-            "description": "The list of currencies to filter refunds list",
-            "nullable": true
-          },
-          "refund_status": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/RefundStatus"
-            },
-            "description": "The list of refund statuses to filter refunds list",
-            "nullable": true
+          {
+            "type": "object",
+            "properties": {
+              "payment_id": {
+                "type": "string",
+                "description": "The identifier for the payment",
+                "nullable": true
+              },
+              "limit": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Limit on the number of objects to return",
+                "nullable": true
+              },
+              "offset": {
+                "type": "integer",
+                "format": "int64",
+                "description": "The starting point within a list of objects",
+                "nullable": true
+              },
+              "connector": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The list of connectors to filter refunds list",
+                "nullable": true
+              },
+              "currency": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                "description": "The list of currencies to filter refunds list",
+                "nullable": true
+              },
+              "refund_status": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RefundStatus"
+                },
+                "description": "The list of refund statuses to filter refunds list",
+                "nullable": true
+              }
+            }
           }
-        }
+        ]
       },
       "RefundListResponse": {
         "type": "object",
