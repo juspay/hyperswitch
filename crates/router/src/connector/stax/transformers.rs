@@ -50,7 +50,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct StaxAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for StaxAuthType {
@@ -58,7 +58,7 @@ impl TryFrom<&types::ConnectorAuthType> for StaxAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

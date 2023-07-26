@@ -715,6 +715,28 @@ pub async fn payments_list(
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
+pub async fn payments_list_by_filter(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Json<payment_types::PaymentListFilterConstraints>,
+) -> impl Responder {
+    let flow = Flow::PaymentsList;
+    let payload = payload.into_inner();
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        |state, auth, req| {
+            payments::apply_filters_on_payments(&*state.store, auth.merchant_account, req)
+        },
+        &auth::ApiKeyAuth,
+    )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[cfg(feature = "olap")]
 pub async fn get_filters_for_payments(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
