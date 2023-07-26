@@ -5819,7 +5819,7 @@
               "$ref": "#/components/schemas/FrmConfigs"
             },
             "description": "contains the frm configs for the merchant connector",
-            "example": "\n[\n    {\n        \"gateway\": \"stripe\",\n        \"    payment_methods\": [\n            {\n                \"        payment_method\": \"card\",\n                \"        payment_method_types\": [\n                    {\n                        \"                payment_method_type\": \"credit\",\n                        \"                card_networks\": [\n                            \"Visa\"\n                        ],\n                        \"                flow\": \"pre\",\n                        \"                action\": \"cancel_txn\"\n                    },\n                    {\n                        \"                payment_method_type\": \"debit\",\n                        \"                card_networks\": [\n                            \"Visa\"\n                        ],\n                        \"                flow\": \"pre\"\n                    }\n                ]\n            }\n        ]\n    }\n]\n",
+            "example": "\n[{\"gateway\":\"stripe\",\"payment_methods\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\",\"action\":\"cancel_txn\"},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\"}]}]}]\n",
             "nullable": true
           },
           "business_country": {
@@ -6043,7 +6043,7 @@
               "$ref": "#/components/schemas/FrmConfigs"
             },
             "description": "contains the frm configs for the merchant connector",
-            "example": "\n[\n    {\n        \"gateway\": \"stripe\",\n        \"    payment_methods\": [\n            {\n                \"        payment_method\": \"card\",\n                \"        payment_method_types\": [\n                    {\n                        \"                payment_method_type\": \"credit\",\n                        \"                card_networks\": [\n                            \"Visa\"\n                        ],\n                        \"                flow\": \"pre\",\n                        \"                action\": \"cancel_txn\"\n                    },\n                    {\n                        \"                payment_method_type\": \"debit\",\n                        \"                card_networks\": [\n                            \"Visa\"\n                        ],\n                        \"                flow\": \"pre\"\n                    }\n                ]\n            }\n        ]\n    }\n]\n",
+            "example": "\n[{\"gateway\":\"stripe\",\"payment_methods\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\",\"action\":\"cancel_txn\"},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\"}]}]}]\n",
             "nullable": true
           },
           "connector_webhook_details": {
@@ -6140,7 +6140,7 @@
               "$ref": "#/components/schemas/FrmConfigs"
             },
             "description": "contains the frm configs for the merchant connector",
-            "example": "\n[\n    {\n        \"gateway\": \"stripe\",\n        \"    payment_methods\": [\n            {\n                \"        payment_method\": \"card\",\n                \"        payment_method_types\": [\n                    {\n                        \"                payment_method_type\": \"credit\",\n                        \"                card_networks\": [\n                            \"Visa\"\n                        ],\n                        \"                flow\": \"pre\",\n                        \"                action\": \"cancel_txn\"\n                    },\n                    {\n                        \"                payment_method_type\": \"debit\",\n                        \"                card_networks\": [\n                            \"Visa\"\n                        ],\n                        \"                flow\": \"pre\"\n                    }\n                ]\n            }\n        ]\n    }\n]\n",
+            "example": "\n[{\"gateway\":\"stripe\",\"payment_methods\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\",\"action\":\"cancel_txn\"},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\"}]}]}]\n",
             "nullable": true
           },
           "connector_webhook_details": {
