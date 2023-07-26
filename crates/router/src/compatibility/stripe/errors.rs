@@ -91,7 +91,7 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "{message}")]
     GenericNotFoundError { message: String },
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "{message}")]
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "duplicate_resource", message = "{message}")]
     GenericDuplicateError { message: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such merchant account")]
