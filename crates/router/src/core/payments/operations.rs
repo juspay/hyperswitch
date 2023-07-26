@@ -26,6 +26,7 @@ use crate::{
     core::errors::{self, CustomResult, RouterResult},
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         self, api, domain,
         storage::{self, enums},
@@ -71,6 +72,7 @@ pub struct ValidateResult<'a> {
     pub payment_id: api::PaymentIdType,
     pub mandate_type: Option<api::MandateTransactionType>,
     pub storage_scheme: enums::MerchantStorageScheme,
+    pub requeue: bool,
 }
 
 #[allow(clippy::type_complexity)]
@@ -93,6 +95,7 @@ pub trait GetTracker<F, D, R>: Send {
         mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
+        auth_flow: services::AuthFlow,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>;
 }
 
@@ -119,6 +122,8 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         &'a self,
         _db: &'a AppState,
         _payment_attempt: &storage::PaymentAttempt,
+        _requeue: bool,
+        _schedule_time: Option<time::PrimitiveDateTime>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }

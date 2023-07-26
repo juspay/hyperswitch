@@ -1,7 +1,7 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 
-use super::Store;
+use super::StorageInterface;
 use crate::{
     cache::{self, Cacheable},
     consts,
@@ -10,7 +10,7 @@ use crate::{
 };
 
 pub async fn get_or_populate_redis<T, F, Fut>(
-    store: &Store,
+    store: &dyn StorageInterface,
     key: &str,
     fun: F,
 ) -> CustomResult<T, errors::StorageError>
@@ -20,9 +20,7 @@ where
     Fut: futures::Future<Output = CustomResult<T, errors::StorageError>> + Send,
 {
     let type_name = std::any::type_name::<T>();
-    let redis = &store
-        .redis_conn()
-        .map_err(Into::<errors::StorageError>::into)?;
+    let redis = &store.get_redis_conn();
     let redis_val = redis.get_and_deserialize_key::<T>(key, type_name).await;
     let get_data_set_redis = || async {
         let data = fun().await?;
@@ -46,7 +44,7 @@ where
 }
 
 pub async fn get_or_populate_in_memory<T, F, Fut>(
-    store: &Store,
+    store: &dyn StorageInterface,
     key: &str,
     fun: F,
     cache: &cache::Cache,
@@ -67,7 +65,7 @@ where
 }
 
 pub async fn redact_cache<T, F, Fut>(
-    store: &Store,
+    store: &dyn StorageInterface,
     key: &str,
     fun: F,
     in_memory: Option<&cache::Cache>,
@@ -79,16 +77,26 @@ where
     let data = fun().await?;
     in_memory.async_map(|cache| cache.invalidate(key)).await;
     store
-        .redis_conn()
-        .map_err(Into::<errors::StorageError>::into)?
+        .get_redis_conn()
         .delete_key(key)
         .await
         .change_context(errors::StorageError::KVError)?;
     Ok(data)
 }
 
+pub async fn publish_into_redact_channel<'a>(
+    store: &dyn StorageInterface,
+    key: cache::CacheKind<'a>,
+) -> CustomResult<usize, errors::StorageError> {
+    store
+        .get_redis_conn()
+        .publish(consts::PUB_SUB_CHANNEL, key)
+        .await
+        .change_context(errors::StorageError::KVError)
+}
+
 pub async fn publish_and_redact<'a, T, F, Fut>(
-    store: &Store,
+    store: &dyn StorageInterface,
     key: cache::CacheKind<'a>,
     fun: F,
 ) -> CustomResult<T, errors::StorageError>
@@ -97,11 +105,6 @@ where
     Fut: futures::Future<Output = CustomResult<T, errors::StorageError>> + Send,
 {
     let data = fun().await?;
-    store
-        .redis_conn()
-        .map_err(Into::<errors::StorageError>::into)?
-        .publish(consts::PUB_SUB_CHANNEL, key)
-        .await
-        .change_context(errors::StorageError::KVError)?;
+    publish_into_redact_channel(store, key).await?;
     Ok(data)
 }

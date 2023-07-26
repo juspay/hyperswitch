@@ -17,6 +17,8 @@ pub mod merchant_key_store;
 pub mod payment_attempt;
 pub mod payment_intent;
 pub mod payment_method;
+pub mod payout_attempt;
+pub mod payouts;
 pub mod process_tracker;
 pub mod queue;
 pub mod refund;
@@ -60,6 +62,8 @@ pub trait StorageInterface:
     + payment_attempt::PaymentAttemptInterface
     + payment_intent::PaymentIntentInterface
     + payment_method::PaymentMethodInterface
+    + payout_attempt::PayoutAttemptInterface
+    + payouts::PayoutsInterface
     + process_tracker::ProcessTrackerInterface
     + queue::QueueInterface
     + refund::RefundInterface
@@ -98,10 +102,12 @@ impl StorageInterface for Store {}
 #[derive(Clone)]
 pub struct MockDb {
     addresses: Arc<Mutex<Vec<storage::Address>>>,
+    configs: Arc<Mutex<Vec<storage::Config>>>,
     merchant_accounts: Arc<Mutex<Vec<storage::MerchantAccount>>>,
     merchant_connector_accounts: Arc<Mutex<Vec<storage::MerchantConnectorAccount>>>,
     payment_attempts: Arc<Mutex<Vec<storage::PaymentAttempt>>>,
     payment_intents: Arc<Mutex<Vec<storage::PaymentIntent>>>,
+    payment_methods: Arc<Mutex<Vec<storage::PaymentMethod>>>,
     customers: Arc<Mutex<Vec<storage::Customer>>>,
     refunds: Arc<Mutex<Vec<storage::Refund>>>,
     processes: Arc<Mutex<Vec<storage::ProcessTracker>>>,
@@ -114,16 +120,19 @@ pub struct MockDb {
     disputes: Arc<Mutex<Vec<storage::Dispute>>>,
     lockers: Arc<Mutex<Vec<storage::LockerMockUp>>>,
     mandates: Arc<Mutex<Vec<storage::Mandate>>>,
+    merchant_key_store: Arc<Mutex<Vec<storage::MerchantKeyStore>>>,
 }
 
 impl MockDb {
     pub async fn new(redis: &crate::configs::settings::Settings) -> Self {
         Self {
             addresses: Default::default(),
+            configs: Default::default(),
             merchant_accounts: Default::default(),
             merchant_connector_accounts: Default::default(),
             payment_attempts: Default::default(),
             payment_intents: Default::default(),
+            payment_methods: Default::default(),
             customers: Default::default(),
             refunds: Default::default(),
             processes: Default::default(),
@@ -136,6 +145,7 @@ impl MockDb {
             disputes: Default::default(),
             lockers: Default::default(),
             mandates: Default::default(),
+            merchant_key_store: Default::default(),
         }
     }
 }

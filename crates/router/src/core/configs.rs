@@ -12,12 +12,12 @@ pub async fn set_config(
     config: api::Config,
 ) -> RouterResponse<api::Config> {
     let config = store
-        .insert_config(storage_models::configs::ConfigNew {
+        .insert_config(diesel_models::configs::ConfigNew {
             key: config.key,
             config: config.value,
         })
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicateConfig)
         .attach_printable("Unknown error, while setting config key")?;
 
     Ok(ApplicationResponse::Json(config.foreign_into()))

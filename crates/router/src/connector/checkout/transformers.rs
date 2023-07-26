@@ -148,6 +148,7 @@ pub struct PaymentsRequest {
     #[serde(flatten)]
     pub return_url: ReturnUrl,
     pub capture: bool,
+    pub reference: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -246,6 +247,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
             three_ds,
             return_url,
             capture,
+            reference: item.connector_request_reference_id.clone(),
         })
     }
 }
@@ -323,6 +325,7 @@ pub struct PaymentsResponse {
     #[serde(rename = "_links")]
     links: Links,
     balances: Option<Balances>,
+    reference: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
@@ -347,11 +350,14 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                 item.data.request.capture_method,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: Some(
+                    item.response.reference.unwrap_or(item.response.id),
+                ),
             }),
             ..item.data
         })
@@ -375,11 +381,14 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
                 item.response.balances,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: Some(
+                    item.response.reference.unwrap_or(item.response.id),
+                ),
             }),
             ..item.data
         })
@@ -423,6 +432,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             status: response.into(),
             ..item.data
@@ -495,6 +505,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             status,
             amount_captured,
@@ -757,10 +768,10 @@ pub struct CheckoutDisputeWebhookData {
     pub action_id: Option<String>,
     pub amount: i32,
     pub currency: String,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub evidence_required_by: Option<PrimitiveDateTime>,
     pub reason_code: Option<String>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub date: Option<PrimitiveDateTime>,
 }
 #[derive(Debug, Deserialize)]
@@ -768,7 +779,7 @@ pub struct CheckoutDisputeWebhookBody {
     #[serde(rename = "type")]
     pub transaction_type: CheckoutTransactionType,
     pub data: CheckoutDisputeWebhookData,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_on: Option<PrimitiveDateTime>,
 }
 #[derive(Debug, Deserialize, strum::Display, Clone)]

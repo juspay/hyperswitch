@@ -1,4 +1,4 @@
-pub use storage_models::payment_attempt::{
+pub use diesel_models::payment_attempt::{
     PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
 };
 

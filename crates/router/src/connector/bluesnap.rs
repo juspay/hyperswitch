@@ -15,7 +15,6 @@ use super::utils::{
 };
 use crate::{
     configs::settings,
-    connector::utils as conn_utils,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -31,6 +30,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        domain,
         storage::enums,
         ErrorResponse, Response,
     },
@@ -98,7 +98,7 @@ impl ConnectorCommon for Bluesnap {
         router_env::logger::info!(error_response=?response);
 
         let response_error_message = match response {
-            bluesnap::BluesnapErrors::PaymentError(error_res) => error_res.message.first().map_or(
+            bluesnap::BluesnapErrors::Payment(error_res) => error_res.message.first().map_or(
                 ErrorResponse {
                     status_code: res.status_code,
                     code: consts::NO_ERROR_CODE.to_string(),
@@ -109,14 +109,20 @@ impl ConnectorCommon for Bluesnap {
                     status_code: res.status_code,
                     code: error_response.code.clone(),
                     message: error_response.description.clone(),
-                    reason: None,
+                    reason: Some(error_response.description.clone()),
                 },
             ),
-            bluesnap::BluesnapErrors::AuthError(error_res) => ErrorResponse {
+            bluesnap::BluesnapErrors::Auth(error_res) => ErrorResponse {
                 status_code: res.status_code,
                 code: error_res.error_code.clone(),
-                message: error_res.error_description,
-                reason: None,
+                message: error_res.error_description.clone(),
+                reason: Some(error_res.error_description),
+            },
+            bluesnap::BluesnapErrors::General(error_response) => ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: error_response.clone(),
+                reason: Some(error_response),
             },
         };
         Ok(response_error_message)
@@ -393,12 +399,11 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .parse_struct("BluesnapPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 }
@@ -471,12 +476,11 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .parse_struct("Bluesnap BluesnapPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -484,21 +488,11 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: String = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(bluesnap_error_response=?res);
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
-            message: response,
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
+// This session code is not used
 impl api::PaymentSession for Bluesnap {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
@@ -677,6 +671,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        connector_response_reference_id: None,
                     }),
                     ..data.clone()
                 })
@@ -864,12 +859,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .parse_struct("bluesnap RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -932,12 +926,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .parse_struct("bluesnap BluesnapPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         router_env::logger::info!(connector_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -985,29 +978,13 @@ impl api::IncomingWebhook for Bluesnap {
         Ok(msg.into_bytes())
     }
 
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
-    }
-
     async fn verify_webhook_source(
         &self,
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
+        connector_label: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(request)
@@ -1017,7 +994,12 @@ impl api::IncomingWebhook for Bluesnap {
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let mut secret = self
-            .get_webhook_source_verification_merchant_secret(db, merchant_id)
+            .get_webhook_source_verification_merchant_secret(
+                db,
+                merchant_id,
+                connector_label,
+                key_store,
+            )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let mut message = self
