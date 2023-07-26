@@ -928,6 +928,14 @@ pub fn to_currency_base_unit(
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
+pub fn to_currency_base_unit_with_zero_decimal_check(
+    amount: i64,
+    currency: diesel_models::enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    utils::to_currency_base_unit_with_zero_decimal_check(amount, currency)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
+}
+
 pub fn to_currency_base_unit_asf64(
     amount: i64,
     currency: diesel_models::enums::Currency,

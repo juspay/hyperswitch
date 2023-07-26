@@ -464,6 +464,7 @@ impl From<TsysTransactionDetails> for enums::RefundStatus {
     fn from(item: TsysTransactionDetails) -> Self {
         match item.transaction_status {
             TsysTransactionStatus::Approved => Self::Pending,
+            //Connector calls refunds as Void
             TsysTransactionStatus::Void => Self::Success,
             TsysTransactionStatus::Declined => Self::Failure,
         }
