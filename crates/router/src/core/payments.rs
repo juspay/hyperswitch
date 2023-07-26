@@ -8,6 +8,7 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
+use api_models::payments::FrmMessage;
 use common_utils::pii;
 use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
@@ -1093,6 +1094,7 @@ where
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
+    pub frm_message: Option<FrmMessage>,
 }
 
 #[derive(Debug, Default, Clone)]

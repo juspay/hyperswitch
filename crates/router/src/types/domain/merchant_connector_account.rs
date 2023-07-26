@@ -24,7 +24,7 @@ pub struct MerchantConnectorAccount {
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub connector_type: enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub frm_configs: Option<Secret<serde_json::Value>>, //Option<FrmConfigs>
+    pub frm_configs: Option<Vec<Secret<serde_json::Value>>>,
     pub connector_label: String,
     pub business_country: enums::CountryAlpha2,
     pub business_label: String,
@@ -46,7 +46,7 @@ pub enum MerchantConnectorAccountUpdate {
         merchant_connector_id: Option<String>,
         payment_methods_enabled: Option<Vec<serde_json::Value>>,
         metadata: Option<pii::SecretSerdeValue>,
-        frm_configs: Option<Secret<serde_json::Value>>,
+        frm_configs: Option<Vec<Secret<serde_json::Value>>>,
         connector_webhook_details: Option<pii::SecretSerdeValue>,
     },
 }
