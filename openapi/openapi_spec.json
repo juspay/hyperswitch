@@ -4728,6 +4728,23 @@
       "GcashRedirection": {
         "type": "object"
       },
+      "GiftCardData": {
+        "type": "object",
+        "required": [
+          "number",
+          "cvc"
+        ],
+        "properties": {
+          "number": {
+            "type": "string",
+            "description": "The gift card number"
+          },
+          "cvc": {
+            "type": "string",
+            "description": "The card verification code."
+          }
+        }
+      },
       "GoPayRedirection": {
         "type": "object"
       },
@@ -7061,6 +7078,17 @@
             "properties": {
               "voucher": {
                 "$ref": "#/components/schemas/VoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "gift_card"
+            ],
+            "properties": {
+              "gift_card": {
+                "$ref": "#/components/schemas/GiftCardData"
               }
             }
           }
