@@ -62,7 +62,7 @@ pub enum StripeWallet {
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct StripeUpi {
-    pub vpa_id: masking::Secret<String, pii::UpiVpaMaskingStrategy>,
+    pub vpa_id: masking::Secret<String>,
 }
 
 #[derive(Debug, Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
