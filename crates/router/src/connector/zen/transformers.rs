@@ -18,7 +18,7 @@ use crate::{
 };
 // Auth Struct
 pub struct ZenAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for ZenAuthType {
@@ -26,7 +26,7 @@ impl TryFrom<&types::ConnectorAuthType> for ZenAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
             Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: api_key.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())

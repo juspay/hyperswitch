@@ -869,7 +869,6 @@ pub enum PaymentMethodType {
     PagoEfectivo,
     PayBright,
     Paypal,
-    Pix,
     Przelewy24,
     Pse,
     RedCompra,

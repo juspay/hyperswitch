@@ -8,6 +8,7 @@ use common_utils::{
     ext_traits::{StringExt, ValueExt},
 };
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as bluesnap;
 
 use super::utils::{
@@ -79,7 +80,7 @@ impl ConnectorCommon for Bluesnap {
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let encoded_api_key =
-            consts::BASE64_ENGINE.encode(format!("{}:{}", auth.key1, auth.api_key));
+            consts::BASE64_ENGINE.encode(format!("{}:{}", auth.key1.peek(), auth.api_key.peek()));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             format!("Basic {encoded_api_key}").into_masked(),

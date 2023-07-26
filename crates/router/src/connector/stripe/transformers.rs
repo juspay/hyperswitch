@@ -23,7 +23,7 @@ use crate::{
 };
 
 pub struct StripeAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for StripeAuthType {
@@ -31,7 +31,7 @@ impl TryFrom<&types::ConnectorAuthType> for StripeAuthType {
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = item {
             Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: api_key.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -1238,7 +1238,10 @@ fn create_stripe_payment_method(
                 ),
             }
         }
-        _ => Err(errors::ConnectorError::NotImplemented("payment method".to_string()).into()),
+        _ => Err(errors::ConnectorError::NotImplemented(
+            "this payment method for stripe".to_string(),
+        )
+        .into()),
     }
 }
 
@@ -1661,6 +1664,7 @@ pub struct SepaAndBacsBankTransferInstructions {
     pub receiver: SepaAndBacsReceiver,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Clone, Debug, Serialize)]
 pub struct WechatPayNextInstructions {
     pub image_data_url: Url,

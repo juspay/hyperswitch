@@ -135,6 +135,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::DuplicatePayout { payout_id } => {
                 AER::BadRequest(ApiError::new("HE", 1, format!("The payout with the specified payout_id '{payout_id}' already exists in our records"), None))
             }
+            Self::GenericDuplicateError { message } => {
+                AER::BadRequest(ApiError::new("HE", 1, message, None))
+            }
             Self::RefundNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Refund does not exist in our records.", None))
             }
