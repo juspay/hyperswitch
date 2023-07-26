@@ -7069,22 +7069,22 @@
           {
             "type": "object",
             "required": [
-              "gift_card"
+              "voucher"
             ],
             "properties": {
-              "gift_card": {
-                "$ref": "#/components/schemas/GiftCardData"
+              "voucher": {
+                "$ref": "#/components/schemas/VoucherData"
               }
             }
           },
           {
             "type": "object",
             "required": [
-              "voucher"
+              "gift_card"
             ],
             "properties": {
-              "voucher": {
-                "$ref": "#/components/schemas/VoucherData"
+              "gift_card": {
+                "$ref": "#/components/schemas/GiftCardData"
               }
             }
           }
