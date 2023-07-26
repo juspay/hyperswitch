@@ -85,9 +85,9 @@ impl TryFrom<&types::ConnectorAuthType> for TsysAuthType {
                 key1,
                 api_secret,
             } => Ok(Self {
-                device_id: Secret::new(api_key.to_string()),
-                transaction_key: Secret::new(key1.to_string()),
-                developer_id: Secret::new(api_secret.to_string()),
+                device_id: api_key.to_owned(),
+                transaction_key: key1.to_owned(),
+                developer_id: api_secret.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

@@ -67,7 +67,7 @@ pub struct TransactionDetails {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MerchantDetails {
-    merchant_id: String,
+    merchant_id: Secret<String>,
     terminal_id: Option<String>,
 }
 
@@ -156,9 +156,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
 }
 
 pub struct FiservAuthType {
-    pub(super) api_key: String,
-    pub(super) merchant_account: String,
-    pub(super) api_secret: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) merchant_account: Secret<String>,
+    pub(super) api_secret: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for FiservAuthType {
@@ -171,9 +171,9 @@ impl TryFrom<&types::ConnectorAuthType> for FiservAuthType {
         } = auth_type
         {
             Ok(Self {
-                api_key: api_key.to_string(),
-                merchant_account: key1.to_string(),
-                api_secret: api_secret.to_string(),
+                api_key: api_key.to_owned(),
+                merchant_account: key1.to_owned(),
+                api_secret: api_secret.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?

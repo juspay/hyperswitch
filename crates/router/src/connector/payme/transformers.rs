@@ -250,8 +250,8 @@ impl TryFrom<&types::ConnectorAuthType> for PaymeAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                seller_payme_id: Secret::new(api_key.to_string()),
-                payme_client_key: Secret::new(key1.to_string()),
+                seller_payme_id: api_key.to_owned(),
+                payme_client_key: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
