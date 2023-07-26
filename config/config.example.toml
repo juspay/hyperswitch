@@ -199,6 +199,10 @@ tsys.base_url = "https://stagegw.transnox.com/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 
+#Payment Method Filters Based on Country and Currency
+[pm_filters.default]
+apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
+
 # Bank redirect configs for allowed banks through online_banking_czech_republic payment method
 [bank_config.online_banking_czech_republic]
 adyen = { banks = "ceska_sporitelna,komercni_banka,platnosc_online_karta_platnicza" }
