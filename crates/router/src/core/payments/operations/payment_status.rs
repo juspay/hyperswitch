@@ -273,16 +273,17 @@ async fn get_tracker_for_sync<
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!("Error while retrieving frm_response, merchant_id: {merchant_id}, payment_id: {payment_id_str}")
-        })?;
-    let frm_message = api_models::payments::FrmMessage {
-        frm_name: frm_response.frm_name,
-        frm_transaction_id: frm_response.frm_transaction_id,
-        frm_transaction_type: Some(frm_response.frm_transaction_type.to_string()),
-        frm_status: Some(frm_response.frm_status.to_string()),
-        frm_score: frm_response.frm_score,
-        frm_reason: frm_response.frm_reason,
-        frm_error: frm_response.frm_error,
-    };
+        });
+    let frm_message = frm_response.ok().map(|response|  
+        api_models::payments::FrmMessage {
+        frm_name: response.frm_name,
+        frm_transaction_id: response.frm_transaction_id,
+        frm_transaction_type: Some(response.frm_transaction_type.to_string()),
+        frm_status: Some(response.frm_status.to_string()),
+        frm_score: response.frm_score,
+        frm_reason: response.frm_reason,
+        frm_error: response.frm_error
+    });
 
     let contains_encoded_data = connector_response.encoded_data.is_some();
 
@@ -341,7 +342,7 @@ async fn get_tracker_for_sync<
             recurring_mandate_payment_data: None,
             ephemeral_key: None,
             redirect_response: None,
-            frm_message: Some(frm_message),
+            frm_message,
         },
         None,
     ))
