@@ -20,6 +20,7 @@ pub struct ConnectorAuthentication {
     pub bambora: Option<BodyKey>,
     pub bitpay: Option<HeaderKey>,
     pub bluesnap: Option<BodyKey>,
+    pub boku: Option<BodyKey>,
     pub cashtocode: Option<BodyKey>,
     pub checkout: Option<SignatureKey>,
     pub coinbase: Option<HeaderKey>,
