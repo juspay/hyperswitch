@@ -179,12 +179,37 @@ impl types::DummyConnectorCard {
     ) -> types::DummyConnectorResult<types::DummyConnectorCardFlow> {
         let card_number = self.number.peek();
         match card_number.as_str() {
-            "4111111111111111" | "4242424242424242" => {
+            "4111111111111111" | "4242424242424242" | "5555555555554444" | "38000000000006"
+            | "378282246310005" | "6011111111111117" => {
                 Ok(types::DummyConnectorCardFlow::NoThreeDS(
                     types::DummyConnectorStatus::Succeeded,
                     None,
                 ))
             }
+            "5105105105105100" | "4000000000000002" => Ok(types::DummyConnectorCardFlow::NoThreeDS(
+                types::DummyConnectorStatus::Failed,
+                Some(errors::DummyConnectorErrors::PaymentDeclined {
+                    message: "Card declined",
+                }),
+            )),
+            "4000000000009995" => Ok(types::DummyConnectorCardFlow::NoThreeDS(
+                types::DummyConnectorStatus::Failed,
+                Some(errors::DummyConnectorErrors::PaymentDeclined {
+                    message: "Insufficient funds",
+                }),
+            )),
+            "4000000000009987" => Ok(types::DummyConnectorCardFlow::NoThreeDS(
+                types::DummyConnectorStatus::Failed,
+                Some(errors::DummyConnectorErrors::PaymentDeclined {
+                    message: "Lost card",
+                }),
+            )),
+            "4000000000009979" => Ok(types::DummyConnectorCardFlow::NoThreeDS(
+                types::DummyConnectorStatus::Failed,
+                Some(errors::DummyConnectorErrors::PaymentDeclined {
+                    message: "Stolen card",
+                }),
+            )),
             "4000003800000446" => Ok(types::DummyConnectorCardFlow::ThreeDS(
                 types::DummyConnectorStatus::Succeeded,
                 None,
