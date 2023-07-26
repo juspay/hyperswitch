@@ -377,6 +377,7 @@ where
 
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                     || bank_transfer_next_steps.is_some()
+                    || next_action_containing_qr_code.is_some()
                 {
                     next_action_response = bank_transfer_next_steps
                         .map(|bank_transfer| {
@@ -387,6 +388,7 @@ where
                         .or(next_action_containing_qr_code.map(|qr_code_data| {
                             api_models::payments::NextActionData::QrCodeInformation {
                                 image_data_url: qr_code_data.image_data_url,
+                                qr_code_url: qr_code_data.qr_code_url,
                             }
                         }))
                         .or(redirection_data.map(|_| {
@@ -664,24 +666,19 @@ impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralK
 pub fn bank_transfer_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::BankTransferNextStepsData>> {
-    let bank_transfer_next_step = if let Some(diesel_models::enums::PaymentMethod::BankTransfer) =
-        payment_attempt.payment_method
-    {
-        let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
-            payment_attempt
-                .connector_metadata
-                .map(|metadata| {
-                    metadata
-                        .parse_value("NextStepsRequirements")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse the Value to NextRequirements struct")
-                })
-                .transpose()?;
-        bank_transfer_next_steps
-    } else {
-        None
-    };
-    Ok(bank_transfer_next_step)
+    let bank_transfer_next_steps: Result<
+        Option<api_models::payments::BankTransferNextStepsData>,
+        _,
+    > = payment_attempt
+        .connector_metadata
+        .map(|metadata| {
+            metadata
+                .parse_value("BankTransferNextStepsData")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse the Value to NextRequirements struct")
+        })
+        .transpose();
+    Ok(bank_transfer_next_steps.ok().flatten())
 }
 
 pub fn change_order_details_to_new_type(
