@@ -71,12 +71,15 @@ where
                 .await?;
                 let is_duplicate = locker_response.1;
 
+                logger::debug!(pm_duplication=?is_duplicate, pm_id=?locker_response.0.payment_method_id,payment_method=?locker_response.0.payment_method);
+
                 if is_duplicate {
                     let existing_pm = db
                         .find_payment_method(&locker_response.0.payment_method_id)
                         .await;
                     match existing_pm {
                         Ok(pm) => {
+                            logger::info!("Duplication is true and payment method is found in db");
                             let pm_metadata = create_payment_method_metadata(
                                 pm.metadata.as_ref(),
                                 connector_token,
@@ -96,6 +99,7 @@ where
                                     diesel_models::errors::DatabaseError::NotFound => {
                                         let pm_metadata =
                                             create_payment_method_metadata(None, connector_token)?;
+                                        logger::info!("Inserting the payment method even when duplication is true");
                                         payment_methods::cards::create_payment_method(
                                             db,
                                             &payment_method_create_request,
@@ -123,6 +127,7 @@ where
                         }
                     };
                 } else {
+                    logger::info!("Inserting payment method when duplication from locker is false");
                     let pm_metadata = create_payment_method_metadata(None, connector_token)?;
                     payment_methods::cards::create_payment_method(
                         db,
