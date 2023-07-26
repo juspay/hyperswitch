@@ -241,7 +241,6 @@ impl
             api_models::payments::VoucherData::PagoEfectivo => {
                 ZenPaymentChannels::PclBoacompraPagoefectivo
             }
-            api_models::payments::VoucherData::Pix => ZenPaymentChannels::PclBoacompraPix,
             api_models::payments::VoucherData::Pse => ZenPaymentChannels::PclBoacompraPse,
             api_models::payments::VoucherData::RedCompra => {
                 ZenPaymentChannels::PclBoacompraRedcompra
@@ -287,6 +286,9 @@ impl
         let payment_channel = match **bank_transfer_data {
             api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
                 ZenPaymentChannels::PclBoacompraMultibanco
+            }
+            api_models::payments::BankTransferData::Pix { .. } => {
+                ZenPaymentChannels::PclBoacompraPix
             }
             _ => Err(errors::ConnectorError::NotImplemented(
                 "payment method".to_string(),

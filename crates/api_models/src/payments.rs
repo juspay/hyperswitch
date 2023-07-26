@@ -1182,7 +1182,6 @@ pub enum VoucherData {
     Boleto(Box<BoletoVoucherData>),
     Efecty,
     PagoEfectivo,
-    Pix,
     Pse,
     RedCompra,
     RedPagos,

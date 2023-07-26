@@ -9880,12 +9880,6 @@
           {
             "type": "string",
             "enum": [
-              "pix"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
               "pse"
             ]
           },

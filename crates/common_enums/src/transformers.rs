@@ -1591,7 +1591,6 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Boleto
             | PaymentMethodType::Efecty
             | PaymentMethodType::PagoEfectivo
-            | PaymentMethodType::Pix
             | PaymentMethodType::Pse
             | PaymentMethodType::RedCompra
             | PaymentMethodType::RedPagos => Self::Voucher,
