@@ -371,10 +371,10 @@ where
                 let bank_transfer_next_steps =
                     bank_transfer_next_steps_check(payment_attempt.clone())?;
 
+                let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
+
                 let next_action_containing_qr_code =
                     qr_code_next_steps_check(payment_attempt.clone())?;
-
-                let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
 
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                     || bank_transfer_next_steps.is_some()
@@ -386,15 +386,15 @@ where
                                 bank_transfer_steps_and_charges_details: bank_transfer,
                             }
                         })
+                        .or(next_action_voucher.map(|voucher_data| {
+                            api_models::payments::NextActionData::DisplayVoucherInformation {
+                                voucher_details: voucher_data,
+                            }
+                        }))
                         .or(next_action_containing_qr_code.map(|qr_code_data| {
                             api_models::payments::NextActionData::QrCodeInformation {
                                 image_data_url: qr_code_data.image_data_url,
                                 qr_code_url: qr_code_data.qr_code_url,
-                            }
-                        }))
-                        .or(next_action_voucher.map(|voucher_data| {
-                            api_models::payments::NextActionData::DisplayVoucherInformation {
-                                voucher_details: voucher_data,
                             }
                         }))
                         .or(redirection_data.map(|_| {

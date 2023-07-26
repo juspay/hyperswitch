@@ -281,16 +281,6 @@ pub struct AdyenPTSResponse {
     refusal_reason_code: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AdyenPTSResponse {
-    psp_reference: String,
-    result_code: AdyenStatus,
-    action: AdyenPTSAction,
-    refusal_reason: Option<String>,
-    refusal_reason_code: Option<String>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenNextAction {
@@ -1898,6 +1888,7 @@ impl<'a>
             shopper_name: None,
             shopper_locale: None,
             shopper_email: item.request.email.clone(),
+            social_security_number: None, 
             telephone_number: None,
             billing_address: None,
             delivery_address: None,
