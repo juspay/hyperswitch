@@ -27,7 +27,9 @@ CREATE TABLE fraud_check (
     frm_error VARCHAR(255),
     payment_details JSONB,
     metadata JSONB,
-    modified_at TIMESTAMP NOT NULL DEFAULT now()
+    modified_at TIMESTAMP NOT NULL DEFAULT now(),
+
+    PRIMARY KEY (frm_id,payment_id,merchant_id)
 );
 
-CREATE UNIQUE INDEX frm_id_index ON fraud_check (payment_id, merchant_id);
+CREATE UNIQUE INDEX frm_id_index ON fraud_check (frm_id,payment_id, merchant_id);
