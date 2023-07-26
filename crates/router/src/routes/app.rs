@@ -118,7 +118,13 @@ pub struct DummyConnector;
 #[cfg(feature = "dummy_connector")]
 impl DummyConnector {
     pub fn server(state: AppState) -> Scope {
-        let mut routes_with_restriced_access = web::scope("")
+        let mut routes_with_restriced_access = web::scope("");
+        #[cfg(not(feature = "external_access_dc"))]
+        {
+            routes_with_restriced_access =
+                routes_with_restriced_access.guard(actix_web::guard::Host("localhost"));
+        }
+        routes_with_restriced_access = routes_with_restriced_access
             .service(web::resource("/payment").route(web::post().to(dummy_connector_payment)))
             .service(
                 web::resource("/payments/{payment_id}")
@@ -131,12 +137,7 @@ impl DummyConnector {
                 web::resource("/refunds/{refund_id}")
                     .route(web::get().to(dummy_connector_refund_data)),
             );
-        #[cfg(not(feature = "external_access_dc"))]
-        {
-            routes_with_restriced_access =
-                routes_with_restriced_access.guard(actix_web::guard::Host("localhost"));
-        }
-        let route = web::scope("/dummy-connector")
+        web::scope("/dummy-connector")
             .app_data(web::Data::new(state))
             .service(
                 web::resource("/authorize/{attempt_id}")
@@ -146,8 +147,7 @@ impl DummyConnector {
                 web::resource("/complete/{attempt_id}")
                     .route(web::get().to(dummy_connector_complete_payment)),
             )
-            .service(routes_with_restriced_access);
-        route
+            .service(routes_with_restriced_access)
     }
 }
 
