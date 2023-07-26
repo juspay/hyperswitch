@@ -16,31 +16,5 @@ pub const TOKEN_TTL: i64 = 900;
 
 ///an example of the frm_configs json
 pub static FRM_CONFIGS_EG: &str = r#"
-[
-    {
-        "gateway": "stripe",
-        "    payment_methods": [
-            {
-                "        payment_method": "card",
-                "        payment_method_types": [
-                    {
-                        "                payment_method_type": "credit",
-                        "                card_networks": [
-                            "Visa"
-                        ],
-                        "                flow": "pre",
-                        "                action": "cancel_txn"
-                    },
-                    {
-                        "                payment_method_type": "debit",
-                        "                card_networks": [
-                            "Visa"
-                        ],
-                        "                flow": "pre"
-                    }
-                ]
-            }
-        ]
-    }
-]
+[{"gateway":"stripe","payment_methods":[{"payment_method":"card","payment_method_types":[{"payment_method_type":"credit","card_networks":["Visa"],"flow":"pre","action":"cancel_txn"},{"payment_method_type":"debit","card_networks":["Visa"],"flow":"pre"}]}]}]
 "#;
