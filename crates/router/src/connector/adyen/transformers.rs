@@ -1888,7 +1888,7 @@ impl<'a>
             shopper_name: None,
             shopper_locale: None,
             shopper_email: item.request.email.clone(),
-            social_security_number: None, 
+            social_security_number: None,
             telephone_number: None,
             billing_address: None,
             delivery_address: None,
