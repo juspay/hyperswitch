@@ -1403,7 +1403,7 @@ pub(crate) fn validate_payment_method_fields_present(
             && (req.payment_method != payment_method),
         || {
             Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: ("payment_method_type is not matching with the specified payment_method"
+                message: ("payment_method_type doesn't correspond to the specified payment_method"
                     .to_string()),
             })
         },
