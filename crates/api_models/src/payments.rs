@@ -722,6 +722,17 @@ pub enum PaymentMethodData {
     Reward(RewardData),
     Upi(UpiData),
     Voucher(VoucherData),
+    GiftCard(Box<GiftCardData>),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GiftCardData {
+    /// The gift card number
+    #[schema(value_type = String)]
+    pub number: Secret<String>,
+    /// The card verification code.
+    #[schema(value_type = String)]
+    pub cvc: Secret<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -755,6 +766,7 @@ pub enum AdditionalPaymentData {
     Reward {},
     Upi {},
     Voucher {},
+    GiftCard {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1194,6 +1206,7 @@ pub enum PaymentMethodDataResponse {
     Reward,
     Upi,
     Voucher,
+    GiftCard,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1881,6 +1894,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::Upi {} => Self::Upi,
             AdditionalPaymentData::BankTransfer {} => Self::BankTransfer,
             AdditionalPaymentData::Voucher {} => Self::Voucher,
+            AdditionalPaymentData::GiftCard {} => Self::GiftCard,
         }
     }
 }
