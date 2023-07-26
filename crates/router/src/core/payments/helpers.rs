@@ -1363,7 +1363,7 @@ pub(crate) fn validate_payment_method_fields_present(
     req: &api::PaymentsRequest,
 ) -> RouterResult<()> {
     utils::when(
-        req.payment_method.is_some() != req.payment_method_data.is_some(),
+        req.payment_method.is_none() && req.payment_method_data.is_some(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method",
