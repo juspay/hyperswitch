@@ -193,6 +193,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CryptoData,
         api_models::payments::RewardData,
         api_models::payments::UpiData,
+        api_models::payments::VoucherData,
+        api_models::payments::BoletoVoucherData,
         api_models::payments::Address,
         api_models::payments::BankRedirectData,
         api_models::payments::BankRedirectBilling,

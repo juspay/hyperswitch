@@ -1232,6 +1232,10 @@ fn create_stripe_payment_method(
                         billing_details,
                     ))
                 }
+                payments::BankTransferData::Pix {} | payments::BankTransferData::Pse {} => Err(
+                    errors::ConnectorError::NotImplemented("this payment method".to_string())
+                        .into(),
+                ),
             }
         }
         _ => Err(errors::ConnectorError::NotImplemented(
@@ -2900,13 +2904,17 @@ impl
                             payment_method_type: StripePaymentMethodType::CustomerBalance,
                         })),
                     )),
+                    payments::BankTransferData::Pix {} | payments::BankTransferData::Pse {} => Err(
+                        errors::ConnectorError::NotImplemented("payment method".to_string()).into(),
+                    ),
                 }
             }
             api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::Reward(_)
             | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{pm_type:?}"),
                 connector: "Stripe",
                 payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
