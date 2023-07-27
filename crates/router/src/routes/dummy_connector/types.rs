@@ -44,19 +44,19 @@ pub enum DummyConnectors {
 impl DummyConnectors {
     pub fn get_connector_image_link(self) -> &'static str {
         match self {
-            DummyConnectors::PhonyPay => {
+            Self::PhonyPay => {
                 "https://app.hyperswitch.io/euler-icons/Gateway/Light/PHONYPAY.svg"
             }
-            DummyConnectors::FauxPay => {
+            Self::FauxPay => {
                 "https://app.hyperswitch.io/euler-icons/Gateway/Light/FAUXPAY.svg"
             }
-            DummyConnectors::PretendPay => {
+            Self::PretendPay => {
                 "https://app.hyperswitch.io/euler-icons/Gateway/Light/PRETENDPAY.svg"
             }
-            DummyConnectors::StripeTest => {
+            Self::StripeTest => {
                 "https://app.hyperswitch.io/euler-icons/Gateway/Light/STRIPE_TEST.svg"
             }
-            DummyConnectors::PaypalTest => {
+            Self::PaypalTest => {
                 "https://app.hyperswitch.io/euler-icons/Gateway/Light/PAYPAL_TEST.svg"
             }
             _ => "https://app.hyperswitch.io/euler-icons/Gateway/Light/PHONYPAY.svg",
@@ -165,18 +165,18 @@ impl From<DummyConnectorPaymentMethodData> for DummyConnectorPaymentMethodType {
 
 impl GetPaymentMethodDetails for DummyConnectorPaymentMethodType {
     fn get_name(&self) -> &'static str {
-        match &self {
-            &Self::Card => "3D Secure",
-            &Self::Wallet(wallet) => wallet.get_name(),
-            &Self::PayLater(pay_later) => pay_later.get_name(),
+        match self {
+            Self::Card => "3D Secure",
+            Self::Wallet(wallet) => wallet.get_name(),
+            Self::PayLater(pay_later) => pay_later.get_name(),
         }
     }
 
     fn get_image_link(&self) -> &'static str {
-        match &self {
-            &Self::Card => "https://www.svgrepo.com/show/115459/credit-card.svg",
-            &Self::Wallet(wallet) => wallet.get_image_link(),
-            &Self::PayLater(pay_later) => pay_later.get_image_link(),
+        match self {
+            Self::Card => "https://www.svgrepo.com/show/115459/credit-card.svg",
+            Self::Wallet(wallet) => wallet.get_image_link(),
+            Self::PayLater(pay_later) => pay_later.get_image_link(),
         }
     }
 }
@@ -207,23 +207,23 @@ pub enum DummyConnectorWallet {
 
 impl GetPaymentMethodDetails for DummyConnectorWallet {
     fn get_name(&self) -> &'static str {
-        match &self {
-            &Self::GooglePay => "Google Pay",
-            &Self::Paypal => "PayPal",
-            &Self::WeChatPay => "WeChat Pay",
-            &Self::MbWay => "Mb Way",
-            &Self::AliPay => "Alipay",
-            &Self::AliPayHK => "Alipay HK",
+        match self {
+            Self::GooglePay => "Google Pay",
+            Self::Paypal => "PayPal",
+            Self::WeChatPay => "WeChat Pay",
+            Self::MbWay => "Mb Way",
+            Self::AliPay => "Alipay",
+            Self::AliPayHK => "Alipay HK",
         }
     }
     fn get_image_link(&self) -> &'static str {
-        match &self {
-            &Self::GooglePay => "https://pay.google.com/about/static_kcs/images/logos/google-pay-logo.svg",
-            &Self::Paypal => "https://app.hyperswitch.io/euler-icons/Gateway/Light/PAYPAL.svg",
-            &Self::WeChatPay => "https://raw.githubusercontent.com/datatrans/payment-logos/master/assets/apm/wechat-pay.svg?sanitize=true",
-            &Self::MbWay => "https://upload.wikimedia.org/wikipedia/commons/e/e3/Logo_MBWay.svg",
-            &Self::AliPay => "https://www.logo.wine/a/logo/Alipay/Alipay-Logo.wine.svg",
-            &Self::AliPayHK => "https://www.logo.wine/a/logo/Alipay/Alipay-Logo.wine.svg",
+        match self {
+            Self::GooglePay => "https://pay.google.com/about/static_kcs/images/logos/google-pay-logo.svg",
+            Self::Paypal => "https://app.hyperswitch.io/euler-icons/Gateway/Light/PAYPAL.svg",
+            Self::WeChatPay => "https://raw.githubusercontent.com/datatrans/payment-logos/master/assets/apm/wechat-pay.svg?sanitize=true",
+            Self::MbWay => "https://upload.wikimedia.org/wikipedia/commons/e/e3/Logo_MBWay.svg",
+            Self::AliPay => "https://www.logo.wine/a/logo/Alipay/Alipay-Logo.wine.svg",
+            Self::AliPayHK => "https://www.logo.wine/a/logo/Alipay/Alipay-Logo.wine.svg",
         }
     }
 }
@@ -237,17 +237,17 @@ pub enum DummyConnectorPayLater {
 
 impl GetPaymentMethodDetails for DummyConnectorPayLater {
     fn get_name(&self) -> &'static str {
-        match &self {
-            &Self::Klarna => "Klarna",
-            &Self::Affirm => "Affirm",
-            &Self::AfterPayClearPay => "Afterpay Clearpay",
+        match self {
+            Self::Klarna => "Klarna",
+            Self::Affirm => "Affirm",
+            Self::AfterPayClearPay => "Afterpay Clearpay",
         }
     }
     fn get_image_link(&self) -> &'static str {
-        match &self {
-            &Self::Klarna => "https://docs.klarna.com/assets/media/7404df75-d165-4eee-b33c-a9537b847952/Klarna_Logo_Primary_Black.svg",
-            &Self::Affirm => "https://upload.wikimedia.org/wikipedia/commons/f/ff/Affirm_logo.svg",
-            &Self::AfterPayClearPay => "https://upload.wikimedia.org/wikipedia/en/c/c3/Afterpay_logo.svg"
+        match self {
+            Self::Klarna => "https://docs.klarna.com/assets/media/7404df75-d165-4eee-b33c-a9537b847952/Klarna_Logo_Primary_Black.svg",
+            Self::Affirm => "https://upload.wikimedia.org/wikipedia/commons/f/ff/Affirm_logo.svg",
+            Self::AfterPayClearPay => "https://upload.wikimedia.org/wikipedia/en/c/c3/Afterpay_logo.svg"
         }
     }
 }
