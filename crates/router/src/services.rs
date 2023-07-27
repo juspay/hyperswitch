@@ -5,7 +5,6 @@ pub mod logger;
 
 use std::sync::{atomic, Arc};
 
-use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
 use external_services::kms;
@@ -109,13 +108,19 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
 pub trait RedisConnInterface {
     fn get_redis_conn(
         &self,
-    ) -> CustomResult<Arc<redis_interface::RedisConnectionPool>, errors::RedisError>;
+    ) -> common_utils::errors::CustomResult<
+        Arc<redis_interface::RedisConnectionPool>,
+        errors::RedisError,
+    >;
 }
 
 impl RedisConnInterface for Store {
     fn get_redis_conn(
         &self,
-    ) -> CustomResult<Arc<redis_interface::RedisConnectionPool>, errors::RedisError> {
+    ) -> common_utils::errors::CustomResult<
+        Arc<redis_interface::RedisConnectionPool>,
+        errors::RedisError,
+    > {
         self.redis_conn()
     }
 }
