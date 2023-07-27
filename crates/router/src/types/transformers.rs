@@ -202,7 +202,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::OnlineBankingFpx
             | api_enums::PaymentMethodType::OnlineBankingPoland
             | api_enums::PaymentMethodType::OnlineBankingSlovakia
-            | api_enums::PaymentMethodType::OpenBankingUK
+            | api_enums::PaymentMethodType::OpenBankingUk
             | api_enums::PaymentMethodType::Przelewy24
             | api_enums::PaymentMethodType::Swish
             | api_enums::PaymentMethodType::Trustly

@@ -1588,7 +1588,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::WeChatPay => Self::Wallet,
             PaymentMethodType::TouchNGo => Self::Wallet,
             PaymentMethodType::Atome => Self::PayLater,
-            PaymentMethodType::OpenBankingUK => Self::BankRedirect,
+            PaymentMethodType::OpenBankingUk => Self::BankRedirect,
         }
     }
 }
