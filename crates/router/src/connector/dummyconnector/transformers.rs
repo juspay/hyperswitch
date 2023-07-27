@@ -58,11 +58,12 @@ impl From<u8> for DummyConnectors {
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
-pub struct DummyConnectorPaymentsRequest {
+pub struct DummyConnectorPaymentsRequest<const T: u8> {
     amount: i64,
     currency: Currency,
     payment_method_data: PaymentMethodData,
     return_url: Option<String>,
+    connector: DummyConnectors,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
@@ -130,21 +131,19 @@ impl TryFrom<api_models::payments::PayLaterData> for DummyConnectorPayLater {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: api_models::payments::PayLaterData) -> Result<Self, Self::Error> {
         match value {
-            api_models::payments::PayLaterData::KlarnaRedirect {
-                billing_email: _,
-                billing_country: _,
-            } => Ok(Self::Klarna),
+            api_models::payments::PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
             api_models::payments::PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
-            api_models::payments::PayLaterData::AfterpayClearpayRedirect {
-                billing_email: _,
-                billing_name: _,
-            } => Ok(Self::AfterPayClearPay),
+            api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                Ok(Self::AfterPayClearPay)
+            }
             _ => Err(errors::ConnectorError::NotImplemented("Dummy pay later".to_string()).into()),
         }
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequest {
+impl<const T: u8> TryFrom<&types::PaymentsAuthorizeRouterData>
+    for DummyConnectorPaymentsRequest<T>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let payment_method_data: Result<PaymentMethodData, Self::Error> = match item
@@ -166,6 +165,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequ
             currency: item.request.currency,
             payment_method_data: payment_method_data?,
             return_url: item.request.router_return_url.clone(),
+            connector: Into::<DummyConnectors>::into(T),
         })
     }
 }

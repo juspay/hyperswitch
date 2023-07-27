@@ -170,10 +170,10 @@ impl<const T: u8>
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = transformers::DummyConnectorPaymentsRequest::try_from(req)?;
+        let connector_request = transformers::DummyConnectorPaymentsRequest::<T>::try_from(req)?;
         let dummmy_payments_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
-            utils::Encode::<transformers::DummyConnectorPaymentsRequest>::encode_to_string_of_json,
+            utils::Encode::<transformers::DummyConnectorPaymentsRequest::<T>>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(dummmy_payments_request))

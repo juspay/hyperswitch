@@ -7,7 +7,7 @@ use maud::html;
 use rand::Rng;
 use tokio::time as tokio;
 
-use super::{consts, errors, types};
+use super::{consts, errors, types::{self, GetPaymentMethodDetails}};
 use crate::routes::AppState;
 
 pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
@@ -70,40 +70,10 @@ pub fn get_authorize_page(
     payment_data: types::DummyConnectorPaymentData,
     return_url: String,
 ) -> String {
-    let (image, mode) = match payment_data.payment_method_type {
-        types::DummyConnectorPaymentMethodType::Card => {
-            ("https://hyperswitch.io/logos/hyperswitch.svg", "3D Secure")
-        }
-        types::DummyConnectorPaymentMethodType::Wallet(wallet) => match wallet {
-            types::DummyConnectorWallet::GooglePay => (
-                "https://pay.google.com/about/static_kcs/images/logos/footer-logo.svg",
-                "Google Pay",
-            ),
-            types::DummyConnectorWallet::Paypal => (
-                "https://www.paypalobjects.com/digitalassets/c/website/logo/full-text/pp_fc_hl.svg",
-                "PayPal",
-            ),
-            types::DummyConnectorWallet::WeChatPay => (
-                "https://gtimg.wechatpay.cn/pay_en/img/common/logo.png",
-                "WeChat Pay",
-            ),
-            types::DummyConnectorWallet::AliPay => (
-                "https://upload.wikimedia.org/wikipedia/en/c/c7/Alipay_logo_%282020%29.svg",
-                "AliPay",
-            ),
-            types::DummyConnectorWallet::AliPayHK => (
-                "https://upload.wikimedia.org/wikipedia/en/c/c7/Alipay_logo_%282020%29.svg",
-                "AliPay HK",
-            ),
-            types::DummyConnectorWallet::MbWay => (
-                "https://upload.wikimedia.org/wikipedia/commons/e/e3/Logo_MBWay.svg",
-                "MbWay",
-            ),
-        },
-        types::DummyConnectorPaymentMethodType::PayLater(_) => {
-            ("https://hyperswitch.io/logos/hyperswitch.svg", "Pay Later")
-        }
-    };
+    let mode = payment_data.payment_method_type.get_name();
+    let image = payment_data.payment_method_type.get_image_link();
+    let connector_image = payment_data.connector.get_connector_image_link();
+
     #[allow(clippy::as_conversions)]
     let amount = (payment_data.amount / 100) as f64;
     let currency = payment_data.currency.to_string();
@@ -113,14 +83,32 @@ pub fn get_authorize_page(
             style { (consts::THREE_DS_CSS) }
         }
         body {
-            img src=(image) alt="Hyperswitch Logo" {}
-            p { (format!("This is a test payment of {} {} through {}", amount, currency, mode)) }
-            p { "Complete a required action for this payment" }
-            div{
-                button.authorize  onclick=({println!("Hello");format!("window.location.href='{}?confirm=true'", return_url)})
-                    { "Continue Payment" }
-                button.reject onclick=(format!("window.location.href='{}?confirm=false'", return_url))
-                    { "Cancel Payment" }
+            div.heading {
+                img.logo src="https://app.hyperswitch.io/assets/Dark/hyperswitchLogoIconWithText.svg" alt="Hyperswitch Logo" {}
+                h1 { "Test Payment Page" }
+            }
+            div.container {
+                div.payment-details { 
+                    img src=(image) {}
+                    div.border {}
+                    img src=(connector_image) {}
+                }
+                p.disclaimer { (format!("This is a test payment of {} {} using {}", amount, currency, mode)) }
+                p { b { "Real money will not be debited for the payment." } " You can choose to simulate successful or failed payment while testing this payment."}
+                div.user_action {
+                    button.authorize  onclick=(format!("window.location.href='{}?confirm=true'", return_url)) 
+                        { "Complete Payment" }
+                    
+                    button.reject onclick=(format!("window.location.href='{}?confirm=true'", return_url)) 
+                        { "Reject Payment" }
+                }
+            }
+            div.container {
+                p.disclaimer { "What is this page?" }
+                p { "This page is just a simulation for integration and testing purpose.\
+                    In live mode, this page will not be displayed and the user will be taken to the\
+                    Bank page (or) Googlepay cards popup (or) original payment method’s page. "
+                    a href=("https://hyperswitch.io/contact") { "Contact us" } " for any queries." }
             }
         }
     }
@@ -134,8 +122,19 @@ pub fn get_expired_page() -> String {
             style { (consts::THREE_DS_CSS) }
         }
         body {
-            img src="https://hyperswitch.io/logos/hyperswitch.svg" alt="Hyperswitch Logo" {}
-            p { "This is link is not valid or expired" }
+            div.heading {
+                img.logo src="https://app.hyperswitch.io/assets/Dark/hyperswitchLogoIconWithText.svg" alt="Hyperswitch Logo" {}
+                h1 { "Test Payment Page" }
+            }
+            div.container {
+                p.disclaimer { "This link is not valid or it is expired" }
+            }
+            div.container {
+                p.disclaimer { "What is this page?" }
+                p { "This page is just a simulation for integration and testing purpose.\
+                    In live mode, this is not visible. "
+                    a href=("https://hyperswitch.io/contact") { "Contact us" } " for any queries." }
+            }
         }
     }
     .into_string()

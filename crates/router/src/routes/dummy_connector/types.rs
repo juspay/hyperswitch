@@ -22,6 +22,48 @@ pub enum Flow {
 
 impl FlowMetric for Flow {}
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, strum::Display, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum DummyConnectors {
+    #[serde(rename = "phonypay")]
+    #[strum(serialize = "phonypay")]
+    PhonyPay,
+    #[serde(rename = "fauxpay")]
+    #[strum(serialize = "fauxpay")]
+    FauxPay,
+    #[serde(rename = "pretendpay")]
+    #[strum(serialize = "pretendpay")]
+    PretendPay,
+    StripeTest,
+    AdyenTest,
+    CheckoutTest,
+    PaypalTest,
+}
+
+impl DummyConnectors {
+    pub fn get_connector_image_link(self) -> &'static str {
+        match self {
+            DummyConnectors::PhonyPay => {
+                "https://app.hyperswitch.io/euler-icons/Gateway/Light/PHONYPAY.svg"
+            }
+            DummyConnectors::FauxPay => {
+                "https://app.hyperswitch.io/euler-icons/Gateway/Light/FAUXPAY.svg"
+            }
+            DummyConnectors::PretendPay => {
+                "https://app.hyperswitch.io/euler-icons/Gateway/Light/PRETENDPAY.svg"
+            }
+            DummyConnectors::StripeTest => {
+                "https://app.hyperswitch.io/euler-icons/Gateway/Light/STRIPE_TEST.svg"
+            }
+            DummyConnectors::PaypalTest => {
+                "https://app.hyperswitch.io/euler-icons/Gateway/Light/PAYPAL_TEST.svg"
+            }
+            _ => "https://app.hyperswitch.io/euler-icons/Gateway/Light/PHONYPAY.svg",
+        }
+    }
+}
+
 #[derive(
     Default, serde::Serialize, serde::Deserialize, strum::Display, Clone, PartialEq, Debug, Eq,
 )]
@@ -68,6 +110,7 @@ impl DummyConnectorPaymentAttempt {
             status,
             amount: self.payment_request.amount,
             eligible_amount: self.payment_request.amount,
+            connector: self.payment_request.connector,
             created: self.timestamp,
             currency: self.payment_request.currency,
             payment_method_type: self.payment_request.payment_method_data.into(),
@@ -83,6 +126,12 @@ pub struct DummyConnectorPaymentRequest {
     pub currency: Currency,
     pub payment_method_data: DummyConnectorPaymentMethodData,
     pub return_url: Option<String>,
+    pub connector: DummyConnectors,
+}
+
+pub trait GetPaymentMethodDetails {
+    fn get_name(&self) -> &'static str;
+    fn get_image_link(&self) -> &'static str;
 }
 
 #[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
@@ -114,21 +163,22 @@ impl From<DummyConnectorPaymentMethodData> for DummyConnectorPaymentMethodType {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
-pub enum DummyConnectorWallet {
-    GooglePay,
-    Paypal,
-    WeChatPay,
-    MbWay,
-    AliPay,
-    AliPayHK,
-}
+impl GetPaymentMethodDetails for DummyConnectorPaymentMethodType {
+    fn get_name(&self) -> &'static str {
+        match &self {
+            &Self::Card => "3D Secure",
+            &Self::Wallet(wallet) => wallet.get_name(),
+            &Self::PayLater(pay_later) => pay_later.get_name(),
+        }
+    }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
-pub enum DummyConnectorPayLater {
-    Klarna,
-    Affirm,
-    AfterPayClearPay,
+    fn get_image_link(&self) -> &'static str {
+        match &self {
+            &Self::Card => "https://www.svgrepo.com/show/115459/credit-card.svg",
+            &Self::Wallet(wallet) => wallet.get_image_link(),
+            &Self::PayLater(pay_later) => pay_later.get_image_link(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -145,6 +195,63 @@ pub enum DummyConnectorCardFlow {
     ThreeDS(DummyConnectorStatus, Option<DummyConnectorErrors>),
 }
 
+#[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
+pub enum DummyConnectorWallet {
+    GooglePay,
+    Paypal,
+    WeChatPay,
+    MbWay,
+    AliPay,
+    AliPayHK,
+}
+
+impl GetPaymentMethodDetails for DummyConnectorWallet {
+    fn get_name(&self) -> &'static str {
+        match &self {
+            &Self::GooglePay => "Google Pay",
+            &Self::Paypal => "PayPal",
+            &Self::WeChatPay => "WeChat Pay",
+            &Self::MbWay => "Mb Way",
+            &Self::AliPay => "Alipay",
+            &Self::AliPayHK => "Alipay HK",
+        }
+    }
+    fn get_image_link(&self) -> &'static str {
+        match &self {
+            &Self::GooglePay => "https://pay.google.com/about/static_kcs/images/logos/google-pay-logo.svg",
+            &Self::Paypal => "https://app.hyperswitch.io/euler-icons/Gateway/Light/PAYPAL.svg",
+            &Self::WeChatPay => "https://raw.githubusercontent.com/datatrans/payment-logos/master/assets/apm/wechat-pay.svg?sanitize=true",
+            &Self::MbWay => "https://upload.wikimedia.org/wikipedia/commons/e/e3/Logo_MBWay.svg",
+            &Self::AliPay => "https://www.logo.wine/a/logo/Alipay/Alipay-Logo.wine.svg",
+            &Self::AliPayHK => "https://www.logo.wine/a/logo/Alipay/Alipay-Logo.wine.svg",
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+pub enum DummyConnectorPayLater {
+    Klarna,
+    Affirm,
+    AfterPayClearPay,
+}
+
+impl GetPaymentMethodDetails for DummyConnectorPayLater {
+    fn get_name(&self) -> &'static str {
+        match &self {
+            &Self::Klarna => "Klarna",
+            &Self::Affirm => "Affirm",
+            &Self::AfterPayClearPay => "Afterpay Clearpay",
+        }
+    }
+    fn get_image_link(&self) -> &'static str {
+        match &self {
+            &Self::Klarna => "https://docs.klarna.com/assets/media/7404df75-d165-4eee-b33c-a9537b847952/Klarna_Logo_Primary_Black.svg",
+            &Self::Affirm => "https://upload.wikimedia.org/wikipedia/commons/f/ff/Affirm_logo.svg",
+            &Self::AfterPayClearPay => "https://upload.wikimedia.org/wikipedia/en/c/c3/Afterpay_logo.svg"
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct DummyConnectorPaymentData {
     pub attempt_id: String,
@@ -156,6 +263,7 @@ pub struct DummyConnectorPaymentData {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
     pub payment_method_type: DummyConnectorPaymentMethodType,
+    pub connector: DummyConnectors,
     pub next_action: Option<DummyConnectorNextAction>,
     pub return_url: Option<String>,
 }
