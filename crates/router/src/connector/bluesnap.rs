@@ -8,6 +8,7 @@ use common_utils::{
     ext_traits::{StringExt, ValueExt},
 };
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as bluesnap;
 
 use super::utils::{
@@ -66,7 +67,13 @@ impl ConnectorCommon for Bluesnap {
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
-
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        bluesnap::BluesnapAuthType::try_from(val)?;
+        Ok(())
+    }
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.bluesnap.base_url.as_ref()
     }
@@ -79,7 +86,7 @@ impl ConnectorCommon for Bluesnap {
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let encoded_api_key =
-            consts::BASE64_ENGINE.encode(format!("{}:{}", auth.key1, auth.api_key));
+            consts::BASE64_ENGINE.encode(format!("{}:{}", auth.key1.peek(), auth.api_key.peek()));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             format!("Basic {encoded_api_key}").into_masked(),
