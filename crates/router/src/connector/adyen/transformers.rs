@@ -177,16 +177,16 @@ impl ForeignFrom<(bool, AdyenStatus)> for storage_enums::AttemptStatus {
     fn foreign_from((is_manual_capture, adyen_status): (bool, AdyenStatus)) -> Self {
         match adyen_status {
             AdyenStatus::AuthenticationFinished => Self::AuthenticationSuccessful,
-            AdyenStatus::AuthenticationNotRequired => Self::Pending,
+            AdyenStatus::AuthenticationNotRequired | AdyenStatus::PresentToShopper => Self::Pending,
             AdyenStatus::Authorised => match is_manual_capture {
                 true => Self::Authorized,
                 // In case of Automatic capture Authorized is the final status of the payment
                 false => Self::Charged,
             },
             AdyenStatus::Cancelled => Self::Voided,
-            AdyenStatus::ChallengeShopper
-            | AdyenStatus::RedirectShopper
-            | AdyenStatus::PresentToShopper => Self::AuthenticationPending,
+            AdyenStatus::ChallengeShopper | AdyenStatus::RedirectShopper => {
+                Self::AuthenticationPending
+            }
             AdyenStatus::Error | AdyenStatus::Refused => Self::Failure,
             AdyenStatus::Pending => Self::Pending,
             AdyenStatus::Received => Self::Started,
@@ -336,6 +336,7 @@ pub enum AdyenPaymentMethod<'a> {
     BancontactCard(Box<BancontactCardData>),
     Bizum(Box<BankRedirectionPMData>),
     Blik(Box<BlikRedirectionData>),
+    #[serde(rename = "boletobancario")]
     Boleto(Box<AdyenVoucherData>),
     ClearPay(Box<AdyenPayLaterData>),
     Dana(Box<DanaWalletData>),
@@ -828,11 +829,8 @@ pub struct AdyenPayLaterData {
     payment_type: PaymentType,
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct AdyenVoucherData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdyenVoucherData {}
 
 // Refunds Request and Response
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -874,8 +872,6 @@ pub enum PaymentType {
     Bizum,
     Atome,
     Blik,
-    #[serde(rename = "boletobancario")]
-    Boleto,
     ClearPay,
     Dana,
     Eps,
@@ -1335,9 +1331,8 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
     fn try_from(voucher_data: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
         match voucher_data {
             payments::VoucherData::Boleto { .. } => {
-                Ok(AdyenPaymentMethod::Boleto(Box::new(AdyenVoucherData {
-                    payment_type: PaymentType::Boleto,
-                })))
+                let adyen_voucher_data = AdyenVoucherData {};
+                Ok(AdyenPaymentMethod::Boleto(Box::new(adyen_voucher_data)))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
