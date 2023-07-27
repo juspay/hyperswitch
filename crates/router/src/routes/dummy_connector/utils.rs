@@ -46,7 +46,7 @@ pub async fn payment(
                     let redis_conn = state
                         .store
                         .get_redis_conn()
-                        .change_context(errors::DummyConnectorErrors::RedisConnectionError)?;
+                        .change_context(errors::DummyConnectorErrors::PaymentStoringError)?;
 
                     store_data_in_redis(
                         redis_conn,
@@ -87,7 +87,7 @@ pub async fn payment_data(
     let redis_conn = state
         .store
         .get_redis_conn()
-        .change_context(errors::DummyConnectorErrors::RedisConnectionError)?;
+        .change_context(errors::DummyConnectorErrors::PaymentStoringError)?;
 
     let payment_data = redis_conn
         .get_and_deserialize_key::<types::DummyConnectorPaymentData>(
@@ -129,7 +129,7 @@ pub async fn refund_payment(
     let redis_conn = state
         .store
         .get_redis_conn()
-        .change_context(errors::DummyConnectorErrors::RedisConnectionError)?;
+        .change_context(errors::DummyConnectorErrors::PaymentStoringError)?;
 
     let mut payment_data = redis_conn
         .get_and_deserialize_key::<types::DummyConnectorPaymentData>(
@@ -194,7 +194,7 @@ pub async fn refund_data(
     let redis_conn = state
         .store
         .get_redis_conn()
-        .change_context(errors::DummyConnectorErrors::RedisConnectionError)?;
+        .change_context(errors::DummyConnectorErrors::PaymentStoringError)?;
 
     let refund_data = redis_conn
         .get_and_deserialize_key::<types::DummyConnectorRefundResponse>(
