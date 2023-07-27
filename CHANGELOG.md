@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.6.0+hotfix.6 (2023-07-27)
+
+### Bug Fixes
+
+- **connector:** [Trustpay] update cardholder name with billing address name ([#1798](https://github.com/juspay/hyperswitch/pull/1798)) ([`83ca665`](https://github.com/juspay/hyperswitch/commit/83ca66596a1fa43dbb16e4b30e3e38ff19e2dd97))
+
+**Full Changelog:** [`v1.6.0+hotfix.5...v1.6.0+hotfix.6`](https://github.com/juspay/hyperswitch/compare/v1.6.0+hotfix.5...v1.6.0+hotfix.6)
+
+- - -
+
 ## 1.6.0+hotfix.5 (2023-07-25)
 
 ### Bug Fixes
