@@ -44,12 +44,8 @@ pub enum DummyConnectors {
 impl DummyConnectors {
     pub fn get_connector_image_link(self) -> &'static str {
         match self {
-            Self::PhonyPay => {
-                "https://app.hyperswitch.io/euler-icons/Gateway/Light/PHONYPAY.svg"
-            }
-            Self::FauxPay => {
-                "https://app.hyperswitch.io/euler-icons/Gateway/Light/FAUXPAY.svg"
-            }
+            Self::PhonyPay => "https://app.hyperswitch.io/euler-icons/Gateway/Light/PHONYPAY.svg",
+            Self::FauxPay => "https://app.hyperswitch.io/euler-icons/Gateway/Light/FAUXPAY.svg",
             Self::PretendPay => {
                 "https://app.hyperswitch.io/euler-icons/Gateway/Light/PRETENDPAY.svg"
             }
