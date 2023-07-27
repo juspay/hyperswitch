@@ -76,10 +76,8 @@ pub fn get_authorize_page(
     let mode = payment_data.payment_method_type.get_name();
     let image = payment_data.payment_method_type.get_image_link();
     let connector_image = payment_data.connector.get_connector_image_link();
-
-    #[allow(clippy::as_conversions)]
-    let amount = (payment_data.amount / 100) as f64;
     let currency = payment_data.currency.to_string();
+
     html! {
         head {
             title { "Authorize Payment" }
@@ -96,7 +94,14 @@ pub fn get_authorize_page(
                     div.border {}
                     img src=(connector_image) {}
                 }
-                p.disclaimer { (format!("This is a test payment of {} {} using {}", amount, currency, mode)) }
+                (maud::PreEscaped(format!(r#"
+                <p class="disclaimer">
+                    This is a test payment of <span id="amount"></span> {} using {}
+                    <script>
+                        document.getElementById("amount").innerHTML = ({} / 100).toFixed(2);
+                    </script>
+                </p>
+                "#, currency, mode, payment_data.amount)))
                 p { b { "Real money will not be debited for the payment." } " You can choose to simulate successful or failed payment while testing this payment."}
                 div.user_action {
                     button.authorize  onclick=(format!("window.location.href='{}?confirm=true'", return_url)) 
