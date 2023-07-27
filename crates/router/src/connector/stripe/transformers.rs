@@ -23,7 +23,7 @@ use crate::{
 };
 
 pub struct StripeAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for StripeAuthType {
@@ -31,7 +31,7 @@ impl TryFrom<&types::ConnectorAuthType> for StripeAuthType {
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = item {
             Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: api_key.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -1232,13 +1232,16 @@ fn create_stripe_payment_method(
                         billing_details,
                     ))
                 }
-                payments::BankTransferData::Pix {} => Err(errors::ConnectorError::NotImplemented(
-                    "this payment method".to_string(),
-                )
-                .into()),
+                payments::BankTransferData::Pix {} | payments::BankTransferData::Pse {} => Err(
+                    errors::ConnectorError::NotImplemented("this payment method".to_string())
+                        .into(),
+                ),
             }
         }
-        _ => Err(errors::ConnectorError::NotImplemented("payment method".to_string()).into()),
+        _ => Err(errors::ConnectorError::NotImplemented(
+            "this payment method for stripe".to_string(),
+        )
+        .into()),
     }
 }
 
@@ -1661,6 +1664,7 @@ pub struct SepaAndBacsBankTransferInstructions {
     pub receiver: SepaAndBacsReceiver,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Clone, Debug, Serialize)]
 pub struct WechatPayNextInstructions {
     pub image_data_url: Url,
@@ -2900,7 +2904,7 @@ impl
                             payment_method_type: StripePaymentMethodType::CustomerBalance,
                         })),
                     )),
-                    payments::BankTransferData::Pix {} => Err(
+                    payments::BankTransferData::Pix {} | payments::BankTransferData::Pse {} => Err(
                         errors::ConnectorError::NotImplemented("payment method".to_string()).into(),
                     ),
                 }
@@ -2908,7 +2912,9 @@ impl
             api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::Reward(_)
-            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{pm_type:?}"),
                 connector: "Stripe",
                 payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),

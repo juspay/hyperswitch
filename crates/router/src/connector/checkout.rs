@@ -6,6 +6,7 @@ use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 
 use self::transformers as checkout;
 use super::utils::{self as conn_utils, RefundsRequestData};
@@ -71,7 +72,7 @@ impl ConnectorCommon for Checkout {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_secret).into_masked(),
+            format!("Bearer {}", auth.api_secret.peek()).into_masked(),
         )])
     }
 
@@ -153,7 +154,7 @@ impl
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let mut auth = vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", api_key.api_key).into_masked(),
+            format!("Bearer {}", api_key.api_key.peek()).into_masked(),
         )];
         header.append(&mut auth);
         Ok(header)

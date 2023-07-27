@@ -290,6 +290,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 recurring_mandate_payment_data,
                 ephemeral_key: None,
                 redirect_response: None,
+                frm_message: None,
             },
             Some(customer_details),
         ))

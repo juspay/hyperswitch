@@ -271,7 +271,7 @@ fn get_address_details(address_details: Option<&payments::AddressDetails>) -> Op
 
 // Auth Struct
 pub struct Shift4AuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for Shift4AuthType {
@@ -279,7 +279,7 @@ impl TryFrom<&types::ConnectorAuthType> for Shift4AuthType {
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = item {
             Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: api_key.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
