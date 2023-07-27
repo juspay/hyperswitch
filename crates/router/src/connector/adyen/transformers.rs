@@ -654,6 +654,25 @@ impl TryFrom<&api_enums::BankNames> for OpenBankingUKIssuer {
             api::enums::BankNames::OpenBankSuccess => Ok(Self::RedirectSuccess),
             api::enums::BankNames::OpenBankFailure => Ok(Self::RedirectFailure),
             api::enums::BankNames::OpenBankCancelled => Ok(Self::RedirectCancelled),
+            api::enums::BankNames::Aib => Ok(Self::Aib),
+            api::enums::BankNames::BankOfScotland => Ok(Self::BankOfScotland),
+            api::enums::BankNames::Barclays => Ok(Self::Barclays),
+            api::enums::BankNames::DanskeBank => Ok(Self::DanskeBank),
+            api::enums::BankNames::FirstDirect => Ok(Self::FirstDirect),
+            api::enums::BankNames::FirstTrust => Ok(Self::FirstTrust),
+            api::enums::BankNames::HsbcBank => Ok(Self::HsbcBank),
+            api::enums::BankNames::Halifax => Ok(Self::Halifax),
+            api::enums::BankNames::Lloyds => Ok(Self::Lloyds),
+            api::enums::BankNames::Monzo => Ok(Self::Monzo),
+            api::enums::BankNames::NatWest => Ok(Self::NatWest),
+            api::enums::BankNames::NationwideBank => Ok(Self::NationwideBank),
+            api::enums::BankNames::Revolut => Ok(Self::Revolut),
+            api::enums::BankNames::RoyalBankOfScotland => Ok(Self::RoyalBankOfScotland),
+            api::enums::BankNames::SantanderPrzelew24 => Ok(Self::SantanderPrzelew24),
+            api::enums::BankNames::Starling => Ok(Self::Starling),
+            api::enums::BankNames::TsbBank => Ok(Self::TsbBank),
+            api::enums::BankNames::TescoBank => Ok(Self::TescoBank),
+            api::enums::BankNames::UlsterBank => Ok(Self::UlsterBank),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
@@ -833,7 +852,7 @@ pub enum PaymentType {
     OnlineBankingFpx,
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand,
-    #[serde(rename = "openbanking_UK")]
+    #[serde(rename = "paybybank")]
     OpenBankingUK,
     PayBright,
     Paypal,
@@ -896,7 +915,6 @@ pub enum OnlineBankingThailandIssuer {
     Kbank,
 }
 
-
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
 pub enum OpenBankingUKIssuer {
     #[serde(rename = "uk-test-open-banking-redirect")]
@@ -905,6 +923,44 @@ pub enum OpenBankingUKIssuer {
     RedirectFailure,
     #[serde(rename = "uk-test-open-banking-redirect-cancelled")]
     RedirectCancelled,
+    #[serde(rename = "uk-aib-oauth2")]
+    Aib,
+    #[serde(rename = "uk-bankofscotland-oauth2")]
+    BankOfScotland,
+    #[serde(rename = "uk-barclays-oauth2")]
+    Barclays,
+    #[serde(rename = "uk-danskebank-oauth2")]
+    DanskeBank,
+    #[serde(rename = "uk-firstdirect-oauth2")]
+    FirstDirect,
+    #[serde(rename = "uk-firsttrust-oauth2")]
+    FirstTrust,
+    #[serde(rename = "uk-hsbc-oauth2")]
+    HsbcBank,
+    #[serde(rename = "uk-halifax-oauth2")]
+    Halifax,
+    #[serde(rename = "uk-lloyds-oauth2")]
+    Lloyds,
+    #[serde(rename = "uk-monzo-oauth2")]
+    Monzo,
+    #[serde(rename = "uk-natwest-oauth2")]
+    NatWest,
+    #[serde(rename = "uk-nationwide-oauth2")]
+    NationwideBank,
+    #[serde(rename = "uk-revolut-oauth2")]
+    Revolut,
+    #[serde(rename = "uk-rbs-oauth2")]
+    RoyalBankOfScotland,
+    #[serde(rename = "uk-santander-oauth2")]
+    SantanderPrzelew24,
+    #[serde(rename = "uk-starling-oauth2")]
+    Starling,
+    #[serde(rename = "uk-tsb-oauth2")]
+    TsbBank,
+    #[serde(rename = "uk-tesco-oauth2")]
+    TescoBank,
+    #[serde(rename = "uk-ulster-oauth2")]
+    UlsterBank,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -1615,7 +1671,7 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                     issuer: OnlineBankingThailandIssuer::try_from(issuer)?,
                 })),
             ),
-            api_models::payments::BankRedirectData::OpenBankingUk { issuer } => Ok(
+            api_models::payments::BankRedirectData::OpenBankingUk { issuer, .. } => Ok(
                 AdyenPaymentMethod::OpenBankingUK(Box::new(OpenBankingUKData {
                     payment_type: PaymentType::OpenBankingUK,
                     issuer: OpenBankingUKIssuer::try_from(issuer)?,
@@ -1902,7 +1958,7 @@ impl<'a>
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(bank_redirect_data)?;
-        let (shopper_locale, country) = get_sofort_extra_details(item);
+        let (shopper_locale, country) = get_redirect_extra_details(item);
         let line_items = Some(get_line_items(item));
 
         Ok(AdyenPaymentRequest {
@@ -1930,23 +1986,24 @@ impl<'a>
     }
 }
 
-fn get_sofort_extra_details(
+fn get_redirect_extra_details(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> (Option<String>, Option<api_enums::CountryAlpha2>) {
     match item.request.payment_method_data {
-        api_models::payments::PaymentMethodData::BankRedirect(ref b) => {
-            if let api_models::payments::BankRedirectData::Sofort {
-                country,
-                preferred_language,
-                ..
-            } = b
-            {
-                (
+        api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
+            match redirect_data {
+                api_models::payments::BankRedirectData::Sofort {
+                    country,
+                    preferred_language,
+                    ..
+                } => (
                     Some(preferred_language.to_string()),
                     Some(country.to_owned()),
-                )
-            } else {
-                (None, None)
+                ),
+                api_models::payments::BankRedirectData::OpenBankingUk { country, .. } => {
+                    (None, Some(country.to_owned()))
+                }
+                _ => (None, None),
             }
         }
         _ => (None, None),
