@@ -111,7 +111,7 @@ impl ConnectorCommon for Boku {
     fn validate_auth_type(
         &self,
         val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<(), Report<errors::ConnectorError>> {
         boku::BokuAuthType::try_from(val)?;
         Ok(())
     }

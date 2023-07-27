@@ -158,8 +158,8 @@ impl TryFrom<&types::ConnectorAuthType> for BokuAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                merchant_id: Secret::new(key1.to_string()),
-                key_id: Secret::new(api_key.to_string()),
+                merchant_id: key1.to_owned(),
+                key_id: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
