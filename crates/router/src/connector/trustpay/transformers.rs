@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use api_models::payments::BankRedirectData;
 use common_utils::{errors::CustomResult, pii};
 use error_stack::{report, IntoReport, ResultExt};
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -182,6 +182,7 @@ pub struct TrustpayMandatoryParams {
     pub billing_country: api_models::enums::CountryAlpha2,
     pub billing_street1: Secret<String>,
     pub billing_postcode: Secret<String>,
+    pub billing_first_name: Secret<String>,
 }
 
 impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
@@ -210,6 +211,7 @@ fn get_mandatory_fields(
         billing_country: billing_address.get_country()?.to_owned(),
         billing_street1: billing_address.get_line1()?.to_owned(),
         billing_postcode: billing_address.get_zip()?.to_owned(),
+        billing_first_name: billing_address.get_first_name()?.to_owned(),
     })
 }
 
@@ -220,6 +222,7 @@ fn get_card_request_data(
     amount: String,
     ccard: &api_models::payments::Card,
     return_url: String,
+    billing_last_name: Option<Secret<String>>,
 ) -> Result<TrustpayPaymentsRequest, Error> {
     let email = item.request.get_email()?;
     let customer_ip_address = browser_info.get_ip_address()?;
@@ -230,7 +233,15 @@ fn get_card_request_data(
             pan: ccard.card_number.clone(),
             cvv: ccard.card_cvc.clone(),
             expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
-            cardholder: ccard.card_holder_name.clone(),
+            cardholder: match billing_last_name {
+                Some(last_name) => format!(
+                    "{} {}",
+                    params.billing_first_name.expose(),
+                    last_name.expose()
+                )
+                .into(),
+                None => params.billing_first_name,
+            },
             reference: item.payment_id.clone(),
             redirect_url: return_url,
             billing_city: params.billing_city,
@@ -303,6 +314,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
             ip_address: browser_info.ip_address,
         };
         let params = get_mandatory_fields(item)?;
+        let billing_last_name = item
+            .get_billing()?
+            .address
+            .as_ref()
+            .map(|address| address.last_name.clone().unwrap_or_default());
         let amount = format!(
             "{:.2}",
             utils::to_currency_base_unit(item.request.amount, item.request.currency)?
@@ -320,6 +336,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
                 amount,
                 ccard,
                 item.request.get_return_url()?,
+                billing_last_name,
             )?),
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 get_bank_redirection_request_data(item, bank_redirection_data, amount, auth)
