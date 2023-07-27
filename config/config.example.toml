@@ -109,7 +109,6 @@ kms_encrypted_jwt_secret = ""    # Base64-encoded (KMS encrypted) ciphertext of 
 host = ""                      # Locker host
 mock_locker = true             # Emulate a locker locally using Postgres
 basilisk_host = ""             # Basilisk host
-locker_setup = "legacy_locker" # With locker to use while in the deployed environment (eg. legacy_locker, basilisk_locker)
 locker_signing_key_id = "1"    # Key_id to sign basilisk hs locker
 
 [delayed_session_response]
@@ -151,42 +150,55 @@ hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 [connectors]
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
+adyen.secondary_base_url = "https://pal-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
+boku.base_url = "https://country-api4-stage.boku.com"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
+cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
+cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
+globepay.base_url = "https://pay.globepay.co/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
+mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nmi.base_url = "https://secure.nmi.com/"
 noon.base_url = "https://api-test.noonpayments.com/"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
+opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
-paypal.base_url = "https://www.sandbox.paypal.com/"
+payme.base_url = "https://sandbox.payme.io/"
+paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
+powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
+stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
+wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+tsys.base_url = "https://stagegw.transnox.com/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
+zen.secondary_base_url = "https://secure.zen-test.com/"
 
 # Bank redirect configs for allowed banks through online_banking_czech_republic payment method
 [bank_config.online_banking_czech_republic]
@@ -207,17 +219,21 @@ stripe = { banks = "alior_bank,bank_millennium,bank_nowy_bfg_sa,bank_pekao_sa,ba
 # This data is used to call respective connectors for wallets and cards
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
+rewards = ["cashtocode", "zen"]
 cards = [
     "adyen",
     "authorizedotnet",
     "coinbase",
+    "cryptopay",
     "braintree",
     "checkout",
     "cybersource",
     "globalpay",
+    "globepay",
     "mollie",
     "paypal",
     "shift4",
+    "stax",
     "stripe",
     "worldpay",
     "zen",
@@ -269,6 +285,12 @@ from_email = "notify@example.com" # Sender email
 aws_region = "" # AWS region used by AWS SES
 base_url = "" # Base url used when adding links that should redirect to self
 
+#tokenization configuration which describe token lifetime and payment method for specific connector
+[tokenization]
+stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
+checkout = { long_lived_token = false, payment_method = "wallet" }
+mollie = {long_lived_token = false, payment_method = "card"}
+
 [dummy_connector]
 payment_ttl = 172800             # Time to live for dummy connector payment in redis
 payment_duration = 1000          # Fake delay duration for dummy connector payment
@@ -280,3 +302,44 @@ refund_duration = 1000           # Fake delay duration for dummy connector refun
 refund_tolerance = 100           # Fake delay tolerance for dummy connector refund
 refund_retrieve_duration = 500   # Fake delay duration for dummy connector refund sync
 refund_retrieve_tolerance = 100  # Fake delay tolerance for dummy connector refund sync
+
+[mandates.supported_payment_methods]
+card.credit = {connector_list = "stripe,adyen"}     # Mandate supported payment method type and connector for card
+wallet.paypal = {connector_list = "adyen"}          # Mandate supported payment method type and connector for wallets
+pay_later.klarna = {connector_list = "adyen"}       # Mandate supported payment method type and connector for pay_later
+
+# Required fields info used while listing the payment_method_data
+[required_fields.pay_later] # payment_method = "pay_later"
+afterpay_clearpay = {fields = {stripe = [  # payment_method_type = afterpay_clearpay, connector = "stripe"
+            # Required fields vector with its respective display name in front-end and field_type
+            { required_field = "shipping.address.first_name", display_name = "first_name", field_type = "text" },
+            { required_field = "shipping.address.last_name", display_name = "last_name", field_type = "text" },
+            { required_field = "shipping.address.country", display_name = "country", field_type = { drop_down = { options = [ "US", "IN" ] } } },
+        ] } }
+
+[payouts]
+payout_eligibility = true   # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility
+
+[pm_filters.adyen]
+online_banking_fpx = {country = "MY", currency = "MYR"}
+online_banking_thailand = {country = "TH", currency = "THB"}
+touch_n_go = {country = "MY", currency = "MYR"}
+atome = {country = "MY,SG", currency = "MYR,SGD"}
+
+[pm_filters.zen]
+credit = { not_available_flows = { capture_method = "manual" } }
+debit = { not_available_flows = { capture_method = "manual" } }
+boleto = { country = "BR", currency = "BRL" }
+efecty = { country = "CO", currency = "COP" }
+multibanco = { country = "PT", currency = "EUR" }
+pago_efectivo = { country = "PE", currency = "PEN" }
+pse = { country = "CO", currency = "COP" }
+pix = { country = "BR", currency = "BRL" }
+red_compra = { country = "CL", currency = "CLP" }
+red_pagos = { country = "UY", currency = "UYU" }
+
+[bank_config.online_banking_fpx]
+adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,may_bank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
+
+[bank_config.online_banking_thailand]
+adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_bank,kasikorn_bank"

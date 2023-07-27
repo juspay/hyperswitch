@@ -148,12 +148,15 @@ pub async fn payments_retrieve(
         resource_id: payment_types::PaymentIdType::PaymentIntentId(path.to_string()),
         merchant_id: json_payload.merchant_id.clone(),
         force_sync: json_payload.force_sync.unwrap_or(false),
+        client_secret: json_payload.client_secret.clone(),
+        expand_attempts: json_payload.expand_attempts,
         ..Default::default()
     };
-    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(report!(err)),
-    };
+    let (auth_type, auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(report!(err)),
+        };
 
     api::server_wrap(
         flow,
@@ -167,7 +170,7 @@ pub async fn payments_retrieve(
                 auth.key_store,
                 payments::PaymentStatus,
                 req,
-                api::AuthFlow::Merchant,
+                auth_flow,
                 payments::CallConnectorAction::Trigger,
             )
         },
@@ -692,7 +695,6 @@ pub async fn payments_cancel(
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
-// #[get("/list")]
 pub async fn payments_list(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -706,6 +708,50 @@ pub async fn payments_list(
         &req,
         payload,
         |state, auth, req| payments::list_payments(&*state.store, auth.merchant_account, req),
+        &auth::ApiKeyAuth,
+    )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[cfg(feature = "olap")]
+pub async fn payments_list_by_filter(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Json<payment_types::PaymentListFilterConstraints>,
+) -> impl Responder {
+    let flow = Flow::PaymentsList;
+    let payload = payload.into_inner();
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        |state, auth, req| {
+            payments::apply_filters_on_payments(&*state.store, auth.merchant_account, req)
+        },
+        &auth::ApiKeyAuth,
+    )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[cfg(feature = "olap")]
+pub async fn get_filters_for_payments(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Json<payment_types::TimeRange>,
+) -> impl Responder {
+    let flow = Flow::PaymentsList;
+    let payload = payload.into_inner();
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        |state, auth, req| {
+            payments::get_filters_for_payments(&*state.store, auth.merchant_account, req)
+        },
         &auth::ApiKeyAuth,
     )
     .await

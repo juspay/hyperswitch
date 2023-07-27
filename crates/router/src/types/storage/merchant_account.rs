@@ -1,4 +1,4 @@
-pub use storage_models::merchant_account::{
+pub use diesel_models::merchant_account::{
     MerchantAccount, MerchantAccountNew, MerchantAccountUpdateInternal,
 };
 

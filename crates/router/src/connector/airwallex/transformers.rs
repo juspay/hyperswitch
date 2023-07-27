@@ -13,6 +13,25 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
+pub struct AirwallexAuthType {
+    pub x_api_key: Secret<String>,
+    pub x_client_id: Secret<String>,
+}
+
+impl TryFrom<&types::ConnectorAuthType> for AirwallexAuthType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
+            Ok(Self {
+                x_api_key: api_key.clone(),
+                x_client_id: key1.clone(),
+            })
+        } else {
+            Err(errors::ConnectorError::FailedToObtainAuthType)?
+        }
+    }
+}
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexIntentRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
@@ -34,7 +53,7 @@ impl TryFrom<&types::PaymentsInitRouterData> for AirwallexIntentRequest {
     }
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct AirwallexPaymentsRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
@@ -43,19 +62,20 @@ pub struct AirwallexPaymentsRequest {
     return_url: Option<String>,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum AirwallexPaymentMethod {
     Card(AirwallexCard),
+    Wallets(WalletData),
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct AirwallexCard {
     card: AirwallexCardDetails,
     #[serde(rename = "type")]
     payment_method_type: AirwallexPaymentType,
 }
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct AirwallexCardDetails {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
@@ -63,18 +83,44 @@ pub struct AirwallexCardDetails {
     cvc: Secret<String>,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum WalletData {
+    GooglePay(GooglePayData),
+}
+
+#[derive(Debug, Serialize)]
+pub struct GooglePayData {
+    googlepay: GooglePayDetails,
+    #[serde(rename = "type")]
+    payment_method_type: AirwallexPaymentType,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GooglePayDetails {
+    encrypted_payment_token: Secret<String>,
+    payment_data_type: GpayPaymentDataType,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AirwallexPaymentType {
     Card,
+    Googlepay,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GpayPaymentDataType {
+    EncryptedPaymentToken,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AirwallexPaymentOptions {
     Card(AirwallexCardPaymentOptions),
 }
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct AirwallexCardPaymentOptions {
     auto_capture: bool,
 }
@@ -102,10 +148,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
                     payment_method_type: AirwallexPaymentType::Card,
                 }))
             }
+            api::PaymentMethodData::Wallet(ref wallet_data) => get_wallet_details(wallet_data),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Unknown payment method".to_string(),
             )),
         }?;
+
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
             payment_method,
@@ -115,11 +163,33 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
     }
 }
 
+fn get_wallet_details(
+    wallet_data: &api_models::payments::WalletData,
+) -> Result<AirwallexPaymentMethod, errors::ConnectorError> {
+    let wallet_details: AirwallexPaymentMethod = match wallet_data {
+        api_models::payments::WalletData::GooglePay(gpay_details) => {
+            AirwallexPaymentMethod::Wallets(WalletData::GooglePay(GooglePayData {
+                googlepay: GooglePayDetails {
+                    encrypted_payment_token: Secret::new(
+                        gpay_details.tokenization_data.token.clone(),
+                    ),
+                    payment_data_type: GpayPaymentDataType::EncryptedPaymentToken,
+                },
+                payment_method_type: AirwallexPaymentType::Googlepay,
+            }))
+        }
+        _ => Err(errors::ConnectorError::NotImplemented(
+            "Payment method".to_string(),
+        ))?,
+    };
+    Ok(wallet_details)
+}
+
 #[derive(Deserialize)]
 pub struct AirwallexAuthUpdateResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     expires_at: PrimitiveDateTime,
-    token: String,
+    token: Secret<String>,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, types::AccessToken>>
@@ -392,6 +462,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

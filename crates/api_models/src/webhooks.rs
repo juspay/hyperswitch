@@ -41,21 +41,22 @@ pub enum WebhookFlow {
 impl From<IncomingWebhookEvent> for WebhookFlow {
     fn from(evt: IncomingWebhookEvent) -> Self {
         match evt {
-            IncomingWebhookEvent::PaymentIntentFailure => Self::Payment,
-            IncomingWebhookEvent::PaymentIntentSuccess => Self::Payment,
-            IncomingWebhookEvent::PaymentIntentProcessing => Self::Payment,
-            IncomingWebhookEvent::PaymentActionRequired => Self::Payment,
-            IncomingWebhookEvent::PaymentIntentPartiallyFunded => Self::Payment,
+            IncomingWebhookEvent::PaymentIntentFailure
+            | IncomingWebhookEvent::PaymentIntentSuccess
+            | IncomingWebhookEvent::PaymentIntentProcessing
+            | IncomingWebhookEvent::PaymentActionRequired
+            | IncomingWebhookEvent::PaymentIntentPartiallyFunded => Self::Payment,
             IncomingWebhookEvent::EventNotSupported => Self::ReturnResponse,
-            IncomingWebhookEvent::RefundSuccess => Self::Refund,
-            IncomingWebhookEvent::RefundFailure => Self::Refund,
-            IncomingWebhookEvent::DisputeOpened => Self::Dispute,
-            IncomingWebhookEvent::DisputeAccepted => Self::Dispute,
-            IncomingWebhookEvent::DisputeExpired => Self::Dispute,
-            IncomingWebhookEvent::DisputeCancelled => Self::Dispute,
-            IncomingWebhookEvent::DisputeChallenged => Self::Dispute,
-            IncomingWebhookEvent::DisputeWon => Self::Dispute,
-            IncomingWebhookEvent::DisputeLost => Self::Dispute,
+            IncomingWebhookEvent::RefundSuccess | IncomingWebhookEvent::RefundFailure => {
+                Self::Refund
+            }
+            IncomingWebhookEvent::DisputeOpened
+            | IncomingWebhookEvent::DisputeAccepted
+            | IncomingWebhookEvent::DisputeExpired
+            | IncomingWebhookEvent::DisputeCancelled
+            | IncomingWebhookEvent::DisputeChallenged
+            | IncomingWebhookEvent::DisputeWon
+            | IncomingWebhookEvent::DisputeLost => Self::Dispute,
             IncomingWebhookEvent::EndpointVerification => Self::ReturnResponse,
             IncomingWebhookEvent::SourceChargeable
             | IncomingWebhookEvent::SourceTransactionCreated => Self::BankTransfer,
@@ -97,9 +98,3 @@ pub enum OutgoingWebhookContent {
     RefundDetails(refunds::RefundResponse),
     DisputeDetails(Box<disputes::DisputeResponse>),
 }
-
-pub trait OutgoingWebhookType:
-    Serialize + From<OutgoingWebhook> + Sync + Send + std::fmt::Debug
-{
-}
-impl OutgoingWebhookType for OutgoingWebhook {}

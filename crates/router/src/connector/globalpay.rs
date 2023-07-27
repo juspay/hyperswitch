@@ -6,6 +6,7 @@ use std::fmt::Debug;
 
 use ::common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use serde_json::Value;
 
 use self::{
@@ -14,6 +15,7 @@ use self::{
         GlobalpayPaymentsResponse, GlobalpayRefreshTokenErrorResponse,
         GlobalpayRefreshTokenResponse,
     },
+    transformers::GlobalpayAuthType,
 };
 use super::utils::RefundsRequestData;
 use crate::{
@@ -23,7 +25,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    db, headers,
+    headers,
     services::{
         self,
         request::{self, Mask},
@@ -62,7 +64,7 @@ where
             ("X-GP-Version".to_string(), "2021-03-22".to_string().into()),
             (
                 headers::AUTHORIZATION.to_string(),
-                format!("Bearer {}", access_token.token).into_masked(),
+                format!("Bearer {}", access_token.token.peek()).into_masked(),
             ),
         ])
     }
@@ -75,6 +77,14 @@ impl ConnectorCommon for Globalpay {
 
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
+    }
+
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        GlobalpayAuthType::try_from(val)?;
+        Ok(())
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -814,24 +824,6 @@ impl api::IncomingWebhook for Globalpay {
         Ok(Box::new(crypto::Sha512))
     }
 
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn db::StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
-    }
-
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
@@ -920,7 +912,7 @@ impl services::ConnectorRedirectResponse for Globalpay {
             |status| match status {
                 response::GlobalpayPaymentStatus::Captured => {
                     payments::CallConnectorAction::StatusUpdate {
-                        status: storage_models::enums::AttemptStatus::from(status),
+                        status: diesel_models::enums::AttemptStatus::from(status),
                         error_code: None,
                         error_message: None,
                     }

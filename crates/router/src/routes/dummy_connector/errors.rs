@@ -8,9 +8,11 @@ pub enum ErrorType {
 
 #[derive(Debug, Clone, router_derive::ApiError)]
 #[error(error_type_enum = ErrorType)]
+// TODO: Remove this line if InternalServerError is used anywhere
+#[allow(dead_code)]
 pub enum DummyConnectorErrors {
-    #[error(error_type = ErrorType::ServerNotAvailable, code = "DC_00", message = "Error occurred while storing the payment")]
-    PaymentStoringError,
+    #[error(error_type = ErrorType::ServerNotAvailable, code = "DC_00", message = "Something went wrong")]
+    InternalServerError,
 
     #[error(error_type = ErrorType::ObjectNotFound, code = "DC_01", message = "Payment does not exist in our records")]
     PaymentNotFound,
@@ -30,8 +32,8 @@ pub enum DummyConnectorErrors {
     #[error(error_type = ErrorType::InvalidRequestError, code = "DC_06", message = "Payment is not successful")]
     PaymentNotSuccessful,
 
-    #[error(error_type = ErrorType::ServerNotAvailable, code = "DC_07", message = "Error occurred while fetching redis connection")]
-    RedisConnectionError,
+    #[error(error_type = ErrorType::ServerNotAvailable, code = "DC_07", message = "Error occurred while storing the payment")]
+    PaymentStoringError,
 }
 
 impl core::fmt::Display for DummyConnectorErrors {
@@ -51,7 +53,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
     fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
         use api_models::errors::types::{ApiError, ApiErrorResponse as AER};
         match self {
-            Self::PaymentStoringError => {
+            Self::InternalServerError => {
                 AER::InternalServerError(ApiError::new("DC", 0, self.error_message(), None))
             }
             Self::PaymentNotFound => {
@@ -72,8 +74,8 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::PaymentNotSuccessful => {
                 AER::BadRequest(ApiError::new("DC", 6, self.error_message(), None))
             }
-            Self::RedisConnectionError => {
-                AER::InternalServerError(ApiError::new("DC", 0, self.error_message(), None))
+            Self::PaymentStoringError => {
+                AER::InternalServerError(ApiError::new("DC", 7, self.error_message(), None))
             }
         }
     }

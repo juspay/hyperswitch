@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as noon;
 
 use super::utils::PaymentsSyncRequestData;
@@ -15,7 +16,6 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers,
     services::{
         self,
@@ -86,6 +86,13 @@ impl ConnectorCommon for Noon {
         "application/json"
     }
 
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        noon::NoonAuthType::try_from(val)?;
+        Ok(())
+    }
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.noon.base_url.as_ref()
     }
@@ -96,13 +103,19 @@ impl ConnectorCommon for Noon {
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = noon::NoonAuthType::try_from(auth_type)?;
 
-        let encoded_api_key = consts::BASE64_ENGINE.encode(format!(
-            "{}.{}:{}",
-            auth.business_identifier, auth.application_identifier, auth.api_key
-        ));
+        let encoded_api_key = auth
+            .business_identifier
+            .zip(auth.application_identifier)
+            .zip(auth.api_key)
+            .map(|((business_identifier, application_identifier), api_key)| {
+                consts::BASE64_ENGINE.encode(format!(
+                    "{}.{}:{}",
+                    business_identifier, application_identifier, api_key
+                ))
+            });
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Key_Test {encoded_api_key}").into_masked(),
+            format!("Key_Test {}", encoded_api_key.peek()).into_masked(),
         )])
     }
 
@@ -635,24 +648,6 @@ impl api::IncomingWebhook for Noon {
             webhook_body.time_stamp,
         );
         Ok(message.into_bytes())
-    }
-
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
     }
 
     fn get_webhook_object_reference_id(

@@ -4,17 +4,16 @@ use std::fmt::Debug;
 
 use common_utils::ext_traits::{ByteSliceExt, ValueExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as airwallex;
 
 use super::utils::{AccessTokenRequestInfo, RefundsRequestData};
 use crate::{
     configs::settings,
-    connector::utils as conn_utils,
     core::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers, logger, routes,
     services::{
         self,
@@ -52,7 +51,7 @@ where
 
         let auth_header = (
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", access_token.token).into_masked(),
+            format!("Bearer {}", access_token.token.peek()).into_masked(),
         );
 
         headers.push(auth_header);
@@ -71,6 +70,14 @@ impl ConnectorCommon for Airwallex {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.airwallex.base_url.as_ref()
+    }
+
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        airwallex::AirwallexAuthType::try_from(val)?;
+        Ok(())
     }
 
     fn build_error_response(
@@ -965,24 +972,6 @@ impl api::IncomingWebhook for Airwallex {
             .into_report()??;
 
         Ok(format!("{}{}", timestamp, String::from_utf8_lossy(request.body)).into_bytes())
-    }
-
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
     }
 
     fn get_webhook_object_reference_id(

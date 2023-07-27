@@ -2,8 +2,8 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
-use storage_models::enums;
 use transformers as dummyconnector;
 
 use super::utils::RefundsRequestData;
@@ -78,12 +78,24 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
             1 => "phonypay",
             2 => "fauxpay",
             3 => "pretendpay",
+            4 => "stripe_test",
+            5 => "adyen_test",
+            6 => "checkout_test",
+            7 => "paypal_test",
             _ => "phonypay",
         }
     }
 
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
+    }
+
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        dummyconnector::DummyConnectorAuthType::try_from(val)?;
+        Ok(())
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {

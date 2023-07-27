@@ -11,7 +11,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, ApplePay, CardData, PaymentsAuthorizeRequestData, RouterData,
+        self, AddressDetailsData, ApplePay, CardData, PaymentsAuthorizeRequestData,
+        PaymentsCompleteAuthorizeRequestData, RouterData,
     },
     consts,
     core::errors,
@@ -169,7 +170,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                     expiration_year: ccard.get_expiry_year_4_digit(),
                     security_code: ccard.card_cvc.clone(),
                 }),
-                get_card_holder_info(item)?,
+                get_card_holder_info(item.get_billing_address()?, item.request.get_email()?)?,
             )),
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 api_models::payments::WalletData::GooglePay(payment_method_data) => {
@@ -256,7 +257,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                                 consts::BASE64_ENGINE.encode(apple_pay_object),
                             ),
                         }),
-                        get_card_holder_info(item)?,
+                        get_card_holder_info(
+                            item.get_billing_address()?,
+                            item.request.get_email()?,
+                        )?,
                     ))
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
@@ -345,7 +349,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                             ),
                         payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
                             country_code: item.data.get_billing_country()?,
-                            currency_code: item.data.request.currency.to_string(),
+                            currency_code: item.data.request.currency,
                             total: api_models::payments::AmountInfo {
                                 label: applepay_metadata.data.payment_request_data.label,
                                 total_type: Some("final".to_string()),
@@ -408,9 +412,9 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
             item.request.payment_method_data.clone()
         {
             PaymentMethodDetails::CreditCard(Card {
-                card_number: ccard.card_number,
+                card_number: ccard.card_number.clone(),
                 expiration_month: ccard.card_exp_month.clone(),
-                expiration_year: ccard.card_exp_year.clone(),
+                expiration_year: ccard.get_expiry_year_4_digit(),
                 security_code: ccard.card_cvc,
             })
         } else {
@@ -434,7 +438,10 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
             transaction_fraud_info: Some(TransactionFraudInfo {
                 fraud_session_id: item.payment_id.clone(),
             }),
-            card_holder_info: None,
+            card_holder_info: get_card_holder_info(
+                item.get_billing_address()?,
+                item.request.get_email()?,
+            )?,
         })
     }
 }
@@ -509,8 +516,8 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BluesnapCaptureRequest {
 
 // Auth Struct
 pub struct BluesnapAuthType {
-    pub(super) api_key: String,
-    pub(super) key1: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) key1: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for BluesnapAuthType {
@@ -518,8 +525,8 @@ impl TryFrom<&types::ConnectorAuthType> for BluesnapAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
-                api_key: api_key.to_string(),
-                key1: key1.to_string(),
+                api_key: api_key.to_owned(),
+                key1: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -676,12 +683,13 @@ impl<F, T>
             ))?,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.transaction_id,
+                    item.response.transaction_id.clone(),
                 ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: Some(item.response.transaction_id),
             }),
             ..item.data
         })
@@ -802,17 +810,18 @@ pub struct BluesnapAuthErrorResponse {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum BluesnapErrors {
-    PaymentError(BluesnapErrorResponse),
-    AuthError(BluesnapAuthErrorResponse),
+    Payment(BluesnapErrorResponse),
+    Auth(BluesnapAuthErrorResponse),
+    General(String),
 }
 
 fn get_card_holder_info(
-    item: &types::PaymentsAuthorizeRouterData,
+    address: &api::AddressDetails,
+    email: Email,
 ) -> CustomResult<Option<BluesnapCardHolderInfo>, errors::ConnectorError> {
-    let address = item.get_billing_address()?;
     Ok(Some(BluesnapCardHolderInfo {
         first_name: address.get_first_name()?.clone(),
         last_name: address.get_last_name()?.clone(),
-        email: item.request.get_email()?,
+        email,
     }))
 }

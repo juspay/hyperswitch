@@ -64,6 +64,14 @@ impl ConnectorCommon for Shift4 {
         "application/json"
     }
 
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        shift4::Shift4AuthType::try_from(val)?;
+        Ok(())
+    }
+
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.shift4.base_url.as_ref()
     }
@@ -180,8 +188,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         router_data: &mut types::PaymentsAuthorizeRouterData,
         app_state: &routes::AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
-        if router_data.auth_type == storage_models::enums::AuthenticationType::ThreeDs
-            && router_data.payment_method == storage_models::enums::PaymentMethod::Card
+        if router_data.auth_type == diesel_models::enums::AuthenticationType::ThreeDs
+            && router_data.payment_method == diesel_models::enums::PaymentMethod::Card
         {
             let integ: Box<
                 &(dyn ConnectorIntegration<

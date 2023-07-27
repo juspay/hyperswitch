@@ -1,3 +1,4 @@
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::requests;
@@ -71,7 +72,7 @@ pub struct Action {
 
 #[derive(Debug, Deserialize)]
 pub struct GlobalpayRefreshTokenResponse {
-    pub token: String,
+    pub token: Secret<String>,
     pub seconds_to_expire: i64,
 }
 
