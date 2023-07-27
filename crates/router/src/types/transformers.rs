@@ -208,7 +208,9 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Bizum
             | api_enums::PaymentMethodType::Interac => Self::BankRedirect,
             api_enums::PaymentMethodType::UpiCollect => Self::Upi,
-            api_enums::PaymentMethodType::BoletoBancario => Self::Voucher,
+            api_enums::PaymentMethodType::BoletoBancario
+            | api_enums::PaymentMethodType::Alfamart
+            | api_enums::PaymentMethodType::Indomaret => Self::Voucher,
             api_enums::PaymentMethodType::CryptoCurrency => Self::Crypto,
             api_enums::PaymentMethodType::Ach
             | api_enums::PaymentMethodType::Sepa
@@ -219,9 +221,15 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             }
             api_enums::PaymentMethodType::Evoucher
             | api_enums::PaymentMethodType::ClassicReward => Self::Reward,
-            api_enums::PaymentMethodType::Multibanco | api_enums::PaymentMethodType::Pix => {
-                Self::BankTransfer
-            }
+            api_enums::PaymentMethodType::Multibanco
+            | api_enums::PaymentMethodType::PermataBankTransfer
+            | api_enums::PaymentMethodType::BcaBankTransfer
+            | api_enums::PaymentMethodType::BniVa
+            | api_enums::PaymentMethodType::BriVa
+            | api_enums::PaymentMethodType::CimbVa
+            | api_enums::PaymentMethodType::DanamonVa
+            | api_enums::PaymentMethodType::MandiriVa
+            | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
         }
     }
 }

@@ -1236,6 +1236,34 @@ fn create_stripe_payment_method(
                     "this payment method".to_string(),
                 )
                 .into()),
+                payments::BankTransferData::PermataBankTransfer { .. } => Err(
+                    errors::ConnectorError::NotImplemented("this payment method".to_string())
+                        .into(),
+                ),
+                payments::BankTransferData::BcaBankTransfer { .. } => Err(
+                    errors::ConnectorError::NotImplemented("this payment method".to_string())
+                        .into(),
+                ),
+                payments::BankTransferData::BniVaBankTransfer { .. } => Err(
+                    errors::ConnectorError::NotImplemented("this payment method".to_string())
+                        .into(),
+                ),
+                payments::BankTransferData::BriVaBankTransfer { .. } => Err(
+                    errors::ConnectorError::NotImplemented("this payment method".to_string())
+                        .into(),
+                ),
+                payments::BankTransferData::CimbVaBankTransfer { .. } => Err(
+                    errors::ConnectorError::NotImplemented("this payment method".to_string())
+                        .into(),
+                ),
+                payments::BankTransferData::DanamonVaBankTransfer { .. } => Err(
+                    errors::ConnectorError::NotImplemented("this payment method".to_string())
+                        .into(),
+                ),
+                payments::BankTransferData::MandiriVaBankTransfer { .. } => Err(
+                    errors::ConnectorError::NotImplemented("this payment method".to_string())
+                        .into(),
+                ),
             }
         }
         _ => Err(errors::ConnectorError::NotImplemented("payment method".to_string()).into()),
@@ -2903,6 +2931,10 @@ impl
                     payments::BankTransferData::Pix {} => Err(
                         errors::ConnectorError::NotImplemented("payment method".to_string()).into(),
                     ),
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "this payment method for stripe".to_string(),
+                    )
+                    .into()),
                 }
             }
             api::PaymentMethodData::MandatePayment
