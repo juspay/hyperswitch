@@ -32,7 +32,7 @@ impl TryFrom<&ConnectorAuthType> for NmiAuthType {
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
             Ok(Self {
-                api_key: Secret::new(api_key.to_owned()),
+                api_key: api_key.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -248,6 +248,7 @@ impl
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 }),
                 enums::AttemptStatus::CaptureInitiated,
             ),
@@ -335,6 +336,7 @@ impl<T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 }),
                 enums::AttemptStatus::Charged,
             ),
@@ -387,8 +389,9 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 }),
-                if let Some(storage_models::enums::CaptureMethod::Automatic) =
+                if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
                 {
                     enums::AttemptStatus::CaptureInitiated
@@ -435,6 +438,7 @@ impl<T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 }),
                 enums::AttemptStatus::VoidInitiated,
             ),
@@ -485,6 +489,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<types::Response>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

@@ -1,11 +1,11 @@
-use std::str::FromStr;
 use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::{
+    core::utils as core_utils,
+    types::{self, api, storage::enums,
+}};
 
-use crate::{
-    connector_auth,
-    utils::{self, ConnectorActions},
-};
+use crate::utils::{self, ConnectorActions};
+use test_utils::connector_auth;
 
 #[derive(Clone, Copy)]
 struct {{project-name | downcase | pascal_case}}Test;

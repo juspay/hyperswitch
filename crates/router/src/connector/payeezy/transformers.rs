@@ -96,7 +96,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayeezyPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.payment_method {
-            storage_models::enums::PaymentMethod::Card => get_card_specific_payment_data(item),
+            diesel_models::enums::PaymentMethod::Card => get_card_specific_payment_data(item),
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
@@ -158,10 +158,10 @@ fn get_transaction_type_and_stored_creds(
             )
         } else {
             match item.request.capture_method {
-                Some(storage_models::enums::CaptureMethod::Manual) => {
+                Some(diesel_models::enums::CaptureMethod::Manual) => {
                     Ok((PayeezyTransactionType::Authorize, None))
                 }
-                Some(storage_models::enums::CaptureMethod::Automatic) => {
+                Some(diesel_models::enums::CaptureMethod::Automatic) => {
                     Ok((PayeezyTransactionType::Purchase, None))
                 }
                 _ => Err(errors::ConnectorError::FlowNotSupported {
@@ -201,9 +201,9 @@ fn get_payment_method_data(
 
 // Auth Struct
 pub struct PayeezyAuthType {
-    pub(super) api_key: String,
-    pub(super) api_secret: String,
-    pub(super) merchant_token: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) api_secret: Secret<String>,
+    pub(super) merchant_token: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for PayeezyAuthType {
@@ -216,9 +216,9 @@ impl TryFrom<&types::ConnectorAuthType> for PayeezyAuthType {
         } = item
         {
             Ok(Self {
-                api_key: api_key.to_string(),
-                api_secret: api_secret.to_string(),
-                merchant_token: key1.to_string(),
+                api_key: api_key.to_owned(),
+                api_secret: api_secret.to_owned(),
+                merchant_token: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -361,6 +361,7 @@ impl<F, T>
                 mandate_reference,
                 connector_metadata: metadata,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

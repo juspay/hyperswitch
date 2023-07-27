@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use ring::{digest, hmac};
 use time::OffsetDateTime;
 use transformers as cybersource;
@@ -60,17 +60,19 @@ impl Cybersource {
             format!("(request-target): get {resource}\n")
         };
         let signature_string = format!(
-            "host: {host}\ndate: {date}\n{request_target}v-c-merchant-id: {merchant_account}"
+            "host: {host}\ndate: {date}\n{request_target}v-c-merchant-id: {}",
+            merchant_account.peek()
         );
         let key_value = consts::BASE64_ENGINE
-            .decode(api_secret)
+            .decode(api_secret.expose())
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let key = hmac::Key::new(hmac::HMAC_SHA256, &key_value);
         let signature_value =
             consts::BASE64_ENGINE.encode(hmac::sign(&key, signature_string.as_bytes()).as_ref());
         let signature_header = format!(
-            r#"keyid="{api_key}", algorithm="HmacSHA256", headers="{headers}", signature="{signature_value}""#
+            r#"keyid="{}", algorithm="HmacSHA256", headers="{headers}", signature="{signature_value}""#,
+            api_key.peek()
         );
 
         Ok(signature_header)
@@ -162,7 +164,7 @@ where
         let sha256 = self.generate_digest(
             cybersource_req
                 .map_or("{}".to_string(), |s| {
-                    types::RequestBody::get_inner_value(s).peek().to_owned()
+                    types::RequestBody::get_inner_value(s).expose()
                 })
                 .as_bytes(),
         );
@@ -397,7 +399,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .parse_struct("Cybersource PaymentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let is_auto_capture =
-            data.request.capture_method == Some(storage_models::enums::CaptureMethod::Automatic);
+            data.request.capture_method == Some(diesel_models::enums::CaptureMethod::Automatic);
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,
@@ -485,7 +487,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .parse_struct("Cybersource PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let is_auto_capture =
-            data.request.capture_method == Some(storage_models::enums::CaptureMethod::Automatic);
+            data.request.capture_method == Some(diesel_models::enums::CaptureMethod::Automatic);
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,

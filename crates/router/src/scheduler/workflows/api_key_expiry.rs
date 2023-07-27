@@ -1,5 +1,5 @@
 use common_utils::ext_traits::ValueExt;
-use storage_models::enums::{self as storage_enums};
+use diesel_models::enums::{self as storage_enums};
 
 use super::{ApiKeyExpiryWorkflow, ProcessTrackerWorkflow};
 use crate::{
@@ -62,6 +62,7 @@ impl ProcessTrackerWorkflow for ApiKeyExpiryWorkflow {
 
         state
             .email_client
+            .clone()
             .send_email(
                 email_id.ok_or_else(|| errors::ProcessTrackerError::MissingRequiredField)?,
                 "API Key Expiry Notice".to_string(),

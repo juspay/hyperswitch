@@ -1,5 +1,6 @@
 pub mod api_error_response;
 pub mod error_handlers;
+pub mod transformers;
 pub mod utils;
 
 use std::fmt::Display;
@@ -7,10 +8,10 @@ use std::fmt::Display;
 use actix_web::{body::BoxBody, http::StatusCode, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use config::ConfigError;
+use diesel_models::errors as storage_errors;
 use error_stack;
 pub use redis_interface::errors::RedisError;
 use router_env::opentelemetry::metrics::MetricsError;
-use storage_models::errors as storage_errors;
 
 pub use self::{
     api_error_response::ApiErrorResponse,
@@ -98,6 +99,7 @@ impl StorageError {
                 err.current_context(),
                 storage_errors::DatabaseError::NotFound
             ),
+            Self::ValueNotFound(_) => true,
             _ => false,
         }
     }
@@ -307,6 +309,10 @@ pub enum ConnectorError {
     FileValidationFailed { reason: String },
     #[error("Missing 3DS redirection payload: {field_name}")]
     MissingConnectorRedirectionPayload { field_name: &'static str },
+    #[error("Failed at connector's end with code '{code}'")]
+    FailedAtConnector { message: String, code: String },
+    #[error("Payment Method Type not found")]
+    MissingPaymentMethodType,
     #[error("Gift card balance is low")]
     NotEnoughGiftCardBalance,
 }
@@ -325,12 +331,18 @@ pub enum VaultError {
     PaymentMethodCreationFailed,
     #[error("The given payment method is currently not supported in vault")]
     PaymentMethodNotSupported,
+    #[error("The given payout method is currently not supported in vault")]
+    PayoutMethodNotSupported,
     #[error("Missing required field: {field_name}")]
     MissingRequiredField { field_name: &'static str },
     #[error("The card vault returned an unexpected response: {0:?}")]
     UnexpectedResponseError(bytes::Bytes),
     #[error("Failed to update in PMD table")]
     UpdateInPaymentMethodDataTableFailed,
+    #[error("Failed to fetch payment method in vault")]
+    FetchPaymentMethodFailed,
+    #[error("Failed to save payment method in vault")]
+    SavePaymentMethodFailed,
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -6,6 +6,7 @@ use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 
 use self::transformers as checkout;
 use super::utils::{self as conn_utils, RefundsRequestData};
@@ -16,7 +17,6 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers,
     services::{
         self,
@@ -72,7 +72,7 @@ impl ConnectorCommon for Checkout {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_secret).into_masked(),
+            format!("Bearer {}", auth.api_secret.peek()).into_masked(),
         )])
     }
 
@@ -154,7 +154,7 @@ impl
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let mut auth = vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", api_key.api_key).into_masked(),
+            format!("Bearer {}", api_key.api_key.peek()).into_masked(),
         )];
         header.append(&mut auth);
         Ok(header)
@@ -1106,23 +1106,6 @@ impl api::IncomingWebhook for Checkout {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(format!("{}", String::from_utf8_lossy(request.body)).into_bytes())
     }
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
-    }
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
@@ -1221,7 +1204,7 @@ impl services::ConnectorRedirectResponse for Checkout {
             .status
             .map(
                 |checkout_status| payments::CallConnectorAction::StatusUpdate {
-                    status: storage_models::enums::AttemptStatus::from(checkout_status),
+                    status: diesel_models::enums::AttemptStatus::from(checkout_status),
                     error_code: None,
                     error_message: None,
                 },

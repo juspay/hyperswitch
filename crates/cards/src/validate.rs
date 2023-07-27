@@ -22,6 +22,17 @@ impl CardNumber {
     pub fn get_card_isin(self) -> String {
         self.0.peek().chars().take(6).collect::<String>()
     }
+    pub fn get_last4(self) -> String {
+        self.0
+            .peek()
+            .chars()
+            .rev()
+            .take(4)
+            .collect::<String>()
+            .chars()
+            .rev()
+            .collect::<String>()
+    }
 }
 
 impl FromStr for CardNumber {

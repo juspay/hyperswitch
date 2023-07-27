@@ -73,7 +73,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let (capture, payment_method_options) = match item.payment_method {
-            storage_models::enums::PaymentMethod::Card => {
+            diesel_models::enums::PaymentMethod::Card => {
                 let three_ds_enabled = matches!(item.auth_type, enums::AuthenticationType::ThreeDs);
                 let payment_method_options = PaymentMethodOptions {
                     three_ds: three_ds_enabled,
@@ -144,8 +144,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
 
 #[derive(Debug, Deserialize)]
 pub struct RapydAuthType {
-    pub access_key: String,
-    pub secret_key: String,
+    pub access_key: Secret<String>,
+    pub secret_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for RapydAuthType {
@@ -153,8 +153,8 @@ impl TryFrom<&types::ConnectorAuthType> for RapydAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
-                access_key: api_key.to_string(),
-                secret_key: key1.to_string(),
+                access_key: api_key.to_owned(),
+                secret_key: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -406,7 +406,7 @@ impl<F, T>
                     data.next_action.to_owned(),
                 ));
                 match attempt_status {
-                    storage_models::enums::AttemptStatus::Failure => (
+                    diesel_models::enums::AttemptStatus::Failure => (
                         enums::AttemptStatus::Failure,
                         Err(types::ErrorResponse {
                             code: data
@@ -443,6 +443,7 @@ impl<F, T>
                                 mandate_reference: None,
                                 connector_metadata: None,
                                 network_txn_id: None,
+                                connector_response_reference_id: None,
                             }),
                         )
                     }

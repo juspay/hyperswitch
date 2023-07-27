@@ -5,7 +5,7 @@ use common_utils::{
     pii::Email,
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -34,8 +34,8 @@ pub struct NuveiMandateMeta {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiSessionRequest {
-    pub merchant_id: String,
-    pub merchant_site_id: String,
+    pub merchant_id: Secret<String>,
+    pub merchant_site_id: Secret<String>,
     pub client_request_id: String,
     pub time_stamp: date_time::DateTime<date_time::YYYYMMDDHHmmss>,
     pub checksum: String,
@@ -61,11 +61,11 @@ pub struct NuveiSessionResponse {
 pub struct NuveiPaymentsRequest {
     pub time_stamp: String,
     pub session_token: String,
-    pub merchant_id: String,
-    pub merchant_site_id: String,
-    pub client_request_id: String,
+    pub merchant_id: Secret<String>,
+    pub merchant_site_id: Secret<String>,
+    pub client_request_id: Secret<String>,
     pub amount: String,
-    pub currency: storage_models::enums::Currency,
+    pub currency: diesel_models::enums::Currency,
     /// This ID uniquely identifies your consumer/user in your system.
     pub user_token_id: Option<Email>,
     pub client_unique_id: String,
@@ -103,11 +103,11 @@ pub struct NuveiInitPaymentRequest {
 #[serde(rename_all = "camelCase")]
 pub struct NuveiPaymentFlowRequest {
     pub time_stamp: String,
-    pub merchant_id: String,
-    pub merchant_site_id: String,
+    pub merchant_id: Secret<String>,
+    pub merchant_site_id: Secret<String>,
     pub client_request_id: String,
     pub amount: String,
-    pub currency: storage_models::enums::Currency,
+    pub currency: diesel_models::enums::Currency,
     pub related_transaction_id: Option<String>,
     pub checksum: String,
 }
@@ -366,9 +366,7 @@ pub enum LiabilityShift {
     Failed,
 }
 
-fn encode_payload(
-    payload: Vec<String>,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+fn encode_payload(payload: &[&str]) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let data = payload.join("");
     let digest = crypto::Sha256
         .generate_digest(data.as_bytes())
@@ -393,12 +391,12 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRe
             merchant_site_id: merchant_site_id.clone(),
             client_request_id: client_request_id.clone(),
             time_stamp: time_stamp.clone(),
-            checksum: encode_payload(vec![
-                merchant_id,
-                merchant_site_id,
-                client_request_id,
-                time_stamp.to_string(),
-                merchant_secret,
+            checksum: encode_payload(&[
+                merchant_id.peek(),
+                merchant_site_id.peek(),
+                &client_request_id,
+                &time_stamp.to_string(),
+                merchant_secret.peek(),
             ])?,
         })
     }
@@ -877,21 +875,21 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentsRequest {
         Ok(Self {
             merchant_id: merchant_id.clone(),
             merchant_site_id: merchant_site_id.clone(),
-            client_request_id: client_request_id.clone(),
+            client_request_id: Secret::new(client_request_id.clone()),
             time_stamp: time_stamp.clone(),
             session_token,
             transaction_type: request
                 .capture_method
                 .map(TransactionType::from)
                 .unwrap_or_default(),
-            checksum: encode_payload(vec![
-                merchant_id,
-                merchant_site_id,
-                client_request_id,
-                request.amount.clone(),
-                request.currency.clone().to_string(),
-                time_stamp,
-                merchant_secret,
+            checksum: encode_payload(&[
+                merchant_id.peek(),
+                merchant_site_id.peek(),
+                &client_request_id,
+                &request.amount.clone(),
+                &request.currency.to_string(),
+                &time_stamp,
+                merchant_secret.peek(),
             ])?,
             amount: request.amount,
             currency: request.currency,
@@ -913,19 +911,19 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentFlowRequest {
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_secret = connector_meta.merchant_secret;
         Ok(Self {
-            merchant_id: merchant_id.clone(),
-            merchant_site_id: merchant_site_id.clone(),
+            merchant_id: merchant_id.to_owned(),
+            merchant_site_id: merchant_site_id.to_owned(),
             client_request_id: client_request_id.clone(),
             time_stamp: time_stamp.clone(),
-            checksum: encode_payload(vec![
-                merchant_id,
-                merchant_site_id,
-                client_request_id,
-                request.amount.clone(),
-                request.currency.clone().to_string(),
-                request.related_transaction_id.clone().unwrap_or_default(),
-                time_stamp,
-                merchant_secret,
+            checksum: encode_payload(&[
+                merchant_id.peek(),
+                merchant_site_id.peek(),
+                &client_request_id,
+                &request.amount.clone(),
+                &request.currency.to_string(),
+                &request.related_transaction_id.clone().unwrap_or_default(),
+                &time_stamp,
+                merchant_secret.peek(),
             ])?,
             amount: request.amount,
             currency: request.currency,
@@ -937,12 +935,12 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentFlowRequest {
 #[derive(Debug, Clone, Default)]
 pub struct NuveiPaymentRequestData {
     pub amount: String,
-    pub currency: storage_models::enums::Currency,
+    pub currency: diesel_models::enums::Currency,
     pub related_transaction_id: Option<String>,
     pub client_request_id: String,
     pub connector_auth_type: types::ConnectorAuthType,
     pub session_token: String,
-    pub capture_method: Option<storage_models::enums::CaptureMethod>,
+    pub capture_method: Option<diesel_models::enums::CaptureMethod>,
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for NuveiPaymentFlowRequest {
@@ -1007,9 +1005,9 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NuveiPaymentFlowRequest {
 
 // Auth Struct
 pub struct NuveiAuthType {
-    pub(super) merchant_id: String,
-    pub(super) merchant_site_id: String,
-    pub(super) merchant_secret: String,
+    pub(super) merchant_id: Secret<String>,
+    pub(super) merchant_site_id: Secret<String>,
+    pub(super) merchant_secret: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for NuveiAuthType {
@@ -1022,9 +1020,9 @@ impl TryFrom<&types::ConnectorAuthType> for NuveiAuthType {
         } = auth_type
         {
             Ok(Self {
-                merchant_id: api_key.to_string(),
-                merchant_site_id: key1.to_string(),
-                merchant_secret: api_secret.to_string(),
+                merchant_id: api_key.to_owned(),
+                merchant_site_id: key1.to_owned(),
+                merchant_secret: api_secret.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -1195,8 +1193,8 @@ where
         item: types::ResponseRouterData<F, NuveiPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirection_data = match item.data.payment_method {
-            storage_models::enums::PaymentMethod::Wallet
-            | storage_models::enums::PaymentMethod::BankRedirect => item
+            diesel_models::enums::PaymentMethod::Wallet
+            | diesel_models::enums::PaymentMethod::BankRedirect => item
                 .response
                 .payment_option
                 .as_ref()
@@ -1249,6 +1247,7 @@ where
                         None
                     },
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 })
             },
             ..item.data

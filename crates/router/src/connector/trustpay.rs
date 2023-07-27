@@ -5,12 +5,12 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as trustpay;
 
 use super::utils::collect_and_sort_values_by_removing_signature;
 use crate::{
     configs::settings,
-    connector::utils as conn_utils,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -43,7 +43,7 @@ where
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => {
+            diesel_models::enums::PaymentMethod::BankRedirect => {
                 let token = req
                     .access_token
                     .clone()
@@ -55,7 +55,7 @@ where
                     ),
                     (
                         headers::AUTHORIZATION.to_string(),
-                        format!("Bearer {}", token.token).into_masked(),
+                        format!("Bearer {}", token.token.peek()).into_masked(),
                     ),
                 ])
             }
@@ -180,10 +180,15 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = trustpay::TrustpayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_value = format!(
-            "Basic {}",
-            consts::BASE64_ENGINE.encode(format!("{}:{}", auth.project_id, auth.secret_key))
-        );
+        let auth_value = auth
+            .project_id
+            .zip(auth.secret_key)
+            .map(|(project_id, secret_key)| {
+                format!(
+                    "Basic {}",
+                    consts::BASE64_ENGINE.encode(format!("{}:{}", project_id, secret_key))
+                )
+            });
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -286,7 +291,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.clone();
         match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => Ok(format!(
+            diesel_models::enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}{}/{}",
                 connectors.trustpay.base_url_bank_redirects,
                 "api/Payments/Payment",
@@ -486,7 +491,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => Ok(format!(
+            diesel_models::enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}{}",
                 connectors.trustpay.base_url_bank_redirects, "api/Payments/Payment"
             )),
@@ -504,7 +509,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = trustpay::TrustpayPaymentsRequest::try_from(req)?;
         let trustpay_req_string = match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => {
+            diesel_models::enums::PaymentMethod::BankRedirect => {
                 types::RequestBody::log_and_get_request_body(
                     &connector_req,
                     utils::Encode::<trustpay::PaymentRequestBankRedirect>::encode_to_string_of_json,
@@ -590,7 +595,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => Ok(format!(
+            diesel_models::enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}{}{}{}",
                 connectors.trustpay.base_url_bank_redirects,
                 "api/Payments/Payment/",
@@ -607,7 +612,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = trustpay::TrustpayRefundRequest::try_from(req)?;
         let trustpay_req_string = match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => {
+            diesel_models::enums::PaymentMethod::BankRedirect => {
                 types::RequestBody::log_and_get_request_body(
                     &connector_req,
                     utils::Encode::<trustpay::TrustpayRefundRequestBankRedirect>::encode_to_string_of_json,
@@ -690,7 +695,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .to_owned()
             .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
         match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => Ok(format!(
+            diesel_models::enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}{}/{}",
                 connectors.trustpay.base_url_bank_redirects, "api/Payments/Payment", id
             )),
@@ -875,24 +880,6 @@ impl api::IncomingWebhook for Trustpay {
         Ok(payload.into_bytes())
     }
 
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn crate::db::StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
-    }
-
     fn get_dispute_details(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
@@ -934,7 +921,7 @@ impl services::ConnectorRedirectResponse for Trustpay {
             payments::CallConnectorAction::Trigger,
             |status| match status.as_str() {
                 "SuccessOk" => payments::CallConnectorAction::StatusUpdate {
-                    status: storage_models::enums::AttemptStatus::Charged,
+                    status: diesel_models::enums::AttemptStatus::Charged,
                     error_code: None,
                     error_message: None,
                 },

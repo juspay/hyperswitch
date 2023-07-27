@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{date_time, ext_traits::StringExt};
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface};
 use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
 use transformers as rapyd;
@@ -23,7 +23,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
-        ErrorResponse,
+        domain, ErrorResponse,
     },
     utils::{self, crypto, ByteSliceExt, BytesExt},
 };
@@ -45,9 +45,12 @@ impl Rapyd {
             access_key,
             secret_key,
         } = auth;
-        let to_sign =
-            format!("{http_method}{url_path}{salt}{timestamp}{access_key}{secret_key}{body}");
-        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.as_bytes());
+        let to_sign = format!(
+            "{http_method}{url_path}{salt}{timestamp}{}{}{body}",
+            access_key.peek(),
+            secret_key.peek()
+        );
+        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.peek().as_bytes());
         let tag = hmac::sign(&key, to_sign.as_bytes());
         let hmac_sign = hex::encode(tag);
         let signature_value = consts::BASE64_ENGINE_URL_SAFE.encode(hmac_sign);
@@ -725,24 +728,6 @@ impl api::IncomingWebhook for Rapyd {
         Ok(signature)
     }
 
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
-    }
-
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
@@ -767,7 +752,11 @@ impl api::IncomingWebhook for Rapyd {
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert body to UTF-8")?;
-        let to_sign = format!("{url_path}{salt}{timestamp}{access_key}{secret_key}{body_string}");
+        let to_sign = format!(
+            "{url_path}{salt}{timestamp}{}{}{body_string}",
+            access_key.peek(),
+            secret_key.peek()
+        );
 
         Ok(to_sign.into_bytes())
     }
@@ -777,12 +766,19 @@ impl api::IncomingWebhook for Rapyd {
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
+        connector_label: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let signature = self
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret = self
-            .get_webhook_source_verification_merchant_secret(db, merchant_id)
+            .get_webhook_source_verification_merchant_secret(
+                db,
+                merchant_id,
+                connector_label,
+                key_store,
+            )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let message = self
@@ -797,7 +793,7 @@ impl api::IncomingWebhook for Rapyd {
             .parse_struct("RapydAuthType")
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret_key = auth.secret_key;
-        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.as_bytes());
+        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.peek().as_bytes());
         let tag = hmac::sign(&key, &message);
         let hmac_sign = hex::encode(tag);
         Ok(hmac_sign.as_bytes().eq(&signature))
