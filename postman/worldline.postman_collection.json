@@ -3689,6 +3689,16 @@
 			"script": {
 				"type": "text/javascript",
 				"exec": [
+					"// Set response object as internal variable\"",
+					"let jsonData = {};",
+					"try {jsonData = pm.response.json();}catch(e){}",
+					"// Log Payment ID",
+					"if (jsonData?.payment_id) {",
+					"    pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
+					"    console.log(\"[INFO] payment_id: \" + jsonData.payment_id);",
+					"}",
+					"// Log X Request ID",
+					"console.log(\"[INFO] x-request-id: \" + pm.response.headers.get('x-request-id'));",
 					""
 				]
 			}
