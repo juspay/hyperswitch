@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use api_models::payments::BankRedirectData;
 use common_utils::{errors::CustomResult, pii};
 use error_stack::{report, IntoReport, ResultExt};
-use masking::{ExposeInterface, Secret};
+use masking::{PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -234,12 +234,9 @@ fn get_card_request_data(
             cvv: ccard.card_cvc.clone(),
             expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
             cardholder: match billing_last_name {
-                Some(last_name) => format!(
-                    "{} {}",
-                    params.billing_first_name.expose(),
-                    last_name.expose()
-                )
-                .into(),
+                Some(last_name) => {
+                    format!("{} {}", params.billing_first_name.peek(), last_name.peek()).into()
+                }
                 None => params.billing_first_name,
             },
             reference: item.payment_id.clone(),
