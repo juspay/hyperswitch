@@ -73,7 +73,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 AER::BadRequest(ApiError::new("DC", 6, self.error_message(), None))
             }
             Self::RedisConnectionError => {
-                AER::BadRequest(ApiError::new("DC", 7, self.error_message(), None))
+                AER::InternalServerError(ApiError::new("DC", 0, self.error_message(), None))
             }
         }
     }
