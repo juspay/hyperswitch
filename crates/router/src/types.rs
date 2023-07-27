@@ -426,8 +426,8 @@ pub struct VerifyRequestData {
 
 #[derive(Debug, Clone)]
 pub struct AccessTokenRequestData {
-    pub app_id: String,
-    pub id: Option<String>,
+    pub app_id: Secret<String>,
+    pub id: Option<Secret<String>>,
     // Add more keys if required
 }
 
@@ -466,7 +466,7 @@ pub struct AddAccessTokenResult {
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct AccessToken {
-    pub token: String,
+    pub token: Secret<String>,
     pub expires: i64,
 }
 
@@ -708,22 +708,22 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
 #[serde(tag = "auth_type")]
 pub enum ConnectorAuthType {
     HeaderKey {
-        api_key: String,
+        api_key: Secret<String>,
     },
     BodyKey {
-        api_key: String,
-        key1: String,
+        api_key: Secret<String>,
+        key1: Secret<String>,
     },
     SignatureKey {
-        api_key: String,
-        key1: String,
-        api_secret: String,
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
     },
     MultiAuthKey {
-        api_key: String,
-        key1: String,
-        api_secret: String,
-        key2: String,
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        key2: Secret<String>,
     },
     #[default]
     NoKey,

@@ -8,6 +8,7 @@ pub mod customers;
 pub mod dispute;
 pub mod events;
 pub mod file;
+pub mod fraud_check;
 pub mod generics;
 pub mod locker_mock_up;
 pub mod mandate;

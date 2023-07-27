@@ -8,6 +8,7 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
+use api_models::payments::FrmMessage;
 use common_utils::pii;
 use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
@@ -258,6 +259,7 @@ where
         auth_flow,
         &state.conf.server,
         operation,
+        &state.conf.connector_request_reference_id_config,
     )
 }
 
@@ -836,7 +838,9 @@ where
     let router_data_and_should_continue_payment = match payment_data.payment_method_data.clone() {
         Some(api_models::payments::PaymentMethodData::BankTransfer(data)) => match data.deref() {
             api_models::payments::BankTransferData::AchBankTransfer { .. }
-            | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
+            | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
+                if connector.connector_name == types::Connector::Stripe =>
+            {
                 if payment_data.payment_attempt.preprocessing_step_id.is_none() {
                     (
                         router_data.preprocessing_steps(state, connector).await?,
@@ -1093,6 +1097,7 @@ where
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
+    pub frm_message: Option<FrmMessage>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1251,6 +1256,33 @@ pub async fn list_payments(
         .into_iter()
         .map(ForeignFrom::foreign_from)
         .collect();
+
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentListResponse {
+            size: data.len(),
+            data,
+        },
+    ))
+}
+#[cfg(feature = "olap")]
+pub async fn apply_filters_on_payments(
+    db: &dyn StorageInterface,
+    merchant: domain::MerchantAccount,
+    constraints: api::PaymentListFilterConstraints,
+) -> RouterResponse<api::PaymentListResponse> {
+    use crate::types::transformers::ForeignFrom;
+
+    let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
+        .apply_filters_on_payments_list(
+            &merchant.merchant_id,
+            &constraints,
+            merchant.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let data: Vec<api::PaymentsResponse> =
+        list.into_iter().map(ForeignFrom::foreign_from).collect();
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {

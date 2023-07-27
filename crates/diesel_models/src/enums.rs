@@ -6,6 +6,7 @@ pub mod diesel_exports {
         DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
         DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus,
         DbEventClass as EventClass, DbEventObjectType as EventObjectType, DbEventType as EventType,
+        DbFraudCheckStatus as FraudCheckStatus, DbFraudCheckType as FraudCheckType,
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbMandateType as MandateType,
         DbMerchantStorageScheme as MerchantStorageScheme,
@@ -320,22 +321,17 @@ pub enum BankNames {
     Debug,
     Eq,
     PartialEq,
-    Default,
-    serde::Deserialize,
     serde::Serialize,
+    serde::Deserialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum PaymentAttemptType {
-    Authorize,
-    #[default]
-    AuthorizeCapture,
-    MandateCreate,
-    MandateRecurring,
+pub enum FraudCheckType {
+    PreFrm,
+    PostFrm,
 }
 
 #[derive(
@@ -345,19 +341,19 @@ pub enum PaymentAttemptType {
     Default,
     Eq,
     PartialEq,
-    serde::Deserialize,
     serde::Serialize,
+    serde::Deserialize,
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum CaptureStatus {
+pub enum FraudCheckStatus {
+    Fraud,
+    ManualReview,
     #[default]
-    Started,
-    Charged,
     Pending,
-    Failure,
+    Legit,
+    TransactionFailure,
 }
