@@ -2609,8 +2609,8 @@ pub async fn get_additional_payment_data(
 ) -> api_models::payments::AdditionalPaymentData {
     match pm_data {
         api_models::payments::PaymentMethodData::Card(card_data) => {
-            let card_isin = card_data.card_number.clone().get_card_isin();
-            let last4 = card_data.card_number.clone().get_last4();
+            let card_isin = Some(card_data.card_number.clone().get_card_isin());
+            let last4 = Some(card_data.card_number.clone().get_last4());
             if card_data.card_issuer.is_some()
                 && card_data.card_network.is_some()
                 && card_data.card_type.is_some()
@@ -2624,19 +2624,23 @@ pub async fn get_additional_payment_data(
                         card_type: card_data.card_type.to_owned(),
                         card_issuing_country: card_data.card_issuing_country.to_owned(),
                         bank_code: card_data.bank_code.to_owned(),
-                        card_exp_month: card_data.card_exp_month.clone(),
-                        card_exp_year: card_data.card_exp_year.clone(),
-                        card_holder_name: card_data.card_holder_name.clone(),
+                        card_exp_month: Some(card_data.card_exp_month.clone()),
+                        card_exp_year: Some(card_data.card_exp_year.clone()),
+                        card_holder_name: Some(card_data.card_holder_name.clone()),
                         last4: last4.clone(),
                         card_isin: card_isin.clone(),
                     },
                 ))
             } else {
-                let card_info = db
-                    .get_card_info(&card_isin.clone())
+                let card_info = card_isin
+                    .clone()
+                    .async_and_then(|card_isin| async move {
+                        db.get_card_info(&card_isin)
+                            .await
+                            .map_err(|error| services::logger::warn!(card_info_error=?error))
+                            .ok()
+                    })
                     .await
-                    .map_err(|error| services::logger::warn!(card_info_error=?error))
-                    .ok()
                     .flatten()
                     .map(|card_info| {
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
@@ -2648,9 +2652,9 @@ pub async fn get_additional_payment_data(
                                 card_issuing_country: card_info.card_issuing_country,
                                 last4: last4.clone(),
                                 card_isin: card_isin.clone(),
-                                card_exp_month: card_data.card_exp_month.clone(),
-                                card_exp_year: card_data.card_exp_year.clone(),
-                                card_holder_name: card_data.card_holder_name.clone(),
+                                card_exp_month: Some(card_data.card_exp_month.clone()),
+                                card_exp_year: Some(card_data.card_exp_year.clone()),
+                                card_holder_name: Some(card_data.card_holder_name.clone()),
                             },
                         ))
                     });
@@ -2663,9 +2667,9 @@ pub async fn get_additional_payment_data(
                         card_issuing_country: None,
                         last4,
                         card_isin,
-                        card_exp_month: card_data.card_exp_month.clone(),
-                        card_exp_year: card_data.card_exp_year.clone(),
-                        card_holder_name: card_data.card_holder_name.clone(),
+                        card_exp_month: Some(card_data.card_exp_month.clone()),
+                        card_exp_year: Some(card_data.card_exp_year.clone()),
+                        card_holder_name: Some(card_data.card_holder_name.clone()),
                     },
                 )))
             }
