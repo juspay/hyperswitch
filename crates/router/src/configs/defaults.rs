@@ -248,7 +248,7 @@ impl Default for super::settings::RequiredFields {
                                                 required_field: "billing.address.line1".to_string(),
                                                 display_name: "billing_line1".to_string(),
                                                 field_type: enums::FieldType::UserFullName,
-                                                value: "".to_string(),
+                                                value: None,
                                             }
                                         ),
                                         (
@@ -257,7 +257,7 @@ impl Default for super::settings::RequiredFields {
                                                 required_field: "billing.address.first_name".to_string(),
                                                 display_name: "billing_first_name".to_string(),
                                                 field_type: enums::FieldType::UserFullName,
-                                                value: "".to_string(),
+                                                value: None,
                                             }
                                         )
                                     ]),
@@ -269,7 +269,7 @@ impl Default for super::settings::RequiredFields {
                                                 required_field: "shipping.address.line1".to_string(),
                                                 display_name: "shipping_line1".to_string(),
                                                 field_type: enums::FieldType::UserFullName,
-                                                value: "".to_string(),
+                                                value: None,
                                             }
                                         ),
                                         (
@@ -278,7 +278,7 @@ impl Default for super::settings::RequiredFields {
                                                 required_field: "shipping.phone.number".to_string(),
                                                 display_name: "shipping_phone".to_string(),
                                                 field_type: enums::FieldType::UserFullName,
-                                                value: "".to_string(),
+                                                value: None,
                                             }
                                         )
                                     ]),
@@ -294,7 +294,7 @@ impl Default for super::settings::RequiredFields {
                                             required_field: "billing.address.line1".to_string(),
                                             display_name: "billing_line1".to_string(),
                                             field_type: enums::FieldType::UserFullName,
-                                            value: "".to_string(),
+                                            value: None,
                                         }
                                     ),
                                     (
@@ -303,7 +303,7 @@ impl Default for super::settings::RequiredFields {
                                             required_field: "billing.address.first_name".to_string(),
                                             display_name: "billing_first_name".to_string(),
                                             field_type: enums::FieldType::UserFullName,
-                                            value: "".to_string(),
+                                            value: None,
                                         }
                                     )
                                 ]),
@@ -315,7 +315,7 @@ impl Default for super::settings::RequiredFields {
                                             required_field: "shipping.address.line1".to_string(),
                                             display_name: "shipping_line1".to_string(),
                                             field_type: enums::FieldType::UserFullName,
-                                            value: "".to_string(),
+                                            value: None,
                                         }
                                     ),
                                     (
@@ -324,7 +324,7 @@ impl Default for super::settings::RequiredFields {
                                             required_field: "shipping.phone.number".to_string(),
                                             display_name: "shipping_phone".to_string(),
                                             field_type: enums::FieldType::UserFullName,
-                                            value: "".to_string(),
+                                            value: None,
                                         }
                                     )
                                 ]),
@@ -340,7 +340,7 @@ impl Default for super::settings::RequiredFields {
                                             required_field: "billing.address.line1".to_string(),
                                             display_name: "billing_line1".to_string(),
                                             field_type: enums::FieldType::UserFullName,
-                                            value: "".to_string(),
+                                            value: None,
                                         }
                                     ),
                                     (
@@ -349,7 +349,7 @@ impl Default for super::settings::RequiredFields {
                                             required_field: "billing.address.first_name".to_string(),
                                             display_name: "billing_first_name".to_string(),
                                             field_type: enums::FieldType::UserFullName,
-                                            value: "".to_string(),
+                                            value: None,
                                         }
                                     )
                                 ]),
@@ -361,7 +361,7 @@ impl Default for super::settings::RequiredFields {
                                             required_field: "shipping.address.line1".to_string(),
                                             display_name: "shipping_line1".to_string(),
                                             field_type: enums::FieldType::UserFullName,
-                                            value: "".to_string(),
+                                            value: None,
                                         }
                                     ),
                                     (
@@ -370,7 +370,7 @@ impl Default for super::settings::RequiredFields {
                                             required_field: "shipping.phone.number".to_string(),
                                             display_name: "shipping_phone".to_string(),
                                             field_type: enums::FieldType::UserFullName,
-                                            value: "".to_string(),
+                                            value: None,
                                         }
                                     )
                                 ]),
@@ -652,14 +652,14 @@ impl Default for super::settings::RequiredFields {
                                                 required_field: "name".to_string(),
                                                 display_name: "cust_name".to_string(),
                                                 field_type: enums::FieldType::UserFullName,
-                                                value: "".to_string(),
+                                                value: None,
                                             }),
                                             ("payment_method_data.pay_later.afterpay_clearpay_redirect.billing_email".to_string(),
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.pay_later.afterpay_clearpay_redirect.billing_email".to_string(),
                                                 display_name: "billing_email".to_string(),
                                                 field_type: enums::FieldType::UserEmailAddress,
-                                                value: "".to_string(),
+                                                value: None,
                                            })
                                         ]),
                                         common : HashMap::new(),
@@ -682,14 +682,14 @@ impl Default for super::settings::RequiredFields {
                                                 required_field: "payment_method_data.pay_later.klarna.billing_country".to_string(),
                                                 display_name: "billing_name".to_string(),
                                                 field_type: enums::FieldType::UserAddressCountry,
-                                                value: "".to_string(),
+                                                value: None,
                                             }),
                                             ("email".to_string(),
                                             RequiredFieldInfo {
                                                 required_field: "email".to_string(),
                                                 display_name: "cust_email".to_string(),
                                                 field_type: enums::FieldType::UserEmailAddress,
-                                                value: "".to_string(),
+                                                value: None,
                                            })
                                         ]),
                                         common : HashMap::new(),

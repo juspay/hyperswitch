@@ -236,7 +236,7 @@ pub struct RequiredFieldInfo {
     #[schema(value_type = FieldType)]
     pub field_type: api_enums::FieldType,
 
-    pub value: String,
+    pub value: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
