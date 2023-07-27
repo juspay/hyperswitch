@@ -10,7 +10,6 @@ use crate::{configs::settings::Database, errors};
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 
 pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
-pub type RedisPool = std::sync::Arc<redis_interface::RedisConnectionPool>;
 
 #[derive(Debug)]
 struct TestTransaction;

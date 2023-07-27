@@ -3,6 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as cashtocode;
 
 use crate::{
@@ -51,14 +52,14 @@ fn get_auth_cashtocode(
             storage::enums::PaymentMethodType::ClassicReward => match auth_type {
                 types::ConnectorAuthType::BodyKey { api_key, .. } => Ok(vec![(
                     headers::AUTHORIZATION.to_string(),
-                    format!("Basic {api_key}").into_masked(),
+                    format!("Basic {}", api_key.peek()).into_masked(),
                 )]),
                 _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
             },
             storage::enums::PaymentMethodType::Evoucher => match auth_type {
                 types::ConnectorAuthType::BodyKey { key1, .. } => Ok(vec![(
                     headers::AUTHORIZATION.to_string(),
-                    format!("Basic {key1}").into_masked(),
+                    format!("Basic {}", key1.peek()).into_masked(),
                 )]),
                 _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
             },
@@ -94,6 +95,14 @@ impl ConnectorCommon for Cashtocode {
 
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
+    }
+
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        cashtocode::CashtocodeAuthType::try_from(val)?;
+        Ok(())
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -262,8 +271,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+        let response: transformers::CashtocodePaymentsSyncResponse = res
+            .response
+            .parse_struct("CashtocodePaymentsSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response: cashtocode::CashtocodePaymentsSyncResponse {},
+            response,
             data: data.clone(),
             http_code: res.status_code,
         })
@@ -359,9 +372,9 @@ impl api::IncomingWebhook for Cashtocode {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let webhook: transformers::CashtocodeObjectId = request
+        let webhook: transformers::CashtocodePaymentsSyncResponse = request
             .body
-            .parse_struct("CashtocodeObjectId")
+            .parse_struct("CashtocodePaymentsSyncResponse")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
@@ -397,9 +410,9 @@ impl api::IncomingWebhook for Cashtocode {
     ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
     {
         let status = "EXECUTED".to_string();
-        let obj: transformers::CashtocodeObjectId = request
+        let obj: transformers::CashtocodePaymentsSyncResponse = request
             .body
-            .parse_struct("CashtocodeObjectId")
+            .parse_struct("CashtocodePaymentsSyncResponse")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         let response: serde_json::Value =
             serde_json::json!({ "status": status, "transactionId" : obj.transaction_id});

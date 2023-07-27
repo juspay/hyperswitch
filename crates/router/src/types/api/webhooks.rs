@@ -4,14 +4,14 @@ pub use api_models::webhooks::{
     OutgoingWebhook, OutgoingWebhookContent, WebhookFlow,
 };
 use common_utils::ext_traits::ValueExt;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use masking::ExposeInterface;
 
 use super::ConnectorCommon;
 use crate::{
     core::errors::{self, CustomResult},
     db::StorageInterface,
-    services,
+    logger, services,
     types::domain,
     utils::crypto,
 };
@@ -79,44 +79,53 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         &self,
         db: &dyn StorageInterface,
         merchant_id: &str,
-        connector_label: &str,
+        connector_name: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let debug_suffix = format!(
-            "For merchant_id: {}, and connector_label: {}",
-            merchant_id, connector_label
+            "For merchant_id: {}, and connector_name: {}",
+            merchant_id, connector_name
         );
-        let merchant_connector_webhook_details = db
-            .find_merchant_connector_account_by_merchant_id_connector_label(
+        let default_secret = "default_secret".to_string();
+        let merchant_connector_account_result = db
+            .find_merchant_connector_account_by_merchant_id_connector_name(
                 merchant_id,
-                connector_label,
+                connector_name,
                 key_store,
             )
-            .await
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
-            .attach_printable_lazy(|| {
-                format!(
-                    "Fetch merchant_webhook_secret from MCA table failed {}",
+            .await;
+
+        let merchant_secret = match merchant_connector_account_result {
+            Ok(mca) => match mca.connector_webhook_details {
+                Some(merchant_connector_webhook_details) => merchant_connector_webhook_details
+                    .parse_value::<MerchantConnectorWebhookDetails>(
+                        "MerchantConnectorWebhookDetails",
+                    )
+                    .change_context_lazy(|| errors::ConnectorError::WebhookSourceVerificationFailed)
+                    .attach_printable_lazy(|| {
+                        format!(
+                            "Deserializing MerchantConnectorWebhookDetails failed {}",
+                            debug_suffix
+                        )
+                    })?
+                    .merchant_secret
+                    .expose(),
+                None => default_secret,
+            },
+            Err(err) => {
+                logger::error!(
+                    "Failed to fetch merchant_secret for source verification {}",
                     debug_suffix
-                )
-            })?
-            .connector_webhook_details;
-        let merchant_secret = merchant_connector_webhook_details
-            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
-            .into_report()
-            .attach_printable_lazy(|| format!("Merchant Secret not configured {}", debug_suffix))?
-            .expose()
-            .parse_value::<MerchantConnectorWebhookDetails>("MerchantConnectorWebhookDetails")
-            .change_context_lazy(|| errors::ConnectorError::WebhookSourceVerificationFailed)
-            .attach_printable_lazy(|| {
-                format!(
-                    "Deserializing MerchantConnectorWebhookDetails failed {}",
-                    debug_suffix
-                )
-            })?
-            .merchant_secret
-            .expose();
+                );
+                logger::error!("DB error = {:?}", err);
+                default_secret
+            }
+        };
+
         //need to fetch merchant secret from config table with caching in future for enhanced performance
+
+        //If merchant has not set the secret for webhook source verification, "default_secret" is returned.
+        //So it will fail during verification step and goes to psync flow.
         Ok(merchant_secret.into_bytes())
     }
 
