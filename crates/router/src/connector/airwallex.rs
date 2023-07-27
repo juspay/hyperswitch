@@ -72,6 +72,14 @@ impl ConnectorCommon for Airwallex {
         connectors.airwallex.base_url.as_ref()
     }
 
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        airwallex::AirwallexAuthType::try_from(val)?;
+        Ok(())
+    }
+
     fn build_error_response(
         &self,
         res: Response,
