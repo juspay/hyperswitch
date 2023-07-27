@@ -3208,6 +3208,17 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pse"
+            ],
+            "properties": {
+              "pse": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -3276,6 +3287,16 @@
             }
           }
         ]
+      },
+      "BoletoVoucherData": {
+        "type": "object",
+        "properties": {
+          "social_security_number": {
+            "type": "string",
+            "description": "The shopper's social security number",
+            "nullable": true
+          }
+        }
       },
       "CaptureMethod": {
         "type": "string",
@@ -3860,6 +3881,7 @@
           "BBD",
           "BDT",
           "BHD",
+          "BIF",
           "BMD",
           "BND",
           "BOB",
@@ -3869,11 +3891,13 @@
           "BZD",
           "CAD",
           "CHF",
+          "CLP",
           "CNY",
           "COP",
           "CRC",
           "CUP",
           "CZK",
+          "DJF",
           "DKK",
           "DOP",
           "DZD",
@@ -3885,6 +3909,7 @@
           "GHS",
           "GIP",
           "GMD",
+          "GNF",
           "GTQ",
           "GYD",
           "HKD",
@@ -3901,6 +3926,7 @@
           "KES",
           "KGS",
           "KHR",
+          "KMF",
           "KRW",
           "KWD",
           "KYD",
@@ -3912,6 +3938,7 @@
           "LSL",
           "MAD",
           "MDL",
+          "MGA",
           "MKD",
           "MMK",
           "MNT",
@@ -3933,9 +3960,11 @@
           "PHP",
           "PKR",
           "PLN",
+          "PYG",
           "QAR",
           "RON",
           "RUB",
+          "RWF",
           "SAR",
           "SCR",
           "SEK",
@@ -3950,10 +3979,15 @@
           "TTD",
           "TWD",
           "TZS",
+          "UGX",
           "USD",
           "UYU",
           "UZS",
           "VND",
+          "VUV",
+          "XAF",
+          "XOF",
+          "XPF",
           "YER",
           "ZAR"
         ]
@@ -6344,17 +6378,11 @@
             "description": "Contains url for Qr code image, this qr code has to be shown in sdk",
             "required": [
               "image_data_url",
-              "qr_code_url",
               "type"
             ],
             "properties": {
               "image_data_url": {
-                "type": "string",
-                "description": "Hyperswitch generated image data source url"
-              },
-              "qr_code_url": {
-                "type": "string",
-                "description": "The url for Qr code given by the connector"
+                "type": "string"
               },
               "type": {
                 "type": "string",
@@ -6945,7 +6973,8 @@
           "crypto",
           "bank_debit",
           "reward",
-          "upi"
+          "upi",
+          "voucher"
         ]
       },
       "PaymentMethodCreate": {
@@ -7110,6 +7139,17 @@
             "properties": {
               "upi": {
                 "$ref": "#/components/schemas/UpiData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "voucher"
+            ],
+            "properties": {
+              "voucher": {
+                "$ref": "#/components/schemas/VoucherData"
               }
             }
           },
@@ -7315,13 +7355,15 @@
           "bacs",
           "bancontact_card",
           "becs",
-          "blik",
           "bizum",
+          "blik",
+          "boleto",
           "classic",
           "credit",
           "crypto_currency",
           "dana",
           "debit",
+          "efecty",
           "eps",
           "evoucher",
           "giropay",
@@ -7342,10 +7384,14 @@
           "online_banking_fpx",
           "online_banking_poland",
           "online_banking_slovakia",
+          "pago_efectivo",
           "pay_bright",
           "paypal",
           "pix",
           "przelewy24",
+          "pse",
+          "red_compra",
+          "red_pagos",
           "samsung_pay",
           "sepa",
           "sofort",
@@ -9917,6 +9963,45 @@
             "nullable": true
           }
         }
+      },
+      "VoucherData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "boleto"
+            ],
+            "properties": {
+              "boleto": {
+                "$ref": "#/components/schemas/BoletoVoucherData"
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "efecty"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "pago_efectivo"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "red_compra"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "red_pagos"
+            ]
+          }
+        ]
       },
       "WalletData": {
         "oneOf": [

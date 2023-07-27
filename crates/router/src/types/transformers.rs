@@ -218,9 +218,14 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             }
             api_enums::PaymentMethodType::Evoucher
             | api_enums::PaymentMethodType::ClassicReward => Self::Reward,
-            api_enums::PaymentMethodType::Multibanco | api_enums::PaymentMethodType::Pix => {
-                Self::BankTransfer
-            }
+            api_enums::PaymentMethodType::Boleto
+            | api_enums::PaymentMethodType::Efecty
+            | api_enums::PaymentMethodType::PagoEfectivo
+            | api_enums::PaymentMethodType::RedCompra
+            | api_enums::PaymentMethodType::RedPagos => Self::Voucher,
+            api_enums::PaymentMethodType::Multibanco
+            | api_enums::PaymentMethodType::Pix
+            | api_enums::PaymentMethodType::Pse => Self::BankTransfer,
         }
     }
 }
