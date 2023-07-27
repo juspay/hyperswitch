@@ -49,6 +49,14 @@ impl ConnectorCommon for Adyen {
         )])
     }
 
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        adyen::AdyenAuthType::try_from(val)?;
+        Ok(())
+    }
+
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.adyen.base_url.as_ref()
     }
@@ -710,7 +718,7 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let mut api_key = vec![(
             headers::X_API_KEY.to_string(),
-            auth.review_key.unwrap_or(auth.api_key).into(),
+            auth.review_key.unwrap_or(auth.api_key).into_masked(),
         )];
         header.append(&mut api_key);
         Ok(header)
@@ -980,8 +988,10 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         let mut api_key = vec![(
             headers::X_API_KEY.to_string(),
             match req.request.payout_type {
-                storage_enums::PayoutType::Bank => auth.review_key.unwrap_or(auth.api_key).into(),
-                storage_enums::PayoutType::Card => auth.api_key.into(),
+                storage_enums::PayoutType::Bank => {
+                    auth.review_key.unwrap_or(auth.api_key).into_masked()
+                }
+                storage_enums::PayoutType::Card => auth.api_key.into_masked(),
             },
         )];
         header.append(&mut api_key);

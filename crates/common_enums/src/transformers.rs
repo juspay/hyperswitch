@@ -1583,6 +1583,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::OnlineBankingSlovakia => Self::BankRedirect,
             PaymentMethodType::PermataBankTransfer => Self::BankTransfer,
             PaymentMethodType::Pix => Self::BankTransfer,
+            PaymentMethodType::Pse => Self::BankTransfer,
             PaymentMethodType::PayBright => Self::PayLater,
             PaymentMethodType::Paypal => Self::Wallet,
             PaymentMethodType::Przelewy24 => Self::BankRedirect,
@@ -1598,6 +1599,11 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::WeChatPay => Self::Wallet,
             PaymentMethodType::TouchNGo => Self::Wallet,
             PaymentMethodType::Atome => Self::PayLater,
+            PaymentMethodType::Boleto => Self::Voucher,
+            PaymentMethodType::Efecty => Self::Voucher,
+            PaymentMethodType::PagoEfectivo => Self::Voucher,
+            PaymentMethodType::RedCompra => Self::Voucher,
+            PaymentMethodType::RedPagos => Self::Voucher,
         }
     }
 }
