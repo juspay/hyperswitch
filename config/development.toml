@@ -297,6 +297,11 @@ debit = { not_available_flows = { capture_method = "manual" } }
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }
 
+[pm_filters.stax]
+credit = { currency = "USD" }
+debit = { currency = "USD" }
+ach = { currency = "USD" }
+
 [pm_filters.trustpay]
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }

@@ -99,82 +99,16 @@ impl ConnectorCommon for Stax {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: stax::StaxErrorResponseTypes = res
-            .response
-            .parse_struct("StaxErrorResponseTypes")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let message = match response.clone() {
-            stax::StaxErrorResponseTypes::Validation(validation_error) => validation_error
-                .first()
-                .unwrap_or(&consts::NO_ERROR_MESSAGE.to_string())
-                .to_owned(),
-            stax::StaxErrorResponseTypes::CardCvv(card_cvv_error) => card_cvv_error
-                .first()
-                .unwrap_or(&consts::NO_ERROR_MESSAGE.to_string())
-                .to_owned(),
-            stax::StaxErrorResponseTypes::Id(id_error) => id_error
-                .first()
-                .unwrap_or(&consts::NO_ERROR_MESSAGE.to_string())
-                .to_owned(),
-            stax::StaxErrorResponseTypes::Total(total_error) => total_error
-                .first()
-                .unwrap_or(&consts::NO_ERROR_MESSAGE.to_string())
-                .to_owned(),
-            stax::StaxErrorResponseTypes::Error(error) => error
-                .first()
-                .unwrap_or(&consts::NO_ERROR_MESSAGE.to_string())
-                .to_owned(),
-            stax::StaxErrorResponseTypes::Authorization(authorization_error) => authorization_error
-                .first()
-                .unwrap_or(&consts::NO_ERROR_MESSAGE.to_string())
-                .to_owned(),
-            stax::StaxErrorResponseTypes::Firstname(error) => error
-                .first()
-                .unwrap_or(&consts::NO_ERROR_MESSAGE.to_string())
-                .to_owned(),
-            stax::StaxErrorResponseTypes::Lastname(error) => error
-                .first()
-                .unwrap_or(&consts::NO_ERROR_MESSAGE.to_string())
-                .to_owned(),
-            stax::StaxErrorResponseTypes::Email(error) => error
-                .first()
-                .unwrap_or(&consts::NO_ERROR_MESSAGE.to_string())
-                .to_owned(),
-            stax::StaxErrorResponseTypes::Company(error) => error
-                .first()
-                .unwrap_or(&consts::NO_ERROR_MESSAGE.to_string())
-                .to_owned(),
-            stax::StaxErrorResponseTypes::CardNumber(error) => error
-                .first()
-                .unwrap_or(&consts::NO_ERROR_MESSAGE.to_string())
-                .to_owned(),
-            stax::StaxErrorResponseTypes::PersonName(error) => error
-                .first()
-                .unwrap_or(&consts::NO_ERROR_MESSAGE.to_string())
-                .to_owned(),
-            stax::StaxErrorResponseTypes::CustomerId(error) => error
-                .first()
-                .unwrap_or(&consts::NO_ERROR_MESSAGE.to_string())
-                .to_owned(),
-            stax::StaxErrorResponseTypes::Meta(error) => error
-                .first()
-                .unwrap_or(&consts::NO_ERROR_MESSAGE.to_string())
-                .to_owned(),
-            stax::StaxErrorResponseTypes::PaymentMethodId(error) => error
-                .first()
-                .unwrap_or(&consts::NO_ERROR_MESSAGE.to_string())
-                .to_owned(),
-            stax::StaxErrorResponseTypes::TokenInvalid(token_invalid_error) => token_invalid_error
-                .first()
-                .unwrap_or(&consts::NO_ERROR_MESSAGE.to_string())
-                .to_owned(),
-        };
-
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.to_string(),
-            message: message.clone(),
-            reason: Some(message),
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: consts::NO_ERROR_MESSAGE.to_string(),
+            reason: Some(
+                std::str::from_utf8(&res.response)
+                    .into_report()
+                    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+                    .to_owned(),
+            ),
         })
     }
 }

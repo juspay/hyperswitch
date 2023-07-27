@@ -483,7 +483,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .expect("Authorize payment response");
     assert_eq!(
         token_response.response.unwrap_err().message,
-        "The card cvv may not be greater than 99999.".to_string(),
+        "No error message".to_string(),
     );
 }
 
@@ -519,7 +519,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .expect("Authorize payment response");
     assert_eq!(
         token_response.response.unwrap_err().message,
-        "Tokenization Validation Errors: Month is invalid".to_string(),
+        "No error message".to_string(),
     );
 }
 
@@ -555,7 +555,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .expect("Authorize payment response");
     assert_eq!(
         token_response.response.unwrap_err().message,
-        "Tokenization Validation Errors: Year is invalid".to_string(),
+        "No error message".to_string(),
     );
 }
 
@@ -596,7 +596,7 @@ async fn should_fail_capture_for_invalid_payment() {
         .unwrap();
     assert_eq!(
         capture_response.response.unwrap_err().message,
-        String::from("The selected id is invalid.")
+        String::from("No error message")
     );
 }
 
@@ -614,10 +614,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        "The total may not be greater than 100.",
-    );
+    assert_eq!(response.response.unwrap_err().message, "No error message",);
 }
 
 // Connector dependent test cases goes here

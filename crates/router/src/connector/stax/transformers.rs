@@ -343,24 +343,3 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
         })
     }
 }
-
-#[derive(Clone, Debug, Deserialize, strum::Display, strum::EnumString)]
-#[serde(rename_all = "snake_case")]
-pub enum StaxErrorResponseTypes {
-    Validation(Vec<String>),
-    CardCvv(Vec<String>),
-    Id(Vec<String>),
-    Total(Vec<String>),
-    Authorization(Vec<String>),
-    Error(Vec<String>),
-    Firstname(Vec<String>),
-    Lastname(Vec<String>),
-    Email(Vec<String>),
-    Company(Vec<String>),
-    CardNumber(Vec<String>),
-    PersonName(Vec<String>),
-    CustomerId(Vec<String>),
-    Meta(Vec<String>),
-    PaymentMethodId(Vec<String>),
-    TokenInvalid(Vec<String>),
-}
