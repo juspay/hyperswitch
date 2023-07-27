@@ -3,7 +3,7 @@ use base64::Engine;
 use cards::CardNumber;
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -185,7 +185,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
 
 // Auth Struct
 pub struct NexinetsAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for NexinetsAuthType {
@@ -193,10 +193,10 @@ impl TryFrom<&types::ConnectorAuthType> for NexinetsAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => {
-                let auth_key = format!("{key1}:{api_key}");
+                let auth_key = format!("{}:{}", key1.peek(), api_key.peek());
                 let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
                 Ok(Self {
-                    api_key: auth_header,
+                    api_key: Secret::new(auth_header),
                 })
             }
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
@@ -364,6 +364,7 @@ impl<F, T>
                 mandate_reference,
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -446,6 +447,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

@@ -7,7 +7,7 @@ use crate::{
     },
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, ErrorResponse},
 };
 
 // These needs to be accepted from SDK, need to be done after 1.0.0 stability as API contract will change
@@ -38,7 +38,7 @@ pub struct NoonSubscriptionData {
 #[serde(rename_all = "camelCase")]
 pub struct NoonOrder {
     amount: String,
-    currency: Option<storage_models::enums::Currency>,
+    currency: Option<diesel_models::enums::Currency>,
     channel: NoonChannels,
     category: Option<String>,
     reference: String,
@@ -218,9 +218,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
 
 // Auth Struct
 pub struct NoonAuthType {
-    pub(super) api_key: String,
-    pub(super) application_identifier: String,
-    pub(super) business_identifier: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) application_identifier: Secret<String>,
+    pub(super) business_identifier: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for NoonAuthType {
@@ -232,9 +232,9 @@ impl TryFrom<&types::ConnectorAuthType> for NoonAuthType {
                 key1,
                 api_secret,
             } => Ok(Self {
-                api_key: api_key.to_string(),
-                application_identifier: api_secret.to_string(),
-                business_identifier: key1.to_string(),
+                api_key: api_key.to_owned(),
+                application_identifier: api_secret.to_owned(),
+                business_identifier: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -280,6 +280,8 @@ pub struct NoonSubscriptionResponse {
 pub struct NoonPaymentsOrderResponse {
     status: NoonPaymentStatus,
     id: u64,
+    error_code: u64,
+    error_message: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -324,17 +326,25 @@ impl<F, T>
                     connector_mandate_id: Some(subscription_data.identifier),
                     payment_method_id: None,
                 });
+        let order = item.response.result.order;
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.result.order.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.result.order.id.to_string(),
-                ),
-                redirection_data,
-                mandate_reference,
-                connector_metadata: None,
-                network_txn_id: None,
-            }),
+            status: enums::AttemptStatus::from(order.status),
+            response: match order.error_message {
+                Some(error_message) => Err(ErrorResponse {
+                    code: order.error_code.to_string(),
+                    message: error_message.clone(),
+                    reason: Some(error_message),
+                    status_code: item.http_code,
+                }),
+                _ => Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(order.id.to_string()),
+                    redirection_data,
+                    mandate_reference,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                }),
+            },
             ..item.data
         })
     }
@@ -344,7 +354,7 @@ impl<F, T>
 #[serde(rename_all = "camelCase")]
 pub struct NoonActionTransaction {
     amount: String,
-    currency: storage_models::enums::Currency,
+    currency: diesel_models::enums::Currency,
 }
 
 #[derive(Debug, Serialize)]

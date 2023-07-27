@@ -1,0 +1,56 @@
+name: Validate Generated OpenAPI Spec File
+
+on:
+  pull_request:
+
+  merge_group:
+    types:
+      - checks_requested
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate_json:
+    name: Validate generated OpenAPI spec file
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/checkout@v3
+        with:
+          # Checkout pull request branch instead of merge commit
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+
+      - name: Checkout merge group HEAD commit
+        if: ${{ github.event_name == 'merge_group' }}
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.merge_group.head_sha }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Generate the OpenAPI spec file
+        shell: bash
+        run: cargo run --features openapi -- generate-openapi-spec
+
+      - name: Install `swagger-cli`
+        shell: bash
+        run: npm install -g @apidevtools/swagger-cli
+
+      - name: Validate the JSON file
+        shell: bash
+        run: swagger-cli validate ./openapi/openapi_spec.json
+
+      - name: Fail check if the JSON file is not up-to-date
+        shell: bash
+        run: |
+          if ! git diff --quiet --exit-code -- openapi/openapi_spec.json ; then
+            echo '::error::The OpenAPI spec file is not up-to-date. Please re-generate the OpenAPI spec file using `cargo run --features openapi -- generate-openapi-spec` and commit it.'
+            exit 1
+          fi

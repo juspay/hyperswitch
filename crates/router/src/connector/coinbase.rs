@@ -11,7 +11,7 @@ use super::utils;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
-    db, headers,
+    headers,
     services::{
         self,
         request::{self, Mask},
@@ -74,6 +74,14 @@ impl ConnectorCommon for Coinbase {
 
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
+    }
+
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        coinbase::CoinbaseAuthType::try_from(val)?;
+        Ok(())
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -531,24 +539,6 @@ impl api::IncomingWebhook for Coinbase {
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         Ok(message.to_string().into_bytes())
-    }
-
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn db::StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
     }
 
     fn get_webhook_object_reference_id(

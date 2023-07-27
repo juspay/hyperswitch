@@ -8,6 +8,7 @@ key1 = "MyEntityId"
 [adyen]
 api_key = "Bearer MyApiKey"
 key1 = "MerchantId"
+api_secret = "Secondary key"
 
 [authorizedotnet]
 api_key = "MyMerchantName"
@@ -117,6 +118,13 @@ api_key = "Application API KEY"
 api_secret = "Application Identifier"
 key1 = "Business Identifier"
 
+[opayo]
+api_key="API Key"
+
+[wise]
+api_key = "API Key"
+key1 = "Profile ID"
+
 [automation_configs]
 hs_base_url="http://localhost:8080"
 hs_test_browser="firefox"
@@ -126,3 +134,37 @@ pypl_email=""
 pypl_pass=""
 gmail_email=""
 gmail_pass=""
+
+[payme]
+# Open api key
+api_key="seller payme id"
+key1="payme client key"
+
+[cryptopay]
+api_key = "api_key"
+key1 = "key1"
+
+[cashtocode]
+api_key="Classic PMT API Key"
+key1 = "Evoucher PMT API Key"
+
+
+[tsys]
+api_key="device id"
+key1 = "transaction key"
+api_secret = "developer id"
+
+[globepay]
+api_key = "Partner code"
+key1 = "Credential code"
+
+[powertranz]
+api_key="PowerTranz-PowerTranzPassword"
+key1 = "PowerTranz-PowerTranzId"
+
+[stax]
+api_key="API Key"
+
+[boku]
+api_key="API Key"
+key1 = "transaction key"

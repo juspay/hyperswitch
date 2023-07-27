@@ -1,8 +1,9 @@
+use api_models::payments;
 use common_utils::{ext_traits::Encode, pii};
+use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use futures::future;
 use router_env::{instrument, logger, tracing};
-use storage_models::enums as storage_enums;
 
 use super::payments::helpers;
 use crate::{
@@ -17,7 +18,7 @@ use crate::{
             mandates::{self, MandateResponseExt},
         },
         domain, storage,
-        transformers::{ForeignInto, ForeignTryFrom},
+        transformers::ForeignTryFrom,
     },
     utils::OptionExt,
 };
@@ -34,7 +35,7 @@ pub async fn get_mandate(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
     Ok(services::ApplicationResponse::Json(
-        mandates::MandateResponse::from_db_mandate(state, mandate, &merchant_account).await?,
+        mandates::MandateResponse::from_db_mandate(state, mandate).await?,
     ))
 }
 
@@ -58,7 +59,7 @@ pub async fn revoke_mandate(
     Ok(services::ApplicationResponse::Json(
         mandates::MandateRevokedResponse {
             mandate_id: mandate.mandate_id,
-            status: mandate.mandate_status.foreign_into(),
+            status: mandate.mandate_status,
         },
     ))
 }
@@ -117,12 +118,21 @@ pub async fn get_customer_mandates(
     } else {
         let mut response_vec = Vec::with_capacity(mandates.len());
         for mandate in mandates {
-            response_vec.push(
-                mandates::MandateResponse::from_db_mandate(state, mandate, &merchant_account)
-                    .await?,
-            );
+            response_vec.push(mandates::MandateResponse::from_db_mandate(state, mandate).await?);
         }
         Ok(services::ApplicationResponse::Json(response_vec))
+    }
+}
+
+fn get_insensitive_payment_method_data_if_exists<F, FData>(
+    router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
+) -> Option<payments::PaymentMethodData>
+where
+    FData: MandateBehaviour,
+{
+    match &router_data.request.get_payment_method_data() {
+        api_models::payments::PaymentMethodData::Card(_) => None,
+        _ => Some(router_data.request.get_payment_method_data()),
     }
 }
 
@@ -144,7 +154,7 @@ where
                     .store
                     .find_mandate_by_merchant_id_mandate_id(resp.merchant_id.as_ref(), mandate_id)
                     .await
-                    .change_context(errors::ApiErrorResponse::MandateNotFound)?;
+                    .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
                 let mandate = match mandate.mandate_type {
                     storage_enums::MandateType::SingleUse => state
                         .store
@@ -197,7 +207,9 @@ where
                     let mandate_ids = mandate_reference
                         .map(|md| {
                             Encode::<types::MandateReference>::encode_to_value(&md)
-                                .change_context(errors::ApiErrorResponse::MandateNotFound)
+                                .change_context(
+                                    errors::ApiErrorResponse::MandateSerializationFailed,
+                                )
                                 .map(masking::Secret::new)
                         })
                         .transpose()?;
@@ -210,6 +222,7 @@ where
                         pm_id.get_required_value("payment_method_id")?,
                         mandate_ids,
                         network_txn_id,
+                        get_insensitive_payment_method_data_if_exists(&resp),
                     )? {
                         let connector = new_mandate_data.connector.clone();
                         logger::debug!("{:?}", new_mandate_data);
@@ -224,7 +237,7 @@ where
                                     .parse_value::<api_models::payments::ConnectorMandateReferenceId>(
                                         "ConnectorMandateId",
                                     )
-                                    .change_context(errors::ApiErrorResponse::MandateNotFound)
+                                    .change_context(errors::ApiErrorResponse::MandateDeserializationFailed)
                             })
                             .transpose()?
                             .map_or(
@@ -270,9 +283,11 @@ pub async fn retrieve_mandates_list(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve mandates")?;
-    let mandates_list = future::try_join_all(mandates.into_iter().map(|mandate| {
-        mandates::MandateResponse::from_db_mandate(state, mandate, &merchant_account)
-    }))
+    let mandates_list = future::try_join_all(
+        mandates
+            .into_iter()
+            .map(|mandate| mandates::MandateResponse::from_db_mandate(state, mandate)),
+    )
     .await?;
     Ok(services::ApplicationResponse::Json(mandates_list))
 }
@@ -303,7 +318,7 @@ impl ForeignTryFrom<Result<types::PaymentsResponseData, types::ErrorResponse>>
 
 pub trait MandateBehaviour {
     fn get_amount(&self) -> i64;
-    fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage>;
+    fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage>;
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds>;
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>);
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData;

@@ -129,52 +129,6 @@ impl super::settings::SupportedConnectors {
     }
 }
 
-impl super::settings::Connectors {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        self.aci.validate()?;
-        self.adyen.validate()?;
-        self.applepay.validate()?;
-        self.authorizedotnet.validate()?;
-        self.braintree.validate()?;
-        self.checkout.validate()?;
-        self.cybersource.validate()?;
-        self.globalpay.validate()?;
-        self.klarna.validate()?;
-        self.shift4.validate()?;
-        self.stripe.validate()?;
-        self.worldpay.validate()?;
-
-        self.supported.validate()?;
-
-        Ok(())
-    }
-}
-
-impl super::settings::ConnectorParams {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        common_utils::fp_utils::when(self.base_url.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "connector base URL must not be empty".into(),
-            ))
-        })
-    }
-}
-
-impl super::settings::ConnectorParamsWithFileUploadUrl {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        common_utils::fp_utils::when(self.base_url.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "connector base URL must not be empty".into(),
-            ))
-        })?;
-        common_utils::fp_utils::when(self.base_url_file_upload.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "connector file upload base URL must not be empty".into(),
-            ))
-        })
-    }
-}
-
 impl super::settings::SchedulerSettings {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;

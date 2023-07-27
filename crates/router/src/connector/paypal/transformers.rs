@@ -5,7 +5,7 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        to_connector_meta, AccessTokenRequestInfo, AddressDetailsData, CardData,
+        self, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData, CardData,
         PaymentsAuthorizeRequestData,
     },
     core::errors,
@@ -105,7 +105,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                 };
                 let amount = OrderAmount {
                     currency_code: item.request.currency,
-                    value: item.request.amount.to_string(),
+                    value: utils::to_currency_base_unit_with_zero_decimal_check(
+                        item.request.amount,
+                        item.request.currency,
+                    )?,
                 };
                 let reference_id = item.attempt_id.clone();
 
@@ -135,7 +138,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                     let intent = PaypalPaymentIntent::Capture;
                     let amount = OrderAmount {
                         currency_code: item.request.currency,
-                        value: item.request.amount.to_string(),
+                        value: utils::to_currency_base_unit_with_zero_decimal_check(
+                            item.request.amount,
+                            item.request.currency,
+                        )?,
                     };
                     let reference_id = item.attempt_id.clone();
                     let purchase_units = vec![PurchaseUnitRequest {
@@ -167,8 +173,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct PaypalAuthUpdateRequest {
     grant_type: String,
-    client_id: String,
-    client_secret: String,
+    client_id: Secret<String>,
+    client_secret: Secret<String>,
 }
 impl TryFrom<&types::RefreshTokenRouterData> for PaypalAuthUpdateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -183,7 +189,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for PaypalAuthUpdateRequest {
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct PaypalAuthUpdateResponse {
-    pub access_token: String,
+    pub access_token: Secret<String>,
     pub token_type: String,
     pub expires_in: i64,
 }
@@ -207,8 +213,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaypalAuthUpdateResponse, T, typ
 
 #[derive(Debug)]
 pub struct PaypalAuthType {
-    pub(super) api_key: String,
-    pub(super) key1: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) key1: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for PaypalAuthType {
@@ -216,8 +222,8 @@ impl TryFrom<&types::ConnectorAuthType> for PaypalAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                api_key: api_key.to_string(),
-                key1: key1.to_string(),
+                api_key: api_key.to_owned(),
+                key1: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
@@ -227,6 +233,7 @@ impl TryFrom<&types::ConnectorAuthType> for PaypalAuthType {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaypalOrderStatus {
+    Pending,
     Completed,
     Voided,
     Created,
@@ -246,7 +253,9 @@ impl ForeignFrom<(PaypalOrderStatus, PaypalPaymentIntent)> for storage_enums::At
                 }
             }
             PaypalOrderStatus::Voided => Self::Voided,
-            PaypalOrderStatus::Created | PaypalOrderStatus::Saved => Self::Pending,
+            PaypalOrderStatus::Created | PaypalOrderStatus::Saved | PaypalOrderStatus::Pending => {
+                Self::Pending
+            }
             PaypalOrderStatus::Approved => Self::AuthenticationSuccessful,
             PaypalOrderStatus::PayerActionRequired => Self::AuthenticationPending,
         }
@@ -259,7 +268,7 @@ pub struct PaymentsCollectionItem {
     expiration_time: Option<String>,
     id: String,
     final_capture: Option<bool>,
-    status: PaypalOrderStatus,
+    status: PaypalPaymentStatus,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -373,11 +382,25 @@ impl<F, T>
                 types::ResponseId::NoResponseId,
             ),
         };
-        let status = storage_enums::AttemptStatus::foreign_from((
-            item.response.status,
-            item.response.intent,
-        ));
-
+        //payment collection will always have only one element as we only make one transaction per order.
+        let payment_collection = &item
+            .response
+            .purchase_units
+            .first()
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+            .payments;
+        //payment collection item will either have "authorizations" field or "capture" field, not both at a time.
+        let payment_collection_item = match (
+            &payment_collection.authorizations,
+            &payment_collection.captures,
+        ) {
+            (Some(authorizations), None) => authorizations.first(),
+            (None, Some(captures)) => captures.first(),
+            _ => None,
+        }
+        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let status = payment_collection_item.status.clone();
+        let status = storage_enums::AttemptStatus::from(status);
         Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -386,6 +409,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -435,6 +459,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -463,6 +488,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -480,7 +506,10 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaypalPaymentsCaptureRequest
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let amount = OrderAmount {
             currency_code: item.request.currency,
-            value: item.request.amount_to_capture.to_string(),
+            value: utils::to_currency_base_unit_with_zero_decimal_check(
+                item.request.amount_to_capture,
+                item.request.currency,
+            )?,
         };
         Ok(Self {
             amount,
@@ -551,6 +580,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                     psync_flow: PaypalPaymentIntent::Capture
                 })),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             amount_captured: Some(amount_captured),
             ..item.data
@@ -597,6 +627,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -614,7 +645,10 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PaypalRefundRequest {
         Ok(Self {
             amount: OrderAmount {
                 currency_code: item.request.currency,
-                value: item.request.refund_amount.to_string(),
+                value: utils::to_currency_base_unit_with_zero_decimal_check(
+                    item.request.refund_amount,
+                    item.request.currency,
+                )?,
             },
         })
     }

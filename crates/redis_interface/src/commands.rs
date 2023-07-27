@@ -175,10 +175,11 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn set_key_if_not_exist<V>(
+    pub async fn set_key_if_not_exists_with_expiry<V>(
         &self,
         key: &str,
         value: V,
+        seconds: Option<i64>,
     ) -> CustomResult<SetnxReply, errors::RedisError>
     where
         V: TryInto<RedisValue> + Debug + Send + Sync,
@@ -188,7 +189,9 @@ impl super::RedisConnectionPool {
             .set(
                 key,
                 value,
-                Some(Expiration::EX(self.config.default_ttl.into())),
+                Some(Expiration::EX(
+                    seconds.unwrap_or(self.config.default_ttl.into()),
+                )),
                 Some(SetOptions::NX),
                 false,
             )

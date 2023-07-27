@@ -41,7 +41,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CoinbasePaymentsRequest {
 
 // Auth Struct
 pub struct CoinbaseAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for CoinbaseAuthType {
@@ -49,7 +49,7 @@ impl TryFrom<&types::ConnectorAuthType> for CoinbaseAuthType {
     fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = _auth_type {
             Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: api_key.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -145,6 +145,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             |context| {
                 Ok(types::PaymentsResponseData::TransactionUnresolvedResponse{
@@ -153,7 +154,8 @@ impl<F, T>
                 code: context.to_string(),
                 message: "Please check the transaction in coinbase dashboard and resolve manually"
                     .to_string(),
-                })
+                }),
+                connector_response_reference_id: None,
             })
             },
         );

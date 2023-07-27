@@ -3,8 +3,10 @@ mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as aci;
 
+use super::utils::PaymentsAuthorizeRequestData;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -30,6 +32,14 @@ impl ConnectorCommon for Aci {
 
     fn common_get_content_type(&self) -> &'static str {
         "application/x-www-form-urlencoded"
+    }
+
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        aci::AciAuthType::try_from(val)?;
+        Ok(())
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -151,7 +161,7 @@ impl
                 .get_connector_transaction_id()
                 .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
             "?entityId=",
-            auth.entity_id
+            auth.entity_id.peek()
         ))
     }
 
@@ -245,10 +255,17 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "v1/payments"))
+        match req.request.connector_mandate_id() {
+            Some(mandate_id) => Ok(format!(
+                "{}v1/registrations/{}/payments",
+                self.base_url(connectors),
+                mandate_id
+            )),
+            _ => Ok(format!("{}{}", self.base_url(connectors), "v1/payments")),
+        }
     }
 
     fn get_request_body(

@@ -108,10 +108,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest {
                     }),
                     order_id: item.payment_id.clone(),
                     three_dsecure: match item.auth_type {
-                        storage_models::enums::AuthenticationType::ThreeDs => {
+                        diesel_models::enums::AuthenticationType::ThreeDs => {
                             Some(ThreeDSecureReqData { force: true })
                         }
-                        storage_models::enums::AuthenticationType::NoThreeDs => None,
+                        diesel_models::enums::AuthenticationType::NoThreeDs => None,
                     },
                     callback_url: Some(item.request.get_router_return_url()?),
                     description: item.description.clone(),
@@ -191,9 +191,9 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for DlocalPaymentsCaptureRequest
 }
 // Auth Struct
 pub struct DlocalAuthType {
-    pub(super) x_login: String,
-    pub(super) x_trans_key: String,
-    pub(super) secret: String,
+    pub(super) x_login: Secret<String>,
+    pub(super) x_trans_key: Secret<String>,
+    pub(super) secret: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for DlocalAuthType {
@@ -206,9 +206,9 @@ impl TryFrom<&types::ConnectorAuthType> for DlocalAuthType {
         } = auth_type
         {
             Ok(Self {
-                x_login: api_key.to_string(),
-                x_trans_key: key1.to_string(),
-                secret: api_secret.to_string(),
+                x_login: api_key.to_owned(),
+                x_trans_key: key1.to_owned(),
+                secret: api_secret.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -274,6 +274,7 @@ impl<F, T>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            connector_response_reference_id: None,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
@@ -311,6 +312,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -345,6 +347,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -378,6 +381,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

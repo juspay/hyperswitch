@@ -11,9 +11,8 @@ use crate::{
     newtype,
     routes::AppState,
     types::{
-        api, domain,
+        api,
         storage::{self, enums as storage_enums},
-        transformers::ForeignInto,
     },
 };
 
@@ -24,20 +23,12 @@ newtype!(
 
 #[async_trait::async_trait]
 pub(crate) trait MandateResponseExt: Sized {
-    async fn from_db_mandate(
-        state: &AppState,
-        mandate: storage::Mandate,
-        merchant_account: &domain::MerchantAccount,
-    ) -> RouterResult<Self>;
+    async fn from_db_mandate(state: &AppState, mandate: storage::Mandate) -> RouterResult<Self>;
 }
 
 #[async_trait::async_trait]
 impl MandateResponseExt for MandateResponse {
-    async fn from_db_mandate(
-        state: &AppState,
-        mandate: storage::Mandate,
-        merchant_account: &domain::MerchantAccount,
-    ) -> RouterResult<Self> {
+    async fn from_db_mandate(state: &AppState, mandate: storage::Mandate) -> RouterResult<Self> {
         let db = &*state.store;
         let payment_method = db
             .find_payment_method(&mandate.payment_method_id)
@@ -50,11 +41,8 @@ impl MandateResponseExt for MandateResponse {
                 &payment_method.customer_id,
                 &payment_method.merchant_id,
                 &payment_method.payment_method_id,
-                merchant_account.locker_id.clone(),
             )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting card from card vault")?;
+            .await?;
             let card_detail = payment_methods::transformers::get_card_detail(&payment_method, card)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while getting card details")?;
@@ -78,7 +66,7 @@ impl MandateResponseExt for MandateResponse {
                 }),
             }),
             card,
-            status: mandate.mandate_status.foreign_into(),
+            status: mandate.mandate_status,
             payment_method: payment_method.payment_method.to_string(),
             payment_method_id: mandate.payment_method_id,
         })

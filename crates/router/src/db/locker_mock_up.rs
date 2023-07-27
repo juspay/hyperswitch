@@ -100,6 +100,7 @@ impl LockerMockUpInterface for MockDb {
             duplicate: None,
             card_cvc: new.card_cvc,
             payment_method_id: new.payment_method_id,
+            enc_card_data: new.enc_card_data,
         };
 
         locked_lockers.push(created_locker.clone());
@@ -152,6 +153,8 @@ mod tests {
                 card_cvc: Some("123".into()),
                 payment_method_id: Some("payment_method_id".into()),
                 customer_id: Some(locker_ids.customer_id),
+                nickname: Some("card_holder_nickname".into()),
+                enc_card_data: Some("enc_card_data".into()),
             }
         }
 

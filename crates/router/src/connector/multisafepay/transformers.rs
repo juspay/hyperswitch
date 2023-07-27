@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, CardData, RouterData},
+    connector::utils::{
+        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+    },
     core::errors,
     pii::Secret,
     services,
@@ -28,6 +30,8 @@ pub enum Gateway {
     MasterCard,
     Visa,
     Klarna,
+    Googlepay,
+    Paypal,
 }
 
 #[serde_with::skip_serializing_none]
@@ -63,8 +67,8 @@ pub struct Settings {
 pub struct PaymentOptions {
     pub notification_url: Option<String>,
     pub notification_method: Option<String>,
-    pub redirect_url: Option<String>,
-    pub cancel_url: Option<String>,
+    pub redirect_url: String,
+    pub cancel_url: String,
     pub close_window: Option<bool>,
     pub settings: Option<Settings>,
     pub template_id: Option<String>,
@@ -111,9 +115,8 @@ pub struct Customer {
     pub reference: Option<String>,
 }
 
-#[serde_with::skip_serializing_none]
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub struct GatewayInfo {
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct CardInfo {
     pub card_number: Option<cards::CardNumber>,
     pub card_holder_name: Option<Secret<String>>,
     pub card_expiry_date: Option<i32>,
@@ -121,7 +124,30 @@ pub struct GatewayInfo {
     pub flexible_3d: Option<bool>,
     pub moto: Option<bool>,
     pub term_url: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct GpayInfo {
+    pub payment_token: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct PayLaterInfo {
     pub email: Option<Email>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum GatewayInfo {
+    Card(CardInfo),
+    Wallet(WalletInfo),
+    PayLater(PayLaterInfo),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum WalletInfo {
+    GooglePay(GpayInfo),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -168,7 +194,7 @@ pub struct ShoppingCart {
 }
 
 #[serde_with::skip_serializing_none]
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct MultisafepayPaymentsRequest {
     #[serde(rename = "type")]
     pub payment_type: Type,
@@ -218,12 +244,26 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let payment_type = match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref _ccard) => Type::Direct,
+            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                api::WalletData::GooglePay(_) => Type::Direct,
+                api::WalletData::PaypalRedirect(_) => Type::Redirect,
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Payment method".to_string(),
+                ))?,
+            },
             api::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
             _ => Type::Redirect,
         };
 
         let gateway = match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref ccard) => Gateway::try_from(ccard.get_card_issuer()?)?,
+            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                api::WalletData::GooglePay(_) => Gateway::Googlepay,
+                api::WalletData::PaypalRedirect(_) => Gateway::Paypal,
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Payment method".to_string(),
+                ))?,
+            },
             api::PaymentMethodData::PayLater(
                 api_models::payments::PayLaterData::KlarnaRedirect {
                     billing_email: _,
@@ -237,8 +277,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
         let description = item.get_description()?;
         let payment_options = PaymentOptions {
             notification_url: None,
-            redirect_url: item.request.router_return_url.clone(),
-            cancel_url: None,
+            redirect_url: item.request.get_router_return_url()?,
+            cancel_url: item.request.get_router_return_url()?,
             close_window: None,
             notification_method: None,
             settings: None,
@@ -285,7 +325,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
         };
 
         let gateway_info = match item.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => GatewayInfo {
+            api::PaymentMethodData::Card(ref ccard) => Some(GatewayInfo::Card(CardInfo {
                 card_number: Some(ccard.card_number.clone()),
                 card_expiry_date: Some(
                     (format!(
@@ -301,26 +341,33 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                 flexible_3d: None,
                 moto: None,
                 term_url: None,
-                email: None,
+            })),
+            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                api::WalletData::GooglePay(ref google_pay) => {
+                    Some(GatewayInfo::Wallet(WalletInfo::GooglePay({
+                        GpayInfo {
+                            payment_token: Some(google_pay.tokenization_data.token.clone()),
+                        }
+                    })))
+                }
+                api::WalletData::PaypalRedirect(_) => None,
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Payment method".to_string(),
+                ))?,
             },
-            api::PaymentMethodData::PayLater(ref paylater) => GatewayInfo {
-                card_number: None,
-                card_expiry_date: None,
-                card_cvc: None,
-                card_holder_name: None,
-                flexible_3d: None,
-                moto: None,
-                term_url: None,
-                email: Some(match paylater {
-                    api_models::payments::PayLaterData::KlarnaRedirect {
-                        billing_email,
-                        billing_country: _,
-                    } => billing_email.clone(),
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Only KlarnaRedirect is implemented".to_string(),
-                    ))?,
-                }),
-            },
+            api::PaymentMethodData::PayLater(ref paylater) => {
+                Some(GatewayInfo::PayLater(PayLaterInfo {
+                    email: Some(match paylater {
+                        api_models::payments::PayLaterData::KlarnaRedirect {
+                            billing_email,
+                            ..
+                        } => billing_email.clone(),
+                        _ => Err(errors::ConnectorError::NotImplemented(
+                            "Payment method".to_string(),
+                        ))?,
+                    }),
+                }))
+            }
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method".to_string(),
             ))?,
@@ -336,7 +383,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             payment_options: Some(payment_options),
             customer: Some(customer),
             delivery: Some(delivery),
-            gateway_info: Some(gateway_info),
+            gateway_info,
             checkout_options: None,
             shopping_cart: None,
             capture: None,
@@ -369,7 +416,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
 
 // Auth Struct
 pub struct MultisafepayAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for MultisafepayAuthType {
@@ -377,7 +424,7 @@ impl TryFrom<&types::ConnectorAuthType> for MultisafepayAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
             Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: api_key.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -392,6 +439,7 @@ pub enum MultisafepayPaymentStatus {
     Declined,
     #[default]
     Initialized,
+    Void,
 }
 
 impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
@@ -400,6 +448,7 @@ impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
             MultisafepayPaymentStatus::Completed => Self::Charged,
             MultisafepayPaymentStatus::Declined => Self::Failure,
             MultisafepayPaymentStatus::Initialized => Self::AuthenticationPending,
+            MultisafepayPaymentStatus::Void => Self::Voided,
         }
     }
 }
@@ -486,6 +535,7 @@ impl<F, T>
                     }),
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -496,7 +546,7 @@ impl<F, T>
 // Type definition for RefundRequest
 #[derive(Debug, Serialize)]
 pub struct MultisafepayRefundRequest {
-    pub currency: storage_models::enums::Currency,
+    pub currency: diesel_models::enums::Currency,
     pub amount: i64,
     pub description: Option<String>,
     pub refund_order_id: Option<String>,

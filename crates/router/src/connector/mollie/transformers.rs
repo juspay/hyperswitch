@@ -1,14 +1,20 @@
 use api_models::payments;
+use cards::CardNumber;
+use common_utils::pii::Email;
+use diesel_models::enums;
 use error_stack::IntoReport;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
-use storage_models::enums;
 use url::Url;
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{
+        self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
+        RouterData,
+    },
     core::errors,
     services, types,
+    types::storage::enums as storage_enums,
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -27,7 +33,6 @@ pub struct MolliePaymentsRequest {
     metadata: Option<serde_json::Value>,
     sequence_type: SequenceType,
     mandate_id: Option<String>,
-    card_token: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -46,6 +51,10 @@ pub enum PaymentMethodData {
     Ideal(Box<IdealMethodData>),
     Paypal(Box<PaypalMethodData>),
     Sofort,
+    Przelewy24(Box<Przelewy24MethodData>),
+    Bancontact,
+    CreditCard(Box<CreditCardMethodData>),
+    DirectDebit(Box<DirectDebitMethodData>),
 }
 
 #[derive(Debug, Serialize)]
@@ -67,6 +76,27 @@ pub struct PaypalMethodData {
     shipping_address: Option<Address>,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Przelewy24MethodData {
+    billing_email: Option<Email>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectDebitMethodData {
+    consumer_name: Option<Secret<String>>,
+    consumer_account: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreditCardMethodData {
+    billing_address: Option<Address>,
+    shipping_address: Option<Address>,
+    card_token: Option<Secret<String>>,
+}
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SequenceType {
@@ -86,6 +116,10 @@ pub struct Address {
     pub country: api_models::enums::CountryAlpha2,
 }
 
+pub struct MollieBrowserInfo {
+    language: String,
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
     type Error = Error;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
@@ -96,12 +130,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
         let description = item.get_description()?;
         let redirect_url = item.request.get_return_url()?;
         let payment_method_data = match item.request.capture_method.unwrap_or_default() {
-            enums::CaptureMethod::Automatic => match item.request.payment_method_data {
+            enums::CaptureMethod::Automatic => match &item.request.payment_method_data {
+                api_models::payments::PaymentMethodData::Card(_) => Ok(
+                    PaymentMethodData::CreditCard(Box::new(CreditCardMethodData {
+                        billing_address: get_billing_details(item)?,
+                        shipping_address: get_shipping_details(item)?,
+                        card_token: Some(Secret::new(item.get_payment_method_token()?)),
+                    })),
+                ),
                 api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
                     PaymentMethodData::try_from(redirect_data)
                 }
                 api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => {
                     get_payment_method_for_wallet(item, wallet_data)
+                }
+                api_models::payments::PaymentMethodData::BankDebit(ref directdebit_data) => {
+                    PaymentMethodData::try_from(directdebit_data)
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     "Payment Method".to_string(),
@@ -130,7 +174,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
             metadata: None,
             sequence_type: SequenceType::Oneoff,
             mandate_id: None,
-            card_token: None,
         })
     }
 }
@@ -148,7 +191,84 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
                 })))
             }
             api_models::payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
+            api_models::payments::BankRedirectData::Przelewy24 {
+                billing_details, ..
+            } => Ok(Self::Przelewy24(Box::new(Przelewy24MethodData {
+                billing_email: billing_details.email.clone(),
+            }))),
+            api_models::payments::BankRedirectData::BancontactCard { .. } => Ok(Self::Bancontact),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::BankDebitData> for PaymentMethodData {
+    type Error = Error;
+    fn try_from(value: &api_models::payments::BankDebitData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::BankDebitData::SepaBankDebit {
+                bank_account_holder_name,
+                iban,
+                ..
+            } => Ok(Self::DirectDebit(Box::new(DirectDebitMethodData {
+                consumer_name: bank_account_holder_name.clone(),
+                consumer_account: iban.clone(),
+            }))),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MollieCardTokenRequest {
+    card_holder: Secret<String>,
+    card_number: CardNumber,
+    card_cvv: Secret<String>,
+    card_expiry_date: Secret<String>,
+    locale: String,
+    testmode: bool,
+    profile_token: Secret<String>,
+}
+
+impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data.clone() {
+            api_models::payments::PaymentMethodData::Card(ccard) => {
+                let auth = MollieAuthType::try_from(&item.connector_auth_type)?;
+                let card_holder = ccard.card_holder_name.clone();
+                let card_number = ccard.card_number.clone();
+                let card_expiry_date =
+                    ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned());
+                let card_cvv = ccard.card_cvc;
+                let browser_info = get_browser_info(item)?;
+                let locale = browser_info
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "browser_info.language",
+                    })?
+                    .language;
+                let testmode =
+                    item.test_mode
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "test_mode",
+                        })?;
+                let profile_token = auth
+                    .profile_token
+                    .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+                Ok(Self {
+                    card_holder,
+                    card_number,
+                    card_cvv,
+                    card_expiry_date,
+                    locale,
+                    testmode,
+                    profile_token,
+                })
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment Method".to_string(),
+            ))?,
         }
     }
 }
@@ -219,6 +339,24 @@ fn get_address_details(
         None => None,
     };
     Ok(address_details)
+}
+
+fn get_browser_info(
+    item: &types::TokenizationRouterData,
+) -> Result<Option<MollieBrowserInfo>, error_stack::Report<errors::ConnectorError>> {
+    if matches!(item.auth_type, enums::AuthenticationType::ThreeDs) {
+        item.request
+            .browser_info
+            .as_ref()
+            .map(|info| {
+                Ok(MollieBrowserInfo {
+                    language: info.get_language()?,
+                })
+            })
+            .transpose()
+    } else {
+        Ok(None)
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -297,19 +435,49 @@ pub struct BankDetails {
 }
 
 pub struct MollieAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) profile_token: Option<Secret<String>>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for MollieAuthType {
     type Error = Error;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
-            Ok(Self {
-                api_key: api_key.to_string(),
-            })
-        } else {
-            Err(errors::ConnectorError::FailedToObtainAuthType.into())
+        match auth_type {
+            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+                api_key: api_key.to_owned(),
+                profile_token: None,
+            }),
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                api_key: api_key.to_owned(),
+                profile_token: Some(key1.to_owned()),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MollieCardTokenResponse {
+    card_token: Secret<String>,
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, MollieCardTokenResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, MollieCardTokenResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: storage_enums::AttemptStatus::Pending,
+            payment_method_token: Some(item.response.card_token.clone().expose()),
+            response: Ok(types::PaymentsResponseData::TokenizationResponse {
+                token: item.response.card_token.expose(),
+            }),
+            ..item.data
+        })
     }
 }
 
@@ -334,6 +502,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
