@@ -106,7 +106,7 @@ impl ConnectorCommon for Stax {
             reason: Some(
                 std::str::from_utf8(&res.response)
                     .into_report()
-                    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
                     .to_owned(),
             ),
         })

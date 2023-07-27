@@ -1,6 +1,6 @@
 use common_utils::pii::Email;
 use error_stack::IntoReport;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -72,7 +72,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for StaxCustomerRequest {
     fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
         if item.request.email.is_none() && item.request.name.is_none() {
             Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "email or firstname",
+                field_name: "email or name",
             })
             .into_report()
         } else {
@@ -170,26 +170,26 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, StaxTokenResponse, T, types::Pay
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
-                token: item.response.id.peek().to_string(),
+                token: item.response.id.expose(),
             }),
             ..item.data
         })
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StaxPaymentResponseTypes {
     Charge,
     PreAuth,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct StaxChildCapture {
     id: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct StaxPaymentsResponse {
     success: bool,
     id: String,
@@ -200,7 +200,7 @@ pub struct StaxPaymentsResponse {
     payment_response_type: StaxPaymentResponseTypes,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct StaxMetaData {
     pub capture_id: String,
 }
@@ -281,12 +281,12 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for StaxRefundRequest {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct ChildTransactionsInResponse {
     id: String,
     success: bool,
 }
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct RefundResponse {
     id: String,
     success: bool,
@@ -300,22 +300,19 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let (connector_refund_id, refund_status) = item.response.child_transactions.first().map_or(
-            ("".to_string(), enums::RefundStatus::Failure),
-            |child_transaction| {
-                (
-                    child_transaction.id.clone(),
-                    match child_transaction.success {
-                        true => enums::RefundStatus::Success,
-                        false => enums::RefundStatus::Failure,
-                    },
-                )
-            },
-        );
+        let refund_txn = item
+            .response
+            .child_transactions
+            .first()
+            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+        let refund_status = match refund_txn.success {
+            true => enums::RefundStatus::Success,
+            false => enums::RefundStatus::Failure,
+        };
 
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id,
+                connector_refund_id: refund_txn.id.clone(),
                 refund_status,
             }),
             ..item.data
