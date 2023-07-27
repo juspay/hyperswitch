@@ -24,21 +24,21 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait PubSubInterface {
-    async fn subscribe(&self, channel: &str) -> CustomResult<(), redis_errors::RedisError>;
+    async fn subscribe(&self, channel: &str) -> errors::CustomResult<(), redis_errors::RedisError>;
 
     async fn publish<'a>(
         &self,
         channel: &str,
         key: CacheKind<'a>,
-    ) -> CustomResult<usize, redis_errors::RedisError>;
+    ) -> errors::CustomResult<usize, redis_errors::RedisError>;
 
-    async fn on_message(&self) -> CustomResult<(), redis_errors::RedisError>;
+    async fn on_message(&self) -> errors::CustomResult<(), redis_errors::RedisError>;
 }
 
 #[async_trait::async_trait]
 impl PubSubInterface for redis_interface::RedisConnectionPool {
     #[inline]
-    async fn subscribe(&self, channel: &str) -> CustomResult<(), redis_errors::RedisError> {
+    async fn subscribe(&self, channel: &str) -> errors::CustomResult<(), redis_errors::RedisError> {
         // Spawns a task that will automatically re-subscribe to any channels or channel patterns used by the client.
         self.subscriber.manage_subscriptions();
 
@@ -54,7 +54,7 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
         &self,
         channel: &str,
         key: CacheKind<'a>,
-    ) -> CustomResult<usize, redis_errors::RedisError> {
+    ) -> errors::CustomResult<usize, redis_errors::RedisError> {
         self.publisher
             .publish(channel, RedisValue::from(key).into_inner())
             .await
@@ -63,7 +63,7 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
     }
 
     #[inline]
-    async fn on_message(&self) -> CustomResult<(), redis_errors::RedisError> {
+    async fn on_message(&self) -> errors::CustomResult<(), redis_errors::RedisError> {
         logger::debug!("Started on message");
         let mut rx = self.subscriber.on_message();
         while let Ok(message) = rx.recv().await {
@@ -203,7 +203,8 @@ impl Store {
 
     pub fn redis_conn(
         &self,
-    ) -> CustomResult<Arc<redis_interface::RedisConnectionPool>, redis_errors::RedisError> {
+    ) -> errors::CustomResult<Arc<redis_interface::RedisConnectionPool>, redis_errors::RedisError>
+    {
         if self
             .redis_conn
             .is_redis_available
@@ -220,7 +221,7 @@ impl Store {
         &self,
         redis_entry: storage_models::kv::TypedSql,
         partition_key: crate::utils::storage_partitioning::PartitionKey<'_>,
-    ) -> CustomResult<(), crate::core::errors::StorageError>
+    ) -> crate::core::errors::CustomResult<(), crate::core::errors::StorageError>
     where
         T: crate::utils::storage_partitioning::KvStorePartition,
     {
@@ -262,7 +263,7 @@ async fn get_master_enc_key(
 }
 
 #[inline]
-pub fn generate_aes256_key() -> CustomResult<[u8; 32], common_utils::errors::CryptoError> {
+pub fn generate_aes256_key() -> errors::CustomResult<[u8; 32], common_utils::errors::CryptoError> {
     use ring::rand::SecureRandom;
 
     let rng = ring::rand::SystemRandom::new();
