@@ -721,6 +721,7 @@ pub enum PaymentMethodData {
     MandatePayment,
     Reward(RewardData),
     Upi(UpiData),
+    Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
 }
 
@@ -764,6 +765,7 @@ pub enum AdditionalPaymentData {
     MandatePayment {},
     Reward {},
     Upi {},
+    Voucher {},
     GiftCard {},
 }
 
@@ -965,6 +967,7 @@ pub enum BankTransferData {
         billing_details: MultibancoBillingDetails,
     },
     Pix {},
+    Pse {},
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
@@ -1178,6 +1181,23 @@ pub struct RewardData {
     pub merchant_id: String,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BoletoVoucherData {
+    /// The shopper's social security number
+    #[schema(value_type = Option<String>)]
+    social_security_number: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VoucherData {
+    Boleto(Box<BoletoVoucherData>),
+    Efecty,
+    PagoEfectivo,
+    RedCompra,
+    RedPagos,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodDataResponse {
@@ -1193,6 +1213,7 @@ pub enum PaymentMethodDataResponse {
     MandatePayment,
     Reward,
     Upi,
+    Voucher,
     GiftCard,
 }
 
@@ -1345,12 +1366,8 @@ pub enum NextActionData {
     ThirdPartySdkSessionToken { session_token: Option<SessionToken> },
     /// Contains url for Qr code image, this qr code has to be shown in sdk
     QrCodeInformation {
-        /// Hyperswitch generated image data source url
         #[schema(value_type = String)]
-        image_data_url: Option<Url>,
-        /// The url for Qr code given by the connector
-        #[schema(value_type = String)]
-        qr_code_url: Option<Url>,
+        image_data_url: Url,
     },
 }
 
@@ -1365,10 +1382,7 @@ pub struct BankTransferNextStepsData {
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct QrCodeNextStepsInstruction {
-    /// Hyperswitch generated image data source url
-    pub image_data_url: Option<Url>,
-    /// The url for Qr code given by the connector
-    pub qr_code_url: Option<Url>,
+    pub image_data_url: Url,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1723,25 +1737,38 @@ pub struct PaymentListResponse {
     pub data: Vec<PaymentsResponse>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentListFilterConstraints {
+    /// The identifier for payment
+    pub payment_id: Option<String>,
+    /// The starting point within a list of objects, limit on number of object will be some constant for join query
+    pub offset: Option<i64>,
+    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
+    #[serde(flatten)]
+    pub time_range: Option<TimeRange>,
+    /// The list of connectors to filter payments list
+    pub connector: Option<Vec<String>>,
+    /// The list of currencies to filter payments list
+    pub currency: Option<Vec<enums::Currency>>,
+    /// The list of payment statuses to filter payments list
+    pub status: Option<Vec<enums::IntentStatus>>,
+    /// The list of payment methods to filter payments list
+    pub payment_methods: Option<Vec<enums::PaymentMethod>>,
+}
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
     /// The list of available connector filters
-    #[schema(value_type = Vec<api_enums::Connector>)]
     pub connector: Vec<String>,
     /// The list of available currency filters
-    #[schema(value_type = Vec<Currency>)]
     pub currency: Vec<enums::Currency>,
     /// The list of available payment status filters
-    #[schema(value_type = Vec<IntentStatus>)]
     pub status: Vec<enums::IntentStatus>,
     /// The list of available payment method filters
-    #[schema(value_type = Vec<PaymentMethod>)]
     pub payment_method: Vec<enums::PaymentMethod>,
 }
 
-#[derive(
-    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
-)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
 pub struct TimeRange {
     /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -1870,6 +1897,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::Reward {} => Self::Reward,
             AdditionalPaymentData::Upi {} => Self::Upi,
             AdditionalPaymentData::BankTransfer {} => Self::BankTransfer,
+            AdditionalPaymentData::Voucher {} => Self::Voucher,
             AdditionalPaymentData::GiftCard {} => Self::GiftCard,
         }
     }

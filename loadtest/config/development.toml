@@ -107,10 +107,11 @@ tsys.base_url = "https://stagegw.transnox.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
+zen.secondary_base_url = "https://secure.zen-test.com/"
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
-rewards = ["cashtocode",]
+rewards = ["cashtocode", "zen"]
 cards = [
     "aci",
     "adyen",
@@ -155,6 +156,18 @@ cards = [
     "worldpay",
     "zen",
 ]
+
+[pm_filters.zen]
+credit = { not_available_flows = { capture_method = "manual" } }
+debit = { not_available_flows = { capture_method = "manual" } }
+boleto = { country = "BR", currency = "BRL" }
+efecty = { country = "CO", currency = "COP" }
+multibanco = { country = "PT", currency = "EUR" }
+pago_efectivo = { country = "PE", currency = "PEN" }
+pse = { country = "CO", currency = "COP" }
+pix = { country = "BR", currency = "BRL" }
+red_compra = { country = "CL", currency = "CLP" }
+red_pagos = { country = "UY", currency = "UYU" }
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
