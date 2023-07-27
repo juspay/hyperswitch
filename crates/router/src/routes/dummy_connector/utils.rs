@@ -94,14 +94,17 @@ pub fn get_authorize_page(
                     div.border {}
                     img src=(connector_image) {}
                 }
-                (maud::PreEscaped(format!(r#"
-                <p class="disclaimer">
-                    This is a test payment of <span id="amount"></span> {} using {}
-                    <script>
-                        document.getElementById("amount").innerHTML = ({} / 100).toFixed(2);
-                    </script>
-                </p>
-                "#, currency, mode, payment_data.amount)))
+                (maud::PreEscaped(
+                    format!(r#"
+                        <p class="disclaimer">
+                            This is a test payment of <span id="amount"></span> {} using {}
+                            <script>
+                                document.getElementById("amount").innerHTML = ({} / 100).toFixed(2);
+                            </script>
+                        </p>
+                        "#, currency, mode, payment_data.amount)
+                    )
+                )
                 p { b { "Real money will not be debited for the payment." } " You can choose to simulate successful or failed payment while testing this payment."}
                 div.user_action {
                     button.authorize  onclick=(format!("window.location.href='{}?confirm=true'", return_url)) 
