@@ -1266,9 +1266,7 @@ fn get_social_security_number(
     voucher_data: &api_models::payments::VoucherData,
 ) -> Option<Secret<String>> {
     match voucher_data {
-        payments::VoucherData::Boleto(boleto_data) => {
-            boleto_data.social_security_number.clone()
-        },
+        payments::VoucherData::Boleto(boleto_data) => boleto_data.social_security_number.clone(),
         _ => None,
     }
 }
@@ -1336,11 +1334,11 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
     type Error = Error;
     fn try_from(voucher_data: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
         match voucher_data {
-            payments::VoucherData::Boleto { .. } => Ok(AdyenPaymentMethod::Boleto(
-                Box::new(AdyenVoucherData {
+            payments::VoucherData::Boleto { .. } => {
+                Ok(AdyenPaymentMethod::Boleto(Box::new(AdyenVoucherData {
                     payment_type: PaymentType::Boleto,
-                }),
-            )),
+                })))
+            }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
