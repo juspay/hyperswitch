@@ -8,6 +8,7 @@ use common_utils::{
     pii::{IpAddress, SecretSerdeValue},
 };
 use error_stack::{IntoReport, ResultExt};
+use masking::SwitchStrategy;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -15,7 +16,7 @@ use crate::{
     compatibility::stripe::refunds::types as stripe_refunds,
     consts,
     core::errors,
-    pii::{Email, PeekInterface},
+    pii::{Email, PeekInterface, UpiVpaMaskingStrategy},
     types::{
         api::{admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignTryFrom},
@@ -62,7 +63,7 @@ pub enum StripeWallet {
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct StripeUpi {
-    pub vpa_id: masking::Secret<String>,
+    pub vpa_id: masking::Secret<String, UpiVpaMaskingStrategy>,
 }
 
 #[derive(Debug, Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -131,7 +132,7 @@ impl From<StripeWallet> for payments::WalletData {
 impl From<StripeUpi> for payments::UpiData {
     fn from(upi: StripeUpi) -> Self {
         Self {
-            vpa_id: Some(upi.vpa_id),
+            vpa_id: Some(upi.vpa_id.switch_strategy()),
         }
     }
 }
