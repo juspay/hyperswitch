@@ -1550,7 +1550,6 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::BriVa => Self::BankTransfer,
             PaymentMethodType::Bizum => Self::BankRedirect,
             PaymentMethodType::Blik => Self::BankRedirect,
-            PaymentMethodType::BoletoBancario => Self::Voucher,
             PaymentMethodType::Alfamart => Self::Voucher,
             PaymentMethodType::CimbVa => Self::BankTransfer,
             PaymentMethodType::ClassicReward => Self::Reward,

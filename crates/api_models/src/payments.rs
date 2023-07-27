@@ -733,7 +733,6 @@ pub struct GiftCardData {
     /// The card verification code.
     #[schema(value_type = String)]
     pub cvc: Secret<String>,
-    Voucher(VoucherData),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -766,7 +765,6 @@ pub enum AdditionalPaymentData {
     MandatePayment {},
     Reward {},
     Upi {},
-    Voucher {},
     GiftCard {},
     Voucher {},
 }
@@ -892,36 +890,30 @@ pub enum BankRedirectData {
     },
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum VoucherData {
-    BoletoBancario {
-        /// The shopper's social security number
-        #[schema(value_type = String)]
-        social_security_number: Secret<String>,
-    },
-    Alfamart {
-        /// The billing first name for Alfamart
-        #[schema(value_type = String, example = "Jane")]
-        first_name: Secret<String>,
-        /// The billing second name for Alfamart
-        #[schema(value_type = String, example = "Doe")]
-        last_name: Option<Secret<String>>,
-        /// The Email ID for Alfamart
-        #[schema(value_type = String, example = "example@me.com")]
-        email: Email,
-    },
-    Indomaret {
-        /// The billing first name for Alfamart
-        #[schema(value_type = String, example = "Jane")]
-        first_name: Secret<String>,
-        /// The billing second name for Alfamart
-        #[schema(value_type = String, example = "Doe")]
-        last_name: Option<Secret<String>>,
-        /// The Email ID for Alfamart
-        #[schema(value_type = String, example = "example@me.com")]
-        email: Email,
-    },
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AlfamartVoucherData {
+    /// The billing first name for Alfamart
+    #[schema(value_type = String, example = "Jane")]
+    pub first_name: Secret<String>,
+    /// The billing second name for Alfamart
+    #[schema(value_type = String, example = "Doe")]
+    pub last_name: Option<Secret<String>>,
+    /// The Email ID for Alfamart
+    #[schema(value_type = String, example = "example@me.com")]
+    pub email: Email,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct IndomaretVoucherData {
+    /// The billing first name for Alfamart
+    #[schema(value_type = String, example = "Jane")]
+    pub first_name: Secret<String>,
+    /// The billing second name for Alfamart
+    #[schema(value_type = String, example = "Doe")]
+    pub last_name: Option<Secret<String>>,
+    /// The Email ID for Alfamart
+    #[schema(value_type = String, example = "example@me.com")]
+    pub email: Email,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1260,17 +1252,19 @@ pub struct RewardData {
 pub struct BoletoVoucherData {
     /// The shopper's social security number
     #[schema(value_type = Option<String>)]
-    social_security_number: Option<Secret<String>>,
+    pub social_security_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum VoucherData {
-    Boleto(Box<BoletoVoucherData>),
+    Boleto(BoletoVoucherData),
     Efecty,
     PagoEfectivo,
     RedCompra,
     RedPagos,
+    Alfamart(AlfamartVoucherData),
+    Indomaret(IndomaretVoucherData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1445,11 +1439,6 @@ pub enum NextActionData {
         image_data_url: Url,
     },
     // Contains the download url and the reference number for transaction
-    DisplayVoucherInformation {
-        #[schema(value_type = String)]
-        voucher_details: VoucherNextStepData,
-    },
-    /// Contains the download url and the reference number for transaction
     DisplayVoucherInformation {
         #[schema(value_type = String)]
         voucher_details: VoucherNextStepData,

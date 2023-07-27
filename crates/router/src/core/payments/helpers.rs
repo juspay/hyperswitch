@@ -1282,7 +1282,6 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::Voucher(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Reward(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::GiftCard(_)), _) => Ok(pm.to_owned()),
-        (pm @ Some(api::PaymentMethodData::Voucher(_)), _) => Ok(pm.to_owned()),
         (pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
                 state,
@@ -1433,8 +1432,14 @@ pub(crate) fn validate_payment_method_fields_present(
                     api_enums::PaymentMethod::BankDebit,
                     api::PaymentMethodData::BankDebit(..)
                 ) | (
+                    api_enums::PaymentMethod::BankTransfer,
+                    api::PaymentMethodData::BankTransfer(..)
+                ) | (
                     api_enums::PaymentMethod::Crypto,
                     api::PaymentMethodData::Crypto(..)
+                ) | (
+                    api_enums::PaymentMethod::Voucher,
+                    api::PaymentMethodData::Voucher(..)
                 )
             ) | None
         ),
