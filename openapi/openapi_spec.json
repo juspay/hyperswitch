@@ -6590,7 +6590,6 @@
           },
           {
             "type": "object",
-            "description": "Contains the download url and the reference number for transaction",
             "required": [
               "voucher_details",
               "type"
@@ -7356,6 +7355,28 @@
                 "$ref": "#/components/schemas/UpiData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "voucher"
+            ],
+            "properties": {
+              "voucher": {
+                "$ref": "#/components/schemas/VoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "gift_card"
+            ],
+            "properties": {
+              "gift_card": {
+                "$ref": "#/components/schemas/GiftCardData"
+              }
+            }
           }
         ]
       },
@@ -7550,6 +7571,12 @@
           "bancontact_card",
           "becs",
           "bizum",
+          "blik",
+          "boleto",
+          "bca_bank_transfer",
+          "bni_va",
+          "bri_va",
+          "cimb_va",
           "classic",
           "credit",
           "crypto_currency",
@@ -7579,6 +7606,8 @@
           "online_banking_fpx",
           "online_banking_poland",
           "online_banking_slovakia",
+          "pago_efectivo",
+          "permata_bank_transfer",
           "pay_bright",
           "paypal",
           "pix",
@@ -10157,6 +10186,67 @@
             "nullable": true
           }
         }
+      },
+      "VoucherData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "boleto"
+            ],
+            "properties": {
+              "boleto": {
+                "$ref": "#/components/schemas/BoletoVoucherData"
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "efecty"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "pago_efectivo"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "red_compra"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "red_pagos"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "alfamart"
+            ],
+            "properties": {
+              "alfamart": {
+                "$ref": "#/components/schemas/AlfamartVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "indomaret"
+            ],
+            "properties": {
+              "indomaret": {
+                "$ref": "#/components/schemas/IndomaretVoucherData"
+              }
+            }
+          }
+        ]
       },
       "WalletData": {
         "oneOf": [
