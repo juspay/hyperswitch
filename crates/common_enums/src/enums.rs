@@ -176,6 +176,7 @@ pub enum Currency {
     BBD,
     BDT,
     BHD,
+    BIF,
     BMD,
     BND,
     BOB,
@@ -185,11 +186,13 @@ pub enum Currency {
     BZD,
     CAD,
     CHF,
+    CLP,
     CNY,
     COP,
     CRC,
     CUP,
     CZK,
+    DJF,
     DKK,
     DOP,
     DZD,
@@ -201,6 +204,7 @@ pub enum Currency {
     GHS,
     GIP,
     GMD,
+    GNF,
     GTQ,
     GYD,
     HKD,
@@ -217,6 +221,7 @@ pub enum Currency {
     KES,
     KGS,
     KHR,
+    KMF,
     KRW,
     KWD,
     KYD,
@@ -228,6 +233,7 @@ pub enum Currency {
     LSL,
     MAD,
     MDL,
+    MGA,
     MKD,
     MMK,
     MNT,
@@ -249,9 +255,11 @@ pub enum Currency {
     PHP,
     PKR,
     PLN,
+    PYG,
     QAR,
     RON,
     RUB,
+    RWF,
     SAR,
     SCR,
     SEK,
@@ -266,11 +274,16 @@ pub enum Currency {
     TTD,
     TWD,
     TZS,
+    UGX,
     #[default]
     USD,
     UYU,
     UZS,
     VND,
+    VUV,
+    XAF,
+    XOF,
+    XPF,
     YER,
     ZAR,
 }
@@ -289,6 +302,7 @@ impl Currency {
             Self::BBD => "052",
             Self::BDT => "050",
             Self::BHD => "048",
+            Self::BIF => "108",
             Self::BMD => "060",
             Self::BND => "096",
             Self::BOB => "068",
@@ -298,10 +312,12 @@ impl Currency {
             Self::BZD => "084",
             Self::CAD => "124",
             Self::CHF => "756",
+            Self::CLP => "152",
             Self::COP => "170",
             Self::CRC => "188",
             Self::CUP => "192",
             Self::CZK => "203",
+            Self::DJF => "262",
             Self::DKK => "208",
             Self::DOP => "214",
             Self::DZD => "012",
@@ -313,6 +329,7 @@ impl Currency {
             Self::GHS => "936",
             Self::GIP => "292",
             Self::GMD => "270",
+            Self::GNF => "324",
             Self::GTQ => "320",
             Self::GYD => "328",
             Self::HKD => "344",
@@ -329,6 +346,7 @@ impl Currency {
             Self::KES => "404",
             Self::KGS => "417",
             Self::KHR => "116",
+            Self::KMF => "174",
             Self::KRW => "410",
             Self::KWD => "414",
             Self::KYD => "136",
@@ -340,6 +358,7 @@ impl Currency {
             Self::LSL => "426",
             Self::MAD => "504",
             Self::MDL => "498",
+            Self::MGA => "969",
             Self::MKD => "807",
             Self::MMK => "104",
             Self::MNT => "496",
@@ -361,10 +380,12 @@ impl Currency {
             Self::PHP => "608",
             Self::PKR => "586",
             Self::PLN => "985",
+            Self::PYG => "600",
             Self::QAR => "634",
             Self::RON => "946",
             Self::CNY => "156",
             Self::RUB => "643",
+            Self::RWF => "646",
             Self::SAR => "682",
             Self::SCR => "690",
             Self::SEK => "752",
@@ -379,12 +400,264 @@ impl Currency {
             Self::TTD => "780",
             Self::TWD => "901",
             Self::TZS => "834",
+            Self::UGX => "800",
             Self::USD => "840",
             Self::UYU => "858",
             Self::UZS => "860",
             Self::VND => "704",
+            Self::VUV => "548",
+            Self::XAF => "950",
+            Self::XOF => "952",
+            Self::XPF => "953",
             Self::YER => "886",
             Self::ZAR => "710",
+        }
+    }
+
+    pub fn is_zero_decimal_currency(self) -> bool {
+        match self {
+            Self::BIF
+            | Self::CLP
+            | Self::DJF
+            | Self::GNF
+            | Self::JPY
+            | Self::KMF
+            | Self::KRW
+            | Self::MGA
+            | Self::PYG
+            | Self::RWF
+            | Self::UGX
+            | Self::VND
+            | Self::VUV
+            | Self::XAF
+            | Self::XOF
+            | Self::XPF => true,
+            Self::AED
+            | Self::ALL
+            | Self::AMD
+            | Self::ANG
+            | Self::ARS
+            | Self::AUD
+            | Self::AWG
+            | Self::AZN
+            | Self::BBD
+            | Self::BDT
+            | Self::BHD
+            | Self::BMD
+            | Self::BND
+            | Self::BOB
+            | Self::BRL
+            | Self::BSD
+            | Self::BWP
+            | Self::BZD
+            | Self::CAD
+            | Self::CHF
+            | Self::CNY
+            | Self::COP
+            | Self::CRC
+            | Self::CUP
+            | Self::CZK
+            | Self::DKK
+            | Self::DOP
+            | Self::DZD
+            | Self::EGP
+            | Self::ETB
+            | Self::EUR
+            | Self::FJD
+            | Self::GBP
+            | Self::GHS
+            | Self::GIP
+            | Self::GMD
+            | Self::GTQ
+            | Self::GYD
+            | Self::HKD
+            | Self::HNL
+            | Self::HRK
+            | Self::HTG
+            | Self::HUF
+            | Self::IDR
+            | Self::ILS
+            | Self::INR
+            | Self::JMD
+            | Self::JOD
+            | Self::KES
+            | Self::KGS
+            | Self::KHR
+            | Self::KWD
+            | Self::KYD
+            | Self::KZT
+            | Self::LAK
+            | Self::LBP
+            | Self::LKR
+            | Self::LRD
+            | Self::LSL
+            | Self::MAD
+            | Self::MDL
+            | Self::MKD
+            | Self::MMK
+            | Self::MNT
+            | Self::MOP
+            | Self::MUR
+            | Self::MVR
+            | Self::MWK
+            | Self::MXN
+            | Self::MYR
+            | Self::NAD
+            | Self::NGN
+            | Self::NIO
+            | Self::NOK
+            | Self::NPR
+            | Self::NZD
+            | Self::OMR
+            | Self::PEN
+            | Self::PGK
+            | Self::PHP
+            | Self::PKR
+            | Self::PLN
+            | Self::QAR
+            | Self::RON
+            | Self::RUB
+            | Self::SAR
+            | Self::SCR
+            | Self::SEK
+            | Self::SGD
+            | Self::SLL
+            | Self::SOS
+            | Self::SSP
+            | Self::SVC
+            | Self::SZL
+            | Self::THB
+            | Self::TRY
+            | Self::TTD
+            | Self::TWD
+            | Self::TZS
+            | Self::USD
+            | Self::UYU
+            | Self::UZS
+            | Self::YER
+            | Self::ZAR => false,
+        }
+    }
+
+    pub fn is_three_decimal_currency(self) -> bool {
+        match self {
+            Self::BHD | Self::JOD | Self::KWD | Self::OMR => true,
+            Self::AED
+            | Self::ALL
+            | Self::AMD
+            | Self::ANG
+            | Self::ARS
+            | Self::AUD
+            | Self::AWG
+            | Self::AZN
+            | Self::BBD
+            | Self::BDT
+            | Self::BIF
+            | Self::BMD
+            | Self::BND
+            | Self::BOB
+            | Self::BRL
+            | Self::BSD
+            | Self::BWP
+            | Self::BZD
+            | Self::CAD
+            | Self::CHF
+            | Self::CLP
+            | Self::CNY
+            | Self::COP
+            | Self::CRC
+            | Self::CUP
+            | Self::CZK
+            | Self::DJF
+            | Self::DKK
+            | Self::DOP
+            | Self::DZD
+            | Self::EGP
+            | Self::ETB
+            | Self::EUR
+            | Self::FJD
+            | Self::GBP
+            | Self::GHS
+            | Self::GIP
+            | Self::GMD
+            | Self::GNF
+            | Self::GTQ
+            | Self::GYD
+            | Self::HKD
+            | Self::HNL
+            | Self::HRK
+            | Self::HTG
+            | Self::HUF
+            | Self::IDR
+            | Self::ILS
+            | Self::INR
+            | Self::JMD
+            | Self::JPY
+            | Self::KES
+            | Self::KGS
+            | Self::KHR
+            | Self::KMF
+            | Self::KRW
+            | Self::KYD
+            | Self::KZT
+            | Self::LAK
+            | Self::LBP
+            | Self::LKR
+            | Self::LRD
+            | Self::LSL
+            | Self::MAD
+            | Self::MDL
+            | Self::MGA
+            | Self::MKD
+            | Self::MMK
+            | Self::MNT
+            | Self::MOP
+            | Self::MUR
+            | Self::MVR
+            | Self::MWK
+            | Self::MXN
+            | Self::MYR
+            | Self::NAD
+            | Self::NGN
+            | Self::NIO
+            | Self::NOK
+            | Self::NPR
+            | Self::NZD
+            | Self::PEN
+            | Self::PGK
+            | Self::PHP
+            | Self::PKR
+            | Self::PLN
+            | Self::PYG
+            | Self::QAR
+            | Self::RON
+            | Self::RUB
+            | Self::RWF
+            | Self::SAR
+            | Self::SCR
+            | Self::SEK
+            | Self::SGD
+            | Self::SLL
+            | Self::SOS
+            | Self::SSP
+            | Self::SVC
+            | Self::SZL
+            | Self::THB
+            | Self::TRY
+            | Self::TTD
+            | Self::TWD
+            | Self::TZS
+            | Self::UGX
+            | Self::USD
+            | Self::UYU
+            | Self::UZS
+            | Self::VND
+            | Self::VUV
+            | Self::XAF
+            | Self::XPF
+            | Self::XOF
+            | Self::YER
+            | Self::ZAR => false,
         }
     }
 }
@@ -563,14 +836,16 @@ pub enum PaymentMethodType {
     Bacs,
     BancontactCard,
     Becs,
-    Blik,
     Bizum,
+    Blik,
+    Boleto,
     #[serde(rename = "classic")]
     ClassicReward,
     Credit,
     CryptoCurrency,
     Dana,
     Debit,
+    Efecty,
     Eps,
     Evoucher,
     Giropay,
@@ -591,9 +866,14 @@ pub enum PaymentMethodType {
     OnlineBankingFpx,
     OnlineBankingPoland,
     OnlineBankingSlovakia,
+    PagoEfectivo,
     PayBright,
     Paypal,
+    Pix,
     Przelewy24,
+    Pse,
+    RedCompra,
+    RedPagos,
     SamsungPay,
     Sepa,
     Sofort,
@@ -637,6 +917,7 @@ pub enum PaymentMethod {
     BankDebit,
     Reward,
     Upi,
+    Voucher,
 }
 
 #[derive(

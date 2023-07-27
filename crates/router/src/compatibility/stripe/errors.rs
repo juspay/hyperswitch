@@ -79,6 +79,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such config")]
     ConfigNotFound,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "duplicate_resource", message = "Duplicate config")]
+    DuplicateConfig,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment")]
     PaymentNotFound,
 
@@ -87,6 +90,9 @@ pub enum StripeErrorCode {
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "{message}")]
     GenericNotFoundError { message: String },
+
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "duplicate_resource", message = "{message}")]
+    GenericDuplicateError { message: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such merchant account")]
     MerchantAccountNotFound,
@@ -408,6 +414,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::GenericNotFoundError { message } => {
                 Self::GenericNotFoundError { message }
             }
+            errors::ApiErrorResponse::GenericDuplicateError { message } => {
+                Self::GenericDuplicateError { message }
+            }
             // parameter unknown, invalid request error // actually if we type wrong values in address we get this error. Stripe throws parameter unknown. I don't know if stripe is validating email and stuff
             errors::ApiErrorResponse::InvalidDataFormat {
                 field_name,
@@ -460,6 +469,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::MandateActive => Self::MandateActive, //not a stripe code
             errors::ApiErrorResponse::CustomerRedacted => Self::CustomerRedacted, //not a stripe code
             errors::ApiErrorResponse::ConfigNotFound => Self::ConfigNotFound, // not a stripe code
+            errors::ApiErrorResponse::DuplicateConfig => Self::DuplicateConfig, // not a stripe code
             errors::ApiErrorResponse::DuplicateRefundRequest => Self::DuplicateRefundRequest,
             errors::ApiErrorResponse::DuplicatePayout { payout_id } => {
                 Self::DuplicatePayout { payout_id }
@@ -575,6 +585,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::RefundNotFound
             | Self::CustomerNotFound
             | Self::ConfigNotFound
+            | Self::DuplicateConfig
             | Self::ClientSecretNotFound
             | Self::PaymentNotFound
             | Self::PaymentMethodNotFound
@@ -602,6 +613,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentIntentMandateInvalid { .. }
             | Self::PaymentIntentUnexpectedState { .. }
             | Self::DuplicatePayment { .. }
+            | Self::GenericDuplicateError { .. }
             | Self::IncorrectConnectorNameGiven
             | Self::ResourceMissing { .. }
             | Self::FileValidationFailed

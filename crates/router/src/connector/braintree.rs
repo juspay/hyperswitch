@@ -3,6 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 
 use self::transformers as braintree;
 use crate::{
@@ -31,6 +32,14 @@ impl ConnectorCommon for Braintree {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.braintree.base_url.as_ref()
+    }
+
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        braintree::BraintreeAuthType::try_from(val)?;
+        Ok(())
     }
 
     fn get_auth_header(
@@ -111,7 +120,7 @@ impl
         Ok(format!(
             "{}/merchants/{}/client_token",
             self.base_url(connectors),
-            auth_type.merchant_id,
+            auth_type.merchant_id.peek(),
         ))
     }
 
@@ -265,7 +274,7 @@ impl
         Ok(format!(
             "{}/merchants/{}/transactions/{}",
             self.base_url(connectors),
-            auth_type.merchant_id,
+            auth_type.merchant_id.peek(),
             connector_payment_id
         ))
     }
@@ -369,7 +378,7 @@ impl
         Ok(format!(
             "{}merchants/{}/transactions",
             self.base_url(connectors),
-            auth_type.merchant_id
+            auth_type.merchant_id.peek()
         ))
     }
 
@@ -485,7 +494,7 @@ impl
         Ok(format!(
             "{}merchants/{}/transactions/{}/void",
             self.base_url(connectors),
-            auth_type.merchant_id,
+            auth_type.merchant_id.peek(),
             req.request.connector_transaction_id
         ))
     }
@@ -593,7 +602,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         Ok(format!(
             "{}merchants/{}/transactions/{}",
             self.base_url(connectors),
-            auth_type.merchant_id,
+            auth_type.merchant_id.peek(),
             connector_payment_id
         ))
     }

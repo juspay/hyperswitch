@@ -2059,36 +2059,41 @@ pub async fn retrieve_payment_method(
 pub async fn delete_payment_method(
     state: &routes::AppState,
     merchant_account: domain::MerchantAccount,
-    pm: api::PaymentMethodId,
+    pm_id: api::PaymentMethodId,
 ) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
-    let (_, supplementary_data) =
-        vault::Vault::get_payment_method_data_from_locker(state, &pm.payment_method_id).await?;
-    let payment_method_id = supplementary_data
-        .payment_method_id
-        .map_or(Err(errors::ApiErrorResponse::PaymentMethodNotFound), Ok)?;
-    let pm = state
-        .store
-        .delete_payment_method_by_merchant_id_payment_method_id(
-            &merchant_account.merchant_id,
-            &payment_method_id,
-        )
+    let db = &*state.store;
+    let key = db
+        .find_payment_method(pm_id.payment_method_id.as_str())
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    if pm.payment_method == enums::PaymentMethod::Card {
-        let response =
-            delete_card_from_locker(state, &pm.customer_id, &pm.merchant_id, &payment_method_id)
-                .await?;
+    if key.payment_method == enums::PaymentMethod::Card {
+        let response = delete_card_from_locker(
+            state,
+            &key.customer_id,
+            &key.merchant_id,
+            pm_id.payment_method_id.as_str(),
+        )
+        .await?;
+
         if response.status == "SUCCESS" {
-            print!("Card From locker deleted Successfully")
+            logger::info!("Card From locker deleted Successfully!");
         } else {
-            print!("Error: Deleting Card From Locker")
+            logger::error!("Error: Deleting Card From Locker!\n{:#?}", response);
+            Err(errors::ApiErrorResponse::InternalServerError)?
         }
-    };
+    }
+
+    db.delete_payment_method_by_merchant_id_payment_method_id(
+        &merchant_account.merchant_id,
+        pm_id.payment_method_id.as_str(),
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodDeleteResponse {
-            payment_method_id: pm.payment_method_id,
+            payment_method_id: key.payment_method_id,
             deleted: true,
         },
     ))

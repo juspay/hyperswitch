@@ -52,7 +52,7 @@ impl TryFrom<&types::ConnectorAuthType> for StaxAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: Secret::new(api_key.to_string()),
+                api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -70,10 +70,12 @@ pub struct StaxCustomerRequest {
 impl TryFrom<&types::ConnectorCustomerRouterData> for StaxCustomerRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
-        if item.request.email.is_none() && item.request.name.is_none(){
-            Err(errors::ConnectorError::MissingRequiredField { field_name: "email or firstname" }).into_report()
-        }
-        else {
+        if item.request.email.is_none() && item.request.name.is_none() {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "email or firstname",
+            })
+            .into_report()
+        } else {
             Ok(Self {
                 email: item.request.email.to_owned(),
                 firstname: item.request.name.to_owned(),
@@ -144,6 +146,8 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
             | api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotImplemented(
                 "Payment Method".to_string(),
             ))

@@ -1,6 +1,5 @@
 use std::{fmt::Debug, marker::PhantomData};
 
-use api_models::payments::OrderDetailsWithAmount;
 use common_utils::fp_utils;
 use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
 use error_stack::ResultExt;
@@ -8,7 +7,7 @@ use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
-    configs::settings::Server,
+    configs::settings::{ConnectorRequestReferenceIdConfig, Server},
     connector::{Nexinets, Paypal},
     core::{
         errors::{self, RouterResponse, RouterResult},
@@ -155,6 +154,7 @@ where
         auth_flow: services::AuthFlow,
         server: &Server,
         operation: Op,
+        connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     ) -> RouterResponse<Self>;
 }
 
@@ -170,6 +170,7 @@ where
         auth_flow: services::AuthFlow,
         server: &Server,
         operation: Op,
+        connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     ) -> RouterResponse<Self> {
         payments_to_payments_response(
             req,
@@ -187,7 +188,9 @@ where
             &operation,
             payment_data.ephemeral_key,
             payment_data.sessions_token,
+            payment_data.frm_message,
             payment_data.setup_mandate,
+            connector_request_reference_id_config,
         )
     }
 }
@@ -205,6 +208,7 @@ where
         _auth_flow: services::AuthFlow,
         _server: &Server,
         _operation: Op,
+        _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     ) -> RouterResponse<Self> {
         Ok(services::ApplicationResponse::Json(Self {
             session_token: payment_data.sessions_token,
@@ -231,6 +235,7 @@ where
         _auth_flow: services::AuthFlow,
         _server: &Server,
         _operation: Op,
+        _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     ) -> RouterResponse<Self> {
         let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
             data.payment_attempt
@@ -287,7 +292,9 @@ pub fn payments_to_payments_response<R, Op>(
     operation: &Op,
     ephemeral_key_option: Option<ephemeral_key::EphemeralKey>,
     session_tokens: Vec<api::SessionToken>,
+    frm_message: Option<payments::FrmMessage>,
     mandate_data: Option<api_models::payments::MandateData>,
+    connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
@@ -486,9 +493,12 @@ where
                             payment_intent.allowed_payment_method_types,
                         )
                         .set_ephemeral_key(ephemeral_key_option.map(ForeignFrom::foreign_from))
+                        .set_frm_message(frm_message)
                         .set_manual_retry_allowed(helpers::is_manual_retry_allowed(
                             &payment_intent.status,
                             &payment_attempt.status,
+                            connector_request_reference_id_config,
+                            &merchant_id,
                         ))
                         .set_connector_transaction_id(payment_attempt.connector_transaction_id)
                         .set_feature_metadata(payment_intent.feature_metadata)
@@ -536,8 +546,11 @@ where
             manual_retry_allowed: helpers::is_manual_retry_allowed(
                 &payment_intent.status,
                 &payment_attempt.status,
+                connector_request_reference_id_config,
+                &merchant_id,
             ),
             order_details: payment_intent.order_details,
+            frm_message,
             connector_transaction_id: payment_attempt.connector_transaction_id,
             feature_metadata: payment_intent.feature_metadata,
             connector_metadata: payment_intent.connector_metadata,
@@ -674,8 +687,8 @@ pub fn bank_transfer_next_steps_check(
 pub fn change_order_details_to_new_type(
     order_amount: i64,
     order_details: api_models::payments::OrderDetails,
-) -> Option<Vec<OrderDetailsWithAmount>> {
-    Some(vec![OrderDetailsWithAmount {
+) -> Option<Vec<api_models::payments::OrderDetailsWithAmount>> {
+    Some(vec![api_models::payments::OrderDetailsWithAmount {
         product_name: order_details.product_name,
         quantity: order_details.quantity,
         amount: order_amount,

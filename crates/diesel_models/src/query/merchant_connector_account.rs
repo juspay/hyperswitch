@@ -71,6 +71,29 @@ impl MerchantConnectorAccount {
     }
 
     #[instrument(skip(conn))]
+    pub async fn find_by_merchant_id_connector_name(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        connector_name: &str,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::connector_name.eq(connector_name.to_owned())),
+            None,
+            None,
+            None,
+        )
+        .await
+    }
+
+    #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_merchant_connector_id(
         conn: &PgPooledConn,
         merchant_id: &str,

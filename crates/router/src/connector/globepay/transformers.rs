@@ -59,8 +59,8 @@ impl TryFrom<&types::ConnectorAuthType> for GlobepayAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                partner_code: Secret::new(api_key.to_owned()),
-                credential_code: Secret::new(key1.to_owned()),
+                partner_code: api_key.to_owned(),
+                credential_code: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

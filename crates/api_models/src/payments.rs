@@ -721,6 +721,18 @@ pub enum PaymentMethodData {
     MandatePayment,
     Reward(RewardData),
     Upi(UpiData),
+    Voucher(VoucherData),
+    GiftCard(Box<GiftCardData>),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GiftCardData {
+    /// The gift card number
+    #[schema(value_type = String)]
+    pub number: Secret<String>,
+    /// The card verification code.
+    #[schema(value_type = String)]
+    pub cvc: Secret<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -753,6 +765,8 @@ pub enum AdditionalPaymentData {
     MandatePayment {},
     Reward {},
     Upi {},
+    Voucher {},
+    GiftCard {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -952,6 +966,8 @@ pub enum BankTransferData {
         /// The billing details for Multibanco
         billing_details: MultibancoBillingDetails,
     },
+    Pix {},
+    Pse {},
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
@@ -1165,6 +1181,23 @@ pub struct RewardData {
     pub merchant_id: String,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BoletoVoucherData {
+    /// The shopper's social security number
+    #[schema(value_type = Option<String>)]
+    social_security_number: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VoucherData {
+    Boleto(Box<BoletoVoucherData>),
+    Efecty,
+    PagoEfectivo,
+    RedCompra,
+    RedPagos,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodDataResponse {
@@ -1180,6 +1213,8 @@ pub enum PaymentMethodDataResponse {
     MandatePayment,
     Reward,
     Upi,
+    Voucher,
+    GiftCard,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1615,6 +1650,9 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub connector_transaction_id: Option<String>,
 
+    /// Frm message contains information about the frm response
+    pub frm_message: Option<FrmMessage>,
+
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -1699,25 +1737,38 @@ pub struct PaymentListResponse {
     pub data: Vec<PaymentsResponse>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentListFilterConstraints {
+    /// The identifier for payment
+    pub payment_id: Option<String>,
+    /// The starting point within a list of objects, limit on number of object will be some constant for join query
+    pub offset: Option<i64>,
+    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
+    #[serde(flatten)]
+    pub time_range: Option<TimeRange>,
+    /// The list of connectors to filter payments list
+    pub connector: Option<Vec<String>>,
+    /// The list of currencies to filter payments list
+    pub currency: Option<Vec<enums::Currency>>,
+    /// The list of payment statuses to filter payments list
+    pub status: Option<Vec<enums::IntentStatus>>,
+    /// The list of payment methods to filter payments list
+    pub payment_methods: Option<Vec<enums::PaymentMethod>>,
+}
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
     /// The list of available connector filters
-    #[schema(value_type = Vec<api_enums::Connector>)]
     pub connector: Vec<String>,
     /// The list of available currency filters
-    #[schema(value_type = Vec<Currency>)]
     pub currency: Vec<enums::Currency>,
     /// The list of available payment status filters
-    #[schema(value_type = Vec<IntentStatus>)]
     pub status: Vec<enums::IntentStatus>,
     /// The list of available payment method filters
-    #[schema(value_type = Vec<PaymentMethod>)]
     pub payment_method: Vec<enums::PaymentMethod>,
 }
 
-#[derive(
-    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
-)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
 pub struct TimeRange {
     /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -1846,6 +1897,8 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::Reward {} => Self::Reward,
             AdditionalPaymentData::Upi {} => Self::Upi,
             AdditionalPaymentData::BankTransfer {} => Self::BankTransfer,
+            AdditionalPaymentData::Voucher {} => Self::Voucher,
+            AdditionalPaymentData::GiftCard {} => Self::GiftCard,
         }
     }
 }
@@ -2332,6 +2385,18 @@ pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     #[schema(value_type = Option<RedirectResponse>)]
     pub redirect_response: Option<RedirectResponse>,
+}
+
+///frm message is an object sent inside the payments response...when frm is invoked, its value is Some(...), else its None
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct FrmMessage {
+    pub frm_name: String,
+    pub frm_transaction_id: Option<String>,
+    pub frm_transaction_type: Option<String>,
+    pub frm_status: Option<String>,
+    pub frm_score: Option<i32>,
+    pub frm_reason: Option<serde_json::Value>,
+    pub frm_error: Option<String>,
 }
 
 mod payment_id_type {
