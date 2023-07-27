@@ -84,7 +84,7 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
         &self,
         val: &types::ConnectorAuthType,
     ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        dummyconnector::DummyConnectorAuthType::try_from(val)?;
+        transformers::DummyConnectorAuthType::try_from(val)?;
         Ok(())
     }
 
