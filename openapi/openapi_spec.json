@@ -3197,6 +3197,28 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix"
+            ],
+            "properties": {
+              "pix": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pse"
+            ],
+            "properties": {
+              "pse": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -3265,6 +3287,16 @@
             }
           }
         ]
+      },
+      "BoletoVoucherData": {
+        "type": "object",
+        "properties": {
+          "social_security_number": {
+            "type": "string",
+            "description": "The shopper's social security number",
+            "nullable": true
+          }
+        }
       },
       "CaptureMethod": {
         "type": "string",
@@ -3449,7 +3481,8 @@
           "wise",
           "worldline",
           "worldpay",
-          "zen"
+          "zen",
+          "signifyd"
         ]
       },
       "ConnectorMetadata": {
@@ -3849,6 +3882,7 @@
           "BBD",
           "BDT",
           "BHD",
+          "BIF",
           "BMD",
           "BND",
           "BOB",
@@ -3858,11 +3892,13 @@
           "BZD",
           "CAD",
           "CHF",
+          "CLP",
           "CNY",
           "COP",
           "CRC",
           "CUP",
           "CZK",
+          "DJF",
           "DKK",
           "DOP",
           "DZD",
@@ -3874,6 +3910,7 @@
           "GHS",
           "GIP",
           "GMD",
+          "GNF",
           "GTQ",
           "GYD",
           "HKD",
@@ -3890,6 +3927,7 @@
           "KES",
           "KGS",
           "KHR",
+          "KMF",
           "KRW",
           "KWD",
           "KYD",
@@ -3901,6 +3939,7 @@
           "LSL",
           "MAD",
           "MDL",
+          "MGA",
           "MKD",
           "MMK",
           "MNT",
@@ -3922,9 +3961,11 @@
           "PHP",
           "PKR",
           "PLN",
+          "PYG",
           "QAR",
           "RON",
           "RUB",
+          "RWF",
           "SAR",
           "SCR",
           "SEK",
@@ -3939,10 +3980,15 @@
           "TTD",
           "TWD",
           "TZS",
+          "UGX",
           "USD",
           "UYU",
           "UZS",
           "VND",
+          "VUV",
+          "XAF",
+          "XOF",
+          "XPF",
           "YER",
           "ZAR"
         ]
@@ -4645,36 +4691,99 @@
         "type": "object",
         "description": "Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table",
         "required": [
-          "frm_action",
-          "frm_preferred_flow_type"
+          "gateway",
+          "payment_methods"
         ],
         "properties": {
-          "frm_enabled_pms": {
+          "gateway": {
+            "$ref": "#/components/schemas/ConnectorType"
+          },
+          "payment_methods": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/FrmPaymentMethod"
             },
+            "description": "payment methods that can be used in the payment"
+          }
+        }
+      },
+      "FrmMessage": {
+        "type": "object",
+        "description": "frm message is an object sent inside the payments response...when frm is invoked, its value is Some(...), else its None",
+        "required": [
+          "frm_name"
+        ],
+        "properties": {
+          "frm_name": {
+            "type": "string"
+          },
+          "frm_transaction_id": {
+            "type": "string",
             "nullable": true
           },
-          "frm_enabled_pm_types": {
+          "frm_transaction_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "frm_status": {
+            "type": "string",
+            "nullable": true
+          },
+          "frm_score": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "frm_reason": {
+            "nullable": true
+          },
+          "frm_error": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "FrmPaymentMethod": {
+        "type": "object",
+        "description": "Details of FrmPaymentMethod are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table",
+        "required": [
+          "payment_method",
+          "payment_method_types"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_types": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/FrmPaymentMethodType"
             },
-            "nullable": true
+            "description": "payment method types(credit, debit) that can be used in the payment"
+          }
+        }
+      },
+      "FrmPaymentMethodType": {
+        "type": "object",
+        "description": "Details of FrmPaymentMethodType are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table",
+        "required": [
+          "payment_method_type",
+          "card_networks",
+          "flow",
+          "action"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
           },
-          "frm_enabled_gateways": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "nullable": true
+          "card_networks": {
+            "$ref": "#/components/schemas/CardNetwork"
           },
-          "frm_action": {
-            "$ref": "#/components/schemas/FrmAction"
-          },
-          "frm_preferred_flow_type": {
+          "flow": {
             "$ref": "#/components/schemas/FrmPreferredFlowTypes"
+          },
+          "action": {
+            "$ref": "#/components/schemas/FrmAction"
           }
         }
       },
@@ -4694,6 +4803,23 @@
       },
       "GcashRedirection": {
         "type": "object"
+      },
+      "GiftCardData": {
+        "type": "object",
+        "required": [
+          "number",
+          "cvc"
+        ],
+        "properties": {
+          "number": {
+            "type": "string",
+            "description": "The gift card number"
+          },
+          "cvc": {
+            "type": "string",
+            "description": "The card verification code."
+          }
+        }
       },
       "GoPayRedirection": {
         "type": "object"
@@ -5723,11 +5849,12 @@
             "nullable": true
           },
           "frm_configs": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/FrmConfigs"
-              }
-            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FrmConfigs"
+            },
+            "description": "contains the frm configs for the merchant connector",
+            "example": "\n[{\"gateway\":\"stripe\",\"payment_methods\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\",\"action\":\"cancel_txn\"},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\"}]}]}]\n",
             "nullable": true
           },
           "business_country": {
@@ -5946,11 +6073,12 @@
             "nullable": true
           },
           "frm_configs": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/FrmConfigs"
-              }
-            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FrmConfigs"
+            },
+            "description": "contains the frm configs for the merchant connector",
+            "example": "\n[{\"gateway\":\"stripe\",\"payment_methods\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\",\"action\":\"cancel_txn\"},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\"}]}]}]\n",
             "nullable": true
           },
           "connector_webhook_details": {
@@ -6042,11 +6170,12 @@
             "nullable": true
           },
           "frm_configs": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/FrmConfigs"
-              }
-            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FrmConfigs"
+            },
+            "description": "contains the frm configs for the merchant connector",
+            "example": "\n[{\"gateway\":\"stripe\",\"payment_methods\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\",\"action\":\"cancel_txn\"},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\"}]}]}]\n",
             "nullable": true
           },
           "connector_webhook_details": {
@@ -6845,7 +6974,8 @@
           "crypto",
           "bank_debit",
           "reward",
-          "upi"
+          "upi",
+          "voucher"
         ]
       },
       "PaymentMethodCreate": {
@@ -7010,6 +7140,28 @@
             "properties": {
               "upi": {
                 "$ref": "#/components/schemas/UpiData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "voucher"
+            ],
+            "properties": {
+              "voucher": {
+                "$ref": "#/components/schemas/VoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "gift_card"
+            ],
+            "properties": {
+              "gift_card": {
+                "$ref": "#/components/schemas/GiftCardData"
               }
             }
           }
@@ -7204,13 +7356,15 @@
           "bacs",
           "bancontact_card",
           "becs",
-          "blik",
           "bizum",
+          "blik",
+          "boleto",
           "classic",
           "credit",
           "crypto_currency",
           "dana",
           "debit",
+          "efecty",
           "eps",
           "evoucher",
           "giropay",
@@ -7231,9 +7385,14 @@
           "online_banking_fpx",
           "online_banking_poland",
           "online_banking_slovakia",
+          "pago_efectivo",
           "pay_bright",
           "paypal",
+          "pix",
           "przelewy24",
+          "pse",
+          "red_compra",
+          "red_pagos",
           "samsung_pay",
           "sepa",
           "sofort",
@@ -8384,6 +8543,14 @@
             "example": "993672945374576J",
             "nullable": true
           },
+          "frm_message": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FrmMessage"
+              }
+            ],
+            "nullable": true
+          },
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
@@ -9092,26 +9259,8 @@
         }
       },
       "RefundListRequest": {
-        "type": "object",
-        "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "The identifier for the payment",
-            "nullable": true
-          },
-          "limit": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Limit on the number of objects to return",
-            "nullable": true
-          },
-          "offset": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The starting point within a list of objects",
-            "nullable": true
-          },
-          "time_range": {
+        "allOf": [
+          {
             "allOf": [
               {
                 "$ref": "#/components/schemas/TimeRange"
@@ -9119,31 +9268,53 @@
             ],
             "nullable": true
           },
-          "connector": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "The list of connectors to filter refunds list",
-            "nullable": true
-          },
-          "currency": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Currency"
-            },
-            "description": "The list of currencies to filter refunds list",
-            "nullable": true
-          },
-          "refund_status": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/RefundStatus"
-            },
-            "description": "The list of refund statuses to filter refunds list",
-            "nullable": true
+          {
+            "type": "object",
+            "properties": {
+              "payment_id": {
+                "type": "string",
+                "description": "The identifier for the payment",
+                "nullable": true
+              },
+              "limit": {
+                "type": "integer",
+                "format": "int64",
+                "description": "Limit on the number of objects to return",
+                "nullable": true
+              },
+              "offset": {
+                "type": "integer",
+                "format": "int64",
+                "description": "The starting point within a list of objects",
+                "nullable": true
+              },
+              "connector": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The list of connectors to filter refunds list",
+                "nullable": true
+              },
+              "currency": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                "description": "The list of currencies to filter refunds list",
+                "nullable": true
+              },
+              "refund_status": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RefundStatus"
+                },
+                "description": "The list of refund statuses to filter refunds list",
+                "nullable": true
+              }
+            }
           }
-        }
+        ]
       },
       "RefundListResponse": {
         "type": "object",
@@ -9793,6 +9964,45 @@
             "nullable": true
           }
         }
+      },
+      "VoucherData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "boleto"
+            ],
+            "properties": {
+              "boleto": {
+                "$ref": "#/components/schemas/BoletoVoucherData"
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "efecty"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "pago_efectivo"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "red_compra"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "red_pagos"
+            ]
+          }
+        ]
       },
       "WalletData": {
         "oneOf": [

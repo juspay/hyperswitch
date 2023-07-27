@@ -33,9 +33,9 @@ pub enum TransactionType {
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct MerchantAuthentication {
-    name: String,
-    transaction_key: String,
+pub struct MerchantAuthentication {
+    name: Secret<String>,
+    transaction_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
@@ -44,8 +44,8 @@ impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
-                name: api_key.clone(),
-                transaction_key: key1.clone(),
+                name: api_key.to_owned(),
+                transaction_key: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
