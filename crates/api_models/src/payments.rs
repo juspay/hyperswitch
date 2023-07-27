@@ -727,10 +727,10 @@ pub struct AdditionalCardInfo {
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
     pub last4: Option<String>,
-    pub card_isin: String,
-    pub card_exp_month: Secret<String>,
-    pub card_exp_year: Secret<String>,
-    pub card_holder_name: Secret<String>,
+    pub card_isin: Option<String>,
+    pub card_exp_month: Option<Secret<String>>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1112,10 +1112,10 @@ pub struct CardResponse {
     pub card_network: Option<api_enums::CardNetwork>,
     pub card_issuer: Option<String>,
     pub card_issuing_country: Option<String>,
-    pub card_isin: String,
-    pub card_exp_month: Secret<String>,
-    pub card_exp_year: Secret<String>,
-    pub card_holder_name: Secret<String>,
+    pub card_isin: Option<String>,
+    pub card_exp_month: Option<Secret<String>>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
