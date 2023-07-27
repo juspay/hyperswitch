@@ -1,7 +1,7 @@
 {
 	"info": {
-		"_postman_id": "444e4204-910c-4a71-bc46-295e99a9e2d1",
-		"name": "Bluesnap Collection",
+		"_postman_id": "9103f2e2-ef83-4dac-b91e-bbd55aa3e946",
+		"name": "Bambora Collection Non-3DS",
 		"description": "## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.  \nYou can consume the APIs directly using your favorite HTTP/REST library.  \nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without affecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment | Base URL |\n| --- | --- |\n| Sandbox | [https://sandbox.hyperswitch.io](https://sandbox.hyperswitch.io) |\n| Production | [https://router.juspay.io](https://router.juspay.io) |\n\n# Authentication\n\nWhen you sign up for an account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.  \nNever share your secret api keys. Keep them guarded and secure.\n\nContact Support:  \nName: Juspay Support  \nEmail: [support@juspay.in](mailto:support@juspay.in)",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -139,7 +139,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n  \"merchant_id\": \"postman_merchant_GHAction_{{$guid}}\",\n  \"locker_id\": \"m0010\",\n  \"merchant_name\": \"NewAge Retailer\",\n  \"merchant_details\": {\n    \"primary_contact_person\": \"John Test\",\n    \"primary_email\": \"JohnTest@test.com\",\n    \"primary_phone\": \"sunt laborum\",\n    \"secondary_contact_person\": \"John Test2\",\n    \"secondary_email\": \"JohnTest2@test.com\",\n    \"secondary_phone\": \"cillum do dolor id\",\n    \"website\": \"www.example.com\",\n    \"about_business\": \"Online Retail with a wide selection of organic products for North America\",\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\"\n    }\n  },\n  \"return_url\": \"https://google.com\",\n  \"webhook_details\": {\n    \"webhook_version\": \"1.0.1\",\n    \"webhook_username\": \"ekart_retail\",\n    \"webhook_password\": \"password_ekart@123\",\n    \"payment_created_enabled\": true,\n    \"payment_succeeded_enabled\": true,\n    \"payment_failed_enabled\": true\n  },\n  \"routing_algorithm\": {\n    \"type\": \"single\",\n    \"data\": \"bluesnap\"\n  },\n  \"sub_merchants_enabled\": false,\n  \"metadata\": {\n    \"city\": \"NY\",\n    \"unit\": \"245\"\n  }\n}",
+									"raw": "{\n  \"merchant_id\": \"postman_merchant_GHAction_{{$guid}}\",\n  \"locker_id\": \"m0010\",\n  \"merchant_name\": \"NewAge Retailer\",\n  \"merchant_details\": {\n    \"primary_contact_person\": \"John Test\",\n    \"primary_email\": \"JohnTest@test.com\",\n    \"primary_phone\": \"sunt laborum\",\n    \"secondary_contact_person\": \"John Test2\",\n    \"secondary_email\": \"JohnTest2@test.com\",\n    \"secondary_phone\": \"cillum do dolor id\",\n    \"website\": \"www.example.com\",\n    \"about_business\": \"Online Retail with a wide selection of organic products for North America\",\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\"\n    }\n  },\n  \"return_url\": \"https://google.com/success\",\n  \"webhook_details\": {\n    \"webhook_version\": \"1.0.1\",\n    \"webhook_username\": \"ekart_retail\",\n    \"webhook_password\": \"password_ekart@123\",\n    \"payment_created_enabled\": true,\n    \"payment_succeeded_enabled\": true,\n    \"payment_failed_enabled\": true\n  },\n  \"routing_algorithm\": {\n    \"type\": \"single\",\n    \"data\": \"bambora\"\n  },\n  \"sub_merchants_enabled\": false,\n  \"metadata\": {\n    \"city\": \"NY\",\n    \"unit\": \"245\"\n  }\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -281,19 +281,6 @@
 											"} else {",
 											"   console.log('INFO - Unable to assign variable {{merchant_connector_id}}, as jsonData.merchant_connector_id is undefined.');",
 											"};",
-											"",
-											"// Validate the auth_type and its credentials",
-											"pm.test(\"[POST]::/account/:account_id/connectors - Content check if auth_type is BodyKey\", function() {",
-											"   pm.expect((typeof jsonData.connector_account_details.auth_type !== \"BodyKey\")).to.be.true;",
-											"});",
-											"",
-											"pm.test(\"[POST]::/account/:account_id/connectors - Content check if 'api_key' exists\", function() {",
-											"   pm.expect((typeof jsonData.connector_account_details.api_key !== \"undefined\")).to.be.true;",
-											"});",
-											"",
-											"pm.test(\"[POST]::/account/:account_id/connectors - Content check if 'key1' exists\", function() {",
-											"   pm.expect((typeof jsonData.connector_account_details.key1 !== \"undefined\")).to.be.true;",
-											"});",
 											""
 										],
 										"type": "text/javascript"
@@ -334,7 +321,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n  \"connector_type\": \"fiz_operations\",\n  \"connector_name\": \"bluesnap\",\n  \"connector_account_details\": {\n           \"auth_type\": \"BodyKey\",\n           \"api_key\":\"{{connector_api_key}}\",\n           \"key1\": \"{{connector_key1}}\"\n  },\n  \"payment_methods_enabled\": [\n    {\n      \"payment_method\": \"card\",\n      \"payment_method_types\": [\n        {\n          \"payment_method_type\": \"credit\",\n          \"card_networks\": [\n            \"Visa\",\n            \"Mastercard\"\n          ],\n          \"minimum_amount\": 1,\n          \"maximum_amount\": 68607706,\n          \"recurring_enabled\": true,\n          \"installment_payment_enabled\": true\n        }\n      ]\n    },\n    {\n      \"payment_method\": \"wallet\",\n      \"payment_method_types\": [\n        {\n          \"payment_method_type\": \"google_pay\",\n          \"payment_experience\": \"redirect_to_url\",\n          \"minimum_amount\": 1,\n          \"maximum_amount\": 68607706,\n          \"recurring_enabled\": true,\n          \"installment_payment_enabled\": true\n        },\n        \n        {\n          \"payment_method_type\": \"apple_pay\",\n          \"payment_experience\": \"redirect_to_url\",\n          \"minimum_amount\": 1,\n          \"maximum_amount\": 68607706,\n          \"recurring_enabled\": true,\n          \"installment_payment_enabled\": true\n        }\n      ]\n    }\n  ],\n  \"test_mode\": false,\n  \"disabled\": false,\n  \"metadata\": {\n    \"city\": \"NY\",\n    \"unit\": \"245\"\n  }\n}",
+									"raw": "{\n    \"connector_type\": \"fiz_operations\",\n    \"connector_name\": \"bambora\",\n    \"connector_account_details\": {\n        \"auth_type\": \"BodyKey\",\n        \"api_key\": \"{{connector_api_key}}\",\n        \"key1\": \"{{connector_key1}}\"\n    },\n    \"test_mode\": false,\n    \"disabled\": false,\n    \"payment_methods_enabled\": [\n        {\n            \"payment_method\": \"pay_later\",\n            \"payment_method_types\": [\n                {\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true,\n                    \"payment_experience\": \"redirect_to_url\",\n                    \"payment_method_type\": \"affirm\"\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"pay_later\",\n            \"payment_method_types\": [\n                {\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true,\n                    \"payment_experience\": \"redirect_to_url\",\n                    \"payment_method_type\": \"afterpay_clearpay\"\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"pay_later\",\n            \"payment_method_types\": [\n                {\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true,\n                    \"payment_experience\": \"redirect_to_url\",\n                    \"payment_method_type\": \"klarna\"\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"pay_later\",\n            \"payment_method_types\": [\n                {\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true,\n                    \"payment_experience\": \"invoke_sdk_client\",\n                    \"payment_method_type\": \"klarna\"\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"bank_redirect\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"ideal\",\n                    \"payment_experience\": null,\n                    \"card_networks\": null,\n                    \"accepted_currencies\": null,\n                    \"accepted_countries\": null,\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"giropay\",\n                    \"payment_experience\": null,\n                    \"card_networks\": null,\n                    \"accepted_currencies\": null,\n                    \"accepted_countries\": null,\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"sofort\",\n                    \"payment_experience\": null,\n                    \"card_networks\": null,\n                    \"accepted_currencies\": null,\n                    \"accepted_countries\": null,\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"eps\",\n                    \"payment_experience\": null,\n                    \"card_networks\": null,\n                    \"accepted_currencies\": null,\n                    \"accepted_countries\": null,\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"bank_debit\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"ach\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"becs\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"sepa\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"bank_transfer\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"ach\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"bacs\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"sepa\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"card\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"credit\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"card\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"debit\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"wallet\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"apple_pay\",\n                    \"payment_experience\": \"invoke_sdk_client\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"wallet\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"google_pay\",\n                    \"payment_experience\": \"invoke_sdk_client\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        }\n    ]\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -433,7 +420,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+1\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\",\n            \"last_name\": \"abc\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+									"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 10,\n    \"customer_id\": \"BamboraCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+1\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_type\": \"credit\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4874970686672022\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"John Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"ip_address\": \"127.2.2.0\",\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -602,7 +589,7 @@
 										"refunds"
 									]
 								},
-								"description": "To create a refund against an already processed payment"
+								"description": "To create a refund againt an already processed payment"
 							},
 							"response": []
 						},
@@ -754,7 +741,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\",\n            \"last_name\": \"abc\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"BamboraCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+1\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_type\": \"credit\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4030000010001234\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"John Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"ip_address\": \"127.2.2.0\",\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -954,7 +941,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": false,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n     \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\",\n            \"last_name\": \"abc\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": false,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"BamboraCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+1\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_type\": \"credit\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4030000010001234\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"John Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"ip_address\": \"127.2.2.0\",\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -1077,7 +1064,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -1258,7 +1245,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": false,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n     \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\",\n            \"last_name\": \"abc\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": false,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"BamboraCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n     \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\t\n    \"browser_info\": {\t\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\t\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\t\n        \"language\": \"nl-NL\",\t\n        \"color_depth\": 24,\t\n        \"ip_address\": \"127.2.2.0\",\t\n        \"screen_height\": 723,\t\n        \"screen_width\": 1536,\t\n        \"time_zone\": 0,\t\n        \"java_enabled\": true,\t\n        \"java_script_enabled\": true\t\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -1356,7 +1343,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    }\n}",
+											"raw": "{\"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4030000010001234\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -1381,7 +1368,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -1563,7 +1550,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"manual\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n     \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\",\n            \"last_name\": \"abc\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"manual\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"BamboraCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+1\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_type\": \"credit\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4030000010001234\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"John Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"ip_address\": \"127.2.2.0\",\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -1642,17 +1629,17 @@
 													"  pm.expect(jsonData.status).to.eql(\"succeeded\");",
 													"})};",
 													"",
-													"// Response body should have value \"6540\" for \"amount\"",
+													"// Response body should have value \"1000\" for \"amount\"",
 													"if (jsonData?.amount){",
-													"    pm.test(\"[post]:://payments/:id/capture - Content check if value for 'amount' matches '6540'\", function() {",
-													"    pm.expect(jsonData.amount).to.eql(6540);",
+													"    pm.test(\"[post]:://payments/:id/capture - Content check if value for 'amount' matches '1000'\", function() {",
+													"    pm.expect(jsonData.amount).to.eql(1000);",
 													"    } )",
 													"} ",
 													"",
-													"// Response body should have value \"6000\" for \"amount_received\"",
+													"// Response body should have value \"600\" for \"amount_received\"",
 													"if (jsonData?.amount_received) {",
-													"pm.test(\"[POST]::/payments:id/capture - Content check if value for 'amount_received' matches '6000'\", function() {",
-													"  pm.expect(jsonData.amount_received).to.eql(6000);",
+													"pm.test(\"[POST]::/payments:id/capture - Content check if value for 'amount_received' matches '600'\", function() {",
+													"  pm.expect(jsonData.amount_received).to.eql(600);",
 													"})};",
 													"",
 													"",
@@ -1678,7 +1665,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n  \"amount_to_capture\": 6000,\n  \"statement_descriptor_name\": \"Joseph\",\n  \"statement_descriptor_suffix\": \"JS\"\n}",
+											"raw": "{\n  \"amount_to_capture\": 600,\n  \"statement_descriptor_name\": \"Joseph\",\n  \"statement_descriptor_suffix\": \"JS\"\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -1886,7 +1873,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"manual\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n      \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\",\n            \"last_name\": \"abc\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"manual\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"BamboraCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+1\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_type\": \"credit\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4030000010001234\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"John Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"ip_address\": \"127.2.2.0\",\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -2105,520 +2092,6 @@
 							]
 						},
 						{
-							"name": "Scenario6-Create 3DS payment",
-							"item": [
-								{
-									"name": "Payments - Create",
-									"event": [
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"// Validate status 2xx ",
-													"pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
-													"   pm.response.to.be.success;",
-													"});",
-													"",
-													"// Validate if response header has matching content-type",
-													"pm.test(\"[POST]::/payments - Content-Type is application/json\", function () {",
-													"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
-													"});",
-													"",
-													"// Validate if response has JSON Body ",
-													"pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
-													"    pm.response.to.have.jsonBody();",
-													"});",
-													"",
-													"// Set response object as internal variable",
-													"let jsonData = {};",
-													"try {jsonData = pm.response.json();}catch(e){}",
-													"",
-													"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-													"if (jsonData?.payment_id) {",
-													"   pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-													"   console.log(\"- use {{payment_id}} as collection variable for value\",jsonData.payment_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.');",
-													"};",
-													"",
-													"",
-													"// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
-													"if (jsonData?.mandate_id) {",
-													"   pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
-													"   console.log(\"- use {{mandate_id}} as collection variable for value\",jsonData.mandate_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.');",
-													"};",
-													"",
-													"// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
-													"if (jsonData?.client_secret) {",
-													"   pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
-													"   console.log(\"- use {{client_secret}} as collection variable for value\",jsonData.client_secret);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.');",
-													"};",
-													"",
-													"// Response body should have value \"requires_customer_action\" for \"status\"",
-													"if (jsonData?.status) {",
-													"pm.test(\"[POST]::/payments - Content check if value for 'status' matches 'requires_customer_action'\", function() {",
-													"  pm.expect(jsonData.status).to.eql(\"requires_customer_action\");",
-													"})};",
-													"",
-													"// Response body should have \"next_action.redirect_to_url\"",
-													"pm.test(\"[POST]::/payments - Content check if 'next_action.redirect_to_url' exists\", function() {",
-													"   pm.expect((typeof jsonData.next_action.redirect_to_url !== \"undefined\")).to.be.true;",
-													"});",
-													""
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											},
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4000000000003063\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n      \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\",\n            \"last_name\": \"abc\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{baseUrl}}/payments",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"payments"
-											]
-										},
-										"description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
-									},
-									"response": []
-								},
-								{
-									"name": "Payments - Retrieve",
-									"event": [
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"// Validate status 2xx ",
-													"pm.test(\"[GET]::/payments/:id - Status code is 2xx\", function () {",
-													"   pm.response.to.be.success;",
-													"});",
-													"",
-													"// Validate if response header has matching content-type",
-													"pm.test(\"[GET]::/payments/:id - Content-Type is application/json\", function () {",
-													"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
-													"});",
-													"",
-													"// Validate if response has JSON Body ",
-													"pm.test(\"[GET]::/payments/:id - Response has JSON Body\", function () {",
-													"    pm.response.to.have.jsonBody();",
-													"});",
-													"",
-													"// Set response object as internal variable",
-													"let jsonData = {};",
-													"try {jsonData = pm.response.json();}catch(e){}",
-													"",
-													"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-													"if (jsonData?.payment_id) {",
-													"   pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-													"   console.log(\"- use {{payment_id}} as collection variable for value\",jsonData.payment_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.');",
-													"};",
-													"",
-													"",
-													"// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
-													"if (jsonData?.mandate_id) {",
-													"   pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
-													"   console.log(\"- use {{mandate_id}} as collection variable for value\",jsonData.mandate_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.');",
-													"};",
-													"",
-													"// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
-													"if (jsonData?.client_secret) {",
-													"   pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
-													"   console.log(\"- use {{client_secret}} as collection variable for value\",jsonData.client_secret);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.');",
-													"",
-													"};",
-													"",
-													"",
-													"// Response body should have value \"requires_customer_action\" for \"status\"",
-													"if (jsonData?.status) {",
-													"pm.test(\"[POST]::/payments/:id - Content check if value for 'status' matches 'requires_customer_action'\", function() {",
-													"  pm.expect(jsonData.status).to.eql(\"requires_customer_action\");",
-													"})};",
-													""
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "{{baseUrl}}/payments/:id?force_sync=true",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"payments",
-												":id"
-											],
-											"query": [
-												{
-													"key": "force_sync",
-													"value": "true"
-												}
-											],
-											"variable": [
-												{
-													"key": "id",
-													"value": "{{payment_id}}",
-													"description": "(Required) unique payment id"
-												}
-											]
-										},
-										"description": "To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment"
-									},
-									"response": []
-								}
-							]
-						},
-						{
-							"name": "Scenario7-Create 3DS payment with confrm false",
-							"item": [
-								{
-									"name": "Payments - Create",
-									"event": [
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"// Validate status 2xx ",
-													"pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
-													"   pm.response.to.be.success;",
-													"});",
-													"",
-													"// Validate if response header has matching content-type",
-													"pm.test(\"[POST]::/payments - Content-Type is application/json\", function () {",
-													"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
-													"});",
-													"",
-													"// Validate if response has JSON Body ",
-													"pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
-													"    pm.response.to.have.jsonBody();",
-													"});",
-													"",
-													"// Set response object as internal variable",
-													"let jsonData = {};",
-													"try {jsonData = pm.response.json();}catch(e){}",
-													"",
-													"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-													"if (jsonData?.payment_id) {",
-													"   pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-													"   console.log(\"- use {{payment_id}} as collection variable for value\",jsonData.payment_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.');",
-													"};",
-													"",
-													"",
-													"// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
-													"if (jsonData?.mandate_id) {",
-													"   pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
-													"   console.log(\"- use {{mandate_id}} as collection variable for value\",jsonData.mandate_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.');",
-													"};",
-													"",
-													"// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
-													"if (jsonData?.client_secret) {",
-													"   pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
-													"   console.log(\"- use {{client_secret}} as collection variable for value\",jsonData.client_secret);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.');",
-													"};",
-													"",
-													"// Response body should have value \"requires_confirmation\" for \"status\"",
-													"if (jsonData?.status) {",
-													"pm.test(\"[POST]::/payments - Content check if value for 'status' matches 'requires_confirmation'\", function() {",
-													"  pm.expect(jsonData.status).to.eql(\"requires_confirmation\");",
-													"})};",
-													""
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											},
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": false,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4000000000003063\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n      \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\",\n            \"last_name\": \"abc\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{baseUrl}}/payments",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"payments"
-											]
-										},
-										"description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
-									},
-									"response": []
-								},
-								{
-									"name": "Payments - Confirm",
-									"event": [
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"// Validate status 2xx ",
-													"pm.test(\"[POST]::/payments/:id/confirm - Status code is 2xx\", function () {",
-													"   pm.response.to.be.success;",
-													"});",
-													"",
-													"// Validate if response header has matching content-type",
-													"pm.test(\"[POST]::/payments/:id/confirm - Content-Type is application/json\", function () {",
-													"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
-													"});",
-													"",
-													"",
-													"",
-													"// Validate if response has JSON Body ",
-													"pm.test(\"[POST]::/payments/:id/confirm - Response has JSON Body\", function () {",
-													"    pm.response.to.have.jsonBody();",
-													"});",
-													"",
-													"",
-													"// Set response object as internal variable",
-													"let jsonData = {};",
-													"try {jsonData = pm.response.json();}catch(e){}",
-													"",
-													"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-													"if (jsonData?.payment_id) {",
-													"   pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-													"   console.log(\"- use {{payment_id}} as collection variable for value\",jsonData.payment_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.');",
-													"};",
-													"",
-													"",
-													"// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
-													"if (jsonData?.mandate_id) {",
-													"   pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
-													"   console.log(\"- use {{mandate_id}} as collection variable for value\",jsonData.mandate_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.');",
-													"};",
-													"",
-													"// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
-													"if (jsonData?.client_secret) {",
-													"   pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
-													"   console.log(\"- use {{client_secret}} as collection variable for value\",jsonData.client_secret);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.');",
-													"};",
-													"",
-													"// Response body should have value \"requires_customer_action\" for \"status\"",
-													"if (jsonData?.status) {",
-													"pm.test(\"[POST]::/payments/:id/confirm - Content check if value for 'status' matches 'requires_customer_action'\", function() {",
-													"  pm.expect(jsonData.status).to.eql(\"requires_customer_action\");",
-													"})};",
-													"",
-													"// Response body should have \"next_action.redirect_to_url\"",
-													"pm.test(\"[POST]::/payments/:id/confirm - Content check if 'next_action.redirect_to_url' exists\", function() {",
-													"   pm.expect((typeof jsonData.next_action.redirect_to_url !== \"undefined\")).to.be.true;",
-													"});"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											},
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": " {}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{baseUrl}}/payments/:id/confirm",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"payments",
-												":id",
-												"confirm"
-											],
-											"variable": [
-												{
-													"key": "id",
-													"value": "{{payment_id}}",
-													"description": "(Required) unique payment id"
-												}
-											]
-										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
-									},
-									"response": []
-								},
-								{
-									"name": "Payments - Retrieve",
-									"event": [
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"// Validate status 2xx ",
-													"pm.test(\"[GET]::/payments/:id - Status code is 2xx\", function () {",
-													"   pm.response.to.be.success;",
-													"});",
-													"",
-													"// Validate if response header has matching content-type",
-													"pm.test(\"[GET]::/payments/:id - Content-Type is application/json\", function () {",
-													"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
-													"});",
-													"",
-													"// Validate if response has JSON Body ",
-													"pm.test(\"[GET]::/payments/:id - Response has JSON Body\", function () {",
-													"    pm.response.to.have.jsonBody();",
-													"});",
-													"",
-													"// Set response object as internal variable",
-													"let jsonData = {};",
-													"try {jsonData = pm.response.json();}catch(e){}",
-													"",
-													"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-													"if (jsonData?.payment_id) {",
-													"   pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-													"   console.log(\"- use {{payment_id}} as collection variable for value\",jsonData.payment_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.');",
-													"};",
-													"",
-													"",
-													"// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
-													"if (jsonData?.mandate_id) {",
-													"   pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
-													"   console.log(\"- use {{mandate_id}} as collection variable for value\",jsonData.mandate_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.');",
-													"};",
-													"",
-													"// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
-													"if (jsonData?.client_secret) {",
-													"   pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
-													"   console.log(\"- use {{client_secret}} as collection variable for value\",jsonData.client_secret);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.');",
-													"};",
-													"",
-													"// Response body should have value \"requires_customer_action\" for \"status\"",
-													"if (jsonData?.status) {",
-													"pm.test(\"[POST]::/payments:id - Content check if value for 'status' matches 'requires_customer_action'\", function() {",
-													"  pm.expect(jsonData.status).to.eql(\"requires_customer_action\");",
-													"})};"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "{{baseUrl}}/payments/:id?force_sync=true",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"payments",
-												":id"
-											],
-											"query": [
-												{
-													"key": "force_sync",
-													"value": "true"
-												}
-											],
-											"variable": [
-												{
-													"key": "id",
-													"value": "{{payment_id}}",
-													"description": "(Required) unique payment id"
-												}
-											]
-										},
-										"description": "To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment"
-									},
-									"response": []
-								}
-							]
-						},
-						{
 							"name": "Scenario9-Refund full payment",
 							"item": [
 								{
@@ -2698,7 +2171,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\",\n            \"last_name\": \"abc\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"BamboraCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+1\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_type\": \"credit\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4030000010001234\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"John Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"ip_address\": \"127.2.2.0\",\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -2848,14 +2321,14 @@
 													"",
 													"// Response body should have value \"succeeded\" for \"status\"",
 													"if (jsonData?.status) {",
-													"pm.test(\"[POST]::/refunds - Content check if value for 'status' matches 'pending'\", function() {",
-													"  pm.expect(jsonData.status).to.eql(\"pending\");",
+													"pm.test(\"[POST]::/refunds - Content check if value for 'status' matches 'succeeded'\", function() {",
+													"  pm.expect(jsonData.status).to.eql(\"succeeded\");",
 													"})};",
 													"",
-													"// Response body should have value \"6540\" for \"amount\"",
+													"// Response body should have value \"1000\" for \"amount\"",
 													"if (jsonData?.status) {",
-													"pm.test(\"[POST]::/refunds - Content check if value for 'amount' matches '6540'\", function() {",
-													"  pm.expect(jsonData.amount).to.eql(6540);",
+													"pm.test(\"[POST]::/refunds - Content check if value for 'amount' matches '1000'\", function() {",
+													"  pm.expect(jsonData.amount).to.eql(1000);",
 													"})};",
 													""
 												],
@@ -2877,7 +2350,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"payment_id\": \"{{payment_id}}\",\n    \"amount\": 6540,\n    \"reason\": \"Customer returned product\",\n    \"refund_type\": \"instant\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"payment_id\": \"{{payment_id}}\",\n    \"amount\": 1000,\n    \"reason\": \"Customer returned product\",\n    \"refund_type\": \"instant\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -2893,7 +2366,7 @@
 												"refunds"
 											]
 										},
-										"description": "To create a refund against an already processed payment"
+										"description": "To create a refund againt an already processed payment"
 									},
 									"response": []
 								},
@@ -2932,10 +2405,10 @@
 													"  pm.expect(jsonData.status).to.eql(\"succeeded\");",
 													"})};",
 													"",
-													"// Response body should have value \"6540\" for \"amount\"",
+													"// Response body should have value \"1000\" for \"amount\"",
 													"if (jsonData?.status) {",
 													"pm.test(\"[POST]::/refunds - Content check if value for 'amount' matches '6540'\", function() {",
-													"  pm.expect(jsonData.amount).to.eql(6540);",
+													"  pm.expect(jsonData.amount).to.eql(1000);",
 													"})};",
 													""
 												],
@@ -3055,7 +2528,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\",\n            \"last_name\": \"abc\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"BamboraCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+1\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_type\": \"credit\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4030000010001234\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"John Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"ip_address\": \"127.2.2.0\",\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -3205,8 +2678,8 @@
 													"",
 													"// Response body should have value \"succeeded\" for \"status\"",
 													"if (jsonData?.status) {",
-													"pm.test(\"[POST]::/refunds - Content check if value for 'status' matches 'pending'\", function() {",
-													"  pm.expect(jsonData.status).to.eql(\"pending\");",
+													"pm.test(\"[POST]::/refunds - Content check if value for 'status' matches 'succeeded'\", function() {",
+													"  pm.expect(jsonData.status).to.eql(\"succeeded\");",
 													"})};",
 													"",
 													"// Response body should have value \"540\" for \"amount\"",
@@ -3250,7 +2723,7 @@
 												"refunds"
 											]
 										},
-										"description": "To create a refund against an already processed payment"
+										"description": "To create a refund againt an already processed payment"
 									},
 									"response": []
 								},
@@ -3360,14 +2833,14 @@
 													"",
 													"// Response body should have value \"succeeded\" for \"status\"",
 													"if (jsonData?.status) {",
-													"pm.test(\"[POST]::/refunds - Content check if value for 'status' matches 'pending'\", function() {",
-													"  pm.expect(jsonData.status).to.eql(\"pending\");",
+													"pm.test(\"[POST]::/refunds - Content check if value for 'status' matches 'succeeded'\", function() {",
+													"  pm.expect(jsonData.status).to.eql(\"succeeded\");",
 													"})};",
 													"",
-													"// Response body should have value \"1000\" for \"amount\"",
+													"// Response body should have value \"100\" for \"amount\"",
 													"if (jsonData?.status) {",
 													"pm.test(\"[POST]::/refunds - Content check if value for 'amount' matches '1000'\", function() {",
-													"  pm.expect(jsonData.amount).to.eql(1000);",
+													"  pm.expect(jsonData.amount).to.eql(100);",
 													"})};",
 													""
 												],
@@ -3389,7 +2862,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"payment_id\": \"{{payment_id}}\",\n    \"amount\": 1000,\n    \"reason\": \"Customer returned product\",\n    \"refund_type\": \"instant\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"payment_id\": \"{{payment_id}}\",\n    \"amount\": 100,\n    \"reason\": \"Customer returned product\",\n    \"refund_type\": \"instant\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -3405,7 +2878,7 @@
 												"refunds"
 											]
 										},
-										"description": "To create a refund against an already processed payment"
+										"description": "To create a refund againt an already processed payment"
 									},
 									"response": []
 								},
@@ -3444,10 +2917,10 @@
 													"  pm.expect(jsonData.status).to.eql(\"succeeded\");",
 													"})};",
 													"",
-													"// Response body should have value \"6540\" for \"amount\"",
+													"// Response body should have value \"100\" for \"amount\"",
 													"if (jsonData?.status) {",
 													"pm.test(\"[POST]::/refunds - Content check if value for 'amount' matches '1000'\", function() {",
-													"  pm.expect(jsonData.amount).to.eql(1000);",
+													"  pm.expect(jsonData.amount).to.eql(100);",
 													"})};",
 													""
 												],
@@ -3681,7 +3154,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"123456\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n     \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"united states\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"united states\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"BamboraCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+1\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_type\": \"credit\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"1234\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"John Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"ip_address\": \"127.2.2.0\",\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -3783,7 +3256,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"01\",\n            \"card_exp_year\": \"2023\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\",\n            \"last_name\": \"abc\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"BamboraCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4030000010001234\",\n            \"card_exp_month\": \"13\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"ip_address\": \"127.2.2.0\",\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -3861,8 +3334,8 @@
 													"",
 													"// Response body should have value \"connector error\" for \"error type\"",
 													"if (jsonData?.error?.type) {",
-													"pm.test(\"[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'\", function() {",
-													"  pm.expect(jsonData.error.type).to.eql(\"invalid_request\");",
+													"pm.test(\"[POST]::/payments - Content check if value for 'error.type' matches 'connector'\", function() {",
+													"  pm.expect(jsonData.error.type).to.eql(\"connector\");",
 													"})};"
 												],
 												"type": "text/javascript"
@@ -3883,7 +3356,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"2022\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n     \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\",\n            \"last_name\": \"abc\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"BamboraCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4030000010001234\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"2023\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"ip_address\": \"127.2.2.0\",\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -3962,8 +3435,8 @@
 													"",
 													"// Response body should have value \"connector error\" for \"error type\"",
 													"if (jsonData?.error?.type) {",
-													"pm.test(\"[POST]::/payments - Content check if value for 'error.type' matches 'connector'\", function() {",
-													"  pm.expect(jsonData.error.type).to.eql(\"connector\");",
+													"pm.test(\"[POST]::/payments - Content check if value for 'error.type' matches 'invalid_request'\", function() {",
+													"  pm.expect(jsonData.error.type).to.eql(\"invalid_request\");",
 													"})};"
 												],
 												"type": "text/javascript"
@@ -3984,7 +3457,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"123456\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"12345\"\n        }\n    },\n      \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"BamboraCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4030000010001234\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"12345\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"ip_address\": \"127.2.2.0\",\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -4085,7 +3558,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": false,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n     \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": false,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"BamboraCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"ip_address\": \"127.2.2.0\",\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -4214,7 +3687,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								}
@@ -4300,7 +3773,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"manual\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n      \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\",\n            \"last_name\": \"abc\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"manual\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"BamboraCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+1\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_type\": \"credit\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4030000010001234\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"John Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"ip_address\": \"127.2.2.0\",\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -4614,7 +4087,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n     \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\",\n            \"last_name\": \"abc\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"BamboraCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+1\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_type\": \"credit\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4030000010001234\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"John Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"ip_address\": \"127.2.2.0\",\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -4831,7 +4304,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n     \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\",\n            \"last_name\": \"abc\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"BamboraCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+1\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_type\": \"credit\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4030000010001234\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"John Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"ip_address\": \"127.2.2.0\",\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -4960,327 +4433,6 @@
 							]
 						},
 						{
-							"name": "Scenario6-Create 3DS payment with greater capture",
-							"item": [
-								{
-									"name": "Payments - Create",
-									"event": [
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"// Validate status 2xx ",
-													"pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
-													"   pm.response.to.be.success;",
-													"});",
-													"",
-													"// Validate if response header has matching content-type",
-													"pm.test(\"[POST]::/payments - Content-Type is application/json\", function () {",
-													"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
-													"});",
-													"",
-													"// Validate if response has JSON Body ",
-													"pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
-													"    pm.response.to.have.jsonBody();",
-													"});",
-													"",
-													"// Set response object as internal variable",
-													"let jsonData = {};",
-													"try {jsonData = pm.response.json();}catch(e){}",
-													"",
-													"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-													"if (jsonData?.payment_id) {",
-													"   pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-													"   console.log(\"- use {{payment_id}} as collection variable for value\",jsonData.payment_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.');",
-													"};",
-													"",
-													"",
-													"// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
-													"if (jsonData?.mandate_id) {",
-													"   pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
-													"   console.log(\"- use {{mandate_id}} as collection variable for value\",jsonData.mandate_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.');",
-													"};",
-													"",
-													"// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
-													"if (jsonData?.client_secret) {",
-													"   pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
-													"   console.log(\"- use {{client_secret}} as collection variable for value\",jsonData.client_secret);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.');",
-													"};",
-													"",
-													"// Response body should have value \"requires_customer_action\" for \"status\"",
-													"if (jsonData?.status) {",
-													"pm.test(\"[POST]::/payments - Content check if value for 'status' matches 'requires_customer_action'\", function() {",
-													"  pm.expect(jsonData.status).to.eql(\"requires_customer_action\");",
-													"})};",
-													"",
-													"// Response body should have \"next_action.redirect_to_url\"",
-													"pm.test(\"[POST]::/payments - Content check if 'next_action.redirect_to_url' exists\", function() {",
-													"   pm.expect((typeof jsonData.next_action.redirect_to_url !== \"undefined\")).to.be.true;",
-													"});",
-													"",
-													""
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											},
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"manual\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4000000000003063\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n     \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\",\n            \"last_name\": \"abc\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{baseUrl}}/payments",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"payments"
-											]
-										},
-										"description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
-									},
-									"response": []
-								},
-								{
-									"name": "Payments - Retrieve",
-									"event": [
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"// Validate status 2xx ",
-													"pm.test(\"[GET]::/payments/:id - Status code is 2xx\", function () {",
-													"   pm.response.to.be.success;",
-													"});",
-													"",
-													"// Validate if response header has matching content-type",
-													"pm.test(\"[GET]::/payments/:id - Content-Type is application/json\", function () {",
-													"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
-													"});",
-													"",
-													"// Validate if response has JSON Body ",
-													"pm.test(\"[GET]::/payments/:id - Response has JSON Body\", function () {",
-													"    pm.response.to.have.jsonBody();",
-													"});",
-													"",
-													"// Set response object as internal variable",
-													"let jsonData = {};",
-													"try {jsonData = pm.response.json();}catch(e){}",
-													"",
-													"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-													"if (jsonData?.payment_id) {",
-													"   pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-													"   console.log(\"- use {{payment_id}} as collection variable for value\",jsonData.payment_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.');",
-													"};",
-													"",
-													"",
-													"// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
-													"if (jsonData?.mandate_id) {",
-													"   pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
-													"   console.log(\"- use {{mandate_id}} as collection variable for value\",jsonData.mandate_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.');",
-													"};",
-													"",
-													"// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
-													"if (jsonData?.client_secret) {",
-													"   pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
-													"   console.log(\"- use {{client_secret}} as collection variable for value\",jsonData.client_secret);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.');",
-													"};",
-													"",
-													"",
-													"// Response body should have value \"requires_customer_action\" for \"status\"",
-													"if (jsonData?.status) {",
-													"pm.test(\"[POST]::/payments/:id - Content check if value for 'status' matches 'requires_customer_action'\", function() {",
-													"  pm.expect(jsonData.status).to.eql(\"requires_customer_action\");",
-													"})};"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "{{baseUrl}}/payments/:id?force_sync=true",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"payments",
-												":id"
-											],
-											"query": [
-												{
-													"key": "force_sync",
-													"value": "true"
-												}
-											],
-											"variable": [
-												{
-													"key": "id",
-													"value": "{{payment_id}}",
-													"description": "(Required) unique payment id"
-												}
-											]
-										},
-										"description": "To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment"
-									},
-									"response": []
-								},
-								{
-									"name": "Payments - Capture",
-									"event": [
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"// Validate status 4xx ",
-													"pm.test(\"[POST]::/payments/:id/capture - Status code is 4xx\", function () {",
-													"   pm.response.to.be.error;",
-													"});",
-													"",
-													"// Validate if response header has matching content-type",
-													"pm.test(\"[POST]::/payments/:id/capture - Content-Type is application/json\", function () {",
-													"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
-													"});",
-													"",
-													"// Validate if response has JSON Body ",
-													"pm.test(\"[POST]::/payments/:id/capture - Response has JSON Body\", function () {",
-													"    pm.response.to.have.jsonBody();",
-													"});",
-													"",
-													"",
-													"// Set response object as internal variable",
-													"let jsonData = {};",
-													"try {jsonData = pm.response.json();}catch(e){}",
-													"",
-													"",
-													"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-													"if (jsonData?.payment_id) {",
-													"   pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-													"   console.log(\"- use {{payment_id}} as collection variable for value\",jsonData.payment_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.');",
-													"};",
-													"",
-													"",
-													"// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
-													"if (jsonData?.mandate_id) {",
-													"   pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
-													"   console.log(\"- use {{mandate_id}} as collection variable for value\",jsonData.mandate_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.');",
-													"};",
-													"",
-													"// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
-													"if (jsonData?.client_secret) {",
-													"   pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
-													"   console.log(\"- use {{client_secret}} as collection variable for value\",jsonData.client_secret);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.');",
-													"};",
-													"",
-													"// Response body should have \"error\"",
-													"pm.test(\"[POST]::/payments/:id/confirm - Content check if 'error' exists\", function() {",
-													"   pm.expect((typeof jsonData.error !== \"undefined\")).to.be.true;",
-													"});",
-													"",
-													"// Response body should have value \"connector error\" for \"error type\"",
-													"if (jsonData?.error?.type) {",
-													"pm.test(\"[POST]::/payments/:id/confirm - Content check if value for 'error.type' matches 'invalid_request'\", function() {",
-													"  pm.expect(jsonData.error.type).to.eql(\"invalid_request\");",
-													"})};",
-													"",
-													"",
-													"",
-													"",
-													"",
-													""
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											},
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\n  \"amount_to_capture\": 7540,\n  \"statement_descriptor_name\": \"Joseph\",\n  \"statement_descriptor_suffix\": \"JS\"\n}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{baseUrl}}/payments/:id/capture",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"payments",
-												":id",
-												"capture"
-											],
-											"variable": [
-												{
-													"key": "id",
-													"value": "{{payment_id}}",
-													"description": "(Required) unique payment id"
-												}
-											]
-										},
-										"description": "To capture the funds for an uncaptured payment"
-									},
-									"response": []
-								}
-							]
-						},
-						{
 							"name": "Scenario7-Refund exceeds amount",
 							"item": [
 								{
@@ -5360,7 +4512,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n     \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\",\n            \"last_name\": \"abc\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"BamboraCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4030000010001234\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"ip_address\": \"127.2.2.0\",\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -5555,14 +4707,14 @@
 												"refunds"
 											]
 										},
-										"description": "To create a refund against an already processed payment"
+										"description": "To create a refund againt an already processed payment"
 									},
 									"response": []
 								}
 							]
 						},
 						{
-							"name": "Scenario8-Refund for unsuccessful payment",
+							"name": "Scenario8-Refund for unsuccessfull payment",
 							"item": [
 								{
 									"name": "Payments - Create",
@@ -5642,7 +4794,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": false,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n      \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": false,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4030000010001234\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n      \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"sundari\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla\\/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit\\/537.36 (KHTML, like Gecko) Chrome\\/70.0.3538.110 Safari\\/537.36\",\n        \"accept_header\": \"text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,\\/;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"ip_address\": \"127.2.2.0\",\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -5836,7 +4988,7 @@
 												"refunds"
 											]
 										},
-										"description": "To create a refund against an already processed payment"
+										"description": "To create a refund againt an already processed payment"
 									},
 									"response": []
 								}
