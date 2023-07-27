@@ -70,10 +70,15 @@ pub struct StaxCustomerRequest {
 impl TryFrom<&types::ConnectorCustomerRouterData> for StaxCustomerRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            email: item.request.email.to_owned(),
-            firstname: item.request.name.to_owned(),
-        })
+        if item.request.email.is_none() && item.request.name.is_none(){
+            Err(errors::ConnectorError::MissingRequiredField { field_name: "email or firstname" }).into_report()
+        }
+        else {
+            Ok(Self {
+                email: item.request.email.to_owned(),
+                firstname: item.request.name.to_owned(),
+            })
+        }
     }
 }
 
@@ -355,7 +360,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, strum::Display, strum::EnumString)]
 #[serde(rename_all = "snake_case")]
 pub enum StaxErrorResponseTypes {
     Validation(Vec<String>),

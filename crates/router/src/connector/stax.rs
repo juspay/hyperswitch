@@ -96,7 +96,7 @@ impl ConnectorCommon for Stax {
             .response
             .parse_struct("StaxErrorResponseTypes")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let message = match response {
+        let message = match response.clone() {
             stax::StaxErrorResponseTypes::Validation(validation_error) => validation_error
                 .first()
                 .unwrap_or(&consts::NO_ERROR_MESSAGE.to_string())
@@ -165,7 +165,7 @@ impl ConnectorCommon for Stax {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
+            code: response.to_string(),
             message: message.clone(),
             reason: Some(message),
         })
