@@ -1111,7 +1111,7 @@ pub async fn delete_tokenized_data(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error serializing api::DeleteTokenizeByTokenRequest")?;
 
-    let (public_key, _private_key) = get_locker_jwe_keys(&state.kms_secrets)
+    let (public_key, _private_key) = get_locker_jwe_keys(&state.kms_secrets.clone())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encryption key")?;

@@ -4,6 +4,7 @@ use std::{
 };
 
 use clap::{arg, command, Parser};
+use masking::PeekInterface;
 use router::types::ConnectorAuthType;
 use test_utils::connector_auth::ConnectorAuthenticationMap;
 
@@ -53,14 +54,18 @@ fn main() {
     if let Some(auth_type) = inner_map.get(&connector_name) {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => {
-                newman_command.args(["--env-var", &format!("connector_api_key={api_key}")]);
+                // newman_command.args(["--env-var", &format!("connector_api_key={}", api_key.map(|val| val))]);
+                newman_command.args([
+                    "--env-var",
+                    &format!("connector_api_key={}", api_key.peek()),
+                ]);
             }
             ConnectorAuthType::BodyKey { api_key, key1 } => {
                 newman_command.args([
                     "--env-var",
-                    &format!("connector_api_key={api_key}"),
+                    &format!("connector_api_key={}", api_key.peek()),
                     "--env-var",
-                    &format!("connector_key1={key1}"),
+                    &format!("connector_key1={}", key1.peek()),
                 ]);
             }
             ConnectorAuthType::SignatureKey {
@@ -70,11 +75,11 @@ fn main() {
             } => {
                 newman_command.args([
                     "--env-var",
-                    &format!("connector_api_key={api_key}"),
+                    &format!("connector_api_key={}", api_key.peek()),
                     "--env-var",
-                    &format!("connector_key1={key1}"),
+                    &format!("connector_key1={}", key1.peek()),
                     "--env-var",
-                    &format!("connector_api_secret={api_secret}"),
+                    &format!("connector_api_secret={}", api_secret.peek()),
                 ]);
             }
             ConnectorAuthType::MultiAuthKey {
@@ -85,13 +90,13 @@ fn main() {
             } => {
                 newman_command.args([
                     "--env-var",
-                    &format!("connector_api_key={api_key}"),
+                    &format!("connector_api_key={}", api_key.peek()),
                     "--env-var",
-                    &format!("connector_key1={key1}"),
+                    &format!("connector_key1={}", key1.peek()),
                     "--env-var",
-                    &format!("connector_key1={key2}"),
+                    &format!("connector_key1={}", key2.peek()),
                     "--env-var",
-                    &format!("connector_api_secret={api_secret}"),
+                    &format!("connector_api_secret={}", api_secret.peek()),
                 ]);
             }
             // Handle other ConnectorAuthType variants

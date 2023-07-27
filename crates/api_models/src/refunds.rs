@@ -135,6 +135,7 @@ pub struct RefundListRequest {
     /// The starting point within a list of objects
     pub offset: Option<i64>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
+    #[serde(flatten)]
     pub time_range: Option<TimeRange>,
     /// The list of connectors to filter refunds list
     pub connector: Option<Vec<String>>,

@@ -51,12 +51,16 @@ where
             .as_millis()
             .to_string();
         let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 19);
-        let signature_string = format!(
-            "{}{}{}{}{}",
-            auth.api_key, nonce, timestamp, auth.merchant_token, request_payload
+        let signature_string = auth.api_key.clone().zip(auth.merchant_token.clone()).map(
+            |(api_key, merchant_token)| {
+                format!(
+                    "{}{}{}{}{}",
+                    api_key, nonce, timestamp, merchant_token, request_payload
+                )
+            },
         );
-        let key = hmac::Key::new(hmac::HMAC_SHA256, auth.api_secret.as_bytes());
-        let tag = hmac::sign(&key, signature_string.as_bytes());
+        let key = hmac::Key::new(hmac::HMAC_SHA256, auth.api_secret.expose().as_bytes());
+        let tag = hmac::sign(&key, signature_string.expose().as_bytes());
         let hmac_sign = hex::encode(tag);
         let signature_value = consts::BASE64_ENGINE_URL_SAFE.encode(hmac_sign);
         Ok(vec![

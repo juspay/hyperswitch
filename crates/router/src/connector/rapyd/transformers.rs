@@ -144,8 +144,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
 
 #[derive(Debug, Deserialize)]
 pub struct RapydAuthType {
-    pub access_key: String,
-    pub secret_key: String,
+    pub access_key: Secret<String>,
+    pub secret_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for RapydAuthType {
@@ -153,8 +153,8 @@ impl TryFrom<&types::ConnectorAuthType> for RapydAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
-                access_key: api_key.to_string(),
-                secret_key: key1.to_string(),
+                access_key: api_key.to_owned(),
+                secret_key: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?

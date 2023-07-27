@@ -278,8 +278,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct PaypalAuthUpdateRequest {
     grant_type: String,
-    client_id: String,
-    client_secret: String,
+    client_id: Secret<String>,
+    client_secret: Secret<String>,
 }
 impl TryFrom<&types::RefreshTokenRouterData> for PaypalAuthUpdateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -294,7 +294,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for PaypalAuthUpdateRequest {
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct PaypalAuthUpdateResponse {
-    pub access_token: String,
+    pub access_token: Secret<String>,
     pub token_type: String,
     pub expires_in: i64,
 }
@@ -318,8 +318,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaypalAuthUpdateResponse, T, typ
 
 #[derive(Debug)]
 pub struct PaypalAuthType {
-    pub(super) api_key: String,
-    pub(super) key1: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) key1: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for PaypalAuthType {
@@ -327,8 +327,8 @@ impl TryFrom<&types::ConnectorAuthType> for PaypalAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                api_key: api_key.to_string(),
-                key1: key1.to_string(),
+                api_key: api_key.to_owned(),
+                key1: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
