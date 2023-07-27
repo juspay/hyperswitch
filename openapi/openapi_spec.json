@@ -4800,6 +4800,49 @@
           "on_session"
         ]
       },
+      "GcashRedirection": {
+        "type": "object"
+      },
+      "GiftCardData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "baby_gift_card"
+            ],
+            "properties": {
+              "baby_gift_card": {
+                "type": "object",
+                "required": [
+                  "number",
+                  "cvc"
+                ],
+                "properties": {
+                  "number": {
+                    "type": "string",
+                    "description": "The gift card number"
+                  },
+                  "cvc": {
+                    "type": "string",
+                    "description": "The card verification code."
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_safe_card"
+            ],
+            "properties": {
+              "pay_safe_card": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
       "GoPayRedirection": {
         "type": "object"
       },
@@ -6953,7 +6996,9 @@
           "crypto",
           "bank_debit",
           "reward",
-          "upi"
+          "upi",
+          "voucher",
+          "gift_card"
         ]
       },
       "PaymentMethodCreate": {
@@ -7118,6 +7163,28 @@
             "properties": {
               "upi": {
                 "$ref": "#/components/schemas/UpiData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "voucher"
+            ],
+            "properties": {
+              "voucher": {
+                "$ref": "#/components/schemas/VoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "gift_card"
+            ],
+            "properties": {
+              "gift_card": {
+                "$ref": "#/components/schemas/GiftCardData"
               }
             }
           }
@@ -7344,6 +7411,8 @@
           "pago_efectivo",
           "pay_bright",
           "paypal",
+          "pix",
+          "pay_safe_card",
           "przelewy24",
           "pse",
           "red_compra",

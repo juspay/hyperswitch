@@ -723,17 +723,21 @@ pub enum PaymentMethodData {
     Upi(UpiData),
     Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
-    PaySafeCard {},
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct GiftCardData {
-    /// The gift card number
-    #[schema(value_type = String)]
-    pub number: Secret<String>,
-    /// The card verification code.
-    #[schema(value_type = String)]
-    pub cvc: Secret<String>,
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+
+pub enum GiftCardData {
+    BabyGiftCard {
+        /// The gift card number
+        #[schema(value_type = String)]
+        number: Secret<String>,
+        /// The card verification code.
+        #[schema(value_type = String)]
+        cvc: Secret<String>,
+    },
+    PaySafeCard {},
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

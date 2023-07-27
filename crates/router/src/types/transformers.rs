@@ -226,6 +226,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             api_enums::PaymentMethodType::Multibanco
             | api_enums::PaymentMethodType::Pix
             | api_enums::PaymentMethodType::Pse => Self::BankTransfer,
+            api_enums::PaymentMethodType::PaySafeCard => Self::GiftCard,
         }
     }
 }

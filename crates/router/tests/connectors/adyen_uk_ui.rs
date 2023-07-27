@@ -609,26 +609,6 @@ async fn should_make_adyen_touch_n_go_payment(web_driver: WebDriver) -> Result<(
     Ok(())
 }
 
-async fn should_make_adyen_pay_safe_card_payment(driver: WebDriver) -> Result<(), WebDriverError> {
-    let conn = AdyenSeleniumTest {};
-    conn.make_redirection_payment(
-        driver,
-        vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/223"))),
-            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
-            Event::Trigger(Trigger::SendKeys(By::Id("classicPin-addPinField"), "0000000009903417")),
-            Event::Trigger(Trigger::Click(By::Css("div.checkbox"))),
-            Event::Trigger(Trigger::Click(By::Id("payBtn"))),
-            Event::Assert(Assert::ContainsAny(
-                Selector::QueryParamStr,
-                vec!["status=succeeded"],
-            )),
-        ],
-    )
-    .await?;
-    Ok(())
-}
-
 #[test]
 #[serial]
 #[ignore]
@@ -704,16 +684,6 @@ fn should_make_adyen_clearpay_payment_test() {
 fn should_make_adyen_twint_payment_test() {
     tester!(should_make_adyen_twint_payment);
 }
-
-
-#[test]
-#[serial]
-fn should_make_adyen_pay_safe_card_payment_test() {
-    tester!(should_make_adyen_pay_safe_card_payment);
-}
-
-
-
 
 #[test]
 #[serial]

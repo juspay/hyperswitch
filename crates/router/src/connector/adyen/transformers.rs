@@ -1865,7 +1865,6 @@ impl<'a>
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_router_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(gift_card_data)?;
-        let country_code = get_country_code(item);
         let request = AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -1882,7 +1881,7 @@ impl<'a>
             telephone_number: None,
             billing_address: None,
             delivery_address: None,
-            country_code,
+            country_code: None,
             line_items: None,
             shopper_reference: None,
             store_payment_method: None,
