@@ -60,14 +60,12 @@ pub enum CaptureUpdate {
     },
     ResponseUpdate {
         status: Option<storage_enums::CaptureStatus>,
-        connector: Option<String>,
         connector_transaction_id: Option<String>,
         error_code: Option<String>,
         error_message: Option<String>,
         error_reason: Option<String>,
     },
     ErrorUpdate {
-        connector: Option<String>,
         status: Option<storage_enums::CaptureStatus>,
         error_code: Option<String>,
         error_message: Option<String>,
@@ -79,7 +77,6 @@ pub enum CaptureUpdate {
 #[diesel(table_name = captures)]
 pub struct CaptureUpdateInternal {
     pub status: Option<storage_enums::CaptureStatus>,
-    pub connector: Option<String>,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
     pub error_reason: Option<String>,
@@ -93,7 +90,6 @@ impl CaptureUpdate {
         let capture_update: CaptureUpdateInternal = self.into();
         Capture {
             status: capture_update.status.unwrap_or(source.status),
-            connector: capture_update.connector.or(source.connector),
             error_message: capture_update.error_message.or(source.error_message),
             error_code: capture_update.error_code.or(source.error_code),
             error_reason: capture_update.error_reason.or(source.error_reason),
@@ -117,14 +113,12 @@ impl From<CaptureUpdate> for CaptureUpdateInternal {
             },
             CaptureUpdate::ResponseUpdate {
                 status,
-                connector,
                 connector_transaction_id,
                 error_code,
                 error_message,
                 error_reason,
             } => Self {
                 status,
-                connector,
                 connector_transaction_id,
                 error_code,
                 error_message,
@@ -133,14 +127,12 @@ impl From<CaptureUpdate> for CaptureUpdateInternal {
                 ..Self::default()
             },
             CaptureUpdate::ErrorUpdate {
-                connector,
                 status,
                 error_code,
                 error_message,
                 error_reason,
             } => Self {
                 status,
-                connector,
                 error_code,
                 error_message,
                 error_reason,

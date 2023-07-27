@@ -333,7 +333,6 @@ async fn capture_payment_response_update_tracker<F: Clone>(
                     },
                 ),
                 Some(storage::CaptureUpdate::ErrorUpdate {
-                    connector: None,
                     status: match err.status_code {
                         500..=511 => Some(storage::enums::CaptureStatus::Pending),
                         _ => Some(storage::enums::CaptureStatus::Failure),
@@ -373,7 +372,6 @@ async fn capture_payment_response_update_tracker<F: Clone>(
 
                     let capture_update = storage::CaptureUpdate::ResponseUpdate {
                         status: Some(capture_status),
-                        connector: None,
                         connector_transaction_id: connector_transaction_id.clone(),
                         error_code: None,
                         error_message: None,
