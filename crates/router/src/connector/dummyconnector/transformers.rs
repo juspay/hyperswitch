@@ -150,13 +150,15 @@ impl<const T: u8> TryFrom<&types::PaymentsAuthorizeRouterData>
             .request
             .payment_method_data
         {
-            api::PaymentMethodData::Card(ref req_card) => Ok(PaymentMethodData::Card(req_card.clone().into())),
+            api::PaymentMethodData::Card(ref req_card) => {
+                Ok(PaymentMethodData::Card(req_card.clone().into()))
+            }
             api::PaymentMethodData::Wallet(ref wallet_data) => {
                 Ok(PaymentMethodData::Wallet(wallet_data.clone().try_into()?))
             }
-            api::PaymentMethodData::PayLater(ref pay_later_data) => {
-                Ok(PaymentMethodData::PayLater(pay_later_data.clone().try_into()?))
-            }
+            api::PaymentMethodData::PayLater(ref pay_later_data) => Ok(
+                PaymentMethodData::PayLater(pay_later_data.clone().try_into()?),
+            ),
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         };
         Ok(Self {
