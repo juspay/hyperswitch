@@ -8,6 +8,7 @@ use transformers as klarna;
 use crate::{
     configs::settings,
     connector::utils as connector_utils,
+    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{
@@ -34,6 +35,14 @@ impl ConnectorCommon for Klarna {
         "application/json"
     }
 
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        klarna::KlarnaAuthType::try_from(val)?;
+        Ok(())
+    }
+
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.klarna.base_url.as_ref()
     }
@@ -49,6 +58,27 @@ impl ConnectorCommon for Klarna {
             headers::AUTHORIZATION.to_string(),
             auth.basic_token.into_masked(),
         )])
+    }
+
+    fn build_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: klarna::KlarnaErrorResponse = res
+            .response
+            .parse_struct("KlarnaErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        // KlarnaErrorResponse will either have error_messages or error_message field Ref: https://docs.klarna.com/api/errors/
+        let reason = response
+            .error_messages
+            .map(|messages| messages.join(" & "))
+            .or(response.error_message);
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            code: response.error_code,
+            message: consts::NO_ERROR_MESSAGE.to_string(),
+            reason,
+        })
     }
 }
 
@@ -174,16 +204,7 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: klarna::KlarnaErrorResponse = res
-            .response
-            .parse_struct("KlarnaErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code,
-            message: response.error_messages.join(" & "),
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -338,16 +359,7 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: klarna::KlarnaErrorResponse = res
-            .response
-            .parse_struct("KlarnaErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code,
-            message: response.error_messages.join(" & "),
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 

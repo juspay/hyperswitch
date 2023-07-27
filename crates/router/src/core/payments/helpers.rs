@@ -37,6 +37,7 @@ use crate::{
             types::{self, AsyncLift},
         },
         storage::{self, enums as storage_enums, ephemeral_key, CustomerUpdate::Update},
+        transformers::ForeignInto,
         ErrorResponse, RouterData,
     },
     utils::{
@@ -1278,6 +1279,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::Crypto(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::BankDebit(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Upi(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethodData::Voucher(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Reward(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::GiftCard(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Voucher(_)), _) => Ok(pm.to_owned()),
@@ -1372,12 +1374,74 @@ pub(crate) fn validate_payment_method_fields_present(
     )?;
 
     utils::when(
+        !matches!(
+            req.payment_method,
+            Some(api_enums::PaymentMethod::Card) | None
+        ) && (req.payment_method_type.is_none()),
+        || {
+            Err(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "payment_method_type",
+            })
+        },
+    )?;
+
+    utils::when(
         req.payment_method.is_some()
             && req.payment_method_data.is_none()
             && req.payment_token.is_none(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method_data",
+            })
+        },
+    )?;
+
+    let payment_method: Option<api_enums::PaymentMethod> =
+        (req.payment_method_type).map(ForeignInto::foreign_into);
+
+    utils::when(
+        req.payment_method.is_some()
+            && req.payment_method_type.is_some()
+            && (req.payment_method != payment_method),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: ("payment_method_type doesn't correspond to the specified payment_method"
+                    .to_string()),
+            })
+        },
+    )?;
+
+    utils::when(
+        !matches!(
+            req.payment_method
+                .as_ref()
+                .zip(req.payment_method_data.as_ref()),
+            Some(
+                (
+                    api_enums::PaymentMethod::Card,
+                    api::PaymentMethodData::Card(..)
+                ) | (
+                    api_enums::PaymentMethod::Wallet,
+                    api::PaymentMethodData::Wallet(..)
+                ) | (
+                    api_enums::PaymentMethod::PayLater,
+                    api::PaymentMethodData::PayLater(..)
+                ) | (
+                    api_enums::PaymentMethod::BankRedirect,
+                    api::PaymentMethodData::BankRedirect(..)
+                ) | (
+                    api_enums::PaymentMethod::BankDebit,
+                    api::PaymentMethodData::BankDebit(..)
+                ) | (
+                    api_enums::PaymentMethod::Crypto,
+                    api::PaymentMethodData::Crypto(..)
+                )
+            ) | None
+        ),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "payment_method_data doesn't correspond to the specified payment_method"
+                    .to_string(),
             })
         },
     )?;
@@ -1448,6 +1512,7 @@ pub fn get_handle_response_url(
         redirection_response,
         payments_return_url,
         response.client_secret.as_ref(),
+        response.manual_retry_allowed,
     )
     .attach_printable("Failed to make merchant url with response")?;
 
@@ -1459,6 +1524,7 @@ pub fn make_merchant_url_with_response(
     redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
     client_secret: Option<&masking::Secret<String>>,
+    manual_retry_allowed: Option<bool>,
 ) -> RouterResult<String> {
     // take return url if provided in the request else use merchant return url
     let url = request_return_url
@@ -1481,6 +1547,10 @@ pub fn make_merchant_url_with_response(
                     "payment_intent_client_secret",
                     payment_client_secret.peek().to_string(),
                 ),
+                (
+                    "manual_retry_allowed",
+                    manual_retry_allowed.unwrap_or(false).to_string(),
+                ),
             ],
         )
         .into_report()
@@ -1497,6 +1567,10 @@ pub fn make_merchant_url_with_response(
                     payment_client_secret.peek().to_string(),
                 ),
                 ("amount", amount.to_string()),
+                (
+                    "manual_retry_allowed",
+                    manual_retry_allowed.unwrap_or(false).to_string(),
+                ),
             ],
         )
         .into_report()
@@ -2614,6 +2688,9 @@ pub async fn get_additional_payment_data(
         }
         api_models::payments::PaymentMethodData::Upi(_) => {
             api_models::payments::AdditionalPaymentData::Upi {}
+        }
+        api_models::payments::PaymentMethodData::Voucher(_) => {
+            api_models::payments::AdditionalPaymentData::Voucher {}
         }
         api_models::payments::PaymentMethodData::GiftCard(_) => {
             api_models::payments::AdditionalPaymentData::GiftCard {}

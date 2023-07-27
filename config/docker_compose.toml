@@ -120,11 +120,12 @@ trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
+zen.secondary_base_url = "https://secure.zen-test.com/"
 
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
-rewards = ["cashtocode",]
+rewards = ["cashtocode", "zen"]
 cards = [
     "aci",
     "adyen",
@@ -207,6 +208,18 @@ online_banking_fpx = {country = "MY", currency = "MYR"}
 online_banking_thailand = {country = "TH", currency = "THB"}
 touch_n_go = {country = "MY", currency = "MYR"}
 atome = {country = "MY,SG", currency = "MYR,SGD"}
+
+[pm_filters.zen]
+credit = { not_available_flows = { capture_method = "manual" } }
+debit = { not_available_flows = { capture_method = "manual" } }
+boleto = { country = "BR", currency = "BRL" }
+efecty = { country = "CO", currency = "COP" }
+multibanco = { country = "PT", currency = "EUR" }
+pago_efectivo = { country = "PE", currency = "PEN" }
+pse = { country = "CO", currency = "COP" }
+pix = { country = "BR", currency = "BRL" }
+red_compra = { country = "CL", currency = "CLP" }
+red_pagos = { country = "UY", currency = "UYU" }
 
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,may_bank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
