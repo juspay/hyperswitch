@@ -891,16 +891,6 @@ pub enum BankRedirectData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum VoucherData {
-    BoletoBancario {
-        /// The shopper's social security number
-        #[schema(value_type = String)]
-        social_security_number: Secret<String>,
-    },
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AchBillingDetails {
     /// The Email ID for ACH billing
     #[schema(value_type = String, example = "example@me.com")]
@@ -1195,7 +1185,7 @@ pub struct RewardData {
 pub struct BoletoVoucherData {
     /// The shopper's social security number
     #[schema(value_type = Option<String>)]
-    social_security_number: Option<Secret<String>>,
+    pub social_security_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

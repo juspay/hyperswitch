@@ -336,7 +336,7 @@ pub enum AdyenPaymentMethod<'a> {
     BancontactCard(Box<BancontactCardData>),
     Bizum(Box<BankRedirectionPMData>),
     Blik(Box<BlikRedirectionData>),
-    BoletoBancario(Box<AdyenVoucherData>),
+    Boleto(Box<AdyenVoucherData>),
     ClearPay(Box<AdyenPayLaterData>),
     Dana(Box<DanaWalletData>),
     Eps(Box<BankRedirectionWithIssuer<'a>>),
@@ -875,7 +875,7 @@ pub enum PaymentType {
     Atome,
     Blik,
     #[serde(rename = "boletobancario")]
-    BoletoBancario,
+    Boleto,
     ClearPay,
     Dana,
     Eps,
@@ -1266,9 +1266,10 @@ fn get_social_security_number(
     voucher_data: &api_models::payments::VoucherData,
 ) -> Option<Secret<String>> {
     match voucher_data {
-        payments::VoucherData::BoletoBancario {
-            social_security_number,
-        } => Some(social_security_number.clone()),
+        payments::VoucherData::Boleto(boleto_data) => {
+            boleto_data.social_security_number.clone()
+        },
+        _ => None,
     }
 }
 
@@ -1335,11 +1336,12 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
     type Error = Error;
     fn try_from(voucher_data: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
         match voucher_data {
-            payments::VoucherData::BoletoBancario { .. } => Ok(AdyenPaymentMethod::BoletoBancario(
+            payments::VoucherData::Boleto { .. } => Ok(AdyenPaymentMethod::Boleto(
                 Box::new(AdyenVoucherData {
-                    payment_type: PaymentType::BoletoBancario,
+                    payment_type: PaymentType::Boleto,
                 }),
             )),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }

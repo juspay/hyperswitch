@@ -1547,7 +1547,6 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Becs => Self::BankDebit,
             PaymentMethodType::Bizum => Self::BankRedirect,
             PaymentMethodType::Blik => Self::BankRedirect,
-            PaymentMethodType::BoletoBancario => Self::Voucher,
             PaymentMethodType::ClassicReward => Self::Reward,
             PaymentMethodType::Credit => Self::Card,
             PaymentMethodType::CryptoCurrency => Self::Crypto,
