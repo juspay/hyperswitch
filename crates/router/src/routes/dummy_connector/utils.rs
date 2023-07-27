@@ -101,7 +101,7 @@ pub fn get_authorize_page(
                 div.user_action {
                     button.authorize  onclick=(format!("window.location.href='{}?confirm=true'", return_url)) 
                         { "Complete Payment" }
-                    button.reject onclick=(format!("window.location.href='{}?confirm=true'", return_url)) 
+                    button.reject onclick=(format!("window.location.href='{}?confirm=false'", return_url)) 
                         { "Reject Payment" }
                 }
             }
