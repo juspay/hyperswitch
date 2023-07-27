@@ -7,7 +7,10 @@ use maud::html;
 use rand::Rng;
 use tokio::time as tokio;
 
-use super::{consts, errors, types::{self, GetPaymentMethodDetails}};
+use super::{
+    consts, errors,
+    types::{self, GetPaymentMethodDetails},
+};
 use crate::routes::AppState;
 
 pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
@@ -88,7 +91,7 @@ pub fn get_authorize_page(
                 h1 { "Test Payment Page" }
             }
             div.container {
-                div.payment-details { 
+                div.payment_details {
                     img src=(image) {}
                     div.border {}
                     img src=(connector_image) {}
@@ -98,7 +101,6 @@ pub fn get_authorize_page(
                 div.user_action {
                     button.authorize  onclick=(format!("window.location.href='{}?confirm=true'", return_url)) 
                         { "Complete Payment" }
-                    
                     button.reject onclick=(format!("window.location.href='{}?confirm=true'", return_url)) 
                         { "Reject Payment" }
                 }

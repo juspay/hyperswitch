@@ -83,7 +83,7 @@ pub const THREE_DS_CSS: &str = r#"
     .logo {
         width: 8rem;
     }
-    .payment-details {
+    .payment_details {
         height: 2rem;
         display: flex;
         margin: 1rem 0 2rem 0;
