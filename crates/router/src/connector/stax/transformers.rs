@@ -177,26 +177,6 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, StaxTokenResponse, T, types::Pay
     }
 }
 
-// PaymentsResponse
-#[derive(Debug, Default, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum StaxPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<StaxPaymentStatus> for enums::AttemptStatus {
-    fn from(item: StaxPaymentStatus) -> Self {
-        match item {
-            StaxPaymentStatus::Succeeded => Self::Charged,
-            StaxPaymentStatus::Failed => Self::Failure,
-            StaxPaymentStatus::Processing => Self::Authorizing,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StaxPaymentResponseTypes {
@@ -222,7 +202,7 @@ pub struct StaxPaymentsResponse {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StaxMetaData {
-    pub id: String,
+    pub capture_id: String,
 }
 
 impl<F, T>
@@ -243,7 +223,7 @@ impl<F, T>
                         connector_metadata =
                             item.response.child_captures.first().map(|child_captures| {
                                 serde_json::json!(StaxMetaData {
-                                    id: child_captures.id.clone()
+                                    capture_id: child_captures.id.clone()
                                 })
                             });
                         enums::AttemptStatus::Charged

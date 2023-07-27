@@ -692,7 +692,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let connector_transaction_id = if req.request.connector_metadata.is_some() {
             let stax_capture: stax::StaxMetaData =
                 to_connector_meta(req.request.connector_metadata.clone())?;
-            stax_capture.id
+            stax_capture.capture_id
         } else {
             req.request.connector_transaction_id.clone()
         };
