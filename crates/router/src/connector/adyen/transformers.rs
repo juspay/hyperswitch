@@ -2451,12 +2451,6 @@ pub fn get_next_action_response(
     Ok((status, error, payments_response_data))
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VoucherNextStepData {
-    download_url: Option<Url>,
-    reference: Secret<String>,
-}
-
 pub fn get_redirection_error_response(
     response: RedirectionErrorResponse,
     is_manual_capture: bool,
