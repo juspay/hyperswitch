@@ -212,6 +212,15 @@ online_banking_fpx = {country = "MY", currency = "MYR"}
 online_banking_thailand = {country = "TH", currency = "THB"}
 touch_n_go = {country = "MY", currency = "MYR"}
 atome = {country = "MY,SG", currency = "MYR,SGD"}
+permata_bank_transfer = {country = "ID", currency = "IDR"}
+bca_bank_transfer = {country = "ID", currency = "IDR"}
+bni_va = {country = "ID", currency = "IDR"}
+bri_va = {country = "ID", currency = "IDR"}
+cimb_va = {country = "ID", currency = "IDR"}
+danamon_va = {country = "ID", currency = "IDR"}
+mandiri_va = {country = "ID", currency = "IDR"}
+alfamart = {country = "ID", currency = "IDR"}
+indomaret = {country = "ID", currency = "IDR"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
