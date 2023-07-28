@@ -222,10 +222,14 @@ fn get_card_request_data(
     amount: String,
     ccard: &api_models::payments::Card,
     return_url: String,
-    billing_last_name: Option<Secret<String>>,
 ) -> Result<TrustpayPaymentsRequest, Error> {
     let email = item.request.get_email()?;
     let customer_ip_address = browser_info.get_ip_address()?;
+    let billing_last_name = item
+        .get_billing()?
+        .address
+        .as_ref()
+        .map(|address| address.last_name.clone().unwrap_or_default());
     Ok(TrustpayPaymentsRequest::CardsPaymentRequest(Box::new(
         PaymentRequestCards {
             amount,
@@ -311,11 +315,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
             ip_address: browser_info.ip_address,
         };
         let params = get_mandatory_fields(item)?;
-        let billing_last_name = item
-            .get_billing()?
-            .address
-            .as_ref()
-            .map(|address| address.last_name.clone().unwrap_or_default());
         let amount = format!(
             "{:.2}",
             utils::to_currency_base_unit(item.request.amount, item.request.currency)?
@@ -333,7 +332,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
                 amount,
                 ccard,
                 item.request.get_return_url()?,
-                billing_last_name,
             )?),
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 get_bank_redirection_request_data(item, bank_redirection_data, amount, auth)
