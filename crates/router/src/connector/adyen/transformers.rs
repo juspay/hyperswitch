@@ -274,20 +274,24 @@ pub struct AdyenNextActionResponse {
 #[serde(rename_all = "camelCase")]
 pub struct AdyenNextAction {
     payment_method_type: PaymentType,
+    alternative_reference: Option<String>,
+    download_url: Option<Url>,
     expires_at: Option<String>,
     initial_amount: Option<Amount>,
     instructions_url: Option<Url>,
-    download_url: Option<Url>,
-    url: Option<Url>,
-    method: Option<services::Method>,
+    merchant_name: Option<String>,
+    merchant_reference: Option<String>,
+    pass_creation_token: Option<String>,
+    reference: Option<String>,
+    shopper_email: Option<Email>,
+    total_amount: Option<Amount>,
     #[serde(rename = "type")]
     type_of_response: ActionType,
+    url: Option<Url>,
+    method: Option<services::Method>,
     data: Option<std::collections::HashMap<String, String>>,
     payment_data: Option<String>,
     qr_code_data: Option<String>,
-    reference: Option<String>,
-    pass_creation_token: Option<String>,
-    total_amount: Option<Amount>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -354,6 +358,8 @@ pub enum AdyenPaymentMethod<'a> {
     OnlineBankingFpx(Box<OnlineBankingFpxData>),
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand(Box<OnlineBankingThailandData>),
+    #[serde(rename = "oxxo")]
+    Oxxo(Box<PmdForPaymentType>),
     #[serde(rename = "paybright")]
     PayBright(Box<PmdForPaymentType>),
     #[serde(rename = "doku_permata_lite_atm")]
@@ -909,6 +915,8 @@ pub enum PaymentType {
     OnlineBankingFpx,
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand,
+    #[serde(rename = "oxxo")]
+    Oxxo,
     PayBright,
     Paypal,
     Scheme,
@@ -1297,7 +1305,8 @@ fn get_social_security_number(
         | payments::VoucherData::Efecty { .. }
         | payments::VoucherData::PagoEfectivo { .. }
         | payments::VoucherData::RedCompra { .. }
-        | payments::VoucherData::RedPagos { .. } => None,
+        | payments::VoucherData::RedPagos { .. }
+        | payments::VoucherData::Oxxo { .. } => None,
     }
 }
 
@@ -1387,6 +1396,9 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
                 last_name: last_name.clone(),
                 shopper_email: email.clone(),
             }))),
+            payments::VoucherData::Oxxo => {
+                Ok(AdyenPaymentMethod::Oxxo(Box::new(PmdForPaymentType {})))
+            }
             payments::VoucherData::Efecty
             | payments::VoucherData::PagoEfectivo
             | payments::VoucherData::RedCompra
@@ -2504,11 +2516,14 @@ pub fn get_voucher_metadata(
         .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
     match response.action.payment_method_type {
-        PaymentType::Alfamart | PaymentType::Indomaret => {
+        PaymentType::Alfamart
+        | PaymentType::Indomaret
+        | PaymentType::BoletoBancario
+        | PaymentType::Oxxo => {
             let voucher_data = payments::VoucherNextStepData {
                 expires_at: response.action.expires_at.clone(),
                 reference,
-                download_url: None,
+                download_url: response.action.download_url.clone(),
             };
 
             common_utils::ext_traits::Encode::<payments::VoucherNextStepData>::encode_to_value(
@@ -2543,22 +2558,21 @@ pub fn get_voucher_metadata(
             .change_context(errors::ConnectorError::ResponseHandlingFailed)
         }
 
-        PaymentType::BoletoBancario => {
-            let voucher_data = VoucherNextStepData {
-                download_url: response.action.download_url.clone(),
-                reference: Secret::new(
-                    response
-                        .action
-                        .reference
-                        .clone()
-                        .ok_or(errors::ConnectorError::NoConnectorMetaData)?,
-                ),
-            };
+        //    // PaymentType::BoletoBancario => {
+        //         let voucher_data = VoucherNextStepData {
+        //             download_url: response.action.download_url.clone(),
+        //             reference: Secret::new(
+        //                 response
+        //                     .action
+        //                     .reference
+        //                     .clone()
+        //                     .ok_or(errors::ConnectorError::NoConnectorMetaData)?,
+        //             ),
+        //         };
 
-            common_utils::ext_traits::Encode::<VoucherNextStepData>::encode_to_value(&voucher_data)
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)
-        }
-
+        //         common_utils::ext_traits::Encode::<VoucherNextStepData>::encode_to_value(&voucher_data)
+        //             .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        //     }
         _ => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
     }
 }

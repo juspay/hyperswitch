@@ -1265,6 +1265,7 @@ pub enum VoucherData {
     RedPagos,
     Alfamart(AlfamartVoucherData),
     Indomaret(IndomaretVoucherData),
+    Oxxo,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]

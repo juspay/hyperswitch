@@ -338,6 +338,7 @@ danamon_va = {country = "ID", currency = "IDR"}
 mandiri_va = {country = "ID", currency = "IDR"}
 alfamart = {country = "ID", currency = "IDR"}
 indomaret = {country = "ID", currency = "IDR"}
+oxxo = {country = "MX", currency = "MXN"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }

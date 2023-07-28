@@ -874,6 +874,7 @@ pub enum PaymentMethodType {
     OnlineBankingFpx,
     OnlineBankingPoland,
     OnlineBankingSlovakia,
+    Oxxo,
     PagoEfectivo,
     PermataBankTransfer,
     PayBright,

@@ -271,6 +271,8 @@ danamon_va = {country = "ID", currency = "IDR"}
 mandiri_va = {country = "ID", currency = "IDR"}
 alfamart = {country = "ID", currency = "IDR"}
 indomaret = {country = "ID", currency = "IDR"}
+oxxo = {country = "MX", currency = "MXN"}
+
 
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }

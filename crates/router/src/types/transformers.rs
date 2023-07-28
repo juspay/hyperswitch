@@ -224,7 +224,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::RedCompra
             | api_enums::PaymentMethodType::Alfamart
             | api_enums::PaymentMethodType::Indomaret
-            | api_enums::PaymentMethodType::RedPagos => Self::Voucher,
+            | api_enums::PaymentMethodType::RedPagos
+            | api_enums::PaymentMethodType::Oxxo => Self::Voucher,
             api_enums::PaymentMethodType::Pse
             | api_enums::PaymentMethodType::Multibanco
             | api_enums::PaymentMethodType::PermataBankTransfer
