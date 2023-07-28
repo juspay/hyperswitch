@@ -207,6 +207,7 @@ where
                 validate_result.storage_scheme,
                 updated_customer,
                 &key_store,
+                None,
             )
             .await?;
     }
@@ -628,6 +629,7 @@ where
             merchant_account.storage_scheme,
             updated_customer,
             key_store,
+            None,
         )
         .await?;
 
