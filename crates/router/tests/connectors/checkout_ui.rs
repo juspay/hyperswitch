@@ -39,10 +39,11 @@ async fn should_make_3ds_payment(c: WebDriver) -> Result<(), WebDriverError> {
             vec![
                 Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/20"))),
                 Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
-                Event::Trigger(Trigger::Sleep(10)), //url gets updated only after some time, so need this timeout to solve the issue
+                Event::Trigger(Trigger::Sleep(5)), //url gets updated only after some time, so need this timeout to solve the issue
                 Event::Trigger(Trigger::SwitchFrame(By::Name("cko-3ds2-iframe"))),
                 Event::Trigger(Trigger::SendKeys(By::Id("password"), "Checkout1!")),
                 Event::Trigger(Trigger::Click(By::Id("txtButton"))),
+                Event::Trigger(Trigger::Sleep(2)),
                 Event::Assert(Assert::IsPresent("Google")),
                 Event::Assert(Assert::ContainsAny(
                     Selector::QueryParamStr,
