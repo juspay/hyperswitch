@@ -130,6 +130,6 @@ impl KmsConfig {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Deserialize)]
 #[serde(transparent)]
 pub struct KMSValue(masking::Secret<String>);

@@ -19,6 +19,10 @@ use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
 };
+#[cfg(feature = "kms")]
+pub type Password = kms::KmsValue;
+#[cfg(not(feature = "kms"))]
+pub type Password = Secret<String>;
 
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
@@ -406,15 +410,13 @@ pub struct Server {
 #[serde(default)]
 pub struct Database {
     pub username: String,
-    #[cfg(not(feature = "kms"))]
-    pub password: String,
+    #[serde(alias = "kms_encrypted_password")]
+    pub password: Password,
     pub host: String,
     pub port: u16,
     pub dbname: String,
     pub pool_size: u32,
     pub connection_timeout: u64,
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_password: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
