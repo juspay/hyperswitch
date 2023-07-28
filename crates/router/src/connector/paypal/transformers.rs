@@ -117,7 +117,6 @@ fn get_payment_source(
             country_code: country.ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "eps.country",
             })?,
-            // country_code: api_models::enums::CountryAlpha2::AT,
             experience_context: ContextStruct {
                 return_url: item.request.complete_authorize_url.clone(),
                 cancel_url: item.request.complete_authorize_url.clone(),
