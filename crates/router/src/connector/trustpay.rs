@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as trustpay;
 
 use super::utils::collect_and_sort_values_by_removing_signature;
@@ -54,7 +55,7 @@ where
                     ),
                     (
                         headers::AUTHORIZATION.to_string(),
-                        format!("Bearer {}", token.token).into_masked(),
+                        format!("Bearer {}", token.token.peek()).into_masked(),
                     ),
                 ])
             }
@@ -78,6 +79,14 @@ impl ConnectorCommon for Trustpay {
 
     fn common_get_content_type(&self) -> &'static str {
         "application/x-www-form-urlencoded"
+    }
+
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        trustpay::TrustpayAuthType::try_from(val)?;
+        Ok(())
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -179,10 +188,15 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = trustpay::TrustpayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_value = format!(
-            "Basic {}",
-            consts::BASE64_ENGINE.encode(format!("{}:{}", auth.project_id, auth.secret_key))
-        );
+        let auth_value = auth
+            .project_id
+            .zip(auth.secret_key)
+            .map(|(project_id, secret_key)| {
+                format!(
+                    "Basic {}",
+                    consts::BASE64_ENGINE.encode(format!("{}:{}", project_id, secret_key))
+                )
+            });
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),

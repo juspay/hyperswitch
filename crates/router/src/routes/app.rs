@@ -118,12 +118,13 @@ pub struct DummyConnector;
 #[cfg(feature = "dummy_connector")]
 impl DummyConnector {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/dummy-connector").app_data(web::Data::new(state));
+        let mut routes_with_restricted_access = web::scope("");
         #[cfg(not(feature = "external_access_dc"))]
         {
-            route = route.guard(actix_web::guard::Host("localhost"));
+            routes_with_restricted_access =
+                routes_with_restricted_access.guard(actix_web::guard::Host("localhost"));
         }
-        route = route
+        routes_with_restricted_access = routes_with_restricted_access
             .service(web::resource("/payment").route(web::post().to(dummy_connector_payment)))
             .service(
                 web::resource("/payments/{payment_id}")
@@ -136,7 +137,17 @@ impl DummyConnector {
                 web::resource("/refunds/{refund_id}")
                     .route(web::get().to(dummy_connector_refund_data)),
             );
-        route
+        web::scope("/dummy-connector")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/authorize/{attempt_id}")
+                    .route(web::get().to(dummy_connector_authorize_payment)),
+            )
+            .service(
+                web::resource("/complete/{attempt_id}")
+                    .route(web::get().to(dummy_connector_complete_payment)),
+            )
+            .service(routes_with_restricted_access)
     }
 }
 
@@ -150,7 +161,11 @@ impl Payments {
         #[cfg(feature = "olap")]
         {
             route = route
-                .service(web::resource("/list").route(web::get().to(payments_list)))
+                .service(
+                    web::resource("/list")
+                        .route(web::get().to(payments_list))
+                        .route(web::post().to(payments_list_by_filter)),
+                )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
         }
         #[cfg(feature = "oltp")]
