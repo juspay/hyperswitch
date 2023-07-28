@@ -5,17 +5,16 @@ on:
     types: [opened, synchronize]
   push:
     branches:
-      - main  # Update this with your default branch
+      - main
 
 jobs:
   code_coverage:
     runs-on: ubuntu-latest
     
     permissions: 
-      pull-requests: write  # Corrected indentation
+      pull-requests: write
 
     steps:
-    
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@master
 
@@ -29,18 +28,21 @@ jobs:
 
       - name: Run tests and generate coverage report
         run: cargo tarpaulin --all --ciserver github-actions --coveralls ${{ github.event.pull_request.head.ref }}
+
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Publish code coverage comment on PR
-        uses: mikepenz/action-github-comment@v2
+        uses: actions/github-script@v4
         with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          issue-number: ${{ github.event.pull_request.number }}
-          message: |
-            Code Coverage Report:
-            ${{ steps.code_coverage.outputs.coverage-report }}
-
-      # Optionally, include a step to check for a minimum coverage threshold
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const message = `Code Coverage Report:\n${{ steps.code_coverage.outputs.coverage-report }}`;
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            });
