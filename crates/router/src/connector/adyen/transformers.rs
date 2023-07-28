@@ -2557,22 +2557,6 @@ pub fn get_voucher_metadata(
             )
             .change_context(errors::ConnectorError::ResponseHandlingFailed)
         }
-
-        //    // PaymentType::BoletoBancario => {
-        //         let voucher_data = VoucherNextStepData {
-        //             download_url: response.action.download_url.clone(),
-        //             reference: Secret::new(
-        //                 response
-        //                     .action
-        //                     .reference
-        //                     .clone()
-        //                     .ok_or(errors::ConnectorError::NoConnectorMetaData)?,
-        //             ),
-        //         };
-
-        //         common_utils::ext_traits::Encode::<VoucherNextStepData>::encode_to_value(&voucher_data)
-        //             .change_context(errors::ConnectorError::ResponseHandlingFailed)
-        //     }
         _ => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
     }
 }
