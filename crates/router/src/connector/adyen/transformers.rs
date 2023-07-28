@@ -576,7 +576,6 @@ pub struct OnlineBankingThailandData {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct OpenBankingUKData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
