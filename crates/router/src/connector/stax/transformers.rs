@@ -286,6 +286,7 @@ pub struct ChildTransactionsInResponse {
     id: String,
     success: bool,
     created_at: String,
+    total: i64,
 }
 #[derive(Debug, Deserialize)]
 pub struct RefundResponse {
@@ -301,17 +302,20 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let mut refund_txn = item
+        let filtered_txn: Vec<&ChildTransactionsInResponse> = item
             .response
             .child_transactions
+            .iter()
+            .filter(|txn| txn.total == item.data.request.refund_amount)
+            .collect();
+
+        let mut refund_txn = filtered_txn
             .first()
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
-        if item.response.child_transactions.len() > 1 {
-            for child in item.response.child_transactions.iter() {
-                if child.created_at > refund_txn.created_at {
-                    refund_txn = child;
-                }
+        for child in filtered_txn.iter() {
+            if child.created_at > refund_txn.created_at {
+                refund_txn = child;
             }
         }
 
