@@ -37,6 +37,19 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                     payment_method_id: Secret::new(item.get_payment_method_token()?),
                 })
             }
+            api::PaymentMethodData::BankDebit(_) => {
+                let mut pre_auth = false;
+                if let Some(enums::CaptureMethod::Manual) = item.request.capture_method {
+                    pre_auth = true;
+                }
+                Ok(Self {
+                    meta: StaxPaymentsRequestMetaData { tax: 0 },
+                    total: item.request.amount,
+                    is_refundable: true,
+                    pre_auth,
+                    payment_method_id: Secret::new(item.get_payment_method_token()?),
+                })
+            }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
@@ -115,11 +128,23 @@ pub struct StaxTokenizeData {
     customer_id: Secret<String>,
 }
 
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct StaxBankTokenizeData {
+    person_name: Secret<String>,
+    bank_account: Secret<String>,
+    bank_routing: Secret<String>,
+    bank_name: Secret<String>,
+    bank_type: Secret<String>,
+    bank_holder_type: Secret<String>,
+    customer_id: Secret<String>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(tag = "method")]
 #[serde(rename_all = "lowercase")]
 pub enum StaxTokenRequest {
     Card(StaxTokenizeData),
+    Bank(StaxBankTokenizeData),
 }
 
 impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
@@ -137,6 +162,28 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                     customer_id: Secret::new(customer_id),
                 };
                 Ok(Self::Card(stax_card_data))
+            }
+            api_models::payments::PaymentMethodData::BankDebit(
+                api_models::payments::BankDebitData::AchBankDebit {
+                    billing_details,
+                    account_number,
+                    routing_number,
+                    bank_name,
+                    bank_type,
+                    bank_holder_type,
+                    ..
+                },
+            ) => {
+                let stax_bank_data = StaxBankTokenizeData {
+                    person_name: billing_details.name,
+                    bank_account: account_number,
+                    bank_routing: routing_number,
+                    bank_name: bank_name.unwrap_or(Secret::new("".to_string())),
+                    bank_type: bank_type.unwrap_or(Secret::new("".to_string())),
+                    bank_holder_type: bank_holder_type.unwrap_or(Secret::new("".to_string())),
+                    customer_id: Secret::new(customer_id),
+                };
+                Ok(Self::Bank(stax_bank_data))
             }
             api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::Wallet(_)
