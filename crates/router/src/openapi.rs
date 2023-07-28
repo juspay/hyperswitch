@@ -197,6 +197,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::BoletoVoucherData,
         api_models::payments::Address,
         api_models::payments::VoucherData,
+        api_models::payments::AlfamartVoucherData,
+        api_models::payments::IndomaretVoucherData,
         api_models::payments::BankRedirectData,
         api_models::payments::BankRedirectBilling,
         api_models::payments::BankRedirectBilling,

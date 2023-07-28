@@ -2118,6 +2118,31 @@
           }
         }
       },
+      "AlfamartVoucherData": {
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "email"
+        ],
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The billing first name for Alfamart",
+            "example": "Jane"
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The billing second name for Alfamart",
+            "example": "Doe"
+          },
+          "email": {
+            "type": "string",
+            "description": "The Email ID for Alfamart",
+            "example": "example@me.com"
+          }
+        }
+      },
       "AliPayHkRedirection": {
         "type": "object"
       },
@@ -5278,6 +5303,31 @@
           "total_price": {
             "type": "string",
             "description": "The total price"
+          }
+        }
+      },
+      "IndomaretVoucherData": {
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "email"
+        ],
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The billing first name for Alfamart",
+            "example": "Jane"
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The billing second name for Alfamart",
+            "example": "Doe"
+          },
+          "email": {
+            "type": "string",
+            "description": "The Email ID for Alfamart",
+            "example": "example@me.com"
           }
         }
       },
