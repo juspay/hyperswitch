@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use api_models::enums::PaymentMethod;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -69,6 +70,7 @@ pub struct PayerInfo {
 #[serde(rename_all = "camelCase")]
 pub struct IatapayPaymentsRequest {
     merchant_id: String,
+    merchant_payment_id: Option<String>,
     amount: f64,
     currency: String,
     country: String,
@@ -81,7 +83,11 @@ pub struct IatapayPaymentsRequest {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let country = item.get_billing_country()?.to_string();
+        let payment_method = item.payment_method;
+        let country = match payment_method {
+            PaymentMethod::Upi => "IN".to_string(),
+            _ => item.get_billing_country()?.to_string()
+        };
         let return_url = item.get_return_url()?;
         let payer_info = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Upi(upi_data) => {
@@ -93,6 +99,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
             utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.connector_auth_type)?.merchant_id,
+            merchant_payment_id: Some(item.payment_id.clone()),
             amount,
             currency: item.request.currency.to_string(),
             country: country.clone(),
@@ -246,8 +253,8 @@ impl<F, T>
 #[serde(rename_all = "camelCase")]
 pub struct IatapayRefundRequest {
     pub merchant_id: String,
-    pub merchant_refund_id: String,
-    pub amount: i64,
+    pub merchant_refund_id: Option<String>,
+    pub amount: f64,
     pub currency: String,
     pub bank_transfer_description: Option<String>,
     pub notification_url: String,
@@ -256,13 +263,12 @@ pub struct IatapayRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for IatapayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        let amount =
+            utils::to_currency_base_unit_asf64(item.request.refund_amount, item.request.currency)?;
         Ok(Self {
-            amount: item.request.refund_amount,
+            amount,
             merchant_id: IatapayAuthType::try_from(&item.connector_auth_type)?.merchant_id,
-            merchant_refund_id: match item.request.connector_refund_id.clone() {
-                Some(val) => val,
-                None => item.request.refund_id.clone(),
-            },
+            merchant_refund_id: Some(item.request.refund_id.clone()),
             currency: item.request.currency.to_string(),
             bank_transfer_description: item.request.reason.clone(),
             notification_url: item.request.get_webhook_url()?,
