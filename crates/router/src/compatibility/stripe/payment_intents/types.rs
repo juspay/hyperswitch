@@ -770,7 +770,9 @@ pub enum StripeNextAction {
     QrCodeInformation {
         image_data_url: url::Url,
     },
-    DisplayVoucherInformation,
+    DisplayVoucherInformation {
+        voucher_details: payments::VoucherNextStepData,
+    },
 }
 
 pub(crate) fn into_stripe_next_action(
@@ -797,8 +799,8 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::QrCodeInformation { image_data_url } => {
             StripeNextAction::QrCodeInformation { image_data_url }
         }
-        payments::NextActionData::DisplayVoucherInformation { .. } => {
-            StripeNextAction::DisplayVoucherInformation
+        payments::NextActionData::DisplayVoucherInformation { voucher_details } => {
+            StripeNextAction::DisplayVoucherInformation { voucher_details }
         }
     })
 }

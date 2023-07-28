@@ -1387,10 +1387,10 @@ pub struct BankTransferNextStepsData {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct VoucherNextStepData {
-    // Reference number required for the transaction
-    reference: String,
-    // Url to download the payment instruction
-    download_url: Option<Url>,
+    /// Reference number required for the transaction
+    pub reference: String,
+    /// Url to download the payment instruction
+    pub download_url: Option<Url>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]

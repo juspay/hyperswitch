@@ -236,7 +236,7 @@ pub struct AdyenThreeDS {
 #[serde(untagged)]
 pub enum AdyenPaymentResponse {
     Response(Response),
-    PresentToShopper(AdyenPTSResponse),
+    PresentToShopper(AdyenPtsResponse),
     RedirectResponse(RedirectionResponse),
     RedirectionErrorResponse(RedirectionErrorResponse),
 }
@@ -271,10 +271,10 @@ pub struct RedirectionResponse {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenPTSResponse {
+pub struct AdyenPtsResponse {
     psp_reference: String,
     result_code: AdyenStatus,
-    action: AdyenPTSAction,
+    action: AdyenPtsAction,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
 }
@@ -293,7 +293,7 @@ pub struct AdyenRedirectionAction {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenPTSAction {
+pub struct AdyenPtsAction {
     reference: String,
     download_url: Option<Url>,
     payment_method_type: Option<String>,
@@ -337,7 +337,7 @@ pub enum AdyenPaymentMethod<'a> {
     Bizum(Box<BankRedirectionPMData>),
     Blik(Box<BlikRedirectionData>),
     #[serde(rename = "boletobancario")]
-    Boleto(Box<AdyenVoucherData>),
+    Boleto,
     ClearPay(Box<AdyenPayLaterData>),
     Dana(Box<DanaWalletData>),
     Eps(Box<BankRedirectionWithIssuer<'a>>),
@@ -828,9 +828,6 @@ pub struct AdyenPayLaterData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AdyenVoucherData {}
 
 // Refunds Request and Response
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -1330,10 +1327,7 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
     type Error = Error;
     fn try_from(voucher_data: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
         match voucher_data {
-            payments::VoucherData::Boleto { .. } => {
-                let adyen_voucher_data = AdyenVoucherData {};
-                Ok(AdyenPaymentMethod::Boleto(Box::new(adyen_voucher_data)))
-            }
+            payments::VoucherData::Boleto { .. } => Ok(AdyenPaymentMethod::Boleto),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
@@ -2277,7 +2271,7 @@ pub struct AdyenMetaData {
 }
 
 pub fn get_present_to_shopper_response(
-    response: AdyenPTSResponse,
+    response: AdyenPtsResponse,
     is_manual_capture: bool,
     status_code: u16,
 ) -> errors::CustomResult<
