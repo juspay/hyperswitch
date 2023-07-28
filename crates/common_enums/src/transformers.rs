@@ -1603,6 +1603,12 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::PagoEfectivo => Self::Voucher,
             PaymentMethodType::RedCompra => Self::Voucher,
             PaymentMethodType::RedPagos => Self::Voucher,
+            PaymentMethodType::SevenEleven  => Self::Voucher,
+            PaymentMethodType::Lawson  => Self::Voucher,
+            PaymentMethodType::MiniStop  => Self::Voucher,
+            PaymentMethodType::FamilyMart  => Self::Voucher,
+            PaymentMethodType::Seicomart  => Self::Voucher,
+            PaymentMethodType::PayEasy  => Self::Voucher,
         }
     }
 }
