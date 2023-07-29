@@ -119,6 +119,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::MandateUpdateFailed | Self::MandateSerializationFailed | Self::MandateDeserializationFailed | Self::InternalServerError => {
                 AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
             }
+            Self::PayoutFailed { data } => {
+                AER::BadRequest(ApiError::new("CE", 4, "Payout failed while processing with connector.", Some(Extra { data: data.clone(), ..Default::default()})))
+            },
             Self::DuplicateRefundRequest => AER::BadRequest(ApiError::new("HE", 1, "Duplicate refund request. Refund already attempted with the refund ID", None)),
             Self::DuplicateMandate => AER::BadRequest(ApiError::new("HE", 1, "Duplicate mandate request. Mandate already attempted with the Mandate ID", None)),
             Self::DuplicateMerchantAccount => AER::BadRequest(ApiError::new("HE", 1, "The merchant account with the specified details already exists in our records", None)),
@@ -129,6 +132,12 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::DuplicatePayment { payment_id } => {
                 AER::BadRequest(ApiError::new("HE", 1, format!("The payment with the specified payment_id '{payment_id}' already exists in our records"), None))
             }
+            Self::DuplicatePayout { payout_id } => {
+                AER::BadRequest(ApiError::new("HE", 1, format!("The payout with the specified payout_id '{payout_id}' already exists in our records"), None))
+            }
+            Self::GenericDuplicateError { message } => {
+                AER::BadRequest(ApiError::new("HE", 1, message, None))
+            }
             Self::RefundNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Refund does not exist in our records.", None))
             }
@@ -137,6 +146,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::ConfigNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Config key does not exist in our records.", None))
+            },
+            Self::DuplicateConfig => {
+                AER::BadRequest(ApiError::new("HE", 1, "The config with the specified key already exists in our records", None))
             }
             Self::PaymentNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Payment does not exist in our records", None))
@@ -158,6 +170,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::MandateNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Mandate does not exist in our records", None))
+            }
+            Self::PayoutNotFound => {
+                AER::NotFound(ApiError::new("HE", 2, "Payout does not exist in our records", None))
             }
             Self::ReturnUrlUnavailable => AER::NotFound(ApiError::new("HE", 3, "Return URL is not configured and not passed in payments request", None)),
             Self::RefundNotPossible { connector } => {

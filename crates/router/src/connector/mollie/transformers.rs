@@ -253,7 +253,9 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "test_mode",
                         })?;
-                let profile_token = auth.key1;
+                let profile_token = auth
+                    .profile_token
+                    .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
                 Ok(Self {
                     card_holder,
                     card_number,
@@ -434,19 +436,22 @@ pub struct BankDetails {
 
 pub struct MollieAuthType {
     pub(super) api_key: Secret<String>,
-    pub(super) key1: Secret<String>,
+    pub(super) profile_token: Option<Secret<String>>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for MollieAuthType {
     type Error = Error;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
-            Ok(Self {
-                api_key: Secret::new(api_key.to_owned()),
-                key1: Secret::new(key1.to_owned()),
-            })
-        } else {
-            Err(errors::ConnectorError::FailedToObtainAuthType.into())
+        match auth_type {
+            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+                api_key: api_key.to_owned(),
+                profile_token: None,
+            }),
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                api_key: api_key.to_owned(),
+                profile_token: Some(key1.to_owned()),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }
 }

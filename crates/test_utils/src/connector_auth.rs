@@ -1,19 +1,26 @@
 use std::{collections::HashMap, env};
 
-use masking::{PeekInterface, Secret};
+use masking::Secret;
 use router::types::ConnectorAuthType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConnectorAuthentication {
     pub aci: Option<BodyKey>,
+    #[cfg(not(feature = "payouts"))]
     pub adyen: Option<BodyKey>,
+    #[cfg(feature = "payouts")]
+    pub adyen: Option<SignatureKey>,
+    #[cfg(not(feature = "payouts"))]
     pub adyen_uk: Option<BodyKey>,
+    #[cfg(feature = "payouts")]
+    pub adyen_uk: Option<SignatureKey>,
     pub airwallex: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
     pub bitpay: Option<HeaderKey>,
     pub bluesnap: Option<BodyKey>,
+    pub boku: Option<BodyKey>,
     pub cashtocode: Option<BodyKey>,
     pub checkout: Option<SignatureKey>,
     pub coinbase: Option<HeaderKey>,
@@ -48,6 +55,7 @@ pub struct ConnectorAuthentication {
     pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,
     pub tsys: Option<SignatureKey>,
+    pub wise: Option<BodyKey>,
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
     pub zen: Option<HeaderKey>,
@@ -141,25 +149,43 @@ impl ConnectorAuthenticationMap {
                             table.get("key2"),
                         ) {
                             (Some(api_key), None, None, None) => ConnectorAuthType::HeaderKey {
-                                api_key: api_key.as_str().unwrap_or_default().to_string(),
+                                api_key: Secret::new(
+                                    api_key.as_str().unwrap_or_default().to_string(),
+                                ),
                             },
                             (Some(api_key), Some(key1), None, None) => ConnectorAuthType::BodyKey {
-                                api_key: api_key.as_str().unwrap_or_default().to_string(),
-                                key1: key1.as_str().unwrap_or_default().to_string(),
+                                api_key: Secret::new(
+                                    api_key.as_str().unwrap_or_default().to_string(),
+                                ),
+                                key1: Secret::new(key1.as_str().unwrap_or_default().to_string()),
                             },
                             (Some(api_key), Some(key1), Some(api_secret), None) => {
                                 ConnectorAuthType::SignatureKey {
-                                    api_key: api_key.as_str().unwrap_or_default().to_string(),
-                                    key1: key1.as_str().unwrap_or_default().to_string(),
-                                    api_secret: api_secret.as_str().unwrap_or_default().to_string(),
+                                    api_key: Secret::new(
+                                        api_key.as_str().unwrap_or_default().to_string(),
+                                    ),
+                                    key1: Secret::new(
+                                        key1.as_str().unwrap_or_default().to_string(),
+                                    ),
+                                    api_secret: Secret::new(
+                                        api_secret.as_str().unwrap_or_default().to_string(),
+                                    ),
                                 }
                             }
                             (Some(api_key), Some(key1), Some(api_secret), Some(key2)) => {
                                 ConnectorAuthType::MultiAuthKey {
-                                    api_key: api_key.as_str().unwrap_or_default().to_string(),
-                                    key1: key1.as_str().unwrap_or_default().to_string(),
-                                    api_secret: api_secret.as_str().unwrap_or_default().to_string(),
-                                    key2: key2.as_str().unwrap_or_default().to_string(),
+                                    api_key: Secret::new(
+                                        api_key.as_str().unwrap_or_default().to_string(),
+                                    ),
+                                    key1: Secret::new(
+                                        key1.as_str().unwrap_or_default().to_string(),
+                                    ),
+                                    api_secret: Secret::new(
+                                        api_secret.as_str().unwrap_or_default().to_string(),
+                                    ),
+                                    key2: Secret::new(
+                                        key2.as_str().unwrap_or_default().to_string(),
+                                    ),
                                 }
                             }
                             _ => ConnectorAuthType::NoKey,
@@ -183,7 +209,7 @@ pub struct HeaderKey {
 impl From<HeaderKey> for ConnectorAuthType {
     fn from(key: HeaderKey) -> Self {
         Self::HeaderKey {
-            api_key: key.api_key.peek().to_string(),
+            api_key: key.api_key,
         }
     }
 }
@@ -197,8 +223,8 @@ pub struct BodyKey {
 impl From<BodyKey> for ConnectorAuthType {
     fn from(key: BodyKey) -> Self {
         Self::BodyKey {
-            api_key: key.api_key.peek().to_string(),
-            key1: key.key1.peek().to_string(),
+            api_key: key.api_key,
+            key1: key.key1,
         }
     }
 }
@@ -213,9 +239,9 @@ pub struct SignatureKey {
 impl From<SignatureKey> for ConnectorAuthType {
     fn from(key: SignatureKey) -> Self {
         Self::SignatureKey {
-            api_key: key.api_key.peek().to_string(),
-            key1: key.key1.peek().to_string(),
-            api_secret: key.api_secret.peek().to_string(),
+            api_key: key.api_key,
+            key1: key.key1,
+            api_secret: key.api_secret,
         }
     }
 }
@@ -231,10 +257,10 @@ pub struct MultiAuthKey {
 impl From<MultiAuthKey> for ConnectorAuthType {
     fn from(key: MultiAuthKey) -> Self {
         Self::MultiAuthKey {
-            api_key: key.api_key.peek().to_string(),
-            key1: key.key1.peek().to_string(),
-            api_secret: key.api_secret.peek().to_string(),
-            key2: key.key2.peek().to_string(),
+            api_key: key.api_key,
+            key1: key.key1,
+            api_secret: key.api_secret,
+            key2: key.key2,
         }
     }
 }

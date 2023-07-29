@@ -87,6 +87,8 @@ pub struct Settings {
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
+    #[cfg(feature = "payouts")]
+    pub payouts: Payouts,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -97,6 +99,9 @@ pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
 pub struct ConnectorCustomer {
     #[serde(deserialize_with = "connector_deser")]
     pub connector_list: HashSet<api_models::enums::Connector>,
+    #[cfg(feature = "payouts")]
+    #[serde(deserialize_with = "payout_connector_deser")]
+    pub payout_connector_list: HashSet<api_models::enums::PayoutConnectors>,
 }
 
 fn connector_deser<'a, D>(
@@ -113,6 +118,21 @@ where
         .collect())
 }
 
+#[cfg(feature = "payouts")]
+fn payout_connector_deser<'a, D>(
+    deserializer: D,
+) -> Result<HashSet<api_models::enums::PayoutConnectors>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <String>::deserialize(deserializer)?;
+    Ok(value
+        .trim()
+        .split(',')
+        .flat_map(api_models::enums::PayoutConnectors::from_str)
+        .collect())
+}
+
 #[cfg(feature = "dummy_connector")]
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DummyConnector {
@@ -126,6 +146,7 @@ pub struct DummyConnector {
     pub refund_tolerance: u64,
     pub refund_retrieve_duration: u64,
     pub refund_retrieve_tolerance: u64,
+    pub authorize_ttl: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -403,10 +424,13 @@ pub struct SupportedConnectors {
     pub wallets: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct Connectors {
     pub aci: ConnectorParams,
+    #[cfg(feature = "payouts")]
+    pub adyen: ConnectorParamsWithSecondaryBaseUrl,
+    #[cfg(not(feature = "payouts"))]
     pub adyen: ConnectorParams,
     pub airwallex: ConnectorParams,
     pub applepay: ConnectorParams,
@@ -414,6 +438,7 @@ pub struct Connectors {
     pub bambora: ConnectorParams,
     pub bitpay: ConnectorParams,
     pub bluesnap: ConnectorParams,
+    pub boku: ConnectorParams,
     pub braintree: ConnectorParams,
     pub cashtocode: ConnectorParams,
     pub checkout: ConnectorParams,
@@ -448,33 +473,39 @@ pub struct Connectors {
     pub stripe: ConnectorParamsWithFileUploadUrl,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub tsys: ConnectorParams,
+    pub wise: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub zen: ConnectorParams,
-
-    // Keep this field separate from the remaining fields
-    pub supported: SupportedConnectors,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParams {
     pub base_url: String,
     pub secondary_base_url: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithMoreUrls {
     pub base_url: String,
     pub base_url_bank_redirects: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithFileUploadUrl {
     pub base_url: String,
     pub base_url_file_upload: String,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
+#[serde(default)]
+pub struct ConnectorParamsWithSecondaryBaseUrl {
+    pub base_url: String,
+    pub secondary_base_url: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -642,7 +673,7 @@ impl Settings {
         }
         self.secrets.validate()?;
         self.locker.validate()?;
-        self.connectors.validate()?;
+        self.connectors.validate("connectors")?;
 
         self.scheduler
             .as_ref()
@@ -677,4 +708,10 @@ mod payment_method_deserialization_test {
         let test_pm = pm_deser(deserializer);
         assert!(test_pm.is_ok())
     }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Payouts {
+    pub payout_eligibility: bool,
 }

@@ -6,7 +6,7 @@ use common_utils::{
     ext_traits::Encode,
     pii::{self, Email},
 };
-use masking::{PeekInterface, Secret};
+use masking::Secret;
 use router_derive::Setter;
 use time::PrimitiveDateTime;
 use url::Url;
@@ -653,6 +653,7 @@ pub enum PayLaterData {
     WalleyRedirect {},
     /// For Alma Redirection as PayLater Option
     AlmaRedirect {},
+    AtomeRedirect {},
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
@@ -724,18 +725,39 @@ pub enum PaymentMethodData {
     MandatePayment,
     Reward(RewardData),
     Upi(UpiData),
+    Voucher(VoucherData),
+    GiftCard(Box<GiftCardData>),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GiftCardData {
+    /// The gift card number
+    #[schema(value_type = String)]
+    pub number: Secret<String>,
+    /// The card verification code.
+    #[schema(value_type = String)]
+    pub cvc: Secret<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct AdditionalCardInfo {
+    pub card_issuer: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code: Option<String>,
+    pub last4: String,
+    pub card_isin: String,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_holder_name: Secret<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AdditionalPaymentData {
-    Card {
-        card_issuer: Option<String>,
-        card_network: Option<api_enums::CardNetwork>,
-        card_type: Option<String>,
-        card_issuing_country: Option<String>,
-        bank_code: Option<String>,
-    },
+    Card(Box<AdditionalCardInfo>),
     BankRedirect {
         bank_name: Option<api_enums::BankNames>,
     },
@@ -747,6 +769,8 @@ pub enum AdditionalPaymentData {
     MandatePayment {},
     Reward {},
     Upi {},
+    Voucher {},
+    GiftCard {},
     CardRedirect {},
 }
 
@@ -860,6 +884,15 @@ pub enum BankRedirectData {
         #[schema(value_type = CountryAlpha2, example = "US")]
         country: api_enums::CountryAlpha2,
     },
+    OnlineBankingFpx {
+        // Issuer banks
+        #[schema(value_type = BankNames)]
+        issuer: api_enums::BankNames,
+    },
+    OnlineBankingThailand {
+        #[schema(value_type = BankNames)]
+        issuer: api_enums::BankNames,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -938,6 +971,8 @@ pub enum BankTransferData {
         /// The billing details for Multibanco
         billing_details: MultibancoBillingDetails,
     },
+    Pix {},
+    Pse {},
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
@@ -996,6 +1031,8 @@ pub enum WalletData {
     TwintRedirect {},
     /// Wallet data for Vipps Redirection
     VippsRedirect {},
+    /// The wallet data for Touch n Go Redirection
+    TouchNGoRedirect(Box<TouchNGoRedirection>),
     /// The wallet data for WeChat Pay Redirection
     WeChatPayRedirect(Box<WeChatPayRedirection>),
     /// The wallet data for WeChat Pay
@@ -1097,6 +1134,9 @@ pub struct PayPalWalletData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct TouchNGoRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GpayTokenizationData {
     /// The type of the token
     #[serde(rename = "type")]
@@ -1126,11 +1166,17 @@ pub struct ApplepayPaymentMethod {
     pub pm_type: String,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize)]
+#[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct CardResponse {
-    last4: String,
-    exp_month: String,
-    exp_year: String,
+    pub last4: String,
+    pub card_type: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
+    pub card_issuer: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub card_isin: String,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_holder_name: Secret<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1140,22 +1186,41 @@ pub struct RewardData {
     pub merchant_id: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BoletoVoucherData {
+    /// The shopper's social security number
+    #[schema(value_type = Option<String>)]
+    social_security_number: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VoucherData {
+    Boleto(Box<BoletoVoucherData>),
+    Efecty,
+    PagoEfectivo,
+    RedCompra,
+    RedPagos,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
     Card(CardResponse),
-    BankTransfer(BankTransferData),
-    Wallet(WalletData),
-    PayLater(PayLaterData),
+    BankTransfer,
+    Wallet,
+    PayLater,
     Paypal,
-    BankRedirect(BankRedirectData),
-    Crypto(CryptoData),
-    BankDebit(BankDebitData),
+    BankRedirect,
+    Crypto,
+    BankDebit,
     MandatePayment,
-    Reward(RewardData),
-    Upi(UpiData),
-    CardRedirect(CardRedirectData),
+    Reward,
+    Upi,
+    Voucher,
+    GiftCard,
+    CardRedirect,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1591,6 +1656,9 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub connector_transaction_id: Option<String>,
 
+    /// Frm message contains information about the frm response
+    pub frm_message: Option<FrmMessage>,
+
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -1675,25 +1743,38 @@ pub struct PaymentListResponse {
     pub data: Vec<PaymentsResponse>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentListFilterConstraints {
+    /// The identifier for payment
+    pub payment_id: Option<String>,
+    /// The starting point within a list of objects, limit on number of object will be some constant for join query
+    pub offset: Option<i64>,
+    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
+    #[serde(flatten)]
+    pub time_range: Option<TimeRange>,
+    /// The list of connectors to filter payments list
+    pub connector: Option<Vec<String>>,
+    /// The list of currencies to filter payments list
+    pub currency: Option<Vec<enums::Currency>>,
+    /// The list of payment statuses to filter payments list
+    pub status: Option<Vec<enums::IntentStatus>>,
+    /// The list of payment methods to filter payments list
+    pub payment_methods: Option<Vec<enums::PaymentMethod>>,
+}
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
     /// The list of available connector filters
-    #[schema(value_type = Vec<api_enums::Connector>)]
     pub connector: Vec<String>,
     /// The list of available currency filters
-    #[schema(value_type = Vec<Currency>)]
     pub currency: Vec<enums::Currency>,
     /// The list of available payment status filters
-    #[schema(value_type = Vec<IntentStatus>)]
     pub status: Vec<enums::IntentStatus>,
     /// The list of available payment method filters
-    #[schema(value_type = Vec<PaymentMethod>)]
     pub payment_method: Vec<enums::PaymentMethod>,
 }
 
-#[derive(
-    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
-)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
 pub struct TimeRange {
     /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -1793,36 +1874,38 @@ impl From<PaymentsStartRequest> for PaymentsRequest {
     }
 }
 
-impl From<Card> for CardResponse {
-    fn from(card: Card) -> Self {
-        let card_number_length = card.card_number.peek().clone().len();
+impl From<AdditionalCardInfo> for CardResponse {
+    fn from(card: AdditionalCardInfo) -> Self {
         Self {
-            last4: card.card_number.peek().clone()[card_number_length - 4..card_number_length]
-                .to_string(),
-            exp_month: card.card_exp_month.peek().clone(),
-            exp_year: card.card_exp_year.peek().clone(),
+            last4: card.last4,
+            card_type: card.card_type,
+            card_network: card.card_network,
+            card_issuer: card.card_issuer,
+            card_issuing_country: card.card_issuing_country,
+            card_isin: card.card_isin,
+            card_exp_month: card.card_exp_month,
+            card_exp_year: card.card_exp_year,
+            card_holder_name: card.card_holder_name,
         }
     }
 }
 
-impl From<PaymentMethodData> for PaymentMethodDataResponse {
-    fn from(payment_method_data: PaymentMethodData) -> Self {
+impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
+    fn from(payment_method_data: AdditionalPaymentData) -> Self {
         match payment_method_data {
-            PaymentMethodData::Card(card) => Self::Card(CardResponse::from(card)),
-            PaymentMethodData::PayLater(pay_later_data) => Self::PayLater(pay_later_data),
-            PaymentMethodData::Wallet(wallet_data) => Self::Wallet(wallet_data),
-            PaymentMethodData::BankRedirect(bank_redirect_data) => {
-                Self::BankRedirect(bank_redirect_data)
-            }
-            PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                Self::BankTransfer(*bank_transfer_data)
-            }
-            PaymentMethodData::Crypto(crpto_data) => Self::Crypto(crpto_data),
-            PaymentMethodData::BankDebit(bank_debit_data) => Self::BankDebit(bank_debit_data),
-            PaymentMethodData::MandatePayment => Self::MandatePayment,
-            PaymentMethodData::Reward(reward_data) => Self::Reward(reward_data),
-            PaymentMethodData::Upi(upi_data) => Self::Upi(upi_data),
-            PaymentMethodData::CardRedirect(card_redirect) => Self::CardRedirect(card_redirect),
+            AdditionalPaymentData::Card(card) => Self::Card(CardResponse::from(*card)),
+            AdditionalPaymentData::PayLater {} => Self::PayLater,
+            AdditionalPaymentData::Wallet {} => Self::Wallet,
+            AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect,
+            AdditionalPaymentData::Crypto {} => Self::Crypto,
+            AdditionalPaymentData::BankDebit {} => Self::BankDebit,
+            AdditionalPaymentData::MandatePayment {} => Self::MandatePayment,
+            AdditionalPaymentData::Reward {} => Self::Reward,
+            AdditionalPaymentData::Upi {} => Self::Upi,
+            AdditionalPaymentData::BankTransfer {} => Self::BankTransfer,
+            AdditionalPaymentData::Voucher {} => Self::Voucher,
+            AdditionalPaymentData::GiftCard {} => Self::GiftCard,
+            AdditionalPaymentData::CardRedirect {} => Self::CardRedirect,
         }
     }
 }
@@ -2311,6 +2394,18 @@ pub struct FeatureMetadata {
     pub redirect_response: Option<RedirectResponse>,
 }
 
+///frm message is an object sent inside the payments response...when frm is invoked, its value is Some(...), else its None
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct FrmMessage {
+    pub frm_name: String,
+    pub frm_transaction_id: Option<String>,
+    pub frm_transaction_type: Option<String>,
+    pub frm_status: Option<String>,
+    pub frm_score: Option<i32>,
+    pub frm_reason: Option<serde_json::Value>,
+    pub frm_error: Option<String>,
+}
+
 mod payment_id_type {
     use std::fmt;
 
@@ -2386,7 +2481,7 @@ mod payment_id_type {
     }
 }
 
-mod amount {
+pub mod amount {
     use serde::de;
 
     use super::Amount;
