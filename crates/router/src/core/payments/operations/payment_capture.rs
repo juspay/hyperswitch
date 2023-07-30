@@ -131,7 +131,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         let (capture, payment_attempt, connector_response) = match payment_attempt.capture_method {
             Some(enums::CaptureMethod::ManualMultiple) => {
                 helpers::validate_attempt_status(payment_attempt.status)?;
-                let (capture, updated_payment_attempt) =
+                let (capture, mut updated_payment_attempt) =
                     Self::create_capture_and_update_attempt(state, payment_attempt, storage_scheme)
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -143,6 +143,11 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+                //repopulate amount_to_capture field in updated attempt
+                updated_payment_attempt
+                    .amount_to_capture
+                    .update_value(request.amount_to_capture);
                 (
                     Some(capture),
                     updated_payment_attempt,

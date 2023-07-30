@@ -16,7 +16,7 @@ use crate::{
     types::{
         self, api,
         storage::{self, enums},
-        transformers::ForeignInto,
+        transformers::ForeignFrom,
         Capturable,
     },
     utils,
@@ -522,7 +522,7 @@ async fn payment_response_update_tracker<F: Clone, T: Capturable>(
             },
         },
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
-            status: router_data.status.foreign_into(),
+            status: enums::IntentStatus::foreign_from(payment_data.payment_attempt.status),
             return_url: router_data.return_url.clone(),
             amount_captured,
         },
