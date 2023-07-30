@@ -24,13 +24,11 @@ pub struct Capture {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     pub authorized_attempt_id: String,
-    pub capture_sequence: i16,
     pub connector_transaction_id: Option<String>,
+    pub capture_sequence: i16,
 }
 
-#[derive(
-    Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
-)]
+#[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = captures)]
 pub struct CaptureNew {
     pub capture_id: String,
@@ -44,13 +42,13 @@ pub struct CaptureNew {
     pub error_code: Option<String>,
     pub error_reason: Option<String>,
     pub tax_amount: Option<i64>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub created_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub modified_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub modified_at: PrimitiveDateTime,
     pub authorized_attempt_id: String,
-    pub capture_sequence: i16,
     pub connector_transaction_id: Option<String>,
+    pub capture_sequence: i16,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

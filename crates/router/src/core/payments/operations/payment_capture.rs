@@ -90,16 +90,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
 
         amount = payment_attempt.amount.into();
 
-        let connector_response = db
-            .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                &payment_attempt.payment_id,
-                &payment_attempt.merchant_id,
-                &payment_attempt.attempt_id,
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
         let shipping_address = helpers::get_address_for_payment_request(
             db,
             None,
@@ -138,15 +128,39 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             .await
             .transpose()?;
 
-        let capture = match payment_attempt.capture_method {
+        let (capture, payment_attempt, connector_response) = match payment_attempt.capture_method {
             Some(enums::CaptureMethod::ManualMultiple) => {
-                let new_capture = Self::create_capture(state, &payment_attempt, storage_scheme)
+                helpers::validate_attempt_status(payment_attempt.status)?;
+                let (capture, updated_payment_attempt) =
+                    Self::create_capture_and_update_attempt(state, payment_attempt, storage_scheme)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to create capture in DB")?;
+                let new_connector_response = db
+                    .insert_connector_response(
+                        Self::make_connector_response(&capture),
+                        storage_scheme,
+                    )
                     .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to create capture in DB")?;
-                Some(new_capture)
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                (
+                    Some(capture),
+                    updated_payment_attempt,
+                    new_connector_response,
+                )
             }
-            _ => None,
+            _ => {
+                let connector_response = db
+                    .find_connector_response_by_payment_id_merchant_id_attempt_id(
+                        &payment_attempt.payment_id,
+                        &payment_attempt.merchant_id,
+                        &payment_attempt.attempt_id,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                (None, payment_attempt, connector_response)
+            }
         };
 
         Ok((
@@ -181,7 +195,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 recurring_mandate_payment_data: None,
                 ephemeral_key: None,
                 redirect_response: None,
-                capture,
+                current_capture: capture,
                 frm_message: None,
             },
             None,
@@ -242,21 +256,23 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest> for Paymen
 }
 
 impl PaymentCapture {
-    async fn create_capture(
+    async fn create_capture_and_update_attempt(
         state: &AppState,
-        authorized_payment_attempt: &storage::PaymentAttempt,
+        authorized_payment_attempt: storage::PaymentAttempt,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<storage::Capture, errors::StorageError> {
+    ) -> CustomResult<(storage::Capture, storage::PaymentAttempt), errors::StorageError> {
         state
             .store
             .insert_capture(
-                Self::make_capture(authorized_payment_attempt),
+                Self::make_capture(&authorized_payment_attempt),
+                authorized_payment_attempt,
                 storage_scheme,
             )
             .await
     }
     fn make_capture(authorized_attempt: &storage::PaymentAttempt) -> storage::CaptureNew {
         let capture_sequence = authorized_attempt.multiple_capture_count.unwrap_or(0) + 1;
+        let now = common_utils::date_time::now();
         storage::CaptureNew {
             payment_id: authorized_attempt.payment_id.clone(),
             merchant_id: authorized_attempt.merchant_id.clone(),
@@ -269,13 +285,27 @@ impl PaymentCapture {
             connector: authorized_attempt.connector.clone(),
             error_message: None,
             tax_amount: None,
-            created_at: Some(common_utils::date_time::now()),
-            modified_at: Some(common_utils::date_time::now()),
+            created_at: now,
+            modified_at: now,
             error_code: None,
             error_reason: None,
             authorized_attempt_id: authorized_attempt.attempt_id.clone(),
             capture_sequence,
             connector_transaction_id: None,
+        }
+    }
+    #[instrument(skip_all)]
+    pub fn make_connector_response(capture: &storage::Capture) -> storage::ConnectorResponseNew {
+        storage::ConnectorResponseNew {
+            payment_id: capture.payment_id.clone(),
+            merchant_id: capture.merchant_id.clone(),
+            attempt_id: capture.capture_id.clone(), //capture_id will be connector_response's attempt_id
+            created_at: capture.created_at,
+            modified_at: capture.modified_at,
+            connector_name: capture.connector.clone(),
+            connector_transaction_id: None,
+            authentication_data: None,
+            encoded_data: None,
         }
     }
 }

@@ -19,30 +19,10 @@ impl CaptureNew {
 
 impl Capture {
     #[instrument(skip(conn))]
-    pub async fn find_optional_by_payment_id_merchant_id(
-        conn: &PgPooledConn,
-        payment_id: &str,
-        merchant_id: &str,
-    ) -> StorageResult<Option<Self>> {
-        generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::payment_id.eq(payment_id.to_owned())),
-        )
-        .await
-    }
-    #[instrument(skip(conn))]
-    pub async fn find_by_payment_id_merchant_id(
-        conn: &PgPooledConn,
-        payment_id: &str,
-        merchant_id: &str,
-    ) -> StorageResult<Self> {
+    pub async fn find_by_capture_id(conn: &PgPooledConn, capture_id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::payment_id.eq(payment_id.to_owned())),
+            dsl::capture_id.eq(capture_id.to_owned()),
         )
         .await
     }

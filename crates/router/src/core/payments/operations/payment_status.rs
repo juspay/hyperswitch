@@ -343,7 +343,7 @@ async fn get_tracker_for_sync<
             recurring_mandate_payment_data: None,
             ephemeral_key: None,
             redirect_response: None,
-            capture: None,
+            current_capture: None,
             frm_message,
         },
         None,

@@ -53,10 +53,9 @@ pub struct PaymentAttempt {
     // providing a location to store mandate details intermediately for transaction
     pub mandate_details: Option<storage_enums::MandateDataType>,
     pub error_reason: Option<String>,
+    pub multiple_capture_count: Option<i16>,
     // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
-    pub multiple_capture_count: Option<i16>,
-    pub succeeded_capture_count: Option<i16>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -115,7 +114,6 @@ pub struct PaymentAttemptNew {
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
-    pub succeeded_capture_count: Option<i16>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -198,7 +196,6 @@ pub enum PaymentAttemptUpdate {
     MultipleCaptureResponseUpdate {
         status: Option<storage_enums::AttemptStatus>,
         multiple_capture_count: Option<i16>,
-        succeeded_capture_count: Option<i16>,
     },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
@@ -240,7 +237,6 @@ pub struct PaymentAttemptUpdateInternal {
     capture_method: Option<storage_enums::CaptureMethod>,
     connector_response_reference_id: Option<String>,
     multiple_capture_count: Option<i16>,
-    succeeded_capture_count: Option<i16>,
 }
 
 impl PaymentAttemptUpdate {
@@ -451,11 +447,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             PaymentAttemptUpdate::MultipleCaptureResponseUpdate {
                 status,
                 multiple_capture_count,
-                succeeded_capture_count,
             } => Self {
                 status,
                 multiple_capture_count,
-                succeeded_capture_count,
                 ..Default::default()
             },
         }

@@ -58,11 +58,11 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     captures (capture_id) {
-        #[max_length = 255]
+        #[max_length = 64]
         capture_id -> Varchar,
-        #[max_length = 255]
+        #[max_length = 64]
         payment_id -> Varchar,
-        #[max_length = 255]
+        #[max_length = 64]
         merchant_id -> Varchar,
         status -> CaptureStatus,
         amount -> Int8,
@@ -78,11 +78,11 @@ diesel::table! {
         tax_amount -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
-        #[max_length = 255]
+        #[max_length = 64]
         authorized_attempt_id -> Varchar,
-        capture_sequence -> Int2,
         #[max_length = 128]
         connector_transaction_id -> Nullable<Varchar>,
+        capture_sequence -> Int2,
     }
 }
 
@@ -499,10 +499,9 @@ diesel::table! {
         preprocessing_step_id -> Nullable<Varchar>,
         mandate_details -> Nullable<Jsonb>,
         error_reason -> Nullable<Text>,
+        multiple_capture_count -> Nullable<Int2>,
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
-        multiple_capture_count -> Nullable<Int2>,
-        succeeded_capture_count -> Nullable<Int2>,
     }
 }
 

@@ -6,9 +6,9 @@ CREATE TYPE "CaptureStatus" AS ENUM (
     'failure'
 );
 CREATE TABLE captures(
-    capture_id VARCHAR(255) NOT NULL PRIMARY KEY,
-    payment_id VARCHAR(255) NOT NULL,
-    merchant_id VARCHAR(255) NOT NULL,
+    capture_id VARCHAR(64) NOT NULL PRIMARY KEY,
+    payment_id VARCHAR(64) NOT NULL,
+    merchant_id VARCHAR(64) NOT NULL,
     status "CaptureStatus" NOT NULL,
     amount BIGINT NOT NULL,
     currency "Currency",
@@ -19,6 +19,13 @@ CREATE TABLE captures(
     tax_amount BIGINT,
     created_at TIMESTAMP NOT NULL,
     modified_at TIMESTAMP NOT NULL,
-    authorized_attempt_id VARCHAR(255) NOT NULL,
+    authorized_attempt_id VARCHAR(64) NOT NULL,
+    connector_transaction_id VARCHAR(128),
     capture_sequence SMALLINT NOT NULL
 );
+
+CREATE INDEX authorized_attempt_id_index ON captures (authorized_attempt_id);
+CREATE INDEX connector_transaction_id_index ON captures (connector_transaction_id);
+
+ALTER TABLE payment_attempt
+ADD COLUMN multiple_capture_count SMALLINT; --number of captures available for this payment attempt in captures table

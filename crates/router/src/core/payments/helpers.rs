@@ -1323,7 +1323,22 @@ pub(crate) fn validate_capture_method(
                 field_name: "capture_method".to_string(),
                 current_flow: "captured".to_string(),
                 current_value: capture_method.to_string(),
-                states: "manual_single, manual_multiple, scheduled".to_string()
+                states: "manual, manual_multiple, scheduled".to_string()
+            }))
+        },
+    )
+}
+
+#[instrument(skip_all)]
+pub(crate) fn validate_attempt_status(
+    attempt_status: storage_enums::AttemptStatus,
+) -> RouterResult<()> {
+    utils::when(
+        attempt_status == storage_enums::AttemptStatus::CaptureInitiated,
+        || {
+            Err(report!(errors::ApiErrorResponse::NotSupported {
+                message: "Cannot make subsequent captures while previous capture status is pending"
+                    .into(),
             }))
         },
     )
@@ -2424,7 +2439,6 @@ impl AttemptType {
             preprocessing_step_id: None,
             error_reason: None,
             multiple_capture_count: None,
-            succeeded_capture_count: None,
             connector_response_reference_id: None,
         }
     }
