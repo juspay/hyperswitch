@@ -205,7 +205,7 @@ mod storage {
         core::errors::{self, CustomResult},
         db::payment_attempt::PaymentAttemptInterface,
         services::Store,
-        types::storage::{capture::*, enums, payment_attempt::*},
+        types::storage::{self, capture::*, enums},
     };
 
     #[async_trait::async_trait]
@@ -213,9 +213,9 @@ mod storage {
         async fn insert_capture(
             &self,
             capture: CaptureNew,
-            parent_attempt: PaymentAttempt,
+            parent_attempt: storage::PaymentAttempt,
             storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<(Capture, PaymentAttempt), errors::StorageError> {
+        ) -> CustomResult<(Capture, storage::PaymentAttempt), errors::StorageError> {
             self.validate_attempt_and_capture(&parent_attempt, &capture.authorized_attempt_id)?;
             let conn = connection::pg_connection_write(self).await?;
             let new_capture = capture
@@ -223,66 +223,60 @@ mod storage {
                 .await
                 .map_err(Into::into)
                 .into_report()?;
+            let previous_count = parent_attempt.multiple_capture_count.unwrap_or_default();
             let updated_attempt = self
                 .update_payment_attempt_with_attempt_id(
                     parent_attempt,
-                    PaymentAttemptUpdate::MultipleCaptureResponseUpdate {
+                    storage::PaymentAttemptUpdate::MultipleCaptureResponseUpdate {
                         status: None,
-                        multiple_capture_count: parent_attempt
-                            .multiple_capture_count
-                            .map_or(Some(1), |previous_count| Some(previous_count + 1)),
-                        succeeded_capture_count: None,
+                        multiple_capture_count: Some(previous_count + 1),
                     },
                     storage_scheme,
                 )
                 .await?;
             Ok((new_capture, updated_attempt))
         }
-        async fn find_capture_by_payment_id_merchant_id(
-            &self,
-            payment_id: &str,
-            merchant_id: &str,
-            _storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<Capture, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
-            Capture::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
-                .await
-                .map_err(Into::into)
-                .into_report()
-        }
         async fn update_capture_and_attempt_with_capture_id(
             &self,
             this: Capture,
-            parent_attempt: PaymentAttempt,
+            parent_attempt: storage::PaymentAttempt,
+            intent: &storage::PaymentIntent,
             capture: CaptureUpdate,
             storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<(Capture, PaymentAttempt), errors::StorageError> {
+        ) -> CustomResult<(Capture, storage::PaymentAttempt), errors::StorageError> {
             self.validate_attempt_and_capture(&parent_attempt, &this.authorized_attempt_id)?;
             let conn = connection::pg_connection_write(self).await?;
+            let previous_capture_status = this.status;
             let updated_capture = this
                 .update_with_capture_id(&conn, capture)
                 .await
                 .map_err(Into::into)
                 .into_report()?;
-            let attempt_update = if updated_capture.status != this.status {
+            let attempt_update = if updated_capture.status != previous_capture_status {
                 //if capture status is updated, lets update attempt status accordingly
                 match updated_capture.status {
                     enums::CaptureStatus::Charged => {
-                        Some(PaymentAttemptUpdate::MultipleCaptureResponseUpdate {
-                            status: Some(enums::AttemptStatus::PartialCharged),
-                            multiple_capture_count: None,
-                            succeeded_capture_count: parent_attempt
-                                .succeeded_capture_count
-                                .map_or(Some(1), |previous_count| Some(previous_count + 1)),
-                        })
+                        let total_amount_captured =
+                            intent.amount_captured.unwrap_or_default() + updated_capture.amount;
+                        let authorized_amount = parent_attempt.amount;
+                        Some(
+                            storage::PaymentAttemptUpdate::MultipleCaptureResponseUpdate {
+                                status: Some(if total_amount_captured < authorized_amount {
+                                    enums::AttemptStatus::PartialCharged
+                                } else {
+                                    enums::AttemptStatus::Charged
+                                }),
+                                multiple_capture_count: None,
+                            },
+                        )
                     }
-                    api_models::enums::CaptureStatus::Pending => {
-                        Some(PaymentAttemptUpdate::MultipleCaptureResponseUpdate {
+                    api_models::enums::CaptureStatus::Pending => Some(
+                        storage::PaymentAttemptUpdate::MultipleCaptureResponseUpdate {
                             status: Some(enums::AttemptStatus::CaptureInitiated),
                             multiple_capture_count: None,
-                            succeeded_capture_count: None,
-                        })
-                    }
+                        },
+                    ),
+                    //for rest of the cases, don't update payment_attempt
                     api_models::enums::CaptureStatus::Started
                     | api_models::enums::CaptureStatus::Failure => None,
                 }
@@ -302,6 +296,7 @@ mod storage {
             };
             Ok((updated_capture, updated_attempt))
         }
+
         async fn find_all_captures_by_authorized_attempt_id(
             &self,
             authorized_attempt_id: &str,
