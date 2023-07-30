@@ -5,7 +5,7 @@ use common_utils::{
     crypto::Encryptable,
     date_time,
     ext_traits::StringExt,
-    pii::{IpAddress, SecretSerdeValue},
+    pii::{IpAddress, SecretSerdeValue, UpiVpaMaskingStrategy},
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::SwitchStrategy;
@@ -16,7 +16,7 @@ use crate::{
     compatibility::stripe::refunds::types as stripe_refunds,
     consts,
     core::errors,
-    pii::{Email, PeekInterface, UpiVpaMaskingStrategy},
+    pii::{Email, PeekInterface},
     types::{
         api::{admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignTryFrom},
