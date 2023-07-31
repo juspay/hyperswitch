@@ -40,6 +40,7 @@ pool_size = 5
 admin_api_key = "test_admin"
 jwt_secret = "secret"
 master_enc_key = "73ad7bbbbc640c845a150f67d058b279849370cd2c1f3c67c4dd6c869213e13a"
+recon_admin_api_key = "recon_test_admin"
 
 [locker]
 host = ""
