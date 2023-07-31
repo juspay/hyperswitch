@@ -371,7 +371,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
             | api::PaymentMethodData::BankTransfer(_)
             | api::PaymentMethodData::Reward(_)
             | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.payment_method),
                 connector: "Aci",
                 payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),

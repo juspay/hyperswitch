@@ -180,7 +180,7 @@ pub async fn payment_connector_create(
         state.get_ref(),
         &req,
         json_payload.into_inner(),
-        |state, _, req| create_payment_connector(&*state.store, req, &merchant_id),
+        |state, _, req| create_payment_connector(state, req, &merchant_id),
         &auth::AdminApiAuth,
     )
     .await

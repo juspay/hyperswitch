@@ -92,7 +92,7 @@ async fn should_make_eps_payment(c: WebDriver) -> Result<(), WebDriverError> {
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/44"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/157"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::ClassName("btn-success"))),
             Event::Assert(Assert::IsPresent("Google")),
