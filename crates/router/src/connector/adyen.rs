@@ -1195,7 +1195,7 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let base64_signature = notif_item.additional_data.hmac_signature;
-
+        logger::debug!("aaaaaaaaaaaaa{:?}", base64_signature.clone());
         Ok(base64_signature.as_bytes().to_vec())
     }
 
@@ -1247,6 +1247,7 @@ impl api::IncomingWebhook for Adyen {
             .get_webhook_source_verification_message(request, merchant_id, &secret)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
+        crate::logger::debug!("bbbbbbbbbbbbbb {:?}", secret.clone());
         let raw_key = hex::decode(secret)
             .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
@@ -1265,7 +1266,7 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         if adyen::is_transaction_event(&notif.event_code) {
             return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::PaymentIntentId(notif.merchant_reference),
+                api_models::payments::PaymentIdType::PaymentAttemptId(notif.merchant_reference),
             ));
         }
         if adyen::is_refund_event(&notif.event_code) {
