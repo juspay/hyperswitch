@@ -401,3 +401,24 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
         })
     }
 }
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StaxWebhookEventType {
+    PreAuth,
+    Capture,
+    Charge,
+    Void,
+    Refund,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StaxWebhookBody {
+    #[serde(rename = "type")]
+    pub transaction_type: StaxWebhookEventType,
+    pub id: String,
+    pub auth_id: Option<String>,
+    pub success: bool,
+}

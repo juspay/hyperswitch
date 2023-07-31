@@ -2,10 +2,12 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as stax;
 
+use self::stax::StaxWebhookEventType;
 use super::utils::{to_connector_meta, RefundsRequestData};
 use crate::{
     configs::settings,
@@ -760,22 +762,63 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl api::IncomingWebhook for Stax {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let webhook_body: stax::StaxWebhookBody = request
+            .body
+            .parse_struct("StaxWebhookBody")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        match webhook_body.transaction_type {
+            stax::StaxWebhookEventType::Refund => {
+                Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                    api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.id),
+                ))
+            }
+            _ => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    match webhook_body.transaction_type {
+                        stax::StaxWebhookEventType::Capture => webhook_body
+                            .auth_id
+                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                        _ => webhook_body.id,
+                    },
+                ),
+            )),
+        }
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let details: stax::StaxWebhookBody = request
+            .body
+            .parse_struct("StaxWebhookEventType")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+        Ok(match &details.transaction_type {
+            StaxWebhookEventType::Refund => match &details.success {
+                true => api::IncomingWebhookEvent::RefundSuccess,
+                false => api::IncomingWebhookEvent::RefundFailure,
+            },
+            StaxWebhookEventType::Capture | StaxWebhookEventType::Charge => {
+                match &details.success {
+                    true => api::IncomingWebhookEvent::PaymentIntentSuccess,
+                    false => api::IncomingWebhookEvent::PaymentIntentFailure,
+                }
+            }
+            _ => api::IncomingWebhookEvent::EventNotSupported,
+        })
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let reference_object: serde_json::Value = serde_json::from_slice(request.body)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(reference_object)
     }
 }
