@@ -1576,7 +1576,6 @@ pub enum PayoutEntityType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum CancelTransaction {
