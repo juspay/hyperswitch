@@ -736,12 +736,18 @@ pub fn should_ignore_test(name: &str) -> bool {
         .clone();
     let tests_to_ignore: HashSet<String> =
         serde_json::from_value(conf).unwrap_or_else(|_| HashSet::new());
-    // let tests_to_ignore = conf.automation_configs.unwrap().tests_to_ignore.unwrap_or_else(|| HashSet::new());
     let modules: Vec<_> = name.split("::").collect();
-    let file_match = format!("{}::*", <&str>::clone(&modules[1]));
-    let module_name = modules[1..3].join("::");
+    let file_match = format!("{}::*", <&str>::clone(&modules[0]));
+    let module_name_with_quotes = &modules[0..2].join("::");
+    let module_name = rem_first_char(module_name_with_quotes);
     // Ignore if it matches patterns like nuvei_ui::*, nuvei_ui::should_make_nuvei_eps_payment_test
-    tests_to_ignore.contains(&file_match) || tests_to_ignore.contains(&module_name)
+    tests_to_ignore.contains(rem_first_char(&file_match)) || tests_to_ignore.contains(module_name)
+}
+
+fn rem_first_char(value: &str) -> &str {
+    let mut chars = value.chars();
+    chars.next();
+    chars.as_str()
 }
 
 pub fn get_browser() -> String {
