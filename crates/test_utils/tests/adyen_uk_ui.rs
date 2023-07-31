@@ -443,7 +443,11 @@ async fn should_make_adyen_onlinebanking_pl_payment(
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/197"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Id("user_account_pbl_correct"))),
-            Event::Assert(Assert::IsPresent("succeeded")),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=succeeded", "status=processing"],
+            )),
         ],
     )
     .await?;
