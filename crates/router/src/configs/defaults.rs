@@ -1,11 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::{enums, payment_methods::RequiredFieldInfo};
-
-use super::settings::{ConnectorFields, Password, PaymentMethodType};
-
 #[cfg(feature = "kms")]
 use external_services::kms::KMSValue;
+
+use super::settings::{ConnectorFields, Password, PaymentMethodType};
 
 impl Default for super::settings::Server {
     fn default() -> Self {
