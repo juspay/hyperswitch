@@ -764,9 +764,6 @@ pub struct MomoData {}
 pub struct TouchNGoData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SwishData {}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenGPay {
     #[serde(rename = "type")]
     payment_type: PaymentType,
