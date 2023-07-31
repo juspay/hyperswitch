@@ -1265,7 +1265,7 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         if adyen::is_transaction_event(&notif.event_code) {
             return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::PaymentIntentId(notif.merchant_reference),
+                api_models::payments::PaymentIdType::PaymentAttemptId(notif.merchant_reference),
             ));
         }
         if adyen::is_refund_event(&notif.event_code) {
