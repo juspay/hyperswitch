@@ -1,3 +1,10 @@
+#![allow(
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unwrap_in_result,
+    clippy::missing_panics_doc,
+    clippy::unwrap_used
+)]
 use std::{
     collections::{HashMap, HashSet},
     env,
@@ -741,6 +748,7 @@ pub fn get_browser() -> String {
     "firefox".to_string()
 }
 
+// based on the browser settings build profile info
 pub fn make_capabilities(browser: &str) -> Capabilities {
     match browser {
         "firefox" => {

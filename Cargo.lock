@@ -4733,14 +4733,26 @@ dependencies = [
 name = "test_utils"
 version = "0.1.0"
 dependencies = [
+ "actix-http",
+ "actix-web",
  "api_models",
+ "async-trait",
+ "awc",
  "clap",
+ "derive_deref",
  "masking",
- "router",
+ "rand 0.8.5",
  "serde",
  "serde_json",
  "serde_path_to_error",
+ "serde_urlencoded",
+ "serial_test",
+ "thirtyfour",
+ "time 0.3.22",
+ "tokio",
  "toml 0.7.4",
+ "uuid",
+ "wiremock",
 ]
 
 [[package]]

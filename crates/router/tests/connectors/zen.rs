@@ -25,7 +25,7 @@ impl utils::Connector for ZenTest {
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        types::ConnectorAuthType::foreign_from(
             connector_auth::ConnectorAuthentication::new()
                 .zen
                 .expect("Missing connector authentication configuration"),

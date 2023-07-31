@@ -920,3 +920,41 @@ pub fn get_connector_metadata(
         _ => None,
     }
 }
+
+impl ForeignFrom<HeaderKey> for types::ConnectorAuthType {
+    fn from(key: HeaderKey) -> Self {
+        Self::HeaderKey {
+            api_key: key.api_key,
+        }
+    }
+}
+
+impl ForeignFrom<BodyKey> for types::ConnectorAuthType {
+    fn from(key: BodyKey) -> Self {
+        Self::BodyKey {
+            api_key: key.api_key,
+            key1: key.key1,
+        }
+    }
+}
+
+impl ForeignFrom<SignatureKey> for types::ConnectorAuthType {
+    fn from(key: SignatureKey) -> Self {
+        Self::SignatureKey {
+            api_key: key.api_key,
+            key1: key.key1,
+            api_secret: key.api_secret,
+        }
+    }
+}
+
+impl ForeignFrom<MultiAuthKey> for ConnectorAuthType {
+    fn from(key: MultiAuthKey) -> Self {
+        Self::MultiAuthKey {
+            api_key: key.api_key,
+            key1: key.key1,
+            api_secret: key.api_secret,
+            key2: key.key2,
+        }
+    }
+}
