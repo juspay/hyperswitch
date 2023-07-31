@@ -10,6 +10,7 @@ use router::{
     routes, services,
     types::{self, api, storage::enums, AccessToken, PaymentAddress, RouterData},
 };
+use test_utils::connector_auth::ConnectorAuthType;
 use tokio::sync::oneshot;
 use wiremock::{Mock, MockServer};
 
@@ -921,40 +922,32 @@ pub fn get_connector_metadata(
     }
 }
 
-impl ForeignFrom<HeaderKey> for types::ConnectorAuthType {
-    fn from(key: HeaderKey) -> Self {
-        Self::HeaderKey {
-            api_key: key.api_key,
+pub fn to_connector_auth_type(auth_type: ConnectorAuthType) -> types::ConnectorAuthType {
+    match auth_type {
+        ConnectorAuthType::HeaderKey { api_key } => types::ConnectorAuthType::HeaderKey { api_key },
+        ConnectorAuthType::BodyKey { api_key, key1 } => {
+            types::ConnectorAuthType::BodyKey { api_key, key1 }
         }
-    }
-}
-
-impl ForeignFrom<BodyKey> for types::ConnectorAuthType {
-    fn from(key: BodyKey) -> Self {
-        Self::BodyKey {
-            api_key: key.api_key,
-            key1: key.key1,
-        }
-    }
-}
-
-impl ForeignFrom<SignatureKey> for types::ConnectorAuthType {
-    fn from(key: SignatureKey) -> Self {
-        Self::SignatureKey {
-            api_key: key.api_key,
-            key1: key.key1,
-            api_secret: key.api_secret,
-        }
-    }
-}
-
-impl ForeignFrom<MultiAuthKey> for ConnectorAuthType {
-    fn from(key: MultiAuthKey) -> Self {
-        Self::MultiAuthKey {
-            api_key: key.api_key,
-            key1: key.key1,
-            api_secret: key.api_secret,
-            key2: key.key2,
-        }
+        ConnectorAuthType::SignatureKey {
+            api_key,
+            key1,
+            api_secret,
+        } => types::ConnectorAuthType::SignatureKey {
+            api_key,
+            key1,
+            api_secret,
+        },
+        ConnectorAuthType::MultiAuthKey {
+            api_key,
+            key1,
+            api_secret,
+            key2,
+        } => types::ConnectorAuthType::MultiAuthKey {
+            api_key,
+            key1,
+            api_secret,
+            key2,
+        },
+        _ => types::ConnectorAuthType::NoKey,
     }
 }

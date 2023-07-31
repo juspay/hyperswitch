@@ -5,7 +5,7 @@ use std::{
 
 use clap::{arg, command, Parser};
 use masking::PeekInterface;
-use test_utils::connector_auth::{ConnectorAuthenticationMap, ConnectorAuthType};
+use test_utils::connector_auth::{ConnectorAuthType, ConnectorAuthenticationMap};
 
 // Just by the name of the connector, this function generates the name of the collection
 // Example: CONNECTOR_NAME="stripe" -> OUTPUT: postman/stripe.postman_collection.json
