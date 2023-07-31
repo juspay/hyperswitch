@@ -1,6 +1,8 @@
 use actix_web::{web, Scope};
 #[cfg(feature = "email")]
 use external_services::email::{AwsSes, EmailClient};
+#[cfg(feature = "kms")]
+use external_services::kms::{self, decrypt::KmsDecrypt};
 use tokio::sync::oneshot;
 
 #[cfg(feature = "dummy_connector")]
@@ -14,8 +16,6 @@ use super::{cache::*, health::*};
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
-#[cfg(feature = "kms")]
-use crate::configs::kms;
 use crate::{
     configs::settings,
     db::{MockDb, StorageImpl, StorageInterface},
@@ -64,6 +64,8 @@ impl AppState {
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
     ) -> Self {
+        #[cfg(feature = "kms")]
+        let kms_client = kms::get_kms_client(&conf.kms).await;
         let testable = storage_impl == StorageImpl::PostgresqlTest;
         let store: Box<dyn StorageInterface> = match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {
@@ -74,12 +76,10 @@ impl AppState {
 
         #[cfg(feature = "kms")]
         #[allow(clippy::expect_used)]
-        let kms_secrets = kms::KmsDecrypt::decrypt_inner(
-            settings::ActiveKmsSecrets {
-                jwekey: conf.jwekey.clone().into(),
-            },
-            &conf.kms,
-        )
+        let kms_secrets = settings::ActiveKmsSecrets {
+            jwekey: conf.jwekey.clone().into(),
+        }
+        .decrypt_inner(kms_client)
         .await
         .expect("Failed while performing KMS decryption");
 

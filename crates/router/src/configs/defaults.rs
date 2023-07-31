@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 
-use super::settings::{ConnectorFields, PaymentMethodType};
+use super::settings::{ConnectorFields, Password, PaymentMethodType};
 
 impl Default for super::settings::Server {
     fn default() -> Self {
@@ -27,26 +27,6 @@ impl Default for super::settings::Database {
             dbname: String::new(),
             pool_size: 5,
             connection_timeout: 10,
-        }
-    }
-}
-
-impl Default for super::settings::Secrets {
-    fn default() -> Self {
-        Self {
-            #[cfg(not(feature = "kms"))]
-            jwt_secret: "secret".into(),
-            #[cfg(not(feature = "kms"))]
-            admin_api_key: "test_admin".into(),
-            #[cfg(not(feature = "kms"))]
-            recon_admin_api_key: "recon_test_admin".into(),
-            master_enc_key: "".into(),
-            #[cfg(feature = "kms")]
-            kms_encrypted_jwt_secret: "".into(),
-            #[cfg(feature = "kms")]
-            kms_encrypted_admin_api_key: "".into(),
-            #[cfg(feature = "kms")]
-            kms_encrypted_recon_admin_api_key: "".into(),
         }
     }
 }
@@ -1093,7 +1073,7 @@ impl Default for super::settings::ApiKeys {
     fn default() -> Self {
         Self {
             #[cfg(feature = "kms")]
-            kms_encrypted_hash_key: String::new(),
+            kms_encrypted_hash_key: external_services::kms::KMSValue::default(),
 
             /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
             /// hashes of API keys

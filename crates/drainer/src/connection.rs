@@ -1,7 +1,7 @@
 use bb8::PooledConnection;
 use diesel::PgConnection;
 #[cfg(feature = "kms")]
-use external_services::kms;
+use external_services::kms::{self, decrypt::KmsDecrypt};
 
 use crate::settings::Database;
 
@@ -20,17 +20,17 @@ pub async fn redis_connection(
 pub async fn diesel_make_pg_pool(
     database: &Database,
     _test_transaction: bool,
-    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
+    #[cfg(feature = "kms")] kms_client: &'static kms::KmsClient,
 ) -> PgPool {
     #[cfg(feature = "kms")]
-    let password = kms::get_kms_client(kms_config)
+    let password = database
+        .password
+        .decrypt_inner(kms_client)
         .await
-        .decrypt(&database.kms_encrypted_password)
-        .await
-        .expect("Failed to KMS decrypt database password");
+        .expect("Failed to decrypt password");
 
     #[cfg(not(feature = "kms"))]
-    let password = &database.password;
+    let password = &database.password.clone().expose();
 
     let database_url = format!(
         "postgres://{}:{}@{}:{}/{}",

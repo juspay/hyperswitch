@@ -20,7 +20,7 @@ use crate::{
     env::{self, logger, Env},
 };
 #[cfg(feature = "kms")]
-pub type Password = kms::KmsValue;
+pub type Password = kms::KMSValue;
 #[cfg(not(feature = "kms"))]
 pub type Password = Secret<String>;
 
@@ -334,7 +334,7 @@ where
         .collect())
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone)]
 #[serde(default)]
 pub struct Secrets {
     #[cfg(not(feature = "kms"))]
@@ -343,13 +343,13 @@ pub struct Secrets {
     pub admin_api_key: String,
     #[cfg(not(feature = "kms"))]
     pub recon_admin_api_key: String,
-    pub master_enc_key: String,
+    pub master_enc_key: Password,
     #[cfg(feature = "kms")]
-    pub kms_encrypted_jwt_secret: String,
+    pub kms_encrypted_jwt_secret: kms::KMSValue,
     #[cfg(feature = "kms")]
-    pub kms_encrypted_admin_api_key: String,
+    pub kms_encrypted_admin_api_key: kms::KMSValue,
     #[cfg(feature = "kms")]
-    pub kms_encrypted_recon_admin_api_key: String,
+    pub kms_encrypted_recon_admin_api_key: kms::KMSValue,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -410,7 +410,6 @@ pub struct Server {
 #[serde(default)]
 pub struct Database {
     pub username: String,
-    #[serde(alias = "kms_encrypted_password")]
     pub password: Password,
     pub host: String,
     pub port: u16,
@@ -560,7 +559,7 @@ pub struct ApiKeys {
     /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
     /// keys
     #[cfg(feature = "kms")]
-    pub kms_encrypted_hash_key: String,
+    pub kms_encrypted_hash_key: kms::KMSValue,
 
     /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
     /// hashes of API keys

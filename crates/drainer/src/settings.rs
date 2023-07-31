@@ -12,9 +12,9 @@ use serde::Deserialize;
 use crate::errors;
 
 #[cfg(feature = "kms")]
-pub type Password = kms::KmsValue;
+pub type Password = kms::KMSValue;
 #[cfg(not(feature = "kms"))]
-pub type Password = Secret<String>;
+pub type Password = masking::Secret<String>;
 
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
@@ -40,7 +40,6 @@ pub struct Settings {
 #[serde(default)]
 pub struct Database {
     pub username: String,
-    #[serde(alias = "kms_encrypted_password")]
     pub password: Password,
     pub host: String,
     pub port: u16,
@@ -107,23 +106,11 @@ impl Database {
             ))
         })?;
 
-        #[cfg(not(feature = "kms"))]
-        {
-            when(self.password.is_default_or_empty(), || {
-                Err(errors::DrainerError::ConfigParsingError(
-                    "database user password must not be empty".into(),
-                ))
-            })
-        }
-
-        #[cfg(feature = "kms")]
-        {
-            when(self.kms_encrypted_password.is_default_or_empty(), || {
-                Err(errors::DrainerError::ConfigParsingError(
-                    "database KMS encrypted password must not be empty".into(),
-                ))
-            })
-        }
+        when(self.password.is_default_or_empty(), || {
+            Err(errors::DrainerError::ConfigParsingError(
+                "database user password must not be empty".into(),
+            ))
+        })
     }
 }
 

@@ -4,6 +4,8 @@ use diesel::PgConnection;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
 use external_services::kms;
+#[cfg(feature = "kms")]
+use external_services::kms::decrypt::KmsDecrypt;
 
 use crate::{configs::settings::Database, errors};
 
@@ -41,12 +43,13 @@ pub async fn redis_connection(
 pub async fn diesel_make_pg_pool(
     database: &Database,
     test_transaction: bool,
-    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
+    #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
 ) -> PgPool {
     #[cfg(feature = "kms")]
-    let password = kms::get_kms_client(kms_config)
-        .await
-        .decrypt(&database.kms_encrypted_password)
+    let password = database
+        .password
+        .clone()
+        .decrypt_inner(kms_client)
         .await
         .expect("Failed to KMS decrypt database password");
 

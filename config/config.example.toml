@@ -20,24 +20,22 @@ request_body_limit = 16_384
 # Main SQL data store credentials
 [master_database]
 username = "db_user"        # DB Username
-password = "db_pass"        # DB Password. Only applicable when KMS is disabled.
+password = "db_pass"        # DB Password. Use base-64 encoded kms encrypted value here when kms is enabled
 host = "localhost"          # DB Host
 port = 5432                 # DB Port
 dbname = "hyperswitch_db"   # Name of Database
 pool_size = 5               # Number of connections to keep open
 connection_timeout = 10     # Timeout for database connection in seconds
-kms_encrypted_password = "" # Base64-encoded (KMS encrypted) ciphertext of the database password. Only applicable when KMS is enabled.
 
 # Replica SQL data store credentials
 [replica_database]
 username = "replica_user"   # DB Username
-password = "replica_pass"   # DB Password. Only applicable when KMS is disabled.
+password = "db_pass"        # DB Password. Use base-64 encoded kms encrypted value here when kms is enabled
 host = "localhost"          # DB Host
 port = 5432                 # DB Port
 dbname = "hyperswitch_db"   # Name of Database
 pool_size = 5               # Number of connections to keep open
 connection_timeout = 10     # Timeout for database connection in seconds
-kms_encrypted_password = "" # Base64-encoded (KMS encrypted) ciphertext of the database password. Only applicable when KMS is enabled.
 
 # Redis credentials
 [redis]

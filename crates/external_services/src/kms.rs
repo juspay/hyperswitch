@@ -7,7 +7,10 @@ use aws_sdk_kms::{config::Region, primitives::Blob, Client};
 use base64::Engine;
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
+use masking::{PeekInterface, Secret};
 use router_env::logger;
+/// decrypting data using the AWS KMS SDK.
+pub mod decrypt;
 
 use crate::{consts, metrics};
 
@@ -15,7 +18,7 @@ static KMS_CLIENT: tokio::sync::OnceCell<KmsClient> = tokio::sync::OnceCell::con
 
 /// Returns a shared KMS client, or initializes a new one if not previously initialized.
 #[inline]
-pub async fn get_kms_client(config: &KmsConfig) -> &KmsClient {
+pub async fn get_kms_client(config: &KmsConfig) -> &'static KmsClient {
     KMS_CLIENT.get_or_init(|| KmsClient::new(config)).await
 }
 
@@ -113,6 +116,10 @@ pub enum KmsError {
     /// An error occurred UTF-8 decoding KMS decrypted output.
     #[error("Failed to UTF-8 decode decryption output")]
     Utf8DecodingFailed,
+
+    /// The KMS client has not been initialized.
+    #[error("The KMS client has not been initialized")]
+    KmsClientNotInitialized,
 }
 
 impl KmsConfig {
@@ -130,6 +137,38 @@ impl KmsConfig {
     }
 }
 
-#[derive(Clone, Debug, Default, serde::Deserialize)]
+/// A wrapper around a KMS value that can be decrypted.
+#[derive(Clone, Debug, Default, serde::Deserialize, Eq, PartialEq)]
 #[serde(transparent)]
-pub struct KMSValue(masking::Secret<String>);
+pub struct KMSValue(Secret<String>);
+
+impl common_utils::ext_traits::ConfigExt for KMSValue {
+    fn is_empty_after_trim(&self) -> bool {
+        self.0.peek().is_empty_after_trim()
+    }
+}
+
+// /// Extension trait for validating application configuration. This trait provides utilities to
+// /// check whether the value is either the default value or is empty.
+// pub trait ConfigExt {
+//     /// Returns whether the value of `self` is the default value for `Self`.
+//     fn is_default(&self) -> bool
+//     where
+//         Self: Default + PartialEq<Self>,
+//     {
+//         *self == Self::default()
+//     }
+
+//     /// Returns whether the value of `self` is empty after trimming whitespace on both left and
+//     /// right ends.
+//     fn is_empty_after_trim(&self) -> bool;
+
+//     /// Returns whether the value of `self` is the default value for `Self` or empty after trimming
+//     /// whitespace on both left and right ends.
+//     fn is_default_or_empty(&self) -> bool
+//     where
+//         Self: Default + PartialEq<Self>,
+//     {
+//         self.is_default() || self.is_empty_after_trim()
+//     }
+// }
