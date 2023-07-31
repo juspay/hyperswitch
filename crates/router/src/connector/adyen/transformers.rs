@@ -1860,9 +1860,6 @@ impl<'a>
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item);
-        let recurring_processing_model = get_recurring_processing_model(item)?.0;
-        let browser_info = get_browser_info(item)?;
-        let additional_data = get_additional_data(item);
         let return_url = item.request.get_router_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(gift_card_data)?;
         let request = AdyenPaymentRequest {
@@ -1871,10 +1868,10 @@ impl<'a>
             payment_method,
             reference: item.payment_id.to_string(),
             return_url,
-            browser_info,
+            browser_info: None,
             shopper_interaction,
-            recurring_processing_model,
-            additional_data,
+            recurring_processing_model: None,
+            additional_data: None,
             shopper_name: None,
             shopper_locale: None,
             shopper_email: item.request.email.clone(),
