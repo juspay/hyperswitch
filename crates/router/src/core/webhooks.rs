@@ -10,7 +10,7 @@ use super::{errors::StorageErrorExt, metrics};
 use crate::{
     consts,
     core::{
-        errors::{self, CustomResult, RouterResponse},
+        errors::{self, ConnectorErrorExt, CustomResult, RouterResponse},
         payments, refunds,
     },
     logger,
@@ -672,10 +672,35 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 
     request_details.body = &decoded_body;
 
-    let event_type = connector
+    let event_type = match connector
         .get_webhook_event_type(&request_details)
+        .allow_webhook_event_type_not_found()
         .switch()
-        .attach_printable("Could not find event type in incoming webhook body")?;
+        .attach_printable("Could not find event type in incoming webhook body")?
+    {
+        Some(event_type) => event_type,
+        // Early return allows us to acknowledge the webhooks that we do not support
+        None => {
+            logger::error!(
+                webhook_payload =? request_details.body,
+                "Failed while identifying the event type",
+            );
+
+            metrics::WEBHOOK_EVENT_TYPE_IDENTIFICATION_FAILURE_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[
+                    metrics::KeyValue::new(MERCHANT_ID, merchant_account.merchant_id.clone()),
+                    metrics::KeyValue::new("connector", connector_name.to_string()),
+                ],
+            );
+
+            return connector
+                .get_webhook_api_response(&request_details)
+                .switch()
+                .attach_printable("Failed while early return in case of event type parsing");
+        }
+    };
 
     let process_webhook_further = utils::lookup_webhook_event(
         &*state.store,
