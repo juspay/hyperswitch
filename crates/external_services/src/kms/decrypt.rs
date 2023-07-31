@@ -23,7 +23,7 @@ pub trait KmsDecrypt {
 }
 
 #[async_trait::async_trait]
-impl KmsDecrypt for &KMSValue {
+impl KmsDecrypt for &KmsValue {
     type Output = String;
     async fn decrypt_inner(self, kms_client: &KmsClient) -> CustomResult<Self::Output, KmsError> {
         kms_client

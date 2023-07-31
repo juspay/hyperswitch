@@ -20,7 +20,7 @@ use crate::{
     env::{self, logger, Env},
 };
 #[cfg(feature = "kms")]
-pub type Password = kms::KMSValue;
+pub type Password = kms::KmsValue;
 #[cfg(not(feature = "kms"))]
 pub type Password = masking::Secret<String>;
 
@@ -345,11 +345,11 @@ pub struct Secrets {
     pub recon_admin_api_key: String,
     pub master_enc_key: Password,
     #[cfg(feature = "kms")]
-    pub kms_encrypted_jwt_secret: kms::KMSValue,
+    pub kms_encrypted_jwt_secret: kms::KmsValue,
     #[cfg(feature = "kms")]
-    pub kms_encrypted_admin_api_key: kms::KMSValue,
+    pub kms_encrypted_admin_api_key: kms::KmsValue,
     #[cfg(feature = "kms")]
-    pub kms_encrypted_recon_admin_api_key: kms::KMSValue,
+    pub kms_encrypted_recon_admin_api_key: kms::KmsValue,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -559,7 +559,7 @@ pub struct ApiKeys {
     /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
     /// keys
     #[cfg(feature = "kms")]
-    pub kms_encrypted_hash_key: kms::KMSValue,
+    pub kms_encrypted_hash_key: kms::KmsValue,
 
     /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
     /// hashes of API keys

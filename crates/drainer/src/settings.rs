@@ -12,7 +12,7 @@ use serde::Deserialize;
 use crate::errors;
 
 #[cfg(feature = "kms")]
-pub type Password = kms::KMSValue;
+pub type Password = kms::KmsValue;
 #[cfg(not(feature = "kms"))]
 pub type Password = masking::Secret<String>;
 
