@@ -1384,7 +1384,7 @@ pub struct BankTransferNextStepsData {
     pub receiver: ReceiverDetails,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct QrCodeNextStepsInstruction {
     pub image_data_url: Url,
 }
