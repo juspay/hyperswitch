@@ -918,6 +918,7 @@ pub enum PaymentMethod {
     Reward,
     Upi,
     Voucher,
+    GiftCard,
 }
 
 #[derive(

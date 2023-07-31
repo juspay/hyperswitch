@@ -230,6 +230,30 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
     }
 }
 
+impl ForeignTryFrom<api_models::payments::PaymentMethodData> for api_enums::PaymentMethod {
+    type Error = errors::ApiErrorResponse;
+    fn foreign_try_from(
+        payment_method_data: api_models::payments::PaymentMethodData,
+    ) -> Result<Self, Self::Error> {
+        match payment_method_data {
+            api_models::payments::PaymentMethodData::Card(..) => Ok(Self::Card),
+            api_models::payments::PaymentMethodData::Wallet(..) => Ok(Self::Wallet),
+            api_models::payments::PaymentMethodData::PayLater(..) => Ok(Self::PayLater),
+            api_models::payments::PaymentMethodData::BankRedirect(..) => Ok(Self::BankRedirect),
+            api_models::payments::PaymentMethodData::BankDebit(..) => Ok(Self::BankDebit),
+            api_models::payments::PaymentMethodData::BankTransfer(..) => Ok(Self::BankTransfer),
+            api_models::payments::PaymentMethodData::Crypto(..) => Ok(Self::Crypto),
+            api_models::payments::PaymentMethodData::Reward(..) => Ok(Self::Reward),
+            api_models::payments::PaymentMethodData::Upi(..) => Ok(Self::Upi),
+            api_models::payments::PaymentMethodData::Voucher(..) => Ok(Self::Voucher),
+            api_models::payments::PaymentMethodData::GiftCard(..) => Ok(Self::GiftCard),
+            _ => Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: ("Mandate payments cannot have payment_method_data field".to_string()),
+            }),
+        }
+    }
+}
+
 impl ForeignTryFrom<storage_enums::RefundStatus> for storage_enums::EventType {
     type Error = errors::ValidationError;
 

@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+// use api_models::enums::PaymentMethod;
 use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
@@ -37,7 +38,7 @@ use crate::{
             types::{self, AsyncLift},
         },
         storage::{self, enums as storage_enums, ephemeral_key, CustomerUpdate::Update},
-        transformers::ForeignInto,
+        transformers::{ForeignInto, ForeignTryFrom},
         ErrorResponse, RouterData,
     },
     utils::{
@@ -1395,13 +1396,13 @@ pub(crate) fn validate_payment_method_fields_present(
         },
     )?;
 
-    let payment_method: Option<api_enums::PaymentMethod> =
+    let payment_method_from_type: Option<api_enums::PaymentMethod> =
         (req.payment_method_type).map(ForeignInto::foreign_into);
 
     utils::when(
         req.payment_method.is_some()
             && req.payment_method_type.is_some()
-            && (req.payment_method != payment_method),
+            && (req.payment_method != payment_method_from_type),
         || {
             Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: ("payment_method_type doesn't correspond to the specified payment_method"
@@ -1411,49 +1412,25 @@ pub(crate) fn validate_payment_method_fields_present(
     )?;
 
     utils::when(
-        !matches!(
-            req.payment_method
-                .as_ref()
-                .zip(req.payment_method_data.as_ref()),
-            Some(
-                (
-                    api_enums::PaymentMethod::Card,
-                    api::PaymentMethodData::Card(..)
-                ) | (
-                    api_enums::PaymentMethod::Wallet,
-                    api::PaymentMethodData::Wallet(..)
-                ) | (
-                    api_enums::PaymentMethod::PayLater,
-                    api::PaymentMethodData::PayLater(..)
-                ) | (
-                    api_enums::PaymentMethod::BankRedirect,
-                    api::PaymentMethodData::BankRedirect(..)
-                ) | (
-                    api_enums::PaymentMethod::BankDebit,
-                    api::PaymentMethodData::BankDebit(..)
-                ) | (
-                    api_enums::PaymentMethod::Crypto,
-                    api::PaymentMethodData::Crypto(..)
-                ) | (
-                    api_enums::PaymentMethod::BankTransfer,
-                    api::PaymentMethodData::BankTransfer(..)
-                ) | (
-                    api_enums::PaymentMethod::Reward,
-                    api::PaymentMethodData::Reward(..)
-                ) | (
-                    api_enums::PaymentMethod::Upi,
-                    api::PaymentMethodData::Upi(..)
-                ) | (
-                    api_enums::PaymentMethod::Voucher,
-                    api::PaymentMethodData::Voucher(..)
-                )
-            ) | None
-        ),
+        req.payment_method.is_some() && req.payment_method_data.is_some(),
         || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "payment_method_data doesn't correspond to the specified payment_method"
-                    .to_string(),
-            })
+            let payment_method_from_data: Result<
+                api_enums::PaymentMethod,
+                errors::ApiErrorResponse,
+            > = api_enums::PaymentMethod::foreign_try_from(
+                req.payment_method_data.clone().unwrap(),
+            );
+            match payment_method_from_data {
+                Ok(payment_method) => {
+                    utils::when(req.payment_method.unwrap() != payment_method, || {
+                        Err(errors::ApiErrorResponse::InvalidRequestData {
+                                message: ("payment_method_data doesn't correspond to the specified payment_method"
+                                    .to_string()),
+                            })
+                    })
+                }
+                Err(err) => Err(err),
+            }
         },
     )?;
 
