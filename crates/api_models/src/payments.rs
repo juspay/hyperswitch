@@ -1541,6 +1541,7 @@ pub struct DokuBankTransferInstructions {
     pub expires_at: Option<String>,
     #[schema(value_type = String, example = "122385736258")]
     pub reference: Secret<String>,
+    #[schema(value_type = String)]
     pub instructions_url: Option<Url>,
 }
 
