@@ -4,8 +4,7 @@ use async_trait::async_trait;
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
 #[cfg(feature = "kms")]
-use external_services::kms;
-use external_services::kms::decrypt::KmsDecrypt;
+use external_services::kms::{self, decrypt::KmsDecrypt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::{PeekInterface, StrongSecret};
 

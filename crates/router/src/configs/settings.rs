@@ -22,7 +22,7 @@ use crate::{
 #[cfg(feature = "kms")]
 pub type Password = kms::KMSValue;
 #[cfg(not(feature = "kms"))]
-pub type Password = Secret<String>;
+pub type Password = masking::Secret<String>;
 
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
@@ -334,7 +334,7 @@ where
         .collect())
 }
 
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Secrets {
     #[cfg(not(feature = "kms"))]

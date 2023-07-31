@@ -4,6 +4,9 @@ use api_models::{enums, payment_methods::RequiredFieldInfo};
 
 use super::settings::{ConnectorFields, Password, PaymentMethodType};
 
+#[cfg(feature = "kms")]
+use external_services::kms::KMSValue;
+
 impl Default for super::settings::Server {
     fn default() -> Self {
         Self {
@@ -27,6 +30,26 @@ impl Default for super::settings::Database {
             dbname: String::new(),
             pool_size: 5,
             connection_timeout: 10,
+        }
+    }
+}
+
+impl Default for super::settings::Secrets {
+    fn default() -> Self {
+        Self {
+            #[cfg(not(feature = "kms"))]
+            jwt_secret: "secret".into(),
+            #[cfg(not(feature = "kms"))]
+            admin_api_key: "test_admin".into(),
+            #[cfg(not(feature = "kms"))]
+            recon_admin_api_key: "recon_test_admin".into(),
+            master_enc_key: Password::default(),
+            #[cfg(feature = "kms")]
+            kms_encrypted_jwt_secret: KMSValue::default(),
+            #[cfg(feature = "kms")]
+            kms_encrypted_admin_api_key: KMSValue::default(),
+            #[cfg(feature = "kms")]
+            kms_encrypted_recon_admin_api_key: KMSValue::default(),
         }
     }
 }

@@ -6,6 +6,8 @@ use error_stack::{IntoReport, ResultExt};
 use external_services::kms;
 #[cfg(feature = "kms")]
 use external_services::kms::decrypt::KmsDecrypt;
+#[cfg(not(feature = "kms"))]
+use masking::PeekInterface;
 
 use crate::{configs::settings::Database, errors};
 
@@ -54,7 +56,7 @@ pub async fn diesel_make_pg_pool(
         .expect("Failed to KMS decrypt database password");
 
     #[cfg(not(feature = "kms"))]
-    let password = &database.password;
+    let password = &database.password.peek();
 
     let database_url = format!(
         "postgres://{}:{}@{}:{}/{}",

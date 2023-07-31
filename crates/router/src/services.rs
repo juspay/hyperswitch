@@ -8,6 +8,8 @@ use std::sync::{atomic, Arc};
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
+#[cfg(not(feature = "kms"))]
+use masking::PeekInterface;
 use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
 use tokio::sync::oneshot;
 
@@ -255,7 +257,7 @@ async fn get_master_enc_key(
 
     #[cfg(not(feature = "kms"))]
     let master_enc_key =
-        hex::decode(&conf.secrets.master_enc_key).expect("Failed to decode from hex");
+        hex::decode(conf.secrets.master_enc_key.peek()).expect("Failed to decode from hex");
 
     master_enc_key
 }
