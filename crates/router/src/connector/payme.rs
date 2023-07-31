@@ -336,41 +336,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Payme
 {
-    fn build_request(
-        &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Payment Sync".to_string(),
-            connector: "Payme".to_string(),
-        }
-        .into())
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
-        res: Response,
-    ) -> CustomResult<
-        types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
-        errors::ConnectorError,
-    >
-    where
-        api::PSync: Clone,
-        types::PaymentsSyncData: Clone,
-        types::PaymentsResponseData: Clone,
-    {
-        let response: payme::PaymePaySaleResponse = res
-            .response
-            .parse_struct("Payme PaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
+    // default implementation of build_request method will be executed
 }
 
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
@@ -546,17 +512,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 }
 
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Payme {
-    fn build_request(
-        &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Refund Sync".to_string(),
-            connector: "Payme".to_string(),
-        }
-        .into())
-    }
+    // default implementation of build_request method will be executed
 }
 
 #[async_trait::async_trait]

@@ -667,68 +667,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
     for Braintree
 {
-    fn get_headers(
-        &self,
-        _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        ""
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
-    }
-
-    fn get_error_response(
-        &self,
-        _res: types::Response,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        Ok(None)
-    }
-
-    fn build_request(
-        &self,
-        _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(None)
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
-        res: types::Response,
-    ) -> CustomResult<
-        types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
-        errors::ConnectorError,
-    > {
-        let response: braintree::RefundResponse = res
-            .response
-            .parse_struct("Braintree RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
+    // default implementation of build_request method will be executed
 }
 
 #[async_trait::async_trait]
