@@ -4678,7 +4678,8 @@
         "type": "object",
         "required": [
           "expires_at",
-          "reference"
+          "reference",
+          "instructions_url"
         ],
         "properties": {
           "expires_at": {
@@ -4690,12 +4691,7 @@
             "example": "122385736258"
           },
           "instructions_url": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Url"
-              }
-            ],
-            "nullable": true
+            "type": "string"
           }
         }
       },
