@@ -1195,7 +1195,6 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let base64_signature = notif_item.additional_data.hmac_signature;
-        logger::debug!("aaaaaaaaaaaaa{:?}", base64_signature.clone());
         Ok(base64_signature.as_bytes().to_vec())
     }
 
@@ -1247,7 +1246,6 @@ impl api::IncomingWebhook for Adyen {
             .get_webhook_source_verification_message(request, merchant_id, &secret)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        crate::logger::debug!("bbbbbbbbbbbbbb {:?}", secret.clone());
         let raw_key = hex::decode(secret)
             .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
