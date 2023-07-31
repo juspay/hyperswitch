@@ -4,9 +4,55 @@ use router_env::{instrument, tracing};
 use super::app;
 use crate::services::{api, authentication as auth};
 
+mod consts;
+mod core;
 mod errors;
 mod types;
 mod utils;
+
+#[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
+pub async fn dummy_connector_authorize_payment(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<String>,
+) -> impl actix_web::Responder {
+    let flow = types::Flow::DummyPaymentAuthorize;
+    let attempt_id = path.into_inner();
+    let payload = types::DummyConnectorPaymentConfirmRequest { attempt_id };
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        |state, _, req| core::payment_authorize(state, req),
+        &auth::NoAuth,
+    )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
+pub async fn dummy_connector_complete_payment(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Query<types::DummyConnectorPaymentCompleteBody>,
+) -> impl actix_web::Responder {
+    let flow = types::Flow::DummyPaymentComplete;
+    let attempt_id = path.into_inner();
+    let payload = types::DummyConnectorPaymentCompleteRequest {
+        attempt_id,
+        confirm: json_payload.confirm,
+    };
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        |state, _, req| core::payment_complete(state, req),
+        &auth::NoAuth,
+    )
+    .await
+}
 
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
 pub async fn dummy_connector_payment(
@@ -14,14 +60,14 @@ pub async fn dummy_connector_payment(
     req: actix_web::HttpRequest,
     json_payload: web::Json<types::DummyConnectorPaymentRequest>,
 ) -> impl actix_web::Responder {
-    let flow = types::Flow::DummyPaymentCreate;
     let payload = json_payload.into_inner();
+    let flow = types::Flow::DummyPaymentCreate;
     api::server_wrap(
         flow,
         state.get_ref(),
         &req,
         payload,
-        |state, _, req| utils::payment(state, req),
+        |state, _, req| core::payment(state, req),
         &auth::NoAuth,
     )
     .await
@@ -41,7 +87,7 @@ pub async fn dummy_connector_payment_data(
         state.get_ref(),
         &req,
         payload,
-        |state, _, req| utils::payment_data(state, req),
+        |state, _, req| core::payment_data(state, req),
         &auth::NoAuth,
     )
     .await
@@ -62,7 +108,7 @@ pub async fn dummy_connector_refund(
         state.get_ref(),
         &req,
         payload,
-        |state, _, req| utils::refund_payment(state, req),
+        |state, _, req| core::refund_payment(state, req),
         &auth::NoAuth,
     )
     .await
@@ -82,7 +128,7 @@ pub async fn dummy_connector_refund_data(
         state.get_ref(),
         &req,
         payload,
-        |state, _, req| utils::refund_data(state, req),
+        |state, _, req| core::refund_data(state, req),
         &auth::NoAuth,
     )
     .await
