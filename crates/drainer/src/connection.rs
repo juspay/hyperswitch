@@ -2,6 +2,8 @@ use bb8::PooledConnection;
 use diesel::PgConnection;
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
+#[cfg(not(feature = "kms"))]
+use masking::PeekInterface;
 
 use crate::settings::Database;
 
@@ -30,7 +32,7 @@ pub async fn diesel_make_pg_pool(
         .expect("Failed to decrypt password");
 
     #[cfg(not(feature = "kms"))]
-    let password = &database.password.clone().expose();
+    let password = &database.password.peek();
 
     let database_url = format!(
         "postgres://{}:{}@{}:{}/{}",
