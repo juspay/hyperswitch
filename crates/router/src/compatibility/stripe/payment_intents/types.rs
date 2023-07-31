@@ -8,7 +8,6 @@ use common_utils::{
     pii::{IpAddress, SecretSerdeValue, UpiVpaMaskingStrategy},
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::SwitchStrategy;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -132,7 +131,7 @@ impl From<StripeWallet> for payments::WalletData {
 impl From<StripeUpi> for payments::UpiData {
     fn from(upi: StripeUpi) -> Self {
         Self {
-            vpa_id: Some(upi.vpa_id.switch_strategy()),
+            vpa_id: Some(upi.vpa_id),
         }
     }
 }
