@@ -2208,6 +2208,7 @@ pub fn get_redirection_error_response(
     Ok((status, error, payments_response_data))
 }
 
+//Connector metadata
 pub fn get_connector_metadata(
     response: &NextActionResponse,
 ) -> errors::CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
