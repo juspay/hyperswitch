@@ -226,9 +226,9 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             api_enums::PaymentMethodType::Multibanco
             | api_enums::PaymentMethodType::Pix
             | api_enums::PaymentMethodType::Pse => Self::BankTransfer,
-            api_enums::PaymentMethodType::Benefit | api_enums::PaymentMethodType::Knet => {
-                Self::CardRedirect
-            }
+            api_enums::PaymentMethodType::Benefit
+            | api_enums::PaymentMethodType::Knet
+            | api_enums::PaymentMethodType::MomoAtm => Self::CardRedirect,
         }
     }
 }

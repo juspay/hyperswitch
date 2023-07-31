@@ -325,6 +325,8 @@ pub enum AdyenPaymentMethod<'a> {
     MobilePay(Box<MobilePayData>),
     #[serde(rename = "momo_wallet")]
     Momo(Box<MomoData>),
+    #[serde(rename = "momo_atm")]
+    MomoAtm,
     #[serde(rename = "touchngo")]
     TouchNGo(Box<TouchNGoData>),
     OnlineBankingCzechRepublic(Box<OnlineBankingCzechRepublicData>),
@@ -1686,6 +1688,7 @@ impl<'a> TryFrom<&api_models::enums::PaymentMethodType> for AdyenPaymentMethod<'
                     payment_type: PaymentType::Knet,
                 })))
             }
+            enums::PaymentMethodType::MomoAtm => Ok(AdyenPaymentMethod::MomoAtm),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "This payment method type is not supported for Card redirection"
                     .to_string(),

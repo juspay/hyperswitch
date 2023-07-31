@@ -1566,6 +1566,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::MbWay => Self::Wallet,
             PaymentMethodType::MobilePay => Self::Wallet,
             PaymentMethodType::Momo => Self::Wallet,
+            PaymentMethodType::MomoAtm => Self::CardRedirect,
             PaymentMethodType::Multibanco => Self::BankTransfer,
             PaymentMethodType::Interac => Self::BankRedirect,
             PaymentMethodType::OnlineBankingCzechRepublic => Self::BankRedirect,
