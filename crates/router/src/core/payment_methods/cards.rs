@@ -1720,7 +1720,7 @@ pub async fn list_customer_payment_method(
         );
 
         let current_datetime_utc = common_utils::date_time::now();
-        let time_eslapsed = current_datetime_utc
+        let time_elapsed = current_datetime_utc
             - payment_intent
                 .as_ref()
                 .map(|intent| intent.created_at)
@@ -1729,7 +1729,7 @@ pub async fn list_customer_payment_method(
             .set_key_with_expiry(
                 &key_for_hyperswitch_token,
                 hyperswitch_token,
-                consts::TOKEN_TTL - time_eslapsed.whole_seconds(),
+                consts::TOKEN_TTL - time_elapsed.whole_seconds(),
             )
             .await
             .map_err(|error| {
@@ -1757,7 +1757,7 @@ pub async fn list_customer_payment_method(
                     .set_key_with_expiry(
                         &key,
                         pm_metadata.1,
-                        consts::TOKEN_TTL - time_eslapsed.whole_seconds(),
+                        consts::TOKEN_TTL - time_elapsed.whole_seconds(),
                     )
                     .await
                     .map_err(|error| {

@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use base64::Engine;
 use common_utils::{
+    consts::TOKEN_TTL,
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
 };
@@ -1174,6 +1175,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethodData>)> {
     let request = &payment_data.payment_method_data;
     let token = payment_data.token.clone();
+
     let hyperswitch_token = if let Some(token) = token {
         let redis_conn = state.store.get_redis_conn();
         let key = format!(
@@ -1186,13 +1188,11 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 .get_required_value("payment_method")?,
         );
 
-        let hyperswitch_token_option = redis_conn
+        redis_conn
             .get_key::<Option<String>>(&key)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch the token from redis")?;
-
-        hyperswitch_token_option.or(Some(token))
+            .attach_printable("Failed to fetch the token from redis")?
     } else {
         None
     };
@@ -1263,7 +1263,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             })
         }
         (pm_opt @ Some(pm @ api::PaymentMethodData::Card(_)), _) => {
-            let token = vault::Vault::store_payment_method_data_in_locker(
+            let hyperswitch_token = vault::Vault::store_payment_method_data_in_locker(
                 state,
                 None,
                 pm,
@@ -1271,7 +1271,40 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 enums::PaymentMethod::Card,
             )
             .await?;
-            payment_data.token = Some(token);
+
+            let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+            let key_for_hyperswitch_token =
+                payment_data
+                    .payment_attempt
+                    .payment_method
+                    .map(|payment_method| {
+                        format!(
+                            "pm_token_{}_{}_hyperswitch",
+                            parent_payment_method_token, payment_method
+                        )
+                    });
+
+            payment_data.token = Some(parent_payment_method_token);
+            if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
+                let redis_conn = state.store.get_redis_conn();
+                let current_datetime_utc = common_utils::date_time::now();
+                let time_eslapsed = current_datetime_utc - payment_data.payment_intent.created_at;
+                redis_conn
+                    .set_key_with_expiry(
+                        &key_for_hyperswitch_token,
+                        hyperswitch_token,
+                        TOKEN_TTL - time_eslapsed.whole_seconds(),
+                    )
+                    .await
+                    .map_err(|error| {
+                        logger::error!(hyperswitch_token_kv_error=?error);
+                        errors::StorageError::KVError
+                    })
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to add data in redis")?
+            }
+
             Ok(pm_opt.to_owned())
         }
         (pm @ Some(api::PaymentMethodData::PayLater(_)), _) => Ok(pm.to_owned()),

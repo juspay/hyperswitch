@@ -197,6 +197,33 @@ where
                 .await?
             }
         };
+
+        if should_delete_token_from_basilisk(payment_data.payment_intent.status) {
+            let key_for_hyperswitch_token = payment_data
+                .payment_attempt
+                .payment_token
+                .clone()
+                .zip(payment_data.payment_attempt.payment_method)
+                .map(|(token, payment_method)| {
+                    format!("pm_token_{}_{}_hyperswitch", token, payment_method)
+                });
+            if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
+                let redis_conn = state.store.get_redis_conn();
+                let token = redis_conn
+                    .exists::<String>(&key_for_hyperswitch_token)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch the token from redis")?;
+
+                if token {
+                    redis_conn
+                        .delete_key(&key_for_hyperswitch_token)
+                        .await
+                        .map_err(|err| logger::error!("Error while deleting redis key: {err:?}"))
+                        .ok();
+                }
+            }
+        }
     } else {
         (_, payment_data) = operation
             .to_update_tracker()?
@@ -1191,6 +1218,13 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         "PaymentSession" => true,
         _ => false,
     }
+}
+
+pub fn should_delete_token_from_basilisk(status: storage_enums::IntentStatus) -> bool {
+    !matches!(
+        status,
+        diesel_models::enums::IntentStatus::RequiresCustomerAction
+    )
 }
 
 pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
