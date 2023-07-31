@@ -16,10 +16,11 @@ use crate::{
         payments::helpers,
     },
     db::StorageInterface,
-    routes::metrics,
+    routes::{metrics, AppState},
     services::{self, api as service_api},
     types::{
-        self, api,
+        self,
+        api::{self, ConnectorData},
         domain::{
             self,
             types::{self as domain_types, AsyncLift},
@@ -440,12 +441,16 @@ fn validate_certificate_in_mca_metadata(
 }
 
 pub async fn create_payment_connector(
-    store: &dyn StorageInterface,
+    state: &AppState,
     req: api::MerchantConnectorCreate,
     merchant_id: &String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
-    let key_store = store
-        .get_merchant_key_store_by_merchant_id(merchant_id, &store.get_master_key().to_vec().into())
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -454,7 +459,8 @@ pub async fn create_payment_connector(
         .map(validate_certificate_in_mca_metadata)
         .transpose()?;
 
-    let merchant_account = store
+    let merchant_account = state
+        .store
         .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -485,7 +491,7 @@ pub async fn create_payment_connector(
     };
 
     // Validate Merchant api details and return error if not in correct format
-    let _: types::ConnectorAuthType = req
+    let auth: types::ConnectorAuthType = req
         .connector_account_details
         .clone()
         .parse_value("ConnectorAuthType")
@@ -493,6 +499,14 @@ pub async fn create_payment_connector(
             field_name: "connector_account_details".to_string(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
+
+    let conn_name =
+        ConnectorData::convert_connector(&state.conf.connectors, &req.connector_name.to_string())?;
+    conn_name.validate_auth_type(&auth).change_context(
+        errors::ApiErrorResponse::InvalidRequestData {
+            message: "The auth type is not supported for connector".to_string(),
+        },
+    )?;
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
@@ -538,7 +552,8 @@ pub async fn create_payment_connector(
         },
     };
 
-    let mca = store
+    let mca = state
+        .store
         .insert_merchant_connector_account(merchant_connector_account, &key_store)
         .await
         .to_duplicate_response(

@@ -146,6 +146,7 @@ pub struct DummyConnector {
     pub refund_tolerance: u64,
     pub refund_retrieve_duration: u64,
     pub refund_retrieve_tolerance: u64,
+    pub authorize_ttl: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
