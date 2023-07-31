@@ -10,7 +10,7 @@ use crate::{
     core::errors,
     pii::Secret,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, PaymentsSyncData},
 };
 
 pub struct AirwallexAuthType {
@@ -328,6 +328,29 @@ fn get_payment_status(response: &AirwallexPaymentsResponse) -> enums::AttemptSta
         AirwallexPaymentStatus::Cancelled => enums::AttemptStatus::Voided,
     }
 }
+
+fn get_psync_status(response: &AirwallexPaymentsSyncResponse) -> enums::AttemptStatus {
+    match response.status.clone() {
+        AirwallexPaymentStatus::Succeeded => enums::AttemptStatus::Charged,
+        AirwallexPaymentStatus::Failed => enums::AttemptStatus::Failure,
+        AirwallexPaymentStatus::Pending => enums::AttemptStatus::Pending,
+        AirwallexPaymentStatus::RequiresPaymentMethod => enums::AttemptStatus::PaymentMethodAwaited,
+        AirwallexPaymentStatus::RequiresCustomerAction => response.next_action.as_ref().map_or(
+            enums::AttemptStatus::AuthenticationPending,
+            |next_action| match next_action.stage {
+                AirwallexNextActionStage::WaitingDeviceDataCollection => {
+                    enums::AttemptStatus::DeviceDataCollectionPending
+                }
+                AirwallexNextActionStage::WaitingUserInfoInput => {
+                    enums::AttemptStatus::AuthenticationPending
+                }
+            },
+        ),
+        AirwallexPaymentStatus::RequiresCapture => enums::AttemptStatus::Authorized,
+        AirwallexPaymentStatus::Cancelled => enums::AttemptStatus::Voided,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AirwallexNextActionStage {
@@ -356,6 +379,17 @@ pub struct AirwallexPaymentsNextAction {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AirwallexPaymentsResponse {
+    status: AirwallexPaymentStatus,
+    //Unique identifier for the PaymentIntent
+    id: String,
+    amount: Option<f32>,
+    //ID of the PaymentConsent related to this PaymentIntent
+    payment_consent_id: Option<String>,
+    next_action: Option<AirwallexPaymentsNextAction>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AirwallexPaymentsSyncResponse {
     status: AirwallexPaymentStatus,
     //Unique identifier for the PaymentIntent
     id: String,
@@ -469,6 +503,46 @@ impl<F, T>
     }
 }
 
+impl
+    TryFrom<
+        types::ResponseRouterData<
+            api::PSync,
+            AirwallexPaymentsSyncResponse,
+            PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    > for types::PaymentsSyncRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            api::PSync,
+            AirwallexPaymentsSyncResponse,
+            PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let status = get_psync_status(&item.response);
+        let redirection_data = if let Some(redirect_url_data) = item.response.next_action {
+            get_redirection_form(redirect_url_data)
+        } else {
+            None
+        };
+        Ok(Self {
+            status,
+            reference_id: Some(item.response.id.clone()),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct AirwallexRefundRequest {
