@@ -76,7 +76,7 @@ pub struct MerchantAccountCreate {
     pub locker_id: Option<String>,
 
     ///Default business details for connector routing
-    #[schema(value_type = PrimaryBusinessDetails)]
+    #[schema(value_type = Option<PrimaryBusinessDetails>)]
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
 
     /// The frm routing algorithm to be used for routing payments to desired FRM's

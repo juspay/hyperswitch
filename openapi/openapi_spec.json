@@ -5210,8 +5210,7 @@
       "MerchantAccountCreate": {
         "type": "object",
         "required": [
-          "merchant_id",
-          "primary_business_details"
+          "merchant_id"
         ],
         "properties": {
           "merchant_id": {
@@ -5313,7 +5312,12 @@
             "nullable": true
           },
           "primary_business_details": {
-            "$ref": "#/components/schemas/PrimaryBusinessDetails"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PrimaryBusinessDetails"
+              }
+            ],
+            "nullable": true
           },
           "frm_routing_algorithm": {
             "type": "object",
