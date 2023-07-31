@@ -2134,7 +2134,7 @@ pub fn get_redirection_response(
         None
     };
 
-    let redirection_data = response.clone().action.url.map(|url| {
+    let redirection_data = response.action.url.clone().map(|url| {
         let form_fields = response.action.data.clone().unwrap_or_else(|| {
             std::collections::HashMap::from_iter(
                 url.query_pairs()
@@ -2143,11 +2143,7 @@ pub fn get_redirection_response(
         });
         services::RedirectForm::Form {
             endpoint: url.to_string(),
-            method: response
-                .clone()
-                .action
-                .method
-                .unwrap_or(services::Method::Get),
+            method: response.action.method.unwrap_or(services::Method::Get),
             form_fields,
         }
     });
