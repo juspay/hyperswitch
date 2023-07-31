@@ -3,6 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as payu;
 
 use crate::{
@@ -45,7 +46,7 @@ where
 
         let auth_header = (
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", access_token.token).into_masked(),
+            format!("Bearer {}", access_token.token.peek()).into_masked(),
         );
 
         headers.push(auth_header);
@@ -60,6 +61,14 @@ impl ConnectorCommon for Payu {
 
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
+    }
+
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        payu::PayuAuthType::try_from(val)?;
+        Ok(())
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {

@@ -53,7 +53,7 @@ impl TryFrom<&types::ConnectorAuthType> for {{project-name | downcase | pascal_c
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: Secret::new(api_key.to_string()),
+                api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

@@ -109,7 +109,7 @@ pub struct LineItem {
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPaymentRequest<'a> {
     amount: Amount,
-    merchant_account: String,
+    merchant_account: Secret<String>,
     payment_method: AdyenPaymentMethod<'a>,
     reference: String,
     return_url: String,
@@ -686,7 +686,7 @@ pub enum CardBrand {
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenCancelRequest {
-    merchant_account: String,
+    merchant_account: Secret<String>,
     reference: String,
 }
 
@@ -739,7 +739,7 @@ pub struct AdyenApplePay {
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenRefundRequest {
-    merchant_account: String,
+    merchant_account: Secret<String>,
     amount: Amount,
     merchant_refund_reason: Option<String>,
     reference: String,
@@ -755,6 +755,11 @@ pub struct AdyenRefundResponse {
     status: String,
 }
 
+/// Cases:
+/// we get only image_data_url for some pm
+/// we get only qr_code_url for some pm
+/// we get both in some cases
+
 #[derive(Clone, Debug, Serialize)]
 pub struct QrCodeNextInstructions {
     pub image_data_url: Option<Url>,
@@ -762,10 +767,10 @@ pub struct QrCodeNextInstructions {
 }
 
 pub struct AdyenAuthType {
-    pub(super) api_key: String,
-    pub(super) merchant_account: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) merchant_account: Secret<String>,
     #[allow(dead_code)]
-    pub(super) review_key: Option<String>,
+    pub(super) review_key: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -938,8 +943,8 @@ impl TryFrom<&types::ConnectorAuthType> for AdyenAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                api_key: api_key.to_string(),
-                merchant_account: key1.to_string(),
+                api_key: api_key.to_owned(),
+                merchant_account: key1.to_owned(),
                 review_key: None,
             }),
             types::ConnectorAuthType::SignatureKey {
@@ -947,9 +952,9 @@ impl TryFrom<&types::ConnectorAuthType> for AdyenAuthType {
                 key1,
                 api_secret,
             } => Ok(Self {
-                api_key: api_key.to_string(),
-                merchant_account: key1.to_string(),
-                review_key: Some(api_secret.to_string()),
+                api_key: api_key.to_owned(),
+                merchant_account: key1.to_owned(),
+                review_key: Some(api_secret.to_owned()),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
@@ -1606,6 +1611,7 @@ impl<'a> TryFrom<&api_models::payments::BankTransferData> for AdyenPaymentMethod
             api_models::payments::BankTransferData::AchBankTransfer { .. }
             | api_models::payments::BankTransferData::SepaBankTransfer { .. }
             | api_models::payments::BankTransferData::BacsBankTransfer { .. }
+            | api_models::payments::BankTransferData::Pse { .. }
             | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
             }
@@ -1679,7 +1685,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.payment_id.to_string(),
+            reference: item.connector_request_reference_id.clone(),
             return_url,
             shopper_interaction,
             recurring_processing_model,
@@ -1718,7 +1724,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::Card)> for AdyenPay
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.payment_id.to_string(),
+            reference: item.connector_request_reference_id.clone(),
             return_url,
             shopper_interaction,
             recurring_processing_model,
@@ -1767,7 +1773,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.payment_id.to_string(),
+            reference: item.connector_request_reference_id.clone(),
             return_url,
             browser_info,
             shopper_interaction,
@@ -1865,7 +1871,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.payment_id.to_string(),
+            reference: item.connector_request_reference_id.clone(),
             return_url,
             shopper_interaction,
             recurring_processing_model,
@@ -1950,7 +1956,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.payment_id.to_string(),
+            reference: item.connector_request_reference_id.clone(),
             return_url,
             shopper_interaction,
             recurring_processing_model,
@@ -1999,7 +2005,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::PayLaterData)>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.payment_id.to_string(),
+            reference: item.connector_request_reference_id.clone(),
             return_url,
             shopper_interaction,
             recurring_processing_model,
@@ -2026,7 +2032,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for AdyenCancelRequest {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             merchant_account: auth_type.merchant_account,
-            reference: item.payment_id.to_string(),
+            reference: item.connector_request_reference_id.clone(),
         })
     }
 }
@@ -2109,7 +2115,7 @@ pub fn get_adyen_response(
         mandate_reference,
         connector_metadata: None,
         network_txn_id,
-        connector_response_reference_id: None,
+        connector_response_reference_id: Some(response.merchant_reference),
     };
     Ok((status, error, payments_response_data))
 }
@@ -2149,11 +2155,19 @@ pub fn get_next_action_response(
 
     let redirection_data = match response.action.type_of_response {
         ActionType::QrCode => None,
-        _ => response
-            .action
-            .url
-            .to_owned()
-            .map(|url| services::RedirectForm::from((url, services::Method::Get))),
+        _ => response.to_owned().action.url.map(|url| {
+            let form_fields = response.to_owned().action.data.unwrap_or_else(|| {
+                std::collections::HashMap::from_iter(
+                    url.query_pairs()
+                        .map(|(key, value)| (key.to_string(), value.to_string())),
+                )
+            });
+            services::RedirectForm::Form {
+                endpoint: url.to_string(),
+                method: response.action.method.unwrap_or(services::Method::Get),
+                form_fields,
+            }
+        }),
     };
 
     let connector_metadata = get_connector_metadata(response)?;
@@ -2203,25 +2217,50 @@ pub fn get_redirection_error_response(
     Ok((status, error, payments_response_data))
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct ConnectorMetadata {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub qr_code_information: Option<QrCodeNextInstructions>,
+}
+
 pub fn get_connector_metadata(
     response: AdyenNextActionResponse,
 ) -> errors::CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
-    let connector_metadata = match response.action.type_of_response {
+    let qr_code_metadata = match response.action.type_of_response {
         ActionType::QrCode => {
-            let metadata = get_qr_code_metadata(response);
+            let metadata = get_qr_code_metadata(response)?;
             Some(metadata)
         }
         _ => None,
-    }
-    .transpose()
-    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+    };
 
-    Ok(connector_metadata)
+    let connector_metadata = ConnectorMetadata {
+        qr_code_information: qr_code_metadata,
+    };
+
+    let encoded_connector_metadata =
+        common_utils::ext_traits::Encode::<ConnectorMetadata>::encode_to_value(&connector_metadata)
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+    // When all the ConnectorMetadata fields are none and if we encode it to value, we get empty serde json object
+    // We have to handle this empty object or else it will get updated in db unnecessarily
+    let metadata = match encoded_connector_metadata {
+        serde_json::Value::Object(obj) => {
+            if obj.is_empty() {
+                None
+            } else {
+                Some(serde_json::Value::Object(obj))
+            }
+        }
+        _ => None,
+    };
+
+    Ok(metadata)
 }
 
 pub fn get_qr_code_metadata(
     response: AdyenNextActionResponse,
-) -> errors::CustomResult<serde_json::Value, errors::ConnectorError> {
+) -> errors::CustomResult<QrCodeNextInstructions, errors::ConnectorError> {
     let image_data = response
         .action
         .qr_code_data
@@ -2236,11 +2275,7 @@ pub fn get_qr_code_metadata(
         image_data_url,
         qr_code_url: response.action.url,
     };
-
-    common_utils::ext_traits::Encode::<QrCodeNextInstructions>::encode_to_value(
-        &qr_code_instructions,
-    )
-    .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    Ok(qr_code_instructions)
 }
 
 impl<F, Req>
@@ -2280,7 +2315,7 @@ impl<F, Req>
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenCaptureRequest {
-    merchant_account: String,
+    merchant_account: Secret<String>,
     amount: Amount,
     reference: String,
 }
@@ -2291,7 +2326,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for AdyenCaptureRequest {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             merchant_account: auth_type.merchant_account,
-            reference: item.payment_id.to_string(),
+            reference: item.connector_request_reference_id.clone(),
             amount: Amount {
                 currency: item.request.currency.to_string(),
                 value: item.request.amount_to_capture,
@@ -2600,7 +2635,7 @@ impl From<AdyenNotificationRequestItemWH> for Response {
 pub struct AdyenPayoutCreateRequest {
     amount: Amount,
     recurring: RecurringContract,
-    merchant_account: String,
+    merchant_account: Secret<String>,
     bank: PayoutBankDetails,
     reference: String,
     shopper_reference: String,
@@ -2661,7 +2696,7 @@ pub struct AdyenPayoutResponse {
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPayoutEligibilityRequest {
     amount: Amount,
-    merchant_account: String,
+    merchant_account: Secret<String>,
     payment_method: PayoutCardDetails,
     reference: String,
     shopper_reference: String,
@@ -2705,7 +2740,7 @@ pub enum AdyenPayoutFulfillRequest {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayoutFulfillBankRequest {
-    merchant_account: String,
+    merchant_account: Secret<String>,
     original_reference: String,
 }
 
@@ -2716,7 +2751,7 @@ pub struct PayoutFulfillCardRequest {
     amount: Amount,
     card: PayoutCardDetails,
     billing_address: Option<Address>,
-    merchant_account: String,
+    merchant_account: Secret<String>,
     reference: String,
     shopper_name: ShopperName,
     nationality: Option<storage_enums::CountryAlpha2>,
@@ -2728,7 +2763,7 @@ pub struct PayoutFulfillCardRequest {
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPayoutCancelRequest {
     original_reference: String,
-    merchant_account: String,
+    merchant_account: Secret<String>,
 }
 
 // Payouts eligibility request transform

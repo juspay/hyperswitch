@@ -66,6 +66,7 @@ authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
+boku.base_url = "https://country-api4-stage.boku.com"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
@@ -106,10 +107,14 @@ tsys.base_url = "https://stagegw.transnox.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
+zen.secondary_base_url = "https://secure.zen-test.com/"
+
+[pm_filters.default]
+apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
-rewards = ["cashtocode",]
+rewards = ["cashtocode", "zen"]
 cards = [
     "aci",
     "adyen",
@@ -118,6 +123,7 @@ cards = [
     "bambora",
     "bitpay",
     "bluesnap",
+    "boku",
     "braintree",
     "checkout",
     "coinbase",
@@ -153,6 +159,18 @@ cards = [
     "worldpay",
     "zen",
 ]
+
+[pm_filters.zen]
+credit = { not_available_flows = { capture_method = "manual" } }
+debit = { not_available_flows = { capture_method = "manual" } }
+boleto = { country = "BR", currency = "BRL" }
+efecty = { country = "CO", currency = "COP" }
+multibanco = { country = "PT", currency = "EUR" }
+pago_efectivo = { country = "PE", currency = "PEN" }
+pse = { country = "CO", currency = "COP" }
+pix = { country = "BR", currency = "BRL" }
+red_compra = { country = "CL", currency = "CLP" }
+red_pagos = { country = "UY", currency = "UYU" }
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]

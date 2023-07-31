@@ -84,6 +84,14 @@ impl ConnectorCommon for Powertranz {
         "application/json"
     }
 
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        powertranz::PowertranzAuthType::try_from(val)?;
+        Ok(())
+    }
+
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.powertranz.base_url.as_ref()
     }
@@ -110,26 +118,13 @@ impl ConnectorCommon for Powertranz {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: powertranz::PowertranzErrorResponse = res
-            .response
-            .parse_struct("PowertranzErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let first_error = response.errors.first();
-        let code = first_error.map(|error| error.code.clone());
-        let message = first_error.map(|error| error.message.clone());
-
+        // For error scenerios connector respond with 200 http status code and error response object in response
+        // For http status code other than 200 they send empty response back
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: message.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: Some(
-                response
-                    .errors
-                    .iter()
-                    .map(|error| format!("{} : {}", error.code, error.message))
-                    .collect::<Vec<_>>()
-                    .join(", "),
-            ),
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: consts::NO_ERROR_MESSAGE.to_string(),
+            reason: None,
         })
     }
 }

@@ -59,8 +59,8 @@ impl TryFrom<&types::ConnectorAuthType> for GlobepayAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                partner_code: Secret::new(api_key.to_owned()),
-                credential_code: Secret::new(key1.to_owned()),
+                partner_code: api_key.to_owned(),
+                credential_code: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -85,6 +85,12 @@ impl From<GlobepayPaymentStatus> for enums::AttemptStatus {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GlobepayConnectorMetadata {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub qr_code_information: Option<QrCodeData>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct QrCodeData {
     image_data_url: url::Url,
 }
 
@@ -129,16 +135,31 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         if item.response.return_code == GlobepayReturnCode::Success {
             let globepay_metadata = GlobepayConnectorMetadata {
-                image_data_url: item
-                    .response
-                    .qrcode_img
-                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?,
+                qr_code_information: Some(QrCodeData {
+                    image_data_url: item
+                        .response
+                        .qrcode_img
+                        .ok_or(errors::ConnectorError::ResponseHandlingFailed)?,
+                }),
             };
-            let connector_metadata = Some(common_utils::ext_traits::Encode::<
+            let encoded_connector_metadata = common_utils::ext_traits::Encode::<
                 GlobepayConnectorMetadata,
-            >::encode_to_value(&globepay_metadata))
-            .transpose()
+            >::encode_to_value(&globepay_metadata)
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+            // When all the ConnectorMetadata fields are none and if we encode it to value, we get empty serde json object
+            // We have to handle this empty object or else it will get updated in db unnecessarily
+            let connector_metadata = match encoded_connector_metadata {
+                serde_json::Value::Object(obj) => {
+                    if obj.is_empty() {
+                        None
+                    } else {
+                        Some(serde_json::Value::Object(obj))
+                    }
+                }
+                _ => None,
+            };
+
             let globepay_status = item
                 .response
                 .result_code
