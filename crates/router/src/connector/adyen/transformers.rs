@@ -298,7 +298,6 @@ pub struct Amount {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
-#[serde(rename_all = "snake_case")]
 pub enum AdyenPaymentMethod<'a> {
     AdyenAffirm(Box<AdyenPayLaterData>),
     AdyenCard(Box<AdyenCard>),
@@ -353,7 +352,8 @@ pub enum AdyenPaymentMethod<'a> {
     SamsungPay(Box<SamsungPayPmData>),
     Twint(Box<TwintWalletData>),
     Vipps(Box<VippsWalletData>),
-    Swish(Box<SwishData>),
+    #[serde(rename = "swish")]
+    Swish,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1462,10 +1462,7 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 };
                 Ok(AdyenPaymentMethod::Dana(Box::new(data)))
             }
-            api_models::payments::WalletData::SwishQr(_) => {
-                let swish_data: SwishData = SwishData {};
-                Ok(AdyenPaymentMethod::Swish(Box::new(swish_data)))
-            }
+            api_models::payments::WalletData::SwishQr(_) => Ok(AdyenPaymentMethod::Swish),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
