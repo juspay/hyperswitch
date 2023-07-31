@@ -681,10 +681,24 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
         Some(event_type) => event_type,
         // Early return allows us to acknowledge the webhooks that we do not support
         None => {
+            logger::error!(
+                webhook_payload =? request_details.body,
+                "Failed while identifying the event type",
+            );
+
+            metrics::WEBHOOK_EVENT_TYPE_IDENTIFICATION_FAILURE_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[
+                    metrics::KeyValue::new(MERCHANT_ID, merchant_account.merchant_id.clone()),
+                    metrics::KeyValue::new("connector", connector_name.to_string()),
+                ],
+            );
+
             return connector
                 .get_webhook_api_response(&request_details)
                 .switch()
-                .attach_printable("Failed while early return in case of event type parsing")
+                .attach_printable("Failed while early return in case of event type parsing");
         }
     };
 
