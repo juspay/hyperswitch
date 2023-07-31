@@ -80,13 +80,6 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
         "application/json"
     }
 
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        transformers::DummyConnectorAuthType::try_from(val)?;
-        Ok(())
-    }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.dummyconnector.base_url.as_ref()

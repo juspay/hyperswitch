@@ -83,13 +83,6 @@ impl ConnectorCommon for Zen {
     fn common_get_content_type(&self) -> &'static str {
         mime::APPLICATION_JSON.essence_str()
     }
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        zen::ZenAuthType::try_from(val)?;
-        Ok(())
-    }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.zen.base_url.as_ref()

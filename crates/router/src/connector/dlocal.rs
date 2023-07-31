@@ -111,13 +111,6 @@ impl ConnectorCommon for Dlocal {
         "application/json"
     }
 
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        dlocal::DlocalAuthType::try_from(val)?;
-        Ok(())
-    }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.dlocal.base_url.as_ref()

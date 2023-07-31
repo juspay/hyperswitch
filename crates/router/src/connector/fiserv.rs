@@ -105,14 +105,6 @@ impl ConnectorCommon for Fiserv {
         "application/json"
     }
 
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        fiserv::FiservAuthType::try_from(val)?;
-        Ok(())
-    }
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.fiserv.base_url.as_ref()
     }

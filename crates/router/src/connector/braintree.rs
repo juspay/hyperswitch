@@ -34,14 +34,6 @@ impl ConnectorCommon for Braintree {
         connectors.braintree.base_url.as_ref()
     }
 
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        braintree::BraintreeAuthType::try_from(val)?;
-        Ok(())
-    }
-
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
