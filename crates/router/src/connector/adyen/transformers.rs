@@ -6,7 +6,7 @@ use error_stack::ResultExt;
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use time::PrimitiveDateTime;
+use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 
 #[cfg(feature = "payouts")]
 use crate::connector::utils::AddressDetailsData;
@@ -2367,13 +2367,10 @@ pub fn get_connector_metadata(
     response: &NextActionResponse,
 ) -> errors::CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
     let connector_metadata = match response.action.type_of_response {
-        ActionType::QrCode => {
-            let metadata = get_qr_metadata(response);
-            Some(metadata)
-        }
-        _ => None,
+        ActionType::QrCode => get_qr_metadata(response),
+        ActionType::Await => get_wait_screen_metadata(response),
+        _ => Ok(None),
     }
-    .transpose()
     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
     Ok(connector_metadata)
@@ -2381,7 +2378,7 @@ pub fn get_connector_metadata(
 
 pub fn get_qr_metadata(
     response: &NextActionResponse,
-) -> errors::CustomResult<serde_json::Value, errors::ConnectorError> {
+) -> errors::CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
     let image_data = response
         .action
         .qr_code_data
@@ -2396,10 +2393,39 @@ pub fn get_qr_metadata(
 
     let qr_code_instructions = payments::QrCodeNextStepsInstruction { image_data_url };
 
-    common_utils::ext_traits::Encode::<payments::QrCodeNextStepsInstruction>::encode_to_value(
-        &qr_code_instructions,
-    )
+    Some(common_utils::ext_traits::Encode::<
+        payments::QrCodeNextStepsInstruction,
+    >::encode_to_value(&qr_code_instructions))
+    .transpose()
     .change_context(errors::ConnectorError::ResponseHandlingFailed)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WaitScreenData {
+    display_from_timestamp: i128,
+    display_to_timestamp: Option<i128>,
+}
+
+pub fn get_wait_screen_metadata(
+    next_action: &NextActionResponse,
+) -> errors::CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
+    match next_action.action.payment_method_type {
+        PaymentType::Blik => {
+            let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+            Ok(Some(serde_json::json!(WaitScreenData {
+                display_from_timestamp: current_time,
+                display_to_timestamp: Some(current_time + Duration::minutes(1).whole_nanoseconds())
+            })))
+        }
+        PaymentType::Mbway => {
+            let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+            Ok(Some(serde_json::json!(WaitScreenData {
+                display_from_timestamp: current_time,
+                display_to_timestamp: None
+            })))
+        }
+        _ => Ok(None),
+    }
 }
 
 impl<F, Req>

@@ -1353,6 +1353,7 @@ pub enum NextActionType {
     InvokeSdkClient,
     TriggerApi,
     DisplayBankTransferInformation,
+    DisplayWaitScreen,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -1376,6 +1377,11 @@ pub enum NextActionData {
         #[schema(value_type = String)]
         voucher_details: VoucherNextStepData,
     },
+    /// Contains duration for displaying a wait screen, wait screen with timer is displayed by sdk
+    WaitScreenInformation {
+        display_from_timestamp: i128,
+        display_to_timestamp: Option<i128>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1398,6 +1404,12 @@ pub struct VoucherNextStepData {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct QrCodeNextStepsInstruction {
     pub image_data_url: Url,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct WaitScreenInstructions {
+    pub display_from_timestamp: i128,
+    pub display_to_timestamp: Option<i128>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

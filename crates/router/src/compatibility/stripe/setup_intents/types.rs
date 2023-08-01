@@ -374,6 +374,10 @@ pub enum StripeNextAction {
     DisplayVoucherInformation {
         voucher_details: payments::VoucherNextStepData,
     },
+    WaitScreenInformation {
+        display_from_timestamp: i128,
+        display_to_timestamp: Option<i128>,
+    },
 }
 
 pub(crate) fn into_stripe_next_action(
@@ -403,6 +407,13 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::DisplayVoucherInformation { voucher_details } => {
             StripeNextAction::DisplayVoucherInformation { voucher_details }
         }
+        payments::NextActionData::WaitScreenInformation {
+            display_from_timestamp,
+            display_to_timestamp,
+        } => StripeNextAction::WaitScreenInformation {
+            display_from_timestamp,
+            display_to_timestamp,
+        },
     })
 }
 
