@@ -1258,7 +1258,7 @@
     "id": 210,
     "name": "Adyen Swish",
     "connector": "adyen_uk",
-    "request": "{\"amount\":6540,\"currency\":\"SEK\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com/\",\"payment_method\":\"wallet\",\"payment_method_type\":\"swish\",\"payment_method_data\":{\"wallet\":{\"swish\":{}}}}"
+    "request": "{\"amount\":6540,\"currency\":\"SEK\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com/\",\"payment_method\":\"wallet\",\"payment_method_type\":\"swish\",\"payment_method_data\":{\"wallet\":{\"swish_qr\":{}}}}"
   },
   "211": {
     "id": 211,
