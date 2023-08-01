@@ -6974,7 +6974,8 @@
           "bank_debit",
           "reward",
           "upi",
-          "voucher"
+          "voucher",
+          "gift_card"
         ]
       },
       "PaymentMethodCreate": {
