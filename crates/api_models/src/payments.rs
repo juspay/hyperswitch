@@ -873,7 +873,6 @@ pub enum BankRedirectData {
         #[schema(example = "en")]
         preferred_language: String,
     },
-    Swish {},
     Trustly {
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
@@ -1030,10 +1029,10 @@ pub enum WalletData {
     TouchNGoRedirect(Box<TouchNGoRedirection>),
     /// The wallet data for WeChat Pay Redirection
     WeChatPayRedirect(Box<WeChatPayRedirection>),
-    /// The wallet data for WeChat Pay
-    WeChatPay(Box<WeChatPay>),
     /// The wallet data for WeChat Pay Display QrCode
     WeChatPayQr(Box<WeChatPayQr>),
+    // The wallet data for Swish
+    SwishQr(SwishQrData),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1130,6 +1129,9 @@ pub struct PayPalWalletData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct TouchNGoRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SwishQrData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GpayTokenizationData {
@@ -1380,7 +1382,7 @@ pub struct BankTransferNextStepsData {
     pub receiver: ReceiverDetails,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct QrCodeNextStepsInstruction {
     pub image_data_url: Url,
 }
