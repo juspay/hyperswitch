@@ -589,11 +589,29 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to convert order details to value")?;
 
-        let (business_country, business_label) = helpers::get_business_details(
-            request.business_country,
-            request.business_label.as_ref(),
-            merchant_account,
-        )?;
+        let (business_country, business_label) =
+            match (request.business_country, request.business_label.as_ref()) {
+                (Some(business_country), Some(business_label)) => {
+                    helpers::validate_business_details(
+                        business_country,
+                        business_label,
+                        merchant_account,
+                    )?;
+
+                    Ok((business_country, business_label.clone()))
+                }
+                (None, Some(_)) => Err(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "business_country",
+                }),
+                (Some(_), None) => Err(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "business_label",
+                }),
+                (None, None) => Ok(helpers::get_business_details(
+                    request.business_country,
+                    request.business_label.as_ref(),
+                    merchant_account,
+                )?),
+            }?;
 
         let allowed_payment_method_types = request
             .get_allowed_payment_method_types_as_value()
