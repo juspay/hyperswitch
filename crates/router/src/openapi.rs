@@ -263,6 +263,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsCancelRequest,
         api_models::payments::PaymentListConstraints,
         api_models::payments::PaymentListResponse,
+        api_models::payments::CashAppQr,
         api_models::payments::BankTransferData,
         api_models::payments::BankTransferNextStepsData,
         api_models::payments::SepaAndBacsBillingDetails,

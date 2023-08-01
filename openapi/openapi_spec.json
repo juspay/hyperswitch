@@ -3419,6 +3419,9 @@
           "Maestro"
         ]
       },
+      "CashAppQr": {
+        "type": "object"
+      },
       "Connector": {
         "type": "string",
         "enum": [
