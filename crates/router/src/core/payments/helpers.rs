@@ -1406,7 +1406,7 @@ pub(crate) fn validate_payment_method_fields_present(
             req.payment_method
                 .map_or(Ok(()), |req_payment_method| {
                     req.payment_method_type.map_or(Ok(()), |req_payment_method_type| {
-                        if validate_payment_method_type_against_payment_method(req_payment_method, req_payment_method_type) {
+                        if !validate_payment_method_type_against_payment_method(req_payment_method, req_payment_method_type) {
                             Err(errors::ApiErrorResponse::InvalidRequestData {
                                 message: ("payment_method_type doesn't correspond to the specified payment_method"
                                     .to_string()),
