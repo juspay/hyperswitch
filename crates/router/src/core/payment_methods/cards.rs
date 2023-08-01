@@ -1713,7 +1713,12 @@ pub async fn list_customer_payment_method(
         };
         customer_pms.push(pma.to_owned());
 
-        let redis_conn = state.store.get_redis_conn();
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+
         let key_for_hyperswitch_token = format!(
             "pm_token_{}_{}_hyperswitch",
             parent_payment_method_token, pma.payment_method
