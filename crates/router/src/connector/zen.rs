@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as zen;
 use uuid::Uuid;
 
@@ -82,6 +83,13 @@ impl ConnectorCommon for Zen {
     fn common_get_content_type(&self) -> &'static str {
         mime::APPLICATION_JSON.essence_str()
     }
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        zen::ZenAuthType::try_from(val)?;
+        Ok(())
+    }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.zen.base_url.as_ref()
@@ -94,7 +102,7 @@ impl ConnectorCommon for Zen {
         let auth = zen::ZenAuthType::try_from(auth_type)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key).into_masked(),
+            format!("Bearer {}", auth.api_key.peek()).into_masked(),
         )])
     }
 

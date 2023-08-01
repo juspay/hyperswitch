@@ -16,10 +16,11 @@ use crate::{
         payments::helpers,
     },
     db::StorageInterface,
-    routes::metrics,
+    routes::{metrics, AppState},
     services::{self, api as service_api},
     types::{
-        self, api,
+        self,
+        api::{self, ConnectorData},
         domain::{
             self,
             types::{self as domain_types, AsyncLift},
@@ -38,31 +39,6 @@ pub fn create_merchant_publishable_key() -> String {
     )
 }
 
-fn get_primary_business_details(
-    request: &api::MerchantAccountCreate,
-) -> Vec<PrimaryBusinessDetails> {
-    // In this case, business details is not optional, it will always be passed
-    #[cfg(feature = "multiple_mca")]
-    {
-        request.primary_business_details.to_owned()
-    }
-
-    // In this case, business details will be optional, if it is not passed, then create the
-    // default value
-    #[cfg(not(feature = "multiple_mca"))]
-    {
-        request
-            .primary_business_details
-            .to_owned()
-            .unwrap_or_else(|| {
-                vec![PrimaryBusinessDetails {
-                    country: enums::CountryAlpha2::US,
-                    business: "default".to_string(),
-                }]
-            })
-    }
-}
-
 pub async fn create_merchant_account(
     db: &dyn StorageInterface,
     req: api::MerchantAccountCreate,
@@ -76,7 +52,7 @@ pub async fn create_merchant_account(
     let publishable_key = Some(create_merchant_publishable_key());
 
     let primary_business_details = utils::Encode::<Vec<PrimaryBusinessDetails>>::encode_to_value(
-        &get_primary_business_details(&req),
+        &req.primary_business_details.unwrap_or_default(),
     )
     .change_context(errors::ApiErrorResponse::InvalidDataValue {
         field_name: "primary_business_details",
@@ -383,27 +359,6 @@ async fn validate_merchant_id<S: Into<String>>(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
 }
 
-fn get_business_details_wrapper(
-    request: &api::MerchantConnectorCreate,
-    _merchant_account: &domain::MerchantAccount,
-) -> RouterResult<(enums::CountryAlpha2, String)> {
-    #[cfg(feature = "multiple_mca")]
-    {
-        // The fields are mandatory
-        Ok((request.business_country, request.business_label.to_owned()))
-    }
-
-    #[cfg(not(feature = "multiple_mca"))]
-    {
-        // If the value is not passed, then take it from Merchant account
-        helpers::get_business_details(
-            request.business_country,
-            request.business_label.as_ref(),
-            _merchant_account,
-        )
-    }
-}
-
 fn validate_certificate_in_mca_metadata(
     connector_metadata: Secret<serde_json::Value>,
 ) -> RouterResult<()> {
@@ -440,12 +395,16 @@ fn validate_certificate_in_mca_metadata(
 }
 
 pub async fn create_payment_connector(
-    store: &dyn StorageInterface,
+    state: &AppState,
     req: api::MerchantConnectorCreate,
     merchant_id: &String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
-    let key_store = store
-        .get_merchant_key_store_by_merchant_id(merchant_id, &store.get_master_key().to_vec().into())
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -454,16 +413,21 @@ pub async fn create_payment_connector(
         .map(validate_certificate_in_mca_metadata)
         .transpose()?;
 
-    let merchant_account = store
+    let merchant_account = state
+        .store
         .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let (business_country, business_label) = get_business_details_wrapper(&req, &merchant_account)?;
+    helpers::validate_business_details(
+        req.business_country,
+        &req.business_label,
+        &merchant_account,
+    )?;
 
     let connector_label = helpers::get_connector_label(
-        business_country,
-        &business_label,
+        req.business_country,
+        &req.business_label,
         req.business_sub_label.as_ref(),
         &req.connector_name.to_string(),
     );
@@ -485,7 +449,7 @@ pub async fn create_payment_connector(
     };
 
     // Validate Merchant api details and return error if not in correct format
-    let _: types::ConnectorAuthType = req
+    let auth: types::ConnectorAuthType = req
         .connector_account_details
         .clone()
         .parse_value("ConnectorAuthType")
@@ -494,15 +458,15 @@ pub async fn create_payment_connector(
             expected_format: "auth_type and api_key".to_string(),
         })?;
 
-    let frm_configs = match req.frm_configs {
-        Some(frm_value) => {
-            let configs_for_frm_value: serde_json::Value =
-                utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&frm_value)
-                    .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
-            Some(Secret::new(configs_for_frm_value))
-        }
-        None => None,
-    };
+    let conn_name =
+        ConnectorData::convert_connector(&state.conf.connectors, &req.connector_name.to_string())?;
+    conn_name.validate_auth_type(&auth).change_context(
+        errors::ApiErrorResponse::InvalidRequestData {
+            message: "The auth type is not supported for connector".to_string(),
+        },
+    )?;
+
+    let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
@@ -526,8 +490,8 @@ pub async fn create_payment_connector(
         metadata: req.metadata,
         frm_configs,
         connector_label: connector_label.clone(),
-        business_country,
-        business_label,
+        business_country: req.business_country,
+        business_label: req.business_label.clone(),
         business_sub_label: req.business_sub_label,
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),
@@ -546,7 +510,8 @@ pub async fn create_payment_connector(
         },
     };
 
-    let mca = store
+    let mca = state
+        .store
         .insert_merchant_connector_account(merchant_connector_account, &key_store)
         .await
         .to_duplicate_response(
@@ -672,15 +637,7 @@ pub async fn update_payment_connector(
             .collect::<Vec<serde_json::Value>>()
     });
 
-    let frm_configs = match req.frm_configs.as_ref() {
-        Some(frm_value) => {
-            let configs_for_frm_value: serde_json::Value =
-                utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&frm_value)
-                    .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
-            Some(Secret::new(configs_for_frm_value))
-        }
-        None => None,
-    };
+    let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: None,
@@ -854,4 +811,24 @@ pub async fn check_merchant_account_kv_status(
             kv_enabled: kv_status,
         },
     ))
+}
+
+pub fn get_frm_config_as_secret(
+    frm_configs: Option<Vec<api_models::admin::FrmConfigs>>,
+) -> Option<Vec<Secret<serde_json::Value>>> {
+    match frm_configs.as_ref() {
+        Some(frm_value) => {
+            let configs_for_frm_value: Vec<Secret<serde_json::Value>> = frm_value
+                .iter()
+                .map(|config| {
+                    utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&config)
+                        .change_context(errors::ApiErrorResponse::ConfigNotFound)
+                        .map(masking::Secret::new)
+                })
+                .collect::<Result<Vec<_>, _>>()
+                .ok()?;
+            Some(configs_for_frm_value)
+        }
+        None => None,
+    }
 }

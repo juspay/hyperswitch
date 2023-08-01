@@ -177,6 +177,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::SamsungPay
             | api_enums::PaymentMethodType::Twint
             | api_enums::PaymentMethodType::Vipps
+            | api_enums::PaymentMethodType::TouchNGo
+            | api_enums::PaymentMethodType::Swish
             | api_enums::PaymentMethodType::WeChatPay
             | api_enums::PaymentMethodType::GoPay
             | api_enums::PaymentMethodType::Gcash
@@ -187,6 +189,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::AfterpayClearpay
             | api_enums::PaymentMethodType::Klarna
             | api_enums::PaymentMethodType::PayBright
+            | api_enums::PaymentMethodType::Atome
             | api_enums::PaymentMethodType::Walley => Self::PayLater,
             api_enums::PaymentMethodType::Giropay
             | api_enums::PaymentMethodType::Ideal
@@ -194,12 +197,13 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Eps
             | api_enums::PaymentMethodType::BancontactCard
             | api_enums::PaymentMethodType::Blik
+            | api_enums::PaymentMethodType::OnlineBankingThailand
             | api_enums::PaymentMethodType::OnlineBankingCzechRepublic
             | api_enums::PaymentMethodType::OnlineBankingFinland
+            | api_enums::PaymentMethodType::OnlineBankingFpx
             | api_enums::PaymentMethodType::OnlineBankingPoland
             | api_enums::PaymentMethodType::OnlineBankingSlovakia
             | api_enums::PaymentMethodType::Przelewy24
-            | api_enums::PaymentMethodType::Swish
             | api_enums::PaymentMethodType::Trustly
             | api_enums::PaymentMethodType::Bizum
             | api_enums::PaymentMethodType::Interac => Self::BankRedirect,
@@ -214,7 +218,14 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             }
             api_enums::PaymentMethodType::Evoucher
             | api_enums::PaymentMethodType::ClassicReward => Self::Reward,
-            api_enums::PaymentMethodType::Multibanco => Self::BankTransfer,
+            api_enums::PaymentMethodType::Boleto
+            | api_enums::PaymentMethodType::Efecty
+            | api_enums::PaymentMethodType::PagoEfectivo
+            | api_enums::PaymentMethodType::RedCompra
+            | api_enums::PaymentMethodType::RedPagos => Self::Voucher,
+            api_enums::PaymentMethodType::Multibanco
+            | api_enums::PaymentMethodType::Pix
+            | api_enums::PaymentMethodType::Pse => Self::BankTransfer,
         }
     }
 }
@@ -465,14 +476,18 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
         };
         let frm_configs = match item.frm_configs {
             Some(frm_value) => {
-                let configs_for_frm : api_models::admin::FrmConfigs = frm_value
-                    .peek()
-                    .clone()
-                    .parse_value("FrmConfigs")
-                    .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                        field_name: "frm_configs".to_string(),
-                        expected_format: "\"frm_configs\" : { \"frm_enabled_pms\" : [\"card\"], \"frm_enabled_pm_types\" : [\"credit\"], \"frm_enabled_gateways\" : [\"stripe\"], \"frm_action\": \"cancel_txn\", \"frm_preferred_flow_type\" : \"pre\" }".to_string(),
-                    })?;
+                let configs_for_frm : Vec<api_models::admin::FrmConfigs> = frm_value
+                    .iter()
+                    .map(|config| { config
+                        .peek()
+                        .clone()
+                        .parse_value("FrmConfigs")
+                        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                            field_name: "frm_configs".to_string(),
+                            expected_format: "[{ \"gateway\": \"stripe\", \"payment_methods\": [{ \"payment_method\": \"card\",\"payment_method_types\": [{\"payment_method_type\": \"credit\",\"card_networks\": [\"Visa\"],\"flow\": \"pre\",\"action\": \"cancel_txn\"}]}]}]".to_string(),
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
                 Some(configs_for_frm)
             }
             None => None,

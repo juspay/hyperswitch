@@ -65,6 +65,11 @@ pub trait ConnectorCommon {
         "application/json"
     }
 
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>>;
+
     // FIXME write doc - think about this
     // fn headers(&self) -> Vec<(&str, &str)>;
 
@@ -266,7 +271,7 @@ impl ConnectorData {
         })
     }
 
-    fn convert_connector(
+    pub fn convert_connector(
         _connectors: &Connectors,
         connector_name: &str,
     ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
@@ -279,6 +284,7 @@ impl ConnectorData {
                 enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
                 enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
+                // enums::Connector::Boku => Ok(Box::new(&connector::Boku)),  added as template code for future usage
                 enums::Connector::Braintree => Ok(Box::new(&connector::Braintree)),
                 enums::Connector::Cashtocode => Ok(Box::new(&connector::Cashtocode)),
                 enums::Connector::Checkout => Ok(Box::new(&connector::Checkout)),
@@ -328,6 +334,11 @@ impl ConnectorData {
                 enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
                 enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
+                enums::Connector::Signifyd => {
+                    Err(report!(errors::ConnectorError::InvalidConnectorName)
+                        .attach_printable(format!("invalid connector name: {connector_name}")))
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                }
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))

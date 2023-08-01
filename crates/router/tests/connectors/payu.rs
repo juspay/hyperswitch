@@ -1,3 +1,4 @@
+use masking::PeekInterface;
 use router::types::{self, api, storage::enums, AccessToken, ConnectorAuthType};
 
 use crate::{
@@ -34,7 +35,7 @@ fn get_access_token() -> Option<AccessToken> {
     match connector.get_auth_token() {
         ConnectorAuthType::BodyKey { api_key, key1 } => Some(AccessToken {
             token: api_key,
-            expires: key1.parse::<i64>().unwrap(),
+            expires: key1.peek().parse::<i64>().unwrap(),
         }),
         _ => None,
     }

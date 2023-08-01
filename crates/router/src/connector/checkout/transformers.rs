@@ -1,6 +1,6 @@
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -8,7 +8,7 @@ use url::Url;
 use crate::{
     connector::utils::{RouterData, WalletData},
     core::errors,
-    pii, services,
+    services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
@@ -23,25 +23,25 @@ pub enum TokenRequest {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckoutGooglePayData {
-    protocol_version: pii::Secret<String>,
-    signature: pii::Secret<String>,
-    signed_message: pii::Secret<String>,
+    protocol_version: Secret<String>,
+    signature: Secret<String>,
+    signed_message: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CheckoutApplePayData {
-    version: pii::Secret<String>,
-    data: pii::Secret<String>,
-    signature: pii::Secret<String>,
+    version: Secret<String>,
+    data: Secret<String>,
+    signature: Secret<String>,
     header: CheckoutApplePayHeader,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckoutApplePayHeader {
-    ephemeral_public_key: pii::Secret<String>,
-    public_key_hash: pii::Secret<String>,
-    transaction_id: pii::Secret<String>,
+    ephemeral_public_key: Secret<String>,
+    public_key_hash: Secret<String>,
+    transaction_id: Secret<String>,
 }
 
 impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
@@ -74,7 +74,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
 
 #[derive(Debug, Eq, PartialEq, Deserialize)]
 pub struct CheckoutTokenResponse {
-    token: pii::Secret<String>,
+    token: Secret<String>,
 }
 
 impl<F, T>
@@ -99,9 +99,9 @@ pub struct CardSource {
     #[serde(rename = "type")]
     pub source_type: CheckoutSourceTypes,
     pub number: cards::CardNumber,
-    pub expiry_month: pii::Secret<String>,
-    pub expiry_year: pii::Secret<String>,
-    pub cvv: pii::Secret<String>,
+    pub expiry_month: Secret<String>,
+    pub expiry_year: Secret<String>,
+    pub cvv: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -126,9 +126,9 @@ pub enum CheckoutSourceTypes {
 }
 
 pub struct CheckoutAuthType {
-    pub(super) api_key: String,
-    pub(super) processing_channel_id: String,
-    pub(super) api_secret: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) processing_channel_id: Secret<String>,
+    pub(super) api_secret: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -142,12 +142,13 @@ pub struct PaymentsRequest {
     pub source: PaymentSource,
     pub amount: i64,
     pub currency: String,
-    pub processing_channel_id: String,
+    pub processing_channel_id: Secret<String>,
     #[serde(rename = "3ds")]
     pub three_ds: CheckoutThreeDS,
     #[serde(flatten)]
     pub return_url: ReturnUrl,
     pub capture: bool,
+    pub reference: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -166,9 +167,9 @@ impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
         } = auth_type
         {
             Ok(Self {
-                api_key: api_key.to_string(),
-                api_secret: api_secret.to_string(),
-                processing_channel_id: key1.to_string(),
+                api_key: api_key.to_owned(),
+                api_secret: api_secret.to_owned(),
+                processing_channel_id: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -246,6 +247,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
             three_ds,
             return_url,
             capture,
+            reference: item.connector_request_reference_id.clone(),
         })
     }
 }
@@ -323,6 +325,7 @@ pub struct PaymentsResponse {
     #[serde(rename = "_links")]
     links: Links,
     balances: Option<Balances>,
+    reference: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
@@ -347,12 +350,14 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
                 item.data.request.capture_method,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    item.response.reference.unwrap_or(item.response.id),
+                ),
             }),
             ..item.data
         })
@@ -376,12 +381,14 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
                 item.response.balances,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    item.response.reference.unwrap_or(item.response.id),
+                ),
             }),
             ..item.data
         })
@@ -452,7 +459,7 @@ pub enum CaptureType {
 pub struct PaymentCaptureRequest {
     pub amount: Option<i64>,
     pub capture_type: Option<CaptureType>,
-    pub processing_channel_id: String,
+    pub processing_channel_id: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {

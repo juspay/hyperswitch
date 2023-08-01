@@ -247,6 +247,7 @@ async fn should_make_adyen_paypal_payment(web_driver: WebDriver) -> Result<(), W
         web_driver,
         &format!("{CHEKOUT_BASE_URL}/saved/202"),
         vec![
+            Event::Trigger(Trigger::Click(By::Id("payment-submit-btn"))),
             Event::Assert(Assert::IsPresent("Google")),
             Event::Assert(Assert::ContainsAny(
                 Selector::QueryParamStr,
@@ -437,7 +438,11 @@ async fn should_make_adyen_onlinebanking_pl_payment(
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/197"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Id("user_account_pbl_correct"))),
-            Event::Assert(Assert::IsPresent("succeeded")),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=succeeded", "status=processing"],
+            )),
         ],
     )
     .await?;
@@ -559,6 +564,76 @@ async fn should_make_adyen_dana_payment(driver: WebDriver) -> Result<(), WebDriv
     Ok(())
 }
 
+async fn should_make_adyen_online_banking_fpx_payment(
+    web_driver: WebDriver,
+) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/172"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
+            Event::Assert(Assert::IsPresent("succeeded")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_online_banking_thailand_payment(
+    web_driver: WebDriver,
+) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/184"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
+            Event::Assert(Assert::IsPresent("succeeded")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_touch_n_go_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/185"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=succeeded"],
+            )),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_swish_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/210"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("status")),
+            Event::Assert(Assert::IsPresent("processing")),
+            Event::Assert(Assert::IsPresent("Next Action Type")),
+            Event::Assert(Assert::IsPresent("qr_code_information")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
 #[test]
 #[serial]
 #[ignore]
@@ -614,6 +689,12 @@ fn should_make_adyen_3ds_payment_success_test() {
 #[serial]
 fn should_make_adyen_alipay_hk_payment_test() {
     tester!(should_make_adyen_alipay_hk_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_swish_payment_test() {
+    tester!(should_make_adyen_swish_payment);
 }
 
 #[test]
@@ -727,4 +808,20 @@ fn should_make_adyen_dana_payment_test() {
     tester!(should_make_adyen_dana_payment);
 }
 
-// https://hs-payments-test.netlify.app/paypal-redirect?amount=70.00&country=US&currency=USD&mandate_data[customer_acceptance][acceptance_type]=offline&mandate_data[customer_acceptance][accepted_at]=1963-05-03T04:07:52.723Z&mandate_data[customer_acceptance][online][ip_address]=127.0.0.1&mandate_data[customer_acceptance][online][user_agent]=amet%20irure%20esse&mandate_data[mandate_type][multi_use][amount]=700&mandate_data[mandate_type][multi_use][currency]=USD&apikey=dev_uFpxA0r6jjbVaxHSY3X0BZLL3erDUzvg3i51abwB1Bknu3fdiPxw475DQgnByn1z
+#[test]
+#[serial]
+fn should_make_adyen_online_banking_fpx_payment_test() {
+    tester!(should_make_adyen_online_banking_fpx_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_online_banking_thailand_payment_test() {
+    tester!(should_make_adyen_online_banking_thailand_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_touch_n_go_payment_test() {
+    tester!(should_make_adyen_touch_n_go_payment);
+}

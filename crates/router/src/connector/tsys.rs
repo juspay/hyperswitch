@@ -73,6 +73,14 @@ impl ConnectorCommon for Tsys {
         "application/json"
     }
 
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        tsys::TsysAuthType::try_from(val)?;
+        Ok(())
+    }
+
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.tsys.base_url.as_ref()
     }
@@ -197,7 +205,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}servlets/Transnox_API_server",
+            "{}servlets/transnox_api_server",
             self.base_url(connectors)
         ))
     }
@@ -276,7 +284,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}servlets/Transnox_API_server",
+            "{}servlets/transnox_api_server",
             self.base_url(connectors)
         ))
     }
@@ -357,7 +365,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}servlets/Transnox_API_server",
+            "{}servlets/transnox_api_server",
             self.base_url(connectors),
         ))
     }
@@ -431,7 +439,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}servlets/Transnox_API_server",
+            "{}servlets/transnox_api_server",
             self.base_url(connectors)
         ))
     }
@@ -509,7 +517,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}servlets/Transnox_API_server",
+            "{}servlets/transnox_api_server",
             self.base_url(connectors),
         ))
     }

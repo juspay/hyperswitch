@@ -67,7 +67,7 @@ where
         let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
         let sign_req: String = format!(
             "{}{}{}",
-            auth.x_login,
+            auth.x_login.peek(),
             date,
             types::RequestBody::get_inner_value(dlocal_req)
                 .peek()
@@ -75,7 +75,7 @@ where
         );
         let authz = crypto::HmacSha256::sign_message(
             &crypto::HmacSha256,
-            auth.secret.as_bytes(),
+            auth.secret.peek().as_bytes(),
             sign_req.as_bytes(),
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)
@@ -109,6 +109,14 @@ impl ConnectorCommon for Dlocal {
 
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
+    }
+
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        dlocal::DlocalAuthType::try_from(val)?;
+        Ok(())
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
