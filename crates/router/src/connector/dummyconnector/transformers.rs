@@ -1,56 +1,173 @@
 use diesel_models::enums::Currency;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
     core::errors,
+    services,
     types::{self, api, storage::enums},
 };
 
+#[derive(Debug, Serialize, strum::Display, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum DummyConnectors {
+    #[serde(rename = "phonypay")]
+    #[strum(serialize = "phonypay")]
+    PhonyPay,
+    #[serde(rename = "fauxpay")]
+    #[strum(serialize = "fauxpay")]
+    FauxPay,
+    #[serde(rename = "pretendpay")]
+    #[strum(serialize = "pretendpay")]
+    PretendPay,
+    StripeTest,
+    AdyenTest,
+    CheckoutTest,
+    PaypalTest,
+}
+
+impl DummyConnectors {
+    pub fn get_dummy_connector_id(self) -> &'static str {
+        match self {
+            Self::PhonyPay => "phonypay",
+            Self::FauxPay => "fauxpay",
+            Self::PretendPay => "pretendpay",
+            Self::StripeTest => "stripe_test",
+            Self::AdyenTest => "adyen_test",
+            Self::CheckoutTest => "checkout_test",
+            Self::PaypalTest => "paypal_test",
+        }
+    }
+}
+
+impl From<u8> for DummyConnectors {
+    fn from(value: u8) -> Self {
+        match value {
+            1 => Self::PhonyPay,
+            2 => Self::FauxPay,
+            3 => Self::PretendPay,
+            4 => Self::StripeTest,
+            5 => Self::AdyenTest,
+            6 => Self::CheckoutTest,
+            7 => Self::PaypalTest,
+            _ => Self::PhonyPay,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Eq, PartialEq)]
-pub struct DummyConnectorPaymentsRequest {
+pub struct DummyConnectorPaymentsRequest<const T: u8> {
     amount: i64,
     currency: Currency,
     payment_method_data: PaymentMethodData,
+    return_url: Option<String>,
+    connector: DummyConnectors,
 }
 
-#[derive(Debug, serde::Serialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum PaymentMethodData {
     Card(DummyConnectorCard),
+    Wallet(DummyConnectorWallet),
+    PayLater(DummyConnectorPayLater),
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct DummyConnectorCard {
     name: Secret<String>,
     number: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvc: Secret<String>,
-    complete: bool,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequest {
+impl From<api_models::payments::Card> for DummyConnectorCard {
+    fn from(value: api_models::payments::Card) -> Self {
+        Self {
+            name: value.card_holder_name,
+            number: value.card_number,
+            expiry_month: value.card_exp_month,
+            expiry_year: value.card_exp_year,
+            cvc: value.card_cvc,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub enum DummyConnectorWallet {
+    GooglePay,
+    Paypal,
+    WeChatPay,
+    MbWay,
+    AliPay,
+    AliPayHK,
+}
+
+impl TryFrom<api_models::payments::WalletData> for DummyConnectorWallet {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: api_models::payments::WalletData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::WalletData::GooglePayRedirect(_) => Ok(Self::GooglePay),
+            api_models::payments::WalletData::PaypalRedirect(_) => Ok(Self::Paypal),
+            api_models::payments::WalletData::WeChatPay(_) => Ok(Self::WeChatPay),
+            api_models::payments::WalletData::MbWayRedirect(_) => Ok(Self::MbWay),
+            api_models::payments::WalletData::AliPayRedirect(_) => Ok(Self::AliPay),
+            api_models::payments::WalletData::AliPayHkRedirect(_) => Ok(Self::AliPayHK),
+            _ => Err(errors::ConnectorError::NotImplemented("Dummy wallet".to_string()).into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub enum DummyConnectorPayLater {
+    Klarna,
+    Affirm,
+    AfterPayClearPay,
+}
+
+impl TryFrom<api_models::payments::PayLaterData> for DummyConnectorPayLater {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: api_models::payments::PayLaterData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
+            api_models::payments::PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
+            api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                Ok(Self::AfterPayClearPay)
+            }
+            _ => Err(errors::ConnectorError::NotImplemented("Dummy pay later".to_string()).into()),
+        }
+    }
+}
+
+impl<const T: u8> TryFrom<&types::PaymentsAuthorizeRouterData>
+    for DummyConnectorPaymentsRequest<T>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
-                let card = DummyConnectorCard {
-                    name: req_card.card_holder_name,
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.request.amount,
-                    currency: item.request.currency,
-                    payment_method_data: PaymentMethodData::Card(card),
-                })
+        let payment_method_data: Result<PaymentMethodData, Self::Error> = match item
+            .request
+            .payment_method_data
+        {
+            api::PaymentMethodData::Card(ref req_card) => {
+                Ok(PaymentMethodData::Card(req_card.clone().into()))
             }
+            api::PaymentMethodData::Wallet(ref wallet_data) => {
+                Ok(PaymentMethodData::Wallet(wallet_data.clone().try_into()?))
+            }
+            api::PaymentMethodData::PayLater(ref pay_later_data) => Ok(
+                PaymentMethodData::PayLater(pay_later_data.clone().try_into()?),
+            ),
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        }
+        };
+        Ok(Self {
+            amount: item.request.amount,
+            currency: item.request.currency,
+            payment_method_data: payment_method_data?,
+            return_url: item.request.router_return_url.clone(),
+            connector: Into::<DummyConnectors>::into(T),
+        })
     }
 }
 
@@ -86,19 +203,28 @@ impl From<DummyConnectorPaymentStatus> for enums::AttemptStatus {
         match item {
             DummyConnectorPaymentStatus::Succeeded => Self::Charged,
             DummyConnectorPaymentStatus::Failed => Self::Failure,
-            DummyConnectorPaymentStatus::Processing => Self::Authorizing,
+            DummyConnectorPaymentStatus::Processing => Self::AuthenticationPending,
         }
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PaymentsResponse {
     status: DummyConnectorPaymentStatus,
     id: String,
     amount: i64,
     currency: Currency,
     created: String,
-    payment_method_type: String,
+    payment_method_type: PaymentMethodType,
+    next_action: Option<DummyConnectorNextAction>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum PaymentMethodType {
+    Card,
+    Wallet(DummyConnectorWallet),
+    PayLater(DummyConnectorPayLater),
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentsResponse, T, types::PaymentsResponseData>>
@@ -108,11 +234,18 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentsResponse, T, types::Paym
     fn try_from(
         item: types::ResponseRouterData<F, PaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let redirection_data = item
+            .response
+            .next_action
+            .and_then(|redirection_data| redirection_data.get_url())
+            .map(|redirection_url| {
+                services::RedirectForm::from((redirection_url, services::Method::Get))
+            });
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
+                redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
@@ -120,6 +253,20 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentsResponse, T, types::Paym
             }),
             ..item.data
         })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum DummyConnectorNextAction {
+    RedirectToUrl(Url),
+}
+
+impl DummyConnectorNextAction {
+    fn get_url(&self) -> Option<Url> {
+        match self {
+            Self::RedirectToUrl(redirect_to_url) => Some(redirect_to_url.to_owned()),
+        }
     }
 }
 

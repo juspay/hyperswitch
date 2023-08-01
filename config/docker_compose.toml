@@ -203,6 +203,7 @@ refund_duration = 1000
 refund_tolerance = 100
 refund_retrieve_duration = 500
 refund_retrieve_tolerance = 100
+authorize_ttl = 36000
 
 [payouts]
 payout_eligibility = true
