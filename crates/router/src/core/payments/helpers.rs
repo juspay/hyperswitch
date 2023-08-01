@@ -1415,32 +1415,32 @@ pub(crate) fn validate_payment_method_fields_present(
         },
     )?;
 
+    let check_payment_method_and_payment_method_data =
+        |req_payment_method_data, req_payment_method: api_enums::PaymentMethod| {
+            api_enums::PaymentMethod::foreign_try_from(req_payment_method_data).and_then(|payment_method|
+                if req_payment_method != payment_method {
+                    Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: ("payment_method_data doesn't correspond to the specified payment_method"
+                            .to_string()),
+                    })
+                } else {
+                    Ok(())
+                })
+        };
+
     utils::when(
         req.payment_method.is_some() && req.payment_method_data.is_some(),
-        || match req.payment_method_data.clone() {
-            Some(req_payment_method_data) => {
-                let payment_method_from_pm_data: Result<
-                    api_enums::PaymentMethod,
-                    errors::ApiErrorResponse,
-                > = api_enums::PaymentMethod::foreign_try_from(req_payment_method_data);
-                match req.payment_method {
-                    Some(req_payment_method) => match payment_method_from_pm_data {
-                        Ok(payment_method) => {
-                            if req_payment_method != payment_method {
-                                Err(errors::ApiErrorResponse::InvalidRequestData {
-                                            message: ("payment_method_data doesn't correspond to the specified payment_method"
-                                                .to_string()),
-                                        })
-                            } else {
-                                Ok(())
-                            }
-                        }
-                        Err(err) => Err(err),
-                    },
-                    None => Ok(()),
-                }
-            }
-            None => Ok(()),
+        || {
+            req.payment_method_data
+                .clone()
+                .map_or(Ok(()), |req_payment_method_data| {
+                    req.payment_method.map_or(Ok(()), |req_payment_method| {
+                        check_payment_method_and_payment_method_data(
+                            req_payment_method_data,
+                            req_payment_method,
+                        )
+                    })
+                })
         },
     )?;
 
