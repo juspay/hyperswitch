@@ -158,7 +158,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
 pub trait PostUpdateTracker<F, D, R>: Send {
     async fn update_tracker<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        db: &AppState,
         payment_id: &api::PaymentIdType,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
