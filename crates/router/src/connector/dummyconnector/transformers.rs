@@ -111,7 +111,7 @@ impl TryFrom<api_models::payments::WalletData> for DummyConnectorWallet {
         match value {
             api_models::payments::WalletData::GooglePayRedirect(_) => Ok(Self::GooglePay),
             api_models::payments::WalletData::PaypalRedirect(_) => Ok(Self::Paypal),
-            api_models::payments::WalletData::WeChatPay(_) => Ok(Self::WeChatPay),
+            api_models::payments::WalletData::WeChatPayRedirect(_) => Ok(Self::WeChatPay),
             api_models::payments::WalletData::MbWayRedirect(_) => Ok(Self::MbWay),
             api_models::payments::WalletData::AliPayRedirect(_) => Ok(Self::AliPay),
             api_models::payments::WalletData::AliPayHkRedirect(_) => Ok(Self::AliPayHK),
