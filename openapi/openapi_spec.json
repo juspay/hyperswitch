@@ -3064,17 +3064,6 @@
           {
             "type": "object",
             "required": [
-              "swish"
-            ],
-            "properties": {
-              "swish": {
-                "type": "object"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
               "trustly"
             ],
             "properties": {
@@ -9908,6 +9897,9 @@
           }
         }
       },
+      "SwishQrData": {
+        "type": "object"
+      },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
         "required": [
@@ -10279,22 +10271,22 @@
           {
             "type": "object",
             "required": [
-              "we_chat_pay"
+              "we_chat_pay_qr"
             ],
             "properties": {
-              "we_chat_pay": {
-                "$ref": "#/components/schemas/WeChatPay"
+              "we_chat_pay_qr": {
+                "$ref": "#/components/schemas/WeChatPayQr"
               }
             }
           },
           {
             "type": "object",
             "required": [
-              "we_chat_pay_qr"
+              "swish_qr"
             ],
             "properties": {
-              "we_chat_pay_qr": {
-                "$ref": "#/components/schemas/WeChatPayQr"
+              "swish_qr": {
+                "$ref": "#/components/schemas/SwishQrData"
               }
             }
           }
