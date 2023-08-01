@@ -1397,14 +1397,6 @@ pub struct BankTransferNextStepsData {
     pub receiver: ReceiverDetails,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
-pub struct QrCodeNextStepsInstruction {
-    /// Hyperswitch generated image data source url
-    pub image_data_url: Option<Url>,
-    /// The url for Qr code given by the connector
-    pub qr_code_url: Option<Url>,
-}
-
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferInstructions {
@@ -2264,14 +2256,6 @@ pub enum ApplePaySessionResponse {
     /// This is for the empty session response
     NoSessionResponse,
 }
-
-// impl TryFrom<serde_json::Value> for ApplePaySessionResponse {
-//     type Error;
-
-//     fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
-//         todo!()
-//     }
-// }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
 #[serde(rename_all(deserialize = "camelCase"))]
