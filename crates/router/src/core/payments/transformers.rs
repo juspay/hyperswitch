@@ -2,7 +2,7 @@ use std::{fmt::Debug, marker::PhantomData};
 
 use common_utils::fp_utils;
 use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
@@ -21,7 +21,7 @@ use crate::{
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto},
     },
-    utils::{self, OptionExt, ValueExt},
+    utils::{OptionExt, ValueExt},
 };
 
 #[instrument(skip_all)]
@@ -303,11 +303,12 @@ where
         .currency
         .as_ref()
         .get_required_value("currency")?;
-    let amount = utils::to_currency_base_unit(payment_attempt.amount, *currency).change_context(
-        errors::ApiErrorResponse::InvalidDataValue {
+    let amount = currency
+        .to_currency_base_unit(payment_attempt.amount)
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "amount",
-        },
-    )?;
+        })?;
     let mandate_id = payment_attempt.mandate_id.clone();
     let refunds_response = if refunds.is_empty() {
         None
