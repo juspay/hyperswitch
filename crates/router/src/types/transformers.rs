@@ -230,18 +230,13 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
     }
 }
 
-impl ForeignTryFrom<(api_enums::PaymentMethod, api_enums::PaymentMethodType)>
-    for api_enums::PaymentMethod
-{
+impl ForeignTryFrom<(Self, api_enums::PaymentMethodType)> for api_enums::PaymentMethod {
     type Error = errors::ApiErrorResponse;
     fn foreign_try_from(
-        (payment_method, payment_method_type): (
-            api_enums::PaymentMethod,
-            api_enums::PaymentMethodType,
-        ),
+        (payment_method, payment_method_type): (Self, api_enums::PaymentMethodType),
     ) -> Result<Self, Self::Error> {
         match payment_method {
-            api_enums::PaymentMethod::Card => match payment_method_type {
+            Self::Card => match payment_method_type {
                 api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
                     Ok(Self::Card)
                 }
@@ -249,7 +244,7 @@ impl ForeignTryFrom<(api_enums::PaymentMethod, api_enums::PaymentMethodType)>
                     message: ("Mandate payments cannot have payment_method_data field".to_string()),
                 }),
             },
-            api_enums::PaymentMethod::PayLater => match payment_method_type {
+            Self::PayLater => match payment_method_type {
                 api_enums::PaymentMethodType::Affirm
                 | api_enums::PaymentMethodType::Alma
                 | api_enums::PaymentMethodType::AfterpayClearpay
@@ -258,10 +253,12 @@ impl ForeignTryFrom<(api_enums::PaymentMethod, api_enums::PaymentMethodType)>
                 | api_enums::PaymentMethodType::Atome
                 | api_enums::PaymentMethodType::Walley => Ok(Self::PayLater),
                 _ => Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: ("payment_method_type doesn't correspond to the specified payment_method".to_string()),
+                    message:
+                        ("payment_method_type doesn't correspond to the specified payment_method"
+                            .to_string()),
                 }),
             },
-            api_enums::PaymentMethod::Wallet => match payment_method_type {
+            Self::Wallet => match payment_method_type {
                 api_enums::PaymentMethodType::ApplePay
                 | api_enums::PaymentMethodType::GooglePay
                 | api_enums::PaymentMethodType::Paypal
@@ -281,10 +278,12 @@ impl ForeignTryFrom<(api_enums::PaymentMethod, api_enums::PaymentMethodType)>
                 | api_enums::PaymentMethodType::Momo
                 | api_enums::PaymentMethodType::KakaoPay => Ok(Self::Wallet),
                 _ => Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: ("payment_method_type doesn't correspond to the specified payment_method".to_string()),
+                    message:
+                        ("payment_method_type doesn't correspond to the specified payment_method"
+                            .to_string()),
                 }),
             },
-            api_enums::PaymentMethod::BankRedirect => match payment_method_type {
+            Self::BankRedirect => match payment_method_type {
                 api_enums::PaymentMethodType::Giropay
                 | api_enums::PaymentMethodType::Ideal
                 | api_enums::PaymentMethodType::Sofort
@@ -302,10 +301,12 @@ impl ForeignTryFrom<(api_enums::PaymentMethod, api_enums::PaymentMethodType)>
                 | api_enums::PaymentMethodType::Bizum
                 | api_enums::PaymentMethodType::Interac => Ok(Self::BankRedirect),
                 _ => Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: ("payment_method_type doesn't correspond to the specified payment_method".to_string()),
+                    message:
+                        ("payment_method_type doesn't correspond to the specified payment_method"
+                            .to_string()),
                 }),
             },
-            api_enums::PaymentMethod::BankTransfer => match payment_method_type {
+            Self::BankTransfer => match payment_method_type {
                 api_enums::PaymentMethodType::Ach
                 | api_enums::PaymentMethodType::Sepa
                 | api_enums::PaymentMethodType::Bacs
@@ -313,52 +314,62 @@ impl ForeignTryFrom<(api_enums::PaymentMethod, api_enums::PaymentMethodType)>
                 | api_enums::PaymentMethodType::Pix
                 | api_enums::PaymentMethodType::Pse => Ok(Self::BankTransfer),
                 _ => Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: ("payment_method_type doesn't correspond to the specified payment_method".to_string()),
+                    message:
+                        ("payment_method_type doesn't correspond to the specified payment_method"
+                            .to_string()),
                 }),
             },
-            api_enums::PaymentMethod::BankDebit => match payment_method_type {
+            Self::BankDebit => match payment_method_type {
                 api_enums::PaymentMethodType::Ach
                 | api_enums::PaymentMethodType::Sepa
                 | api_enums::PaymentMethodType::Bacs
                 | api_enums::PaymentMethodType::Becs => Ok(Self::BankDebit),
                 _ => Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: ("payment_method_type doesn't correspond to the specified payment_method".to_string()),
+                    message:
+                        ("payment_method_type doesn't correspond to the specified payment_method"
+                            .to_string()),
                 }),
             },
-            api_enums::PaymentMethod::Crypto => match payment_method_type {
+            Self::Crypto => match payment_method_type {
                 api_enums::PaymentMethodType::CryptoCurrency => Ok(Self::Crypto),
                 _ => Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: ("payment_method_type doesn't correspond to the specified payment_method".to_string()),
+                    message:
+                        ("payment_method_type doesn't correspond to the specified payment_method"
+                            .to_string()),
                 }),
             },
-            api_enums::PaymentMethod::Reward => match payment_method_type {
+            Self::Reward => match payment_method_type {
                 api_enums::PaymentMethodType::Evoucher
                 | api_enums::PaymentMethodType::ClassicReward => Ok(Self::Reward),
                 _ => Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: ("payment_method_type doesn't correspond to the specified payment_method".to_string()),
+                    message:
+                        ("payment_method_type doesn't correspond to the specified payment_method"
+                            .to_string()),
                 }),
             },
-            api_enums::PaymentMethod::Upi => match payment_method_type {
+            Self::Upi => match payment_method_type {
                 api_enums::PaymentMethodType::UpiCollect => Ok(Self::Upi),
                 _ => Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: ("payment_method_type doesn't correspond to the specified payment_method".to_string()),
+                    message:
+                        ("payment_method_type doesn't correspond to the specified payment_method"
+                            .to_string()),
                 }),
             },
-            api_enums::PaymentMethod::Voucher => match payment_method_type {
+            Self::Voucher => match payment_method_type {
                 api_enums::PaymentMethodType::Boleto
                 | api_enums::PaymentMethodType::Efecty
                 | api_enums::PaymentMethodType::PagoEfectivo
                 | api_enums::PaymentMethodType::RedCompra
                 | api_enums::PaymentMethodType::RedPagos => Ok(Self::Voucher),
                 _ => Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: ("payment_method_type doesn't correspond to the specified payment_method".to_string()),
+                    message:
+                        ("payment_method_type doesn't correspond to the specified payment_method"
+                            .to_string()),
                 }),
             },
-            api_enums::PaymentMethod::GiftCard => match payment_method_type {
-                _ => Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: ("payment_method_type not supported for GiftCard".to_string()),
-                }),
-            },
+            Self::GiftCard => Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: ("payment_method_type not supported for GiftCard".to_string()),
+            }),
         }
     }
 }

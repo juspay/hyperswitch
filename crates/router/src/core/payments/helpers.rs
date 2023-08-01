@@ -1417,7 +1417,6 @@ pub(crate) fn validate_payment_method_fields_present(
         req.payment_method.is_some() && req.payment_method_type.is_some(),
         || {
             req.payment_method_type
-                .clone()
                 .map_or(Ok(()), |req_payment_method_type| {
                     req.payment_method.map_or(Ok(()), |req_payment_method| {
                         check_payment_method_and_payment_method_type(
