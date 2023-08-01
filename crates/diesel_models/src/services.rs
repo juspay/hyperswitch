@@ -1,4 +1,5 @@
 pub mod logger;
+pub mod metrics;
 
 use std::sync::{atomic, Arc};
 

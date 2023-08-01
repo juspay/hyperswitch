@@ -7,6 +7,8 @@ pub mod connection;
 pub mod connector_response;
 pub mod consts;
 pub mod customers;
+pub mod db;
+pub mod domain;
 pub mod dispute;
 pub mod encryption;
 pub mod enums;

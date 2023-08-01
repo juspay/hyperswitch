@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use common_utils::errors::CustomResult;
 pub use diesel_models::process_tracker as storage;
 
-use crate::errors;
+use crate::{errors, SchedulerAppState, db::process_tracker::ProcessTrackerExt};
 
 pub type WorkflowSelectorFn =
     fn(&storage::ProcessTracker) -> Result<(), errors::ProcessTrackerError>;
@@ -16,6 +16,37 @@ pub trait ProcessTrackerWorkflows<T>: Send + Sync {
         _process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         Err(errors::ProcessTrackerError::NotImplemented)?
+    }
+    async fn execute_workflow<'a>(
+        &'a self,
+        operation: Box<dyn ProcessTrackerWorkflow<T>>,
+        state: &'a T,
+        process: storage::ProcessTracker,
+    ) -> Result<(), errors::ProcessTrackerError> where T : SchedulerAppState{
+        let app_state = &state.clone();
+        let output = operation.execute_workflow(app_state, process.clone()).await;
+        match output {
+            Ok(_) => operation.success_handler(app_state, process).await,
+            Err(error) => match operation
+                .error_handler(app_state, process.clone(), error)
+                .await
+            {
+                Ok(_) => (),
+                Err(_error) => {
+                    // logger::error!(%error, "Failed while handling error");
+                    let status = process
+                        .finish_with_status(
+                            state.get_db().as_scheduler(),
+                            "GLOBAL_FAILURE".to_string(),
+                        )
+                        .await;
+                    if let Err(_err) = status {
+                        // logger::error!(%err, "Failed while performing database operation: GLOBAL_FAILURE");
+                    }
+                }
+            },
+        };
+        Ok(())
     }
 }
 

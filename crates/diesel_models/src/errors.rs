@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use config::ConfigError;
-use redis_interface::errors::RedisError;
+pub use redis_interface::errors::RedisError;
 use router_env::opentelemetry::metrics::MetricsError;
 
 pub type ApplicationResult<T> = Result<T, ApplicationError>;
