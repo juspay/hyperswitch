@@ -212,6 +212,7 @@ online_banking_fpx = {country = "MY", currency = "MYR"}
 online_banking_thailand = {country = "TH", currency = "THB"}
 touch_n_go = {country = "MY", currency = "MYR"}
 atome = {country = "MY,SG", currency = "MYR,SGD"}
+swish = {country = "SE", currency = "SEK"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }

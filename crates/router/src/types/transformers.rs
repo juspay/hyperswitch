@@ -178,6 +178,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Twint
             | api_enums::PaymentMethodType::Vipps
             | api_enums::PaymentMethodType::TouchNGo
+            | api_enums::PaymentMethodType::Swish
             | api_enums::PaymentMethodType::WeChatPay
             | api_enums::PaymentMethodType::GoPay
             | api_enums::PaymentMethodType::Gcash
@@ -203,7 +204,6 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::OnlineBankingPoland
             | api_enums::PaymentMethodType::OnlineBankingSlovakia
             | api_enums::PaymentMethodType::Przelewy24
-            | api_enums::PaymentMethodType::Swish
             | api_enums::PaymentMethodType::Trustly
             | api_enums::PaymentMethodType::Bizum
             | api_enums::PaymentMethodType::Interac => Self::BankRedirect,
