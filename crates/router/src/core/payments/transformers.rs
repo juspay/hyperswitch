@@ -376,8 +376,6 @@ where
                 let next_action_containing_qr_code =
                     qr_code_next_steps_check(payment_attempt.clone())?;
 
-                crate::logger::debug!("aaaaaaaaaaaaaaaaa{:?}", next_action_containing_qr_code);
-
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                     || bank_transfer_next_steps.is_some()
                     || next_action_containing_qr_code.is_some()

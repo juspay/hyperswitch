@@ -433,7 +433,7 @@ pub enum StripeWallet {
     ApplepayPayment(ApplepayPayment),
     WechatpayPayment(WechatpayPayment),
     AlipayPayment(AlipayPayment),
-    Cashapp(CashappPayment)
+    Cashapp(CashappPayment),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1868,7 +1868,7 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
                 | StripePaymentMethodOptions::Przelewy24 {}
                 | StripePaymentMethodOptions::CustomerBalance {}
                 | StripePaymentMethodOptions::Blik {}
-                | StripePaymentMethodOptions::Multibanco {} 
+                | StripePaymentMethodOptions::Multibanco {}
                 | StripePaymentMethodOptions::Cashapp {} => None,
             }),
             payment_method_id: Some(payment_method_id),
@@ -1885,7 +1885,6 @@ impl<F, T>
         item: types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirect_data = item.response.next_action.clone();
-        crate::logger::debug!("bbbbbbbbbbbbbb {:?}", redirect_data.clone());
         let redirection_data = redirect_data
             .and_then(|redirection_data| redirection_data.get_url())
             .map(|redirection_url| {
@@ -1927,7 +1926,6 @@ pub fn get_connector_metadata(
     next_action: Option<&StripeNextActionResponse>,
     amount: i64,
 ) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
-    crate::logger::debug!("ddddddddddddddddd   I am In!!   {:?}", next_action);
     let next_action_response = next_action
         .and_then(|next_action_response| match next_action_response {
             StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
@@ -1958,7 +1956,7 @@ pub fn get_connector_metadata(
             StripeNextActionResponse::WechatPayDisplayQrCode(response) => {
                 let wechat_pay_instructions = QrCodeNextInstructions {
                     image_data_url: response.image_data_url.to_owned(),
-                    display_to_timestamp: None
+                    display_to_timestamp: None,
                 };
 
                 Some(
@@ -1968,17 +1966,15 @@ pub fn get_connector_metadata(
                 )
             }
             StripeNextActionResponse::CashappHandleRedirectOrDisplayQrCode(response) => {
-                let cashapp_qr_instructions: QrCodeNextInstructions = QrCodeNextInstructions { 
+                let cashapp_qr_instructions: QrCodeNextInstructions = QrCodeNextInstructions {
                     image_data_url: response.qr_code.image_url_png.to_owned(),
-                    display_to_timestamp: response.qr_code.expires_at.to_owned()
-                 };
-                 crate::logger::debug!("gggggggggggggggggg {:?}", cashapp_qr_instructions);
-                 Some(
+                    display_to_timestamp: response.qr_code.expires_at.to_owned(),
+                };
+                Some(
                     common_utils::ext_traits::Encode::<QrCodeNextInstructions>::encode_to_value(
                         &cashapp_qr_instructions,
                     ),
                 )
-
             }
             _ => None,
         })
@@ -2114,7 +2110,7 @@ impl ForeignFrom<Option<LatestAttempt>> for Option<String> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
-#[serde(rename_all = "snake_case" , remote = "Self")]
+#[serde(rename_all = "snake_case", remote = "Self")]
 pub enum StripeNextActionResponse {
     CashappHandleRedirectOrDisplayQrCode(StripeCashappQrResponse),
     RedirectToUrl(StripeRedirectToUrlResponse),
@@ -2207,7 +2203,7 @@ pub struct StripeBankTransferDetails {
 pub struct StripeCashappQrResponse {
     pub mobile_auth_url: Url,
     pub qr_code: QrCodeResponse,
-    pub hosted_instructions_url: Url
+    pub hosted_instructions_url: Url,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
