@@ -137,6 +137,7 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
+    connector::Square,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
@@ -201,6 +202,7 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
+    connector::Square,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
@@ -275,6 +277,7 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
+    connector::Square,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
@@ -320,6 +323,7 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
+    connector::Square,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
@@ -395,6 +399,7 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
+    connector::Square,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
@@ -490,6 +495,7 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
+    connector::Square,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
@@ -562,6 +568,7 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
+    connector::Square,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
@@ -634,6 +641,7 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
+    connector::Square,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
@@ -707,6 +715,7 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
+    connector::Square,
     connector::Stax,
     connector::Aci,
     connector::Adyen,
@@ -763,6 +772,7 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
+    connector::Square,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -836,6 +846,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
+    connector::Square,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -912,6 +923,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
+    connector::Square,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -985,6 +997,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
+    connector::Square,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1058,6 +1071,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
+    connector::Square,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1131,6 +1145,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
+    connector::Square,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1205,6 +1220,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
+    connector::Square,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,

@@ -3422,6 +3422,7 @@
       "Connector": {
         "type": "string",
         "enum": [
+          "square",
           "phonypay",
           "fauxpay",
           "pretendpay",
