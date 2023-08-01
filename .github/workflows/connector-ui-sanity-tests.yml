@@ -74,6 +74,7 @@ jobs:
           
 
     steps:
+      # testing the automatic trigger of ui tests when a PR is approved
       - name: Ignore Tests incase of pull request
         if: github.event_name == 'pull_request'
         shell: bash
