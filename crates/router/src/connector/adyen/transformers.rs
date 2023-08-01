@@ -186,9 +186,9 @@ impl ForeignFrom<(bool, AdyenStatus)> for storage_enums::AttemptStatus {
                 false => Self::Charged,
             },
             AdyenStatus::Cancelled => Self::Voided,
-            AdyenStatus::ChallengeShopper
-            | AdyenStatus::RedirectShopper
-            | AdyenStatus::PresentToShopper => Self::AuthenticationPending,
+            AdyenStatus::ChallengeShopper | AdyenStatus::RedirectShopper => {
+                Self::AuthenticationPending
+            }
             AdyenStatus::Error | AdyenStatus::Refused => Self::Failure,
             AdyenStatus::Pending => Self::Pending,
             AdyenStatus::Received => Self::Started,
@@ -238,7 +238,7 @@ pub struct AdyenThreeDS {
 #[serde(untagged)]
 pub enum AdyenPaymentResponse {
     Response(Box<Response>),
-    AdyenNextActionResponse(Box<AdyenNextActionResponse>),
+    NextActionResponse(Box<NextActionResponse>),
     RedirectionErrorResponse(Box<RedirectionErrorResponse>),
 }
 
@@ -264,6 +264,7 @@ pub struct RedirectionErrorResponse {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NextActionResponse {
+    psp_reference: Option<String>,
     result_code: AdyenStatus,
     action: AdyenNextAction,
     refusal_reason: Option<String>,
@@ -391,6 +392,8 @@ pub enum AdyenPaymentMethod<'a> {
     Indomaret(Box<DokuBankData>),
     #[serde(rename = "doku_alfamart")]
     Alfamart(Box<DokuBankData>),
+    #[serde(rename = "swish")]
+    Swish,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -2485,9 +2488,8 @@ pub fn get_connector_metadata(
     let connector_metadata = match response.action.type_of_response {
         ActionType::QrCode => get_qr_metadata(response),
         ActionType::Await => get_wait_screen_metadata(response),
-        ActionType::Voucher => get_voucher_metadata(response)
+        ActionType::Voucher => get_voucher_metadata(response),
         _ => Ok(None),
-        
     }
     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
@@ -2547,8 +2549,8 @@ pub fn get_wait_screen_metadata(
 }
 
 pub fn get_voucher_metadata(
-    response: &AdyenNextActionResponse,
-) -> errors::CustomResult<serde_json::Value, errors::ConnectorError> {
+    response: &NextActionResponse,
+) -> errors::CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
     let reference = response
         .action
         .reference
@@ -2556,16 +2558,17 @@ pub fn get_voucher_metadata(
         .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
     match response.action.payment_method_type {
-        PaymentType::Alfamart | PaymentType::Indomaret => {
+        PaymentType::Alfamart | PaymentType::Indomaret | PaymentType::BoletoBancario => {
             let voucher_data = payments::VoucherNextStepData {
                 expires_at: response.action.expires_at.clone(),
                 reference,
-                download_url: None,
+                download_url: response.action.download_url.clone(),
             };
 
-            common_utils::ext_traits::Encode::<payments::VoucherNextStepData>::encode_to_value(
-                &voucher_data,
-            )
+            Some(common_utils::ext_traits::Encode::<
+                payments::VoucherNextStepData,
+            >::encode_to_value(&voucher_data))
+            .transpose()
             .change_context(errors::ConnectorError::ResponseHandlingFailed)
         }
         PaymentType::PermataBankTransfer
@@ -2589,28 +2592,12 @@ pub fn get_voucher_metadata(
                 }),
             );
 
-            common_utils::ext_traits::Encode::<payments::DokuBankTransferInstructions>::encode_to_value(
-            &voucher_data,
-            )
+            Some(common_utils::ext_traits::Encode::<
+                payments::DokuBankTransferInstructions,
+            >::encode_to_value(&voucher_data))
+            .transpose()
             .change_context(errors::ConnectorError::ResponseHandlingFailed)
         }
-
-        PaymentType::BoletoBancario => {
-            let voucher_data = VoucherNextStepData {
-                download_url: response.action.download_url.clone(),
-                reference: Secret::new(
-                    response
-                        .action
-                        .reference
-                        .clone()
-                        .ok_or(errors::ConnectorError::NoConnectorMetaData)?,
-                ),
-            };
-
-            common_utils::ext_traits::Encode::<VoucherNextStepData>::encode_to_value(&voucher_data)
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)
-        }
-
         _ => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
     }
 }
@@ -2631,13 +2618,10 @@ impl<F, Req>
         let item = items.0;
         let is_manual_capture = items.1;
         let (status, error, payment_response_data) = match item.response {
-            AdyenPaymentResponse::PresentToShopper(response) => {
-                get_present_to_shopper_response(response, is_manual_capture, item.http_code)?
-            }
             AdyenPaymentResponse::Response(response) => {
                 get_adyen_response(*response, is_manual_capture, item.http_code)?
             }
-            AdyenPaymentResponse::AdyenNextActionResponse(response) => {
+            AdyenPaymentResponse::NextActionResponse(response) => {
                 get_next_action_response(*response, is_manual_capture, item.http_code)?
             }
             AdyenPaymentResponse::RedirectionErrorResponse(response) => {

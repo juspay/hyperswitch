@@ -6635,25 +6635,7 @@
                 "enum": [
                   "display_voucher_information"
                 ]
-              },
-          {
-            "type": "object",
-            "required": [
-              "voucher_details",
-              "type"
-            ],
-            "properties": {
-              "voucher_details": {
-                "type": "string"
-              },
-              "type": {
-                "type": "string",
-                "enum": [
-                  "display_voucher_information"
-                ]
               }
-            }
-          }
             }
           },
           {
