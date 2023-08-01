@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 

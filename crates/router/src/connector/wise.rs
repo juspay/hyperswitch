@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
