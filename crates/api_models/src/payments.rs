@@ -1031,7 +1031,7 @@ pub enum WalletData {
     WeChatPayRedirect(Box<WeChatPayRedirection>),
     /// The wallet data for WeChat Pay Display QrCode
     WeChatPayQr(Box<WeChatPayQr>),
-    /// The wallet data for Cashapp Redirection
+    /// The wallet data for Cashapp Qr
     CashappQr(Box<CashappQr>),
     // The wallet data for Swish
     SwishQr(SwishQrData),

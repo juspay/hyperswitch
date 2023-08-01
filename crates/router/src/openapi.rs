@@ -368,3 +368,4 @@ impl utoipa::Modify for SecurityAddon {
         }
     }
 }
+
