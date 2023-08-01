@@ -240,6 +240,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
 
 // Auth Struct
 pub struct PaymeAuthType {
+    #[allow(dead_code)]
     pub(super) payme_client_key: Secret<String>,
     pub(super) seller_payme_id: Secret<String>,
 }
@@ -359,7 +360,6 @@ pub struct PaymeRefundRequest {
     sale_refund_amount: i64,
     payme_sale_id: String,
     seller_payme_id: Secret<String>,
-    payme_client_key: Secret<String>,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for PaymeRefundRequest {
@@ -369,7 +369,6 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PaymeRefundRequest {
         Ok(Self {
             payme_sale_id: item.request.connector_transaction_id.clone(),
             seller_payme_id: auth_type.seller_payme_id,
-            payme_client_key: auth_type.payme_client_key,
             sale_refund_amount: item.request.refund_amount,
         })
     }
