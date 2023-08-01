@@ -18,8 +18,8 @@ use crate::{
 type Error = error_stack::Report<errors::ConnectorError>;
 
 pub struct AciAuthType {
-    pub api_key: String,
-    pub entity_id: String,
+    pub api_key: Secret<String>,
+    pub entity_id: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for AciAuthType {
@@ -27,8 +27,8 @@ impl TryFrom<&types::ConnectorAuthType> for AciAuthType {
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = item {
             Ok(Self {
-                api_key: api_key.to_string(),
-                entity_id: key1.to_string(),
+                api_key: api_key.to_owned(),
+                entity_id: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -51,7 +51,7 @@ pub struct AciPaymentsRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionDetails {
-    pub entity_id: String,
+    pub entity_id: Secret<String>,
     pub amount: String,
     pub currency: String,
     pub payment_type: AciPaymentType,
@@ -60,7 +60,7 @@ pub struct TransactionDetails {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciCancelRequest {
-    pub entity_id: String,
+    pub entity_id: Secret<String>,
     pub payment_type: AciPaymentType,
 }
 
@@ -370,7 +370,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::BankTransfer(_)
             | api::PaymentMethodData::Reward(_)
-            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.payment_method),
                 connector: "Aci",
                 payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
@@ -687,7 +689,7 @@ pub struct AciRefundRequest {
     pub amount: String,
     pub currency: String,
     pub payment_type: AciPaymentType,
-    pub entity_id: String,
+    pub entity_id: Secret<String>,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for AciRefundRequest {

@@ -137,6 +137,8 @@ pub enum ApiErrorResponse {
     DuplicatePayment { payment_id: String },
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payout with the specified payout_id '{payout_id}' already exists in our records")]
     DuplicatePayout { payout_id: String },
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The config with the specified key already exists in our records")]
+    DuplicateConfig,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Refund does not exist in our records")]
     RefundNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Customer does not exist in our records")]
@@ -205,6 +207,8 @@ pub enum ApiErrorResponse {
     MissingFileContentType,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_05", message = "{message}")]
     GenericNotFoundError { message: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_01", message = "{message}")]
+    GenericDuplicateError { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::ObjectNotFound, code = "WE_04", message = "Webhook resource not found")]

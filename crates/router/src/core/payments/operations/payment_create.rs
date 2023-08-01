@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use api_models::enums::CancelTransaction;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use diesel_models::ephemeral_key;
@@ -269,6 +270,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 recurring_mandate_payment_data,
                 ephemeral_key,
                 redirect_response: None,
+                frm_message: None,
             },
             Some(customer_details),
         ))
@@ -349,6 +351,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _merchant_key_store: &domain::MerchantKeyStore,
+        _should_cancel_transaction: Option<CancelTransaction>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -586,11 +589,29 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to convert order details to value")?;
 
-        let (business_country, business_label) = helpers::get_business_details(
-            request.business_country,
-            request.business_label.as_ref(),
-            merchant_account,
-        )?;
+        let (business_country, business_label) =
+            match (request.business_country, request.business_label.as_ref()) {
+                (Some(business_country), Some(business_label)) => {
+                    helpers::validate_business_details(
+                        business_country,
+                        business_label,
+                        merchant_account,
+                    )?;
+
+                    Ok((business_country, business_label.clone()))
+                }
+                (None, Some(_)) => Err(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "business_country",
+                }),
+                (Some(_), None) => Err(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "business_label",
+                }),
+                (None, None) => Ok(helpers::get_business_details(
+                    request.business_country,
+                    request.business_label.as_ref(),
+                    merchant_account,
+                )?),
+            }?;
 
         let allowed_payment_method_types = request
             .get_allowed_payment_method_types_as_value()

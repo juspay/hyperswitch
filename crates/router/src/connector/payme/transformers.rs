@@ -166,7 +166,9 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward(_)
-            | PaymentMethodData::Upi(_) => {
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
         }
@@ -240,6 +242,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
 
 // Auth Struct
 pub struct PaymeAuthType {
+    #[allow(dead_code)]
     pub(super) payme_client_key: Secret<String>,
     pub(super) seller_payme_id: Secret<String>,
 }
@@ -249,8 +252,8 @@ impl TryFrom<&types::ConnectorAuthType> for PaymeAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                seller_payme_id: Secret::new(api_key.to_string()),
-                payme_client_key: Secret::new(key1.to_string()),
+                seller_payme_id: api_key.to_owned(),
+                payme_client_key: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -359,7 +362,6 @@ pub struct PaymeRefundRequest {
     sale_refund_amount: i64,
     payme_sale_id: String,
     seller_payme_id: Secret<String>,
-    payme_client_key: Secret<String>,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for PaymeRefundRequest {
@@ -369,7 +371,6 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PaymeRefundRequest {
         Ok(Self {
             payme_sale_id: item.request.connector_transaction_id.clone(),
             seller_payme_id: auth_type.seller_payme_id,
-            payme_client_key: auth_type.payme_client_key,
             sale_refund_amount: item.request.refund_amount,
         })
     }

@@ -146,6 +146,7 @@ pub struct DummyConnector {
     pub refund_tolerance: u64,
     pub refund_retrieve_duration: u64,
     pub refund_retrieve_tolerance: u64,
+    pub authorize_ttl: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -423,7 +424,7 @@ pub struct SupportedConnectors {
     pub wallets: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct Connectors {
     pub aci: ConnectorParams,
@@ -437,6 +438,7 @@ pub struct Connectors {
     pub bambora: ConnectorParams,
     pub bitpay: ConnectorParams,
     pub bluesnap: ConnectorParams,
+    pub boku: ConnectorParams,
     pub braintree: ConnectorParams,
     pub cashtocode: ConnectorParams,
     pub checkout: ConnectorParams,
@@ -475,26 +477,23 @@ pub struct Connectors {
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub zen: ConnectorParams,
-
-    // Keep this field separate from the remaining fields
-    pub supported: SupportedConnectors,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParams {
     pub base_url: String,
     pub secondary_base_url: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithMoreUrls {
     pub base_url: String,
     pub base_url_bank_redirects: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithFileUploadUrl {
     pub base_url: String,
@@ -502,7 +501,7 @@ pub struct ConnectorParamsWithFileUploadUrl {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithSecondaryBaseUrl {
     pub base_url: String,
@@ -674,7 +673,7 @@ impl Settings {
         }
         self.secrets.validate()?;
         self.locker.validate()?;
-        self.connectors.validate()?;
+        self.connectors.validate("connectors")?;
 
         self.scheduler
             .as_ref()

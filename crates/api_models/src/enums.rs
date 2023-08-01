@@ -78,6 +78,7 @@ pub enum Connector {
     Bitpay,
     Bambora,
     Bluesnap,
+    // Boku, added as template code for future usage
     Braintree,
     Cashtocode,
     Checkout,
@@ -88,7 +89,7 @@ pub enum Connector {
     Fiserv,
     Forte,
     Globalpay,
-    Globepay, // added as template code for future usage
+    Globepay,
     Iatapay,
     Klarna,
     Mollie,
@@ -115,6 +116,7 @@ pub enum Connector {
     Worldline,
     Worldpay,
     Zen,
+    Signifyd,
 }
 
 impl Connector {
@@ -190,6 +192,7 @@ pub enum RoutableConnectors {
     Bitpay,
     Bambora,
     Bluesnap,
+    // Boku, added as template code for future usage
     Braintree,
     Cashtocode,
     Checkout,
@@ -395,6 +398,11 @@ pub enum BankNames {
     VolkswagenBank,
     AliorBank,
     Boz,
+    BangkokBank,
+    KrungsriBank,
+    KrungThaiBank,
+    TheSiamCommercialBank,
+    KasikornBank,
 }
 
 #[derive(
