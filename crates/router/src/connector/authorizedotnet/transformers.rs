@@ -424,6 +424,7 @@ pub struct RefundResponse {
     response_code: AuthorizedotnetRefundStatus,
     #[serde(rename = "transId")]
     transaction_id: String,
+    #[allow(dead_code)]
     network_trans_id: Option<String>,
     pub account_number: Option<String>,
     pub errors: Option<Vec<ErrorMessage>>,
