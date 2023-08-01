@@ -9,7 +9,7 @@ host = "127.0.0.1"
 # This is the grace time (in seconds) given to the actix-server to stop the execution
 # For more details: https://actix.rs/docs/server/#graceful-shutdown
 shutdown_timeout = 30
-# HTTP Request body limit. Defaults to 16kB
+# HTTP Request body limit. Defaults to 32kB
 request_body_limit = 32_768
 # Proxy server configuration for connecting to payment gateways.
 # Don't define the fields if a Proxy isn't needed. Empty strings will cause failure.
