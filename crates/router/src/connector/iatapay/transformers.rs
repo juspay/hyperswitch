@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::enums::PaymentMethod;
-use masking::Secret;
+use masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -90,9 +90,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
         };
         let return_url = item.get_return_url()?;
         let payer_info = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Upi(upi_data) => {
-                upi_data.vpa_id.map(|id| PayerInfo { token_id: id })
-            }
+            api::PaymentMethodData::Upi(upi_data) => upi_data.vpa_id.map(|id| PayerInfo {
+                token_id: id.switch_strategy(),
+            }),
             _ => None,
         };
         let amount =
