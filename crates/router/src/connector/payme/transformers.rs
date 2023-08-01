@@ -128,9 +128,9 @@ impl TryFrom<&types::PaymentsInitRouterData> for GenerateSaleRequest {
             sale_price: item.request.amount,
             transaction_id: item.payment_id.clone(),
             product_name,
-            sale_return_url: item.request.get_return_url()?,
+            sale_return_url: "https://google.com/".to_string(),
             seller_payme_id,
-            sale_callback_url: item.request.get_webhook_url()?,
+            sale_callback_url: "https://google.com/".to_string(),
             sale_payment_method: SalePaymentMethod::try_from(&item.request.payment_method_data)?,
         })
     }
@@ -242,6 +242,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
 
 // Auth Struct
 pub struct PaymeAuthType {
+    #[allow(dead_code)]
     pub(super) payme_client_key: Secret<String>,
     pub(super) seller_payme_id: Secret<String>,
 }
@@ -361,7 +362,6 @@ pub struct PaymeRefundRequest {
     sale_refund_amount: i64,
     payme_sale_id: String,
     seller_payme_id: Secret<String>,
-    payme_client_key: Secret<String>,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for PaymeRefundRequest {
@@ -371,7 +371,6 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PaymeRefundRequest {
         Ok(Self {
             payme_sale_id: item.request.connector_transaction_id.clone(),
             seller_payme_id: auth_type.seller_payme_id,
-            payme_client_key: auth_type.payme_client_key,
             sale_refund_amount: item.request.refund_amount,
         })
     }
