@@ -670,6 +670,23 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     for Rapyd
 {
     // default implementation of build_request method will be executed
+    fn handle_response(
+        &self,
+        data: &types::RefundSyncRouterData,
+        res: types::Response,
+    ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
+        let response: rapyd::RefundResponse = res
+            .response
+            .parse_struct("rapyd RefundResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        }
+        .try_into()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
 }
 
 #[async_trait::async_trait]

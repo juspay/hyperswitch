@@ -337,6 +337,29 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     for Payme
 {
     // default implementation of build_request method will be executed
+    fn handle_response(
+        &self,
+        data: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        res: Response,
+    ) -> CustomResult<
+        types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        errors::ConnectorError,
+    >
+    where
+        api::PSync: Clone,
+        types::PaymentsSyncData: Clone,
+        types::PaymentsResponseData: Clone,
+    {
+        let response: payme::PaymePaySaleResponse = res
+            .response
+            .parse_struct("Payme PaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
 }
 
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>

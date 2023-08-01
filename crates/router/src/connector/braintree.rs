@@ -668,6 +668,26 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     for Braintree
 {
     // default implementation of build_request method will be executed
+    fn handle_response(
+        &self,
+        data: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        res: types::Response,
+    ) -> CustomResult<
+        types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        errors::ConnectorError,
+    > {
+        let response: braintree::RefundResponse = res
+            .response
+            .parse_struct("Braintree RefundResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        }
+        .try_into()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
 }
 
 #[async_trait::async_trait]
