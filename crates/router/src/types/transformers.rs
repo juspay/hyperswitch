@@ -578,8 +578,8 @@ impl
         let (payment_attempt, shipping, billing, customer) = value;
         Self {
             currency: payment_attempt.map(|pa| pa.currency.unwrap_or_default()),
-            shipping: shipping.map(|sh| api_types::Address::from(sh)),
-            billing: billing.map(|bi| api_types::Address::from(bi)),
+            shipping: shipping.map(api_types::Address::from),
+            billing: billing.map(api_types::Address::from),
             amount: payment_attempt.map(|pa| api_types::Amount::from(pa.amount)),
             email: customer
                 .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone()))),

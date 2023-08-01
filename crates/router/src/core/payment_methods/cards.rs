@@ -897,7 +897,7 @@ pub async fn list_payment_methods(
                             .get(&connector_variant)
                             .map(|required_fields_final| {
                                 let mut required_fields_hs = required_fields_final.common.clone();
-                                payment_attempt.as_ref().map(|pa| {
+                                if let Some(pa) = payment_attempt.as_ref() {
                                     if let Some(_mandate) = &pa.mandate_details {
                                         required_fields_hs
                                             .extend(required_fields_final.mandate.clone());
@@ -905,7 +905,7 @@ pub async fn list_payment_methods(
                                         required_fields_hs
                                             .extend(required_fields_final.non_mandate.clone());
                                     }
-                                });
+                                }
 
                                 {
                                     for (key, val) in &mut required_fields_hs {
