@@ -6376,6 +6376,25 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "Contains the download url and the reference number for transaction",
+            "required": [
+              "voucher_details",
+              "type"
+            ],
+            "properties": {
+              "voucher_details": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "display_voucher_information"
+                ]
+              }
+            }
           }
         ],
         "discriminator": {

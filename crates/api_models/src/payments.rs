@@ -1187,7 +1187,7 @@ pub struct RewardData {
 pub struct BoletoVoucherData {
     /// The shopper's social security number
     #[schema(value_type = Option<String>)]
-    social_security_number: Option<Secret<String>>,
+    pub social_security_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1371,6 +1371,11 @@ pub enum NextActionData {
         #[schema(value_type = String)]
         image_data_url: Url,
     },
+    /// Contains the download url and the reference number for transaction
+    DisplayVoucherInformation {
+        #[schema(value_type = String)]
+        voucher_details: VoucherNextStepData,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1380,6 +1385,14 @@ pub struct BankTransferNextStepsData {
     pub bank_transfer_instructions: BankTransferInstructions,
     /// The details received by the receiver
     pub receiver: ReceiverDetails,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct VoucherNextStepData {
+    /// Reference number required for the transaction
+    pub reference: String,
+    /// Url to download the payment instruction
+    pub download_url: Option<Url>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
