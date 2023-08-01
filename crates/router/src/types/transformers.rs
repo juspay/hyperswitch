@@ -178,6 +178,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Twint
             | api_enums::PaymentMethodType::Vipps
             | api_enums::PaymentMethodType::TouchNGo
+            | api_enums::PaymentMethodType::Swish
             | api_enums::PaymentMethodType::WeChatPay
             | api_enums::PaymentMethodType::GoPay
             | api_enums::PaymentMethodType::Gcash
@@ -203,7 +204,6 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::OnlineBankingPoland
             | api_enums::PaymentMethodType::OnlineBankingSlovakia
             | api_enums::PaymentMethodType::Przelewy24
-            | api_enums::PaymentMethodType::Swish
             | api_enums::PaymentMethodType::Trustly
             | api_enums::PaymentMethodType::Bizum
             | api_enums::PaymentMethodType::Interac => Self::BankRedirect,
@@ -247,11 +247,9 @@ impl ForeignTryFrom<api_models::payments::PaymentMethodData> for api_enums::Paym
             api_models::payments::PaymentMethodData::Upi(..) => Ok(Self::Upi),
             api_models::payments::PaymentMethodData::Voucher(..) => Ok(Self::Voucher),
             api_models::payments::PaymentMethodData::GiftCard(..) => Ok(Self::GiftCard),
-            api_models::payments::PaymentMethodData::MandatePayment => {
-                Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: ("Mandate payments cannot have payment_method_data field".to_string()),
-                })
-            }
+            api_models::payments::PaymentMethodData::MandatePayment => Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: ("Mandate payments cannot have payment_method_data field".to_string()),
+            }),
         }
     }
 }
