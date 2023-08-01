@@ -1442,6 +1442,9 @@ pub(crate) fn validate_payment_method_fields_present(
                 ) | (
                     api_enums::PaymentMethod::Upi,
                     api::PaymentMethodData::Upi(..)
+                ) | (
+                    api_enums::PaymentMethod::Voucher,
+                    api::PaymentMethodData::Voucher(..)
                 )
             ) | None
         ),
