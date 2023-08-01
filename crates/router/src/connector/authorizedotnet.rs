@@ -52,6 +52,14 @@ impl ConnectorCommon for Authorizedotnet {
         "application/json"
     }
 
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        authorizedotnet::MerchantAuthentication::try_from(val)?;
+        Ok(())
+    }
+
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.authorizedotnet.base_url.as_ref()
     }

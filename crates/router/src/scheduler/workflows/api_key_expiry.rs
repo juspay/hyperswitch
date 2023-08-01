@@ -62,6 +62,7 @@ impl ProcessTrackerWorkflow for ApiKeyExpiryWorkflow {
 
         state
             .email_client
+            .clone()
             .send_email(
                 email_id.ok_or_else(|| errors::ProcessTrackerError::MissingRequiredField)?,
                 "API Key Expiry Notice".to_string(),
