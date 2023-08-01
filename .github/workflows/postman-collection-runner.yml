@@ -3,8 +3,8 @@ name: Run postman tests
 on:
   workflow_dispatch:
   pull_request:
-  merge_group:
-    types: [checks_requested]
+  # merge_group:
+  #   types: [checks_requested]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
