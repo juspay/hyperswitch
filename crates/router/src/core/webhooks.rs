@@ -474,8 +474,9 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
+    let event_id = format!("{primary_object_id}_{}", event_type.to_string());
     let new_event = storage::EventNew {
-        event_id: generate_id(consts::ID_LENGTH, "evt"),
+        event_id,
         event_type,
         event_class,
         is_webhook_notified: false,
