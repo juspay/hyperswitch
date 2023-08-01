@@ -90,8 +90,6 @@ impl ConnectorCommon for Iatapay {
         "application/json"
     }
 
-  
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.iatapay.base_url.as_ref()
     }

@@ -496,13 +496,13 @@ pub async fn create_payment_connector(
 
     validate_auth_type(req.connector_name, &auth).map_err(|err| {
         if err.current_context() == &errors::ConnectorError::InvalidConnectorName {
-            errors::ApiErrorResponse::InvalidRequestData {
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData {
                 message: "The connector name is invalid".to_string(),
-            }
+            })
         } else {
-            errors::ApiErrorResponse::InvalidRequestData {
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData {
                 message: "The auth type is invalid for the connector".to_string(),
-            }
+            })
         }
     })?;
 
@@ -879,31 +879,14 @@ pub(crate) fn validate_auth_type(
     use crate::connector::*;
 
     match connector_name {
-        api_enums::Connector::DummyConnector1 => {
-            dummyconnector::transformers::DummyConnectorAuthType::try_from(val)?;
-            Ok(())
-        }
-        api_enums::Connector::DummyConnector2 => {
-            dummyconnector::transformers::DummyConnectorAuthType::try_from(val)?;
-            Ok(())
-        }
-        api_enums::Connector::DummyConnector3 => {
-            dummyconnector::transformers::DummyConnectorAuthType::try_from(val)?;
-            Ok(())
-        }
-        api_enums::Connector::DummyConnector4 => {
-            dummyconnector::transformers::DummyConnectorAuthType::try_from(val)?;
-            Ok(())
-        }
-        api_enums::Connector::DummyConnector5 => {
-            dummyconnector::transformers::DummyConnectorAuthType::try_from(val)?;
-            Ok(())
-        }
-        api_enums::Connector::DummyConnector6 => {
-            dummyconnector::transformers::DummyConnectorAuthType::try_from(val)?;
-            Ok(())
-        }
-        api_enums::Connector::DummyConnector7 => {
+        #[cfg(feature = "dummy_connector")]
+        api_enums::Connector::DummyConnector1
+        | api_enums::Connector::DummyConnector2
+        | api_enums::Connector::DummyConnector3
+        | api_enums::Connector::DummyConnector4
+        | api_enums::Connector::DummyConnector5
+        | api_enums::Connector::DummyConnector6
+        | api_enums::Connector::DummyConnector7 => {
             dummyconnector::transformers::DummyConnectorAuthType::try_from(val)?;
             Ok(())
         }

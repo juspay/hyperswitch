@@ -63,8 +63,6 @@ impl ConnectorCommon for Payu {
         "application/json"
     }
 
-
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.payu.base_url.as_ref()
     }

@@ -52,7 +52,6 @@ impl ConnectorCommon for Authorizedotnet {
         "application/json"
     }
 
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.authorizedotnet.base_url.as_ref()
     }

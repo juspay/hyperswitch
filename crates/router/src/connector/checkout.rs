@@ -62,7 +62,7 @@ impl ConnectorCommon for Checkout {
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
-  
+
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,

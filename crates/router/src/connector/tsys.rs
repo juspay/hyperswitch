@@ -73,8 +73,6 @@ impl ConnectorCommon for Tsys {
         "application/json"
     }
 
-
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.tsys.base_url.as_ref()
     }

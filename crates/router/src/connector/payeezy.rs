@@ -92,7 +92,6 @@ impl ConnectorCommon for Payeezy {
         "application/json"
     }
 
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.payeezy.base_url.as_ref()
     }

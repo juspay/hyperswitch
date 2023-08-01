@@ -64,7 +64,6 @@ impl ConnectorCommon for Shift4 {
         "application/json"
     }
 
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.shift4.base_url.as_ref()
     }

@@ -103,7 +103,6 @@ impl ConnectorCommon for Globepay {
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
-    
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.globepay.base_url.as_ref()

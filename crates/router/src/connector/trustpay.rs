@@ -81,7 +81,6 @@ impl ConnectorCommon for Trustpay {
         "application/x-www-form-urlencoded"
     }
 
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.trustpay.base_url.as_ref()
     }

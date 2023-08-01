@@ -35,7 +35,6 @@ impl ConnectorCommon for Klarna {
         "application/json"
     }
 
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.klarna.base_url.as_ref()
     }

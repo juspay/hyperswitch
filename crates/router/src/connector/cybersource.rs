@@ -88,7 +88,6 @@ impl ConnectorCommon for Cybersource {
         "application/json;charset=utf-8"
     }
 
-   
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.cybersource.base_url.as_ref()
     }

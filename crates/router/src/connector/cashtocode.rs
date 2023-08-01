@@ -97,7 +97,6 @@ impl ConnectorCommon for Cashtocode {
         "application/json"
     }
 
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.cashtocode.base_url.as_ref()
     }

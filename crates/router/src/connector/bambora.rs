@@ -60,7 +60,6 @@ impl ConnectorCommon for Bambora {
         "application/json"
     }
 
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.bambora.base_url.as_ref()
     }

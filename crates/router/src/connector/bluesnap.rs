@@ -67,7 +67,7 @@ impl ConnectorCommon for Bluesnap {
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
-  
+
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.bluesnap.base_url.as_ref()
     }

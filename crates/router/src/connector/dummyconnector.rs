@@ -80,7 +80,6 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
         "application/json"
     }
 
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.dummyconnector.base_url.as_ref()
     }

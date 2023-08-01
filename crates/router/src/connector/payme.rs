@@ -74,7 +74,6 @@ impl ConnectorCommon for Payme {
         "application/json"
     }
 
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.payme.base_url.as_ref()
     }

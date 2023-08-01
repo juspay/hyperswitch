@@ -86,7 +86,6 @@ impl ConnectorCommon for Noon {
         "application/json"
     }
 
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.noon.base_url.as_ref()
     }

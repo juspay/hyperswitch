@@ -74,7 +74,6 @@ impl ConnectorCommon for Stax {
         "stax"
     }
 
-
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }

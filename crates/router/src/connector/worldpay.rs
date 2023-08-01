@@ -59,8 +59,6 @@ impl ConnectorCommon for Worldpay {
         "application/vnd.worldpay.payments-v6+json"
     }
 
-
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.worldpay.base_url.as_ref()
     }

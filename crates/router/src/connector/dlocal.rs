@@ -111,7 +111,6 @@ impl ConnectorCommon for Dlocal {
         "application/json"
     }
 
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.dlocal.base_url.as_ref()
     }
