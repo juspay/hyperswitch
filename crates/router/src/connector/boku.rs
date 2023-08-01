@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_utils::ext_traits::XmlExt;
 use error_stack::{IntoReport, Report, ResultExt};
-use masking::{ExposeInterface, Secret, WithType};
+use masking::{ExposeInterface, PeekInterface, Secret, WithType};
 use ring::hmac;
 use roxmltree;
 use time::OffsetDateTime;
@@ -64,13 +64,13 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let con_auth = boku::BokuAuthType::try_from(&req.connector_auth_type)?;
+        let connector_auth = boku::BokuAuthType::try_from(&req.connector_auth_type)?;
 
         let boku_url = Self::get_url(self, req, connectors)?;
 
-        let cnt_type = Self::common_get_content_type(self);
+        let content_type = Self::common_get_content_type(self);
 
-        let con_method = Self::get_http_method(self);
+        let connector_method = Self::get_http_method(self);
 
         let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
 
@@ -80,7 +80,7 @@ where
 
         let to_sign = format!(
             "{} {}\nContent-Type: {}\n{}",
-            con_method, boku_url, &cnt_type, timestamp
+            connector_method, boku_url, &content_type, timestamp
         );
 
         let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.as_bytes());
@@ -89,10 +89,10 @@ where
 
         let signature = hex::encode(tag);
 
-        let auth_val = format!("2/HMAC_SHA256(H+SHA256(E)) timestamp={}, signature={} signed-headers=Content-Type, key-id={}", timestamp, signature, con_auth.key_id.expose());
+        let auth_val = format!("2/HMAC_SHA256(H+SHA256(E)) timestamp={timestamp}, signature={signature} signed-headers=Content-Type, key-id={}", connector_auth.key_id.peek());
 
         let header = vec![
-            (headers::CONTENT_TYPE.to_string(), cnt_type.into()),
+            (headers::CONTENT_TYPE.to_string(), content_type.into()),
             (headers::AUTHORIZATION.to_string(), auth_val.into_masked()),
         ];
 
@@ -118,13 +118,6 @@ impl ConnectorCommon for Boku {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.boku.base_url.as_ref()
-    }
-
-    fn get_auth_header(
-        &self,
-        _auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![])
     }
 
     fn build_error_response(
@@ -193,7 +186,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             self.base_url(connectors).to_string(),
         )?;
 
-        Ok(format!("{}/billing/3.0/begin-single-charge", boku_url))
+        Ok(format!("{boku_url}/billing/3.0/begin-single-charge"))
     }
 
     fn get_request_body(
@@ -283,7 +276,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             self.base_url(connectors).to_string(),
         )?;
 
-        Ok(format!("{}/billing/3.0/query-charge", boku_url))
+        Ok(format!("{boku_url}/billing/3.0/query-charge"))
     }
 
     fn get_request_body(
@@ -449,7 +442,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             self.base_url(connectors).to_string(),
         )?;
 
-        Ok(format!("{}/billing/3.0/refund-charge", boku_url))
+        Ok(format!("{boku_url}/billing/3.0/refund-charge"))
     }
 
     fn get_request_body(
@@ -529,7 +522,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             self.base_url(connectors).to_string(),
         )?;
 
-        Ok(format!("{}/billing/3.0/query-refund", boku_url))
+        Ok(format!("{boku_url}/billing/3.0/query-refund"))
     }
 
     fn get_request_body(
@@ -617,7 +610,7 @@ fn get_country_url(
         .parse_value("Object")
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-    Ok(base_url.replace("country", &conn_meta_data.country.to_lowercase()))
+    Ok(base_url.replace('$', &conn_meta_data.country.to_lowercase()))
 }
 
 // validate xml format for the error
@@ -635,10 +628,10 @@ fn get_xml_deserialized(res: Response) -> CustomResult<ErrorResponse, errors::Co
     match roxmltree::Document::parse(&response_data) {
         Ok(_) => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
         Err(_) => {
-            logger::error!(response_data);
+            logger::error!(response_data); // in case of html response
             Ok(ErrorResponse {
                 status_code: res.status_code,
-                code: res.status_code.to_string(),
+                code: consts::NO_ERROR_CODE.to_string(),
                 message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
                 reason: Some(response_data),
             })

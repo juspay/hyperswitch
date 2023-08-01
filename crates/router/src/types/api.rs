@@ -285,7 +285,6 @@ impl ConnectorData {
                 enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
                 enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
-                // enums::Connector::Boku => Ok(Box::new(&connector::Boku)),  added as template code for future usage
                 enums::Connector::Braintree => Ok(Box::new(&connector::Braintree)),
                 enums::Connector::Cashtocode => Ok(Box::new(&connector::Cashtocode)),
                 enums::Connector::Checkout => Ok(Box::new(&connector::Checkout)),
