@@ -380,7 +380,7 @@ where
 
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                     || bank_transfer_next_steps.is_some()
-                    || next_action_containing_qr_code.is_some()
+                    || next_action_containing_qr_code_url.is_some()
                     || next_action_containing_wait_screen.is_some()
                 {
                     next_action_response = bank_transfer_next_steps
