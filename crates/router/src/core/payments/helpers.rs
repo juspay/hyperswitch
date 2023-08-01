@@ -1405,7 +1405,7 @@ pub(crate) fn validate_payment_method_fields_present(
             api_enums::PaymentMethod::foreign_try_from((req_payment_method, req_payment_method_type)).and_then(|payment_method|
                 if req_payment_method != payment_method {
                     Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: ("payment_method_data doesn't correspond to the specified payment_method"
+                        message: ("payment_method_type doesn't correspond to the specified payment_method"
                             .to_string()),
                     })
                 } else {
