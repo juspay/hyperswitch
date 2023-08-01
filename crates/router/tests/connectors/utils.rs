@@ -11,6 +11,7 @@ use router::{
     routes, services,
     types::{self, api, storage::enums, AccessToken, PaymentAddress, RouterData},
 };
+use test_utils::connector_auth::ConnectorAuthType;
 use tokio::sync::oneshot;
 use wiremock::{Mock, MockServer};
 
@@ -992,5 +993,35 @@ pub fn get_connector_metadata(
             connector_response_reference_id: _,
         }) => connector_metadata,
         _ => None,
+    }
+}
+
+pub fn to_connector_auth_type(auth_type: ConnectorAuthType) -> types::ConnectorAuthType {
+    match auth_type {
+        ConnectorAuthType::HeaderKey { api_key } => types::ConnectorAuthType::HeaderKey { api_key },
+        ConnectorAuthType::BodyKey { api_key, key1 } => {
+            types::ConnectorAuthType::BodyKey { api_key, key1 }
+        }
+        ConnectorAuthType::SignatureKey {
+            api_key,
+            key1,
+            api_secret,
+        } => types::ConnectorAuthType::SignatureKey {
+            api_key,
+            key1,
+            api_secret,
+        },
+        ConnectorAuthType::MultiAuthKey {
+            api_key,
+            key1,
+            api_secret,
+            key2,
+        } => types::ConnectorAuthType::MultiAuthKey {
+            api_key,
+            key1,
+            api_secret,
+            key2,
+        },
+        _ => types::ConnectorAuthType::NoKey,
     }
 }
