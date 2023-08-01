@@ -300,6 +300,11 @@ debit = { not_available_flows = { capture_method = "manual" } }
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }
 
+[pm_filters.stax]
+credit = { currency = "USD" }
+debit = { currency = "USD" }
+ach = { currency = "USD" }
+
 [pm_filters.trustpay]
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }
@@ -323,10 +328,11 @@ debit = { currency = "USD" }
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet" }
+stax = { long_lived_token = true, payment_method = "card" }
 mollie = {long_lived_token = false, payment_method = "card"}
 
 [connector_customer]
-connector_list = "bluesnap,stripe"
+connector_list = "bluesnap,stax,stripe"
 payout_connector_list = "wise"
 
 [dummy_connector]

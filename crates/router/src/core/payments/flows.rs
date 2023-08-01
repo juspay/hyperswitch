@@ -137,8 +137,6 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
-    connector::Square,
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -165,6 +163,8 @@ default_imp_for_complete_authorize!(
     connector::Payme,
     connector::Payu,
     connector::Rapyd,
+    connector::Square,
+    connector::Stax,
     connector::Stripe,
     connector::Trustpay,
     connector::Tsys,
@@ -202,8 +202,6 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
-    connector::Square,
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -239,6 +237,7 @@ default_imp_for_create_customer!(
     connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Square,
     connector::Trustpay,
     connector::Tsys,
     connector::Wise,
@@ -277,8 +276,6 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
-    connector::Square,
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -305,6 +302,8 @@ default_imp_for_connector_redirect_response!(
     connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Square,
+    connector::Stax,
     connector::Tsys,
     connector::Wise,
     connector::Worldline,
@@ -323,8 +322,6 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
-    connector::Square,
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -359,6 +356,8 @@ default_imp_for_connector_request_id!(
     connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Square,
+    connector::Stax,
     connector::Stripe,
     connector::Trustpay,
     connector::Tsys,
@@ -399,8 +398,6 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
-    connector::Square,
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -435,6 +432,8 @@ default_imp_for_accept_dispute!(
     connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Square,
+    connector::Stax,
     connector::Stripe,
     connector::Trustpay,
     connector::Tsys,
@@ -495,8 +494,6 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
-    connector::Square,
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -531,6 +528,8 @@ default_imp_for_file_upload!(
     connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Square,
+    connector::Stax,
     connector::Trustpay,
     connector::Tsys,
     connector::Opennode,
@@ -568,8 +567,6 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
-    connector::Square,
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -604,6 +601,8 @@ default_imp_for_submit_evidence!(
     connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Square,
+    connector::Stax,
     connector::Trustpay,
     connector::Tsys,
     connector::Opennode,
@@ -641,8 +640,6 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
-    connector::Square,
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -676,8 +673,10 @@ default_imp_for_defend_dispute!(
     connector::Payu,
     connector::Powertranz,
     connector::Rapyd,
-    connector::Stripe,
     connector::Shift4,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
     connector::Trustpay,
     connector::Tsys,
     connector::Opennode,
@@ -715,8 +714,6 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
-    connector::Square,
-    connector::Stax,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -753,6 +750,8 @@ default_imp_for_pre_processing_steps!(
     connector::Powertranz,
     connector::Rapyd,
     connector::Shift4,
+    connector::Square,
+    connector::Stax,
     connector::Tsys,
     connector::Wise,
     connector::Worldline,
