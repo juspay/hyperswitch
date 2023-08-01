@@ -1,5 +1,5 @@
 use api_models::enums as api_enums;
-use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
+use common_utils::{crypto::Encryptable, ext_traits::ValueExt, pii};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
@@ -596,6 +596,37 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
         match value {
             api_models::enums::PayoutType::Bank => Self::BankTransfer,
             api_models::enums::PayoutType::Card => Self::Card,
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        Option<&storage::PaymentAttempt>,
+        Option<&domain::Address>,
+        Option<&domain::Address>,
+        Option<&domain::Customer>,
+    )> for api_models::payments::PaymentsRequest
+{
+    fn foreign_from(
+        value: (
+            Option<&storage::PaymentAttempt>,
+            Option<&domain::Address>,
+            Option<&domain::Address>,
+            Option<&domain::Customer>,
+        ),
+    ) -> Self {
+        let (payment_attempt, shipping, billing, customer) = value;
+        Self {
+            currency: payment_attempt.map(|pa| pa.currency.unwrap_or_default()),
+            shipping: shipping.map(api_types::Address::from),
+            billing: billing.map(api_types::Address::from),
+            amount: payment_attempt.map(|pa| api_types::Amount::from(pa.amount)),
+            email: customer
+                .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone()))),
+            phone: customer.and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner())),
+            name: customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner())),
+            ..Self::default()
         }
     }
 }
