@@ -11,11 +11,6 @@ on:
         options:
           - sandbox
           - production
-      multiple_mca:
-        description: "Whether to enable the multiple_mca feature"
-        required: true
-        default: false
-        type: boolean
 
 jobs:
   build:
@@ -31,10 +26,6 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_PASSWD }}
-
-      - name: Add multiple_mca feature if enabled
-        if: ${{ inputs.multiple_mca == true }}
-        run: echo 'EXTRA_FEATURES="--features multiple_mca"' >> $GITHUB_ENV
 
       - name: Build and push router Docker image
         uses: docker/build-push-action@v4
