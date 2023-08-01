@@ -2,7 +2,7 @@ name: Run postman tests
 
 on:
   workflow_dispatch:
-  pull_request:
+  # pull_request:
   # merge_group:
   #   types: [checks_requested]
 
