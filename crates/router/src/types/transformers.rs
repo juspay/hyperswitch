@@ -241,7 +241,9 @@ impl ForeignTryFrom<(Self, api_enums::PaymentMethodType)> for api_enums::Payment
                     Ok(Self::Card)
                 }
                 _ => Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: ("Mandate payments cannot have payment_method_data field".to_string()),
+                    message:
+                        ("payment_method_type doesn't correspond to the specified payment_method"
+                            .to_string()),
                 }),
             },
             Self::PayLater => match payment_method_type {
