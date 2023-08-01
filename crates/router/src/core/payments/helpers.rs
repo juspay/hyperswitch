@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-// use api_models::enums::PaymentMethod;
 use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
