@@ -166,41 +166,58 @@ pub enum ConnectorType {
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
 pub enum Currency {
     AED,
+    AFN,
     ALL,
     AMD,
     ANG,
+    AOA,
     ARS,
     AUD,
     AWG,
     AZN,
+    BAM,
     BBD,
     BDT,
+    BGN,
     BHD,
     BIF,
     BMD,
     BND,
     BOB,
+    BOV,
     BRL,
     BSD,
+    BTN,
     BWP,
+    BYN,
     BZD,
     CAD,
+    CDF,
+    CHE,
     CHF,
+    CHW,
+    CLF,
     CLP,
     CNY,
     COP,
+    COU,
     CRC,
+    CUC,
     CUP,
+    CVE,
     CZK,
     DJF,
     DKK,
     DOP,
     DZD,
     EGP,
+    ERN,
     ETB,
     EUR,
     FJD,
+    FKP,
     GBP,
+    GEL,
     GHS,
     GIP,
     GMD,
@@ -215,6 +232,9 @@ pub enum Currency {
     IDR,
     ILS,
     INR,
+    IQD,
+    IRR,
+    ISK,
     JMD,
     JOD,
     JPY,
@@ -222,6 +242,7 @@ pub enum Currency {
     KGS,
     KHR,
     KMF,
+    KPW,
     KRW,
     KWD,
     KYD,
@@ -231,6 +252,7 @@ pub enum Currency {
     LKR,
     LRD,
     LSL,
+    LYD,
     MAD,
     MDL,
     MGA,
@@ -238,11 +260,14 @@ pub enum Currency {
     MMK,
     MNT,
     MOP,
+    MRU,
     MUR,
     MVR,
     MWK,
     MXN,
+    MXV,
     MYR,
+    MZN,
     NAD,
     NGN,
     NIO,
@@ -250,6 +275,7 @@ pub enum Currency {
     NPR,
     NZD,
     OMR,
+    PAB,
     PEN,
     PGK,
     PHP,
@@ -258,74 +284,126 @@ pub enum Currency {
     PYG,
     QAR,
     RON,
+    RSD,
     RUB,
     RWF,
     SAR,
+    SBD,
     SCR,
+    SDG,
     SEK,
     SGD,
+    SHP,
+    SLE,
     SLL,
     SOS,
+    SRD,
     SSP,
+    STN,
     SVC,
+    SYP,
     SZL,
     THB,
+    TJS,
+    TMT,
+    TND,
+    TOP,
     TRY,
     TTD,
     TWD,
     TZS,
+    UAH,
     UGX,
     #[default]
     USD,
+    USN,
+    UYI,
     UYU,
+    UYW,
     UZS,
+    VED,
+    VES,
     VND,
     VUV,
+    WST,
     XAF,
+    XAG,
+    XAU,
+    XBA,
+    XBB,
+    XBC,
+    XBD,
+    XCD,
+    XDR,
     XOF,
+    XPD,
     XPF,
+    XPT,
+    XSU,
+    XTS,
+    XUA,
+    XXX,
     YER,
     ZAR,
+    ZMW,
+    ZWL,
 }
 
 impl Currency {
     pub fn iso_4217(&self) -> &'static str {
         match *self {
             Self::AED => "784",
+            Self::AFN => "971",
             Self::ALL => "008",
             Self::AMD => "051",
             Self::ANG => "532",
+            Self::AOA => "973",
             Self::ARS => "032",
             Self::AUD => "036",
             Self::AWG => "533",
             Self::AZN => "944",
+            Self::BAM => "977",
             Self::BBD => "052",
             Self::BDT => "050",
+            Self::BGN => "975",
             Self::BHD => "048",
             Self::BIF => "108",
             Self::BMD => "060",
             Self::BND => "096",
             Self::BOB => "068",
+            Self::BOV => "984",
             Self::BRL => "986",
             Self::BSD => "044",
+            Self::BTN => "064",
             Self::BWP => "072",
+            Self::BYN => "933",
             Self::BZD => "084",
             Self::CAD => "124",
+            Self::CDF => "976",
+            Self::CHE => "947",
             Self::CHF => "756",
+            Self::CHW => "948",
+            Self::CLF => "990",
             Self::CLP => "152",
             Self::COP => "170",
+            Self::COU => "970",
             Self::CRC => "188",
+            Self::CUC => "931",
             Self::CUP => "192",
+            Self::CVE => "132",
             Self::CZK => "203",
             Self::DJF => "262",
             Self::DKK => "208",
             Self::DOP => "214",
             Self::DZD => "012",
             Self::EGP => "818",
+            Self::ERN => "232",
             Self::ETB => "230",
             Self::EUR => "978",
             Self::FJD => "242",
+            Self::FKP => "238",
             Self::GBP => "826",
+            Self::GEL => "981",
             Self::GHS => "936",
             Self::GIP => "292",
             Self::GMD => "270",
@@ -340,6 +418,9 @@ impl Currency {
             Self::IDR => "360",
             Self::ILS => "376",
             Self::INR => "356",
+            Self::IQD => "368",
+            Self::IRR => "364",
+            Self::ISK => "352",
             Self::JMD => "388",
             Self::JOD => "400",
             Self::JPY => "392",
@@ -347,6 +428,7 @@ impl Currency {
             Self::KGS => "417",
             Self::KHR => "116",
             Self::KMF => "174",
+            Self::KPW => "408",
             Self::KRW => "410",
             Self::KWD => "414",
             Self::KYD => "136",
@@ -356,6 +438,7 @@ impl Currency {
             Self::LKR => "144",
             Self::LRD => "430",
             Self::LSL => "426",
+            Self::LYD => "434",
             Self::MAD => "504",
             Self::MDL => "498",
             Self::MGA => "969",
@@ -363,11 +446,14 @@ impl Currency {
             Self::MMK => "104",
             Self::MNT => "496",
             Self::MOP => "446",
+            Self::MRU => "929",
             Self::MUR => "480",
             Self::MVR => "462",
             Self::MWK => "454",
             Self::MXN => "484",
+            Self::MXV => "979",
             Self::MYR => "458",
+            Self::MZN => "943",
             Self::NAD => "516",
             Self::NGN => "566",
             Self::NIO => "558",
@@ -375,6 +461,7 @@ impl Currency {
             Self::NPR => "524",
             Self::NZD => "554",
             Self::OMR => "512",
+            Self::PAB => "590",
             Self::PEN => "604",
             Self::PGK => "598",
             Self::PHP => "608",
@@ -383,34 +470,69 @@ impl Currency {
             Self::PYG => "600",
             Self::QAR => "634",
             Self::RON => "946",
+            Self::RSD => "941",
             Self::CNY => "156",
             Self::RUB => "643",
             Self::RWF => "646",
             Self::SAR => "682",
+            Self::SBD => "090",
             Self::SCR => "690",
+            Self::SDG => "938",
             Self::SEK => "752",
             Self::SGD => "702",
+            Self::SHP => "654",
+            Self::SLE => "925",
             Self::SLL => "694",
             Self::SOS => "706",
+            Self::SRD => "968",
             Self::SSP => "728",
+            Self::STN => "930",
             Self::SVC => "222",
+            Self::SYP => "760",
             Self::SZL => "748",
             Self::THB => "764",
+            Self::TJS => "972",
+            Self::TMT => "934",
+            Self::TND => "788",
+            Self::TOP => "776",
             Self::TRY => "949",
             Self::TTD => "780",
             Self::TWD => "901",
             Self::TZS => "834",
+            Self::UAH => "980",
             Self::UGX => "800",
             Self::USD => "840",
+            Self::USN => "997",
+            Self::UYI => "940",
             Self::UYU => "858",
+            Self::UYW => "927",
             Self::UZS => "860",
+            Self::VED => "926",
+            Self::VES => "928",
             Self::VND => "704",
             Self::VUV => "548",
+            Self::WST => "882",
             Self::XAF => "950",
+            Self::XAG => "961",
+            Self::XAU => "959",
+            Self::XBA => "955",
+            Self::XBB => "956",
+            Self::XBC => "957",
+            Self::XBD => "958",
+            Self::XCD => "951",
+            Self::XDR => "960",
             Self::XOF => "952",
+            Self::XPD => "964",
             Self::XPF => "953",
+            Self::XPT => "962",
+            Self::XSU => "994",
+            Self::XTS => "963",
+            Self::XUA => "965",
+            Self::XXX => "999",
             Self::YER => "886",
             Self::ZAR => "710",
+            Self::ZMW => "967",
+            Self::ZWL => "932",
         }
     }
 
@@ -420,6 +542,7 @@ impl Currency {
             | Self::CLP
             | Self::DJF
             | Self::GNF
+            | Self::ISK
             | Self::JPY
             | Self::KMF
             | Self::KRW
@@ -427,44 +550,75 @@ impl Currency {
             | Self::PYG
             | Self::RWF
             | Self::UGX
+            | Self::UYI
             | Self::VND
             | Self::VUV
             | Self::XAF
+            | Self::XAG
+            | Self::XAU
+            | Self::XBA
+            | Self::XBB
+            | Self::XBC
+            | Self::XBD
+            | Self::XDR
             | Self::XOF
-            | Self::XPF => true,
+            | Self::XPD
+            | Self::XPF
+            | Self::XPT
+            | Self::XSU
+            | Self::XTS
+            | Self::XUA
+            | Self::XXX => true,
             Self::AED
+            | Self::AFN
             | Self::ALL
             | Self::AMD
             | Self::ANG
+            | Self::AOA
             | Self::ARS
             | Self::AUD
             | Self::AWG
             | Self::AZN
+            | Self::BAM
             | Self::BBD
             | Self::BDT
+            | Self::BGN
             | Self::BHD
             | Self::BMD
             | Self::BND
             | Self::BOB
+            | Self::BOV
             | Self::BRL
+            | Self::BTN
             | Self::BSD
             | Self::BWP
+            | Self::BYN
             | Self::BZD
             | Self::CAD
+            | Self::CDF
+            | Self::CHE
             | Self::CHF
+            | Self::CHW
+            | Self::CLF
             | Self::CNY
             | Self::COP
+            | Self::COU
             | Self::CRC
+            | Self::CUC
             | Self::CUP
+            | Self::CVE
             | Self::CZK
             | Self::DKK
             | Self::DOP
             | Self::DZD
             | Self::EGP
+            | Self::ERN
             | Self::ETB
             | Self::EUR
             | Self::FJD
+            | Self::FKP
             | Self::GBP
+            | Self::GEL
             | Self::GHS
             | Self::GIP
             | Self::GMD
@@ -478,11 +632,14 @@ impl Currency {
             | Self::IDR
             | Self::ILS
             | Self::INR
+            | Self::IQD
+            | Self::IRR
             | Self::JMD
             | Self::JOD
             | Self::KES
             | Self::KGS
             | Self::KHR
+            | Self::KPW
             | Self::KWD
             | Self::KYD
             | Self::KZT
@@ -491,17 +648,21 @@ impl Currency {
             | Self::LKR
             | Self::LRD
             | Self::LSL
+            | Self::LYD
             | Self::MAD
             | Self::MDL
             | Self::MKD
             | Self::MMK
             | Self::MNT
             | Self::MOP
+            | Self::MRU
             | Self::MUR
             | Self::MVR
             | Self::MWK
             | Self::MXN
+            | Self::MXV
             | Self::MYR
+            | Self::MZN
             | Self::NAD
             | Self::NGN
             | Self::NIO
@@ -509,6 +670,7 @@ impl Currency {
             | Self::NPR
             | Self::NZD
             | Self::OMR
+            | Self::PAB
             | Self::PEN
             | Self::PGK
             | Self::PHP
@@ -516,67 +678,104 @@ impl Currency {
             | Self::PLN
             | Self::QAR
             | Self::RON
+            | Self::RSD
             | Self::RUB
             | Self::SAR
+            | Self::SBD
             | Self::SCR
+            | Self::SDG
             | Self::SEK
+            | Self::SHP
+            | Self::SLE
             | Self::SGD
             | Self::SLL
             | Self::SOS
+            | Self::SRD
             | Self::SSP
+            | Self::STN
             | Self::SVC
+            | Self::SYP
             | Self::SZL
             | Self::THB
+            | Self::TJS
+            | Self::TMT
+            | Self::TND
+            | Self::TOP
             | Self::TRY
             | Self::TTD
             | Self::TWD
             | Self::TZS
+            | Self::UAH
             | Self::USD
+            | Self::USN
             | Self::UYU
+            | Self::UYW
             | Self::UZS
+            | Self::VED
+            | Self::VES
+            | Self::WST
+            | Self::XCD
             | Self::YER
-            | Self::ZAR => false,
+            | Self::ZAR
+            | Self::ZMW
+            | Self::ZWL => false,
         }
     }
 
     pub fn is_three_decimal_currency(self) -> bool {
         match self {
-            Self::BHD | Self::JOD | Self::KWD | Self::OMR => true,
+            Self::BHD | Self::CLF | Self::JOD | Self::IQD | Self::KWD | Self::LYD | Self::OMR | Self::TND | Self::UYW => true,
             Self::AED
             | Self::ALL
+            | Self::AFN
             | Self::AMD
             | Self::ANG
+            | Self::AOA
             | Self::ARS
             | Self::AUD
             | Self::AWG
             | Self::AZN
+            | Self::BAM
             | Self::BBD
             | Self::BDT
+            | Self::BGN
             | Self::BIF
             | Self::BMD
             | Self::BND
             | Self::BOB
+            | Self::BOV
             | Self::BRL
+            | Self::BTN
             | Self::BSD
             | Self::BWP
+            | Self::BYN
             | Self::BZD
             | Self::CAD
+            | Self::CDF
+            | Self::CHE
             | Self::CHF
+            | Self::CHW
             | Self::CLP
             | Self::CNY
             | Self::COP
+            | Self::COU
             | Self::CRC
+            | Self::CUC
             | Self::CUP
+            | Self::CVE
             | Self::CZK
             | Self::DJF
             | Self::DKK
             | Self::DOP
             | Self::DZD
             | Self::EGP
+            | Self::ERN
             | Self::ETB
             | Self::EUR
             | Self::FJD
+            | Self::FKP
             | Self::GBP
+            | Self::GEL
             | Self::GHS
             | Self::GIP
             | Self::GMD
@@ -591,12 +790,15 @@ impl Currency {
             | Self::IDR
             | Self::ILS
             | Self::INR
+            | Self::IRR
+            | Self::ISK
             | Self::JMD
             | Self::JPY
             | Self::KES
             | Self::KGS
             | Self::KHR
             | Self::KMF
+            | Self::KPW
             | Self::KRW
             | Self::KYD
             | Self::KZT
@@ -612,17 +814,21 @@ impl Currency {
             | Self::MMK
             | Self::MNT
             | Self::MOP
+            | Self::MRU
             | Self::MUR
             | Self::MVR
             | Self::MWK
             | Self::MXN
+            | Self::MXV
             | Self::MYR
+            | Self::MZN
             | Self::NAD
             | Self::NGN
             | Self::NIO
             | Self::NOK
             | Self::NPR
             | Self::NZD
+            | Self::PAB
             | Self::PEN
             | Self::PGK
             | Self::PHP
@@ -631,33 +837,252 @@ impl Currency {
             | Self::PYG
             | Self::QAR
             | Self::RON
+            | Self::RSD
             | Self::RUB
             | Self::RWF
             | Self::SAR
+            | Self::SBD
             | Self::SCR
+            | Self::SDG
             | Self::SEK
             | Self::SGD
+            | Self::SHP
+            | Self::SLE
             | Self::SLL
             | Self::SOS
+            | Self::SRD
             | Self::SSP
+            | Self::STN
             | Self::SVC
+            | Self::SYP
             | Self::SZL
             | Self::THB
+            | Self::TJS
+            | Self::TMT
+            | Self::TOP
             | Self::TRY
             | Self::TTD
             | Self::TWD
             | Self::TZS
+            | Self::UAH
             | Self::UGX
             | Self::USD
+            | Self::USN
+            | Self::UYI
             | Self::UYU
             | Self::UZS
+            | Self::VED
+            | Self::VES
             | Self::VND
             | Self::VUV
+            | Self::WST
             | Self::XAF
-            | Self::XPF
+            | Self::XAG
+            | Self::XAU
+            | Self::XBA
+            | Self::XBB
+            | Self::XBC
+            | Self::XBD
+            | Self::XCD
+            | Self::XDR
             | Self::XOF
+            | Self::XPD
+            | Self::XPF
+            | Self::XPT
+            | Self::XSU
+            | Self::XTS
+            | Self::XUA
+            | Self::XXX
             | Self::YER
-            | Self::ZAR => false,
+            | Self::ZAR
+            | Self::ZMW
+            | Self::ZWL => false,
+        }
+    }
+
+
+    pub fn is_four_decimal_currency(self) -> bool {
+        match self {
+            Self::CLF | Self::UYW => true,
+            Self::AED
+            | Self::ALL
+            | Self::AFN
+            | Self::AMD
+            | Self::ANG
+            | Self::AOA
+            | Self::ARS
+            | Self::AUD
+            | Self::AWG
+            | Self::AZN
+            | Self::BAM
+            | Self::BBD
+            | Self::BDT
+            | Self::BGN
+            | Self::BHD
+            | Self::BIF
+            | Self::BMD
+            | Self::BND
+            | Self::BOB
+            | Self::BOV
+            | Self::BRL
+            | Self::BTN
+            | Self::BSD
+            | Self::BWP
+            | Self::BYN
+            | Self::BZD
+            | Self::CAD
+            | Self::CDF
+            | Self::CHE
+            | Self::CHF
+            | Self::CHW
+            | Self::CLP
+            | Self::CNY
+            | Self::COP
+            | Self::COU
+            | Self::CRC
+            | Self::CUC
+            | Self::CUP
+            | Self::CVE
+            | Self::CZK
+            | Self::DJF
+            | Self::DKK
+            | Self::DOP
+            | Self::DZD
+            | Self::EGP
+            | Self::ERN
+            | Self::ETB
+            | Self::EUR
+            | Self::FJD
+            | Self::FKP
+            | Self::GBP
+            | Self::GEL
+            | Self::GHS
+            | Self::GIP
+            | Self::GMD
+            | Self::GNF
+            | Self::GTQ
+            | Self::GYD
+            | Self::HKD
+            | Self::HNL
+            | Self::HRK
+            | Self::HTG
+            | Self::HUF
+            | Self::IDR
+            | Self::ILS
+            | Self::INR
+            | Self::IQD
+            | Self::IRR
+            | Self::ISK
+            | Self::JMD
+            | Self::JOD
+            | Self::JPY
+            | Self::KES
+            | Self::KGS
+            | Self::KHR
+            | Self::KMF
+            | Self::KPW
+            | Self::KRW
+            | Self::KWD
+            | Self::KYD
+            | Self::KZT
+            | Self::LAK
+            | Self::LBP
+            | Self::LKR
+            | Self::LRD
+            | Self::LSL
+            | Self::LYD
+            | Self::MAD
+            | Self::MDL
+            | Self::MGA
+            | Self::MKD
+            | Self::MMK
+            | Self::MNT
+            | Self::MOP
+            | Self::MRU
+            | Self::MUR
+            | Self::MVR
+            | Self::MWK
+            | Self::MXN
+            | Self::MXV
+            | Self::MYR
+            | Self::MZN
+            | Self::NAD
+            | Self::NGN
+            | Self::NIO
+            | Self::NOK
+            | Self::NPR
+            | Self::NZD
+            | Self::OMR
+            | Self::PAB
+            | Self::PEN
+            | Self::PGK
+            | Self::PHP
+            | Self::PKR
+            | Self::PLN
+            | Self::PYG
+            | Self::QAR
+            | Self::RON
+            | Self::RSD
+            | Self::RUB
+            | Self::RWF
+            | Self::SAR
+            | Self::SBD
+            | Self::SCR
+            | Self::SDG
+            | Self::SEK
+            | Self::SGD
+            | Self::SHP
+            | Self::SLE
+            | Self::SLL
+            | Self::SOS
+            | Self::SRD
+            | Self::SSP
+            | Self::STN
+            | Self::SVC
+            | Self::SYP
+            | Self::SZL
+            | Self::THB
+            | Self::TJS
+            | Self::TMT
+            | Self::TND
+            | Self::TOP
+            | Self::TRY
+            | Self::TTD
+            | Self::TWD
+            | Self::TZS
+            | Self::UAH
+            | Self::UGX
+            | Self::USD
+            | Self::USN
+            | Self::UYI
+            | Self::UYU
+            | Self::UZS
+            | Self::VED
+            | Self::VES
+            | Self::VND
+            | Self::VUV
+            | Self::WST
+            | Self::XAF
+            | Self::XAG
+            | Self::XAU
+            | Self::XBA
+            | Self::XBB
+            | Self::XBC
+            | Self::XBD
+            | Self::XCD
+            | Self::XDR
+            | Self::XOF
+            | Self::XPD
+            | Self::XPF
+            | Self::XPT
+            | Self::XSU
+            | Self::XTS
+            | Self::XUA
+            | Self::XXX
+            | Self::YER
+            | Self::ZAR
+            | Self::ZMW
+            | Self::ZWL => false,
         }
     }
 }
