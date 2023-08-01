@@ -15,9 +15,8 @@ use std::{
 
 use async_trait::async_trait;
 use serde_json::json;
+use test_utils::connector_auth;
 use thirtyfour::{components::SelectElement, prelude::*, WebDriver};
-
-use crate::connector_auth;
 
 #[derive(Clone)]
 pub enum Event<'a> {
@@ -737,17 +736,10 @@ pub fn should_ignore_test(name: &str) -> bool {
     let tests_to_ignore: HashSet<String> =
         serde_json::from_value(conf).unwrap_or_else(|_| HashSet::new());
     let modules: Vec<_> = name.split("::").collect();
-    let file_match = format!("{}::*", <&str>::clone(&modules[0]));
-    let module_name_with_quotes = &modules[0..2].join("::");
-    let module_name = rem_first_char(module_name_with_quotes);
+    let file_match = format!("{}::*", <&str>::clone(&modules[1]));
+    let module_name = modules[1..3].join("::");
     // Ignore if it matches patterns like nuvei_ui::*, nuvei_ui::should_make_nuvei_eps_payment_test
-    tests_to_ignore.contains(rem_first_char(&file_match)) || tests_to_ignore.contains(module_name)
-}
-
-fn rem_first_char(value: &str) -> &str {
-    let mut chars = value.chars();
-    chars.next();
-    chars.as_str()
+    tests_to_ignore.contains(&file_match) || tests_to_ignore.contains(&module_name)
 }
 
 pub fn get_browser() -> String {

@@ -1,6 +1,7 @@
 use serial_test::serial;
-use test_utils::{selenium::*, tester};
 use thirtyfour::{prelude::*, WebDriver};
+
+use crate::{selenium::*, tester};
 
 struct NoonSeleniumTest;
 
