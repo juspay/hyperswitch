@@ -728,11 +728,10 @@ pub fn get_banks(
 }
 
 fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
-    let res = str
-        .split('.')
+    str.split('.')
         .fold(Some(val), |acc, x| acc.and_then(|v| v.get(x)))
-        .and_then(|v| v.as_str());
-    res.map(|s| s.to_string())
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
 }
 
 pub async fn list_payment_methods(

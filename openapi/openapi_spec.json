@@ -9278,6 +9278,10 @@
           },
           "field_type": {
             "$ref": "#/components/schemas/FieldType"
+          },
+          "value": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
