@@ -1,0 +1,16 @@
+[package]
+name = "storage_impl"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# First Party dependencies
+masking = { version = "0.1.0", path = "../masking" }
+
+# Third party crates
+bb8 = "0.8.1"
+diesel = { version = "2.1.0", default-features = false, features = ["postgres"] }
+async-bb8-diesel = { git = "https://github.com/oxidecomputer/async-bb8-diesel", rev = "be3d9bce50051d8c0e0c06078e8066cc27db3001" }
+async-trait = "0.1.72"
