@@ -207,6 +207,7 @@ where
                 validate_result.storage_scheme,
                 updated_customer,
                 &key_store,
+                None,
             )
             .await?;
     }
@@ -430,6 +431,8 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None,
                         api_models::payments::NextActionData::QrCodeInformation{..} => None,
                         api_models::payments::NextActionData::DisplayVoucherInformation{ .. } => None,
+                        api_models::payments::NextActionData::WaitScreenInformation{..} => None,,
+                        api_models::payments::NextActionData::DisplayVoucherInformation{ .. } => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
@@ -629,6 +632,7 @@ where
             merchant_account.storage_scheme,
             updated_customer,
             key_store,
+            None,
         )
         .await?;
 
@@ -921,7 +925,12 @@ async fn decide_payment_method_tokenize_action(
             }
         }
         Some(token) => {
-            let redis_conn = state.store.get_redis_conn();
+            let redis_conn = state
+                .store
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")?;
+
             let key = format!(
                 "pm_token_{}_{}_{}",
                 token.to_owned(),

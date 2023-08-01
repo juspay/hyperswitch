@@ -1128,7 +1128,7 @@ fn create_stripe_payment_method(
                 None,
                 StripeBillingAddress::default(),
             )),
-            payments::WalletData::WeChatPay(_) => Ok((
+            payments::WalletData::WeChatPayQr(_) => Ok((
                 StripePaymentMethodData::Wallet(StripeWallet::WechatpayPayment(WechatpayPayment {
                     client: WechatClient::Web,
                     payment_method_data_type: StripePaymentMethodType::Wechatpay,
@@ -2854,7 +2854,7 @@ impl
                     Ok(Self::Wallet(wallet_info))
                 }
 
-                payments::WalletData::WeChatPayRedirect(_) => {
+                payments::WalletData::WeChatPayQr(_) => {
                     let wallet_info = StripeWallet::WechatpayPayment(WechatpayPayment {
                         client: WechatClient::Web,
                         payment_method_data_type: StripePaymentMethodType::Wechatpay,

@@ -1,7 +1,6 @@
 use std::{collections::HashMap, env};
 
 use masking::Secret;
-use router::types::ConnectorAuthType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -288,4 +287,29 @@ pub struct AutomationConfigs {
     pub airwallex_merchant_name: Option<String>,
     pub adyen_bancontact_username: Option<String>,
     pub adyen_bancontact_pass: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, serde::Deserialize)]
+#[serde(tag = "auth_type")]
+pub enum ConnectorAuthType {
+    HeaderKey {
+        api_key: Secret<String>,
+    },
+    BodyKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+    },
+    SignatureKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+    },
+    MultiAuthKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        key2: Secret<String>,
+    },
+    #[default]
+    NoKey,
 }

@@ -743,11 +743,11 @@ pub struct AdditionalCardInfo {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub last4: String,
-    pub card_isin: String,
-    pub card_exp_month: Secret<String>,
-    pub card_exp_year: Secret<String>,
-    pub card_holder_name: Secret<String>,
+    pub last4: Option<String>,
+    pub card_isin: Option<String>,
+    pub card_exp_month: Option<Secret<String>>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -873,7 +873,6 @@ pub enum BankRedirectData {
         #[schema(example = "en")]
         preferred_language: String,
     },
-    Swish {},
     Trustly {
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
@@ -962,7 +961,7 @@ pub struct CryptoData {
 #[serde(rename_all = "snake_case")]
 pub struct UpiData {
     #[schema(value_type = Option<String>, example = "successtest@iata")]
-    pub vpa_id: Option<Secret<String>>,
+    pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1097,10 +1096,10 @@ pub enum WalletData {
     TouchNGoRedirect(Box<TouchNGoRedirection>),
     /// The wallet data for WeChat Pay Redirection
     WeChatPayRedirect(Box<WeChatPayRedirection>),
-    /// The wallet data for WeChat Pay
-    WeChatPay(Box<WeChatPay>),
     /// The wallet data for WeChat Pay Display QrCode
     WeChatPayQr(Box<WeChatPayQr>),
+    // The wallet data for Swish
+    SwishQr(SwishQrData),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1199,6 +1198,9 @@ pub struct PayPalWalletData {
 pub struct TouchNGoRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SwishQrData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GpayTokenizationData {
     /// The type of the token
     #[serde(rename = "type")]
@@ -1230,15 +1232,15 @@ pub struct ApplepayPaymentMethod {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct CardResponse {
-    pub last4: String,
+    pub last4: Option<String>,
     pub card_type: Option<String>,
     pub card_network: Option<api_enums::CardNetwork>,
     pub card_issuer: Option<String>,
     pub card_issuing_country: Option<String>,
-    pub card_isin: String,
-    pub card_exp_month: Secret<String>,
-    pub card_exp_year: Secret<String>,
-    pub card_holder_name: Secret<String>,
+    pub card_isin: Option<String>,
+    pub card_exp_month: Option<Secret<String>>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1420,6 +1422,7 @@ pub enum NextActionType {
     InvokeSdkClient,
     TriggerApi,
     DisplayBankTransferInformation,
+    DisplayWaitScreen,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -1438,10 +1441,15 @@ pub enum NextActionData {
         #[schema(value_type = String)]
         image_data_url: Url,
     },
-    // Contains the download url and the reference number for transaction
+    /// Contains the download url and the reference number for transaction
     DisplayVoucherInformation {
         #[schema(value_type = String)]
         voucher_details: VoucherNextStepData,
+    },
+    /// Contains duration for displaying a wait screen, wait screen with timer is displayed by sdk
+    WaitScreenInformation {
+        display_from_timestamp: i128,
+        display_to_timestamp: Option<i128>,
     },
 }
 
@@ -1464,9 +1472,15 @@ pub struct VoucherNextStepData {
     pub download_url: Option<Url>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct QrCodeNextStepsInstruction {
     pub image_data_url: Url,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct WaitScreenInstructions {
+    pub display_from_timestamp: i128,
+    pub display_to_timestamp: Option<i128>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

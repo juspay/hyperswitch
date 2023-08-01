@@ -1175,7 +1175,12 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     let request = &payment_data.payment_method_data;
     let token = payment_data.token.clone();
     let hyperswitch_token = if let Some(token) = token {
-        let redis_conn = state.store.get_redis_conn();
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+
         let key = format!(
             "pm_token_{}_{}_hyperswitch",
             token,
@@ -1437,6 +1442,9 @@ pub(crate) fn validate_payment_method_fields_present(
                 ) | (
                     api_enums::PaymentMethod::Crypto,
                     api::PaymentMethodData::Crypto(..)
+                ) | (
+                    api_enums::PaymentMethod::Upi,
+                    api::PaymentMethodData::Upi(..)
                 ) | (
                     api_enums::PaymentMethod::Voucher,
                     api::PaymentMethodData::Voucher(..)
@@ -1911,6 +1919,32 @@ pub fn get_connector_label(
     connector_label
 }
 
+/// Check whether the business details are configured in the merchant account
+pub fn validate_business_details(
+    business_country: api_enums::CountryAlpha2,
+    business_label: &String,
+    merchant_account: &domain::MerchantAccount,
+) -> RouterResult<()> {
+    let primary_business_details = merchant_account
+        .primary_business_details
+        .clone()
+        .parse_value::<Vec<api_models::admin::PrimaryBusinessDetails>>("PrimaryBusinessDetails")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to parse primary business details")?;
+
+    primary_business_details
+        .iter()
+        .find(|business_details| {
+            &business_details.business == business_label
+                && business_details.country == business_country
+        })
+        .ok_or(errors::ApiErrorResponse::PreconditionFailed {
+            message: "business_details are not configured in the merchant account".to_string(),
+        })?;
+
+    Ok(())
+}
+
 /// Do lazy parsing of primary business details
 /// If both country and label are passed, no need to parse business details from merchant_account
 /// If any one is missing, get it from merchant_account
@@ -1921,42 +1955,29 @@ pub fn get_business_details(
     business_label: Option<&String>,
     merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<(api_enums::CountryAlpha2, String)> {
-    let (business_country, business_label) = match business_country.zip(business_label) {
+    let primary_business_details = merchant_account
+        .primary_business_details
+        .clone()
+        .parse_value::<Vec<api_models::admin::PrimaryBusinessDetails>>("PrimaryBusinessDetails")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to parse primary business details")?;
+
+    match business_country.zip(business_label) {
         Some((business_country, business_label)) => {
-            (business_country.to_owned(), business_label.to_owned())
+            Ok((business_country.to_owned(), business_label.to_owned()))
         }
-        None => {
-            // Parse the primary business details from merchant account
-            let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> =
-                merchant_account
-                    .primary_business_details
-                    .clone()
-                    .parse_value("PrimaryBusinessDetails")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("failed to parse primary business details")?;
-
-            if primary_business_details.len() == 1 {
-                let primary_business_details = primary_business_details.first().ok_or(
-                    errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "primary_business_details",
-                    },
-                )?;
-                (
-                    business_country.unwrap_or_else(|| primary_business_details.country.to_owned()),
-                    business_label
-                        .map(ToString::to_string)
-                        .unwrap_or_else(|| primary_business_details.business.to_owned()),
-                )
-            } else {
-                // If primary business details are not present or more than one
-                Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "business_country, business_label"
-                }))?
-            }
-        }
-    };
-
-    Ok((business_country, business_label))
+        _ => match primary_business_details.first() {
+            Some(business_details) if primary_business_details.len() == 1 => Ok((
+                business_country.unwrap_or_else(|| business_details.country.to_owned()),
+                business_label
+                    .map(ToString::to_string)
+                    .unwrap_or_else(|| business_details.business.to_owned()),
+            )),
+            _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "business_country, business_label"
+            })),
+        },
+    }
 }
 
 #[inline]
@@ -2594,8 +2615,8 @@ pub async fn get_additional_payment_data(
 ) -> api_models::payments::AdditionalPaymentData {
     match pm_data {
         api_models::payments::PaymentMethodData::Card(card_data) => {
-            let card_isin = card_data.card_number.clone().get_card_isin();
-            let last4 = card_data.card_number.clone().get_last4();
+            let card_isin = Some(card_data.card_number.clone().get_card_isin());
+            let last4 = Some(card_data.card_number.clone().get_last4());
             if card_data.card_issuer.is_some()
                 && card_data.card_network.is_some()
                 && card_data.card_type.is_some()
@@ -2609,19 +2630,23 @@ pub async fn get_additional_payment_data(
                         card_type: card_data.card_type.to_owned(),
                         card_issuing_country: card_data.card_issuing_country.to_owned(),
                         bank_code: card_data.bank_code.to_owned(),
-                        card_exp_month: card_data.card_exp_month.clone(),
-                        card_exp_year: card_data.card_exp_year.clone(),
-                        card_holder_name: card_data.card_holder_name.clone(),
+                        card_exp_month: Some(card_data.card_exp_month.clone()),
+                        card_exp_year: Some(card_data.card_exp_year.clone()),
+                        card_holder_name: Some(card_data.card_holder_name.clone()),
                         last4: last4.clone(),
                         card_isin: card_isin.clone(),
                     },
                 ))
             } else {
-                let card_info = db
-                    .get_card_info(&card_isin.clone())
+                let card_info = card_isin
+                    .clone()
+                    .async_and_then(|card_isin| async move {
+                        db.get_card_info(&card_isin)
+                            .await
+                            .map_err(|error| services::logger::warn!(card_info_error=?error))
+                            .ok()
+                    })
                     .await
-                    .map_err(|error| services::logger::warn!(card_info_error=?error))
-                    .ok()
                     .flatten()
                     .map(|card_info| {
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
@@ -2633,9 +2658,9 @@ pub async fn get_additional_payment_data(
                                 card_issuing_country: card_info.card_issuing_country,
                                 last4: last4.clone(),
                                 card_isin: card_isin.clone(),
-                                card_exp_month: card_data.card_exp_month.clone(),
-                                card_exp_year: card_data.card_exp_year.clone(),
-                                card_holder_name: card_data.card_holder_name.clone(),
+                                card_exp_month: Some(card_data.card_exp_month.clone()),
+                                card_exp_year: Some(card_data.card_exp_year.clone()),
+                                card_holder_name: Some(card_data.card_holder_name.clone()),
                             },
                         ))
                     });
@@ -2648,9 +2673,9 @@ pub async fn get_additional_payment_data(
                         card_issuing_country: None,
                         last4,
                         card_isin,
-                        card_exp_month: card_data.card_exp_month.clone(),
-                        card_exp_year: card_data.card_exp_year.clone(),
-                        card_holder_name: card_data.card_holder_name.clone(),
+                        card_exp_month: Some(card_data.card_exp_month.clone()),
+                        card_exp_year: Some(card_data.card_exp_year.clone()),
+                        card_holder_name: Some(card_data.card_holder_name.clone()),
                     },
                 )))
             }
