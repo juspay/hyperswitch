@@ -1,3 +1,4 @@
+use api_models::enums::AuthenticationInfo;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 
@@ -210,12 +211,17 @@ impl MerchantAccountInterface for Store {
             )
             .await?;
 
+        let auth_type = AuthenticationInfo::PublishableKey {
+            key_id: publishable_key.to_string(),
+        };
+
         Ok(authentication::AuthenticationData {
             merchant_account: merchant
                 .convert(key_store.key.get_inner())
                 .await
                 .change_context(errors::StorageError::DecryptionError)?,
             key_store,
+            auth_type,
         })
     }
 

@@ -1,5 +1,7 @@
 use actix_web::http::header::HeaderMap;
-use api_models::{payment_methods::PaymentMethodListRequest, payments::PaymentsRequest};
+use api_models::{
+    enums::AuthenticationInfo, payment_methods::PaymentMethodListRequest, payments::PaymentsRequest,
+};
 use async_trait::async_trait;
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
@@ -24,6 +26,7 @@ use crate::{
 pub struct AuthenticationData {
     pub merchant_account: domain::MerchantAccount,
     pub key_store: domain::MerchantKeyStore,
+    pub auth_type: AuthenticationInfo,
 }
 
 pub trait AuthInfo {
@@ -60,8 +63,14 @@ pub struct ApiKeyAuth;
 
 pub struct NoAuth;
 
+impl AuthInfo for NoAuth {
+    fn get_merchant_id(&self) -> Option<&str> {
+        None
+    }
+}
+
 #[async_trait]
-impl<A> AuthenticateAndFetch<(), A> for NoAuth
+impl<A> AuthenticateAndFetch<Self, A> for NoAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -69,8 +78,8 @@ where
         &self,
         _request_headers: &HeaderMap,
         _state: &A,
-    ) -> RouterResult<()> {
-        Ok(())
+    ) -> RouterResult<Self> {
+        Ok(Self)
     }
 }
 
@@ -139,9 +148,14 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+        let auth_type = AuthenticationInfo::ApiKey {
+            key_id: stored_api_key.key_id,
+        };
+
         Ok(AuthenticationData {
             merchant_account: merchant,
             key_store,
+            auth_type,
         })
     }
 }
@@ -174,8 +188,14 @@ pub async fn get_admin_api_key(
 #[derive(Debug)]
 pub struct AdminApiAuth;
 
+impl AuthInfo for AdminApiAuth {
+    fn get_merchant_id(&self) -> Option<&str> {
+        None
+    }
+}
+
 #[async_trait]
-impl<A> AuthenticateAndFetch<(), A> for AdminApiAuth
+impl<A> AuthenticateAndFetch<Self, A> for AdminApiAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -183,7 +203,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<()> {
+    ) -> RouterResult<Self> {
         let request_admin_api_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         let conf = state.conf();
@@ -200,7 +220,7 @@ where
                 .attach_printable("Admin Authentication Failure"))?;
         }
 
-        Ok(())
+        Ok(Self)
     }
 }
 
@@ -245,9 +265,12 @@ where
                 }
             })?;
 
+        let auth_type = AuthenticationInfo::MerchantId;
+
         Ok(AuthenticationData {
             merchant_account: merchant,
             key_store,
+            auth_type,
         })
     }
 }
@@ -343,9 +366,12 @@ where
             .await
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
 
+        let auth_type = AuthenticationInfo::JwtForMerchant;
+
         Ok(AuthenticationData {
             merchant_account: merchant,
             key_store,
+            auth_type,
         })
     }
 }

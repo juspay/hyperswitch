@@ -485,3 +485,11 @@ pub enum RetryAction {
     /// Denotes that the payment is requeued
     Requeue,
 }
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum AuthenticationInfo {
+    ApiKey { key_id: String },
+    PublishableKey { key_id: String },
+    MerchantId,
+    JwtForMerchant,
+}
