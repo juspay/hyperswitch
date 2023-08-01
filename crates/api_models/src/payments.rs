@@ -1032,7 +1032,7 @@ pub enum WalletData {
     /// The wallet data for WeChat Pay Display QrCode
     WeChatPayQr(Box<WeChatPayQr>),
     /// The wallet data for Cashapp Redirection
-    CashappQr(Box<CashAppQr>),
+    CashappQr(Box<CashappQr>),
     // The wallet data for Swish
     SwishQr(SwishQrData),
 }
@@ -1081,7 +1081,7 @@ pub struct WeChatPay {}
 pub struct WeChatPayQr {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct CashAppQr {}
+pub struct CashappQr {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaypalRedirection {}

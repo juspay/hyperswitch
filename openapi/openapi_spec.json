@@ -3419,7 +3419,7 @@
           "Maestro"
         ]
       },
-      "CashAppQr": {
+      "CashappQr": {
         "type": "object"
       },
       "Connector": {
@@ -10276,7 +10276,7 @@
             ],
             "properties": {
               "cashapp_qr": {
-                "$ref": "#/components/schemas/CashAppQr"
+                "$ref": "#/components/schemas/CashappQr"
               }
             }
           },
