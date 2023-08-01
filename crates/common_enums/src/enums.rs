@@ -1561,3 +1561,24 @@ pub enum PayoutEntityType {
     Business,
     Personal,
 }
+
+#[derive(
+    Clone,
+    Copy,
+    Default,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CancelTransaction {
+    #[default]
+    FrmCancelTransaction,
+}
