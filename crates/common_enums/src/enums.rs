@@ -881,6 +881,7 @@ pub enum PaymentMethodType {
     ClassicReward,
     Credit,
     CryptoCurrency,
+    Cashapp,
     Dana,
     Debit,
     Efecty,

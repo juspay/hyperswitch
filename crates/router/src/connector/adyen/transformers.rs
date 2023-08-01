@@ -2391,7 +2391,10 @@ pub fn get_qr_metadata(
         .and_then(|image_data| Url::parse(image_data.data.as_str()).ok())
         .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
-    let qr_code_instructions = payments::QrCodeNextStepsInstruction { image_data_url };
+    let qr_code_instructions = payments::QrCodeNextStepsInstruction {
+        image_data_url,
+        display_to_timestamp: None,
+    };
 
     Some(common_utils::ext_traits::Encode::<
         payments::QrCodeNextStepsInstruction,

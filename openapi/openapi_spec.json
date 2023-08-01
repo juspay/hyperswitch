@@ -3419,6 +3419,9 @@
           "Maestro"
         ]
       },
+      "CashappQr": {
+        "type": "object"
+      },
       "Connector": {
         "type": "string",
         "enum": [
@@ -6369,6 +6372,11 @@
               "image_data_url": {
                 "type": "string"
               },
+              "display_to_timestamp": {
+                "type": "integer",
+                "format": "int64",
+                "nullable": true
+              },
               "type": {
                 "type": "string",
                 "enum": [
@@ -7391,6 +7399,7 @@
           "classic",
           "credit",
           "crypto_currency",
+          "cashapp",
           "dana",
           "debit",
           "efecty",
@@ -10306,6 +10315,17 @@
             "properties": {
               "we_chat_pay_qr": {
                 "$ref": "#/components/schemas/WeChatPayQr"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "cashapp_qr"
+            ],
+            "properties": {
+              "cashapp_qr": {
+                "$ref": "#/components/schemas/CashappQr"
               }
             }
           },
