@@ -37,7 +37,7 @@ use crate::{
             types::{self, AsyncLift},
         },
         storage::{self, enums as storage_enums, ephemeral_key, CustomerUpdate::Update},
-        transformers::{ForeignInto, ForeignTryFrom},
+        transformers::ForeignTryFrom,
         ErrorResponse, RouterData,
     },
     utils::{
@@ -1400,18 +1400,32 @@ pub(crate) fn validate_payment_method_fields_present(
         },
     )?;
 
-    let payment_method_from_type: Option<api_enums::PaymentMethod> =
-        (req.payment_method_type).map(ForeignInto::foreign_into);
+    let check_payment_method_and_payment_method_type =
+        |req_payment_method_type, req_payment_method: api_enums::PaymentMethod| {
+            api_enums::PaymentMethod::foreign_try_from((req_payment_method, req_payment_method_type)).and_then(|payment_method|
+                if req_payment_method != payment_method {
+                    Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: ("payment_method_data doesn't correspond to the specified payment_method"
+                            .to_string()),
+                    })
+                } else {
+                    Ok(())
+                })
+        };
 
     utils::when(
-        req.payment_method.is_some()
-            && req.payment_method_type.is_some()
-            && (req.payment_method != payment_method_from_type),
+        req.payment_method.is_some() && req.payment_method_type.is_some(),
         || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: ("payment_method_type doesn't correspond to the specified payment_method"
-                    .to_string()),
-            })
+            req.payment_method_type
+                .clone()
+                .map_or(Ok(()), |req_payment_method_type| {
+                    req.payment_method.map_or(Ok(()), |req_payment_method| {
+                        check_payment_method_and_payment_method_type(
+                            req_payment_method_type,
+                            req_payment_method,
+                        )
+                    })
+                })
         },
     )?;
 
