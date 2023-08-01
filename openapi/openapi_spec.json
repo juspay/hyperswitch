@@ -3049,17 +3049,6 @@
           {
             "type": "object",
             "required": [
-              "swish"
-            ],
-            "properties": {
-              "swish": {
-                "type": "object"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
               "trustly"
             ],
             "properties": {
@@ -5760,7 +5749,9 @@
         "required": [
           "connector_type",
           "connector_name",
-          "connector_label"
+          "connector_label",
+          "business_country",
+          "business_label"
         ],
         "properties": {
           "connector_type": {
@@ -5857,16 +5848,10 @@
             "nullable": true
           },
           "business_country": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CountryAlpha2"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/CountryAlpha2"
           },
           "business_label": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "business_sub_label": {
             "type": "string",
@@ -9912,6 +9897,9 @@
           }
         }
       },
+      "SwishQrData": {
+        "type": "object"
+      },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
         "required": [
@@ -10288,6 +10276,17 @@
             "properties": {
               "we_chat_pay_qr": {
                 "$ref": "#/components/schemas/WeChatPayQr"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "swish_qr"
+            ],
+            "properties": {
+              "swish_qr": {
+                "$ref": "#/components/schemas/SwishQrData"
               }
             }
           }
