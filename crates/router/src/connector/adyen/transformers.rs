@@ -2,6 +2,7 @@
 use api_models::payouts::PayoutMethodData;
 use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -27,6 +28,7 @@ use crate::{
         transformers::ForeignFrom,
         PaymentsAuthorizeData,
     },
+    utils as crate_utils,
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -234,7 +236,7 @@ pub struct AdyenThreeDS {
 #[serde(untagged)]
 pub enum AdyenPaymentResponse {
     Response(Response),
-    RedirectResponse(RedirectionResponse),
+    NextActionResponse(NextActionResponse),
     RedirectionErrorResponse(RedirectionErrorResponse),
 }
 
@@ -259,23 +261,24 @@ pub struct RedirectionErrorResponse {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RedirectionResponse {
+pub struct NextActionResponse {
     result_code: AdyenStatus,
-    action: AdyenRedirectionAction,
+    action: AdyenNextAction,
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenRedirectionAction {
-    payment_method_type: String,
+pub struct AdyenNextAction {
+    payment_method_type: PaymentType,
     url: Option<Url>,
     method: Option<services::Method>,
     #[serde(rename = "type")]
     type_of_response: ActionType,
     data: Option<std::collections::HashMap<String, String>>,
     payment_data: Option<String>,
+    qr_code_data: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -283,6 +286,8 @@ pub struct AdyenRedirectionAction {
 pub enum ActionType {
     Redirect,
     Await,
+    #[serde(rename = "qrCode")]
+    QrCode,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -347,6 +352,8 @@ pub enum AdyenPaymentMethod<'a> {
     SamsungPay(Box<SamsungPayPmData>),
     Twint(Box<TwintWalletData>),
     Vipps(Box<VippsWalletData>),
+    #[serde(rename = "swish")]
+    Swish,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -887,6 +894,7 @@ pub enum PaymentType {
     Samsungpay,
     Twint,
     Vipps,
+    Swish,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -1451,6 +1459,7 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                 };
                 Ok(AdyenPaymentMethod::Dana(Box::new(data)))
             }
+            api_models::payments::WalletData::SwishQr(_) => Ok(AdyenPaymentMethod::Swish),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
@@ -2101,8 +2110,8 @@ pub fn get_adyen_response(
     Ok((status, error, payments_response_data))
 }
 
-pub fn get_redirection_response(
-    response: RedirectionResponse,
+pub fn get_next_action_response(
+    response: NextActionResponse,
     is_manual_capture: bool,
     status_code: u16,
 ) -> errors::CustomResult<
@@ -2113,15 +2122,19 @@ pub fn get_redirection_response(
     ),
     errors::ConnectorError,
 > {
-    let status =
-        storage_enums::AttemptStatus::foreign_from((is_manual_capture, response.result_code));
+    let status = storage_enums::AttemptStatus::foreign_from((
+        is_manual_capture,
+        response.result_code.clone(),
+    ));
     let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
         Some(types::ErrorResponse {
             code: response
                 .refusal_reason_code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .refusal_reason
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
@@ -2130,8 +2143,8 @@ pub fn get_redirection_response(
         None
     };
 
-    let redirection_data = response.action.url.map(|url| {
-        let form_fields = response.action.data.unwrap_or_else(|| {
+    let redirection_data = response.action.url.clone().map(|url| {
+        let form_fields = response.action.data.clone().unwrap_or_else(|| {
             std::collections::HashMap::from_iter(
                 url.query_pairs()
                     .map(|(key, value)| (key.to_string(), value.to_string())),
@@ -2144,12 +2157,13 @@ pub fn get_redirection_response(
         }
     });
 
+    let connector_metadata = get_connector_metadata(&response)?;
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::NoResponseId,
         redirection_data,
         mandate_reference: None,
-        connector_metadata: None,
+        connector_metadata,
         network_txn_id: None,
         connector_response_reference_id: None,
     };
@@ -2188,6 +2202,45 @@ pub fn get_redirection_error_response(
     Ok((status, error, payments_response_data))
 }
 
+pub fn get_connector_metadata(
+    response: &NextActionResponse,
+) -> errors::CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
+    let connector_metadata = match response.action.type_of_response {
+        ActionType::QrCode => {
+            let metadata = get_qr_metadata(response);
+            Some(metadata)
+        }
+        _ => None,
+    }
+    .transpose()
+    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+    Ok(connector_metadata)
+}
+
+pub fn get_qr_metadata(
+    response: &NextActionResponse,
+) -> errors::CustomResult<serde_json::Value, errors::ConnectorError> {
+    let image_data = response
+        .action
+        .qr_code_data
+        .clone()
+        .map(crate_utils::QrImage::new_from_data)
+        .transpose()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+    let image_data_url = image_data
+        .and_then(|image_data| Url::parse(image_data.data.as_str()).ok())
+        .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+
+    let qr_code_instructions = payments::QrCodeNextStepsInstruction { image_data_url };
+
+    common_utils::ext_traits::Encode::<payments::QrCodeNextStepsInstruction>::encode_to_value(
+        &qr_code_instructions,
+    )
+    .change_context(errors::ConnectorError::ResponseHandlingFailed)
+}
+
 impl<F, Req>
     TryFrom<(
         types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
@@ -2207,8 +2260,8 @@ impl<F, Req>
             AdyenPaymentResponse::Response(response) => {
                 get_adyen_response(response, is_manual_capture, item.http_code)?
             }
-            AdyenPaymentResponse::RedirectResponse(response) => {
-                get_redirection_response(response, is_manual_capture, item.http_code)?
+            AdyenPaymentResponse::NextActionResponse(response) => {
+                get_next_action_response(response, is_manual_capture, item.http_code)?
             }
             AdyenPaymentResponse::RedirectionErrorResponse(response) => {
                 get_redirection_error_response(response, is_manual_capture, item.http_code)?
