@@ -3165,13 +3165,9 @@ impl
                             payment_method_type: StripePaymentMethodType::CustomerBalance,
                         })),
                     )),
-                    payments::BankTransferData::Pix {} | payments::BankTransferData::Pse {} => {
-                        Err(errors::ConnectorError::NotImplemented(
-                            util_connector::payment_method_error_message("stripe"),
-                        )
-                        .into())
-                    }
-                    payments::BankTransferData::PermataBankTransfer { .. }
+                    payments::BankTransferData::Pix {}
+                    | payments::BankTransferData::Pse {}
+                    | payments::BankTransferData::PermataBankTransfer { .. }
                     | payments::BankTransferData::BcaBankTransfer { .. }
                     | payments::BankTransferData::BniVaBankTransfer { .. }
                     | payments::BankTransferData::BriVaBankTransfer { .. }
@@ -3179,7 +3175,7 @@ impl
                     | payments::BankTransferData::DanamonVaBankTransfer { .. }
                     | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                         Err(errors::ConnectorError::NotImplemented(
-                            "this payment method for stripe".to_string(),
+                            util_connector::payment_method_error_message("stripe"),
                         )
                         .into())
                     }
