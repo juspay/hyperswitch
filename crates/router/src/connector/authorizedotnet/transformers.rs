@@ -33,7 +33,7 @@ pub enum TransactionType {
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct MerchantAuthentication {
+pub struct MerchantAuthentication {
     name: Secret<String>,
     transaction_key: Secret<String>,
 }
