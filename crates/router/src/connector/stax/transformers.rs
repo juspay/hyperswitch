@@ -139,6 +139,7 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                 Ok(Self::Card(stax_card_data))
             }
             api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Wallet(_)
             | api::PaymentMethodData::PayLater(_)
             | api::PaymentMethodData::BankRedirect(_)

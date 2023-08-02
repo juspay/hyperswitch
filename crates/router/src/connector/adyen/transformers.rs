@@ -901,6 +901,8 @@ pub enum PaymentType {
     MobilePay,
     #[serde(rename = "momo_wallet")]
     Momo,
+    #[serde(rename = "momo_atm")]
+    MomoAtm,
     #[serde(rename = "onlineBanking_CZ")]
     OnlineBankingCzechRepublic,
     #[serde(rename = "ebanking_FI")]
@@ -2215,6 +2217,7 @@ impl<'a>
             shopper_name,
             shopper_email,
             shopper_locale: None,
+            social_security_number: None,
             billing_address: None,
             delivery_address: None,
             country_code: None,

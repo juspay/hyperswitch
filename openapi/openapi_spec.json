@@ -3419,10 +3419,10 @@
           "Maestro"
         ]
       },
-      "CashappQr": {
+      "CardRedirectData": {
         "type": "object"
       },
-      "CardRedirectData": {
+      "CashappQr": {
         "type": "object"
       },
       "Connector": {
