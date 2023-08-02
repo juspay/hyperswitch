@@ -1518,6 +1518,13 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Multibanco
                 | api_enums::PaymentMethodType::Pix
                 | api_enums::PaymentMethodType::Pse
+                | api_enums::PaymentMethodType::PermataBankTransfer
+                | api_enums::PaymentMethodType::BcaBankTransfer
+                | api_enums::PaymentMethodType::BniVa
+                | api_enums::PaymentMethodType::BriVa
+                | api_enums::PaymentMethodType::CimbVa
+                | api_enums::PaymentMethodType::DanamonVa
+                | api_enums::PaymentMethodType::MandiriVa
         ),
         api_enums::PaymentMethod::BankDebit => matches!(
             payment_method_type,
@@ -1545,6 +1552,8 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::PagoEfectivo
                 | api_enums::PaymentMethodType::RedCompra
                 | api_enums::PaymentMethodType::RedPagos
+                | api_enums::PaymentMethodType::Indomaret
+                | api_enums::PaymentMethodType::Alfamart
         ),
         api_enums::PaymentMethod::GiftCard => false,
     }
