@@ -1727,6 +1727,27 @@ pub async fn list_customer_payment_method(
     .await
     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
+    let is_requires_cvv = db
+        .find_config_by_key(format!("{}_requires_cvv", merchant_account.merchant_id).as_str())
+        .await;
+
+    let is_requires_cvv = match is_requires_cvv {
+        Ok(value) => Some(value.config),
+        Err(err) => {
+            if err.current_context().is_db_not_found() {
+                None
+            } else {
+                Err(err
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch merchant_id config"))?
+            }
+        }
+    };
+    let requires_cvv = match is_requires_cvv {
+        Some(val) => val == "true",
+        None => false,
+    };
+
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_list(
             customer_id,
@@ -1771,6 +1792,7 @@ pub async fn list_customer_payment_method(
             bank_transfer: pmd,
             #[cfg(not(feature = "payouts"))]
             bank_transfer: None,
+            requires_cvv,
         };
         customer_pms.push(pma.to_owned());
 
