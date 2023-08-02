@@ -382,8 +382,10 @@ pub enum AdyenPaymentMethod<'a> {
     SamsungPay(Box<SamsungPayPmData>),
     Twint(Box<TwintWalletData>),
     Vipps(Box<VippsWalletData>),
-    Benefit(Box<PmdForPaymentType>),
-    Knet(Box<PmdForPaymentType>),
+    #[serde(rename = "benefit")]
+    Benefit,
+    #[serde(rename = "knet")]
+    Knet,
     #[serde(rename = "swish")]
     Swish,
 }
@@ -405,12 +407,6 @@ pub struct SepaDirectDebitData {
     owner_name: Secret<String>,
     #[serde(rename = "sepa.ibanNumber")]
     iban_number: Secret<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct PmdForPaymentType {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1737,16 +1733,8 @@ impl<'a> TryFrom<&api_models::enums::PaymentMethodType> for AdyenPaymentMethod<'
         payment_method_type: &api_models::enums::PaymentMethodType,
     ) -> Result<Self, Self::Error> {
         match payment_method_type {
-            enums::PaymentMethodType::Benefit => {
-                Ok(AdyenPaymentMethod::Benefit(Box::new(PmdForPaymentType {
-                    payment_type: PaymentType::Benefit,
-                })))
-            }
-            enums::PaymentMethodType::Knet => {
-                Ok(AdyenPaymentMethod::Knet(Box::new(PmdForPaymentType {
-                    payment_type: PaymentType::Knet,
-                })))
-            }
+            enums::PaymentMethodType::Benefit => Ok(AdyenPaymentMethod::Benefit),
+            enums::PaymentMethodType::Knet => Ok(AdyenPaymentMethod::Knet),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "This payment method type is not supported for Card redirection"
                     .to_string(),
