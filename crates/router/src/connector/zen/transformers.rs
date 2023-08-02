@@ -292,9 +292,11 @@ impl
             api_models::payments::BankTransferData::Pse { .. } => {
                 ZenPaymentChannels::PclBoacompraPse
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "payment method".to_string(),
-            ))?,
+            api_models::payments::BankTransferData::AchBankTransfer { .. }
+            | api_models::payments::BankTransferData::SepaBankTransfer { .. }
+            | api_models::payments::BankTransferData::BacsBankTransfer { .. } => Err(
+                errors::ConnectorError::NotImplemented("payment method".to_string()),
+            )?,
         };
         Ok(Self::ApiRequest(Box::new(ApiRequest {
             merchant_transaction_id: item.attempt_id.clone(),
@@ -420,9 +422,34 @@ impl
                     .google_pay
                     .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
             ),
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "payment method".to_string(),
-            ))?,
+            api_models::payments::WalletData::AliPayQr(_)
+            | api_models::payments::WalletData::AliPayRedirect(_)
+            | api_models::payments::WalletData::AliPayHkRedirect(_)
+            | api_models::payments::WalletData::MomoRedirect(_)
+            | api_models::payments::WalletData::KakaoPayRedirect(_)
+            | api_models::payments::WalletData::GoPayRedirect(_)
+            | api_models::payments::WalletData::GcashRedirect(_)
+            | api_models::payments::WalletData::ApplePay(_)
+            | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+            | api_models::payments::WalletData::DanaRedirect {}
+            | api_models::payments::WalletData::GooglePay(_)
+            | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+            | api_models::payments::WalletData::MbWayRedirect(_)
+            | api_models::payments::WalletData::MobilePayRedirect(_)
+            | api_models::payments::WalletData::PaypalRedirect(_)
+            | api_models::payments::WalletData::PaypalSdk(_)
+            | api_models::payments::WalletData::SamsungPay(_)
+            | api_models::payments::WalletData::TwintRedirect {}
+            | api_models::payments::WalletData::VippsRedirect {}
+            | api_models::payments::WalletData::TouchNGoRedirect(_)
+            | api_models::payments::WalletData::WeChatPayRedirect(_)
+            | api_models::payments::WalletData::CashappQr(_)
+            | api_models::payments::WalletData::SwishQr(_)
+            | api_models::payments::WalletData::WeChatPayQr(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    "This wallet is not implemented for zen".to_string(),
+                ))?
+            }
         };
         let terminal_uuid = session_data
             .terminal_uuid
@@ -603,9 +630,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 Self::try_from((item, bank_transfer_data))
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "payment method".to_string(),
-            ))?,
+            api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => Err(
+                errors::ConnectorError::NotImplemented("payment method".to_string()),
+            )?,
         }
     }
 }
