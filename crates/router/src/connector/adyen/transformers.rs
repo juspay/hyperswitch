@@ -1435,7 +1435,9 @@ impl<'a> TryFrom<&api_models::payments::GiftCardData> for AdyenPaymentMethod<'a>
             payments::GiftCardData::PaySafeCard {} => Ok(AdyenPaymentMethod::PaySafeCard(
                 Box::new(PaySafeCardData {}),
             )),
-            payments::GiftCardData::BabyGiftCard {..} => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            payments::GiftCardData::BabyGiftCard { .. } => {
+                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
+            }
         }
     }
 }
