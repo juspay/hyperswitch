@@ -1258,6 +1258,11 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                         Some(storage_enums::PaymentMethod::BankTransfer);
                     pm
                 }
+                Some(api::PaymentMethodData::BankRedirect(_)) => {
+                    payment_data.payment_attempt.payment_method =
+                        Some(storage_enums::PaymentMethod::BankRedirect);
+                    pm
+                }
                 Some(_) => Err(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
                     .attach_printable(
@@ -1280,7 +1285,6 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             Ok(pm_opt.to_owned())
         }
         (pm @ Some(api::PaymentMethodData::PayLater(_)), _) => Ok(pm.to_owned()),
-        (pm @ Some(api::PaymentMethodData::BankRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Crypto(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::BankDebit(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Upi(_)), _) => Ok(pm.to_owned()),
@@ -1307,6 +1311,18 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 pm,
                 payment_data.payment_intent.customer_id.to_owned(),
                 enums::PaymentMethod::Wallet,
+            )
+            .await?;
+            payment_data.token = Some(token);
+            Ok(pm_opt.to_owned())
+        }
+        (pm_opt @ Some(pm @ api::PaymentMethodData::BankRedirect(_)), _) => {
+            let token = vault::Vault::store_payment_method_data_in_locker(
+                state,
+                None,
+                pm,
+                payment_data.payment_intent.customer_id.to_owned(),
+                enums::PaymentMethod::BankRedirect,
             )
             .await?;
             payment_data.token = Some(token);

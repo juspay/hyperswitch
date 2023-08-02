@@ -665,3 +665,13 @@ pub struct TokenizedBankTransferValue1 {
 pub struct TokenizedBankTransferValue2 {
     pub customer_id: Option<String>,
 }
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankRedirectValue1 {
+    pub data: payments::BankRedirectData,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankRedirectValue2 {
+    pub customer_id: Option<String>,
+}

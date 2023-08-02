@@ -7,7 +7,9 @@ use std::sync::{atomic, Arc};
 
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
-use external_services::kms;
+use external_services::kms::{self, decrypt::KmsDecrypt};
+#[cfg(not(feature = "kms"))]
+use masking::PeekInterface;
 use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
 use tokio::sync::oneshot;
 
@@ -166,11 +168,13 @@ impl Store {
         async_spawn!({
             redis_clone.on_error(shut_down_signal).await;
         });
+        #[cfg(feature = "kms")]
+        let kms_client = kms::get_kms_client(&config.kms).await;
 
         let master_enc_key = get_master_enc_key(
             config,
             #[cfg(feature = "kms")]
-            &config.kms,
+            kms_client,
         )
         .await;
 
@@ -179,7 +183,7 @@ impl Store {
                 &config.master_database,
                 test_transaction,
                 #[cfg(feature = "kms")]
-                &config.kms,
+                kms_client,
             )
             .await,
             #[cfg(feature = "olap")]
@@ -187,7 +191,7 @@ impl Store {
                 &config.replica_database,
                 test_transaction,
                 #[cfg(feature = "kms")]
-                &config.kms,
+                kms_client,
             )
             .await,
             redis_conn,
@@ -248,13 +252,14 @@ impl Store {
 #[allow(clippy::expect_used)]
 async fn get_master_enc_key(
     conf: &crate::configs::settings::Settings,
-    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
+    #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
 ) -> Vec<u8> {
     #[cfg(feature = "kms")]
     let master_enc_key = hex::decode(
-        kms::get_kms_client(kms_config)
-            .await
-            .decrypt(&conf.secrets.master_enc_key)
+        conf.secrets
+            .master_enc_key
+            .clone()
+            .decrypt_inner(kms_client)
             .await
             .expect("Failed to decrypt master enc key"),
     )
@@ -262,7 +267,7 @@ async fn get_master_enc_key(
 
     #[cfg(not(feature = "kms"))]
     let master_enc_key =
-        hex::decode(&conf.secrets.master_enc_key).expect("Failed to decode from hex");
+        hex::decode(conf.secrets.master_enc_key.peek()).expect("Failed to decode from hex");
 
     master_enc_key
 }
