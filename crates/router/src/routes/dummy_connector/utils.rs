@@ -128,7 +128,6 @@ pub fn get_authorize_page(
                     }
                     div.contact_item.hover_cursor onclick="https://discord.gg/wJZ7DVW8mm" {
                         img src="https://hyperswitch.io/logos/logo_discord.svg" alt="Discord Logo" {}
-                        
                     }
                     div.border_vertical {}
                     div.contact_item.email {
@@ -168,7 +167,6 @@ pub fn get_expired_page() -> String {
                     }
                     div.contact_item.hover_cursor onclick="https://discord.gg/wJZ7DVW8mm" {
                         img src="https://hyperswitch.io/logos/logo_discord.svg" alt="Discord Logo" {}
-                        
                     }
                     div.border_vertical {}
                     div.contact_item.email {
