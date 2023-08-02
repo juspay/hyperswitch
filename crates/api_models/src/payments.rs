@@ -1265,13 +1265,13 @@ pub struct BoletoVoucherData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum VoucherData {
-    Boleto(BoletoVoucherData),
+    Boleto(Box<BoletoVoucherData>),
     Efecty,
     PagoEfectivo,
     RedCompra,
     RedPagos,
-    Alfamart(AlfamartVoucherData),
-    Indomaret(IndomaretVoucherData),
+    Alfamart(Box<AlfamartVoucherData>),
+    Indomaret(Box<IndomaretVoucherData>),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
