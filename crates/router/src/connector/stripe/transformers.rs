@@ -1377,7 +1377,15 @@ fn create_stripe_payment_method(
                         billing_details,
                     ))
                 }
-                payments::BankTransferData::Pix {} | payments::BankTransferData::Pse {} => {
+                payments::BankTransferData::Pix {}
+                | payments::BankTransferData::Pse {}
+                | payments::BankTransferData::PermataBankTransfer { .. }
+                | payments::BankTransferData::BcaBankTransfer { .. }
+                | payments::BankTransferData::BniVaBankTransfer { .. }
+                | payments::BankTransferData::BriVaBankTransfer { .. }
+                | payments::BankTransferData::CimbVaBankTransfer { .. }
+                | payments::BankTransferData::DanamonVaBankTransfer { .. }
+                | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         util_connector::payment_method_error_message("stripe"),
                     )
@@ -2650,6 +2658,24 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                     }
                     payments::BankTransferData::SepaBankTransfer { .. }
                     | payments::BankTransferData::BacsBankTransfer { .. }
+                    | payments::BankTransferData::PermataBankTransfer { .. }
+                    | payments::BankTransferData::BcaBankTransfer { .. }
+                    | payments::BankTransferData::BniVaBankTransfer { .. }
+                    | payments::BankTransferData::BriVaBankTransfer { .. }
+                    | payments::BankTransferData::CimbVaBankTransfer { .. }
+                    | payments::BankTransferData::DanamonVaBankTransfer { .. }
+                    | payments::BankTransferData::MandiriVaBankTransfer { .. }
+                    | payments::BankTransferData::Pix { .. }
+                    | payments::BankTransferData::Pse { .. } => Err(
+                        errors::ConnectorError::NotImplemented("Bank Transfer Method".to_string())
+                            .into(),
+                    ),
+                }
+            }
+            _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
+        }
+                    payments::BankTransferData::SepaBankTransfer { .. }
+                    | payments::BankTransferData::BacsBankTransfer { .. }
                     | payments::BankTransferData::Pix {}
                     | payments::BankTransferData::Pse {} => {
                         Err(errors::ConnectorError::NotImplemented(
@@ -3135,6 +3161,18 @@ impl
                     payments::BankTransferData::Pix {} | payments::BankTransferData::Pse {} => {
                         Err(errors::ConnectorError::NotImplemented(
                             util_connector::payment_method_error_message("stripe"),
+                        )
+                        .into())
+                    }
+                    payments::BankTransferData::PermataBankTransfer { .. }
+                    | payments::BankTransferData::BcaBankTransfer { .. }
+                    | payments::BankTransferData::BniVaBankTransfer { .. }
+                    | payments::BankTransferData::BriVaBankTransfer { .. }
+                    | payments::BankTransferData::CimbVaBankTransfer { .. }
+                    | payments::BankTransferData::DanamonVaBankTransfer { .. }
+                    | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
+                        Err(errors::ConnectorError::NotImplemented(
+                            "this payment method for stripe".to_string(),
                         )
                         .into())
                     }

@@ -245,6 +245,10 @@ impl
                 ZenPaymentChannels::PclBoacompraRedcompra
             }
             api_models::payments::VoucherData::RedPagos => ZenPaymentChannels::PclBoacompraRedpagos,
+            api_models::payments::VoucherData::Alfamart { .. }
+            | api_models::payments::VoucherData::Indomaret { .. } => Err(
+                errors::ConnectorError::NotImplemented("payment method".to_string()),
+            )?,
         };
         Ok(Self::ApiRequest(Box::new(ApiRequest {
             merchant_transaction_id: item.attempt_id.clone(),
