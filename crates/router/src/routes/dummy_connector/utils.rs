@@ -25,7 +25,11 @@ pub async fn store_data_in_redis(
     data: impl serde::Serialize + Debug,
     ttl: i64,
 ) -> types::DummyConnectorResult<()> {
-    let redis_conn = state.store.get_redis_conn();
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::DummyConnectorErrors::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
 
     redis_conn
         .serialize_and_set_key_with_expiry(&key, data, ttl)
@@ -39,7 +43,12 @@ pub async fn get_payment_data_from_payment_id(
     state: &AppState,
     payment_id: String,
 ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
-    let redis_conn = state.store.get_redis_conn();
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::DummyConnectorErrors::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
     redis_conn
         .get_and_deserialize_key::<types::DummyConnectorPaymentData>(
             payment_id.as_str(),
@@ -53,7 +62,12 @@ pub async fn get_payment_data_by_attempt_id(
     state: &AppState,
     attempt_id: String,
 ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
-    let redis_conn = state.store.get_redis_conn();
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::DummyConnectorErrors::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
     redis_conn
         .get_and_deserialize_key::<String>(attempt_id.as_str(), "String")
         .await
