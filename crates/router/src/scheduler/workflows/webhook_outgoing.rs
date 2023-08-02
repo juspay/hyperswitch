@@ -1,6 +1,6 @@
-use common_utils::ext_traits::AsyncExt;
-use router_env::logger;
+use common_utils::ext_traits::{AsyncExt, ValueExt};
 
+use super::{OutgoingWebhookWorkflow, ProcessTrackerWorkflow};
 use crate::{
     core::{
         errors,
@@ -11,8 +11,6 @@ use crate::{
     scheduler::{consumer, utils as pt_utils},
     types::{domain, storage},
 };
-
-use super::{OutgoingWebhookWorkflow, ProcessTrackerWorkflow};
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow for OutgoingWebhookWorkflow {
@@ -25,7 +23,9 @@ impl ProcessTrackerWorkflow for OutgoingWebhookWorkflow {
             .tracking_data
             .clone()
             .parse_value("WebhookWorkflowData")?;
-        Ok(tracking_data.trigger_outgoing_webhook(state).await?)
+        Ok(tracking_data
+            .trigger_outgoing_webhook::<api_models::webhooks::OutgoingWebhook>(state)
+            .await?)
     }
 
     async fn error_handler<'a>(
@@ -38,7 +38,7 @@ impl ProcessTrackerWorkflow for OutgoingWebhookWorkflow {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum WebhookWorkflowData {
     PaymentWebhook(diesel_models::payment_intent::PaymentIntent),
     RefundWebhook(diesel_models::refund::Refund),
@@ -121,14 +121,15 @@ pub async fn schedule_outgoing_workflow_event<T: Into<WebhookWorkflowData> + Clo
     let process_tracker_id =
         common_utils::generate_id_with_default_len(&format!("{}_{}", runner, task));
 
-    let process_tracker_entry = <storage::ProcessTracker as storage::ProcessTrackerExt>::make_process_tracker_new(
-        process_tracker_id,
-        task,
-        runner,
-        workflow_data.clone().into(),
-        pt_utils::get_time_from_delta(Some(schedule_time))
-            .unwrap_or(common_utils::date_time::now()),
-    );
+    let process_tracker_entry =
+        <storage::ProcessTracker as storage::ProcessTrackerExt>::make_process_tracker_new(
+            process_tracker_id,
+            task,
+            runner,
+            workflow_data.clone().into(),
+            pt_utils::get_time_from_delta(Some(schedule_time))
+                .unwrap_or(common_utils::date_time::now()),
+        );
 
     match process_tracker_entry
         .async_and_then(|new_entry| async { Ok(db.insert_process(new_entry).await?) })
