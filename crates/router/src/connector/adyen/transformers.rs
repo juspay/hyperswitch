@@ -293,15 +293,6 @@ pub struct QrCodeResponseResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenWSAction {
-    payment_method_type: PaymentType,
-    #[serde(rename = "type")]
-    type_of_response: ActionType,
-    payment_data: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct AdyenQrCodeAction {
     payment_method_type: PaymentType,
     #[serde(rename = "type")]
@@ -368,10 +359,11 @@ pub enum AdyenPaymentMethod<'a> {
     AliPayHk(Box<AliPayHkData>),
     ApplePay(Box<AdyenApplePay>),
     #[serde(rename = "atome")]
-    Atome(Box<AtomeData>),
+    Atome,
     BancontactCard(Box<BancontactCardData>),
     Bizum(Box<BankRedirectionPMData>),
     Blik(Box<BlikRedirectionData>),
+    #[serde(rename = "boletobancario")]
     BoletoBancario(Box<AdyenVoucherData>),
     #[serde(rename = "clearpay")]
     ClearPay,
@@ -859,9 +851,6 @@ pub struct AdyenApplePay {
     #[serde(rename = "applePayToken")]
     apple_pay_token: Secret<String>,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AtomeData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdyenPayLaterData {
@@ -1647,7 +1636,7 @@ impl<'a> TryFrom<(&api::PayLaterData, Option<api_enums::CountryAlpha2>)>
                 })),
             ),
             api_models::payments::PayLaterData::AtomeRedirect { .. } => {
-                Ok(AdyenPaymentMethod::Atome(Box::new(AtomeData {})))
+                Ok(AdyenPaymentMethod::Atome)
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
@@ -2558,12 +2547,6 @@ pub fn get_qr_code_response(
         connector_response_reference_id: None,
     };
     Ok((status, error, payments_response_data))
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VoucherNextStepData {
-    download_url: Option<Url>,
-    reference: Secret<String>,
 }
 
 pub fn get_redirection_error_response(
