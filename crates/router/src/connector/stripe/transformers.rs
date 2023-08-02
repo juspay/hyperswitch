@@ -600,6 +600,15 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::UpiCollect
             | enums::PaymentMethodType::Vipps
             | enums::PaymentMethodType::Cashapp
+            | enums::PaymentMethodType::Alfamart
+            | enums::PaymentMethodType::BcaBankTransfer
+            | enums::PaymentMethodType::BniVa
+            | enums::PaymentMethodType::CimbVa
+            | enums::PaymentMethodType::BriVa
+            | enums::PaymentMethodType::DanamonVa
+            | enums::PaymentMethodType::Indomaret
+            | enums::PaymentMethodType::MandiriVa
+            | enums::PaymentMethodType::PermataBankTransfer
             | enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotImplemented(
                 util_connector::payment_method_error_message("stripe"),
             )
@@ -887,6 +896,15 @@ fn infer_stripe_pay_later_type(
             | enums::PaymentMethodType::Vipps
             | enums::PaymentMethodType::Walley
             | enums::PaymentMethodType::Cashapp
+            | enums::PaymentMethodType::Alfamart
+            | enums::PaymentMethodType::BcaBankTransfer
+            | enums::PaymentMethodType::BniVa
+            | enums::PaymentMethodType::CimbVa
+            | enums::PaymentMethodType::BriVa
+            | enums::PaymentMethodType::DanamonVa
+            | enums::PaymentMethodType::Indomaret
+            | enums::PaymentMethodType::MandiriVa
+            | enums::PaymentMethodType::PermataBankTransfer
             | enums::PaymentMethodType::WeChatPay => Err(errors::ConnectorError::NotImplemented(
                 util_connector::payment_method_error_message("stripe"),
             )),
@@ -2666,18 +2684,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                     | payments::BankTransferData::DanamonVaBankTransfer { .. }
                     | payments::BankTransferData::MandiriVaBankTransfer { .. }
                     | payments::BankTransferData::Pix { .. }
-                    | payments::BankTransferData::Pse { .. } => Err(
-                        errors::ConnectorError::NotImplemented("Bank Transfer Method".to_string())
-                            .into(),
-                    ),
-                }
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
-        }
-                    payments::BankTransferData::SepaBankTransfer { .. }
-                    | payments::BankTransferData::BacsBankTransfer { .. }
-                    | payments::BankTransferData::Pix {}
-                    | payments::BankTransferData::Pse {} => {
+                    | payments::BankTransferData::Pse { .. } => {
                         Err(errors::ConnectorError::NotImplemented(
                             util_connector::payment_method_error_message("stripe"),
                         )

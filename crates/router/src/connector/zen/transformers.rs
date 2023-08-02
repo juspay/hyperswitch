@@ -298,7 +298,14 @@ impl
             }
             api_models::payments::BankTransferData::AchBankTransfer { .. }
             | api_models::payments::BankTransferData::SepaBankTransfer { .. }
-            | api_models::payments::BankTransferData::BacsBankTransfer { .. } => Err(
+            | api_models::payments::BankTransferData::BacsBankTransfer { .. }
+            | api_models::payments::BankTransferData::PermataBankTransfer { .. }
+            | api_models::payments::BankTransferData::BcaBankTransfer { .. }
+            | api_models::payments::BankTransferData::BniVaBankTransfer { .. }
+            | api_models::payments::BankTransferData::BriVaBankTransfer { .. }
+            | api_models::payments::BankTransferData::CimbVaBankTransfer { .. }
+            | api_models::payments::BankTransferData::DanamonVaBankTransfer { .. }
+            | api_models::payments::BankTransferData::MandiriVaBankTransfer { .. } => Err(
                 errors::ConnectorError::NotImplemented(utils::payment_method_error_message("zen")),
             )?,
         };
