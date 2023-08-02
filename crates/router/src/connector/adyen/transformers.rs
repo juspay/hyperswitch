@@ -1402,11 +1402,7 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
     type Error = Error;
     fn try_from(voucher_data: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
         match voucher_data {
-            payments::VoucherData::Boleto { .. } => Ok(AdyenPaymentMethod::BoletoBancario(
-                Box::new(AdyenVoucherData {
-                    payment_type: PaymentType::BoletoBancario,
-                }),
-            )),
+            payments::VoucherData::Boleto { .. } => Ok(AdyenPaymentMethod::BoletoBancario),
             payments::VoucherData::Alfamart(alfarmart_data) => {
                 Ok(AdyenPaymentMethod::Alfamart(Box::new(DokuBankData {
                     first_name: alfarmart_data.first_name.clone(),
@@ -2742,7 +2738,7 @@ pub fn get_wait_screen_metadata(
         | PaymentType::CimbVa
         | PaymentType::DanamonVa
         | PaymentType::MandiriVa
-        | PaymentType::PaySafeCard => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
+        | PaymentType::PaySafeCard => Ok(None),
     }
 }
 
@@ -2830,7 +2826,7 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Twint
         | PaymentType::Vipps
         | PaymentType::Swish
-        | PaymentType::PaySafeCard => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
+        | PaymentType::PaySafeCard => Ok(None),
     }
 }
 
