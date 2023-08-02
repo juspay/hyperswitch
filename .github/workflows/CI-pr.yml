@@ -288,10 +288,10 @@ jobs:
         with:
           crate: cargo-hack
 
-      # - name: Install cargo-nextest
-      #   uses: baptiste0928/cargo-install@v2.1.0
-      #   with:
-      #     crate: cargo-nextest
+      - name: Install cargo-nextest
+        uses: baptiste0928/cargo-install@v2.1.0
+        with:
+          crate: cargo-nextest
 
       - uses: Swatinem/rust-cache@v2.4.0
         with:
@@ -444,6 +444,22 @@ jobs:
         if: env.test_utils_changes_exist == 'true'
         shell: bash
         run: cargo hack check --each-feature --no-dev-deps -p test_utils
+
+      - name: Run unit tests
+        shell: bash
+        # `cargo` does not allow us to exclude specific features from all features,
+        # so we're using `cargo metadata` to obtain all features from all workspace crates
+        # and exclude specific features from the list.
+        run: |
+          FEATURES=$(cargo metadata --all-features --format-version 1 | \
+            jq -r '
+                [ .workspace_members[] | split(" ") | first ] as $crates # Store workspace crates in `crates` array
+                | [ .packages[] | select( any( .name ; . == $crates[] ) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
+                | del( .[] | select( any( . ; . == ("basilisk", "kms", "release", "s3") ) ) ) # Exclude some features from features list
+                | join(",") # Construct a comma-separated string of features for passing to `cargo`
+            ')
+          cargo nextest run --profile ci -E 'kind(lib)' --features "${FEATURES}"
+          # cargo test --doc --features "${FEATURES}"
 
   typos:
     name: Spell check
