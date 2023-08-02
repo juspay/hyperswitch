@@ -1,6 +1,6 @@
 use masking::Secret;
 use router::types::{self, api, storage::enums};
-use test_utils::connector_auth;
+use test_utils::connector_auth::ConnectorAuthentication;
 
 use crate::utils::{self, ConnectorActions};
 
@@ -18,10 +18,11 @@ impl utils::Connector for SquareTest {
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
-            connector_auth::ConnectorAuthentication::new()
+        utils::to_connector_auth_type(
+            ConnectorAuthentication::new()
                 .square
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
