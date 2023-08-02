@@ -832,6 +832,7 @@ pub struct TrustpayCreateIntentRequest {
     pub init_apple_pay: Option<bool>,
     // If true, Google pay will be initialized
     pub init_google_pay: Option<bool>,
+    pub reference: String,
 }
 
 impl TryFrom<&types::PaymentsPreProcessingRouterData> for TrustpayCreateIntentRequest {
@@ -878,6 +879,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for TrustpayCreateIntentRe
             currency: currency.to_string(),
             init_apple_pay: is_apple_pay,
             init_google_pay: is_google_pay,
+            reference: item.payment_id.clone(),
         })
     }
 }

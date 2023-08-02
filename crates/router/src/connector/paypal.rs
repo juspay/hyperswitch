@@ -54,7 +54,8 @@ impl Paypal {
         connector_meta: &Option<serde_json::Value>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         match payment_method {
-            Some(diesel_models::enums::PaymentMethod::Wallet) => {
+            Some(diesel_models::enums::PaymentMethod::Wallet)
+            | Some(diesel_models::enums::PaymentMethod::BankRedirect) => {
                 let meta: PaypalMeta = to_connector_meta(connector_meta.clone())?;
                 Ok(Some(meta.order_id))
             }
@@ -384,7 +385,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         match data.payment_method {
-            diesel_models::enums::PaymentMethod::Wallet => {
+            diesel_models::enums::PaymentMethod::Wallet
+            | diesel_models::enums::PaymentMethod::BankRedirect => {
                 let response: paypal::PaypalRedirectResponse = res
                     .response
                     .parse_struct("paypal PaymentsRedirectResponse")
@@ -516,7 +518,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<String, errors::ConnectorError> {
         let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
         match req.payment_method {
-            diesel_models::enums::PaymentMethod::Wallet => Ok(format!(
+            diesel_models::enums::PaymentMethod::Wallet
+            | diesel_models::enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}v2/checkout/orders/{}",
                 self.base_url(connectors),
                 paypal_meta.order_id
@@ -561,7 +564,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         match data.payment_method {
-            diesel_models::enums::PaymentMethod::Wallet => {
+            diesel_models::enums::PaymentMethod::Wallet
+            | diesel_models::enums::PaymentMethod::BankRedirect => {
                 let response: paypal::PaypalOrdersResponse = res
                     .response
                     .parse_struct("paypal PaymentsOrderResponse")
