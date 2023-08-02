@@ -46,7 +46,7 @@ pub async fn api_key_create(
                 state,
                 &state.conf.api_keys,
                 #[cfg(feature = "kms")]
-                &state.conf.kms,
+                external_services::kms::get_kms_client(&state.conf.kms).await,
                 payload,
                 merchant_id.clone(),
             )
