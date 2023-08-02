@@ -150,6 +150,7 @@ pub struct DummyConnector {
     pub refund_tolerance: u64,
     pub refund_retrieve_duration: u64,
     pub refund_retrieve_tolerance: u64,
+    pub authorize_ttl: i64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -279,7 +280,14 @@ pub struct PaymentMethodType(pub HashMap<enums::PaymentMethodType, ConnectorFiel
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ConnectorFields {
-    pub fields: HashMap<enums::Connector, Vec<RequiredFieldInfo>>,
+    pub fields: HashMap<enums::Connector, RequiredFieldFinal>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct RequiredFieldFinal {
+    pub mandate: HashMap<String, RequiredFieldInfo>,
+    pub non_mandate: HashMap<String, RequiredFieldInfo>,
+    pub common: HashMap<String, RequiredFieldInfo>,
 }
 
 fn string_set_deser<'a, D>(
