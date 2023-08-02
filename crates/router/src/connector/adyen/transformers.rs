@@ -950,6 +950,8 @@ pub enum PaymentType {
     OnlineBankingFpx,
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand,
+    #[serde(rename = "paysafecard")]
+    PaySafeCard,
     PayBright,
     Paypal,
     Scheme,
@@ -1444,7 +1446,7 @@ impl<'a> TryFrom<&api_models::payments::GiftCardData> for AdyenPaymentMethod<'a>
             payments::GiftCardData::PaySafeCard {} => Ok(AdyenPaymentMethod::PaySafeCard(
                 Box::new(PaySafeCardData {}),
             )),
-            payments::GiftCardData::BabyGiftCard => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            payments::GiftCardData::BabyGiftCard {..} => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
@@ -2172,6 +2174,7 @@ impl<'a>
             shopper_reference: None,
             store_payment_method: None,
             channel: None,
+            social_security_number: None,
         };
         Ok(request)
     }
@@ -2745,7 +2748,8 @@ pub fn get_wait_screen_metadata(
         | PaymentType::BriVa
         | PaymentType::CimbVa
         | PaymentType::DanamonVa
-        | PaymentType::MandiriVa => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
+        | PaymentType::MandiriVa
+        | PaymentType::PaySafeCard => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
     }
 }
 
@@ -2832,7 +2836,8 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Samsungpay
         | PaymentType::Twint
         | PaymentType::Vipps
-        | PaymentType::Swish => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
+        | PaymentType::Swish
+        | PaymentType::PaySafeCard => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
     }
 }
 
