@@ -771,7 +771,6 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
-    connector::Square,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -806,6 +805,7 @@ default_imp_for_payouts!(
     connector::Payu,
     connector::Powertranz,
     connector::Rapyd,
+    connector::Square,
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
@@ -845,7 +845,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
-    connector::Square,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -880,6 +879,7 @@ default_imp_for_payouts_create!(
     connector::Payu,
     connector::Powertranz,
     connector::Rapyd,
+    connector::Square,
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
@@ -922,7 +922,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
-    connector::Square,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -957,6 +956,7 @@ default_imp_for_payouts_eligibility!(
     connector::Payu,
     connector::Powertranz,
     connector::Rapyd,
+    connector::Square,
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
@@ -996,7 +996,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
-    connector::Square,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1031,6 +1030,7 @@ default_imp_for_payouts_fulfill!(
     connector::Payu,
     connector::Powertranz,
     connector::Rapyd,
+    connector::Square,
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
@@ -1070,7 +1070,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
-    connector::Square,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1105,6 +1104,7 @@ default_imp_for_payouts_cancel!(
     connector::Payu,
     connector::Powertranz,
     connector::Rapyd,
+    connector::Square,
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
@@ -1144,7 +1144,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
-    connector::Square,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1180,6 +1179,7 @@ default_imp_for_payouts_quote!(
     connector::Payu,
     connector::Powertranz,
     connector::Rapyd,
+    connector::Square,
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
@@ -1219,7 +1219,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
-    connector::Square,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1255,6 +1254,7 @@ default_imp_for_payouts_recipient!(
     connector::Payu,
     connector::Powertranz,
     connector::Rapyd,
+    connector::Square,
     connector::Stax,
     connector::Stripe,
     connector::Shift4,
