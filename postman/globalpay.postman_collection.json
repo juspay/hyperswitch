@@ -723,7 +723,7 @@
 													"  pm.expect(jsonData.status).to.eql(\"succeeded\");",
 													"})};",
 													"",
-													"// Validate conector",
+													"// Validate connector",
 													"pm.test(\"[POST]::/payments - connector is globalpay\", function () {",
 													"   pm.expect(jsonData.connector).to.eql(\"globalpay\");",
 													"});",

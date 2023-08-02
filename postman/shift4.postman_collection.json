@@ -3777,7 +3777,7 @@
 													"})};",
 													"",
 													"",
-													"// Response body should have value \"shif4\" for \"connector\"",
+													"// Response body should have value \"shift4\" for \"connector\"",
 													"if (jsonData?.connector) {",
 													"pm.test(\"[POST]::/payments/:id/confirm - Content check if value for 'connector' matches 'shift4'\", function() {",
 													"  pm.expect(jsonData.connector).to.eql(\"shift4\");",

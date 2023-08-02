@@ -129,7 +129,6 @@ fn main() {
     newman_command.arg("--delay-request").arg("5");
 
     newman_command.arg("--color").arg("on");
-    newman_command.arg("--verbose");
 
     // Execute the newman command
     let output = newman_command.spawn();

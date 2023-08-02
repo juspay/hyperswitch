@@ -603,7 +603,7 @@
 										"refunds"
 									]
 								},
-								"description": "To create a refund againt an already processed payment"
+								"description": "To create a refund against an already processed payment"
 							},
 							"response": []
 						},
@@ -1078,7 +1078,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -1382,7 +1382,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -2517,7 +2517,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -2894,7 +2894,7 @@
 												"refunds"
 											]
 										},
-										"description": "To create a refund againt an already processed payment"
+										"description": "To create a refund against an already processed payment"
 									},
 									"response": []
 								},
@@ -3251,7 +3251,7 @@
 												"refunds"
 											]
 										},
-										"description": "To create a refund againt an already processed payment"
+										"description": "To create a refund against an already processed payment"
 									},
 									"response": []
 								},
@@ -3406,7 +3406,7 @@
 												"refunds"
 											]
 										},
-										"description": "To create a refund againt an already processed payment"
+										"description": "To create a refund against an already processed payment"
 									},
 									"response": []
 								},
@@ -3814,7 +3814,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -4137,7 +4137,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -4460,7 +4460,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -5184,7 +5184,7 @@
 												}
 											]
 										},
-										"description": "This API is to confirm the payment request and foward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								}
@@ -6525,14 +6525,14 @@
 												"refunds"
 											]
 										},
-										"description": "To create a refund againt an already processed payment"
+										"description": "To create a refund against an already processed payment"
 									},
 									"response": []
 								}
 							]
 						},
 						{
-							"name": "Scenario8-Refund for unsuccessfull payment",
+							"name": "Scenario8-Refund for unsuccessful payment",
 							"item": [
 								{
 									"name": "Payments - Create",
@@ -6806,7 +6806,7 @@
 												"refunds"
 											]
 										},
-										"description": "To create a refund againt an already processed payment"
+										"description": "To create a refund against an already processed payment"
 									},
 									"response": []
 								}
