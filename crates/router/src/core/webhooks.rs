@@ -476,7 +476,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let event_id = format!("{primary_object_id}_{}", event_type.to_string());
     let new_event = storage::EventNew {
-        event_id,
+        event_id: event_id.clone(),
         event_type,
         event_class,
         is_webhook_notified: false,
@@ -485,12 +485,22 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
         primary_object_type,
     };
 
-    let event = state
-        .store
-        .insert_event(new_event)
-        .await
-        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-        .attach_printable("event insertion failure")?;
+    let event_insert_result = state.store.insert_event(new_event).await;
+
+    let event = match event_insert_result {
+        Ok(event) => Ok(event),
+        Err(error) => {
+            if error.current_context().is_db_unique_violation() {
+                logger::info!("Merchant already notified about the event {event_id}");
+                return Ok(());
+            } else {
+                logger::error!(event_insertion_failure=?error);
+                Err(error
+                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .attach_printable("Failed to insert event in events table"))
+            }
+        }
+    }?;
 
     if state.conf.webhooks.outgoing_enabled {
         let arbiter = actix::Arbiter::try_current()
