@@ -21,7 +21,7 @@ use crate::{
     core::errors::{self, CustomResult},
     pii::PeekInterface,
     types::{self, api, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
-    utils::{self, OptionExt, ValueExt},
+    utils::{OptionExt, ValueExt},
 };
 
 pub fn missing_field_err(
@@ -924,7 +924,9 @@ pub fn to_currency_base_unit(
     amount: i64,
     currency: diesel_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    utils::to_currency_base_unit(amount, currency)
+    currency
+        .to_currency_base_unit(amount)
+        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
@@ -932,7 +934,9 @@ pub fn to_currency_base_unit_with_zero_decimal_check(
     amount: i64,
     currency: diesel_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    utils::to_currency_base_unit_with_zero_decimal_check(amount, currency)
+    currency
+        .to_currency_base_unit_with_zero_decimal_check(amount)
+        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
@@ -940,7 +944,9 @@ pub fn to_currency_base_unit_asf64(
     amount: i64,
     currency: diesel_models::enums::Currency,
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
-    utils::to_currency_base_unit_asf64(amount, currency)
+    currency
+        .to_currency_base_unit_asf64(amount)
+        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 

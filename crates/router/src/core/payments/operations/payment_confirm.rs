@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use api_models::enums::CancelTransaction;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::ResultExt;
@@ -380,6 +381,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         storage_scheme: storage_enums::MerchantStorageScheme,
         updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
+        should_cancel_transaction: Option<CancelTransaction>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -387,10 +389,18 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let payment_method = payment_data.payment_attempt.payment_method;
         let browser_info = payment_data.payment_attempt.browser_info.clone();
 
-        let (intent_status, attempt_status) = (
-            storage_enums::IntentStatus::Processing,
-            storage_enums::AttemptStatus::Pending,
-        );
+        let (intent_status, attempt_status) = match should_cancel_transaction {
+            Some(should_cancel) => match should_cancel {
+                CancelTransaction::FrmCancelTransaction => (
+                    storage_enums::IntentStatus::Failed,
+                    storage_enums::AttemptStatus::Failure,
+                ),
+            },
+            None => (
+                storage_enums::IntentStatus::Processing,
+                storage_enums::AttemptStatus::Pending,
+            ),
+        };
 
         let connector = payment_data.payment_attempt.connector.clone();
         let straight_through_algorithm = payment_data
