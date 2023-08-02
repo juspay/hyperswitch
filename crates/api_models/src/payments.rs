@@ -1470,11 +1470,11 @@ pub struct BankTransferNextStepsData {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct VoucherNextStepData {
-    // Voucher expiry date and time
+    /// Voucher expiry date and time
     pub expires_at: Option<String>,
-    // Reference number required for the transaction
+    /// Reference number required for the transaction
     pub reference: String,
-    // Url to download the payment instruction
+    /// Url to download the payment instruction
     pub download_url: Option<Url>,
 }
 
