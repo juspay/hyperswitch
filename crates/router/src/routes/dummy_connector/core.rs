@@ -74,7 +74,9 @@ pub async fn payment_authorize(
         )))
     } else {
         Ok(api::ApplicationResponse::FileData((
-            utils::get_expired_page(dummy_connector_conf).as_bytes().to_vec(),
+            utils::get_expired_page(dummy_connector_conf)
+                .as_bytes()
+                .to_vec(),
             mime::TEXT_HTML,
         )))
     }
