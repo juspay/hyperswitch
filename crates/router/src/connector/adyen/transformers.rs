@@ -2628,7 +2628,59 @@ pub fn get_wait_screen_metadata(
                 display_to_timestamp: None
             })))
         }
-        _ => Ok(None),
+        PaymentType::Affirm 
+        |PaymentType::Afterpaytouch
+        |PaymentType::Alipay
+        |PaymentType::AlipayHk 
+        |PaymentType::Alfamart 
+        |PaymentType::Alma 
+        |PaymentType::Applepay
+        |PaymentType::Bizum
+        |PaymentType::Atome
+        |PaymentType::BoletoBancario
+        |PaymentType::ClearPay 
+        |PaymentType::Dana 
+        |PaymentType::Eps 
+        |PaymentType::Gcash 
+        |PaymentType::Giropay
+        |PaymentType::Googlepay 
+        |PaymentType::GoPay 
+        |PaymentType::Ideal 
+        |PaymentType::Indomaret 
+        |PaymentType::Klarna 
+        |PaymentType::Kakaopay
+        |PaymentType::MobilePay
+        |PaymentType::Momo 
+        |PaymentType::OnlineBankingCzechRepublic 
+        |PaymentType::OnlineBankingFinland 
+        |PaymentType::OnlineBankingPoland
+        |PaymentType::OnlineBankingSlovakia 
+        |PaymentType::OnlineBankingFpx
+        |PaymentType::OnlineBankingThailand 
+        |PaymentType::PayBright
+        |PaymentType::Paypal 
+        |PaymentType::Scheme 
+        |PaymentType::Sofort
+        |PaymentType::NetworkToken 
+        |PaymentType::Trustly 
+        |PaymentType::TouchNGo 
+        |PaymentType::Walley
+        |PaymentType::WeChatPayWeb 
+        |PaymentType::AchDirectDebit
+        |PaymentType::SepaDirectDebit
+        |PaymentType::BacsDirectDebit 
+        |PaymentType::Samsungpay 
+        |PaymentType::Twint
+        |PaymentType::Vipps 
+        |PaymentType::Swish 
+        |PaymentType::PermataBankTransfer
+        |PaymentType::BcaBankTransfer
+        |PaymentType::BniVa
+        |PaymentType::BriVa
+        |PaymentType::CimbVa 
+        |PaymentType::DanamonVa 
+        |PaymentType::MandiriVa => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
+        
     }
 }
 
@@ -2672,7 +2724,50 @@ pub fn get_present_to_shopper_metadata(
             .transpose()
             .change_context(errors::ConnectorError::ResponseHandlingFailed)
         }
-        _ => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
+        PaymentType::Affirm
+        | PaymentType::Afterpaytouch
+        | PaymentType::Alipay
+        | PaymentType::AlipayHk
+        | PaymentType::Alma
+        | PaymentType::Applepay
+        | PaymentType::Bizum
+        | PaymentType::Atome
+        | PaymentType::Blik
+        | PaymentType::ClearPay
+        | PaymentType::Dana
+        | PaymentType::Eps
+        | PaymentType::Gcash
+        | PaymentType::Giropay
+        | PaymentType::Googlepay
+        | PaymentType::GoPay
+        | PaymentType::Ideal
+        | PaymentType::Klarna
+        | PaymentType::Kakaopay
+        | PaymentType::Mbway
+        | PaymentType::MobilePay
+        | PaymentType::Momo
+        | PaymentType::OnlineBankingCzechRepublic
+        | PaymentType::OnlineBankingFinland
+        | PaymentType::OnlineBankingPoland
+        | PaymentType::OnlineBankingSlovakia
+        | PaymentType::OnlineBankingFpx
+        | PaymentType::OnlineBankingThailand
+        | PaymentType::PayBright
+        | PaymentType::Paypal
+        | PaymentType::Scheme
+        | PaymentType::Sofort
+        | PaymentType::NetworkToken
+        | PaymentType::Trustly
+        | PaymentType::TouchNGo
+        | PaymentType::Walley
+        | PaymentType::WeChatPayWeb
+        | PaymentType::AchDirectDebit
+        | PaymentType::SepaDirectDebit
+        | PaymentType::BacsDirectDebit
+        | PaymentType::Samsungpay
+        | PaymentType::Twint
+        | PaymentType::Vipps
+        | PaymentType::Swish => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
     }
 }
 
