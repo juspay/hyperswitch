@@ -2852,7 +2852,8 @@
                 "type": "object",
                 "required": [
                   "billing_details",
-                  "bank_name"
+                  "bank_name",
+                  "country"
                 ],
                 "properties": {
                   "billing_details": {
@@ -2860,6 +2861,9 @@
                   },
                   "bank_name": {
                     "$ref": "#/components/schemas/BankNames"
+                  },
+                  "country": {
+                    "$ref": "#/components/schemas/CountryAlpha2"
                   }
                 }
               }
@@ -2874,7 +2878,8 @@
               "giropay": {
                 "type": "object",
                 "required": [
-                  "billing_details"
+                  "billing_details",
+                  "country"
                 ],
                 "properties": {
                   "billing_details": {
@@ -2889,6 +2894,9 @@
                     "type": "string",
                     "description": "Bank account iban",
                     "nullable": true
+                  },
+                  "country": {
+                    "$ref": "#/components/schemas/CountryAlpha2"
                   }
                 }
               }
@@ -2904,7 +2912,8 @@
                 "type": "object",
                 "required": [
                   "billing_details",
-                  "bank_name"
+                  "bank_name",
+                  "country"
                 ],
                 "properties": {
                   "billing_details": {
@@ -2912,6 +2921,9 @@
                   },
                   "bank_name": {
                     "$ref": "#/components/schemas/BankNames"
+                  },
+                  "country": {
+                    "$ref": "#/components/schemas/CountryAlpha2"
                   }
                 }
               }
@@ -3610,6 +3622,7 @@
           "bitpay",
           "bambora",
           "bluesnap",
+          "boku",
           "braintree",
           "cashtocode",
           "checkout",

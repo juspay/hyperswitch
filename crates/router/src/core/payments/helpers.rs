@@ -1258,6 +1258,11 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                         Some(storage_enums::PaymentMethod::BankTransfer);
                     pm
                 }
+                Some(api::PaymentMethodData::BankRedirect(_)) => {
+                    payment_data.payment_attempt.payment_method =
+                        Some(storage_enums::PaymentMethod::BankRedirect);
+                    pm
+                }
                 Some(_) => Err(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
                     .attach_printable(
@@ -1280,7 +1285,6 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             Ok(pm_opt.to_owned())
         }
         (pm @ Some(api::PaymentMethodData::PayLater(_)), _) => Ok(pm.to_owned()),
-        (pm @ Some(api::PaymentMethodData::BankRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Crypto(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::BankDebit(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Upi(_)), _) => Ok(pm.to_owned()),
@@ -1306,6 +1310,18 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 pm,
                 payment_data.payment_intent.customer_id.to_owned(),
                 enums::PaymentMethod::Wallet,
+            )
+            .await?;
+            payment_data.token = Some(token);
+            Ok(pm_opt.to_owned())
+        }
+        (pm_opt @ Some(pm @ api::PaymentMethodData::BankRedirect(_)), _) => {
+            let token = vault::Vault::store_payment_method_data_in_locker(
+                state,
+                None,
+                pm,
+                payment_data.payment_intent.customer_id.to_owned(),
+                enums::PaymentMethod::BankRedirect,
             )
             .await?;
             payment_data.token = Some(token);
@@ -1519,6 +1535,13 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Multibanco
                 | api_enums::PaymentMethodType::Pix
                 | api_enums::PaymentMethodType::Pse
+                | api_enums::PaymentMethodType::PermataBankTransfer
+                | api_enums::PaymentMethodType::BcaBankTransfer
+                | api_enums::PaymentMethodType::BniVa
+                | api_enums::PaymentMethodType::BriVa
+                | api_enums::PaymentMethodType::CimbVa
+                | api_enums::PaymentMethodType::DanamonVa
+                | api_enums::PaymentMethodType::MandiriVa
         ),
         api_enums::PaymentMethod::BankDebit => matches!(
             payment_method_type,
@@ -1546,6 +1569,8 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::PagoEfectivo
                 | api_enums::PaymentMethodType::RedCompra
                 | api_enums::PaymentMethodType::RedPagos
+                | api_enums::PaymentMethodType::Indomaret
+                | api_enums::PaymentMethodType::Alfamart
         ),
         api_enums::PaymentMethod::GiftCard =>  matches!(
             payment_method_type,

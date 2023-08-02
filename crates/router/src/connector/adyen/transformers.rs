@@ -364,7 +364,7 @@ pub enum AdyenPaymentMethod<'a> {
     Bizum(Box<BankRedirectionPMData>),
     Blik(Box<BlikRedirectionData>),
     #[serde(rename = "boletobancario")]
-    BoletoBancario(Box<AdyenVoucherData>),
+    BoletoBancario,
     #[serde(rename = "clearpay")]
     ClearPay,
     #[serde(rename = "dana")]
@@ -870,13 +870,6 @@ pub struct DokuBankData {
     last_name: Option<Secret<String>>,
     shopper_email: Email,
 }
-
-#[derive(Debug, Clone, Serialize)]
-pub struct AdyenVoucherData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
-
 // Refunds Request and Response
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

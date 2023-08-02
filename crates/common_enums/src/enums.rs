@@ -764,10 +764,13 @@ pub enum IntentStatus {
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumVariantNames,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
