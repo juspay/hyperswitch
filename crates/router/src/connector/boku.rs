@@ -625,10 +625,13 @@ fn get_xml_deserialized(res: Response) -> CustomResult<ErrorResponse, errors::Co
         .into_report()
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+    // check for whether the response is in xml format
     match roxmltree::Document::parse(&response_data) {
+        // in case of unexpected response but in xml format
         Ok(_) => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        // in case of unexpected response but in html or string format
         Err(_) => {
-            logger::error!(response_data); // in case of html response
+            logger::error!("UNEXPECTED RESPONSE FROM CONNECTOR: {}", response_data);
             Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: consts::NO_ERROR_CODE.to_string(),

@@ -97,10 +97,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)> for BokuPa
     ) -> Result<Self, Self::Error> {
         let (item, wallet_data) = value;
         let address = item.get_billing_address()?;
-        let country = match address.get_country() {
-            Ok(cn_code) => cn_code.to_string(),
-            Err(err) => Err(err)?,
-        };
+        let country = address.get_country()?.to_string();
         let payment_method = get_wallet_type(wallet_data)?;
         let hosted = get_hosted_data(item);
         let auth_type = BokuAuthType::try_from(&item.connector_auth_type)?;
@@ -177,10 +174,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for BokuPsyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         let address = item.get_billing_address()?;
-        let country = match address.get_country() {
-            Ok(cn_code) => cn_code.to_string(),
-            Err(err) => Err(err)?,
-        };
+        let country = address.get_country()?.to_string();
         let auth_type = BokuAuthType::try_from(&item.connector_auth_type)?;
 
         Ok(Self {
@@ -384,10 +378,7 @@ impl TryFrom<&types::RefundSyncRouterData> for BokuRsyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
         let address = item.get_billing_address()?;
-        let country = match address.get_country() {
-            Ok(cn_code) => cn_code.to_string(),
-            Err(err) => Err(err)?,
-        };
+        let country = address.get_country()?.to_string();
         let auth_type = BokuAuthType::try_from(&item.connector_auth_type)?;
 
         Ok(Self {
