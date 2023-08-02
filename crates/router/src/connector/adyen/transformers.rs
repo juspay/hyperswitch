@@ -364,7 +364,7 @@ pub enum AdyenPaymentMethod<'a> {
     Bizum(Box<BankRedirectionPMData>),
     Blik(Box<BlikRedirectionData>),
     #[serde(rename = "boletobancario")]
-    BoletoBancario(Box<AdyenVoucherData>),
+    BoletoBancario,
     #[serde(rename = "clearpay")]
     ClearPay,
     #[serde(rename = "dana")]
@@ -865,13 +865,6 @@ pub struct DokuBankData {
     last_name: Option<Secret<String>>,
     shopper_email: Email,
 }
-
-#[derive(Debug, Clone, Serialize)]
-pub struct AdyenVoucherData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
-
 // Refunds Request and Response
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1399,11 +1392,7 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
     type Error = Error;
     fn try_from(voucher_data: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
         match voucher_data {
-            payments::VoucherData::Boleto { .. } => Ok(AdyenPaymentMethod::BoletoBancario(
-                Box::new(AdyenVoucherData {
-                    payment_type: PaymentType::BoletoBancario,
-                }),
-            )),
+            payments::VoucherData::Boleto { .. } => Ok(AdyenPaymentMethod::BoletoBancario),
             payments::VoucherData::Alfamart(alfarmart_data) => {
                 Ok(AdyenPaymentMethod::Alfamart(Box::new(DokuBankData {
                     first_name: alfarmart_data.first_name.clone(),
@@ -2679,7 +2668,7 @@ pub fn get_wait_screen_metadata(
         | PaymentType::BriVa
         | PaymentType::CimbVa
         | PaymentType::DanamonVa
-        | PaymentType::MandiriVa => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
+        | PaymentType::MandiriVa => Ok(None),
     }
 }
 
@@ -2766,7 +2755,7 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Samsungpay
         | PaymentType::Twint
         | PaymentType::Vipps
-        | PaymentType::Swish => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
+        | PaymentType::Swish => Ok(None),
     }
 }
 
