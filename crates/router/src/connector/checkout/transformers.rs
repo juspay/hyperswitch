@@ -6,7 +6,7 @@ use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    connector::utils::{RouterData, WalletData},
+    connector::utils::{self, RouterData, WalletData},
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
@@ -84,9 +84,9 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                 | api_models::payments::WalletData::SwishQr(_)
                 | api_models::payments::WalletData::WeChatPayQr(_) => {
                     Err(errors::ConnectorError::NotImplemented(
-                        "This wallet is not implemented for checkout".to_string(),
-                    ))
-                    .into_report()
+                        utils::payment_method_error_message("checkout"),
+                    )
+                    .into())
                 }
             },
             api_models::payments::PaymentMethodData::Card(_)
@@ -100,9 +100,11 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::GiftCard(_) => Err(
-                errors::ConnectorError::NotImplemented("Payment Method".to_string()),
-            )
-            .into_report(),
+                errors::ConnectorError::NotImplemented(utils::payment_method_error_message(
+                    "checkout",
+                ))
+                .into(),
+            ),
         }
     }
 }
@@ -258,7 +260,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                 | api_models::payments::WalletData::SwishQr(_)
                 | api_models::payments::WalletData::WeChatPayQr(_) => {
                     Err(errors::ConnectorError::NotImplemented(
-                        "This wallet is not implemented for checkout".to_string(),
+                        utils::payment_method_error_message("checkout"),
                     ))
                 }
             },
@@ -272,9 +274,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
             | api_models::payments::PaymentMethodData::Reward(_)
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => Err(
-                errors::ConnectorError::NotImplemented("Payment Method".to_string()),
-            ),
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::payment_method_error_message("checkout"),
+                ))
+            }
         }?;
 
         let three_ds = match item.auth_type {

@@ -653,11 +653,9 @@ impl<F>
                 | payments::WalletData::CashappQr(_)
                 | payments::WalletData::SwishQr(_)
                 | payments::WalletData::WeChatPayQr(_) => {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: "Wallet".to_string(),
-                        connector: "Nuvei",
-                        payment_experience: "RedirectToUrl".to_string(),
-                    }
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::payment_method_error_message("nuvei"),
+                    )
                     .into())
                 }
             },
@@ -694,11 +692,9 @@ impl<F>
                 | payments::BankRedirectData::Trustly { .. }
                 | payments::BankRedirectData::OnlineBankingFpx { .. }
                 | payments::BankRedirectData::OnlineBankingThailand { .. } => {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: "Bank Redirect".to_string(),
-                        connector: "Nuvei",
-                        payment_experience: "RedirectToUrl".to_string(),
-                    }
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::payment_method_error_message("nuvei"),
+                    )
                     .into())
                 }
             },
@@ -715,11 +711,9 @@ impl<F>
                 | payments::PayLaterData::WalleyRedirect {}
                 | payments::PayLaterData::AlmaRedirect {}
                 | payments::PayLaterData::AtomeRedirect {} => {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: "Buy Now Pay Later".to_string(),
-                        connector: "Nuvei",
-                        payment_experience: "RedirectToUrl".to_string(),
-                    }
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::payment_method_error_message("nuvei"),
+                    )
                     .into())
                 }
             },
@@ -730,9 +724,12 @@ impl<F>
             | payments::PaymentMethodData::Reward(_)
             | payments::PaymentMethodData::Upi(_)
             | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
-            }
+            | payments::PaymentMethodData::GiftCard(_) => Err(
+                errors::ConnectorError::NotImplemented(utils::payment_method_error_message(
+                    "nuvei",
+                ))
+                .into(),
+            ),
         }?;
         let request = Self::try_from(NuveiPaymentRequestData {
             amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
@@ -899,7 +896,7 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, String)> for NuveiPay
             | Some(api::PaymentMethodData::Reward(..))
             | Some(api::PaymentMethodData::Upi(..))
             | None => Err(errors::ConnectorError::NotImplemented(
-                "Payment methods".to_string(),
+                utils::payment_method_error_message("nuvei"),
             )),
         }?;
         let request = Self::try_from(NuveiPaymentRequestData {

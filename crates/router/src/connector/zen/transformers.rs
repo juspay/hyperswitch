@@ -295,7 +295,7 @@ impl
             api_models::payments::BankTransferData::AchBankTransfer { .. }
             | api_models::payments::BankTransferData::SepaBankTransfer { .. }
             | api_models::payments::BankTransferData::BacsBankTransfer { .. } => Err(
-                errors::ConnectorError::NotImplemented("payment method".to_string()),
+                errors::ConnectorError::NotImplemented(utils::payment_method_error_message("zen")),
             )?,
         };
         Ok(Self::ApiRequest(Box::new(ApiRequest {
@@ -445,11 +445,9 @@ impl
             | api_models::payments::WalletData::WeChatPayRedirect(_)
             | api_models::payments::WalletData::CashappQr(_)
             | api_models::payments::WalletData::SwishQr(_)
-            | api_models::payments::WalletData::WeChatPayQr(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "This wallet is not implemented for zen".to_string(),
-                ))?
-            }
+            | api_models::payments::WalletData::WeChatPayQr(_) => Err(
+                errors::ConnectorError::NotImplemented(utils::payment_method_error_message("zen")),
+            )?,
         };
         let terminal_uuid = session_data
             .terminal_uuid
@@ -638,7 +636,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
             | api_models::payments::PaymentMethodData::Reward(_)
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::GiftCard(_) => Err(
-                errors::ConnectorError::NotImplemented("payment method".to_string()),
+                errors::ConnectorError::NotImplemented(utils::payment_method_error_message("zen")),
             )?,
         }
     }

@@ -286,9 +286,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                 | payments::WalletData::WeChatPayRedirect(_)
                 | payments::WalletData::CashappQr(_)
                 | payments::WalletData::SwishQr(_)
-                | payments::WalletData::WeChatPayQr(_) => Err(
-                    errors::ConnectorError::NotImplemented("Wallets".to_string()),
-                ),
+                | payments::WalletData::WeChatPayQr(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::payment_method_error_message("bluesnap"),
+                    ))
+                }
             },
             payments::PaymentMethodData::PayLater(_)
             | payments::PaymentMethodData::BankRedirect(_)
@@ -299,9 +301,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             | payments::PaymentMethodData::Reward(_)
             | payments::PaymentMethodData::Upi(_)
             | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_) => Err(
-                errors::ConnectorError::NotImplemented("payment method".to_string()),
-            ),
+            | payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::payment_method_error_message("bluesnap"),
+                ))
+            }
         }?;
         Ok(Self {
             amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
