@@ -1,7 +1,7 @@
 {
 	"info": {
-		"_postman_id": "24ead6ad-3f03-4df7-ba25-6e9f8b7bef52",
-		"name": "ACI collection",
+		"_postman_id": "9d0da50c-f3db-4dd4-9e2b-c6149cc9ebf3",
+		"name": "ACI Collection",
 		"description": "## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.  \nYou can consume the APIs directly using your favorite HTTP/REST library.  \nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without affecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment | Base URL |\n| --- | --- |\n| Sandbox | [https://sandbox.hyperswitch.io](https://sandbox.hyperswitch.io) |\n| Production | [https://router.juspay.io](https://router.juspay.io) |\n\n# Authentication\n\nWhen you sign up for an account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.  \nNever share your secret api keys. Keep them guarded and secure.\n\nContact Support:  \nName: Juspay Support  \nEmail: [support@juspay.in](mailto:support@juspay.in)",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "25737662"
@@ -8695,7 +8695,17 @@
 			"script": {
 				"type": "text/javascript",
 				"exec": [
-					""
+					"// Set response object as internal variable",
+					"let jsonData = {};",
+					"try {jsonData = pm.response.json();}catch(e){}",
+					"",
+					"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
+					"if (jsonData?.payment_id) {",
+					"   pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
+					"   console.log(\"[LOG]::payment_id - \" + jsonData.payment_id);",
+					"}",
+					"",
+					"console.log(\"[LOG]::x-request-id - \" + pm.response.headers.get('x-request-id'));"
 				]
 			}
 		}
@@ -8703,7 +8713,7 @@
 	"variable": [
 		{
 			"key": "baseUrl",
-			"value": "https://integ-api.hyperswitch.io",
+			"value": "",
 			"type": "string"
 		},
 		{
@@ -8771,17 +8781,20 @@
 		{
 			"key": "gateway_merchant_id",
 			"value": "",
-			"type": "string"
+			"type": "string",
+			"disabled": true
 		},
 		{
 			"key": "certificate",
 			"value": "",
-			"type": "string"
+			"type": "string",
+			"disabled": true
 		},
 		{
 			"key": "certificate_keys",
 			"value": "",
-			"type": "string"
+			"type": "string",
+			"disabled": true
 		},
 		{
 			"key": "connector_key1",

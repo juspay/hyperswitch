@@ -7,7 +7,10 @@ use aws_sdk_kms::{config::Region, primitives::Blob, Client};
 use base64::Engine;
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
+use masking::{PeekInterface, Secret};
 use router_env::logger;
+/// decrypting data using the AWS KMS SDK.
+pub mod decrypt;
 
 use crate::{consts, metrics};
 
@@ -15,7 +18,7 @@ static KMS_CLIENT: tokio::sync::OnceCell<KmsClient> = tokio::sync::OnceCell::con
 
 /// Returns a shared KMS client, or initializes a new one if not previously initialized.
 #[inline]
-pub async fn get_kms_client(config: &KmsConfig) -> &KmsClient {
+pub async fn get_kms_client(config: &KmsConfig) -> &'static KmsClient {
     KMS_CLIENT.get_or_init(|| KmsClient::new(config)).await
 }
 
@@ -113,6 +116,10 @@ pub enum KmsError {
     /// An error occurred UTF-8 decoding KMS decrypted output.
     #[error("Failed to UTF-8 decode decryption output")]
     Utf8DecodingFailed,
+
+    /// The KMS client has not been initialized.
+    #[error("The KMS client has not been initialized")]
+    KmsClientNotInitialized,
 }
 
 impl KmsConfig {
@@ -127,5 +134,16 @@ impl KmsConfig {
         when(self.region.is_default_or_empty(), || {
             Err("KMS AWS region must not be empty")
         })
+    }
+}
+
+/// A wrapper around a KMS value that can be decrypted.
+#[derive(Clone, Debug, Default, serde::Deserialize, Eq, PartialEq)]
+#[serde(transparent)]
+pub struct KmsValue(Secret<String>);
+
+impl common_utils::ext_traits::ConfigExt for KmsValue {
+    fn is_empty_after_trim(&self) -> bool {
+        self.0.peek().is_empty_after_trim()
     }
 }
