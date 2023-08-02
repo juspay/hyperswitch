@@ -344,10 +344,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
 fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
     match payment_status {
         "100.100.600" => (true, "Empty CVV for VISA, MASTER not allowed"),
-        "100.350.100" => (true, "Referenced session is rejected (no action possible)."),
-        "100.380.401" => (true, "User authentication failed."),
-        "100.380.501" => (true, "Risk management transaction timeout."),
-        "100.390.103" => (true, "PARes validation failed - problem with signature."),
+        "100.350.100" => (true, "Referenced session is rejected (no action possible)"),
+        "100.380.401" => (true, "User authentication failed"),
+        "100.380.501" => (true, "Risk management transaction timeout"),
+        "100.390.103" => (true, "PARes validation failed - problem with signature"),
         "100.390.111" => (
             true,
             "Communication error to VISA/Mastercard Directory Server",
@@ -651,11 +651,8 @@ fn handle_bank_redirects_error_response(
     let status = enums::AttemptStatus::AuthorizationFailed;
     let error = Some(types::ErrorResponse {
         code: response.payment_result_info.result_code.to_string(),
-        message: response
-            .payment_result_info
-            .additional_info
-            .clone()
-            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+        // message vary for the same code, so relying on code alone as it is unique
+        message: response.payment_result_info.result_code.to_string(),
         reason: response.payment_result_info.additional_info,
         status_code,
     });
@@ -688,12 +685,9 @@ fn handle_bank_redirects_sync_response(
             .status_reason_information
             .unwrap_or_default();
         Some(types::ErrorResponse {
-            code: reason_info.reason.code,
-            message: reason_info
-                .reason
-                .reject_reason
-                .clone()
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            code: reason_info.reason.code.clone(),
+            // message vary for the same code, so relying on code alone as it is unique
+            message: reason_info.reason.code,
             reason: reason_info.reason.reject_reason,
             status_code,
         })
@@ -818,12 +812,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, t
             _ => Ok(Self {
                 response: Err(types::ErrorResponse {
                     code: item.response.result_info.result_code.to_string(),
-                    message: item
-                        .response
-                        .result_info
-                        .additional_info
-                        .clone()
-                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    // message vary for the same code, so relying on code alone as it is unique
+                    message: item.response.result_info.result_code.to_string(),
                     reason: item.response.result_info.additional_info,
                     status_code: item.http_code,
                 }),
@@ -859,23 +849,33 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for TrustpayCreateIntentRe
             .as_ref()
             .map(|pmt| matches!(pmt, diesel_models::enums::PaymentMethodType::GooglePay));
 
+        let request_amount = item
+            .request
+            .amount
+            .get_required_value("amount")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "amount",
+            })?;
+
+        let currency = item
+            .request
+            .currency
+            .get_required_value("currency")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            })?;
+
+        let amount = format!(
+            "{:.2}",
+            utils::to_currency_base_unit(request_amount, currency)?
+                .parse::<f64>()
+                .into_report()
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?
+        );
+
         Ok(Self {
-            amount: item
-                .request
-                .amount
-                .get_required_value("amount")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "amount",
-                })?
-                .to_string(),
-            currency: item
-                .request
-                .currency
-                .get_required_value("currency")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?
-                .to_string(),
+            amount,
+            currency: currency.to_string(),
             init_apple_pay: is_apple_pay,
             init_google_pay: is_google_pay,
         })
@@ -1331,7 +1331,8 @@ fn handle_bank_redirects_refund_response(
     let error = if msg.is_some() {
         Some(types::ErrorResponse {
             code: response.result_info.result_code.to_string(),
-            message: msg.unwrap_or(consts::NO_ERROR_MESSAGE).to_owned(),
+            // message vary for the same code, so relying on code alone as it is unique
+            message: response.result_info.result_code.to_string(),
             reason: msg.map(|message| message.to_string()),
             status_code,
         })
@@ -1356,12 +1357,9 @@ fn handle_bank_redirects_refund_sync_response(
             .status_reason_information
             .unwrap_or_default();
         Some(types::ErrorResponse {
-            code: reason_info.reason.code,
-            message: reason_info
-                .reason
-                .reject_reason
-                .clone()
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            code: reason_info.reason.code.clone(),
+            // message vary for the same code, so relying on code alone as it is unique
+            message: reason_info.reason.code,
             reason: reason_info.reason.reject_reason,
             status_code,
         })
@@ -1381,11 +1379,8 @@ fn handle_bank_redirects_refund_sync_error_response(
 ) -> (Option<types::ErrorResponse>, types::RefundsResponseData) {
     let error = Some(types::ErrorResponse {
         code: response.payment_result_info.result_code.to_string(),
-        message: response
-            .payment_result_info
-            .additional_info
-            .clone()
-            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_owned()),
+        // message vary for the same code, so relying on code alone as it is unique
+        message: response.payment_result_info.result_code.to_string(),
         reason: response.payment_result_info.additional_info,
         status_code,
     });
@@ -1497,7 +1492,7 @@ pub struct TrustpayRedirectResponse {
     pub status: Option<String>,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Errors {
     pub code: i64,
     pub description: String,
@@ -1586,4 +1581,13 @@ pub struct WebhookPaymentInformation {
 pub struct TrustpayWebhookResponse {
     pub payment_information: WebhookPaymentInformation,
     pub signature: String,
+}
+
+impl From<Errors> for utils::ErrorCodeAndMessage {
+    fn from(error: Errors) -> Self {
+        Self {
+            error_code: error.code.to_string(),
+            error_message: error.description,
+        }
+    }
 }

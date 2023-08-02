@@ -298,6 +298,7 @@ base_url = "" # Base url used when adding links that should redirect to self
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet" }
 mollie = {long_lived_token = false, payment_method = "card"}
+stax = { long_lived_token = true, payment_method = "card" }
 
 [dummy_connector]
 payment_ttl = 172800             # Time to live for dummy connector payment in redis
@@ -334,6 +335,7 @@ online_banking_fpx = {country = "MY", currency = "MYR"}
 online_banking_thailand = {country = "TH", currency = "THB"}
 touch_n_go = {country = "MY", currency = "MYR"}
 atome = {country = "MY,SG", currency = "MYR,SGD"}
+swish = {country = "SE", currency = "SEK"}
 open_banking_uk = {country = "GB", currency = "GBP"}
 
 [pm_filters.zen]
@@ -347,6 +349,17 @@ pse = { country = "CO", currency = "COP" }
 pix = { country = "BR", currency = "BRL" }
 red_compra = { country = "CL", currency = "CLP" }
 red_pagos = { country = "UY", currency = "UYU" }
+
+[pm_filters.stax]
+credit = { currency = "USD" }
+debit = { currency = "USD" }
+ach = { currency = "USD" }
+
+[pm_filters.stripe]
+cashapp = {country = "US", currency = "USD"}
+
+[connector_customer]
+connector_list = "stax"
 
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,may_bank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
