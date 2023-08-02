@@ -137,6 +137,7 @@ jobs:
           RESET='\033[0m'
           MAX_RETRIES=3
           FAILED_CONNECTORS=()
+          PREVIOUS_FAILED_CONNECTORS=()
 
           # Runner function
           run_connector() {
@@ -158,23 +159,33 @@ jobs:
 
           # Retry failed connectors by calling runner function with max retries set to 3
           if [ ${#FAILED_CONNECTORS[@]} -gt 0 ]; then
-            echo -e "${RED}One or more connectors failed to run:${RESET}"
-            printf '%s\n' "${FAILED_CONNECTORS[@]}"
+            PREVIOUS_FAILED_CONNECTORS=("${FAILED_CONNECTORS[@]}")
 
             echo "Retrying failed connectors..."
             RETRIES=0
             while [ $RETRIES -lt $MAX_RETRIES ] && [ ${#FAILED_CONNECTORS[@]} -gt 0 ]; do
-              new_failed_connectors=()
+              NEW_FAILED_CONNECTORS=()
               for i in "${FAILED_CONNECTORS[@]}"; do
                 if run_connector "$i"; then
                   continue  # Skip processing successful connectors during the retry loop
                 else
-                  new_failed_connectors+=("$i")
+                  NEW_FAILED_CONNECTORS+=("$i")
                 fi
               done
-              FAILED_CONNECTORS=("${new_failed_connectors[@]}")
+              FAILED_CONNECTORS=("${NEW_FAILED_CONNECTORS[@]}")
               RETRIES=$((RETRIES + 1))
             done
+
+            # If any connectors failed to run previously but succeeded after retries, print them
+            if [ ${#FAILED_CONNECTORS[@]} -lt ${#PREVIOUS_FAILED_CONNECTORS[@]} ]; then
+              echo -e "${RED}One or more connectors failed to run but succeeded after retries:${RESET}"
+              for i in "${PREVIOUS_FAILED_CONNECTORS[@]}"; do
+                if ! printf '%s\n' "${FAILED_CONNECTORS[@]}" | grep -q "^$i$"; then
+                  echo "$i"
+                fi
+              done
+            fi
+
 
             # If any connectors still failed to run after retries, exit with error
             if [ ${#FAILED_CONNECTORS[@]} -gt 0 ]; then
