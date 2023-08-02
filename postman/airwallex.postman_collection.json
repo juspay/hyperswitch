@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "1e62df89-0a09-43cc-84eb-4bc7ac3bdafd",
+		"_postman_id": "5c7a556e-b6a1-48bc-861d-722e696a3ee6",
 		"name": "Airwallex Collection",
 		"description": "## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.  \nYou can consume the APIs directly using your favorite HTTP/REST library.  \nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without affecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment | Base URL |\n| --- | --- |\n| Sandbox | [https://sandbox.hyperswitch.io](https://sandbox.hyperswitch.io) |\n| Production | [https://router.juspay.io](https://router.juspay.io) |\n\n# Authentication\n\nWhen you sign up for an account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.  \nNever share your secret api keys. Keep them guarded and secure.\n\nContact Support:  \nName: Juspay Support  \nEmail: [support@juspay.in](mailto:support@juspay.in)",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
@@ -5076,7 +5076,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"manual\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"AirwallexCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4111111111111111\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"2025\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n     \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
+											"raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"manual\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"AirwallexCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"three_ds\",\n    \"return_url\": \"https://google.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4035501000000008\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"2025\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n     \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -5148,10 +5148,10 @@
 													"};",
 													"",
 													"",
-													"// Response body should have value \"requires_customer_action\" for \"status\"",
+													"// Response body should have value \"requires_capture\" for \"status\"",
 													"if (jsonData?.status) {",
-													"pm.test(\"[POST]::/payments/:id - Content check if value for 'status' matches 'requires_customer_action'\", function() {",
-													"  pm.expect(jsonData.status).to.eql(\"requires_customer_action\");",
+													"pm.test(\"[POST]::/payments - Content check if value for 'status' matches 'requires_capture'\", function() {",
+													"  pm.expect(jsonData.status).to.eql(\"requires_capture\");",
 													"})};"
 												],
 												"type": "text/javascript"
@@ -5167,7 +5167,7 @@
 											}
 										],
 										"url": {
-											"raw": "{{baseUrl}}/payments/:id",
+											"raw": "{{baseUrl}}/payments/:id?force_sync=true",
 											"host": [
 												"{{baseUrl}}"
 											],
@@ -5178,14 +5178,13 @@
 											"query": [
 												{
 													"key": "force_sync",
-													"value": "true",
-													"disabled": true
+													"value": "true"
 												}
 											],
 											"variable": [
 												{
 													"key": "id",
-													"value": null
+													"value": "{{payment_id}}"
 												}
 											]
 										},
