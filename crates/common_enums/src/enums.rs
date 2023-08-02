@@ -840,6 +840,8 @@ pub enum PaymentExperience {
     LinkWallet,
     /// Contains the data for invoking the sdk client for completing the payment.
     InvokePaymentApp,
+    /// Contains the data for displaying wait screen
+    DisplayWaitScreen,
 }
 
 #[derive(
@@ -879,6 +881,7 @@ pub enum PaymentMethodType {
     ClassicReward,
     Credit,
     CryptoCurrency,
+    Cashapp,
     Dana,
     Debit,
     Efecty,
@@ -954,6 +957,7 @@ pub enum PaymentMethod {
     Reward,
     Upi,
     Voucher,
+    GiftCard,
 }
 
 #[derive(

@@ -16,7 +16,7 @@ mod strategy;
 
 pub use strategy::{Strategy, WithType, WithoutType};
 mod abs;
-pub use abs::{ExposeInterface, ExposeOptionInterface, PeekInterface};
+pub use abs::{ExposeInterface, ExposeOptionInterface, PeekInterface, SwitchStrategy};
 
 mod secret;
 mod strong_secret;
