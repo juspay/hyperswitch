@@ -190,6 +190,10 @@ refund_tolerance = 100
 refund_retrieve_duration = 500
 refund_retrieve_tolerance = 100
 authorize_ttl = 36000
+assets_base_url = "https://app.hyperswitch.io/assets/TestProcessor/"
+default_return_url = "https://app.hyperswitch.io/"
+slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg"
+discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 
 [payouts]
 payout_eligibility = true

@@ -1,8 +1,6 @@
 pub const PAYMENT_ID_PREFIX: &str = "dummy_pay";
 pub const ATTEMPT_ID_PREFIX: &str = "dummy_attempt";
 pub const REFUND_ID_PREFIX: &str = "dummy_ref";
-pub const DEFAULT_RETURN_URL: &str = "https://app.hyperswitch.io/";
-pub const ASSETS_BASE_URL: &str = "https://app.hyperswitch.io/assets/TestProcessor/";
 pub const THREE_DS_CSS: &str = r#"
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap');
     body {

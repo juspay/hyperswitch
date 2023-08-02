@@ -42,7 +42,7 @@ pub enum DummyConnectors {
 }
 
 impl DummyConnectors {
-    pub fn get_connector_image_link(self) -> String {
+    pub fn get_connector_image_link(self, base_url: &str) -> String {
         let image_name = match self {
             Self::PhonyPay => "PHONYPAY.svg",
             Self::FauxPay => "FAUXPAY.svg",
@@ -51,7 +51,7 @@ impl DummyConnectors {
             Self::PaypalTest => "PAYPAL_TEST.svg",
             _ => "PHONYPAY.svg",
         };
-        format!("{}{}", consts::ASSETS_BASE_URL, image_name)
+        format!("{}{}", base_url, image_name)
     }
 }
 
@@ -122,7 +122,7 @@ pub struct DummyConnectorPaymentRequest {
 
 pub trait GetPaymentMethodDetails {
     fn get_name(&self) -> &'static str;
-    fn get_image_link(&self) -> String;
+    fn get_image_link(&self, base_url: &str) -> String;
 }
 
 #[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
@@ -163,11 +163,11 @@ impl GetPaymentMethodDetails for DummyConnectorPaymentMethodType {
         }
     }
 
-    fn get_image_link(&self) -> String {
+    fn get_image_link(&self, base_url: &str) -> String {
         match self {
-            Self::Card => format!("{}{}", consts::ASSETS_BASE_URL, "CARD.svg"),
-            Self::Wallet(wallet) => wallet.get_image_link(),
-            Self::PayLater(pay_later) => pay_later.get_image_link(),
+            Self::Card => format!("{}{}", base_url, "CARD.svg"),
+            Self::Wallet(wallet) => wallet.get_image_link(base_url),
+            Self::PayLater(pay_later) => pay_later.get_image_link(base_url),
         }
     }
 }
@@ -207,7 +207,7 @@ impl GetPaymentMethodDetails for DummyConnectorWallet {
             Self::AliPayHK => "Alipay HK",
         }
     }
-    fn get_image_link(&self) -> String {
+    fn get_image_link(&self, base_url: &str) -> String {
         let image_name = match self {
             Self::GooglePay => "GOOGLE_PAY.svg",
             Self::Paypal => "PAYPAL.svg",
@@ -216,7 +216,7 @@ impl GetPaymentMethodDetails for DummyConnectorWallet {
             Self::AliPay => "ALIPAY.svg",
             Self::AliPayHK => "ALIPAY.svg",
         };
-        format!("{}{}", consts::ASSETS_BASE_URL, image_name)
+        format!("{}{}", base_url, image_name)
     }
 }
 
@@ -235,13 +235,13 @@ impl GetPaymentMethodDetails for DummyConnectorPayLater {
             Self::AfterPayClearPay => "Afterpay Clearpay",
         }
     }
-    fn get_image_link(&self) -> String {
+    fn get_image_link(&self, base_url: &str) -> String {
         let image_name = match self {
             Self::Klarna => "KLARNA.svg",
             Self::Affirm => "AFFIRM.svg",
             Self::AfterPayClearPay => "AFTERPAY.svg",
         };
-        format!("{}{}", consts::ASSETS_BASE_URL, image_name)
+        format!("{}{}", base_url, image_name)
     }
 }
 

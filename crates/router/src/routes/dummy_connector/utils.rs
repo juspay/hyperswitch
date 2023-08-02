@@ -11,7 +11,7 @@ use super::{
     consts, errors,
     types::{self, GetPaymentMethodDetails},
 };
-use crate::routes::AppState;
+use crate::{configs::settings, routes::AppState};
 
 pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
     let mut rng = rand::thread_rng();
@@ -86,10 +86,15 @@ pub async fn get_payment_data_by_attempt_id(
 pub fn get_authorize_page(
     payment_data: types::DummyConnectorPaymentData,
     return_url: String,
+    dummy_connector_conf: &settings::DummyConnector,
 ) -> String {
     let mode = payment_data.payment_method_type.get_name();
-    let image = payment_data.payment_method_type.get_image_link();
-    let connector_image = payment_data.connector.get_connector_image_link();
+    let image = payment_data
+        .payment_method_type
+        .get_image_link(dummy_connector_conf.assets_base_url.as_str());
+    let connector_image = payment_data
+        .connector
+        .get_connector_image_link(dummy_connector_conf.assets_base_url.as_str());
     let currency = payment_data.currency.to_string();
 
     html! {
@@ -137,16 +142,16 @@ pub fn get_authorize_page(
                     Contact us for any queries."
                 }
                 div.contact {
-                    div.contact_item.hover_cursor onclick="https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg" {
-                        img src="https://hyperswitch.io/logos/logo_slack.svg" alt="Slack Logo"{}
+                    div.contact_item.hover_cursor onclick=(dummy_connector_conf.slack_invite_url) {
+                        img src="https://hyperswitch.io/logos/logo_slack.svg" alt="Slack Logo" {}
                     }
-                    div.contact_item.hover_cursor onclick="https://discord.gg/wJZ7DVW8mm" {
+                    div.contact_item.hover_cursor onclick=(dummy_connector_conf.discord_invite_url) {
                         img src="https://hyperswitch.io/logos/logo_discord.svg" alt="Discord Logo" {}
                     }
                     div.border_vertical {}
                     div.contact_item.email {
-                        p { "Or email us at"}
-                        a href="mailto:hyperswitch@juspay.in" { "hyperswitch@juspay.in"}
+                        p { "Or email us at" }
+                        a href="mailto:hyperswitch@juspay.in" { "hyperswitch@juspay.in" }
                     }
                 }
             }
@@ -155,7 +160,7 @@ pub fn get_authorize_page(
     .into_string()
 }
 
-pub fn get_expired_page() -> String {
+pub fn get_expired_page(dummy_connector_conf: &settings::DummyConnector) -> String {
     html! {
         head {
             title { "Authorize Payment" }
@@ -176,16 +181,16 @@ pub fn get_expired_page() -> String {
                     In live mode, this is not visible. Contact us for any queries."
                 }
                 div.contact {
-                    div.contact_item.hover_cursor onclick="https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg" {
-                        img src="https://hyperswitch.io/logos/logo_slack.svg" alt="Slack Logo"{}
+                    div.contact_item.hover_cursor onclick=(dummy_connector_conf.slack_invite_url) {
+                        img src="https://hyperswitch.io/logos/logo_slack.svg" alt="Slack Logo" {}
                     }
-                    div.contact_item.hover_cursor onclick="https://discord.gg/wJZ7DVW8mm" {
+                    div.contact_item.hover_cursor onclick=(dummy_connector_conf.discord_invite_url) {
                         img src="https://hyperswitch.io/logos/logo_discord.svg" alt="Discord Logo" {}
                     }
                     div.border_vertical {}
                     div.contact_item.email {
-                        p { "Or email us at"}
-                        a href="mailto:hyperswitch@juspay.in" { "hyperswitch@juspay.in"}
+                        p { "Or email us at" }
+                        a href="mailto:hyperswitch@juspay.in" { "hyperswitch@juspay.in" }
                     }
                 }
             }
