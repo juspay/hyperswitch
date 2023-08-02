@@ -12,7 +12,7 @@ impl utils::Connector for SquareTest {
         use router::connector::Square;
         types::api::ConnectorData {
             connector: Box::new(&Square),
-            connector_name: types::Connector::Square,
+            connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
         }
     }
