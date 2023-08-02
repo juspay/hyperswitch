@@ -82,6 +82,7 @@ pub fn get_authorize_page(
         head {
             title { "Authorize Payment" }
             style { (consts::THREE_DS_CSS) }
+            link rel="icon" href=(connector_image) {}
         }
         body {
             div.heading {
@@ -91,7 +92,7 @@ pub fn get_authorize_page(
             div.container {
                 div.payment_details {
                     img src=(image) {}
-                    div.border {}
+                    div.border_horizontal {}
                     img src=(connector_image) {}
                 }
                 (maud::PreEscaped(
@@ -105,20 +106,36 @@ pub fn get_authorize_page(
                         "#, currency, mode, payment_data.amount)
                     )
                 )
-                p { b { "Real money will not be debited for the payment." } " You can choose to simulate successful or failed payment while testing this payment."}
+                p { b { "Real money will not be debited for the payment." } " \
+                        You can choose to simulate successful or failed payment while testing this payment." }
                 div.user_action {
-                    button.authorize  onclick=(format!("window.location.href='{}?confirm=true'", return_url)) 
+                    button.authorize onclick=(format!("window.location.href='{}?confirm=true'", return_url))
                         { "Complete Payment" }
-                    button.reject onclick=(format!("window.location.href='{}?confirm=false'", return_url)) 
+                    button.reject onclick=(format!("window.location.href='{}?confirm=false'", return_url))
                         { "Reject Payment" }
                 }
             }
             div.container {
                 p.disclaimer { "What is this page?" }
-                p { "This page is just a simulation for integration and testing purpose.\
-                    In live mode, this page will not be displayed and the user will be taken to the\
-                    Bank page (or) Googlepay cards popup (or) original payment method’s page. "
-                    a href=("https://hyperswitch.io/contact") { "Contact us" } " for any queries." }
+                p { "This page is just a simulation for integration and testing purpose. \
+                    In live mode, this page will not be displayed and the user will be taken to \
+                    the Bank page (or) Google Pay cards popup (or) original payment method's page. \
+                    Contact us for any queries."
+                }
+                div.contact {
+                    div.contact_item.hover_cursor onclick="https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg" {
+                        img src="https://hyperswitch.io/logos/logo_slack.svg" alt="Slack Logo"{}
+                    }
+                    div.contact_item.hover_cursor onclick="https://discord.gg/wJZ7DVW8mm" {
+                        img src="https://hyperswitch.io/logos/logo_discord.svg" alt="Discord Logo" {}
+                        
+                    }
+                    div.border_vertical {}
+                    div.contact_item.email {
+                        p { "Or email us at"}
+                        a href="mailto:hyperswitch@juspay.in" { "hyperswitch@juspay.in"}
+                    }
+                }
             }
         }
     }
@@ -130,6 +147,7 @@ pub fn get_expired_page() -> String {
         head {
             title { "Authorize Payment" }
             style { (consts::THREE_DS_CSS) }
+            link rel="icon" href="https://app.hyperswitch.io/HyperswitchFavicon.png" {}
         }
         body {
             div.heading {
@@ -142,8 +160,22 @@ pub fn get_expired_page() -> String {
             div.container {
                 p.disclaimer { "What is this page?" }
                 p { "This page is just a simulation for integration and testing purpose.\
-                    In live mode, this is not visible. "
-                    a href=("https://hyperswitch.io/contact") { "Contact us" } " for any queries." }
+                    In live mode, this is not visible. Contact us for any queries."
+                }
+                div.contact {
+                    div.contact_item.hover_cursor onclick="https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg" {
+                        img src="https://hyperswitch.io/logos/logo_slack.svg" alt="Slack Logo"{}
+                    }
+                    div.contact_item.hover_cursor onclick="https://discord.gg/wJZ7DVW8mm" {
+                        img src="https://hyperswitch.io/logos/logo_discord.svg" alt="Discord Logo" {}
+                        
+                    }
+                    div.border_vertical {}
+                    div.contact_item.email {
+                        p { "Or email us at"}
+                        a href="mailto:hyperswitch@juspay.in" { "hyperswitch@juspay.in"}
+                    }
+                }
             }
         }
     }

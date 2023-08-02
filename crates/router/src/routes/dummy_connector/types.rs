@@ -42,21 +42,16 @@ pub enum DummyConnectors {
 }
 
 impl DummyConnectors {
-    pub fn get_connector_image_link(self) -> &'static str {
-        match self {
-            Self::PhonyPay => "https://app.hyperswitch.io/euler-icons/Gateway/Light/PHONYPAY.svg",
-            Self::FauxPay => "https://app.hyperswitch.io/euler-icons/Gateway/Light/FAUXPAY.svg",
-            Self::PretendPay => {
-                "https://app.hyperswitch.io/euler-icons/Gateway/Light/PRETENDPAY.svg"
-            }
-            Self::StripeTest => {
-                "https://app.hyperswitch.io/euler-icons/Gateway/Light/STRIPE_TEST.svg"
-            }
-            Self::PaypalTest => {
-                "https://app.hyperswitch.io/euler-icons/Gateway/Light/PAYPAL_TEST.svg"
-            }
-            _ => "https://app.hyperswitch.io/euler-icons/Gateway/Light/PHONYPAY.svg",
-        }
+    pub fn get_connector_image_link(self) -> String {
+        let image_name = match self {
+            Self::PhonyPay => "PHONYPAY.svg",
+            Self::FauxPay => "FAUXPAY.svg",
+            Self::PretendPay => "PRETENDPAY.svg",
+            Self::StripeTest => "STRIPE_TEST.svg",
+            Self::PaypalTest => "PAYPAL_TEST.svg",
+            _ => "PHONYPAY.svg",
+        };
+        format!("{}{}", consts::ASSETS_BASE_URL, image_name)
     }
 }
 
@@ -127,7 +122,7 @@ pub struct DummyConnectorPaymentRequest {
 
 pub trait GetPaymentMethodDetails {
     fn get_name(&self) -> &'static str;
-    fn get_image_link(&self) -> &'static str;
+    fn get_image_link(&self) -> String;
 }
 
 #[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
@@ -168,9 +163,9 @@ impl GetPaymentMethodDetails for DummyConnectorPaymentMethodType {
         }
     }
 
-    fn get_image_link(&self) -> &'static str {
+    fn get_image_link(&self) -> String {
         match self {
-            Self::Card => "https://www.svgrepo.com/show/115459/credit-card.svg",
+            Self::Card => format!("{}{}", consts::ASSETS_BASE_URL, "CARD.svg"),
             Self::Wallet(wallet) => wallet.get_image_link(),
             Self::PayLater(pay_later) => pay_later.get_image_link(),
         }
@@ -212,15 +207,16 @@ impl GetPaymentMethodDetails for DummyConnectorWallet {
             Self::AliPayHK => "Alipay HK",
         }
     }
-    fn get_image_link(&self) -> &'static str {
-        match self {
-            Self::GooglePay => "https://pay.google.com/about/static_kcs/images/logos/google-pay-logo.svg",
-            Self::Paypal => "https://app.hyperswitch.io/euler-icons/Gateway/Light/PAYPAL.svg",
-            Self::WeChatPay => "https://raw.githubusercontent.com/datatrans/payment-logos/master/assets/apm/wechat-pay.svg?sanitize=true",
-            Self::MbWay => "https://upload.wikimedia.org/wikipedia/commons/e/e3/Logo_MBWay.svg",
-            Self::AliPay => "https://www.logo.wine/a/logo/Alipay/Alipay-Logo.wine.svg",
-            Self::AliPayHK => "https://www.logo.wine/a/logo/Alipay/Alipay-Logo.wine.svg",
-        }
+    fn get_image_link(&self) -> String {
+        let image_name = match self {
+            Self::GooglePay => "GOOGLE_PAY.svg",
+            Self::Paypal => "PAYPAL.svg",
+            Self::WeChatPay => "WECHAT_PAY.svg",
+            Self::MbWay => "MBWAY.svg",
+            Self::AliPay => "ALIPAY.svg",
+            Self::AliPayHK => "ALIPAY.svg",
+        };
+        format!("{}{}", consts::ASSETS_BASE_URL, image_name)
     }
 }
 
@@ -239,12 +235,13 @@ impl GetPaymentMethodDetails for DummyConnectorPayLater {
             Self::AfterPayClearPay => "Afterpay Clearpay",
         }
     }
-    fn get_image_link(&self) -> &'static str {
-        match self {
-            Self::Klarna => "https://docs.klarna.com/assets/media/7404df75-d165-4eee-b33c-a9537b847952/Klarna_Logo_Primary_Black.svg",
-            Self::Affirm => "https://upload.wikimedia.org/wikipedia/commons/f/ff/Affirm_logo.svg",
-            Self::AfterPayClearPay => "https://upload.wikimedia.org/wikipedia/en/c/c3/Afterpay_logo.svg"
-        }
+    fn get_image_link(&self) -> String {
+        let image_name = match self {
+            Self::Klarna => "KLARNA.svg",
+            Self::Affirm => "AFFIRM.svg",
+            Self::AfterPayClearPay => "AFTERPAY.svg",
+        };
+        format!("{}{}", consts::ASSETS_BASE_URL, image_name)
     }
 }
 

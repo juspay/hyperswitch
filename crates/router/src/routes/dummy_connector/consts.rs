@@ -2,6 +2,7 @@ pub const PAYMENT_ID_PREFIX: &str = "dummy_pay";
 pub const ATTEMPT_ID_PREFIX: &str = "dummy_attempt";
 pub const REFUND_ID_PREFIX: &str = "dummy_ref";
 pub const DEFAULT_RETURN_URL: &str = "https://app.hyperswitch.io/";
+pub const ASSETS_BASE_URL: &str = "https://app.hyperswitch.io/assets/TestProcessor/";
 pub const THREE_DS_CSS: &str = r#"
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap');
     body {
@@ -88,10 +89,44 @@ pub const THREE_DS_CSS: &str = r#"
         display: flex;
         margin: 1rem 0 2rem 0;
     }
-    .border {
+    .border_horizontal {
         border-top: 1px dashed #151a1f80;
         height: 1px;
         margin: 0 1rem;
         margin-top: 1rem;
         width: 20%;
+    }
+    .contact {
+        display: flex;
+        gap: 10%;
+        margin: 2rem 0 1rem 0;
+        height: 3rem;
+    }
+    .contact img {
+        aspect-ratio: 1/1;
+        height: 2rem;
+    }
+    .contact_item {
+        display: flex;
+        height: 100%;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .contact_item p {
+        margin: 0;
+    }
+    .border_vertical {
+        border-left: 1px solid #151a1f80;
+        width: 1px;
+        height: 100%;
+    }
+    .email {
+        justify-content: space-between;
+    }
+    .hover_cursor:hover {
+        cursor: pointer
+    }
+    a {
+        text-decoration: none;
+        opacity: 0.8;
     }"#;
