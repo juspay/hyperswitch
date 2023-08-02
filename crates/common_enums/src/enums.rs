@@ -760,7 +760,15 @@ impl Currency {
 
     pub fn is_three_decimal_currency(self) -> bool {
         match self {
-            Self::BHD | Self::CLF | Self::JOD | Self::IQD | Self::KWD | Self::LYD | Self::OMR | Self::TND | Self::UYW => true,
+            Self::BHD
+            | Self::CLF
+            | Self::JOD
+            | Self::IQD
+            | Self::KWD
+            | Self::LYD
+            | Self::OMR
+            | Self::TND
+            | Self::UYW => true,
             Self::AED
             | Self::ALL
             | Self::AFN
@@ -935,7 +943,6 @@ impl Currency {
             | Self::ZWL => false,
         }
     }
-
 
     pub fn is_four_decimal_currency(self) -> bool {
         match self {
