@@ -22,7 +22,7 @@ impl Store {
                 &config.master_database,
                 test_transaction,
                 #[cfg(feature = "kms")]
-                &config.kms,
+                external_services::kms::get_kms_client(&config.kms).await,
             )
             .await,
             redis_conn: Arc::new(crate::connection::redis_connection(config).await),
