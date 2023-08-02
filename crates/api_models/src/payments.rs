@@ -617,7 +617,11 @@ pub struct Card {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct CardRedirectData {}
+#[serde(rename_all = "snake_case")]
+pub enum CardRedirectData {
+    Knet {},
+    Benefit {},
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]

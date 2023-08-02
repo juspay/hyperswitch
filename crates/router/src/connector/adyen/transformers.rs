@@ -1244,17 +1244,6 @@ fn get_telephone_number(item: &types::PaymentsAuthorizeRouterData) -> Option<Sec
     })
 }
 
-fn get_telephone_number_without_country_code(
-    item: &types::PaymentsAuthorizeRouterData,
-) -> Option<Secret<String>> {
-    let phone = item
-        .address
-        .billing
-        .as_ref()
-        .and_then(|billing| billing.phone.as_ref());
-    phone.as_ref().and_then(|phone| phone.number.to_owned())
-}
-
 fn get_shopper_name(address: Option<&api_models::payments::Address>) -> Option<ShopperName> {
     let billing = address.and_then(|billing| billing.address.as_ref());
     Some(ShopperName {
@@ -1727,21 +1716,14 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
     }
 }
 
-impl<'a> TryFrom<&api_models::enums::PaymentMethodType> for AdyenPaymentMethod<'a> {
+impl<'a> TryFrom<&api_models::payments::CardRedirectData> for AdyenPaymentMethod<'a> {
     type Error = Error;
     fn try_from(
-        payment_method_type: &api_models::enums::PaymentMethodType,
+        card_redirect_data: &api_models::payments::CardRedirectData,
     ) -> Result<Self, Self::Error> {
-        match payment_method_type {
-            enums::PaymentMethodType::Benefit => Ok(AdyenPaymentMethod::Benefit),
-            enums::PaymentMethodType::Knet => Ok(AdyenPaymentMethod::Knet),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: "This payment method type is not supported for Card redirection"
-                    .to_string(),
-                connector: "Adyen",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
-            }
-            .into()),
+        match card_redirect_data {
+            payments::CardRedirectData::Knet {} => Ok(AdyenPaymentMethod::Knet),
+            payments::CardRedirectData::Benefit {} => Ok(AdyenPaymentMethod::Benefit),
         }
     }
 }
@@ -2176,16 +2158,21 @@ impl<'a>
             &api_models::payments::CardRedirectData,
         ),
     ) -> Result<Self, Self::Error> {
-        let (item, _card_redirect_data) = value;
+        let (item, card_redirect_data) = value;
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
-        let payment_method_type = item.request.get_payment_method_type()?;
-        let payment_method = AdyenPaymentMethod::try_from(&payment_method_type)?;
+        let payment_method = AdyenPaymentMethod::try_from(card_redirect_data)?;
         let shopper_interaction = AdyenShopperInteraction::from(item);
         let return_url = item.request.get_return_url()?;
         let shopper_name = get_shopper_name(item.address.billing.as_ref());
         let shopper_email = item.request.email.clone();
-        let telephone_number = get_telephone_number_without_country_code(item);
+        let telephone_number = item
+            .get_billing_phone()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "billing.phone",
+            })?
+            .number
+            .to_owned();
         Ok(AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
