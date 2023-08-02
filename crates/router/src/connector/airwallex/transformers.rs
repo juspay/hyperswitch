@@ -10,7 +10,7 @@ use crate::{
     core::errors,
     pii::Secret,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, PaymentsSyncData},
 };
 
 pub struct AirwallexAuthType {
@@ -294,7 +294,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for AirwallexPaymentsCancelReques
 }
 
 // PaymentsResponse
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AirwallexPaymentStatus {
     Succeeded,
@@ -307,13 +307,16 @@ pub enum AirwallexPaymentStatus {
     Cancelled,
 }
 
-fn get_payment_status(response: &AirwallexPaymentsResponse) -> enums::AttemptStatus {
-    match response.status.clone() {
+fn get_payment_status(
+    status: &AirwallexPaymentStatus,
+    next_action: &Option<AirwallexPaymentsNextAction>,
+) -> enums::AttemptStatus {
+    match status.clone() {
         AirwallexPaymentStatus::Succeeded => enums::AttemptStatus::Charged,
         AirwallexPaymentStatus::Failed => enums::AttemptStatus::Failure,
         AirwallexPaymentStatus::Pending => enums::AttemptStatus::Pending,
         AirwallexPaymentStatus::RequiresPaymentMethod => enums::AttemptStatus::PaymentMethodAwaited,
-        AirwallexPaymentStatus::RequiresCustomerAction => response.next_action.as_ref().map_or(
+        AirwallexPaymentStatus::RequiresCustomerAction => next_action.as_ref().map_or(
             enums::AttemptStatus::AuthenticationPending,
             |next_action| match next_action.stage {
                 AirwallexNextActionStage::WaitingDeviceDataCollection => {
@@ -328,6 +331,7 @@ fn get_payment_status(response: &AirwallexPaymentsResponse) -> enums::AttemptSta
         AirwallexPaymentStatus::Cancelled => enums::AttemptStatus::Voided,
     }
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AirwallexNextActionStage {
@@ -335,7 +339,7 @@ pub enum AirwallexNextActionStage {
     WaitingUserInfoInput,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct AirwallexRedirectFormData {
     #[serde(rename = "JWT")]
     jwt: Option<String>,
@@ -346,7 +350,7 @@ pub struct AirwallexRedirectFormData {
     version: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct AirwallexPaymentsNextAction {
     url: Url,
     method: services::Method,
@@ -354,8 +358,19 @@ pub struct AirwallexPaymentsNextAction {
     stage: AirwallexNextActionStage,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct AirwallexPaymentsResponse {
+    status: AirwallexPaymentStatus,
+    //Unique identifier for the PaymentIntent
+    id: String,
+    amount: Option<f32>,
+    //ID of the PaymentConsent related to this PaymentIntent
+    payment_consent_id: Option<String>,
+    next_action: Option<AirwallexPaymentsNextAction>,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+pub struct AirwallexPaymentsSyncResponse {
     status: AirwallexPaymentStatus,
     //Unique identifier for the PaymentIntent
     id: String,
@@ -415,7 +430,10 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         let (status, redirection_data) = item.response.next_action.clone().map_or(
             // If no next action is there, map the status and set redirection form as None
-            (get_payment_status(&item.response), None),
+            (
+                get_payment_status(&item.response.status, &item.response.next_action),
+                None,
+            ),
             |response_url_data| {
                 // If the connector sends a customer action response that is already under
                 // process from our end it can cause an infinite loop to break this this check
@@ -447,7 +465,7 @@ impl<F, T>
                 } else {
                     (
                         //Build the redirect form and update the payment status
-                        get_payment_status(&item.response),
+                        get_payment_status(&item.response.status, &item.response.next_action),
                         get_redirection_form(response_url_data),
                     )
                 }
@@ -469,6 +487,46 @@ impl<F, T>
     }
 }
 
+impl
+    TryFrom<
+        types::ResponseRouterData<
+            api::PSync,
+            AirwallexPaymentsSyncResponse,
+            PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    > for types::PaymentsSyncRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            api::PSync,
+            AirwallexPaymentsSyncResponse,
+            PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let status = get_payment_status(&item.response.status, &item.response.next_action);
+        let redirection_data = if let Some(redirect_url_data) = item.response.next_action {
+            get_redirection_form(redirect_url_data)
+        } else {
+            None
+        };
+        Ok(Self {
+            status,
+            reference_id: Some(item.response.id.clone()),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct AirwallexRefundRequest {
