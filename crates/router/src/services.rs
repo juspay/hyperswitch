@@ -10,7 +10,6 @@ use error_stack::{IntoReport, ResultExt};
 use external_services::kms::{self, decrypt::KmsDecrypt};
 #[cfg(not(feature = "kms"))]
 use masking::PeekInterface;
-use external_services::kms::{self, decrypt::KmsDecrypt};
 #[cfg(not(feature = "kms"))]
 use masking::PeekInterface;
 use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
