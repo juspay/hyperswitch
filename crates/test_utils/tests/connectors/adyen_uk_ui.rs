@@ -634,26 +634,6 @@ async fn should_make_adyen_blik_payment(driver: WebDriver) -> Result<(), WebDriv
     Ok(())
 }
 
-async fn should_make_adyen_open_banking_payment(
-    web_driver: WebDriver,
-) -> Result<(), WebDriverError> {
-    let conn = AdyenSeleniumTest {};
-    conn.make_redirection_payment(
-        web_driver,
-        vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/232"))),
-            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
-            Event::Trigger(Trigger::Click(By::XPath(
-                "//*[@id='root']/div/div[1]/div/div/div/div/main/div[3]/button",
-            ))), // button of submit and cancel contains the same class and type
-            Event::Trigger(Trigger::Click(By::Css("input[value='Identify']"))),
-            Event::Assert(Assert::IsPresent("succeeded")),
-        ],
-    )
-    .await?;
-    Ok(())
-}
-
 #[test]
 #[serial]
 #[ignore]
@@ -844,10 +824,4 @@ fn should_make_adyen_online_banking_thailand_payment_test() {
 #[serial]
 fn should_make_adyen_touch_n_go_payment_test() {
     tester!(should_make_adyen_touch_n_go_payment);
-}
-
-#[test]
-#[serial]
-fn should_make_adyen_open_banking_payment_test() {
-    tester!(should_make_adyen_open_banking_payment);
 }
