@@ -116,6 +116,14 @@ impl ConnectorCommon for Worldline {
         connectors.worldline.base_url.as_ref()
     }
 
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        worldline::AuthType::try_from(val)?;
+        Ok(())
+    }
+
     fn build_error_response(
         &self,
         res: types::Response,

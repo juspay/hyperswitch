@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
@@ -38,6 +38,14 @@ impl ConnectorCommon for Stripe {
 
     fn common_get_content_type(&self) -> &'static str {
         "application/x-www-form-urlencoded"
+    }
+
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        stripe::StripeAuthType::try_from(val)?;
+        Ok(())
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {

@@ -59,6 +59,13 @@ impl ConnectorCommon for Wise {
     fn id(&self) -> &'static str {
         "wise"
     }
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        wise::WiseAuthType::try_from(val)?;
+        Ok(())
+    }
 
     fn get_auth_header(
         &self,

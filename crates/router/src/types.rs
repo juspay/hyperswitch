@@ -237,7 +237,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub preprocessing_id: Option<String>,
     /// This is the balance amount for gift cards or voucher
-    pub payment_method_balance: Option<i64>,
+    pub payment_method_balance: Option<PaymentMethodBalance>,
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
 
@@ -259,6 +259,12 @@ pub struct RouterData<Flow, Request, Response> {
     pub quote_id: Option<String>,
 
     pub test_mode: Option<bool>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentMethodBalance {
+    pub amount: i64,
+    pub currency: String,
 }
 
 #[cfg(feature = "payouts")]
@@ -906,7 +912,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             #[cfg(feature = "payouts")]
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
-            payment_method_balance: data.payment_method_balance,
+            payment_method_balance: data.payment_method_balance.clone(),
         }
     }
 }

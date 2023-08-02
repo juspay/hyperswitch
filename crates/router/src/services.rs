@@ -106,12 +106,22 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
 }
 
 pub trait RedisConnInterface {
-    fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool>;
+    fn get_redis_conn(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Arc<redis_interface::RedisConnectionPool>,
+        errors::RedisError,
+    >;
 }
 
 impl RedisConnInterface for Store {
-    fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool> {
-        self.redis_conn.clone()
+    fn get_redis_conn(
+        &self,
+    ) -> common_utils::errors::CustomResult<
+        Arc<redis_interface::RedisConnectionPool>,
+        errors::RedisError,
+    > {
+        self.redis_conn()
     }
 }
 
