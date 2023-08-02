@@ -886,6 +886,7 @@ pub enum PaymentMethodType {
     ClassicReward,
     Credit,
     CryptoCurrency,
+    Cashapp,
     Dana,
     DanamonVa,
     Debit,
@@ -965,6 +966,7 @@ pub enum PaymentMethod {
     Reward,
     Upi,
     Voucher,
+    GiftCard,
 }
 
 #[derive(

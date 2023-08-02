@@ -183,6 +183,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::GoPay
             | api_enums::PaymentMethodType::Gcash
             | api_enums::PaymentMethodType::Momo
+            | api_enums::PaymentMethodType::Cashapp
             | api_enums::PaymentMethodType::KakaoPay => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::Alma
@@ -235,6 +236,32 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::DanamonVa
             | api_enums::PaymentMethodType::MandiriVa
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
+        }
+    }
+}
+
+impl ForeignTryFrom<api_models::payments::PaymentMethodData> for api_enums::PaymentMethod {
+    type Error = errors::ApiErrorResponse;
+    fn foreign_try_from(
+        payment_method_data: api_models::payments::PaymentMethodData,
+    ) -> Result<Self, Self::Error> {
+        match payment_method_data {
+            api_models::payments::PaymentMethodData::Card(..) => Ok(Self::Card),
+            api_models::payments::PaymentMethodData::Wallet(..) => Ok(Self::Wallet),
+            api_models::payments::PaymentMethodData::PayLater(..) => Ok(Self::PayLater),
+            api_models::payments::PaymentMethodData::BankRedirect(..) => Ok(Self::BankRedirect),
+            api_models::payments::PaymentMethodData::BankDebit(..) => Ok(Self::BankDebit),
+            api_models::payments::PaymentMethodData::BankTransfer(..) => Ok(Self::BankTransfer),
+            api_models::payments::PaymentMethodData::Crypto(..) => Ok(Self::Crypto),
+            api_models::payments::PaymentMethodData::Reward(..) => Ok(Self::Reward),
+            api_models::payments::PaymentMethodData::Upi(..) => Ok(Self::Upi),
+            api_models::payments::PaymentMethodData::Voucher(..) => Ok(Self::Voucher),
+            api_models::payments::PaymentMethodData::GiftCard(..) => Ok(Self::GiftCard),
+            api_models::payments::PaymentMethodData::MandatePayment => {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: ("Mandate payments cannot have payment_method_data field".to_string()),
+                })
+            }
         }
     }
 }

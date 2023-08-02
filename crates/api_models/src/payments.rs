@@ -1098,6 +1098,8 @@ pub enum WalletData {
     WeChatPayRedirect(Box<WeChatPayRedirection>),
     /// The wallet data for WeChat Pay Display QrCode
     WeChatPayQr(Box<WeChatPayQr>),
+    /// The wallet data for Cashapp Qr
+    CashappQr(Box<CashappQr>),
     // The wallet data for Swish
     SwishQr(SwishQrData),
 }
@@ -1144,6 +1146,9 @@ pub struct WeChatPay {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct WeChatPayQr {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct CashappQr {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaypalRedirection {}
@@ -1440,6 +1445,7 @@ pub enum NextActionData {
     QrCodeInformation {
         #[schema(value_type = String)]
         image_data_url: Url,
+        display_to_timestamp: Option<i64>,
     },
     /// Contains the download url and the reference number for transaction
     DisplayVoucherInformation {
@@ -1475,6 +1481,7 @@ pub struct VoucherNextStepData {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct QrCodeNextStepsInstruction {
     pub image_data_url: Url,
+    pub display_to_timestamp: Option<i64>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]

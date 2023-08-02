@@ -401,6 +401,7 @@ where
                         .or(next_action_containing_qr_code_url.map(|qr_code_data| {
                             api_models::payments::NextActionData::QrCodeInformation {
                                 image_data_url: qr_code_data.image_data_url,
+                                display_to_timestamp: qr_code_data.display_to_timestamp,
                             }
                         }))
                         .or(next_action_containing_wait_screen.map(|wait_screen_data| {

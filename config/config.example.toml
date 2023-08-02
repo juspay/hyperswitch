@@ -359,6 +359,9 @@ credit = { currency = "USD" }
 debit = { currency = "USD" }
 ach = { currency = "USD" }
 
+[pm_filters.stripe]
+cashapp = {country = "US", currency = "USD"}
+
 [connector_customer]
 connector_list = "stax"
 
