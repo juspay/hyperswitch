@@ -6,8 +6,8 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        self, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData, CardData,
-        PaymentsAuthorizeRequestData,
+        self, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData,
+        BankRedirectBillingData, CardData, PaymentsAuthorizeRequestData,
     },
     core::errors,
     services,
@@ -109,11 +109,7 @@ fn get_payment_source(
             bank_name: _,
             country,
         } => Ok(PaymentSourceItem::Eps(RedirectRequest {
-            name: billing_details.billing_name.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_name",
-                },
-            )?,
+            name: billing_details.get_billing_name()?,
             country_code: country.ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "eps.country",
             })?,
@@ -127,11 +123,7 @@ fn get_payment_source(
             country,
             ..
         } => Ok(PaymentSourceItem::Giropay(RedirectRequest {
-            name: billing_details.billing_name.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_name",
-                },
-            )?,
+            name: billing_details.get_billing_name()?,
             country_code: country.ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "giropay.country",
             })?,
@@ -145,11 +137,7 @@ fn get_payment_source(
             bank_name: _,
             country,
         } => Ok(PaymentSourceItem::IDeal(RedirectRequest {
-            name: billing_details.billing_name.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_name",
-                },
-            )?,
+            name: billing_details.get_billing_name()?,
             country_code: country.ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "ideal.country",
             })?,
@@ -163,11 +151,7 @@ fn get_payment_source(
             preferred_language: _,
             billing_details,
         } => Ok(PaymentSourceItem::Sofort(RedirectRequest {
-            name: billing_details.billing_name.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_name",
-                },
-            )?,
+            name: billing_details.get_billing_name()?,
             country_code: *country,
             experience_context: ContextStruct {
                 return_url: item.request.complete_authorize_url.clone(),
@@ -251,7 +235,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                 ))?,
             },
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
-                let intent = PaypalPaymentIntent::Capture;
+                let intent = match item.request.is_auto_capture()? {
+                    true => PaypalPaymentIntent::Capture,
+                    false => Err(errors::ConnectorError::FlowNotSupported {
+                        flow: "Manual capture method for Bank Redirect".to_string(),
+                        connector: "Paypal".to_string(),
+                    })?,
+                };
                 let amount = OrderAmount {
                     currency_code: item.request.currency,
                     value: item.request.amount.to_string(),
