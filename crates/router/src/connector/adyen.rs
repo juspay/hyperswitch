@@ -561,22 +561,13 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        match req.payment_method {
-            api_models::enums::PaymentMethod::GiftCard => {
-                let payment_method_balance = req
-                    .payment_method_balance
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-                if payment_method_balance.amount >= req.request.amount
-                    && payment_method_balance.currency == req.request.currency.to_string()
-                {
-                    get_payment_intent_request(req)
-                } else {
-                    Err(errors::ConnectorError::InSufficientBalanceInPaymentMethod.into())
-                }
-            }
-            _ => get_payment_intent_request(req),
-        }
+        let connector_req = adyen::AdyenPaymentRequest::try_from(req)?;
+        let request_body = types::RequestBody::log_and_get_request_body(
+        &connector_req,
+        common_utils::ext_traits::Encode::<adyen::AdyenPaymentRequest<'_>>::encode_to_string_of_json,
+    )
+    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(request_body))
     }
 
     fn build_request(
@@ -584,6 +575,7 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        check_for_payment_method_balance(req)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -1501,14 +1493,23 @@ impl api::IncomingWebhook for Adyen {
     }
 }
 
-pub fn get_payment_intent_request(
+pub fn check_for_payment_method_balance(
     req: &types::PaymentsAuthorizeRouterData,
-) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-    let connector_req = adyen::AdyenPaymentRequest::try_from(req)?;
-    let request_body = types::RequestBody::log_and_get_request_body(
-        &connector_req,
-        common_utils::ext_traits::Encode::<adyen::AdyenPaymentRequest<'_>>::encode_to_string_of_json,
-    )
-    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-    Ok(Some(request_body))
+) -> CustomResult<(), errors::ConnectorError> {
+    match req.payment_method {
+        storage_enums::PaymentMethod::GiftCard => {
+            let payment_method_balance = req
+                .payment_method_balance
+                .as_ref()
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+            if payment_method_balance.currency != req.request.currency.to_string()
+                || payment_method_balance.amount < req.request.amount
+            {
+                Err(errors::ConnectorError::InSufficientBalanceInPaymentMethod.into())
+            } else {
+                Ok(())
+            }
+        }
+        _ => Ok(()),
+    }
 }
