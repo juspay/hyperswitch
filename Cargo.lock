@@ -4000,6 +4000,7 @@ dependencies = [
  "ring",
  "router_derive",
  "router_env",
+ "roxmltree",
  "serde",
  "serde_json",
  "serde_path_to_error",
@@ -4062,6 +4063,15 @@ dependencies = [
  "tracing-opentelemetry",
  "tracing-subscriber",
  "vergen",
+]
+
+[[package]]
+name = "roxmltree"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8f595a457b6b8c6cda66a48503e92ee8d19342f905948f29c383200ec9eb1d8"
+dependencies = [
+ "xmlparser",
 ]
 
 [[package]]
