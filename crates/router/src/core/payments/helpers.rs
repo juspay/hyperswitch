@@ -1415,12 +1415,6 @@ pub(crate) fn validate_payment_method_fields_present(
             })
         },
     )?;
-    logger::debug!(
-        "aaaaaaaaaaa{:?}      bbbbbbbbb{:?}",
-        req.payment_method,
-        req.payment_method_type
-    );
-
     utils::when(
         req.payment_method.is_some() && req.payment_method_type.is_some(),
         || {
