@@ -725,14 +725,19 @@ pub enum PaymentMethodData {
     GiftCard(Box<GiftCardData>),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct GiftCardData {
-    /// The gift card number
-    #[schema(value_type = String)]
-    pub number: Secret<String>,
-    /// The card verification code.
-    #[schema(value_type = String)]
-    pub cvc: Secret<String>,
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+
+pub enum GiftCardData {
+    BabyGiftCard {
+        /// The gift card number
+        #[schema(value_type = String)]
+        number: Secret<String>,
+        /// The card verification code.
+        #[schema(value_type = String)]
+        cvc: Secret<String>,
+    },
+    PaySafeCard {},
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
