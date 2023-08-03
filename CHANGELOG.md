@@ -3,6 +3,17 @@
 All notable changes to HyperSwitch will be documented here.
 
 - - -
+## 1.10.2+iatapay.5 (2023-08-03)
+
+### Bug Fixes
+
+- **webhooks:** Do not send duplicate webhooks ([#1850](https://github.com/juspay/hyperswitch/pull/1850)) ([`e10e8aa`](https://github.com/juspay/hyperswitch/commit/e10e8aa0d45652758177d536d269b173f6404ca0))
+
+**Full Changelog:** [`v1.10.2+iatapay.4...v1.10.2+iatapay.5`](https://github.com/juspay/hyperswitch/compare/v1.10.2+iatapay.4...v1.10.2+iatapay.5)
+
+- - -
+
+
 
 ## 1.10.2+iatapay.4 (2023-08-03)
 
