@@ -268,6 +268,9 @@ impl From<MultiAuthKey> for ConnectorAuthType {
 pub struct AutomationConfigs {
     pub hs_base_url: Option<String>,
     pub hs_api_key: Option<String>,
+    pub hs_api_keys: Option<String>,
+    pub hs_webhook_url: Option<String>,
+    pub hs_test_env: Option<String>,
     pub hs_test_browser: Option<String>,
     pub chrome_profile_path: Option<String>,
     pub firefox_profile_path: Option<String>,
