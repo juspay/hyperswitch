@@ -1292,7 +1292,7 @@ pub enum VoucherData {
     RedPagos,
     Alfamart(Box<AlfamartVoucherData>),
     Indomaret(Box<IndomaretVoucherData>),
-    Oxxo
+    Oxxo,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1477,7 +1477,7 @@ pub enum NextActionData {
     WaitScreenInformation {
         display_from_timestamp: i128,
         display_to_timestamp: Option<i128>,
-    }
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

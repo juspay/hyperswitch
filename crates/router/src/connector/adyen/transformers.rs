@@ -1498,9 +1498,7 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
                     shopper_email: indomaret_data.email.clone(),
                 })))
             }
-            payments::VoucherData::Oxxo => {
-                Ok(AdyenPaymentMethod::Oxxo)
-            }
+            payments::VoucherData::Oxxo => Ok(AdyenPaymentMethod::Oxxo),
             payments::VoucherData::Efecty
             | payments::VoucherData::PagoEfectivo
             | payments::VoucherData::RedCompra
@@ -2865,7 +2863,10 @@ pub fn get_present_to_shopper_metadata(
     let reference = response.action.reference.clone();
 
     match response.action.payment_method_type {
-        PaymentType::Alfamart | PaymentType::Indomaret | PaymentType::BoletoBancario | PaymentType::Oxxo=> {
+        PaymentType::Alfamart
+        | PaymentType::Indomaret
+        | PaymentType::BoletoBancario
+        | PaymentType::Oxxo => {
             let voucher_data = payments::VoucherNextStepData {
                 expires_at: response.action.expires_at.clone(),
                 reference,
