@@ -5026,6 +5026,32 @@
         "type": "object"
       },
       "GiftCardData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "givex"
+            ],
+            "properties": {
+              "givex": {
+                "$ref": "#/components/schemas/GiftCardDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_safe_card"
+            ],
+            "properties": {
+              "pay_safe_card": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "GiftCardDetails": {
         "type": "object",
         "required": [
           "number",
@@ -7692,6 +7718,7 @@
           "pay_bright",
           "paypal",
           "pix",
+          "pay_safe_card",
           "przelewy24",
           "pse",
           "red_compra",

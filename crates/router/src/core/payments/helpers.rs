@@ -1415,7 +1415,6 @@ pub(crate) fn validate_payment_method_fields_present(
             })
         },
     )?;
-
     utils::when(
         req.payment_method.is_some() && req.payment_method_type.is_some(),
         || {
@@ -1572,7 +1571,10 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Alfamart
         ),
         api_enums::PaymentMethod::GiftCard => {
-            matches!(payment_method_type, api_enums::PaymentMethodType::Givex)
+            matches!(
+                payment_method_type,
+                api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard
+            )
         }
     }
 }

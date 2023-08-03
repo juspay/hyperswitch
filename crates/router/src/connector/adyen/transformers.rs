@@ -408,6 +408,8 @@ pub enum AdyenPaymentMethod<'a> {
     OnlineBankingFpx(Box<OnlineBankingFpxData>),
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand(Box<OnlineBankingThailandData>),
+    #[serde(rename = "paysafecard")]
+    PaySafeCard,
     #[serde(rename = "paybright")]
     PayBright,
     #[serde(rename = "doku_permata_lite_atm")]
@@ -455,7 +457,7 @@ pub enum AdyenPaymentMethod<'a> {
 #[serde(rename_all = "camelCase")]
 pub struct BalancePmData {
     #[serde(rename = "type")]
-    payment_type: String,
+    payment_type: GiftCardBrand,
     number: Secret<String>,
     cvc: Secret<String>,
 }
@@ -465,7 +467,7 @@ pub struct BalancePmData {
 pub struct GiftCardData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
-    brand: String,
+    brand: GiftCardBrand,
     number: Secret<String>,
     cvc: Secret<String>,
 }
@@ -973,6 +975,8 @@ pub enum PaymentType {
     OnlineBankingFpx,
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand,
+    #[serde(rename = "paysafecard")]
+    PaySafeCard,
     PayBright,
     Paypal,
     Scheme,
@@ -1010,6 +1014,14 @@ pub enum PaymentType {
     DanamonVa,
     #[serde(rename = "doku_mandiri_va")]
     MandiriVa,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GiftCardBrand {
+    Givex,
+    Auriga,
+    Babygiftcard,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -1187,14 +1199,22 @@ impl<'a> TryFrom<&types::PaymentsBalanceRouterData> for AdyenBalanceRequest<'a> 
     fn try_from(item: &types::PaymentsBalanceRouterData) -> Result<Self, Self::Error> {
         let payment_method = match &item.request.payment_method_data {
             payments::PaymentMethodData::GiftCard(gift_card_data) => {
-                let balance_pm = BalancePmData {
-                    payment_type: item.request.get_payment_method_type()?.to_string(),
-                    number: gift_card_data.number.to_owned(),
-                    cvc: gift_card_data.cvc.to_owned(),
-                };
-                Ok(AdyenPaymentMethod::PaymentMethodBalance(Box::new(
-                    balance_pm,
-                )))
+                match gift_card_data.as_ref() {
+                    payments::GiftCardData::Givex(gift_card_data) => {
+                        let balance_pm = BalancePmData {
+                            payment_type: GiftCardBrand::Givex,
+                            number: gift_card_data.number.clone(),
+                            cvc: gift_card_data.cvc.clone(),
+                        };
+                        Ok(AdyenPaymentMethod::PaymentMethodBalance(Box::new(
+                            balance_pm,
+                        )))
+                    }
+                    _ => Err(errors::ConnectorError::FlowNotSupported {
+                        flow: "Balance".to_string(),
+                        connector: "adyen".to_string(),
+                    }),
+                }
             }
             _ => Err(errors::ConnectorError::FlowNotSupported {
                 flow: "Balance".to_string(),
@@ -1480,6 +1500,24 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
                 "this payment method".to_string(),
             )
             .into()),
+        }
+    }
+}
+
+impl<'a> TryFrom<&api_models::payments::GiftCardData> for AdyenPaymentMethod<'a> {
+    type Error = Error;
+    fn try_from(gift_card_data: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
+        match gift_card_data {
+            payments::GiftCardData::PaySafeCard {} => Ok(AdyenPaymentMethod::PaySafeCard),
+            payments::GiftCardData::Givex(givex_data) => {
+                let gift_card_pm = GiftCardData {
+                    payment_type: PaymentType::Giftcard,
+                    brand: GiftCardBrand::Givex,
+                    number: givex_data.number.clone(),
+                    cvc: givex_data.cvc.clone(),
+                };
+                Ok(AdyenPaymentMethod::AdyenGiftCard(Box::new(gift_card_pm)))
+            }
         }
     }
 }
@@ -2169,6 +2207,53 @@ impl<'a>
 impl<'a>
     TryFrom<(
         &types::PaymentsAuthorizeRouterData,
+        &api_models::payments::GiftCardData,
+    )> for AdyenPaymentRequest<'a>
+{
+    type Error = Error;
+
+    fn try_from(
+        value: (
+            &types::PaymentsAuthorizeRouterData,
+            &api_models::payments::GiftCardData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, gift_card_data) = value;
+        let amount = get_amount_data(item);
+        let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+        let shopper_interaction = AdyenShopperInteraction::from(item);
+        let return_url = item.request.get_router_return_url()?;
+        let payment_method = AdyenPaymentMethod::try_from(gift_card_data)?;
+        let request = AdyenPaymentRequest {
+            amount,
+            merchant_account: auth_type.merchant_account,
+            payment_method,
+            reference: item.payment_id.to_string(),
+            return_url,
+            browser_info: None,
+            shopper_interaction,
+            recurring_processing_model: None,
+            additional_data: None,
+            shopper_name: None,
+            shopper_locale: None,
+            shopper_email: item.request.email.clone(),
+            telephone_number: None,
+            billing_address: None,
+            delivery_address: None,
+            country_code: None,
+            line_items: None,
+            shopper_reference: None,
+            store_payment_method: None,
+            channel: None,
+            social_security_number: None,
+        };
+        Ok(request)
+    }
+}
+
+impl<'a>
+    TryFrom<(
+        &types::PaymentsAuthorizeRouterData,
         &api_models::payments::BankRedirectData,
     )> for AdyenPaymentRequest<'a>
 {
@@ -2351,74 +2436,6 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::PayLaterData)>
             store_payment_method,
             channel: None,
         })
-    }
-}
-
-impl<'a>
-    TryFrom<(
-        &types::PaymentsAuthorizeRouterData,
-        &api_models::payments::GiftCardData,
-    )> for AdyenPaymentRequest<'a>
-{
-    type Error = Error;
-    fn try_from(
-        value: (
-            &types::PaymentsAuthorizeRouterData,
-            &api_models::payments::GiftCardData,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let (item, gift_card_data) = value;
-        let amount = get_amount_data(item);
-        let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
-        let shopper_interaction = AdyenShopperInteraction::from(item);
-        let (recurring_processing_model, store_payment_method, shopper_reference) =
-            get_recurring_processing_model(item)?;
-        let browser_info = get_browser_info(item)?;
-        let additional_data = get_additional_data(item);
-        let return_url = item.request.get_return_url()?;
-        let gift_card_brand = item.request.get_payment_method_type()?.to_string();
-        let payment_method = AdyenPaymentMethod::try_from((gift_card_data, gift_card_brand))?;
-        let (shopper_locale, country) = get_sofort_extra_details(item);
-        let line_items = Some(get_line_items(item));
-
-        Ok(AdyenPaymentRequest {
-            amount,
-            merchant_account: auth_type.merchant_account,
-            payment_method,
-            reference: item.payment_id.to_string(),
-            return_url,
-            shopper_interaction,
-            recurring_processing_model,
-            browser_info,
-            additional_data,
-            telephone_number: None,
-            shopper_name: None,
-            shopper_email: item.request.email.clone(),
-            shopper_locale,
-            billing_address: None,
-            delivery_address: None,
-            country_code: country,
-            line_items,
-            shopper_reference,
-            store_payment_method,
-            channel: None,
-            social_security_number: None,
-        })
-    }
-}
-
-impl<'a> TryFrom<(&api_models::payments::GiftCardData, String)> for AdyenPaymentMethod<'a> {
-    type Error = Error;
-    fn try_from(
-        gift_card_data: (&api_models::payments::GiftCardData, String),
-    ) -> Result<Self, Self::Error> {
-        let gift_card_pm = GiftCardData {
-            payment_type: PaymentType::Giftcard,
-            brand: gift_card_data.1,
-            number: gift_card_data.0.number.to_owned(),
-            cvc: gift_card_data.0.cvc.to_owned(),
-        };
-        Ok(AdyenPaymentMethod::AdyenGiftCard(Box::new(gift_card_pm)))
     }
 }
 
@@ -2828,7 +2845,8 @@ pub fn get_wait_screen_metadata(
         | PaymentType::CimbVa
         | PaymentType::DanamonVa
         | PaymentType::Giftcard
-        | PaymentType::MandiriVa => Ok(None),
+        | PaymentType::MandiriVa
+        | PaymentType::PaySafeCard => Ok(None),
     }
 }
 
@@ -2916,7 +2934,8 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Samsungpay
         | PaymentType::Twint
         | PaymentType::Vipps
-        | PaymentType::Swish => Ok(None),
+        | PaymentType::Swish
+        | PaymentType::PaySafeCard => Ok(None),
     }
 }
 

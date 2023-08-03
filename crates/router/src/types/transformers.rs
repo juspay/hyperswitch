@@ -237,6 +237,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::MandiriVa
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex => Self::GiftCard,
+            api_enums::PaymentMethodType::PaySafeCard => Self::GiftCard,
         }
     }
 }

@@ -493,34 +493,39 @@ impl
         router_data: &mut types::PaymentsAuthorizeRouterData,
         app_state: &routes::AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
-        match router_data.payment_method {
-            api_models::enums::PaymentMethod::GiftCard => {
-                let integ: Box<
-                    &(dyn services::ConnectorIntegration<
-                        api::Balance,
-                        types::PaymentsAuthorizeData,
-                        types::PaymentsResponseData,
-                    > + Send
-                          + Sync
-                          + 'static),
-                > = Box::new(&Self);
+        match &router_data.request.payment_method_data {
+            api_models::payments::PaymentMethodData::GiftCard(gift_card_data) => {
+                match gift_card_data.as_ref() {
+                    api_models::payments::GiftCardData::Givex(_) => {
+                        let integ: Box<
+                            &(dyn services::ConnectorIntegration<
+                                api::Balance,
+                                types::PaymentsAuthorizeData,
+                                types::PaymentsResponseData,
+                            > + Send
+                                  + Sync
+                                  + 'static),
+                        > = Box::new(&Self);
 
-                let authorize_data = &types::PaymentsBalanceRouterData::from((
-                    &router_data.to_owned(),
-                    router_data.request.clone(),
-                ));
+                        let authorize_data = &types::PaymentsBalanceRouterData::from((
+                            &router_data.to_owned(),
+                            router_data.request.clone(),
+                        ));
 
-                let resp = services::execute_connector_processing_step(
-                    app_state,
-                    integ,
-                    authorize_data,
-                    core::payments::CallConnectorAction::Trigger,
-                    None,
-                )
-                .await?;
-                router_data.payment_method_balance = resp.payment_method_balance;
+                        let resp = services::execute_connector_processing_step(
+                            app_state,
+                            integ,
+                            authorize_data,
+                            core::payments::CallConnectorAction::Trigger,
+                            None,
+                        )
+                        .await?;
+                        router_data.payment_method_balance = resp.payment_method_balance;
 
-                Ok(())
+                        Ok(())
+                    }
+                    _ => Ok(()),
+                }
             }
             _ => Ok(()),
         }
@@ -1496,20 +1501,23 @@ impl api::IncomingWebhook for Adyen {
 pub fn check_for_payment_method_balance(
     req: &types::PaymentsAuthorizeRouterData,
 ) -> CustomResult<(), errors::ConnectorError> {
-    match req.payment_method {
-        storage_enums::PaymentMethod::GiftCard => {
-            let payment_method_balance = req
-                .payment_method_balance
-                .as_ref()
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-            if payment_method_balance.currency != req.request.currency.to_string()
-                || payment_method_balance.amount < req.request.amount
-            {
-                Err(errors::ConnectorError::InSufficientBalanceInPaymentMethod.into())
-            } else {
-                Ok(())
+    match &req.request.payment_method_data {
+        api_models::payments::PaymentMethodData::GiftCard(gift_card) => match gift_card.as_ref() {
+            api_models::payments::GiftCardData::Givex(_) => {
+                let payment_method_balance = req
+                    .payment_method_balance
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+                if payment_method_balance.currency != req.request.currency.to_string()
+                    || payment_method_balance.amount < req.request.amount
+                {
+                    Err(errors::ConnectorError::InSufficientBalanceInPaymentMethod.into())
+                } else {
+                    Ok(())
+                }
             }
-        }
+            _ => Ok(()),
+        },
         _ => Ok(()),
     }
 }

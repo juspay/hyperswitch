@@ -1585,6 +1585,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Pse => Self::BankTransfer,
             PaymentMethodType::PayBright => Self::PayLater,
             PaymentMethodType::Paypal => Self::Wallet,
+            PaymentMethodType::PaySafeCard => Self::GiftCard,
             PaymentMethodType::Przelewy24 => Self::BankRedirect,
             PaymentMethodType::SamsungPay => Self::Wallet,
             PaymentMethodType::Sepa => Self::BankDebit,
