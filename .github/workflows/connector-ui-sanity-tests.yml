@@ -36,6 +36,9 @@ env:
   RUST_BACKTRACE: short
   # Use cargo's sparse index protocol
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+  # Enable and use the sccache action for caching
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
 
 jobs:
   test_connectors:
@@ -115,7 +118,7 @@ jobs:
         with:
           toolchain: stable
 
-      - uses: Swatinem/rust-cache@v2.4.0
+      - uses: mozilla-actions/sccache-action@v0.0.3
 
       - uses: baptiste0928/cargo-install@v2.1.0
         if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')  
