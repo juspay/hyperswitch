@@ -296,8 +296,7 @@ jobs:
       #   with:
       #     crate: cargo-nextest
 
-      - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.3
+      - uses: mozilla-actions/sccache-action@v0.0.3
 
       # - name: Setup Embark Studios lint rules
       #   shell: bash
