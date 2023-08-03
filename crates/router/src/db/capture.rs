@@ -20,14 +20,6 @@ pub trait CaptureInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::Capture>, errors::StorageError>;
 
-    async fn find_all_charged_captures_by_authorized_attempt_id(
-        &self,
-        merchant_id: &str,
-        payment_id: &str,
-        authorized_attempt_id: &str,
-        storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<types::Capture>, errors::StorageError>;
-
     async fn update_capture_with_capture_id(
         &self,
         this: types::Capture,
@@ -103,28 +95,6 @@ mod storage {
             };
             db_call().await
         }
-
-        async fn find_all_charged_captures_by_authorized_attempt_id(
-            &self,
-            merchant_id: &str,
-            payment_id: &str,
-            authorized_attempt_id: &str,
-            _storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<Vec<Capture>, errors::StorageError> {
-            let db_call = || async {
-                let conn = connection::pg_connection_write(self).await?;
-                Capture::find_all_charged_by_merchant_id_payment_id_authorized_attempt_id(
-                    merchant_id,
-                    payment_id,
-                    authorized_attempt_id,
-                    &conn,
-                )
-                .await
-                .map_err(Into::into)
-                .into_report()
-            };
-            db_call().await
-        }
     }
 }
 
@@ -136,9 +106,8 @@ mod storage {
     use crate::{
         connection,
         core::errors::{self, CustomResult},
-        db::payment_attempt::PaymentAttemptInterface,
         services::Store,
-        types::storage::{self, capture::*, enums},
+        types::storage::{capture::*, enums},
     };
 
     #[async_trait::async_trait]
@@ -146,7 +115,7 @@ mod storage {
         async fn insert_capture(
             &self,
             capture: CaptureNew,
-            storage_scheme: enums::MerchantStorageScheme,
+            _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Capture, errors::StorageError> {
             let db_call = || async {
                 let conn = connection::pg_connection_write(self).await?;
@@ -159,11 +128,11 @@ mod storage {
             db_call().await
         }
 
-        async fn update_capture_and_attempt_with_capture_id(
+        async fn update_capture_with_capture_id(
             &self,
             this: Capture,
             capture: CaptureUpdate,
-            storage_scheme: enums::MerchantStorageScheme,
+            _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Capture, errors::StorageError> {
             let db_call = || async {
                 let conn = connection::pg_connection_write(self).await?;
@@ -185,28 +154,6 @@ mod storage {
             let db_call = || async {
                 let conn = connection::pg_connection_write(self).await?;
                 Capture::find_all_by_merchant_id_payment_id_authorized_attempt_id(
-                    merchant_id,
-                    payment_id,
-                    authorized_attempt_id,
-                    &conn,
-                )
-                .await
-                .map_err(Into::into)
-                .into_report()
-            };
-            db_call().await
-        }
-
-        async fn find_all_charged_captures_by_authorized_attempt_id(
-            &self,
-            merchant_id: &str,
-            payment_id: &str,
-            authorized_attempt_id: &str,
-            _storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<Vec<Capture>, errors::StorageError> {
-            let db_call = || async {
-                let conn = connection::pg_connection_write(self).await?;
-                Capture::find_all_charged_by_merchant_id_payment_id_authorized_attempt_id(
                     merchant_id,
                     payment_id,
                     authorized_attempt_id,
@@ -261,17 +208,6 @@ impl CaptureInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
     async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
-        &self,
-        _merchant_id: &str,
-        _payment_id: &str,
-        _authorized_attempt_id: &str,
-        _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<types::Capture>, errors::StorageError> {
-        //Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
-    }
-
-    async fn find_all_charged_captures_by_authorized_attempt_id(
         &self,
         _merchant_id: &str,
         _payment_id: &str,

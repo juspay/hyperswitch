@@ -5096,7 +5096,8 @@
           "requires_merchant_action",
           "requires_payment_method",
           "requires_confirmation",
-          "requires_capture"
+          "requires_capture",
+          "partially_captured"
         ]
       },
       "KakaoPayRedirection": {
