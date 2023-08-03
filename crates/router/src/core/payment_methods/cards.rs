@@ -1731,21 +1731,19 @@ pub async fn list_customer_payment_method(
         .find_config_by_key(format!("{}_requires_cvv", merchant_account.merchant_id).as_str())
         .await;
 
-    let is_requires_cvv = match is_requires_cvv {
-        Ok(value) => Some(value.config),
+    let requires_cvv = match is_requires_cvv {
+        // If an entry is found with the config value as `false`, we set requires_cvv to false
+        Ok(value) => value.config != "false",
         Err(err) => {
             if err.current_context().is_db_not_found() {
-                None
+                // By default, cvv is made required field for all merchants
+                true
             } else {
                 Err(err
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to fetch merchant_id config"))?
+                    .attach_printable("Failed to fetch merchant_id config for requires_cvv"))?
             }
         }
-    };
-    let requires_cvv = match is_requires_cvv {
-        Some(val) => val == "true",
-        None => false,
     };
 
     let resp = db
