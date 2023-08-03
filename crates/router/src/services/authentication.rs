@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
 #[cfg(feature = "kms")]
-use external_services::kms;
+use external_services::kms::{self, decrypt::KmsDecrypt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::{PeekInterface, StrongSecret};
 
@@ -108,7 +108,7 @@ where
             api_keys::get_hash_key(
                 &config.api_keys,
                 #[cfg(feature = "kms")]
-                &config.kms,
+                kms::get_kms_client(&config.kms).await,
             )
             .await?
         };
@@ -165,14 +165,14 @@ static ADMIN_API_KEY: tokio::sync::OnceCell<StrongSecret<String>> =
 
 pub async fn get_admin_api_key(
     secrets: &settings::Secrets,
-    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
+    #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
 ) -> RouterResult<&'static StrongSecret<String>> {
     ADMIN_API_KEY
         .get_or_try_init(|| async {
             #[cfg(feature = "kms")]
-            let admin_api_key = kms::get_kms_client(kms_config)
-                .await
-                .decrypt(&secrets.kms_encrypted_admin_api_key)
+            let admin_api_key = secrets
+                .kms_encrypted_admin_api_key
+                .decrypt_inner(kms_client)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to KMS decrypt admin API key")?;
@@ -211,7 +211,7 @@ where
         let admin_api_key = get_admin_api_key(
             &conf.secrets,
             #[cfg(feature = "kms")]
-            &conf.kms,
+            kms::get_kms_client(&conf.kms).await,
         )
         .await?;
 
@@ -482,14 +482,14 @@ static JWT_SECRET: tokio::sync::OnceCell<StrongSecret<String>> = tokio::sync::On
 
 pub async fn get_jwt_secret(
     secrets: &settings::Secrets,
-    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
+    #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
 ) -> RouterResult<&'static StrongSecret<String>> {
     JWT_SECRET
         .get_or_try_init(|| async {
             #[cfg(feature = "kms")]
-            let jwt_secret = kms::get_kms_client(kms_config)
-                .await
-                .decrypt(&secrets.kms_encrypted_jwt_secret)
+            let jwt_secret = secrets
+                .kms_encrypted_jwt_secret
+                .decrypt_inner(kms_client)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to KMS decrypt JWT secret")?;
@@ -510,7 +510,7 @@ where
     let secret = get_jwt_secret(
         &conf.secrets,
         #[cfg(feature = "kms")]
-        &conf.kms,
+        kms::get_kms_client(&conf.kms).await,
     )
     .await?
     .peek()

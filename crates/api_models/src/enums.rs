@@ -78,7 +78,7 @@ pub enum Connector {
     Bitpay,
     Bambora,
     Bluesnap,
-    // Boku, added as template code for future usage
+    Boku,
     Braintree,
     Cashtocode,
     Checkout,
@@ -192,7 +192,7 @@ pub enum RoutableConnectors {
     Bitpay,
     Bambora,
     Bluesnap,
-    // Boku, added as template code for future usage
+    Boku,
     Braintree,
     Cashtocode,
     Checkout,
