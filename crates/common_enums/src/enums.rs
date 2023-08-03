@@ -1353,6 +1353,7 @@ pub enum PaymentMethodType {
     PayBright,
     Paypal,
     Pix,
+    PaySafeCard,
     Przelewy24,
     Pse,
     RedCompra,
