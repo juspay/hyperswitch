@@ -394,6 +394,8 @@ pub enum AdyenPaymentMethod<'a> {
     OnlineBankingFpx(Box<OnlineBankingFpxData>),
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand(Box<OnlineBankingThailandData>),
+    #[serde(rename = "paysafecard")]
+    PaySafeCard,
     #[serde(rename = "paybright")]
     PayBright,
     #[serde(rename = "doku_permata_lite_atm")]
@@ -938,6 +940,8 @@ pub enum PaymentType {
     OnlineBankingFpx,
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand,
+    #[serde(rename = "paysafecard")]
+    PaySafeCard,
     PayBright,
     Paypal,
     Scheme,
@@ -1131,6 +1135,9 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
                 }
                 api_models::payments::PaymentMethodData::Voucher(ref voucher_data) => {
                     AdyenPaymentRequest::try_from((item, voucher_data))
+                }
+                api_models::payments::PaymentMethodData::GiftCard(ref gift_card) => {
+                    AdyenPaymentRequest::try_from((item, gift_card.as_ref()))
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.request.payment_method_type),
@@ -1414,6 +1421,18 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
                 "this payment method".to_string(),
             )
             .into()),
+        }
+    }
+}
+
+impl<'a> TryFrom<&api_models::payments::GiftCardData> for AdyenPaymentMethod<'a> {
+    type Error = Error;
+    fn try_from(gift_card_data: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
+        match gift_card_data {
+            payments::GiftCardData::PaySafeCard {} => Ok(AdyenPaymentMethod::PaySafeCard),
+            payments::GiftCardData::BabyGiftCard { .. } => {
+                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
+            }
         }
     }
 }
@@ -2103,6 +2122,53 @@ impl<'a>
 impl<'a>
     TryFrom<(
         &types::PaymentsAuthorizeRouterData,
+        &api_models::payments::GiftCardData,
+    )> for AdyenPaymentRequest<'a>
+{
+    type Error = Error;
+
+    fn try_from(
+        value: (
+            &types::PaymentsAuthorizeRouterData,
+            &api_models::payments::GiftCardData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, gift_card_data) = value;
+        let amount = get_amount_data(item);
+        let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+        let shopper_interaction = AdyenShopperInteraction::from(item);
+        let return_url = item.request.get_router_return_url()?;
+        let payment_method = AdyenPaymentMethod::try_from(gift_card_data)?;
+        let request = AdyenPaymentRequest {
+            amount,
+            merchant_account: auth_type.merchant_account,
+            payment_method,
+            reference: item.payment_id.to_string(),
+            return_url,
+            browser_info: None,
+            shopper_interaction,
+            recurring_processing_model: None,
+            additional_data: None,
+            shopper_name: None,
+            shopper_locale: None,
+            shopper_email: item.request.email.clone(),
+            telephone_number: None,
+            billing_address: None,
+            delivery_address: None,
+            country_code: None,
+            line_items: None,
+            shopper_reference: None,
+            store_payment_method: None,
+            channel: None,
+            social_security_number: None,
+        };
+        Ok(request)
+    }
+}
+
+impl<'a>
+    TryFrom<(
+        &types::PaymentsAuthorizeRouterData,
         &api_models::payments::BankRedirectData,
     )> for AdyenPaymentRequest<'a>
 {
@@ -2668,7 +2734,8 @@ pub fn get_wait_screen_metadata(
         | PaymentType::BriVa
         | PaymentType::CimbVa
         | PaymentType::DanamonVa
-        | PaymentType::MandiriVa => Ok(None),
+        | PaymentType::MandiriVa
+        | PaymentType::PaySafeCard => Ok(None),
     }
 }
 
@@ -2755,7 +2822,8 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Samsungpay
         | PaymentType::Twint
         | PaymentType::Vipps
-        | PaymentType::Swish => Ok(None),
+        | PaymentType::Swish
+        | PaymentType::PaySafeCard => Ok(None),
     }
 }
 

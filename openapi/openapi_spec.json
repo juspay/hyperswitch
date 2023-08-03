@@ -5032,21 +5032,44 @@
         "type": "object"
       },
       "GiftCardData": {
-        "type": "object",
-        "required": [
-          "number",
-          "cvc"
-        ],
-        "properties": {
-          "number": {
-            "type": "string",
-            "description": "The gift card number"
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "baby_gift_card"
+            ],
+            "properties": {
+              "baby_gift_card": {
+                "type": "object",
+                "required": [
+                  "number",
+                  "cvc"
+                ],
+                "properties": {
+                  "number": {
+                    "type": "string",
+                    "description": "The gift card number"
+                  },
+                  "cvc": {
+                    "type": "string",
+                    "description": "The card verification code."
+                  }
+                }
+              }
+            }
           },
-          "cvc": {
-            "type": "string",
-            "description": "The card verification code."
+          {
+            "type": "object",
+            "required": [
+              "pay_safe_card"
+            ],
+            "properties": {
+              "pay_safe_card": {
+                "type": "object"
+              }
+            }
           }
-        }
+        ]
       },
       "GoPayRedirection": {
         "type": "object"
@@ -7697,6 +7720,7 @@
           "pay_bright",
           "paypal",
           "pix",
+          "pay_safe_card",
           "przelewy24",
           "pse",
           "red_compra",
