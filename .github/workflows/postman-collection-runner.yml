@@ -186,7 +186,6 @@ jobs:
               done
             fi
 
-
             # If any connectors still failed to run after retries, exit with error
             if [ ${#FAILED_CONNECTORS[@]} -gt 0 ]; then
               echo -e "${RED}One or more connectors still failed to run after retries:${RESET}"
