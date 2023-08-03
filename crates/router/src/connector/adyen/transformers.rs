@@ -395,7 +395,7 @@ pub enum AdyenPaymentMethod<'a> {
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand(Box<OnlineBankingThailandData>),
     #[serde(rename = "paysafecard")]
-    PaySafeCard(Box<PaySafeCardData>),
+    PaySafeCard,
     #[serde(rename = "paybright")]
     PayBright,
     #[serde(rename = "doku_permata_lite_atm")]
@@ -518,9 +518,6 @@ pub struct PayBrightData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
 }
-
-#[derive(Debug, Clone, Serialize)]
-pub struct PaySafeCardData {}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct OnlineBankingFinlandData {
@@ -1432,9 +1429,7 @@ impl<'a> TryFrom<&api_models::payments::GiftCardData> for AdyenPaymentMethod<'a>
     type Error = Error;
     fn try_from(gift_card_data: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
         match gift_card_data {
-            payments::GiftCardData::PaySafeCard {} => Ok(AdyenPaymentMethod::PaySafeCard(
-                Box::new(PaySafeCardData {}),
-            )),
+            payments::GiftCardData::PaySafeCard {} => Ok(AdyenPaymentMethod::PaySafeCard),
             payments::GiftCardData::BabyGiftCard { .. } => {
                 Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
             }
