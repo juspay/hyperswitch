@@ -80,22 +80,24 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, PaymePaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let sale_response = match item.response {
-            PaymePaymentsResponse::PaymePaySaleResponse(sale_response) => sale_response,
-            PaymePaymentsResponse::GetSalesResponse(sale_response) => {
-                // Only one element would be present since we are passing transaction id in the request
-                sale_response
-                    .items
-                    .first()
-                    .cloned()
-                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
+        match item.response {
+            // To handle webhook response
+            PaymePaymentsResponse::PaymePaySaleResponse(response) => {
+                Self::try_from(types::ResponseRouterData {
+                    response,
+                    data: item.data,
+                    http_code: item.http_code,
+                })
             }
-        };
-        Self::try_from(types::ResponseRouterData {
-            response: sale_response,
-            data: item.data,
-            http_code: item.http_code,
-        })
+            // To handle PSync response
+            PaymePaymentsResponse::GetSalesResponse(response) => {
+                Self::try_from(types::ResponseRouterData {
+                    response,
+                    data: item.data,
+                    http_code: item.http_code,
+                })
+            }
+        }
     }
 }
 
@@ -119,6 +121,44 @@ impl<F, T>
                 connector_metadata: Some(
                     serde_json::to_value(PaymeMetadata {
                         payme_transaction_id: item.response.payme_transaction_id,
+                    })
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+                ),
+                network_txn_id: None,
+                connector_response_reference_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F, T> TryFrom<types::ResponseRouterData<F, GetSalesResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, GetSalesResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        // Only one element would be present since we are passing one transaction id in the PSync request
+        let transaction_response = item
+            .response
+            .items
+            .first()
+            .cloned()
+            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+        Ok(Self {
+            status: enums::AttemptStatus::from(transaction_response.sale_status),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    transaction_response.sale_payme_id,
+                ),
+                redirection_data: None,
+                // mandate reference will be updated with webhooks only. That has been handled with PaymePaySaleResponse struct
+                mandate_reference: None,
+                connector_metadata: Some(
+                    serde_json::to_value(PaymeMetadata {
+                        payme_transaction_id: transaction_response.payme_transaction_id,
                     })
                     .into_report()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
@@ -365,10 +405,17 @@ pub enum PaymePaymentsResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct GetSalesResponse {
-    items: Vec<PaymePaySaleResponse>,
+    items: Vec<TransactionQueryResponse>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
+pub struct TransactionQueryResponse {
+    sale_status: SaleStatus,
+    sale_payme_id: String,
+    payme_transaction_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PaymePaySaleResponse {
     sale_status: SaleStatus,
     payme_sale_id: String,
