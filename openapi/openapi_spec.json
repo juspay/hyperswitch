@@ -2118,6 +2118,31 @@
           }
         }
       },
+      "AlfamartVoucherData": {
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "email"
+        ],
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The billing first name for Alfamart",
+            "example": "Jane"
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The billing second name for Alfamart",
+            "example": "Doe"
+          },
+          "email": {
+            "type": "string",
+            "description": "The Email ID for Alfamart",
+            "example": "example@me.com"
+          }
+        }
+      },
       "AliPayHkRedirection": {
         "type": "object"
       },
@@ -2827,7 +2852,8 @@
                 "type": "object",
                 "required": [
                   "billing_details",
-                  "bank_name"
+                  "bank_name",
+                  "country"
                 ],
                 "properties": {
                   "billing_details": {
@@ -2835,6 +2861,9 @@
                   },
                   "bank_name": {
                     "$ref": "#/components/schemas/BankNames"
+                  },
+                  "country": {
+                    "$ref": "#/components/schemas/CountryAlpha2"
                   }
                 }
               }
@@ -2849,7 +2878,8 @@
               "giropay": {
                 "type": "object",
                 "required": [
-                  "billing_details"
+                  "billing_details",
+                  "country"
                 ],
                 "properties": {
                   "billing_details": {
@@ -2864,6 +2894,9 @@
                     "type": "string",
                     "description": "Bank account iban",
                     "nullable": true
+                  },
+                  "country": {
+                    "$ref": "#/components/schemas/CountryAlpha2"
                   }
                 }
               }
@@ -2879,7 +2912,8 @@
                 "type": "object",
                 "required": [
                   "billing_details",
-                  "bank_name"
+                  "bank_name",
+                  "country"
                 ],
                 "properties": {
                   "billing_details": {
@@ -2887,6 +2921,9 @@
                   },
                   "bank_name": {
                     "$ref": "#/components/schemas/BankNames"
+                  },
+                  "country": {
+                    "$ref": "#/components/schemas/CountryAlpha2"
                   }
                 }
               }
@@ -3190,6 +3227,139 @@
           {
             "type": "object",
             "required": [
+              "permata_bank_transfer"
+            ],
+            "properties": {
+              "permata_bank_transfer": {
+                "type": "object",
+                "required": [
+                  "billing_details"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/DokuBillingDetails"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bca_bank_transfer"
+            ],
+            "properties": {
+              "bca_bank_transfer": {
+                "type": "object",
+                "required": [
+                  "billing_details"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/DokuBillingDetails"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bni_va_bank_transfer"
+            ],
+            "properties": {
+              "bni_va_bank_transfer": {
+                "type": "object",
+                "required": [
+                  "billing_details"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/DokuBillingDetails"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bri_va_bank_transfer"
+            ],
+            "properties": {
+              "bri_va_bank_transfer": {
+                "type": "object",
+                "required": [
+                  "billing_details"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/DokuBillingDetails"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "cimb_va_bank_transfer"
+            ],
+            "properties": {
+              "cimb_va_bank_transfer": {
+                "type": "object",
+                "required": [
+                  "billing_details"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/DokuBillingDetails"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "danamon_va_bank_transfer"
+            ],
+            "properties": {
+              "danamon_va_bank_transfer": {
+                "type": "object",
+                "required": [
+                  "billing_details"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/DokuBillingDetails"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mandiri_va_bank_transfer"
+            ],
+            "properties": {
+              "mandiri_va_bank_transfer": {
+                "type": "object",
+                "required": [
+                  "billing_details"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/DokuBillingDetails"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pix"
             ],
             "properties": {
@@ -3213,6 +3383,17 @@
       },
       "BankTransferInstructions": {
         "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "doku_bank_transfer_instructions"
+            ],
+            "properties": {
+              "doku_bank_transfer_instructions": {
+                "$ref": "#/components/schemas/DokuBankTransferInstructions"
+              }
+            }
+          },
           {
             "type": "object",
             "required": [
@@ -3266,12 +3447,14 @@
           },
           {
             "type": "object",
-            "required": [
-              "receiver"
-            ],
             "properties": {
               "receiver": {
-                "$ref": "#/components/schemas/ReceiverDetails"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ReceiverDetails"
+                  }
+                ],
+                "nullable": true
               }
             }
           }
@@ -3439,6 +3622,7 @@
           "bitpay",
           "bambora",
           "bluesnap",
+          "boku",
           "braintree",
           "cashtocode",
           "checkout",
@@ -4089,7 +4273,8 @@
           "customer_id",
           "payment_method",
           "recurring_enabled",
-          "installment_payment_enabled"
+          "installment_payment_enabled",
+          "requires_cvv"
         ],
         "properties": {
           "payment_token": {
@@ -4175,6 +4360,11 @@
               }
             ],
             "nullable": true
+          },
+          "requires_cvv": {
+            "type": "boolean",
+            "description": "Whether this payment method requires CVV to be collected",
+            "example": true
           }
         }
       },
@@ -4495,6 +4685,52 @@
           "dispute_lost"
         ]
       },
+      "DokuBankTransferInstructions": {
+        "type": "object",
+        "required": [
+          "expires_at",
+          "reference",
+          "instructions_url"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": "string",
+            "example": "2023-07-26T17:33:00-07-21"
+          },
+          "reference": {
+            "type": "string",
+            "example": "122385736258"
+          },
+          "instructions_url": {
+            "type": "string"
+          }
+        }
+      },
+      "DokuBillingDetails": {
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "email"
+        ],
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The billing first name for Doku",
+            "example": "Jane"
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The billing second name for Doku",
+            "example": "Doe"
+          },
+          "email": {
+            "type": "string",
+            "description": "The Email ID for Doku billing",
+            "example": "example@me.com"
+          }
+        }
+      },
       "EphemeralKeyCreateResponse": {
         "type": "object",
         "required": [
@@ -4796,6 +5032,32 @@
         "type": "object"
       },
       "GiftCardData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "givex"
+            ],
+            "properties": {
+              "givex": {
+                "$ref": "#/components/schemas/GiftCardDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_safe_card"
+            ],
+            "properties": {
+              "pay_safe_card": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "GiftCardDetails": {
         "type": "object",
         "required": [
           "number",
@@ -5074,6 +5336,31 @@
           "total_price": {
             "type": "string",
             "description": "The total price"
+          }
+        }
+      },
+      "IndomaretVoucherData": {
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "email"
+        ],
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The billing first name for Alfamart",
+            "example": "Jane"
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The billing second name for Alfamart",
+            "example": "Doe"
+          },
+          "email": {
+            "type": "string",
+            "description": "The Email ID for Alfamart",
+            "example": "example@me.com"
           }
         }
       },
@@ -7385,6 +7672,7 @@
           "ach",
           "affirm",
           "afterpay_clearpay",
+          "alfamart",
           "ali_pay",
           "ali_pay_hk",
           "alma",
@@ -7396,23 +7684,31 @@
           "bizum",
           "blik",
           "boleto",
+          "bca_bank_transfer",
+          "bni_va",
+          "bri_va",
+          "cimb_va",
           "classic",
           "credit",
           "crypto_currency",
           "cashapp",
           "dana",
+          "danamon_va",
           "debit",
           "efecty",
           "eps",
           "evoucher",
           "giropay",
+          "givex",
           "google_pay",
           "go_pay",
           "gcash",
           "ideal",
           "interac",
+          "indomaret",
           "klarna",
           "kakao_pay",
+          "mandiri_va",
           "mb_way",
           "mobile_pay",
           "momo",
@@ -7424,9 +7720,11 @@
           "online_banking_poland",
           "online_banking_slovakia",
           "pago_efectivo",
+          "permata_bank_transfer",
           "pay_bright",
           "paypal",
           "pix",
+          "pay_safe_card",
           "przelewy24",
           "pse",
           "red_compra",
@@ -10046,6 +10344,28 @@
             "enum": [
               "red_pagos"
             ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "alfamart"
+            ],
+            "properties": {
+              "alfamart": {
+                "$ref": "#/components/schemas/AlfamartVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "indomaret"
+            ],
+            "properties": {
+              "indomaret": {
+                "$ref": "#/components/schemas/IndomaretVoucherData"
+              }
+            }
           }
         ]
       },

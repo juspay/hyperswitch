@@ -40,6 +40,7 @@ pool_size = 5
 admin_api_key = "test_admin"
 jwt_secret = "secret"
 master_enc_key = "73ad7bbbbc640c845a150f67d058b279849370cd2c1f3c67c4dd6c869213e13a"
+recon_admin_api_key = "recon_test_admin"
 
 [locker]
 host = ""
@@ -79,7 +80,7 @@ authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
-boku.base_url = "https://country-api4-stage.boku.com"
+boku.base_url = "https://$-api4-stage.boku.com"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
@@ -110,6 +111,7 @@ payu.base_url = "https://secure.snd.payu.com/"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
+square.base_url = "https://connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
@@ -164,6 +166,7 @@ cards = [
     "payu",
     "powertranz",
     "shift4",
+    "square",
     "stax",
     "stripe",
     "trustpay",
@@ -214,6 +217,16 @@ online_banking_thailand = {country = "TH", currency = "THB"}
 touch_n_go = {country = "MY", currency = "MYR"}
 atome = {country = "MY,SG", currency = "MYR,SGD"}
 swish = {country = "SE", currency = "SEK"}
+permata_bank_transfer = {country = "ID", currency = "IDR"}
+bca_bank_transfer = {country = "ID", currency = "IDR"}
+bni_va = {country = "ID", currency = "IDR"}
+bri_va = {country = "ID", currency = "IDR"}
+cimb_va = {country = "ID", currency = "IDR"}
+danamon_va = {country = "ID", currency = "IDR"}
+mandiri_va = {country = "ID", currency = "IDR"}
+alfamart = {country = "ID", currency = "IDR"}
+indomaret = {country = "ID", currency = "IDR"}
+pay_safe_card = {country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,UAE,UK,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,ISK,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }

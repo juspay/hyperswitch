@@ -42,6 +42,7 @@ mod payu;
 mod powertranz;
 mod rapyd;
 mod shift4;
+mod square;
 mod stax;
 mod stripe;
 mod trustpay;

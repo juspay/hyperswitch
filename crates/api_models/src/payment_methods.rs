@@ -577,6 +577,10 @@ pub struct CustomerPaymentMethod {
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Bank>)]
     pub bank_transfer: Option<payouts::Bank>,
+
+    /// Whether this payment method requires CVV to be collected
+    #[schema(example = true)]
+    pub requires_cvv: bool,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodId {
@@ -663,5 +667,15 @@ pub struct TokenizedBankTransferValue1 {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankTransferValue2 {
+    pub customer_id: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankRedirectValue1 {
+    pub data: payments::BankRedirectData,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankRedirectValue2 {
     pub customer_id: Option<String>,
 }

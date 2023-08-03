@@ -74,6 +74,10 @@ pub trait RouterData {
     fn get_quote_id(&self) -> Result<String, Error>;
 }
 
+pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
+    format!("Selected paymemt method through {}", connector)
+}
+
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
     fn get_billing(&self) -> Result<&api::Address, Error> {
         self.address
@@ -792,6 +796,18 @@ impl AddressDetailsData for api::AddressDetails {
             )),
             _ => Ok(state.clone()),
         }
+    }
+}
+
+pub trait BankRedirectBillingData {
+    fn get_billing_name(&self) -> Result<Secret<String>, Error>;
+}
+
+impl BankRedirectBillingData for payments::BankRedirectBilling {
+    fn get_billing_name(&self) -> Result<Secret<String>, Error> {
+        self.billing_name
+            .clone()
+            .ok_or_else(missing_field_err("billing_details.billing_name"))
     }
 }
 

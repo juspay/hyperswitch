@@ -137,6 +137,7 @@ where
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
+        payment_method_balance: None,
     };
 
     Ok(router_data)
