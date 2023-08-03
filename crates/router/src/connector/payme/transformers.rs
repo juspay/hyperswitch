@@ -14,11 +14,16 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct PayRequest {
-    buyer_name: Secret<String>,
     buyer_email: pii::Email,
-    payme_sale_id: String,
+    buyer_name: Secret<String>,
     #[serde(flatten)]
     card: PaymeCard,
+    currency: enums::Currency,
+    payme_sale_id: String,
+    sale_callback_url: String,
+    sale_price: i64,
+    sale_return_url: String,
+    seller_payme_id: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -54,12 +59,27 @@ pub struct GenerateSaleRequest {
     sale_price: i64,
     transaction_id: String,
     product_name: String,
-    sale_return_url: String,
     seller_payme_id: Secret<String>,
-    sale_callback_url: String,
     sale_payment_method: SalePaymentMethod,
+    services: Option<ThreeDS>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct ThreeDS {
+    name: ThreeDSType,
+    settings: ThreeDSSettings,
+}
+
+#[derive(Debug, Serialize)]
+pub enum ThreeDSType {
+    #[serde(rename = "3D Secure")]
+    ThreeDS,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ThreeDSSettings {
+    active: bool,
+}
 #[derive(Debug, Deserialize)]
 pub struct GenerateSaleResponse {
     payme_sale_id: String,
@@ -117,6 +137,7 @@ impl TryFrom<&types::PaymentsInitRouterData> for GenerateSaleRequest {
         let sale_type = SaleType::try_from(item)?;
         let seller_payme_id = PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
         let order_details = item.request.get_order_details()?;
+        let services = get_services(item);
         let product_name = order_details
             .first()
             .ok_or_else(missing_field_err("order_details"))?
@@ -128,10 +149,9 @@ impl TryFrom<&types::PaymentsInitRouterData> for GenerateSaleRequest {
             sale_price: item.request.amount,
             transaction_id: item.payment_id.clone(),
             product_name,
-            sale_return_url: item.request.get_return_url()?,
             seller_payme_id,
-            sale_callback_url: item.request.get_webhook_url()?,
             sale_payment_method: SalePaymentMethod::try_from(&item.request.payment_method_data)?,
+            services,
         })
     }
 }
@@ -215,6 +235,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => {
+                let seller_payme_id =
+                    PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
                 let card = PaymeCard {
                     credit_card_cvv: req_card.card_cvc.clone(),
                     credit_card_exp: req_card
@@ -229,10 +251,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
                     },
                 )?;
                 Ok(Self {
-                    card,
                     buyer_email,
                     buyer_name,
+                    card,
+                    currency: item.request.currency,
                     payme_sale_id,
+                    sale_callback_url: item.request.get_webhook_url()?,
+                    sale_price: item.request.amount,
+                    sale_return_url: item.request.get_return_url()?,
+                    seller_payme_id,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -482,5 +509,18 @@ impl From<NotifyType> for api::IncomingWebhookEvent {
             | NotifyType::SaleChargeback
             | NotifyType::SaleChargebackRefund => Self::EventNotSupported,
         }
+    }
+}
+
+fn get_services(item: &types::PaymentsInitRouterData) -> Option<ThreeDS> {
+    match item.auth_type {
+        api_models::enums::AuthenticationType::ThreeDs => {
+            let settings = ThreeDSSettings { active: true };
+            Some(ThreeDS {
+                name: ThreeDSType::ThreeDS,
+                settings,
+            })
+        }
+        api_models::enums::AuthenticationType::NoThreeDs => None,
     }
 }
