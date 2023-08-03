@@ -1,6 +1,7 @@
 pub mod helpers;
 
 use actix_web::{web, Responder};
+use common_utils::openapi_consts::{PAYMENTS_CREATE, PAYMENTS_CREATE_WITH_MANUAL_CAPTURE};
 use error_stack::report;
 use router_env::{instrument, tracing, Flow};
 
@@ -28,158 +29,12 @@ use crate::{
         examples(
             (
                 "Create a payment" = (
-                    value = json!(
-                           {
-                                "amount": 6540,
-                                "currency": "USD",
-                                "capture_method": "automatic",
-                                "amount_to_capture": 6540,
-                                "capture_on": "2022-09-10T10:11:12Z",
-                                "confirm": true,
-                                "customer_id": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-                                "email": "johntest@test.com",
-                                "name": "John Test",
-                                "phone": "3141592653",
-                                "phone_country_code": "+1",
-                                "description": "It'''s my first payment request",
-                                "return_url": "https://hyperswitch.io",
-                                "setup_future_usage": "off_session",
-                                "authentication_type": "three_ds",
-                                "payment_method_data": {
-                                    "card": {
-                                    "card_number": "4242424242424242",
-                                    "card_exp_month": "10",
-                                    "card_exp_year": "25",
-                                    "card_holder_name": "joseph Doe",
-                                    "card_cvc": "123"
-                                    }
-                                },
-                                "payment_method": "card",
-                                "shipping": {
-                                    "address": {
-                                    "city": "New York",
-                                    "country": "AF",
-                                    "line1": "123, King Street",
-                                    "line2": "Powelson Avenue",
-                                    "line3": "Bridgewater",
-                                    "zip": "08807",
-                                    "state": "New York",
-                                    "first_name": "John",
-                                    "last_name": "Doe"
-                                    },
-                                    "phone": {
-                                    "number": "9999999999",
-                                    "country_code": "+1"
-                                    }
-                                },
-                                "billing": {
-                                    "address": {
-                                    "city": "New York",
-                                    "country": "AF",
-                                    "line1": "123, King Street",
-                                    "line2": "Powelson Avenue",
-                                    "line3": "Bridgewater",
-                                    "zip": "08807",
-                                    "state": "New York",
-                                    "first_name": "John",
-                                    "last_name": "Doe"
-                                    },
-                                    "phone": {
-                                    "number": "9999999999",
-                                    "country_code": "+1"
-                                    }
-                                },
-                                "statement_descriptor_name": "Hyperswitch Router",
-                                "statement_descriptor_suffix": "Payment for shoes"
-                            }
-                    )
+                    value = json!(PAYMENTS_CREATE)
                 )
             ),
             (
-                "Create mandate payment" = (
-                    value = json!( {
-                           "amount": 6540,
-                                "currency": "USD",
-                                "capture_method": "automatic",
-                                "amount_to_capture": 6540,
-                                "capture_on": "2022-09-10T10:11:12Z",
-                                "confirm": true,
-                                "customer_id": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-                                "email": "johntest@test.com",
-                                "name": "John Test",
-                                "phone": "3141592653",
-                                "phone_country_code": "+1",
-                                "description": "It'''s my first payment request",
-                                "return_url": "https://hyperswitch.io",
-                                "setup_future_usage": "off_session",
-                                "authentication_type": "three_ds",
-                                "payment_method_data": {
-                                    "card": {
-                                    "card_number": "4242424242424242",
-                                    "card_exp_month": "10",
-                                    "card_exp_year": "25",
-                                    "card_holder_name": "joseph Doe",
-                                    "card_cvc": "123"
-                                    }
-                                },
-                                "payment_method": "card",
-                                "shipping": {
-                                    "address": {
-                                    "city": "New York",
-                                    "country": "AF",
-                                    "line1": "123, King Street",
-                                    "line2": "Powelson Avenue",
-                                    "line3": "Bridgewater",
-                                    "zip": "08807",
-                                    "state": "New York",
-                                    "first_name": "John",
-                                    "last_name": "Doe"
-                                    },
-                                    "phone": {
-                                    "number": "9999999999",
-                                    "country_code": "+1"
-                                    }
-                                },
-                                "billing": {
-                                    "address": {
-                                    "city": "New York",
-                                    "country": "AF",
-                                    "line1": "123, King Street",
-                                    "line2": "Powelson Avenue",
-                                    "line3": "Bridgewater",
-                                    "zip": "08807",
-                                    "state": "New York",
-                                    "first_name": "John",
-                                    "last_name": "Doe"
-                                    },
-                                    "phone": {
-                                    "number": "9999999999",
-                                    "country_code": "+1"
-                                    }
-                                },
-                                "statement_descriptor_name": "Hyperswitch Router",
-                                "statement_descriptor_suffix": "Payment for shoes",
-                                "mandate_data": {
-                                    "customer_acceptance": {
-                                        "acceptance_type": "online",
-                                        "accepted_at": "2022-09-10T10:11:12.000Z",
-                                        "online": {
-                                            "ip_address": "123.32.25.123",
-                                            "user_agent": "string"
-                                        }
-                                    },
-                                    "mandate_type": {
-                                        "multi_use": {
-                                            "amount": 6400,
-                                            "currency": "USD",
-                                            "start_date": null,
-                                            "end_date": null,
-                                            "metadata": null
-                                        }
-                                    }
-                                },
-                            }
-                    )
+                "Create a manual capture payment" = (
+                    value = json!(PAYMENTS_CREATE_WITH_MANUAL_CAPTURE)
                 )
             ),
         )),
@@ -192,7 +47,6 @@ use crate::{
     security(("api_key" = [])),
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
-// #[post("")]
 pub async fn payments_create(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
