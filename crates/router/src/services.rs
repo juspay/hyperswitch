@@ -184,9 +184,9 @@ impl Store {
             #[cfg(not(feature = "olap"))]
             diesel_store: diesel_impl::store::Store::new(
                 #[cfg(not(feature = "kms"))]
-                config.master_database.into(),
+                &config.master_database.clone().into(),
                 #[cfg(feature = "kms")]
-                config
+                &config
                     .master_database
                     .clone()
                     .decrypt_inner(kms_client)
