@@ -1505,6 +1505,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Gcash
                 | api_enums::PaymentMethodType::Momo
                 | api_enums::PaymentMethodType::KakaoPay
+                | api_enums::PaymentMethodType::Cashapp
         ),
         api_enums::PaymentMethod::BankRedirect => matches!(
             payment_method_type,
