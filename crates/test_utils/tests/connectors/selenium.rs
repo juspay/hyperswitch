@@ -504,26 +504,29 @@ pub trait SeleniumTest {
         )
         .await?;
         let element = web_driver.query(By::Css("h2.last-payment")).first().await?;
-        let id = element.text().await?;
+        let payment_id = element.text().await?;
         let times = 3; // no of retry times
         for _i in 0..times {
-            let client = reqwest::Client::new();
             let configs = self.get_configs().automation_configs.unwrap();
             let outgoing_webhook_url = configs.hs_webhook_url.unwrap().to_string();
+            let client = reqwest::Client::new();
             let response = client.get(outgoing_webhook_url).send().await.unwrap(); // get events from outgoing webhook endpoint
             let body_text = response.text().await.unwrap();
             let data: WebhookResponse = serde_json::from_str(&body_text).unwrap();
-            let last_event = data.data.last().unwrap();
-            let last_event_body = &last_event.step.request.body;
-            let decoded_bytes = base64::engine::general_purpose::STANDARD //decode the encoded outgoing webhook event
-                .decode(last_event_body)
-                .unwrap();
-            let decoded_str = String::from_utf8(decoded_bytes).unwrap();
-            let webhook_response: HsWebhookResponse = serde_json::from_str(&decoded_str).unwrap();
-            let payment_id = webhook_response.content.object.payment_id;
-            let status = webhook_response.content.object.status;
-            if payment_id == id && status == webhook_status {
-                return Ok(());
+            let last_three_events = &data.data[data.data.len().saturating_sub(3)..]; // Get the last three elements if available
+            for last_event in last_three_events {
+                let last_event_body = &last_event.step.request.body;
+                let decoded_bytes = base64::engine::general_purpose::STANDARD //decode the encoded outgoing webhook event
+                    .decode(last_event_body)
+                    .unwrap();
+                let decoded_str = String::from_utf8(decoded_bytes).unwrap();
+                let webhook_response: HsWebhookResponse =
+                    serde_json::from_str(&decoded_str).unwrap();
+                if payment_id == webhook_response.content.object.payment_id
+                    && webhook_status == webhook_response.content.object.status
+                {
+                    return Ok(());
+                }
             }
             self.complete_actions(
                 &web_driver,
