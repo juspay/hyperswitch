@@ -408,6 +408,8 @@ pub enum AdyenPaymentMethod<'a> {
     OnlineBankingFpx(Box<OnlineBankingFpxData>),
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand(Box<OnlineBankingThailandData>),
+    #[serde(rename = "oxxo")]
+    Oxxo,
     #[serde(rename = "paysafecard")]
     PaySafeCard,
     #[serde(rename = "paybright")]
@@ -975,6 +977,8 @@ pub enum PaymentType {
     OnlineBankingFpx,
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand,
+    #[serde(rename = "oxxo")]
+    Oxxo,
     #[serde(rename = "paysafecard")]
     PaySafeCard,
     PayBright,
@@ -1411,6 +1415,7 @@ fn get_social_security_number(
         | payments::VoucherData::Efecty
         | payments::VoucherData::PagoEfectivo
         | payments::VoucherData::RedCompra
+        | payments::VoucherData::Oxxo
         | payments::VoucherData::RedPagos => None,
     }
 }
@@ -1493,6 +1498,7 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
                     shopper_email: indomaret_data.email.clone(),
                 })))
             }
+            payments::VoucherData::Oxxo => Ok(AdyenPaymentMethod::Oxxo),
             payments::VoucherData::Efecty
             | payments::VoucherData::PagoEfectivo
             | payments::VoucherData::RedCompra
@@ -2794,6 +2800,7 @@ pub fn get_wait_screen_metadata(
             })))
         }
         PaymentType::Affirm
+        | PaymentType::Oxxo
         | PaymentType::Afterpaytouch
         | PaymentType::Alipay
         | PaymentType::AlipayHk
@@ -2856,7 +2863,10 @@ pub fn get_present_to_shopper_metadata(
     let reference = response.action.reference.clone();
 
     match response.action.payment_method_type {
-        PaymentType::Alfamart | PaymentType::Indomaret | PaymentType::BoletoBancario => {
+        PaymentType::Alfamart
+        | PaymentType::Indomaret
+        | PaymentType::BoletoBancario
+        | PaymentType::Oxxo => {
             let voucher_data = payments::VoucherNextStepData {
                 expires_at: response.action.expires_at.clone(),
                 reference,

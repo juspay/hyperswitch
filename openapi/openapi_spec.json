@@ -7719,6 +7719,7 @@
           "online_banking_fpx",
           "online_banking_poland",
           "online_banking_slovakia",
+          "oxxo",
           "pago_efectivo",
           "permata_bank_transfer",
           "pay_bright",
@@ -10366,6 +10367,12 @@
                 "$ref": "#/components/schemas/IndomaretVoucherData"
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "oxxo"
+            ]
           }
         ]
       },
