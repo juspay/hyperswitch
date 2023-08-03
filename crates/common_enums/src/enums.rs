@@ -897,6 +897,7 @@ pub enum PaymentMethodType {
     Eps,
     Evoucher,
     Giropay,
+    Givex,
     GooglePay,
     GoPay,
     Gcash,
