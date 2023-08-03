@@ -74,12 +74,12 @@ fn fetch_payment_instrument(
             | api_models::payments::WalletData::WeChatPayRedirect(_)
             | api_models::payments::WalletData::CashappQr(_)
             | api_models::payments::WalletData::SwishQr(_)
-            | api_models::payments::WalletData::WeChatPayQr(_) => Err(
-                errors::ConnectorError::NotImplemented(utils::payment_method_error_message(
-                    "worldpay",
-                ))
-                .into(),
-            ),
+            | api_models::payments::WalletData::WeChatPayQr(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("worldpay"),
+                )
+                .into())
+            }
         },
         api_models::payments::PaymentMethodData::PayLater(_)
         | api_models::payments::PaymentMethodData::BankRedirect(_)
@@ -90,10 +90,12 @@ fn fetch_payment_instrument(
         | api_models::payments::PaymentMethodData::Reward(_)
         | api_models::payments::PaymentMethodData::Upi(_)
         | api_models::payments::PaymentMethodData::Voucher(_)
-        | api_models::payments::PaymentMethodData::GiftCard(_) => Err(
-            errors::ConnectorError::NotImplemented(utils::payment_method_error_message("worldpay"))
-                .into(),
-        ),
+        | api_models::payments::PaymentMethodData::GiftCard(_) => {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("worldpay"),
+            )
+            .into())
+        }
     }
 }
 

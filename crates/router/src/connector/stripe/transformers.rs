@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 use crate::{
     collect_missing_value_keys,
-    connector::utils::{self as util_connector, ApplePay, PaymentsPreProcessingData, RouterData},
+    connector::utils::{self as connector_util, ApplePay, PaymentsPreProcessingData, RouterData},
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
@@ -610,7 +610,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::MandiriVa
             | enums::PaymentMethodType::PermataBankTransfer
             | enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotImplemented(
-                util_connector::payment_method_error_message("stripe"),
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
         }
@@ -906,7 +906,7 @@ fn infer_stripe_pay_later_type(
             | enums::PaymentMethodType::MandiriVa
             | enums::PaymentMethodType::PermataBankTransfer
             | enums::PaymentMethodType::WeChatPay => Err(errors::ConnectorError::NotImplemented(
-                util_connector::payment_method_error_message("stripe"),
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )),
         }
     } else {
@@ -1089,11 +1089,7 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             | payments::BankRedirectData::OnlineBankingSlovakia { .. }
             | payments::BankRedirectData::Trustly { .. }
             | payments::BankRedirectData::OnlineBankingFpx { .. }
-            | payments::BankRedirectData::OnlineBankingThailand { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    util_connector::payment_method_error_message("stripe"),
-                ))
-            }
+            | payments::BankRedirectData::OnlineBankingThailand { .. } => Ok(Self::default()),
         }
     }
 }
@@ -1311,7 +1307,7 @@ fn create_stripe_payment_method(
             | payments::WalletData::SwishQr(_)
             | payments::WalletData::WeChatPayRedirect(_) => {
                 Err(errors::ConnectorError::NotImplemented(
-                    util_connector::payment_method_error_message("stripe"),
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 )
                 .into())
             }
@@ -1405,7 +1401,7 @@ fn create_stripe_payment_method(
                 | payments::BankTransferData::DanamonVaBankTransfer { .. }
                 | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
-                        util_connector::payment_method_error_message("stripe"),
+                        connector_util::get_unimplemented_payment_method_error_message("stripe"),
                     )
                     .into())
                 }
@@ -1417,7 +1413,7 @@ fn create_stripe_payment_method(
         | payments::PaymentMethodData::Upi(_)
         | payments::PaymentMethodData::Voucher(_)
         | payments::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
-            util_connector::payment_method_error_message("stripe"),
+            connector_util::get_unimplemented_payment_method_error_message("stripe"),
         )
         .into()),
     }
@@ -2686,7 +2682,9 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                     | payments::BankTransferData::Pix { .. }
                     | payments::BankTransferData::Pse { .. } => {
                         Err(errors::ConnectorError::NotImplemented(
-                            util_connector::payment_method_error_message("stripe"),
+                            connector_util::get_unimplemented_payment_method_error_message(
+                                "stripe",
+                            ),
                         )
                         .into())
                     }
@@ -2704,7 +2702,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
             | Some(payments::PaymentMethodData::GiftCard(..))
             | Some(payments::PaymentMethodData::Voucher(..))
             | None => Err(errors::ConnectorError::NotImplemented(
-                util_connector::payment_method_error_message("stripe"),
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
         }
@@ -3118,7 +3116,7 @@ impl
                 | payments::WalletData::CashappQr(_)
                 | payments::WalletData::WeChatPayRedirect(_) => {
                     Err(errors::ConnectorError::NotImplemented(
-                        util_connector::payment_method_error_message("stripe"),
+                        connector_util::get_unimplemented_payment_method_error_message("stripe"),
                     )
                     .into())
                 }
@@ -3175,7 +3173,9 @@ impl
                     | payments::BankTransferData::DanamonVaBankTransfer { .. }
                     | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                         Err(errors::ConnectorError::NotImplemented(
-                            util_connector::payment_method_error_message("stripe"),
+                            connector_util::get_unimplemented_payment_method_error_message(
+                                "stripe",
+                            ),
                         )
                         .into())
                     }

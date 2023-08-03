@@ -654,7 +654,7 @@ impl<F>
                 | payments::WalletData::SwishQr(_)
                 | payments::WalletData::WeChatPayQr(_) => {
                     Err(errors::ConnectorError::NotImplemented(
-                        utils::payment_method_error_message("nuvei"),
+                        utils::get_unimplemented_payment_method_error_message("nuvei"),
                     )
                     .into())
                 }
@@ -693,7 +693,7 @@ impl<F>
                 | payments::BankRedirectData::OnlineBankingFpx { .. }
                 | payments::BankRedirectData::OnlineBankingThailand { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
-                        utils::payment_method_error_message("nuvei"),
+                        utils::get_unimplemented_payment_method_error_message("nuvei"),
                     )
                     .into())
                 }
@@ -712,7 +712,7 @@ impl<F>
                 | payments::PayLaterData::AlmaRedirect {}
                 | payments::PayLaterData::AtomeRedirect {} => {
                     Err(errors::ConnectorError::NotImplemented(
-                        utils::payment_method_error_message("nuvei"),
+                        utils::get_unimplemented_payment_method_error_message("nuvei"),
                     )
                     .into())
                 }
@@ -724,12 +724,12 @@ impl<F>
             | payments::PaymentMethodData::Reward(_)
             | payments::PaymentMethodData::Upi(_)
             | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_) => Err(
-                errors::ConnectorError::NotImplemented(utils::payment_method_error_message(
-                    "nuvei",
-                ))
-                .into(),
-            ),
+            | payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("nuvei"),
+                )
+                .into())
+            }
         }?;
         let request = Self::try_from(NuveiPaymentRequestData {
             amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
@@ -896,7 +896,7 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, String)> for NuveiPay
             | Some(api::PaymentMethodData::Reward(..))
             | Some(api::PaymentMethodData::Upi(..))
             | None => Err(errors::ConnectorError::NotImplemented(
-                utils::payment_method_error_message("nuvei"),
+                utils::get_unimplemented_payment_method_error_message("nuvei"),
             )),
         }?;
         let request = Self::try_from(NuveiPaymentRequestData {

@@ -74,7 +74,7 @@ pub trait RouterData {
     fn get_quote_id(&self) -> Result<String, Error>;
 }
 
-pub fn payment_method_error_message(connector: &str) -> String {
+pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
     format!("Selected paymemt method through {}", connector)
 }
 

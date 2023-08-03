@@ -288,7 +288,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                 | payments::WalletData::SwishQr(_)
                 | payments::WalletData::WeChatPayQr(_) => {
                     Err(errors::ConnectorError::NotImplemented(
-                        utils::payment_method_error_message("bluesnap"),
+                        utils::get_unimplemented_payment_method_error_message("bluesnap"),
                     ))
                 }
             },
@@ -303,7 +303,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             | payments::PaymentMethodData::Voucher(_)
             | payments::PaymentMethodData::GiftCard(_) => {
                 Err(errors::ConnectorError::NotImplemented(
-                    utils::payment_method_error_message("bluesnap"),
+                    utils::get_unimplemented_payment_method_error_message("bluesnap"),
                 ))
             }
         }?;

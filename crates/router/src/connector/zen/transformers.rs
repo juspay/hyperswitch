@@ -305,9 +305,11 @@ impl
             | api_models::payments::BankTransferData::BriVaBankTransfer { .. }
             | api_models::payments::BankTransferData::CimbVaBankTransfer { .. }
             | api_models::payments::BankTransferData::DanamonVaBankTransfer { .. }
-            | api_models::payments::BankTransferData::MandiriVaBankTransfer { .. } => Err(
-                errors::ConnectorError::NotImplemented(utils::payment_method_error_message("zen")),
-            )?,
+            | api_models::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("zen"),
+                ))?
+            }
         };
         Ok(Self::ApiRequest(Box::new(ApiRequest {
             merchant_transaction_id: item.attempt_id.clone(),
@@ -456,9 +458,11 @@ impl
             | api_models::payments::WalletData::WeChatPayRedirect(_)
             | api_models::payments::WalletData::CashappQr(_)
             | api_models::payments::WalletData::SwishQr(_)
-            | api_models::payments::WalletData::WeChatPayQr(_) => Err(
-                errors::ConnectorError::NotImplemented(utils::payment_method_error_message("zen")),
-            )?,
+            | api_models::payments::WalletData::WeChatPayQr(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("zen"),
+                ))?
+            }
         };
         let terminal_uuid = session_data
             .terminal_uuid
@@ -646,9 +650,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
             | api_models::payments::PaymentMethodData::MandatePayment
             | api_models::payments::PaymentMethodData::Reward(_)
             | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => Err(
-                errors::ConnectorError::NotImplemented(utils::payment_method_error_message("zen")),
-            )?,
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("zen"),
+                ))?
+            }
         }
     }
 }
