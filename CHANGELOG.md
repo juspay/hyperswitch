@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.14.1+hotfix.1 (2023-08-03)
+
+### Bug Fixes
+
+- **payment_methods:** Add `requires_cvv` field to customer payment method list api object ([#1858](https://github.com/juspay/hyperswitch/pull/1858)) ([`4008962`](https://github.com/juspay/hyperswitch/commit/400896214205f04164c258a21cc09768f8b551e7))
+
+**Full Changelog:** [`v1.14.1...v1.14.1+hotfix.1`](https://github.com/juspay/hyperswitch/compare/v1.14.1...v1.14.1+hotfix.1)
+
+- - -
+
 ## 1.14.1 (2023-08-02)
 
 ### Bug Fixes
