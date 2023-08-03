@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.10.2+iatapay.4 (2023-08-03)
+
+### Bug Fixes
+
+- **connector:**
+  - [Trustpay] send billing address name as cardholder name ([#1806](https://github.com/juspay/hyperswitch/pull/1806)) ([`b0941ef`](https://github.com/juspay/hyperswitch/commit/b0941ef67983988f4b34f1081b48d0553cc8a8c2))
+  - [Payme] Fix refund request fields ([#1831](https://github.com/juspay/hyperswitch/pull/1831)) ([`e121a4d`](https://github.com/juspay/hyperswitch/commit/e121a4d00e898e95b099943d28711dc8f762226e))
+- Request amount for trustpay apple pay ([`69ad3d9`](https://github.com/juspay/hyperswitch/commit/69ad3d9e5ecc70af156c3505bc9df9cb133ba7df))
+- Add merchant reference in create intent call ([`771dd54`](https://github.com/juspay/hyperswitch/commit/771dd54670078964b0719c49b3a9e76ab0ae94a3))
+
+**Full Changelog:** [`v1.10.2+iatapay.3...v1.10.2+iatapay.4`](https://github.com/juspay/hyperswitch/compare/v1.10.2+iatapay.3...v1.10.2+iatapay.4)
+
+- - -
+
 ## 1.10.2 (2023-07-25)
 
 ### Bug Fixes
