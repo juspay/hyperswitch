@@ -26,7 +26,7 @@ env:
   #
   # See https://matklad.github.io/2021/09/04/fast-rust-builds.html#ci-workflow
   # for details.
-  CARGO_INCREMENTAL: 1
+  CARGO_INCREMENTAL: 0
   # Allow more retries for network requests in cargo (downloading crates) and
   # rustup (installing toolchains). This should help to reduce flaky CI failures
   # from transient network timeouts or other issues.
