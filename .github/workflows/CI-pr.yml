@@ -35,6 +35,9 @@ env:
   RUST_BACKTRACE: short
   # Use cargo's sparse index protocol
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+  # Enable and use the sccache action for caching
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
 
 jobs:
   formatting:
@@ -293,9 +296,8 @@ jobs:
       #   with:
       #     crate: cargo-nextest
 
-      - uses: Swatinem/rust-cache@v2.4.0
-        with:
-          save-if: ${{ github.event_name == 'push' }}
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.3
 
       # - name: Setup Embark Studios lint rules
       #   shell: bash
