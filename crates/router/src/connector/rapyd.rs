@@ -669,26 +669,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
     for Rapyd
 {
-    fn get_headers(
-        &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![])
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("RSync".to_string()).into())
-    }
-
+    // default implementation of build_request method will be executed
     fn handle_response(
         &self,
         data: &types::RefundSyncRouterData,
@@ -705,13 +686,6 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         }
         .try_into()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-
-    fn get_error_response(
-        &self,
-        _res: types::Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("RSync".to_string()).into())
     }
 }
 

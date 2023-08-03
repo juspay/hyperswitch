@@ -11,6 +11,11 @@ use serde::Deserialize;
 
 use crate::errors;
 
+#[cfg(feature = "kms")]
+pub type Password = kms::KmsValue;
+#[cfg(not(feature = "kms"))]
+pub type Password = masking::Secret<String>;
+
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
 pub struct CmdLineConf {
@@ -35,15 +40,12 @@ pub struct Settings {
 #[serde(default)]
 pub struct Database {
     pub username: String,
-    #[cfg(not(feature = "kms"))]
-    pub password: String,
+    pub password: Password,
     pub host: String,
     pub port: u16,
     pub dbname: String,
     pub pool_size: u32,
     pub connection_timeout: u64,
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_password: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -60,15 +62,12 @@ impl Default for Database {
     fn default() -> Self {
         Self {
             username: String::new(),
-            #[cfg(not(feature = "kms"))]
-            password: String::new(),
+            password: Password::default(),
             host: "localhost".into(),
             port: 5432,
             dbname: String::new(),
             pool_size: 5,
             connection_timeout: 10,
-            #[cfg(feature = "kms")]
-            kms_encrypted_password: String::new(),
         }
     }
 }
@@ -107,23 +106,11 @@ impl Database {
             ))
         })?;
 
-        #[cfg(not(feature = "kms"))]
-        {
-            when(self.password.is_default_or_empty(), || {
-                Err(errors::DrainerError::ConfigParsingError(
-                    "database user password must not be empty".into(),
-                ))
-            })
-        }
-
-        #[cfg(feature = "kms")]
-        {
-            when(self.kms_encrypted_password.is_default_or_empty(), || {
-                Err(errors::DrainerError::ConfigParsingError(
-                    "database KMS encrypted password must not be empty".into(),
-                ))
-            })
-        }
+        when(self.password.is_default_or_empty(), || {
+            Err(errors::DrainerError::ConfigParsingError(
+                "database user password must not be empty".into(),
+            ))
+        })
     }
 }
 

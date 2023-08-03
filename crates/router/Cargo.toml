@@ -22,7 +22,6 @@ kv_store = []
 accounts_cache = []
 openapi = ["olap", "oltp", "payouts"]
 vergen = ["router_env/vergen"]
-multiple_mca = ["api_models/multiple_mca"]
 dummy_connector = ["api_models/dummy_connector"]
 external_access_dc = ["dummy_connector"]
 detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
@@ -71,6 +70,7 @@ rand = "0.8.5"
 regex = "1.8.4"
 reqwest = { version = "0.11.18", features = ["json", "native-tls", "gzip", "multipart"] }
 ring = "0.16.20"
+roxmltree = "0.18.0"
 serde = { version = "1.0.163", features = ["derive"] }
 serde_json = "1.0.96"
 serde_path_to_error = "0.1.11"

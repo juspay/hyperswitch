@@ -10,6 +10,7 @@ pub mod payment_start;
 pub mod payment_status;
 pub mod payment_update;
 
+use api_models::enums::CancelTransaction;
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
@@ -149,6 +150,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
         storage_scheme: enums::MerchantStorageScheme,
         updated_customer: Option<storage::CustomerUpdate>,
         mechant_key_store: &domain::MerchantKeyStore,
+        should_cancel_transaction: Option<CancelTransaction>,
     ) -> RouterResult<(BoxedOperation<'b, F, Req>, D)>
     where
         F: 'b + Send;
