@@ -2746,6 +2746,7 @@ pub fn get_wait_screen_metadata(
         | PaymentType::OnlineBankingSlovakia
         | PaymentType::OnlineBankingFpx
         | PaymentType::OnlineBankingThailand
+        | PaymentType::OpenBankingUK
         | PaymentType::PayBright
         | PaymentType::Paypal
         | PaymentType::Scheme
@@ -2840,6 +2841,7 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::OnlineBankingSlovakia
         | PaymentType::OnlineBankingFpx
         | PaymentType::OnlineBankingThailand
+        | PaymentType::OpenBankingUK
         | PaymentType::PayBright
         | PaymentType::Paypal
         | PaymentType::Scheme
