@@ -360,7 +360,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = payme::PaymePaymentSyncRequest::try_from(req)?;
+        let req_obj = payme::PaymeQueryTransactionRequest::try_from(req)?;
         let payme_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<payme::PayRequest>::encode_to_string_of_json,
@@ -583,7 +583,84 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 }
 
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Payme {
-    // default implementation of build_request method will be executed
+    fn get_url(
+        &self,
+        _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}api/get-transactions", self.base_url(connectors)))
+    }
+
+    fn get_headers(
+        &self,
+        req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = payme::PaymeQueryTransactionRequest::try_from(req)?;
+        let payme_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<payme::PayRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(payme_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+            .body(types::RefundSyncType::get_request_body(self, req)?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        res: Response,
+    ) -> CustomResult<
+        types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        errors::ConnectorError,
+    >
+    where
+        api::RSync: Clone,
+        types::RefundsData: Clone,
+        types::RefundsResponseData: Clone,
+    {
+        let response: payme::GetSalesResponse = res
+            .response
+            .parse_struct("GetSalesResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
 }
 
 #[async_trait::async_trait]

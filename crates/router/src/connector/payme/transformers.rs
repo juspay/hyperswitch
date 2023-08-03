@@ -42,7 +42,7 @@ pub enum PaymePaymentRequest {
 }
 
 #[derive(Debug, Serialize)]
-pub struct PaymePaymentSyncRequest {
+pub struct PaymeQueryTransactionRequest {
     payme_transaction_id: String,
     seller_payme_id: Secret<String>,
 }
@@ -221,13 +221,30 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymePaymentRequest {
     }
 }
 
-impl TryFrom<&types::PaymentsSyncRouterData> for PaymePaymentSyncRequest {
+impl TryFrom<&types::PaymentsSyncRouterData> for PaymeQueryTransactionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         let seller_payme_id = PaymeAuthType::try_from(&value.connector_auth_type)?.seller_payme_id;
         let connector_metadata: PaymeMetadata = value
             .request
             .connector_meta
+            .clone()
+            .parse_value("PaymeMetadata")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Self {
+            payme_transaction_id: connector_metadata.payme_transaction_id,
+            seller_payme_id,
+        })
+    }
+}
+
+impl TryFrom<&types::RefundSyncRouterData> for PaymeQueryTransactionRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
+        let seller_payme_id = PaymeAuthType::try_from(&value.connector_auth_type)?.seller_payme_id;
+        let connector_metadata: PaymeMetadata = value
+            .request
+            .connector_metadata
             .clone()
             .parse_value("PaymeMetadata")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -478,6 +495,30 @@ impl
                 // Connector doesn't give refund id, So using connector_transaction_id as connector_refund_id. Since refund webhook will also have this id as reference
                 connector_refund_id: req.connector_transaction_id.clone(),
                 refund_status: enums::RefundStatus::try_from(item.response.sale_status)?,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F, T> TryFrom<types::ResponseRouterData<F, GetSalesResponse, T, types::RefundsResponseData>>
+    for types::RouterData<F, T, types::RefundsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, GetSalesResponse, T, types::RefundsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let pay_sale_response = item
+            .response
+            .items
+            .first()
+            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                refund_status: enums::RefundStatus::try_from(
+                    pay_sale_response.sale_status.clone(),
+                )?,
+                connector_refund_id: pay_sale_response.payme_transaction_id.clone(),
             }),
             ..item.data
         })
