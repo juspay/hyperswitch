@@ -1347,13 +1347,30 @@ pub(crate) fn validate_attempt_status(
 #[instrument(skip_all)]
 pub(crate) fn validate_status(status: storage_enums::IntentStatus) -> RouterResult<()> {
     utils::when(
-        status != storage_enums::IntentStatus::RequiresCapture,
+        status != storage_enums::IntentStatus::RequiresCapture
+            && status != storage_enums::IntentStatus::PartiallyCaptured,
         || {
             Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
                 field_name: "payment.status".to_string(),
                 current_flow: "captured".to_string(),
                 current_value: status.to_string(),
-                states: "requires_capture".to_string()
+                states: "requires_capture, partially captured".to_string()
+            }))
+        },
+    )
+}
+
+#[instrument(skip_all)]
+pub(crate) fn validate_request_against_capture_method(
+    request: &api::PaymentsCaptureRequest,
+    capture_method: enums::CaptureMethod,
+) -> RouterResult<()> {
+    utils::when(
+        capture_method == enums::CaptureMethod::ManualMultiple
+            && (request.amount_to_capture.is_none()),
+        || {
+            Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "amount_to_capture"
             }))
         },
     )
@@ -2281,7 +2298,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         customer_id: router_data.customer_id,
         connector_customer: router_data.connector_customer,
         preprocessing_id: router_data.preprocessing_id,
-        multiple_capture_status: router_data.multiple_capture_status,
         recurring_mandate_payment_data: router_data.recurring_mandate_payment_data,
         connector_request_reference_id: router_data.connector_request_reference_id,
         #[cfg(feature = "payouts")]
@@ -2349,6 +2365,7 @@ pub fn get_attempt_type(
         }
         enums::IntentStatus::Cancelled
         | enums::IntentStatus::RequiresCapture
+        | enums::IntentStatus::PartiallyCaptured
         | enums::IntentStatus::Processing
         | enums::IntentStatus::Succeeded => {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -2559,6 +2576,7 @@ pub fn is_manual_retry_allowed(
         },
         enums::IntentStatus::Cancelled
         | enums::IntentStatus::RequiresCapture
+        | enums::IntentStatus::PartiallyCaptured
         | enums::IntentStatus::Processing
         | enums::IntentStatus::Succeeded => Some(false),
 

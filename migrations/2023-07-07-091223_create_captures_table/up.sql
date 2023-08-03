@@ -3,8 +3,9 @@ CREATE TYPE "CaptureStatus" AS ENUM (
     'started',
     'charged',
     'pending',
-    'failure'
+    'failed'
 );
+ALTER TYPE "IntentStatus" ADD VALUE If NOT EXISTS 'partially_captured' AFTER 'requires_capture';
 CREATE TABLE captures(
     capture_id VARCHAR(64) NOT NULL PRIMARY KEY,
     payment_id VARCHAR(64) NOT NULL,

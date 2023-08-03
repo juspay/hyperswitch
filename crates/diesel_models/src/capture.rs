@@ -53,18 +53,12 @@ pub struct CaptureNew {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CaptureUpdate {
-    StatusUpdate {
-        status: storage_enums::CaptureStatus,
-    },
     ResponseUpdate {
-        status: Option<storage_enums::CaptureStatus>,
+        status: storage_enums::CaptureStatus,
         connector_transaction_id: Option<String>,
-        error_code: Option<String>,
-        error_message: Option<String>,
-        error_reason: Option<String>,
     },
     ErrorUpdate {
-        status: Option<storage_enums::CaptureStatus>,
+        status: storage_enums::CaptureStatus,
         error_code: Option<String>,
         error_message: Option<String>,
         error_reason: Option<String>,
@@ -79,7 +73,6 @@ pub struct CaptureUpdateInternal {
     pub error_code: Option<String>,
     pub error_reason: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
-    pub capture_sequence: Option<i16>,
     pub connector_transaction_id: Option<String>,
 }
 
@@ -92,9 +85,6 @@ impl CaptureUpdate {
             error_code: capture_update.error_code.or(source.error_code),
             error_reason: capture_update.error_reason.or(source.error_reason),
             modified_at: common_utils::date_time::now(),
-            capture_sequence: capture_update
-                .capture_sequence
-                .unwrap_or(source.capture_sequence),
             ..source
         }
     }
@@ -104,23 +94,12 @@ impl From<CaptureUpdate> for CaptureUpdateInternal {
     fn from(payment_attempt_child_update: CaptureUpdate) -> Self {
         let now = Some(common_utils::date_time::now());
         match payment_attempt_child_update {
-            CaptureUpdate::StatusUpdate { status } => Self {
-                status: Some(status),
-                modified_at: now,
-                ..Self::default()
-            },
             CaptureUpdate::ResponseUpdate {
                 status,
                 connector_transaction_id,
-                error_code,
-                error_message,
-                error_reason,
             } => Self {
-                status,
+                status: Some(status),
                 connector_transaction_id,
-                error_code,
-                error_message,
-                error_reason,
                 modified_at: now,
                 ..Self::default()
             },
@@ -130,7 +109,7 @@ impl From<CaptureUpdate> for CaptureUpdateInternal {
                 error_message,
                 error_reason,
             } => Self {
-                status,
+                status: Some(status),
                 error_code,
                 error_message,
                 error_reason,

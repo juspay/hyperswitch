@@ -16,7 +16,7 @@ use crate::{
     types::{
         self, api,
         storage::{self, enums},
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
         Capturable,
     },
     utils,
@@ -296,44 +296,41 @@ async fn payment_response_update_tracker<F: Clone, T: Capturable>(
     router_data: types::RouterData<F, T, types::PaymentsResponseData>,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<PaymentData<F>> {
-    let (payment_attempt_update, connector_response_update) = match router_data.response.clone() {
+    let (capture_update, mut payment_attempt_update, connector_response_update) = match router_data
+        .response
+        .clone()
+    {
         Err(err) => {
-            let attempt_update = if let Some(capture) = payment_data.current_capture {
-                //if multiple capture, error details must be populated in captures table instead of payment_attempts table
-                let (capture, payment_attempt) = db
-                    .update_capture_and_attempt_with_capture_id(
-                        capture,
-                        payment_data.payment_attempt,
-                        &payment_data.payment_intent,
-                        storage::CaptureUpdate::ErrorUpdate {
-                            status: Some(match err.status_code {
-                                500..=511 => storage::enums::CaptureStatus::Pending,
-                                _ => storage::enums::CaptureStatus::Failure,
-                            }),
-                            error_code: Some(err.code),
-                            error_message: Some(err.message),
-                            error_reason: err.reason,
+            let (capture_update, attempt_update) = match payment_data.multiple_capture_data {
+                Some(_) => (
+                    Some(storage::CaptureUpdate::ErrorUpdate {
+                        status: match err.status_code {
+                            500..=511 => storage::enums::CaptureStatus::Pending,
+                            _ => storage::enums::CaptureStatus::Failed,
                         },
-                        storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-                payment_data.payment_attempt = payment_attempt;
-                payment_data.current_capture = Some(capture);
-                None
-            } else {
-                Some(storage::PaymentAttemptUpdate::ErrorUpdate {
-                    connector: None,
-                    status: match err.status_code {
-                        500..=511 => storage::enums::AttemptStatus::Pending,
-                        _ => storage::enums::AttemptStatus::Failure,
-                    },
-                    error_message: Some(Some(err.message)),
-                    error_code: Some(Some(err.code)),
-                    error_reason: Some(err.reason),
-                })
+                        error_code: Some(err.code),
+                        error_message: Some(err.message),
+                        error_reason: err.reason,
+                    }),
+                    // attempt status will depend on collective capture status
+                    None,
+                ),
+                None => (
+                    None,
+                    Some(storage::PaymentAttemptUpdate::ErrorUpdate {
+                        connector: None,
+                        status: match err.status_code {
+                            500..=511 => storage::enums::AttemptStatus::Pending,
+                            _ => storage::enums::AttemptStatus::Failure,
+                        },
+                        error_message: Some(Some(err.message)),
+                        error_code: Some(Some(err.code)),
+                        error_reason: Some(err.reason),
+                    }),
+                ),
             };
             (
+                capture_update,
                 attempt_update,
                 Some(storage::ConnectorResponseUpdate::ErrorUpdate {
                     connector_name: Some(router_data.connector.clone()),
@@ -368,7 +365,7 @@ async fn payment_response_update_tracker<F: Clone, T: Capturable>(
                     connector_response_reference_id,
                 };
 
-                (Some(payment_attempt_update), None)
+                (None, Some(payment_attempt_update), None)
             }
             types::PaymentsResponseData::TransactionResponse {
                 resource_id,
@@ -403,46 +400,38 @@ async fn payment_response_update_tracker<F: Clone, T: Capturable>(
                     metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
                 }
 
-                let payment_attempt_update = if let Some(capture) = payment_data.current_capture {
-                    //if multiple capture, only capture table must be updated here. payment_attempt will be updated automatically if needed
-                    let (capture, payment_attempt) = db
-                        .update_capture_and_attempt_with_capture_id(
-                            capture,
-                            payment_data.payment_attempt,
-                            &payment_data.payment_intent,
-                            storage::CaptureUpdate::ResponseUpdate {
-                                status: router_data.multiple_capture_status,
+                let (capture_update, payment_attempt_update) =
+                    match payment_data.multiple_capture_data {
+                        Some(_) => (
+                            //if payment_data.multiple_capture_data will be Some only for multiple partial capture.
+                            Some(storage::CaptureUpdate::ResponseUpdate {
+                                status: enums::CaptureStatus::foreign_try_from(router_data.status)?,
                                 connector_transaction_id: connector_transaction_id.clone(),
-                                error_code: None,
-                                error_message: None,
-                                error_reason: None,
-                            },
-                            storage_scheme,
-                        )
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-                    payment_data.payment_attempt = payment_attempt;
-                    payment_data.current_capture = Some(capture);
-                    None
-                } else {
-                    Some(storage::PaymentAttemptUpdate::ResponseUpdate {
-                        status: router_data.status,
-                        connector: None,
-                        connector_transaction_id: connector_transaction_id.clone(),
-                        authentication_type: None,
-                        payment_method_id: Some(router_data.payment_method_id),
-                        mandate_id: payment_data
-                            .mandate_id
-                            .clone()
-                            .map(|mandate| mandate.mandate_id),
-                        connector_metadata,
-                        payment_token: None,
-                        error_code: error_status.clone(),
-                        error_message: error_status.clone(),
-                        error_reason: error_status,
-                        connector_response_reference_id,
-                    })
-                };
+                            }),
+                            // attempt status will depend on collective capture status
+                            None,
+                        ),
+                        None => (
+                            None,
+                            Some(storage::PaymentAttemptUpdate::ResponseUpdate {
+                                status: router_data.status,
+                                connector: None,
+                                connector_transaction_id: connector_transaction_id.clone(),
+                                authentication_type: None,
+                                payment_method_id: Some(router_data.payment_method_id),
+                                mandate_id: payment_data
+                                    .mandate_id
+                                    .clone()
+                                    .map(|mandate| mandate.mandate_id),
+                                connector_metadata,
+                                payment_token: None,
+                                error_code: error_status.clone(),
+                                error_message: error_status.clone(),
+                                error_reason: error_status,
+                                connector_response_reference_id,
+                            }),
+                        ),
+                    };
 
                 let connector_response_update = storage::ConnectorResponseUpdate::ResponseUpdate {
                     connector_transaction_id,
@@ -451,7 +440,11 @@ async fn payment_response_update_tracker<F: Clone, T: Capturable>(
                     connector_name: Some(connector_name),
                 };
 
-                (payment_attempt_update, Some(connector_response_update))
+                (
+                    capture_update,
+                    payment_attempt_update,
+                    Some(connector_response_update),
+                )
             }
             types::PaymentsResponseData::TransactionUnresolvedResponse {
                 resource_id,
@@ -464,6 +457,7 @@ async fn payment_response_update_tracker<F: Clone, T: Capturable>(
                     | types::ResponseId::EncodedData(id) => Some(id),
                 };
                 (
+                    None,
                     Some(storage::PaymentAttemptUpdate::UnresolvedResponseUpdate {
                         status: router_data.status,
                         connector: None,
@@ -477,12 +471,37 @@ async fn payment_response_update_tracker<F: Clone, T: Capturable>(
                     None,
                 )
             }
-            types::PaymentsResponseData::SessionResponse { .. } => (None, None),
-            types::PaymentsResponseData::SessionTokenResponse { .. } => (None, None),
-            types::PaymentsResponseData::TokenizationResponse { .. } => (None, None),
-            types::PaymentsResponseData::ConnectorCustomerResponse { .. } => (None, None),
-            types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. } => (None, None),
+            types::PaymentsResponseData::SessionResponse { .. } => (None, None, None),
+            types::PaymentsResponseData::SessionTokenResponse { .. } => (None, None, None),
+            types::PaymentsResponseData::TokenizationResponse { .. } => (None, None, None),
+            types::PaymentsResponseData::ConnectorCustomerResponse { .. } => (None, None, None),
+            types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. } => (None, None, None),
         },
+    };
+    payment_data.multiple_capture_data = match capture_update
+        .zip(payment_data.multiple_capture_data)
+    {
+        Some((capture_update, mut multiple_capture_data)) => {
+            let updated_capture = db
+                .update_capture_with_capture_id(
+                    multiple_capture_data.current_capture,
+                    capture_update,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            multiple_capture_data.current_capture = updated_capture;
+
+            let authorized_amount = payment_data.payment_attempt.amount;
+
+            payment_attempt_update = Some(storage::PaymentAttemptUpdate::MultipleCaptureUpdate {
+                status: Some(multiple_capture_data.get_attempt_status(authorized_amount)),
+                multiple_capture_count: Some(multiple_capture_data.get_captures_count()?),
+            });
+            Some(multiple_capture_data)
+        }
+        None => None,
     };
 
     payment_data.payment_attempt = match payment_attempt_update {
@@ -515,11 +534,8 @@ async fn payment_response_update_tracker<F: Clone, T: Capturable>(
         &payment_data,
     );
     let payment_intent_update = match &router_data.response {
-        Err(err) => storage::PaymentIntentUpdate::PGStatusUpdate {
-            status: match err.status_code {
-                500..=511 => enums::IntentStatus::Processing,
-                _ => enums::IntentStatus::Failed,
-            },
+        Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
+            status: enums::IntentStatus::foreign_from(payment_data.payment_attempt.status),
         },
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
             status: enums::IntentStatus::foreign_from(payment_data.payment_attempt.status),
@@ -555,22 +571,10 @@ fn get_total_amount_captured<F: Clone, T: Capturable>(
     router_data_status: enums::AttemptStatus,
     payment_data: &PaymentData<F>,
 ) -> Option<i64> {
-    match &payment_data.current_capture {
-        Some(capture) => {
+    match &payment_data.multiple_capture_data {
+        Some(multiple_capture_data) => {
             //multiple capture
-            let previously_captured_amount = payment_data
-                .payment_intent
-                .amount_captured
-                .unwrap_or_default();
-            match capture.status {
-                api_models::enums::CaptureStatus::Charged => {
-                    Some(previously_captured_amount + capture.amount)
-                }
-                // for all other case,  we don't update amount captured
-                api_models::enums::CaptureStatus::Started
-                | api_models::enums::CaptureStatus::Pending
-                | api_models::enums::CaptureStatus::Failure => None,
-            }
+            Some(multiple_capture_data.get_total_blocked_amount())
         }
         None => {
             //Non multiple capture

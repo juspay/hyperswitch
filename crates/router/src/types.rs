@@ -216,7 +216,6 @@ pub struct RouterData<Flow, Request, Response> {
     pub payment_id: String,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
-    pub multiple_capture_status: Option<storage_enums::CaptureStatus>,
     pub payment_method: storage_enums::PaymentMethod,
     pub connector_auth_type: ConnectorAuthType,
     pub description: Option<String>,
@@ -894,7 +893,6 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_method_token: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
-            multiple_capture_status: data.multiple_capture_status,
             recurring_mandate_payment_data: data.recurring_mandate_payment_data.clone(),
             connector_request_reference_id: data.connector_request_reference_id.clone(),
             #[cfg(feature = "payouts")]
@@ -970,7 +968,6 @@ impl<F1, F2>
             connector_request_reference_id:
                 IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW.to_string(),
             payout_method_data: data.payout_method_data.clone(),
-            multiple_capture_status: data.multiple_capture_status,
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
         }

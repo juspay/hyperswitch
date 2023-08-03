@@ -53,27 +53,9 @@ impl Capture {
     }
 
     #[instrument(skip(conn))]
-    pub async fn find_all_by_authorized_attempt_id(
-        authorized_attempt_id: &str,
-        conn: &PgPooledConn,
-    ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<
-            <Self as HasTable>::Table,
-            _,
-            <<Self as HasTable>::Table as Table>::PrimaryKey,
-            _,
-        >(
-            conn,
-            dsl::authorized_attempt_id.eq(authorized_attempt_id.to_owned()),
-            None,
-            None,
-            None,
-        )
-        .await
-    }
-
-    #[instrument(skip(conn))]
-    pub async fn find_all_charged_by_authorized_attempt_id(
+    pub async fn find_all_by_merchant_id_payment_id_authorized_attempt_id(
+        merchant_id: &str,
+        payment_id: &str,
         authorized_attempt_id: &str,
         conn: &PgPooledConn,
     ) -> StorageResult<Vec<Self>> {
@@ -86,6 +68,33 @@ impl Capture {
             conn,
             dsl::authorized_attempt_id
                 .eq(authorized_attempt_id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .and(dsl::payment_id.eq(payment_id.to_owned())),
+            None,
+            None,
+            None,
+        )
+        .await
+    }
+
+    #[instrument(skip(conn))]
+    pub async fn find_all_charged_by_merchant_id_payment_id_authorized_attempt_id(
+        merchant_id: &str,
+        payment_id: &str,
+        authorized_attempt_id: &str,
+        conn: &PgPooledConn,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::authorized_attempt_id
+                .eq(authorized_attempt_id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .and(dsl::payment_id.eq(payment_id.to_owned()))
                 .and(dsl::status.eq(CaptureStatus::Charged)),
             None,
             None,

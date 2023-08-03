@@ -447,7 +447,6 @@ pub trait ConnectorActions: Connector {
             connector_customer: None,
             recurring_mandate_payment_data: None,
             preprocessing_id: None,
-            multiple_capture_status: None,
             connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
             #[cfg(feature = "payouts")]
             payout_method_data: info.and_then(|p| p.payout_method_data),

@@ -117,6 +117,7 @@ pub enum PaymentAttemptType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    Hash,
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
 #[serde(rename_all = "snake_case")]
@@ -126,7 +127,7 @@ pub enum CaptureStatus {
     Started,
     Charged,
     Pending,
-    Failure,
+    Failed,
 }
 
 #[derive(
@@ -766,6 +767,7 @@ pub enum IntentStatus {
     #[default]
     RequiresConfirmation,
     RequiresCapture,
+    PartiallyCaptured,
 }
 
 #[derive(
