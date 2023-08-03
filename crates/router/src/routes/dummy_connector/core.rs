@@ -86,6 +86,12 @@ pub async fn payment_complete(
     state: &AppState,
     req: types::DummyConnectorPaymentCompleteRequest,
 ) -> types::DummyConnectorResponse<()> {
+    utils::tokio_mock_sleep(
+        state.conf.dummy_connector.payment_duration,
+        state.conf.dummy_connector.payment_tolerance,
+    )
+    .await;
+
     let payment_data = utils::get_payment_data_by_attempt_id(state, req.attempt_id.clone()).await;
 
     let payment_status = if req.confirm {

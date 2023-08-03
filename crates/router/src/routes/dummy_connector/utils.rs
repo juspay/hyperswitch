@@ -8,7 +8,7 @@ use rand::Rng;
 use tokio::time as tokio;
 
 use super::{
-    consts, errors,
+    errors,
     types::{self, GetPaymentMethodDetails},
 };
 use crate::{configs::settings, routes::AppState};
@@ -96,11 +96,12 @@ pub fn get_authorize_page(
         .connector
         .get_connector_image_link(dummy_connector_conf.assets_base_url.as_str());
     let currency = payment_data.currency.to_string();
+    let styles = format!("{}{}", dummy_connector_conf.assets_base_url, "index.css");
 
     html! {
         head {
             title { "Authorize Payment" }
-            style { (consts::THREE_DS_CSS) }
+            link rel="stylesheet" href=(styles) {}
             link rel="icon" href=(connector_image) {}
         }
         body {
@@ -161,10 +162,11 @@ pub fn get_authorize_page(
 }
 
 pub fn get_expired_page(dummy_connector_conf: &settings::DummyConnector) -> String {
+    let styles = format!("{}{}", dummy_connector_conf.assets_base_url, "index.css");
     html! {
         head {
             title { "Authorize Payment" }
-            style { (consts::THREE_DS_CSS) }
+            link rel="stylesheet" href=(styles) {}
             link rel="icon" href="https://app.hyperswitch.io/HyperswitchFavicon.png" {}
         }
         body {
