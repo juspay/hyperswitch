@@ -9,7 +9,7 @@ pub mod transformers;
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
 use api_models::payments::FrmMessage;
-use common_utils::pii;
+use common_utils::{ext_traits::AsyncExt, pii};
 use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -32,7 +32,7 @@ use crate::{
     core::errors::{self, CustomResult, RouterResponse, RouterResult},
     db::StorageInterface,
     logger,
-    routes::{metrics, AppState},
+    routes::{metrics, payment_methods::ParentPaymentMethodToken, AppState},
     scheduler::{utils as pt_utils, workflows::payment_sync},
     services::{self, api::Authenticate},
     types::{
@@ -197,33 +197,21 @@ where
                 .await?
             }
         };
-
-        if should_delete_token_from_basilisk(payment_data.payment_intent.status) {
-            let key_for_hyperswitch_token = payment_data
-                .payment_attempt
-                .payment_token
-                .clone()
-                .zip(payment_data.payment_attempt.payment_method)
-                .map(|(token, payment_method)| {
-                    format!("pm_token_{}_{}_hyperswitch", token, payment_method)
-                });
-            if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
-                let redis_conn = state.store.get_redis_conn();
-                let token = redis_conn
-                    .exists::<String>(&key_for_hyperswitch_token)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to fetch the token from redis")?;
-
-                if token {
-                    redis_conn
-                        .delete_key(&key_for_hyperswitch_token)
-                        .await
-                        .map_err(|err| logger::error!("Error while deleting redis key: {err:?}"))
-                        .ok();
+        payment_data
+            .payment_attempt
+            .payment_token
+            .clone()
+            .zip(payment_data.payment_attempt.payment_method)
+            .map(ParentPaymentMethodToken::create_key_for_token)
+            .async_and_then(|key_for_hyperswitch_token| async move {
+                if key_for_hyperswitch_token
+                    .should_delete_payment_method_token(payment_data.payment_intent.status)
+                {
+                    key_for_hyperswitch_token.delete(state).await
                 }
-            }
-        }
+                Some(())
+            })
+            .await;
     } else {
         (_, payment_data) = operation
             .to_update_tracker()?
@@ -1218,13 +1206,6 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         "PaymentSession" => true,
         _ => false,
     }
-}
-
-pub fn should_delete_token_from_basilisk(status: storage_enums::IntentStatus) -> bool {
-    !matches!(
-        status,
-        diesel_models::enums::IntentStatus::RequiresCustomerAction
-    )
 }
 
 pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {

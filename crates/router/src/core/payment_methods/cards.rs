@@ -42,6 +42,7 @@ use crate::{
     routes::{
         self,
         metrics::{self, request},
+        payment_methods::ParentPaymentMethodToken,
     },
     services,
     types::{
@@ -1714,31 +1715,12 @@ pub async fn list_customer_payment_method(
         customer_pms.push(pma.to_owned());
 
         let redis_conn = state.store.get_redis_conn();
-        let key_for_hyperswitch_token = format!(
-            "pm_token_{}_{}_hyperswitch",
-            parent_payment_method_token, pma.payment_method
-        );
-
-        let current_datetime_utc = common_utils::date_time::now();
-        let time_elapsed = current_datetime_utc
-            - payment_intent
-                .as_ref()
-                .map(|intent| intent.created_at)
-                .unwrap_or_else(|| current_datetime_utc);
-        redis_conn
-            .set_key_with_expiry(
-                &key_for_hyperswitch_token,
-                hyperswitch_token,
-                consts::TOKEN_TTL - time_elapsed.whole_seconds(),
-            )
-            .await
-            .map_err(|error| {
-                logger::error!(hyperswitch_token_kv_error=?error);
-                errors::StorageError::KVError
-            })
-            .into_report()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add data in redis")?;
+        ParentPaymentMethodToken::create_key_for_token((
+            parent_payment_method_token.clone(),
+            pma.payment_method,
+        ))
+        .insert(payment_intent.clone(), hyperswitch_token, state)
+        .await?;
 
         if let Some(metadata) = pma.metadata {
             let pm_metadata_vec: payment_methods::PaymentMethodMetadata = metadata
@@ -1753,6 +1735,12 @@ pub async fn list_customer_payment_method(
                     "pm_token_{}_{}_{}",
                     parent_payment_method_token, pma.payment_method, pm_metadata.0
                 );
+                let current_datetime_utc = common_utils::date_time::now();
+                let time_elapsed = current_datetime_utc
+                    - payment_intent
+                        .as_ref()
+                        .map(|intent| intent.created_at)
+                        .unwrap_or_else(|| current_datetime_utc);
                 redis_conn
                     .set_key_with_expiry(
                         &key,

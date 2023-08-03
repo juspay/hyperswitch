@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 use base64::Engine;
 use common_utils::{
-    consts::TOKEN_TTL,
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
 };
@@ -28,7 +27,7 @@ use crate::{
         payments,
     },
     db::StorageInterface,
-    routes::{metrics, AppState},
+    routes::{metrics, payment_methods::ParentPaymentMethodToken, AppState},
     scheduler::metrics as scheduler_metrics,
     services,
     types::{
@@ -1278,32 +1277,22 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     .payment_attempt
                     .payment_method
                     .map(|payment_method| {
-                        format!(
-                            "pm_token_{}_{}_hyperswitch",
-                            parent_payment_method_token, payment_method
-                        )
+                        ParentPaymentMethodToken::create_key_for_token((
+                            parent_payment_method_token.clone(),
+                            payment_method,
+                        ))
                     });
+            if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
+                key_for_hyperswitch_token
+                    .insert(
+                        Some(payment_data.payment_intent.clone()),
+                        hyperswitch_token,
+                        state,
+                    )
+                    .await?;
+            };
 
             payment_data.token = Some(parent_payment_method_token);
-            if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
-                let redis_conn = state.store.get_redis_conn();
-                let current_datetime_utc = common_utils::date_time::now();
-                let time_eslapsed = current_datetime_utc - payment_data.payment_intent.created_at;
-                redis_conn
-                    .set_key_with_expiry(
-                        &key_for_hyperswitch_token,
-                        hyperswitch_token,
-                        TOKEN_TTL - time_eslapsed.whole_seconds(),
-                    )
-                    .await
-                    .map_err(|error| {
-                        logger::error!(hyperswitch_token_kv_error=?error);
-                        errors::StorageError::KVError
-                    })
-                    .into_report()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to add data in redis")?
-            }
 
             Ok(pm_opt.to_owned())
         }
