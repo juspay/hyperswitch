@@ -38,31 +38,6 @@ pub fn create_merchant_publishable_key() -> String {
     )
 }
 
-fn get_primary_business_details(
-    request: &api::MerchantAccountCreate,
-) -> Vec<PrimaryBusinessDetails> {
-    // In this case, business details is not optional, it will always be passed
-    #[cfg(feature = "multiple_mca")]
-    {
-        request.primary_business_details.to_owned()
-    }
-
-    // In this case, business details will be optional, if it is not passed, then create the
-    // default value
-    #[cfg(not(feature = "multiple_mca"))]
-    {
-        request
-            .primary_business_details
-            .to_owned()
-            .unwrap_or_else(|| {
-                vec![PrimaryBusinessDetails {
-                    country: enums::CountryAlpha2::US,
-                    business: "default".to_string(),
-                }]
-            })
-    }
-}
-
 pub async fn create_merchant_account(
     db: &dyn StorageInterface,
     req: api::MerchantAccountCreate,
@@ -76,7 +51,7 @@ pub async fn create_merchant_account(
     let publishable_key = Some(create_merchant_publishable_key());
 
     let primary_business_details = utils::Encode::<Vec<PrimaryBusinessDetails>>::encode_to_value(
-        &get_primary_business_details(&req),
+        &req.primary_business_details.unwrap_or_default(),
     )
     .change_context(errors::ApiErrorResponse::InvalidDataValue {
         field_name: "primary_business_details",
@@ -383,27 +358,6 @@ async fn validate_merchant_id<S: Into<String>>(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
 }
 
-fn get_business_details_wrapper(
-    request: &api::MerchantConnectorCreate,
-    _merchant_account: &domain::MerchantAccount,
-) -> RouterResult<(enums::CountryAlpha2, String)> {
-    #[cfg(feature = "multiple_mca")]
-    {
-        // The fields are mandatory
-        Ok((request.business_country, request.business_label.to_owned()))
-    }
-
-    #[cfg(not(feature = "multiple_mca"))]
-    {
-        // If the value is not passed, then take it from Merchant account
-        helpers::get_business_details(
-            request.business_country,
-            request.business_label.as_ref(),
-            _merchant_account,
-        )
-    }
-}
-
 fn validate_certificate_in_mca_metadata(
     connector_metadata: Secret<serde_json::Value>,
 ) -> RouterResult<()> {
@@ -459,11 +413,15 @@ pub async fn create_payment_connector(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let (business_country, business_label) = get_business_details_wrapper(&req, &merchant_account)?;
+    helpers::validate_business_details(
+        req.business_country,
+        &req.business_label,
+        &merchant_account,
+    )?;
 
     let connector_label = helpers::get_connector_label(
-        business_country,
-        &business_label,
+        req.business_country,
+        &req.business_label,
         req.business_sub_label.as_ref(),
         &req.connector_name.to_string(),
     );
@@ -530,8 +488,8 @@ pub async fn create_payment_connector(
         metadata: req.metadata,
         frm_configs,
         connector_label: connector_label.clone(),
-        business_country,
-        business_label,
+        business_country: req.business_country,
+        business_label: req.business_label.clone(),
         business_sub_label: req.business_sub_label,
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),
@@ -912,6 +870,10 @@ pub(crate) fn validate_auth_type(
         }
         api_enums::Connector::Bambora => {
             bambora::transformers::BamboraAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Boku => {
+            boku::transformers::BokuAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Bluesnap => {
