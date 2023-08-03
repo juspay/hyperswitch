@@ -2187,8 +2187,8 @@ impl<F, T>
                 .as_ref()
                 .map(|error| types::ErrorResponse {
                     code: error.code.to_owned(),
-                    message: error.message.to_owned(),
-                    reason: None,
+                    message: error.code.to_owned(),
+                    reason: Some(error.message.to_owned()),
                     status_code: item.http_code,
                 });
 
