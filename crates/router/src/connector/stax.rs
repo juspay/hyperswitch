@@ -22,9 +22,9 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        ErrorResponse, Response, domain,
     },
-    utils::{self, BytesExt},
+    utils::{self, BytesExt}, db::StorageInterface,
 };
 
 #[derive(Debug, Clone)]
@@ -760,6 +760,17 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Stax {
+    async fn verify_webhook_source(
+        &self,
+        _db: &dyn StorageInterface,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &str,
+        _connector_label: &str,
+        _key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        Ok(false)
+    }
+    
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
