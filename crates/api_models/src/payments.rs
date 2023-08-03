@@ -725,8 +725,16 @@ pub enum PaymentMethodData {
     GiftCard(Box<GiftCardData>),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct GiftCardData {
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum GiftCardData {
+    Givex(GiftCardDetails),
+    PaySafeCard {},
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub struct GiftCardDetails {
     /// The gift card number
     #[schema(value_type = String)]
     pub number: Secret<String>,
@@ -743,11 +751,11 @@ pub struct AdditionalCardInfo {
     pub card_type: Option<String>,
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
-    pub last4: String,
-    pub card_isin: String,
-    pub card_exp_month: Secret<String>,
-    pub card_exp_year: Secret<String>,
-    pub card_holder_name: Secret<String>,
+    pub last4: Option<String>,
+    pub card_isin: Option<String>,
+    pub card_exp_month: Option<Secret<String>>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -803,6 +811,10 @@ pub enum BankRedirectData {
         /// The hyperswitch bank code for eps
         #[schema(value_type = BankNames, example = "triodos_bank")]
         bank_name: Option<api_enums::BankNames>,
+
+        /// The country for bank payment
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: Option<api_enums::CountryAlpha2>,
     },
     Giropay {
         /// The billing details for bank redirection
@@ -816,6 +828,10 @@ pub enum BankRedirectData {
         /// Bank account iban
         #[schema(value_type = Option<String>)]
         bank_account_iban: Option<Secret<String>>,
+
+        /// The country for bank payment
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: Option<api_enums::CountryAlpha2>,
     },
     Ideal {
         /// The billing details for bank redirection
@@ -824,6 +840,10 @@ pub enum BankRedirectData {
         /// The hyperswitch bank code for ideal
         #[schema(value_type = BankNames, example = "abn_amro")]
         bank_name: Option<api_enums::BankNames>,
+
+        /// The country for bank payment
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: Option<api_enums::CountryAlpha2>,
     },
     Interac {
         /// The country for bank payment
@@ -873,7 +893,6 @@ pub enum BankRedirectData {
         #[schema(example = "en")]
         preferred_language: String,
     },
-    Swish {},
     Trustly {
         /// The country for bank payment
         #[schema(value_type = CountryAlpha2, example = "US")]
@@ -962,7 +981,7 @@ pub struct CryptoData {
 #[serde(rename_all = "snake_case")]
 pub struct UpiData {
     #[schema(value_type = Option<String>, example = "successtest@iata")]
-    pub vpa_id: Option<Secret<String>>,
+    pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1097,10 +1116,12 @@ pub enum WalletData {
     TouchNGoRedirect(Box<TouchNGoRedirection>),
     /// The wallet data for WeChat Pay Redirection
     WeChatPayRedirect(Box<WeChatPayRedirection>),
-    /// The wallet data for WeChat Pay
-    WeChatPay(Box<WeChatPay>),
     /// The wallet data for WeChat Pay Display QrCode
     WeChatPayQr(Box<WeChatPayQr>),
+    /// The wallet data for Cashapp Qr
+    CashappQr(Box<CashappQr>),
+    // The wallet data for Swish
+    SwishQr(SwishQrData),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1145,6 +1166,9 @@ pub struct WeChatPay {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct WeChatPayQr {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct CashappQr {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaypalRedirection {}
@@ -1199,6 +1223,9 @@ pub struct PayPalWalletData {
 pub struct TouchNGoRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SwishQrData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GpayTokenizationData {
     /// The type of the token
     #[serde(rename = "type")]
@@ -1230,15 +1257,15 @@ pub struct ApplepayPaymentMethod {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct CardResponse {
-    pub last4: String,
+    pub last4: Option<String>,
     pub card_type: Option<String>,
     pub card_network: Option<api_enums::CardNetwork>,
     pub card_issuer: Option<String>,
     pub card_issuing_country: Option<String>,
-    pub card_isin: String,
-    pub card_exp_month: Secret<String>,
-    pub card_exp_year: Secret<String>,
-    pub card_holder_name: Secret<String>,
+    pub card_isin: Option<String>,
+    pub card_exp_month: Option<Secret<String>>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1263,9 +1290,9 @@ pub enum VoucherData {
     PagoEfectivo,
     RedCompra,
     RedPagos,
-    Alfamart(AlfamartVoucherData),
-    Indomaret(IndomaretVoucherData),
-    Oxxo,
+    Alfamart(Box<AlfamartVoucherData>),
+    Indomaret(Box<IndomaretVoucherData>),
+    Oxxo
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1421,6 +1448,7 @@ pub enum NextActionType {
     InvokeSdkClient,
     TriggerApi,
     DisplayBankTransferInformation,
+    DisplayWaitScreen,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -1438,12 +1466,18 @@ pub enum NextActionData {
     QrCodeInformation {
         #[schema(value_type = String)]
         image_data_url: Url,
+        display_to_timestamp: Option<i64>,
     },
-    // Contains the download url and the reference number for transaction
+    /// Contains the download url and the reference number for transaction
     DisplayVoucherInformation {
         #[schema(value_type = String)]
         voucher_details: VoucherNextStepData,
     },
+    /// Contains duration for displaying a wait screen, wait screen with timer is displayed by sdk
+    WaitScreenInformation {
+        display_from_timestamp: i128,
+        display_to_timestamp: Option<i128>,
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1457,17 +1491,24 @@ pub struct BankTransferNextStepsData {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct VoucherNextStepData {
-    // Voucher expiry date and time
+    /// Voucher expiry date and time
     pub expires_at: Option<String>,
-    // Reference number required for the transaction
+    /// Reference number required for the transaction
     pub reference: String,
-    // Url to download the payment instruction
+    /// Url to download the payment instruction
     pub download_url: Option<Url>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct QrCodeNextStepsInstruction {
     pub image_data_url: Url,
+    pub display_to_timestamp: Option<i64>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct WaitScreenInstructions {
+    pub display_from_timestamp: i128,
+    pub display_to_timestamp: Option<i128>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -2466,7 +2507,7 @@ pub struct PaymentsCancelRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
 pub struct PaymentsStartRequest {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant. This field is auto generated and is returned in the API response.

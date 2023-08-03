@@ -19,6 +19,7 @@ async fn invalidate_existing_cache_success() {
     let _ = state
         .store
         .get_redis_conn()
+        .unwrap()
         .set_key(&cache_key.clone(), cache_key_value.clone())
         .await;
 
