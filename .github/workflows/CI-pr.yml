@@ -87,9 +87,7 @@ jobs:
         with:
           toolchain: 1.65
 
-      - uses: Swatinem/rust-cache@v2.4.0
-        with:
-          save-if: ${{ github.event_name == 'push' }}
+      - uses: mozilla-actions/sccache-action@v0.0.3
 
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v2.1.0
