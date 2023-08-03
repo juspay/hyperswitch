@@ -28,8 +28,8 @@ jobs:
         connector:
           # Grouping connectors based on their time consumption
           # This would help in parallelizing the tests
-          - aci, checkout, stripe
-          - bluesnap, nmi, worldline
+          - aci, adyen_uk, authorizedotnet, bambora, bambora_3ds, bluesnap
+          - checkout, nmi, stripe, trustpay, worldline
 
     services:
       redis:
