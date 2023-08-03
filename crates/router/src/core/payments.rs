@@ -429,7 +429,9 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
                         api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
                         api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None,
-                        api_models::payments::NextActionData::QrCodeInformation{..} => None
+                        api_models::payments::NextActionData::QrCodeInformation{..} => None,
+                        api_models::payments::NextActionData::DisplayVoucherInformation{ .. } => None,
+                        api_models::payments::NextActionData::WaitScreenInformation{..} => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .into_report()

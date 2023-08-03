@@ -832,6 +832,7 @@ pub struct TrustpayCreateIntentRequest {
     pub init_apple_pay: Option<bool>,
     // If true, Google pay will be initialized
     pub init_google_pay: Option<bool>,
+    pub reference: String,
 }
 
 impl TryFrom<&types::PaymentsPreProcessingRouterData> for TrustpayCreateIntentRequest {
@@ -849,25 +850,36 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for TrustpayCreateIntentRe
             .as_ref()
             .map(|pmt| matches!(pmt, diesel_models::enums::PaymentMethodType::GooglePay));
 
+        let request_amount = item
+            .request
+            .amount
+            .get_required_value("amount")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "amount",
+            })?;
+
+        let currency = item
+            .request
+            .currency
+            .get_required_value("currency")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            })?;
+
+        let amount = format!(
+            "{:.2}",
+            utils::to_currency_base_unit(request_amount, currency)?
+                .parse::<f64>()
+                .into_report()
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?
+        );
+
         Ok(Self {
-            amount: item
-                .request
-                .amount
-                .get_required_value("amount")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "amount",
-                })?
-                .to_string(),
-            currency: item
-                .request
-                .currency
-                .get_required_value("currency")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?
-                .to_string(),
+            amount,
+            currency: currency.to_string(),
             init_apple_pay: is_apple_pay,
             init_google_pay: is_google_pay,
+            reference: item.payment_id.clone(),
         })
     }
 }

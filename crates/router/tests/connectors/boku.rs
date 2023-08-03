@@ -12,16 +12,17 @@ impl utils::Connector for BokuTest {
         use router::connector::Boku;
         types::api::ConnectorData {
             connector: Box::new(&Boku),
-            connector_name: types::Connector::DummyConnector1,
+            connector_name: types::Connector::Boku,
             get_token: types::api::GetToken::Connector,
         }
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .boku
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 

@@ -764,10 +764,13 @@ pub enum IntentStatus {
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumVariantNames,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -840,6 +843,8 @@ pub enum PaymentExperience {
     LinkWallet,
     /// Contains the data for invoking the sdk client for completing the payment.
     InvokePaymentApp,
+    /// Contains the data for displaying wait screen
+    DisplayWaitScreen,
 }
 
 #[derive(
@@ -864,6 +869,7 @@ pub enum PaymentMethodType {
     Ach,
     Affirm,
     AfterpayClearpay,
+    Alfamart,
     AliPay,
     AliPayHk,
     Alma,
@@ -875,11 +881,17 @@ pub enum PaymentMethodType {
     Bizum,
     Blik,
     Boleto,
+    BcaBankTransfer,
+    BniVa,
+    BriVa,
+    CimbVa,
     #[serde(rename = "classic")]
     ClassicReward,
     Credit,
     CryptoCurrency,
+    Cashapp,
     Dana,
+    DanamonVa,
     Debit,
     Efecty,
     Eps,
@@ -890,8 +902,10 @@ pub enum PaymentMethodType {
     Gcash,
     Ideal,
     Interac,
+    Indomaret,
     Klarna,
     KakaoPay,
+    MandiriVa,
     MbWay,
     MobilePay,
     Momo,
@@ -903,6 +917,7 @@ pub enum PaymentMethodType {
     OnlineBankingPoland,
     OnlineBankingSlovakia,
     PagoEfectivo,
+    PermataBankTransfer,
     PayBright,
     Paypal,
     Pix,
@@ -954,6 +969,7 @@ pub enum PaymentMethod {
     Reward,
     Upi,
     Voucher,
+    GiftCard,
 }
 
 #[derive(

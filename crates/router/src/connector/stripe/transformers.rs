@@ -433,6 +433,7 @@ pub enum StripeWallet {
     ApplepayPayment(ApplepayPayment),
     WechatpayPayment(WechatpayPayment),
     AlipayPayment(AlipayPayment),
+    Cashapp(CashappPayment),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -461,6 +462,12 @@ pub struct ApplepayPayment {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct AlipayPayment {
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_data_type: StripePaymentMethodType,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct CashappPayment {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
 }
@@ -517,6 +524,8 @@ pub enum StripePaymentMethodType {
     Ach,
     #[serde(rename = "wechat_pay")]
     Wechatpay,
+    #[serde(rename = "cashapp")]
+    Cashapp,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1143,6 +1152,13 @@ fn create_stripe_payment_method(
                 Some(StripePaymentMethodType::Alipay),
                 StripeBillingAddress::default(),
             )),
+            payments::WalletData::CashappQr(_) => Ok((
+                StripePaymentMethodData::Wallet(StripeWallet::Cashapp(CashappPayment {
+                    payment_method_data_type: StripePaymentMethodType::Cashapp,
+                })),
+                Some(StripePaymentMethodType::Cashapp),
+                StripeBillingAddress::default(),
+            )),
             payments::WalletData::GooglePay(gpay_data) => Ok((
                 StripePaymentMethodData::try_from(gpay_data)?,
                 Some(StripePaymentMethodType::Card),
@@ -1232,7 +1248,15 @@ fn create_stripe_payment_method(
                         billing_details,
                     ))
                 }
-                payments::BankTransferData::Pix {} | payments::BankTransferData::Pse {} => Err(
+                payments::BankTransferData::Pix {}
+                | payments::BankTransferData::Pse {}
+                | payments::BankTransferData::PermataBankTransfer { .. }
+                | payments::BankTransferData::BcaBankTransfer { .. }
+                | payments::BankTransferData::BniVaBankTransfer { .. }
+                | payments::BankTransferData::BriVaBankTransfer { .. }
+                | payments::BankTransferData::CimbVaBankTransfer { .. }
+                | payments::BankTransferData::DanamonVaBankTransfer { .. }
+                | payments::BankTransferData::MandiriVaBankTransfer { .. } => Err(
                     errors::ConnectorError::NotImplemented("this payment method".to_string())
                         .into(),
                 ),
@@ -1666,8 +1690,9 @@ pub struct SepaAndBacsBankTransferInstructions {
 
 #[serde_with::skip_serializing_none]
 #[derive(Clone, Debug, Serialize)]
-pub struct WechatPayNextInstructions {
+pub struct QrCodeNextInstructions {
     pub image_data_url: Url,
+    pub display_to_timestamp: Option<i64>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -1851,7 +1876,8 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
                 | StripePaymentMethodOptions::Przelewy24 {}
                 | StripePaymentMethodOptions::CustomerBalance {}
                 | StripePaymentMethodOptions::Blik {}
-                | StripePaymentMethodOptions::Multibanco {} => None,
+                | StripePaymentMethodOptions::Multibanco {}
+                | StripePaymentMethodOptions::Cashapp {} => None,
             }),
             payment_method_id: Some(payment_method_id),
         }
@@ -1936,13 +1962,25 @@ pub fn get_connector_metadata(
                 ))
             }
             StripeNextActionResponse::WechatPayDisplayQrCode(response) => {
-                let wechat_pay_instructions = WechatPayNextInstructions {
+                let wechat_pay_instructions = QrCodeNextInstructions {
                     image_data_url: response.image_data_url.to_owned(),
+                    display_to_timestamp: None,
                 };
 
                 Some(
-                    common_utils::ext_traits::Encode::<WechatPayNextInstructions>::encode_to_value(
+                    common_utils::ext_traits::Encode::<QrCodeNextInstructions>::encode_to_value(
                         &wechat_pay_instructions,
+                    ),
+                )
+            }
+            StripeNextActionResponse::CashappHandleRedirectOrDisplayQrCode(response) => {
+                let cashapp_qr_instructions: QrCodeNextInstructions = QrCodeNextInstructions {
+                    image_data_url: response.qr_code.image_url_png.to_owned(),
+                    display_to_timestamp: response.qr_code.expires_at.to_owned(),
+                };
+                Some(
+                    common_utils::ext_traits::Encode::<QrCodeNextInstructions>::encode_to_value(
+                        &cashapp_qr_instructions,
                     ),
                 )
             }
@@ -1999,8 +2037,8 @@ impl<F, T>
                 .as_ref()
                 .map(|error| types::ErrorResponse {
                     code: error.code.to_owned(),
-                    message: error.message.to_owned(),
-                    reason: None,
+                    message: error.code.to_owned(),
+                    reason: Some(error.message.to_owned()),
                     status_code: item.http_code,
                 });
 
@@ -2082,10 +2120,11 @@ impl ForeignFrom<Option<LatestAttempt>> for Option<String> {
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
 #[serde(rename_all = "snake_case", remote = "Self")]
 pub enum StripeNextActionResponse {
+    CashappHandleRedirectOrDisplayQrCode(StripeCashappQrResponse),
     RedirectToUrl(StripeRedirectToUrlResponse),
     AlipayHandleRedirect(StripeRedirectToUrlResponse),
     VerifyWithMicrodeposits(StripeVerifyWithMicroDepositsResponse),
-    WechatPayDisplayQrCode(StripeRedirectToQr),
+    WechatPayDisplayQrCode(WechatPayRedirectToQr),
     DisplayBankTransferInstructions(StripeBankTransferDetails),
     NoNextActionBody,
 }
@@ -2100,6 +2139,7 @@ impl StripeNextActionResponse {
             Self::VerifyWithMicrodeposits(verify_with_microdeposits) => {
                 Some(verify_with_microdeposits.hosted_verification_url.to_owned())
             }
+            Self::CashappHandleRedirectOrDisplayQrCode(_) => None,
             Self::DisplayBankTransferInstructions(_) => None,
             Self::NoNextActionBody => None,
         }
@@ -2143,7 +2183,7 @@ pub struct StripeRedirectToUrlResponse {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub struct StripeRedirectToQr {
+pub struct WechatPayRedirectToQr {
     // This data contains url, it should be converted to QR code.
     // Note: The url in this data is not redirection url
     data: Url,
@@ -2165,6 +2205,20 @@ pub struct StripeBankTransferDetails {
     pub reference: Option<String>,
     #[serde(rename = "type")]
     pub bank_transfer_type: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeCashappQrResponse {
+    pub mobile_auth_url: Url,
+    pub qr_code: QrCodeResponse,
+    pub hosted_instructions_url: Url,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct QrCodeResponse {
+    pub expires_at: Option<i64>,
+    pub image_url_png: Url,
+    pub image_url_svg: Url,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -2398,6 +2452,7 @@ pub enum StripePaymentMethodOptions {
     CustomerBalance {},
     Multibanco {},
     Blik {},
+    Cashapp {},
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -2465,10 +2520,20 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                             currency,
                         }))
                     }
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        "Bank Transfer Method".to_string(),
-                    )
-                    .into()),
+                    payments::BankTransferData::SepaBankTransfer { .. }
+                    | payments::BankTransferData::BacsBankTransfer { .. }
+                    | payments::BankTransferData::PermataBankTransfer { .. }
+                    | payments::BankTransferData::BcaBankTransfer { .. }
+                    | payments::BankTransferData::BniVaBankTransfer { .. }
+                    | payments::BankTransferData::BriVaBankTransfer { .. }
+                    | payments::BankTransferData::CimbVaBankTransfer { .. }
+                    | payments::BankTransferData::DanamonVaBankTransfer { .. }
+                    | payments::BankTransferData::MandiriVaBankTransfer { .. }
+                    | payments::BankTransferData::Pix { .. }
+                    | payments::BankTransferData::Pse { .. } => Err(
+                        errors::ConnectorError::NotImplemented("Bank Transfer Method".to_string())
+                            .into(),
+                    ),
                 }
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
@@ -2907,6 +2972,18 @@ impl
                     payments::BankTransferData::Pix {} | payments::BankTransferData::Pse {} => Err(
                         errors::ConnectorError::NotImplemented("payment method".to_string()).into(),
                     ),
+                    payments::BankTransferData::PermataBankTransfer { .. }
+                    | payments::BankTransferData::BcaBankTransfer { .. }
+                    | payments::BankTransferData::BniVaBankTransfer { .. }
+                    | payments::BankTransferData::BriVaBankTransfer { .. }
+                    | payments::BankTransferData::CimbVaBankTransfer { .. }
+                    | payments::BankTransferData::DanamonVaBankTransfer { .. }
+                    | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
+                        Err(errors::ConnectorError::NotImplemented(
+                            "this payment method for stripe".to_string(),
+                        )
+                        .into())
+                    }
                 }
             }
             api::PaymentMethodData::MandatePayment

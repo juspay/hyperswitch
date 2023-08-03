@@ -37,7 +37,7 @@ use crate::{
             types::{self, AsyncLift},
         },
         storage::{self, enums as storage_enums, ephemeral_key, CustomerUpdate::Update},
-        transformers::ForeignInto,
+        transformers::ForeignTryFrom,
         ErrorResponse, RouterData,
     },
     utils::{
@@ -1258,6 +1258,11 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                         Some(storage_enums::PaymentMethod::BankTransfer);
                     pm
                 }
+                Some(api::PaymentMethodData::BankRedirect(_)) => {
+                    payment_data.payment_attempt.payment_method =
+                        Some(storage_enums::PaymentMethod::BankRedirect);
+                    pm
+                }
                 Some(_) => Err(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
                     .attach_printable(
@@ -1280,7 +1285,6 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             Ok(pm_opt.to_owned())
         }
         (pm @ Some(api::PaymentMethodData::PayLater(_)), _) => Ok(pm.to_owned()),
-        (pm @ Some(api::PaymentMethodData::BankRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Crypto(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::BankDebit(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Upi(_)), _) => Ok(pm.to_owned()),
@@ -1306,6 +1310,18 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 pm,
                 payment_data.payment_intent.customer_id.to_owned(),
                 enums::PaymentMethod::Wallet,
+            )
+            .await?;
+            payment_data.token = Some(token);
+            Ok(pm_opt.to_owned())
+        }
+        (pm_opt @ Some(pm @ api::PaymentMethodData::BankRedirect(_)), _) => {
+            let token = vault::Vault::store_payment_method_data_in_locker(
+                state,
+                None,
+                pm,
+                payment_data.payment_intent.customer_id.to_owned(),
+                enums::PaymentMethod::BankRedirect,
             )
             .await?;
             payment_data.token = Some(token);
@@ -1400,60 +1416,163 @@ pub(crate) fn validate_payment_method_fields_present(
         },
     )?;
 
-    let payment_method: Option<api_enums::PaymentMethod> =
-        (req.payment_method_type).map(ForeignInto::foreign_into);
-
     utils::when(
-        req.payment_method.is_some()
-            && req.payment_method_type.is_some()
-            && (req.payment_method != payment_method),
+        req.payment_method.is_some() && req.payment_method_type.is_some(),
         || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: ("payment_method_type doesn't correspond to the specified payment_method"
-                    .to_string()),
-            })
+            req.payment_method
+                .map_or(Ok(()), |req_payment_method| {
+                    req.payment_method_type.map_or(Ok(()), |req_payment_method_type| {
+                        if !validate_payment_method_type_against_payment_method(req_payment_method, req_payment_method_type) {
+                            Err(errors::ApiErrorResponse::InvalidRequestData {
+                                message: ("payment_method_type doesn't correspond to the specified payment_method"
+                                    .to_string()),
+                            })
+                        } else {
+                            Ok(())
+                        }
+                    })
+                })
         },
     )?;
 
+    let validate_payment_method_and_payment_method_data =
+        |req_payment_method_data, req_payment_method: api_enums::PaymentMethod| {
+            api_enums::PaymentMethod::foreign_try_from(req_payment_method_data).and_then(|payment_method|
+                if req_payment_method != payment_method {
+                    Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: ("payment_method_data doesn't correspond to the specified payment_method"
+                            .to_string()),
+                    })
+                } else {
+                    Ok(())
+                })
+        };
+
     utils::when(
-        !matches!(
-            req.payment_method
-                .as_ref()
-                .zip(req.payment_method_data.as_ref()),
-            Some(
-                (
-                    api_enums::PaymentMethod::Card,
-                    api::PaymentMethodData::Card(..)
-                ) | (
-                    api_enums::PaymentMethod::Wallet,
-                    api::PaymentMethodData::Wallet(..)
-                ) | (
-                    api_enums::PaymentMethod::PayLater,
-                    api::PaymentMethodData::PayLater(..)
-                ) | (
-                    api_enums::PaymentMethod::BankRedirect,
-                    api::PaymentMethodData::BankRedirect(..)
-                ) | (
-                    api_enums::PaymentMethod::BankDebit,
-                    api::PaymentMethodData::BankDebit(..)
-                ) | (
-                    api_enums::PaymentMethod::Crypto,
-                    api::PaymentMethodData::Crypto(..)
-                ) | (
-                    api_enums::PaymentMethod::Upi,
-                    api::PaymentMethodData::Upi(..)
-                )
-            ) | None
-        ),
+        req.payment_method.is_some() && req.payment_method_data.is_some(),
         || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "payment_method_data doesn't correspond to the specified payment_method"
-                    .to_string(),
-            })
+            req.payment_method_data
+                .clone()
+                .map_or(Ok(()), |req_payment_method_data| {
+                    req.payment_method.map_or(Ok(()), |req_payment_method| {
+                        validate_payment_method_and_payment_method_data(
+                            req_payment_method_data,
+                            req_payment_method,
+                        )
+                    })
+                })
         },
     )?;
 
     Ok(())
+}
+
+pub fn validate_payment_method_type_against_payment_method(
+    payment_method: api_enums::PaymentMethod,
+    payment_method_type: api_enums::PaymentMethodType,
+) -> bool {
+    match payment_method {
+        api_enums::PaymentMethod::Card => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit
+        ),
+        api_enums::PaymentMethod::PayLater => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Affirm
+                | api_enums::PaymentMethodType::Alma
+                | api_enums::PaymentMethodType::AfterpayClearpay
+                | api_enums::PaymentMethodType::Klarna
+                | api_enums::PaymentMethodType::PayBright
+                | api_enums::PaymentMethodType::Atome
+                | api_enums::PaymentMethodType::Walley
+        ),
+        api_enums::PaymentMethod::Wallet => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::ApplePay
+                | api_enums::PaymentMethodType::GooglePay
+                | api_enums::PaymentMethodType::Paypal
+                | api_enums::PaymentMethodType::AliPay
+                | api_enums::PaymentMethodType::AliPayHk
+                | api_enums::PaymentMethodType::Dana
+                | api_enums::PaymentMethodType::MbWay
+                | api_enums::PaymentMethodType::MobilePay
+                | api_enums::PaymentMethodType::SamsungPay
+                | api_enums::PaymentMethodType::Twint
+                | api_enums::PaymentMethodType::Vipps
+                | api_enums::PaymentMethodType::TouchNGo
+                | api_enums::PaymentMethodType::Swish
+                | api_enums::PaymentMethodType::WeChatPay
+                | api_enums::PaymentMethodType::GoPay
+                | api_enums::PaymentMethodType::Gcash
+                | api_enums::PaymentMethodType::Momo
+                | api_enums::PaymentMethodType::KakaoPay
+        ),
+        api_enums::PaymentMethod::BankRedirect => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Giropay
+                | api_enums::PaymentMethodType::Ideal
+                | api_enums::PaymentMethodType::Sofort
+                | api_enums::PaymentMethodType::Eps
+                | api_enums::PaymentMethodType::BancontactCard
+                | api_enums::PaymentMethodType::Blik
+                | api_enums::PaymentMethodType::OnlineBankingThailand
+                | api_enums::PaymentMethodType::OnlineBankingCzechRepublic
+                | api_enums::PaymentMethodType::OnlineBankingFinland
+                | api_enums::PaymentMethodType::OnlineBankingFpx
+                | api_enums::PaymentMethodType::OnlineBankingPoland
+                | api_enums::PaymentMethodType::OnlineBankingSlovakia
+                | api_enums::PaymentMethodType::Przelewy24
+                | api_enums::PaymentMethodType::Trustly
+                | api_enums::PaymentMethodType::Bizum
+                | api_enums::PaymentMethodType::Interac
+        ),
+        api_enums::PaymentMethod::BankTransfer => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Ach
+                | api_enums::PaymentMethodType::Sepa
+                | api_enums::PaymentMethodType::Bacs
+                | api_enums::PaymentMethodType::Multibanco
+                | api_enums::PaymentMethodType::Pix
+                | api_enums::PaymentMethodType::Pse
+                | api_enums::PaymentMethodType::PermataBankTransfer
+                | api_enums::PaymentMethodType::BcaBankTransfer
+                | api_enums::PaymentMethodType::BniVa
+                | api_enums::PaymentMethodType::BriVa
+                | api_enums::PaymentMethodType::CimbVa
+                | api_enums::PaymentMethodType::DanamonVa
+                | api_enums::PaymentMethodType::MandiriVa
+        ),
+        api_enums::PaymentMethod::BankDebit => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Ach
+                | api_enums::PaymentMethodType::Sepa
+                | api_enums::PaymentMethodType::Bacs
+                | api_enums::PaymentMethodType::Becs
+        ),
+        api_enums::PaymentMethod::Crypto => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::CryptoCurrency
+        ),
+        api_enums::PaymentMethod::Reward => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Evoucher | api_enums::PaymentMethodType::ClassicReward
+        ),
+        api_enums::PaymentMethod::Upi => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::UpiCollect
+        ),
+        api_enums::PaymentMethod::Voucher => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Boleto
+                | api_enums::PaymentMethodType::Efecty
+                | api_enums::PaymentMethodType::PagoEfectivo
+                | api_enums::PaymentMethodType::RedCompra
+                | api_enums::PaymentMethodType::RedPagos
+                | api_enums::PaymentMethodType::Indomaret
+                | api_enums::PaymentMethodType::Alfamart
+        ),
+        api_enums::PaymentMethod::GiftCard => false,
+    }
 }
 
 pub fn check_force_psync_precondition(
@@ -2609,8 +2728,8 @@ pub async fn get_additional_payment_data(
 ) -> api_models::payments::AdditionalPaymentData {
     match pm_data {
         api_models::payments::PaymentMethodData::Card(card_data) => {
-            let card_isin = card_data.card_number.clone().get_card_isin();
-            let last4 = card_data.card_number.clone().get_last4();
+            let card_isin = Some(card_data.card_number.clone().get_card_isin());
+            let last4 = Some(card_data.card_number.clone().get_last4());
             if card_data.card_issuer.is_some()
                 && card_data.card_network.is_some()
                 && card_data.card_type.is_some()
@@ -2624,19 +2743,23 @@ pub async fn get_additional_payment_data(
                         card_type: card_data.card_type.to_owned(),
                         card_issuing_country: card_data.card_issuing_country.to_owned(),
                         bank_code: card_data.bank_code.to_owned(),
-                        card_exp_month: card_data.card_exp_month.clone(),
-                        card_exp_year: card_data.card_exp_year.clone(),
-                        card_holder_name: card_data.card_holder_name.clone(),
+                        card_exp_month: Some(card_data.card_exp_month.clone()),
+                        card_exp_year: Some(card_data.card_exp_year.clone()),
+                        card_holder_name: Some(card_data.card_holder_name.clone()),
                         last4: last4.clone(),
                         card_isin: card_isin.clone(),
                     },
                 ))
             } else {
-                let card_info = db
-                    .get_card_info(&card_isin.clone())
+                let card_info = card_isin
+                    .clone()
+                    .async_and_then(|card_isin| async move {
+                        db.get_card_info(&card_isin)
+                            .await
+                            .map_err(|error| services::logger::warn!(card_info_error=?error))
+                            .ok()
+                    })
                     .await
-                    .map_err(|error| services::logger::warn!(card_info_error=?error))
-                    .ok()
                     .flatten()
                     .map(|card_info| {
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
@@ -2648,9 +2771,9 @@ pub async fn get_additional_payment_data(
                                 card_issuing_country: card_info.card_issuing_country,
                                 last4: last4.clone(),
                                 card_isin: card_isin.clone(),
-                                card_exp_month: card_data.card_exp_month.clone(),
-                                card_exp_year: card_data.card_exp_year.clone(),
-                                card_holder_name: card_data.card_holder_name.clone(),
+                                card_exp_month: Some(card_data.card_exp_month.clone()),
+                                card_exp_year: Some(card_data.card_exp_year.clone()),
+                                card_holder_name: Some(card_data.card_holder_name.clone()),
                             },
                         ))
                     });
@@ -2663,9 +2786,9 @@ pub async fn get_additional_payment_data(
                         card_issuing_country: None,
                         last4,
                         card_isin,
-                        card_exp_month: card_data.card_exp_month.clone(),
-                        card_exp_year: card_data.card_exp_year.clone(),
-                        card_holder_name: card_data.card_holder_name.clone(),
+                        card_exp_month: Some(card_data.card_exp_month.clone()),
+                        card_exp_year: Some(card_data.card_exp_year.clone()),
+                        card_holder_name: Some(card_data.card_holder_name.clone()),
                     },
                 )))
             }
