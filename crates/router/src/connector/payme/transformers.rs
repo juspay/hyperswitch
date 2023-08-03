@@ -10,6 +10,7 @@ use crate::{
     },
     core::errors,
     types::{self, api, storage::enums, MandateReference},
+    utils::OptionExt,
 };
 
 #[derive(Debug, Serialize)]
@@ -41,6 +42,12 @@ pub enum PaymePaymentRequest {
 }
 
 #[derive(Debug, Serialize)]
+pub struct PaymePaymentSyncRequest {
+    payme_transaction_id: String,
+    seller_payme_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
 pub struct PaymeCard {
     credit_card_cvv: Secret<String>,
     credit_card_exp: Secret<String>,
@@ -63,6 +70,33 @@ pub struct GenerateSaleRequest {
 #[derive(Debug, Deserialize)]
 pub struct GenerateSaleResponse {
     payme_sale_id: String,
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, PaymePaymentsResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, PaymePaymentsResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let sale_response = match item.response {
+            PaymePaymentsResponse::PaymePaySaleResponse(sale_response) => sale_response,
+            PaymePaymentsResponse::GetSalesResponse(sale_response) => {
+                // Only one element would be present since we are passing transaction id in the request
+                sale_response
+                    .items
+                    .first()
+                    .cloned()
+                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
+            }
+        };
+        Self::try_from(types::ResponseRouterData {
+            response: sale_response,
+            data: item.data,
+            http_code: item.http_code,
+        })
+    }
 }
 
 impl<F, T>
@@ -187,6 +221,23 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymePaymentRequest {
     }
 }
 
+impl TryFrom<&types::PaymentsSyncRouterData> for PaymePaymentSyncRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
+        let seller_payme_id = PaymeAuthType::try_from(&value.connector_auth_type)?.seller_payme_id;
+        let connector_metadata: PaymeMetadata = value
+            .request
+            .connector_meta
+            .clone()
+            .parse_value("PaymeMetadata")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Self {
+            payme_transaction_id: connector_metadata.payme_transaction_id,
+            seller_payme_id,
+        })
+    }
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for MandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
@@ -260,7 +311,7 @@ impl TryFrom<&types::ConnectorAuthType> for PaymeAuthType {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum SaleStatus {
     Initial,
@@ -288,7 +339,19 @@ impl From<SaleStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum PaymePaymentsResponse {
+    PaymePaySaleResponse(PaymePaySaleResponse),
+    GetSalesResponse(GetSalesResponse),
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GetSalesResponse {
+    items: Vec<PaymePaySaleResponse>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaymePaySaleResponse {
     sale_status: SaleStatus,
     payme_sale_id: String,
