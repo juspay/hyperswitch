@@ -577,6 +577,10 @@ pub struct CustomerPaymentMethod {
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Bank>)]
     pub bank_transfer: Option<payouts::Bank>,
+
+    /// Whether this payment method requires CVV to be collected
+    #[schema(example = true)]
+    pub requires_cvv: bool,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodId {
