@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.15.0 (2023-08-03)
+
+### Features
+
+- **connector:**
+  - [Boku] Implement Authorize, Psync, Refund and Rsync flow ([#1699](https://github.com/juspay/hyperswitch/pull/1699)) ([`9cba7da`](https://github.com/juspay/hyperswitch/commit/9cba7da0d3d4b87101debef8ec25b52a908975c5))
+  - add support for bank redirect for Paypal ([#1107](https://github.com/juspay/hyperswitch/pull/1107)) ([`57887bd`](https://github.com/juspay/hyperswitch/commit/57887bdf3a892548afea80859c2553d5a1cca49d))
+  - [Adyen] implement Adyen bank transfers and voucher payments in Indonesia   ([#1804](https://github.com/juspay/hyperswitch/pull/1804)) ([`9977f9d`](https://github.com/juspay/hyperswitch/commit/9977f9d40ea349cada6171af7166a533e694450f))
+  - Unified errorCode and errorMessage map error reason as errorMessage in Stripe Connector ([#1797](https://github.com/juspay/hyperswitch/pull/1797)) ([`c464cc5`](https://github.com/juspay/hyperswitch/commit/c464cc510ded595ea846e7da95f60919614e2bd3))
+
+### Refactors
+
+- **common_enums:** Added derive for additional traits in FutureU… ([#1848](https://github.com/juspay/hyperswitch/pull/1848)) ([`8f6583f`](https://github.com/juspay/hyperswitch/commit/8f6583fbeeb7ab7ac31566adf9d182a839ed9a51))
+- **config:** Add new type for kms encrypted values ([#1823](https://github.com/juspay/hyperswitch/pull/1823)) ([`73ed7ae`](https://github.com/juspay/hyperswitch/commit/73ed7ae7e305c391f413e3ac88775148db304779))
+
+**Full Changelog:** [`v1.14.1...v1.15.0`](https://github.com/juspay/hyperswitch/compare/v1.14.1...v1.15.0)
+
+- - -
+
+
 ## 1.14.1 (2023-08-02)
 
 ### Bug Fixes
