@@ -609,6 +609,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Indomaret
             | enums::PaymentMethodType::MandiriVa
             | enums::PaymentMethodType::PermataBankTransfer
+            | enums::PaymentMethodType::PaySafeCard
             | enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -905,6 +906,7 @@ fn infer_stripe_pay_later_type(
             | enums::PaymentMethodType::Indomaret
             | enums::PaymentMethodType::MandiriVa
             | enums::PaymentMethodType::PermataBankTransfer
+            | enums::PaymentMethodType::PaySafeCard
             | enums::PaymentMethodType::WeChatPay => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )),
