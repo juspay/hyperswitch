@@ -1330,21 +1330,6 @@ pub(crate) fn validate_capture_method(
 }
 
 #[instrument(skip_all)]
-pub(crate) fn validate_attempt_status(
-    attempt_status: storage_enums::AttemptStatus,
-) -> RouterResult<()> {
-    utils::when(
-        attempt_status == storage_enums::AttemptStatus::CaptureInitiated,
-        || {
-            Err(report!(errors::ApiErrorResponse::NotSupported {
-                message: "Cannot make subsequent captures while previous capture status is pending"
-                    .into(),
-            }))
-        },
-    )
-}
-
-#[instrument(skip_all)]
 pub(crate) fn validate_status(status: storage_enums::IntentStatus) -> RouterResult<()> {
     utils::when(
         status != storage_enums::IntentStatus::RequiresCapture
@@ -1355,22 +1340,6 @@ pub(crate) fn validate_status(status: storage_enums::IntentStatus) -> RouterResu
                 current_flow: "captured".to_string(),
                 current_value: status.to_string(),
                 states: "requires_capture, partially captured".to_string()
-            }))
-        },
-    )
-}
-
-#[instrument(skip_all)]
-pub(crate) fn validate_request_against_capture_method(
-    request: &api::PaymentsCaptureRequest,
-    capture_method: enums::CaptureMethod,
-) -> RouterResult<()> {
-    utils::when(
-        capture_method == enums::CaptureMethod::ManualMultiple
-            && (request.amount_to_capture.is_none()),
-        || {
-            Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "amount_to_capture"
             }))
         },
     )
