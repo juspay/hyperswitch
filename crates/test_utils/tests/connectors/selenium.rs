@@ -525,7 +525,7 @@ pub trait SeleniumTest {
                 if payment_id == webhook_response.content.object.payment_id
                     && webhook_status == webhook_response.content.object.status
                 {
-                    Ok()
+                    return Ok(());
                 }
             }
             self.complete_actions(
