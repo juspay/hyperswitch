@@ -282,14 +282,12 @@ impl TryFrom<&types::RefundSyncRouterData> for PaymeQueryTransactionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
         let seller_payme_id = PaymeAuthType::try_from(&value.connector_auth_type)?.seller_payme_id;
-        let connector_metadata: PaymeMetadata = value
-            .request
-            .connector_metadata
-            .clone()
-            .parse_value("PaymeMetadata")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
-            payme_transaction_id: connector_metadata.payme_transaction_id,
+            payme_transaction_id: value
+                .request
+                .connector_refund_id
+                .clone()
+                .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
             seller_payme_id,
         })
     }
@@ -519,28 +517,22 @@ impl TryFrom<SaleStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
-pub struct RefundResponse {
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaymeRefundResponse {
     sale_status: SaleStatus,
+    payme_transaction_id: String,
 }
 
-impl
-    TryFrom<(
-        &types::RefundsData,
-        types::RefundsResponseRouterData<api::Execute, RefundResponse>,
-    )> for types::RefundsRouterData<api::Execute>
+impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>>
+    for types::RefundsRouterData<api::Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (req, item): (
-            &types::RefundsData,
-            types::RefundsResponseRouterData<api::Execute, RefundResponse>,
-        ),
+        item: types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                // Connector doesn't give refund id, So using connector_transaction_id as connector_refund_id. Since refund webhook will also have this id as reference
-                connector_refund_id: req.connector_transaction_id.clone(),
+                connector_refund_id: item.response.payme_transaction_id,
                 refund_status: enums::RefundStatus::try_from(item.response.sale_status)?,
             }),
             ..item.data
@@ -580,7 +572,7 @@ pub struct PaymeErrorResponse {
     pub reason: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum NotifyType {
     SaleComplete,
@@ -591,7 +583,7 @@ pub enum NotifyType {
     SaleChargebackRefund,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WebhookEventDataResource {
     pub sale_status: SaleStatus,
     pub payme_signature: Secret<String>,
@@ -611,15 +603,25 @@ pub struct WebhookEventDataResourceSignature {
     pub payme_signature: Secret<String>,
 }
 
-impl TryFrom<WebhookEventDataResource> for PaymePaySaleResponse {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: WebhookEventDataResource) -> Result<Self, Self::Error> {
-        Ok(Self {
+/// This try_from will ensure that webhook body would be properly parsed into PSync response
+impl From<WebhookEventDataResource> for PaymePaySaleResponse {
+    fn from(value: WebhookEventDataResource) -> Self {
+        Self {
             sale_status: value.sale_status,
             payme_sale_id: value.payme_sale_id,
             payme_transaction_id: value.payme_transaction_id,
             buyer_key: value.buyer_key,
-        })
+        }
+    }
+}
+
+/// This try_from will ensure that webhook body would be properly parsed into RSync response
+impl From<WebhookEventDataResource> for PaymeRefundResponse {
+    fn from(value: WebhookEventDataResource) -> Self {
+        Self {
+            sale_status: value.sale_status,
+            payme_transaction_id: value.payme_transaction_id,
+        }
     }
 }
 

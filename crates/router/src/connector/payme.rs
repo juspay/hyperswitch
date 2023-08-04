@@ -560,18 +560,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: payme::RefundResponse = res
+        let response: payme::PaymeRefundResponse = res
             .response
-            .parse_struct("payme RefundResponse")
+            .parse_struct("PaymeRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from((
-            &data.request,
-            types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            },
-        ))
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
@@ -714,21 +711,23 @@ impl api::IncomingWebhook for Payme {
         let id = match resource.notify_type {
             transformers::NotifyType::SaleComplete
             | transformers::NotifyType::SaleAuthorized
-            | transformers::NotifyType::SaleFailure => api::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(resource.payme_sale_id),
-            ),
-            transformers::NotifyType::Refund => api::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(resource.payme_sale_id),
-            ),
-            transformers::NotifyType::SaleChargeback
-            | transformers::NotifyType::SaleChargebackRefund => {
-                api::webhooks::ObjectReferenceId::PaymentId(
+            | transformers::NotifyType::SaleFailure => {
+                Ok(api::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
                         resource.payme_sale_id,
                     ),
-                )
+                ))
             }
-        };
+            transformers::NotifyType::Refund => Ok(api::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(
+                    resource.payme_transaction_id,
+                ),
+            )),
+            transformers::NotifyType::SaleChargeback
+            | transformers::NotifyType::SaleChargebackRefund => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound)
+            }
+        }?;
         Ok(id)
     }
 
@@ -751,11 +750,25 @@ impl api::IncomingWebhook for Payme {
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let sale_response = payme::PaymePaySaleResponse::try_from(resource)?;
 
-        let res_json = serde_json::to_value(sale_response)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        let res_json = match resource.notify_type {
+            transformers::NotifyType::SaleComplete
+            | transformers::NotifyType::SaleAuthorized
+            | transformers::NotifyType::SaleFailure => {
+                serde_json::to_value(payme::PaymePaySaleResponse::from(resource))
+                    .into_report()
+                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+            }
+            transformers::NotifyType::Refund => {
+                serde_json::to_value(payme::PaymeRefundResponse::from(resource))
+                    .into_report()
+                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+            }
+            transformers::NotifyType::SaleChargeback
+            | transformers::NotifyType::SaleChargebackRefund => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()
+            }
+        }?;
 
         Ok(res_json)
     }
