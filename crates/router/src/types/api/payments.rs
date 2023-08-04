@@ -69,8 +69,13 @@ pub struct AuthorizeSessionToken;
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorize;
 
+// Used in gift cards balance check
+#[derive(Debug, Clone)]
+pub struct Balance;
+
 #[derive(Debug, Clone)]
 pub struct InitPayment;
+
 #[derive(Debug, Clone)]
 pub struct Capture;
 
