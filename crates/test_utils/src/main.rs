@@ -26,6 +26,9 @@ struct Args {
     /// Admin API Key of the environment
     #[arg(short, long = "admin_api_key")]
     admin_api_key: String,
+    /// Folder name of specific tests
+    #[arg(short, long = "folder_name")]
+    folder_name: Option<String>,
 }
 
 fn main() {
@@ -124,6 +127,11 @@ fn main() {
             "--env-var",
             &format!("certificate_keys={gpay_certificate_keys}"),
         ]);
+    }
+
+    // Add flags for running specifc folders
+    if args.folder_name.is_some() {
+        newman_command.args(["--folder", args.folder_name.unwrap_or_default().as_str()]);
     }
 
     newman_command.arg("--delay-request").arg("5");
