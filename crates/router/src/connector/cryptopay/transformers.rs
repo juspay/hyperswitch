@@ -3,7 +3,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::CryptoData,
+    connector::utils::{self, CryptoData},
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -32,8 +32,18 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CryptopayPaymentsRequest {
                     unsuccess_redirect_url: item.clone().request.router_return_url,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "payment method".to_string(),
+            api::PaymentMethodData::Card(_)
+            | api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("cryptopay"),
             )),
         }?;
         Ok(cryptopay_request)

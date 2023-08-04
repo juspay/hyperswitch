@@ -191,8 +191,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                     make_bank_redirect_request(&item.request, bank_redirect)?,
                 ))
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment methods".to_string(),
+            api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("worldline"),
             ))?,
         };
         let customer = build_customer_info(&item.address, &item.request.email)?;
@@ -329,10 +338,24 @@ fn make_bank_redirect_request(
             },
             809,
         ),
-        _ => {
-            return Err(
-                errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
+        payments::BankRedirectData::BancontactCard { .. }
+        | payments::BankRedirectData::Bizum {}
+        | payments::BankRedirectData::Blik { .. }
+        | payments::BankRedirectData::Eps { .. }
+        | payments::BankRedirectData::Interac { .. }
+        | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+        | payments::BankRedirectData::OnlineBankingFinland { .. }
+        | payments::BankRedirectData::OnlineBankingPoland { .. }
+        | payments::BankRedirectData::OnlineBankingSlovakia { .. }
+        | payments::BankRedirectData::Przelewy24 { .. }
+        | payments::BankRedirectData::Sofort { .. }
+        | payments::BankRedirectData::Trustly { .. }
+        | payments::BankRedirectData::OnlineBankingFpx { .. }
+        | payments::BankRedirectData::OnlineBankingThailand { .. } => {
+            return Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("worldline"),
             )
+            .into())
         }
     };
     Ok(RedirectPaymentMethod {

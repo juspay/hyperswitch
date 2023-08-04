@@ -93,7 +93,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
             api::PaymentMethodData::Upi(upi_data) => upi_data.vpa_id.map(|id| PayerInfo {
                 token_id: id.switch_strategy(),
             }),
-            _ => None,
+            api::PaymentMethodData::Card(_)
+            | api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) => None,
         };
         let amount =
             utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;

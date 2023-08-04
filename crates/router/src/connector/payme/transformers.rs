@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        missing_field_err, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+        self, missing_field_err, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
+        RouterData,
     },
     core::errors,
     types::{self, api, storage::enums, MandateReference},
@@ -235,7 +236,20 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
                     payme_sale_id,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("payme"),
+            )
+            .into()),
         }
     }
 }
