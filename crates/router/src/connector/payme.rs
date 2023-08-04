@@ -2,7 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{crypto, ext_traits::ByteSliceExt};
+use common_utils::crypto;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use transformers as payme;
@@ -676,10 +676,10 @@ impl api::IncomingWebhook for Payme {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let resource: payme::WebhookEventDataResourceSignature = request
-            .body
-            .parse_struct("WebhookEvent")
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let resource =
+            serde_urlencoded::from_bytes::<payme::WebhookEventDataResourceSignature>(request.body)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(resource.payme_signature.expose().into_bytes())
     }
 
@@ -689,10 +689,9 @@ impl api::IncomingWebhook for Payme {
         _merchant_id: &str,
         secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let resource: payme::WebhookEventDataResource =
-            request
-                .body
-                .parse_struct("WebhookEvent")
+        let resource =
+            serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
+                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(format!(
             "{}{}{}",
@@ -708,10 +707,9 @@ impl api::IncomingWebhook for Payme {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let resource: payme::WebhookEventDataResource =
-            request
-                .body
-                .parse_struct("WebhookEvent")
+        let resource =
+            serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
+                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let id = match resource.notify_type {
             transformers::NotifyType::SaleComplete
@@ -738,10 +736,10 @@ impl api::IncomingWebhook for Payme {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let resource: payme::WebhookEventDataResourceEvent = request
-            .body
-            .parse_struct("WebhookEvent")
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let resource =
+            serde_urlencoded::from_bytes::<payme::WebhookEventDataResourceEvent>(request.body)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api::IncomingWebhookEvent::from(resource.notify_type))
     }
 
@@ -749,10 +747,9 @@ impl api::IncomingWebhook for Payme {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let resource: payme::WebhookEventDataResource =
-            request
-                .body
-                .parse_struct("WebhookEvent")
+        let resource =
+            serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
+                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let sale_response = payme::PaymePaySaleResponse::try_from(resource)?;
 
