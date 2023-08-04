@@ -2368,6 +2368,8 @@ pub enum NextActionCall {
     Confirm,
     /// The next action call is sync
     Sync,
+    /// The next action call is to invoke sdk and end
+    InvokeSdkAndEnd,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
@@ -2435,9 +2437,9 @@ pub struct ApplePayPaymentRequest {
     /// Represents the total for the payment.
     pub total: AmountInfo,
     /// The list of merchant capabilities(ex: whether capable of 3ds or no-3ds)
-    pub merchant_capabilities: Vec<String>,
+    pub merchant_capabilities: Option<Vec<String>>,
     /// The list of supported networks
-    pub supported_networks: Vec<String>,
+    pub supported_networks: Option<Vec<String>>,
     pub merchant_identifier: Option<String>,
 }
 

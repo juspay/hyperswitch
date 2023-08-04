@@ -1048,8 +1048,10 @@ pub fn get_apple_pay_session<F, T>(
                     payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
                         country_code: apple_pay_init_result.country_code,
                         currency_code: apple_pay_init_result.currency_code,
-                        supported_networks: apple_pay_init_result.supported_networks.clone(),
-                        merchant_capabilities: apple_pay_init_result.merchant_capabilities.clone(),
+                        supported_networks: Some(apple_pay_init_result.supported_networks.clone()),
+                        merchant_capabilities: Some(
+                            apple_pay_init_result.merchant_capabilities.clone(),
+                        ),
                         total: apple_pay_init_result.total.into(),
                         merchant_identifier: None,
                     }),

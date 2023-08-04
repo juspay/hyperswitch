@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        missing_field_err, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+        self, missing_field_err, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
+        PaymentsPreProcessingData, RouterData,
     },
     core::errors,
     types::{self, api, storage::enums, MandateReference},
@@ -109,6 +110,7 @@ pub enum SaleType {
 #[serde(rename_all = "kebab-case")]
 pub enum SalePaymentMethod {
     CreditCard,
+    ApplePay,
 }
 
 impl TryFrom<&types::PaymentsInitRouterData> for GenerateSaleRequest {
@@ -136,6 +138,36 @@ impl TryFrom<&types::PaymentsInitRouterData> for GenerateSaleRequest {
     }
 }
 
+impl TryFrom<&types::PaymentsPreProcessingRouterData> for GenerateSaleRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
+        let sale_type = SaleType::try_from(item)?;
+        let seller_payme_id = PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
+        let order_details = item.request.get_order_details()?;
+        let product_name = order_details
+            .first()
+            .ok_or_else(missing_field_err("order_details"))?
+            .product_name
+            .clone();
+        let pmd = item
+            .request
+            .payment_method_data
+            .to_owned()
+            .ok_or_else(missing_field_err("payment_method_data"))?;
+        Ok(Self {
+            seller_payme_id,
+            sale_price: item.request.get_amount()?,
+            currency: item.request.get_currency()?,
+            product_name,
+            sale_payment_method: SalePaymentMethod::try_from(&pmd)?,
+            sale_type,
+            transaction_id: item.payment_id.clone(),
+            sale_return_url: item.request.get_return_url()?,
+            sale_callback_url: item.request.get_webhook_url()?,
+        })
+    }
+}
+
 impl TryFrom<&types::PaymentsInitRouterData> for SaleType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &types::PaymentsInitRouterData) -> Result<Self, Self::Error> {
@@ -158,8 +190,8 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
     fn try_from(item: &PaymentMethodData) -> Result<Self, Self::Error> {
         match item {
             PaymentMethodData::Card(_) => Ok(Self::CreditCard),
-            PaymentMethodData::Wallet(_)
-            | PaymentMethodData::PayLater(_)
+            PaymentMethodData::Wallet(_) => Ok(Self::ApplePay), //Later when Google Pay comes, we can have a check for wallets
+            PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
             | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::BankTransfer(_)
@@ -184,6 +216,66 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymePaymentRequest {
             Self::PayRequest(PayRequest::try_from(value)?)
         };
         Ok(payme_request)
+    }
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            GenerateSaleResponse,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsPreProcessingData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            GenerateSaleResponse,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let currency_code = item.data.request.get_currency()?;
+        let amount = item.data.request.get_amount()?;
+        let amount_in_base_unit = utils::to_currency_base_unit(amount, currency_code)?;
+
+        Ok(Self {
+            status: enums::AttemptStatus::Pending,
+            response: Ok(types::PaymentsResponseData::PreProcessingResponse {
+                pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(
+                    item.response.payme_sale_id,
+                ),
+                connector_metadata: None,
+                session_token: Some(api_models::payments::SessionToken::ApplePay(Box::new(
+                    api_models::payments::ApplepaySessionTokenResponse {
+                        session_token_data:
+                            api_models::payments::ApplePaySessionResponse::NoSessionResponse,
+                        payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
+                            country_code: item.data.get_billing_country()?,
+                            currency_code,
+                            total: api_models::payments::AmountInfo {
+                                label: "Apple Pay".to_string(),
+                                total_type: None,
+                                amount: amount_in_base_unit,
+                            },
+                            merchant_capabilities: None,
+                            supported_networks: None,
+                            merchant_identifier: None,
+                        }),
+                        connector: "payme".to_string(),
+                        delayed_session_token: true,
+                        sdk_next_action: api_models::payments::SdkNextAction {
+                            next_action: api_models::payments::NextActionCall::InvokeSdkAndEnd,
+                        },
+                    },
+                ))),
+                connector_response_reference_id: None,
+            }),
+            ..item.data
+        })
     }
 }
 
@@ -257,6 +349,23 @@ impl TryFrom<&types::ConnectorAuthType> for PaymeAuthType {
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
+    }
+}
+
+impl TryFrom<&types::PaymentsPreProcessingRouterData> for SaleType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
+        let sale_type = if value.request.setup_mandate_details.is_some() {
+            // First mandate
+            Self::Token
+        } else {
+            // Normal payments
+            match value.request.is_auto_capture()? {
+                true => Self::Sale,
+                false => Self::Authorize,
+            }
+        };
+        Ok(sale_type)
     }
 }
 

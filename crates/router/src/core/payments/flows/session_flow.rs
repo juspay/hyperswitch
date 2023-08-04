@@ -192,14 +192,18 @@ async fn create_applepay_session_token(
                 })?,
             currency_code: router_data.request.currency,
             total: amount_info,
-            merchant_capabilities: applepay_metadata
-                .data
-                .payment_request_data
-                .merchant_capabilities,
-            supported_networks: applepay_metadata
-                .data
-                .payment_request_data
-                .supported_networks,
+            merchant_capabilities: Some(
+                applepay_metadata
+                    .data
+                    .payment_request_data
+                    .merchant_capabilities,
+            ),
+            supported_networks: Some(
+                applepay_metadata
+                    .data
+                    .payment_request_data
+                    .supported_networks,
+            ),
             merchant_identifier: Some(
                 applepay_metadata
                     .data

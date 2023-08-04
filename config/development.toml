@@ -366,7 +366,7 @@ refund_retrieve_tolerance = 100
 authorize_ttl = 36000
 
 [delayed_session_response]
-connectors_with_delayed_session_response = "trustpay"
+connectors_with_delayed_session_response = "trustpay,payme"
 
 [mandates.supported_payment_methods]
 pay_later.klarna = { connector_list = "adyen" }
