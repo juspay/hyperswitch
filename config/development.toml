@@ -347,6 +347,7 @@ stripe = { long_lived_token = false, payment_method = "wallet", payment_method_t
 checkout = { long_lived_token = false, payment_method = "wallet" }
 stax = { long_lived_token = true, payment_method = "card" }
 mollie = {long_lived_token = false, payment_method = "card"}
+square = {long_lived_token = false, payment_method = "card"}
 
 [connector_customer]
 connector_list = "bluesnap,stax,stripe"
