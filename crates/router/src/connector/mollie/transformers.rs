@@ -147,10 +147,19 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
                 api_models::payments::PaymentMethodData::BankDebit(ref directdebit_data) => {
                     PaymentMethodData::try_from(directdebit_data)
                 }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Payment Method".to_string(),
-                ))
-                .into_report(),
+                api_models::payments::PaymentMethodData::PayLater(_)
+                | api_models::payments::PaymentMethodData::BankTransfer(_)
+                | api_models::payments::PaymentMethodData::Crypto(_)
+                | api_models::payments::PaymentMethodData::MandatePayment
+                | api_models::payments::PaymentMethodData::Reward(_)
+                | api_models::payments::PaymentMethodData::Upi(_)
+                | api_models::payments::PaymentMethodData::Voucher(_)
+                | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("mollie"),
+                    ))
+                    .into_report()
+                }
             },
             _ => Err(errors::ConnectorError::FlowNotSupported {
                 flow: format!(
@@ -197,7 +206,21 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
                 billing_email: billing_details.email.clone(),
             }))),
             api_models::payments::BankRedirectData::BancontactCard { .. } => Ok(Self::Bancontact),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            api_models::payments::BankRedirectData::Bizum {}
+            | api_models::payments::BankRedirectData::Blik { .. }
+            | api_models::payments::BankRedirectData::Interac { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
+            | api_models::payments::BankRedirectData::Trustly { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("mollie"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -214,7 +237,14 @@ impl TryFrom<&api_models::payments::BankDebitData> for PaymentMethodData {
                 consumer_name: bank_account_holder_name.clone(),
                 consumer_account: iban.clone(),
             }))),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            api_models::payments::BankDebitData::AchBankDebit { .. }
+            | api_models::payments::BankDebitData::BecsBankDebit { .. }
+            | api_models::payments::BankDebitData::BacsBankDebit { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("mollie"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -266,9 +296,21 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
                     profile_token,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment Method".to_string(),
-            ))?,
+            api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("mollie"),
+                ))?
+            }
         }
     }
 }
@@ -289,10 +331,35 @@ fn get_payment_method_for_wallet(
                 apple_pay_payment_token: applepay_wallet_data.payment_data.to_owned(),
             })))
         }
-        _ => Err(errors::ConnectorError::NotImplemented(
-            "Payment Method".to_string(),
-        ))
-        .into_report(),
+        api_models::payments::WalletData::AliPayQr(_)
+        | api_models::payments::WalletData::AliPayRedirect(_)
+        | api_models::payments::WalletData::AliPayHkRedirect(_)
+        | api_models::payments::WalletData::MomoRedirect(_)
+        | api_models::payments::WalletData::KakaoPayRedirect(_)
+        | api_models::payments::WalletData::GoPayRedirect(_)
+        | api_models::payments::WalletData::GcashRedirect(_)
+        | api_models::payments::WalletData::ApplePayRedirect(_)
+        | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+        | api_models::payments::WalletData::DanaRedirect {}
+        | api_models::payments::WalletData::GooglePay(_)
+        | api_models::payments::WalletData::GooglePayRedirect(_)
+        | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+        | api_models::payments::WalletData::MbWayRedirect(_)
+        | api_models::payments::WalletData::MobilePayRedirect(_)
+        | api_models::payments::WalletData::PaypalSdk(_)
+        | api_models::payments::WalletData::SamsungPay(_)
+        | api_models::payments::WalletData::TwintRedirect {}
+        | api_models::payments::WalletData::VippsRedirect {}
+        | api_models::payments::WalletData::TouchNGoRedirect(_)
+        | api_models::payments::WalletData::WeChatPayRedirect(_)
+        | api_models::payments::WalletData::WeChatPayQr(_)
+        | api_models::payments::WalletData::CashappQr(_)
+        | api_models::payments::WalletData::SwishQr(_) => {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("mollie"),
+            ))
+            .into_report()
+        }
     }
 }
 

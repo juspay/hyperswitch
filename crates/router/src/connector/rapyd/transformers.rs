@@ -86,7 +86,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
                     Some(payment_method_options),
                 )
             }
-            _ => (None, None),
+            diesel_models::enums::PaymentMethod::PayLater
+            | diesel_models::enums::PaymentMethod::Wallet
+            | diesel_models::enums::PaymentMethod::BankRedirect
+            | diesel_models::enums::PaymentMethod::BankTransfer
+            | diesel_models::enums::PaymentMethod::Crypto
+            | diesel_models::enums::PaymentMethod::BankDebit
+            | diesel_models::enums::PaymentMethod::Reward
+            | diesel_models::enums::PaymentMethod::Upi
+            | diesel_models::enums::PaymentMethod::Voucher
+            | diesel_models::enums::PaymentMethod::GiftCard => (None, None),
         };
         let payment_method = match item.request.payment_method_data {
             api_models::payments::PaymentMethodData::Card(ref ccard) => {
@@ -113,7 +122,30 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
                         payment_type: "apple_pay".to_string(),
                         token: Some(data.payment_data.to_string()),
                     }),
-                    _ => None,
+                    api_models::payments::WalletData::AliPayQr(_)
+                    | api_models::payments::WalletData::AliPayRedirect(_)
+                    | api_models::payments::WalletData::AliPayHkRedirect(_)
+                    | api_models::payments::WalletData::MomoRedirect(_)
+                    | api_models::payments::WalletData::KakaoPayRedirect(_)
+                    | api_models::payments::WalletData::GoPayRedirect(_)
+                    | api_models::payments::WalletData::GcashRedirect(_)
+                    | api_models::payments::WalletData::ApplePayRedirect(_)
+                    | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+                    | api_models::payments::WalletData::DanaRedirect {}
+                    | api_models::payments::WalletData::GooglePayRedirect(_)
+                    | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+                    | api_models::payments::WalletData::MbWayRedirect(_)
+                    | api_models::payments::WalletData::MobilePayRedirect(_)
+                    | api_models::payments::WalletData::PaypalRedirect(_)
+                    | api_models::payments::WalletData::PaypalSdk(_)
+                    | api_models::payments::WalletData::SamsungPay(_)
+                    | api_models::payments::WalletData::TwintRedirect {}
+                    | api_models::payments::WalletData::VippsRedirect {}
+                    | api_models::payments::WalletData::TouchNGoRedirect(_)
+                    | api_models::payments::WalletData::WeChatPayRedirect(_)
+                    | api_models::payments::WalletData::WeChatPayQr(_)
+                    | api_models::payments::WalletData::CashappQr(_)
+                    | api_models::payments::WalletData::SwishQr(_) => None,
                 };
                 Some(PaymentMethod {
                     pm_type: "by_visa_card".to_string(), //[#369]

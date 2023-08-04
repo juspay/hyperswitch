@@ -3,7 +3,7 @@ use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::AccessTokenRequestInfo,
+    connector::utils::{self, AccessTokenRequestInfo},
     consts,
     core::errors,
     pii::Secret,
@@ -97,12 +97,46 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                         }
                     }),
                 }),
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Unknown Wallet in Payment Method".to_string(),
-                )),
+                api_models::payments::WalletData::AliPayQr(_)
+                | api_models::payments::WalletData::AliPayRedirect(_)
+                | api_models::payments::WalletData::AliPayHkRedirect(_)
+                | api_models::payments::WalletData::MomoRedirect(_)
+                | api_models::payments::WalletData::KakaoPayRedirect(_)
+                | api_models::payments::WalletData::GoPayRedirect(_)
+                | api_models::payments::WalletData::GcashRedirect(_)
+                | api_models::payments::WalletData::ApplePayRedirect(_)
+                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+                | api_models::payments::WalletData::DanaRedirect {}
+                | api_models::payments::WalletData::GooglePayRedirect(_)
+                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+                | api_models::payments::WalletData::MbWayRedirect(_)
+                | api_models::payments::WalletData::MobilePayRedirect(_)
+                | api_models::payments::WalletData::PaypalRedirect(_)
+                | api_models::payments::WalletData::PaypalSdk(_)
+                | api_models::payments::WalletData::SamsungPay(_)
+                | api_models::payments::WalletData::TwintRedirect {}
+                | api_models::payments::WalletData::VippsRedirect {}
+                | api_models::payments::WalletData::TouchNGoRedirect(_)
+                | api_models::payments::WalletData::WeChatPayRedirect(_)
+                | api_models::payments::WalletData::WeChatPayQr(_)
+                | api_models::payments::WalletData::CashappQr(_)
+                | api_models::payments::WalletData::SwishQr(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("payu"),
+                    ))
+                }
             },
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Unknown payment method".to_string(),
+            api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("payu"),
             )),
         }?;
         let browser_info = item.request.browser_info.clone().ok_or(

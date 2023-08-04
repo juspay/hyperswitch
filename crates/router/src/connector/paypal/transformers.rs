@@ -158,7 +158,23 @@ fn get_payment_source(
                 cancel_url: item.request.complete_authorize_url.clone(),
             },
         })),
-        _ => Err(errors::ConnectorError::NotImplemented("Bank Redirect".to_string()).into()),
+        BankRedirectData::BancontactCard { .. }
+        | BankRedirectData::Bizum {}
+        | BankRedirectData::Blik { .. }
+        | BankRedirectData::Interac { .. }
+        | BankRedirectData::OnlineBankingCzechRepublic { .. }
+        | BankRedirectData::OnlineBankingFinland { .. }
+        | BankRedirectData::OnlineBankingPoland { .. }
+        | BankRedirectData::OnlineBankingSlovakia { .. }
+        | BankRedirectData::Przelewy24 { .. }
+        | BankRedirectData::Trustly { .. }
+        | BankRedirectData::OnlineBankingFpx { .. }
+        | BankRedirectData::OnlineBankingThailand { .. } => {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("paypal"),
+            )
+            .into())
+        }
     }
 }
 
@@ -230,9 +246,35 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                         payment_source,
                     })
                 }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Payment Method".to_string(),
-                ))?,
+                api_models::payments::WalletData::AliPayQr(_)
+                | api_models::payments::WalletData::AliPayRedirect(_)
+                | api_models::payments::WalletData::AliPayHkRedirect(_)
+                | api_models::payments::WalletData::MomoRedirect(_)
+                | api_models::payments::WalletData::KakaoPayRedirect(_)
+                | api_models::payments::WalletData::GoPayRedirect(_)
+                | api_models::payments::WalletData::GcashRedirect(_)
+                | api_models::payments::WalletData::ApplePay(_)
+                | api_models::payments::WalletData::ApplePayRedirect(_)
+                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+                | api_models::payments::WalletData::DanaRedirect {}
+                | api_models::payments::WalletData::GooglePay(_)
+                | api_models::payments::WalletData::GooglePayRedirect(_)
+                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+                | api_models::payments::WalletData::MbWayRedirect(_)
+                | api_models::payments::WalletData::MobilePayRedirect(_)
+                | api_models::payments::WalletData::PaypalSdk(_)
+                | api_models::payments::WalletData::SamsungPay(_)
+                | api_models::payments::WalletData::TwintRedirect {}
+                | api_models::payments::WalletData::VippsRedirect {}
+                | api_models::payments::WalletData::TouchNGoRedirect(_)
+                | api_models::payments::WalletData::WeChatPayRedirect(_)
+                | api_models::payments::WalletData::WeChatPayQr(_)
+                | api_models::payments::WalletData::CashappQr(_)
+                | api_models::payments::WalletData::SwishQr(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("paypal"),
+                    ))?
+                }
             },
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 let intent = match item.request.is_auto_capture()? {
@@ -259,7 +301,20 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                     payment_source,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
+            api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("paypal"),
+                )
+                .into())
+            }
         }
     }
 }
