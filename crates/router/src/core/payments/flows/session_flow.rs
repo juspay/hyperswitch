@@ -271,6 +271,7 @@ fn create_apple_pay_session_response(
                         connector: connector_name,
                         delayed_session_token: delayed_response,
                         sdk_next_action: { payment_types::SdkNextAction { next_action } },
+                        connector_transaction_id: None,
                     },
                 )),
             }),

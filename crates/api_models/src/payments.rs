@@ -2353,6 +2353,8 @@ pub struct ApplepaySessionTokenResponse {
     pub delayed_session_token: bool,
     /// The next action for the sdk (ex: calling confirm or sync call)
     pub sdk_next_action: SdkNextAction,
+    /// The connector transaction id
+    pub connector_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, serde::Serialize, Clone, ToSchema)]

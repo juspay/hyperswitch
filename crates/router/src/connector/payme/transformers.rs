@@ -246,7 +246,7 @@ impl<F>
             status: enums::AttemptStatus::Pending,
             response: Ok(types::PaymentsResponseData::PreProcessingResponse {
                 pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(
-                    item.response.payme_sale_id,
+                    item.response.payme_sale_id.to_owned(),
                 ),
                 connector_metadata: None,
                 session_token: Some(api_models::payments::SessionToken::ApplePay(Box::new(
@@ -270,6 +270,7 @@ impl<F>
                         sdk_next_action: api_models::payments::SdkNextAction {
                             next_action: api_models::payments::NextActionCall::InvokeSdkAndEnd,
                         },
+                        connector_transaction_id: Some(item.response.payme_sale_id),
                     },
                 ))),
                 connector_response_reference_id: None,

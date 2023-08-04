@@ -417,6 +417,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                                 next_action: payments::NextActionCall::Confirm,
                             }
                         },
+                        connector_transaction_id: None,
                     },
                 )),
             }),
