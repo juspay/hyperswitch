@@ -98,7 +98,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-                let previously_captured_amount: i64 =
+                let previously_blocked_amount =
                     previous_captures.iter().fold(0, |accumulator, capture| {
                         accumulator
                             + match capture.status {
@@ -109,7 +109,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                             }
                     });
                 helpers::validate_amount_to_capture(
-                    payment_intent.amount - previously_captured_amount,
+                    payment_attempt.amount - previously_blocked_amount,
                     Some(amount_to_capture),
                 )?;
 

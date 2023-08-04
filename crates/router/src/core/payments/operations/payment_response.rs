@@ -17,7 +17,6 @@ use crate::{
         self, api,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignTryFrom},
-        Capturable,
     },
     utils,
 };
@@ -289,7 +288,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     }
 }
 
-async fn payment_response_update_tracker<F: Clone, T: Capturable>(
+async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     db: &dyn StorageInterface,
     _payment_id: &api::PaymentIdType,
     mut payment_data: PaymentData<F>,
@@ -565,7 +564,7 @@ async fn payment_response_update_tracker<F: Clone, T: Capturable>(
     Ok(payment_data)
 }
 
-fn get_total_amount_captured<F: Clone, T: Capturable>(
+fn get_total_amount_captured<F: Clone, T: types::Capturable>(
     request: T,
     amount_captured: Option<i64>,
     router_data_status: enums::AttemptStatus,

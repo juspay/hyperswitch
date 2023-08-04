@@ -100,10 +100,14 @@ pub enum AuthenticationType {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum CaptureStatus {
+    // Capture request initiated
     #[default]
     Started,
+    // Capture request was successfull
     Charged,
+    // Capture is pending at connector side
     Pending,
+    // Capture request failed
     Failed,
 }
 
