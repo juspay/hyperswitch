@@ -22,7 +22,7 @@ async fn should_make_webhook(web_driver: WebDriver) -> Result<(), WebDriverError
             Event::Assert(Assert::IsPresent("succeeded")),
         ],
         7,
-        &"succeeded",
+        "succeeded",
     )
     .await?;
     Ok(())
