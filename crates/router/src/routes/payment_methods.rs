@@ -382,7 +382,11 @@ impl ParentPaymentMethodToken {
         token: String,
         state: &AppState,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let redis_conn = state.store.get_redis_conn();
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
         let current_datetime_utc = common_utils::date_time::now();
         let time_elapsed = current_datetime_utc
             - payment_intent
@@ -414,13 +418,17 @@ impl ParentPaymentMethodToken {
         )
     }
 
-    pub async fn delete(&self, state: &AppState) {
-        let redis_conn = state.store.get_redis_conn();
+    pub async fn delete(&self, state: &AppState) -> CustomResult<(), errors::ApiErrorResponse> {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
         match redis_conn.delete_key(&self.key_for_token).await {
-            Ok(_) => (),
-            Err(err) => {
+            Ok(_) => Ok(()),
+            Err(err) => Ok({
                 logger::info!("Error while deleting redis key: {:?}", err);
-            }
+            }),
         }
     }
 }

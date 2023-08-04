@@ -1,3 +1,10 @@
+#![allow(
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unwrap_in_result,
+    clippy::missing_panics_doc,
+    clippy::unwrap_used
+)]
 use std::{
     collections::{HashMap, HashSet},
     env,
@@ -8,9 +15,8 @@ use std::{
 
 use async_trait::async_trait;
 use serde_json::json;
+use test_utils::connector_auth;
 use thirtyfour::{components::SelectElement, prelude::*, WebDriver};
-
-use crate::connector_auth;
 
 #[derive(Clone)]
 pub enum Event<'a> {
@@ -729,7 +735,6 @@ pub fn should_ignore_test(name: &str) -> bool {
         .clone();
     let tests_to_ignore: HashSet<String> =
         serde_json::from_value(conf).unwrap_or_else(|_| HashSet::new());
-    // let tests_to_ignore = conf.automation_configs.unwrap().tests_to_ignore.unwrap_or_else(|| HashSet::new());
     let modules: Vec<_> = name.split("::").collect();
     let file_match = format!("{}::*", <&str>::clone(&modules[1]));
     let module_name = modules[1..3].join("::");
@@ -741,6 +746,7 @@ pub fn get_browser() -> String {
     "firefox".to_string()
 }
 
+// based on the browser settings build profile info
 pub fn make_capabilities(browser: &str) -> Capabilities {
     match browser {
         "firefox" => {

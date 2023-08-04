@@ -203,13 +203,12 @@ where
             .clone()
             .zip(payment_data.payment_attempt.payment_method)
             .map(ParentPaymentMethodToken::create_key_for_token)
-            .async_and_then(|key_for_hyperswitch_token| async move {
+            .async_map(|key_for_hyperswitch_token| async move {
                 if key_for_hyperswitch_token
                     .should_delete_payment_method_token(payment_data.payment_intent.status)
                 {
-                    key_for_hyperswitch_token.delete(state).await
+                    let _ = key_for_hyperswitch_token.delete(state).await;
                 }
-                Some(())
             })
             .await;
     } else {
@@ -222,6 +221,7 @@ where
                 validate_result.storage_scheme,
                 updated_customer,
                 &key_store,
+                None,
             )
             .await?;
     }
@@ -443,7 +443,9 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
                         api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
                         api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None,
-                        api_models::payments::NextActionData::QrCodeInformation{..} => None
+                        api_models::payments::NextActionData::QrCodeInformation{..} => None,
+                        api_models::payments::NextActionData::DisplayVoucherInformation{ .. } => None,
+                        api_models::payments::NextActionData::WaitScreenInformation{..} => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
@@ -643,6 +645,7 @@ where
             merchant_account.storage_scheme,
             updated_customer,
             key_store,
+            None,
         )
         .await?;
 
@@ -935,7 +938,12 @@ async fn decide_payment_method_tokenize_action(
             }
         }
         Some(token) => {
-            let redis_conn = state.store.get_redis_conn();
+            let redis_conn = state
+                .store
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")?;
+
             let key = format!(
                 "pm_token_{}_{}_{}",
                 token.to_owned(),

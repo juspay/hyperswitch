@@ -49,7 +49,7 @@ use crate::{
         api::{self, PaymentMethodCreateExt},
         domain::{self, types::decrypt},
         storage::{self, enums},
-        transformers::ForeignInto,
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, ConnectorResponseExt, OptionExt},
 };
@@ -728,6 +728,13 @@ pub fn get_banks(
     }
 }
 
+fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
+    str.split('.')
+        .fold(Some(val), |acc, x| acc.and_then(|v| v.get(x)))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+}
+
 pub async fn list_payment_methods(
     state: &routes::AppState,
     merchant_account: domain::MerchantAccount,
@@ -744,7 +751,7 @@ pub async fn list_payment_methods(
     )
     .await?;
 
-    let address = payment_intent
+    let shipping_address = payment_intent
         .as_ref()
         .async_map(|pi| async {
             helpers::get_address_by_id(db, pi.shipping_address_id.clone(), &key_store).await
@@ -752,6 +759,34 @@ pub async fn list_payment_methods(
         .await
         .transpose()?
         .flatten();
+
+    let billing_address = payment_intent
+        .as_ref()
+        .async_map(|pi| async {
+            helpers::get_address_by_id(db, pi.billing_address_id.clone(), &key_store).await
+        })
+        .await
+        .transpose()?
+        .flatten();
+
+    let customer = payment_intent
+        .as_ref()
+        .async_and_then(|pi| async {
+            pi.customer_id
+                .as_ref()
+                .async_and_then(|cust| async {
+                    db.find_customer_by_customer_id_merchant_id(
+                        cust.as_str(),
+                        &pi.merchant_id,
+                        &key_store,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+                    .ok()
+                })
+                .await
+        })
+        .await;
 
     let payment_attempt = payment_intent
         .as_ref()
@@ -796,7 +831,7 @@ pub async fn list_payment_methods(
             &mut response,
             payment_intent.as_ref(),
             payment_attempt.as_ref(),
-            address.as_ref(),
+            shipping_address.as_ref(),
             mca.connector_name,
             pm_config_mapping,
             &state.conf.mandates.supported_payment_methods,
@@ -804,6 +839,13 @@ pub async fn list_payment_methods(
         .await?;
     }
 
+    let req = api_models::payments::PaymentsRequest::foreign_from((
+        payment_attempt.as_ref(),
+        shipping_address.as_ref(),
+        billing_address.as_ref(),
+        customer.as_ref(),
+    ));
+    let req_val = serde_json::to_value(req).ok();
     logger::debug!(filtered_payment_methods=?response);
 
     let mut payment_experiences_consolidated_hm: HashMap<
@@ -827,7 +869,7 @@ pub async fn list_payment_methods(
 
     let mut required_fields_hm = HashMap::<
         api_enums::PaymentMethod,
-        HashMap<api_enums::PaymentMethodType, HashSet<RequiredFieldInfo>>,
+        HashMap<api_enums::PaymentMethodType, HashMap<String, RequiredFieldInfo>>,
     >::new();
 
     for element in response.clone() {
@@ -854,15 +896,34 @@ pub async fn list_payment_methods(
                         required_fields_hm_for_each_connector
                             .fields
                             .get(&connector_variant)
-                            .map(|required_fields_vec| {
-                                // If payment_method_type already exist in required_fields_hm, extend the required_fields hs to existing hs.
-                                let required_fields_hs =
-                                    HashSet::from_iter(required_fields_vec.iter().cloned());
+                            .map(|required_fields_final| {
+                                let mut required_fields_hs = required_fields_final.common.clone();
+                                if let Some(pa) = payment_attempt.as_ref() {
+                                    if let Some(_mandate) = &pa.mandate_details {
+                                        required_fields_hs
+                                            .extend(required_fields_final.mandate.clone());
+                                    } else {
+                                        required_fields_hs
+                                            .extend(required_fields_final.non_mandate.clone());
+                                    }
+                                }
+
+                                {
+                                    for (key, val) in &mut required_fields_hs {
+                                        let temp = req_val
+                                            .as_ref()
+                                            .and_then(|r| get_val(key.to_owned(), r));
+                                        if let Some(s) = temp {
+                                            val.value = Some(s)
+                                        };
+                                    }
+                                }
 
                                 let existing_req_fields_hs = required_fields_hm
                                     .get_mut(&payment_method)
                                     .and_then(|inner_hm| inner_hm.get_mut(&payment_method_type));
 
+                                // If payment_method_type already exist in required_fields_hm, extend the required_fields hs to existing hs.
                                 if let Some(inner_hs) = existing_req_fields_hs {
                                     inner_hs.extend(required_fields_hs);
                                 } else {
@@ -1667,6 +1728,25 @@ pub async fn list_customer_payment_method(
     .await
     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
+    let is_requires_cvv = db
+        .find_config_by_key(format!("{}_requires_cvv", merchant_account.merchant_id).as_str())
+        .await;
+
+    let requires_cvv = match is_requires_cvv {
+        // If an entry is found with the config value as `false`, we set requires_cvv to false
+        Ok(value) => value.config != "false",
+        Err(err) => {
+            if err.current_context().is_db_not_found() {
+                // By default, cvv is made required field for all merchants
+                true
+            } else {
+                Err(err
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch merchant_id config for requires_cvv"))?
+            }
+        }
+    };
+
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_list(
             customer_id,
@@ -1711,10 +1791,15 @@ pub async fn list_customer_payment_method(
             bank_transfer: pmd,
             #[cfg(not(feature = "payouts"))]
             bank_transfer: None,
+            requires_cvv,
         };
         customer_pms.push(pma.to_owned());
 
-        let redis_conn = state.store.get_redis_conn();
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
         ParentPaymentMethodToken::create_key_for_token((
             parent_payment_method_token.clone(),
             pma.payment_method,

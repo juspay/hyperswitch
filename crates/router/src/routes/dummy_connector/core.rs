@@ -91,7 +91,12 @@ pub async fn payment_complete(
         types::DummyConnectorStatus::Failed
     };
 
-    let redis_conn = state.store.get_redis_conn();
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::DummyConnectorErrors::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
     let _ = redis_conn.delete_key(req.attempt_id.as_str()).await;
 
     if let Ok(payment_data) = payment_data {
@@ -193,7 +198,11 @@ pub async fn refund_data(
     )
     .await;
 
-    let redis_conn = state.store.get_redis_conn();
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::DummyConnectorErrors::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
     let refund_data = redis_conn
         .get_and_deserialize_key::<types::DummyConnectorRefundResponse>(
             refund_id.as_str(),
