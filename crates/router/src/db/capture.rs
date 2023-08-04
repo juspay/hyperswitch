@@ -82,7 +82,7 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<Capture>, errors::StorageError> {
             let db_call = || async {
-                let conn = connection::pg_connection_write(self).await?;
+                let conn = connection::pg_connection_read(self).await?;
                 Capture::find_all_by_merchant_id_payment_id_authorized_attempt_id(
                     merchant_id,
                     payment_id,
@@ -152,7 +152,7 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<Capture>, errors::StorageError> {
             let db_call = || async {
-                let conn = connection::pg_connection_write(self).await?;
+                let conn = connection::pg_connection_read(self).await?;
                 Capture::find_all_by_merchant_id_payment_id_authorized_attempt_id(
                     merchant_id,
                     payment_id,
