@@ -256,19 +256,24 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
         F: 'b + Send,
     {
         payment_data.payment_attempt = match &payment_data.multiple_capture_data {
-            Some(multiple_capture_data) => db
-                .update_payment_attempt_with_attempt_id(
-                    payment_data.payment_attempt,
-                    storage::PaymentAttemptUpdate::MultipleCaptureUpdate {
-                        status: None,
-                        multiple_capture_count: Some(
-                            multiple_capture_data.current_capture.capture_sequence,
-                        ),
-                    },
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+            Some(multiple_capture_data) => {
+                let mut updated_payment_attempt = db
+                    .update_payment_attempt_with_attempt_id(
+                        payment_data.payment_attempt,
+                        storage::PaymentAttemptUpdate::MultipleCaptureUpdate {
+                            status: None,
+                            multiple_capture_count: Some(
+                                multiple_capture_data.current_capture.capture_sequence,
+                            ),
+                        },
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                updated_payment_attempt.amount_to_capture =
+                    Some(multiple_capture_data.current_capture.amount);
+                updated_payment_attempt
+            }
             None => payment_data.payment_attempt,
         };
         Ok((Box::new(self), payment_data))
