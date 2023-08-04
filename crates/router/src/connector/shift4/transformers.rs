@@ -8,8 +8,8 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        to_connector_meta, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        RouterData,
+        self, to_connector_meta, PaymentsAuthorizeRequestData,
+        PaymentsCompleteAuthorizeRequestData, RouterData,
     },
     core::errors,
     pii, services,
@@ -122,7 +122,21 @@ impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::Payme
             api::PaymentMethodData::BankRedirect(redirect_data) => {
                 get_bank_redirect_request(item, redirect_data)
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
+            payments::PaymentMethodData::Wallet(_)
+            | payments::PaymentMethodData::PayLater(_)
+            | payments::PaymentMethodData::BankDebit(_)
+            | payments::PaymentMethodData::BankTransfer(_)
+            | payments::PaymentMethodData::Crypto(_)
+            | payments::PaymentMethodData::MandatePayment
+            | payments::PaymentMethodData::Reward(_)
+            | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::Voucher(_)
+            | payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("shift4"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -148,7 +162,21 @@ impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::Payme
                     flow: None,
                 })))
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
+            Some(api::PaymentMethodData::Wallet(..))
+            | Some(api::PaymentMethodData::PayLater(..))
+            | Some(api::PaymentMethodData::BankDebit(..))
+            | Some(api::PaymentMethodData::BankRedirect(..))
+            | Some(api::PaymentMethodData::BankTransfer(..))
+            | Some(api::PaymentMethodData::Crypto(..))
+            | Some(api::PaymentMethodData::MandatePayment)
+            | Some(api::PaymentMethodData::GiftCard(..))
+            | Some(api::PaymentMethodData::Voucher(..))
+            | Some(api::PaymentMethodData::Reward(..))
+            | Some(api::PaymentMethodData::Upi(..))
+            | None => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("shift4"),
+            )
+            .into()),
         }
     }
 }
@@ -227,7 +255,23 @@ impl TryFrom<&payments::BankRedirectData> for PaymentMethodType {
             payments::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
             payments::BankRedirectData::Ideal { .. } => Ok(Self::Ideal),
             payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            payments::BankRedirectData::BancontactCard { .. }
+            | payments::BankRedirectData::Bizum {}
+            | payments::BankRedirectData::Blik { .. }
+            | payments::BankRedirectData::Interac { .. }
+            | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | payments::BankRedirectData::OnlineBankingFinland { .. }
+            | payments::BankRedirectData::OnlineBankingPoland { .. }
+            | payments::BankRedirectData::OnlineBankingSlovakia { .. }
+            | payments::BankRedirectData::Przelewy24 { .. }
+            | payments::BankRedirectData::Trustly { .. }
+            | payments::BankRedirectData::OnlineBankingFpx { .. }
+            | payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("shift4"),
+                )
+                .into())
+            }
         }
     }
 }

@@ -156,7 +156,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest
                     order_information,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            payments::PaymentMethodData::Wallet(_)
+            | payments::PaymentMethodData::PayLater(_)
+            | payments::PaymentMethodData::BankRedirect(_)
+            | payments::PaymentMethodData::BankDebit(_)
+            | payments::PaymentMethodData::BankTransfer(_)
+            | payments::PaymentMethodData::Crypto(_)
+            | payments::PaymentMethodData::MandatePayment
+            | payments::PaymentMethodData::Reward(_)
+            | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::Voucher(_)
+            | payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("cybersource"),
+                )
+                .into())
+            }
         }
     }
 }

@@ -97,7 +97,21 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayeezyPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.payment_method {
             diesel_models::enums::PaymentMethod::Card => get_card_specific_payment_data(item),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            diesel_models::enums::PaymentMethod::PayLater
+            | diesel_models::enums::PaymentMethod::Wallet
+            | diesel_models::enums::PaymentMethod::BankRedirect
+            | diesel_models::enums::PaymentMethod::BankTransfer
+            | diesel_models::enums::PaymentMethod::Crypto
+            | diesel_models::enums::PaymentMethod::BankDebit
+            | diesel_models::enums::PaymentMethod::Reward
+            | diesel_models::enums::PaymentMethod::Upi
+            | diesel_models::enums::PaymentMethod::Voucher
+            | diesel_models::enums::PaymentMethod::GiftCard => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("payeezy"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -195,7 +209,20 @@ fn get_payment_method_data(
             };
             Ok(PayeezyPaymentMethod::PayeezyCard(payeezy_card))
         }
-        _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        api::PaymentMethodData::Wallet(_)
+        | api::PaymentMethodData::PayLater(_)
+        | api::PaymentMethodData::BankRedirect(_)
+        | api::PaymentMethodData::BankDebit(_)
+        | api::PaymentMethodData::BankTransfer(_)
+        | api::PaymentMethodData::Crypto(_)
+        | api::PaymentMethodData::MandatePayment
+        | api::PaymentMethodData::Reward(_)
+        | api::PaymentMethodData::Upi(_)
+        | api::PaymentMethodData::Voucher(_)
+        | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("payeezy"),
+        )
+        .into()),
     }
 }
 
