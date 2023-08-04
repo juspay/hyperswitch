@@ -206,10 +206,10 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: aci::AciPaymentsResponse =
-            res.response
-                .parse_struct("AciPaymentsResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: aci::AciErrorResponse = res
+            .response
+            .parse_struct("AciErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
             code: response.result.code,
             message: response.result.description,
@@ -328,10 +328,10 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: aci::AciPaymentsResponse =
-            res.response
-                .parse_struct("AciPaymentsResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: aci::AciErrorResponse = res
+            .response
+            .parse_struct("AciErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response.result.code,
@@ -433,10 +433,10 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: aci::AciPaymentsResponse =
-            res.response
-                .parse_struct("AciPaymentsResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: aci::AciErrorResponse = res
+            .response
+            .parse_struct("AciErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response.result.code,
@@ -544,9 +544,9 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: aci::AciRefundResponse = res
+        let response: aci::AciErrorResponse = res
             .response
-            .parse_struct("AciRefundResponse")
+            .parse_struct("AciErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(types::ErrorResponse {
             status_code: res.status_code,

@@ -597,6 +597,15 @@ pub struct AciPaymentsResponse {
     pub(super) redirect: Option<AciRedirectionData>,
 }
 
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AciErrorResponse {
+    ndc: String,
+    timestamp: String,
+    build_number: String,
+    pub(super) result: ResultCode,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AciRedirectionData {
