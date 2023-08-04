@@ -545,12 +545,18 @@ pub struct TransactionQuery {
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, PaymeQueryTransactionResponse, T, types::RefundsResponseData>>
-    for types::RouterData<F, T, types::RefundsResponseData>
+    TryFrom<
+        types::ResponseRouterData<F, PaymeQueryTransactionResponse, T, types::RefundsResponseData>,
+    > for types::RouterData<F, T, types::RefundsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PaymeQueryTransactionResponse, T, types::RefundsResponseData>,
+        item: types::ResponseRouterData<
+            F,
+            PaymeQueryTransactionResponse,
+            T,
+            types::RefundsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let pay_sale_response = item
             .response
