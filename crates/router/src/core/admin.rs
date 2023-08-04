@@ -861,7 +861,7 @@ pub(crate) fn validate_auth_type(
             Ok(())
         }
         api_enums::Connector::Authorizedotnet => {
-            authorizedotnet::transformers::MerchantAuthentication::try_from(val)?;
+            authorizedotnet::transformers::AuthorizedotnetAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Bitpay => {
@@ -1006,7 +1006,7 @@ pub(crate) fn validate_auth_type(
             Ok(())
         }
         api_enums::Connector::Worldline => {
-            worldline::transformers::AuthType::try_from(val)?;
+            worldline::transformers::WorldlineAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Worldpay => {
