@@ -246,7 +246,8 @@ impl
             }
             api_models::payments::VoucherData::RedPagos => ZenPaymentChannels::PclBoacompraRedpagos,
             api_models::payments::VoucherData::Alfamart { .. }
-            | api_models::payments::VoucherData::Indomaret { .. } => Err(
+            | api_models::payments::VoucherData::Indomaret { .. }
+            | api_models::payments::VoucherData::Oxxo { .. } => Err(
                 errors::ConnectorError::NotImplemented("payment method".to_string()),
             )?,
         };

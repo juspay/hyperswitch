@@ -1571,6 +1571,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::RedPagos
                 | api_enums::PaymentMethodType::Indomaret
                 | api_enums::PaymentMethodType::Alfamart
+                | api_enums::PaymentMethodType::Oxxo
         ),
         api_enums::PaymentMethod::GiftCard => {
             matches!(
