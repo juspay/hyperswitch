@@ -341,7 +341,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         _req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}api/get-transactions", self.base_url(connectors)))
+        Ok(format!("{}api/get-sales", self.base_url(connectors)))
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -360,7 +360,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = payme::PaymeQueryTransactionRequest::try_from(req)?;
+        let req_obj = payme::PaymeQuerySaleRequest::try_from(req)?;
         let payme_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<payme::PayRequest>::encode_to_string_of_json,
@@ -641,7 +641,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         types::RefundsData: Clone,
         types::RefundsResponseData: Clone,
     {
-        let response: payme::GetSalesResponse = res
+        let response: payme::PaymeQueryTransactionResponse = res
             .response
             .parse_struct("GetSalesResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

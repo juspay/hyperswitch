@@ -6,11 +6,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        missing_field_err, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+        missing_field_err, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
+        PaymentsSyncRequestData, RouterData,
     },
     core::errors,
     types::{self, api, storage::enums, MandateReference},
-    utils::OptionExt,
 };
 
 #[derive(Debug, Serialize)]
@@ -39,6 +39,12 @@ pub struct MandateRequest {
 pub enum PaymePaymentRequest {
     MandateRequest(MandateRequest),
     PayRequest(PayRequest),
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaymeQuerySaleRequest {
+    sale_payme_id: String,
+    seller_payme_id: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -90,7 +96,7 @@ impl<F, T>
                 })
             }
             // To handle PSync response
-            PaymePaymentsResponse::GetSalesResponse(response) => {
+            PaymePaymentsResponse::SaleQueryResponse(response) => {
                 Self::try_from(types::ResponseRouterData {
                     response,
                     data: item.data,
@@ -133,12 +139,12 @@ impl<F, T>
     }
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, GetSalesResponse, T, types::PaymentsResponseData>>
+impl<F, T> TryFrom<types::ResponseRouterData<F, SaleQueryResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, GetSalesResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<F, SaleQueryResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         // Only one element would be present since we are passing one transaction id in the PSync request
         let transaction_response = item
@@ -156,13 +162,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, GetSalesResponse, T, types::Paym
                 redirection_data: None,
                 // mandate reference will be updated with webhooks only. That has been handled with PaymePaySaleResponse struct
                 mandate_reference: None,
-                connector_metadata: Some(
-                    serde_json::to_value(PaymeMetadata {
-                        payme_transaction_id: transaction_response.payme_transaction_id,
-                    })
-                    .into_report()
-                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
-                ),
+                connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
             }),
@@ -261,18 +261,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymePaymentRequest {
     }
 }
 
-impl TryFrom<&types::PaymentsSyncRouterData> for PaymeQueryTransactionRequest {
+impl TryFrom<&types::PaymentsSyncRouterData> for PaymeQuerySaleRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         let seller_payme_id = PaymeAuthType::try_from(&value.connector_auth_type)?.seller_payme_id;
-        let connector_metadata: PaymeMetadata = value
-            .request
-            .connector_meta
-            .clone()
-            .parse_value("PaymeMetadata")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
-            payme_transaction_id: connector_metadata.payme_transaction_id,
+            sale_payme_id: value.request.get_connector_transaction_id()?,
             seller_payme_id,
         })
     }
@@ -398,19 +392,18 @@ impl From<SaleStatus> for enums::AttemptStatus {
 #[serde(untagged)]
 pub enum PaymePaymentsResponse {
     PaymePaySaleResponse(PaymePaySaleResponse),
-    GetSalesResponse(GetSalesResponse),
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GetSalesResponse {
-    items: Vec<TransactionQueryResponse>,
+    SaleQueryResponse(SaleQueryResponse),
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct TransactionQueryResponse {
+pub struct SaleQueryResponse {
+    items: Vec<SaleQuery>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct SaleQuery {
     sale_status: SaleStatus,
     sale_payme_id: String,
-    payme_transaction_id: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -540,12 +533,24 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>
     }
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, GetSalesResponse, T, types::RefundsResponseData>>
+#[derive(Debug, Deserialize)]
+pub struct PaymeQueryTransactionResponse {
+    items: Vec<TransactionQuery>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct TransactionQuery {
+    sale_status: SaleStatus,
+    payme_transaction_id: String,
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, PaymeQueryTransactionResponse, T, types::RefundsResponseData>>
     for types::RouterData<F, T, types::RefundsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, GetSalesResponse, T, types::RefundsResponseData>,
+        item: types::ResponseRouterData<F, PaymeQueryTransactionResponse, T, types::RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
         let pay_sale_response = item
             .response
