@@ -982,7 +982,6 @@
                   "value": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"capture_method\":\"manual\"\n}"
                 },
                 "Create a payment": {
-                  "summary": "Create a payment with bare minimum fields",
                   "value": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n}"
                 }
               }
