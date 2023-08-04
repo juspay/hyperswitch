@@ -3,12 +3,14 @@ use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use crate::{
     connector::utils::{
         missing_field_err, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
     },
     core::errors,
+    services,
     types::{self, api, storage::enums, MandateReference},
 };
 
@@ -18,11 +20,8 @@ pub struct PayRequest {
     buyer_name: Secret<String>,
     #[serde(flatten)]
     card: PaymeCard,
-    currency: enums::Currency,
     payme_sale_id: String,
-    sale_callback_url: String,
     sale_price: i64,
-    sale_return_url: String,
     seller_payme_id: Secret<String>,
 }
 
@@ -59,6 +58,8 @@ pub struct GenerateSaleRequest {
     sale_price: i64,
     transaction_id: String,
     product_name: String,
+    sale_callback_url: String,
+    sale_return_url: String,
     seller_payme_id: Secret<String>,
     sale_payment_method: SalePaymentMethod,
     services: Option<ThreeDS>,
@@ -93,11 +94,27 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, PaymePaySaleResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let redirection_data = if item.response.sale_3ds {
+            item.response.redirect_url.clone().map(|url| {
+                let form_fields = std::collections::HashMap::from_iter(
+                    url.query_pairs()
+                        .map(|(key, value)| (key.to_string(), value.to_string())),
+                );
+                services::RedirectForm::Form {
+                    endpoint: url.to_string(),
+                    method: services::Method::Get,
+                    form_fields,
+                }
+            })
+        } else {
+            None
+        };
+        println!("sakilmostak {:?}", redirection_data);
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.sale_status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.payme_sale_id),
-                redirection_data: None,
+                redirection_data,
                 mandate_reference: item.response.buyer_key.map(|buyer_key| MandateReference {
                     connector_mandate_id: Some(buyer_key.expose()),
                     payment_method_id: None,
@@ -147,7 +164,9 @@ impl TryFrom<&types::PaymentsInitRouterData> for GenerateSaleRequest {
             currency: item.request.currency,
             sale_type,
             sale_price: item.request.amount,
+            sale_callback_url: item.request.get_webhook_url()?,
             transaction_id: item.payment_id.clone(),
+            sale_return_url: item.request.get_return_url()?,
             product_name,
             seller_payme_id,
             sale_payment_method: SalePaymentMethod::try_from(&item.request.payment_method_data)?,
@@ -254,11 +273,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
                     buyer_email,
                     buyer_name,
                     card,
-                    currency: item.request.currency,
                     payme_sale_id,
-                    sale_callback_url: item.request.get_webhook_url()?,
                     sale_price: item.request.amount,
-                    sale_return_url: item.request.get_return_url()?,
                     seller_payme_id,
                 })
             }
@@ -321,6 +337,8 @@ pub struct PaymePaySaleResponse {
     payme_sale_id: String,
     payme_transaction_id: String,
     buyer_key: Option<Secret<String>>,
+    sale_3ds: bool,
+    redirect_url: Option<Url>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -475,6 +493,8 @@ pub struct WebhookEventDataResource {
     pub notify_type: NotifyType,
     pub payme_sale_id: String,
     pub payme_transaction_id: String,
+    pub sale_3ds: bool,
+    pub redirect_url: Option<Url>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -495,6 +515,8 @@ impl TryFrom<WebhookEventDataResource> for PaymePaySaleResponse {
             payme_sale_id: value.payme_sale_id,
             payme_transaction_id: value.payme_transaction_id,
             buyer_key: value.buyer_key,
+            sale_3ds: value.sale_3ds,
+            redirect_url: value.redirect_url,
         })
     }
 }
