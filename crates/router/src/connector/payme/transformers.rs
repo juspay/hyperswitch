@@ -510,7 +510,7 @@ impl TryFrom<SaleStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct PaymeRefundResponse {
     sale_status: SaleStatus,
     payme_transaction_id: String,
@@ -533,12 +533,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PaymeQueryTransactionResponse {
     items: Vec<TransactionQuery>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TransactionQuery {
     sale_status: SaleStatus,
     payme_transaction_id: String,
@@ -627,12 +627,13 @@ impl From<WebhookEventDataResource> for PaymePaySaleResponse {
 }
 
 /// This try_from will ensure that webhook body would be properly parsed into RSync response
-impl From<WebhookEventDataResource> for PaymeRefundResponse {
+impl From<WebhookEventDataResource> for PaymeQueryTransactionResponse {
     fn from(value: WebhookEventDataResource) -> Self {
-        Self {
+        let item = TransactionQuery {
             sale_status: value.sale_status,
             payme_transaction_id: value.payme_transaction_id,
-        }
+        };
+        Self { items: vec![item] }
     }
 }
 

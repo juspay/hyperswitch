@@ -760,7 +760,7 @@ impl api::IncomingWebhook for Payme {
                     .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
             }
             transformers::NotifyType::Refund => {
-                serde_json::to_value(payme::PaymeRefundResponse::from(resource))
+                serde_json::to_value(payme::PaymeQueryTransactionResponse::from(resource))
                     .into_report()
                     .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
             }
