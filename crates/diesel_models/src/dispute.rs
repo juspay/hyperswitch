@@ -29,7 +29,7 @@ pub struct DisputeNew {
     pub evidence: Option<Secret<serde_json::Value>>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Identifiable, Queryable)]
+#[derive(Clone, Debug, PartialEq, Serialize, Identifiable, Queryable, serde::Deserialize)]
 #[diesel(table_name = dispute)]
 pub struct Dispute {
     #[serde(skip_serializing)]

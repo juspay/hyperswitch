@@ -3,7 +3,7 @@ use common_utils::{crypto::SignMessage, ext_traits};
 use error_stack::ResultExt;
 use serde::Serialize;
 
-use crate::{core::errors, headers, services::request::Maskable};
+use crate::{core::errors, headers, routes::AppState, services::request::Maskable, types::domain};
 
 pub trait OutgoingWebhookType:
     Serialize + From<webhooks::OutgoingWebhook> + Sync + Send + std::fmt::Debug
@@ -42,4 +42,24 @@ impl OutgoingWebhookType for webhooks::OutgoingWebhook {
     fn add_webhook_header(header: &mut Vec<(String, Maskable<String>)>, signature: String) {
         header.push((headers::X_WEBHOOK_SIGNATURE.to_string(), signature.into()))
     }
+}
+
+#[cfg(feature = "db_webhooks")]
+///
+/// A trait for extenting the behaviour of database models prvoiding a way to trigger outgoing
+/// webhooks
+///
+#[async_trait::async_trait]
+pub trait OutgoingWebhookTrigger {
+    async fn construct_outgoing_webhook_content(
+        &self,
+        state: &AppState,
+        merchant_account: domain::MerchantAccount,
+        merchant_key_store: domain::MerchantKeyStore,
+    ) -> errors::CustomResult<webhooks::OutgoingWebhookContent, errors::ApiErrorResponse>;
+
+    async fn trigger_outgoing_webhook<W: OutgoingWebhookType>(
+        &self,
+        state: &AppState,
+    ) -> errors::CustomResult<(), errors::ApiErrorResponse>;
 }

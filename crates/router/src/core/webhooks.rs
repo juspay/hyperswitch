@@ -1,3 +1,5 @@
+#[cfg(feature = "db_webhooks")]
+pub mod outgoing;
 pub mod types;
 pub mod utils;
 

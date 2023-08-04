@@ -171,11 +171,10 @@ where
                 .await?;
 
                 let operation = Box::new(PaymentResponse);
-                let db = &*state.store;
                 operation
                     .to_post_update_tracker()?
                     .update_tracker(
-                        db,
+                        state,
                         &validate_result.payment_id,
                         payment_data,
                         router_data,

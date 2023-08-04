@@ -9,7 +9,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts"]
+default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "db_webhooks"]
 s3 = ["dep:aws-sdk-s3", "dep:aws-config"]
 kms = ["external_services/kms", "dep:aws-config"]
 email = ["external_services/email", "dep:aws-config"]
@@ -26,6 +26,7 @@ dummy_connector = ["api_models/dummy_connector"]
 external_access_dc = ["dummy_connector"]
 detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
 payouts = []
+db_webhooks = []
 
 
 [dependencies]
