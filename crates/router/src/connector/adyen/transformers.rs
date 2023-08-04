@@ -54,14 +54,14 @@ pub enum AdyenRecurringModel {
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub enum WorldlineAuthType {
+pub enum AuthType {
     #[default]
     PreAuth,
 }
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdditionalData {
-    authorisation_type: Option<WorldlineAuthType>,
+    authorisation_type: Option<AuthType>,
     manual_capture: Option<bool>,
     pub recurring_processing_model: Option<AdyenRecurringModel>,
     /// Enable recurring details in dashboard to receive this ID, https://docs.adyen.com/online-payments/tokenization/create-and-use-tokens#test-and-go-live
@@ -1292,7 +1292,7 @@ fn get_browser_info(
 fn get_additional_data(item: &types::PaymentsAuthorizeRouterData) -> Option<AdditionalData> {
     match item.request.capture_method {
         Some(diesel_models::enums::CaptureMethod::Manual) => Some(AdditionalData {
-            authorisation_type: Some(WorldlineAuthType::PreAuth),
+            authorisation_type: Some(AuthType::PreAuth),
             manual_capture: Some(true),
             network_tx_reference: None,
             recurring_detail_reference: None,
