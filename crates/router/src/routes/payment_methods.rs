@@ -426,9 +426,12 @@ impl ParentPaymentMethodToken {
             .attach_printable("Failed to get redis connection")?;
         match redis_conn.delete_key(&self.key_for_token).await {
             Ok(_) => Ok(()),
-            Err(err) => Ok({
-                logger::info!("Error while deleting redis key: {:?}", err);
-            }),
+            Err(err) => {
+                {
+                    logger::info!("Error while deleting redis key: {:?}", err)
+                };
+                Ok(())
+            }
         }
     }
 }
