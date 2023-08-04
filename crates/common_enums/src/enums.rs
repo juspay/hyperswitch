@@ -103,7 +103,7 @@ pub enum CaptureStatus {
     // Capture request initiated
     #[default]
     Started,
-    // Capture request was successfull
+    // Capture request was successful
     Charged,
     // Capture is pending at connector side
     Pending,
