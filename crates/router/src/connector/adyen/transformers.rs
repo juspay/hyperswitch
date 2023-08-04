@@ -173,6 +173,20 @@ pub enum Channel {
     Web,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenBalanceRequest<'a> {
+    pub payment_method: AdyenPaymentMethod<'a>,
+    pub merchant_account: Secret<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenBalanceResponse {
+    psp_reference: String,
+    balance: Amount,
+}
+
 /// This implementation will be used only in Authorize, Automatic capture flow.
 /// It is also being used in Psync flow, However Psync will be called only after create payment call that too in redirect flow.
 impl ForeignFrom<(bool, AdyenStatus)> for storage_enums::AttemptStatus {
@@ -394,6 +408,8 @@ pub enum AdyenPaymentMethod<'a> {
     OnlineBankingFpx(Box<OnlineBankingFpxData>),
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand(Box<OnlineBankingThailandData>),
+    #[serde(rename = "oxxo")]
+    Oxxo,
     #[serde(rename = "paysafecard")]
     PaySafeCard,
     #[serde(rename = "paybright")]
@@ -433,8 +449,29 @@ pub enum AdyenPaymentMethod<'a> {
     Indomaret(Box<DokuBankData>),
     #[serde(rename = "doku_alfamart")]
     Alfamart(Box<DokuBankData>),
+    PaymentMethodBalance(Box<BalancePmData>),
+    AdyenGiftCard(Box<GiftCardData>),
     #[serde(rename = "swish")]
     Swish,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BalancePmData {
+    #[serde(rename = "type")]
+    payment_type: GiftCardBrand,
+    number: Secret<String>,
+    cvc: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GiftCardData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+    brand: GiftCardBrand,
+    number: Secret<String>,
+    cvc: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -940,6 +977,8 @@ pub enum PaymentType {
     OnlineBankingFpx,
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand,
+    #[serde(rename = "oxxo")]
+    Oxxo,
     #[serde(rename = "paysafecard")]
     PaySafeCard,
     PayBright,
@@ -963,6 +1002,7 @@ pub enum PaymentType {
     Samsungpay,
     Twint,
     Vipps,
+    Giftcard,
     Swish,
     #[serde(rename = "doku_permata_lite_atm")]
     PermataBankTransfer,
@@ -978,6 +1018,14 @@ pub enum PaymentType {
     DanamonVa,
     #[serde(rename = "doku_mandiri_va")]
     MandiriVa,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GiftCardBrand {
+    Givex,
+    Auriga,
+    Babygiftcard,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -1136,8 +1184,8 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
                 api_models::payments::PaymentMethodData::Voucher(ref voucher_data) => {
                     AdyenPaymentRequest::try_from((item, voucher_data))
                 }
-                api_models::payments::PaymentMethodData::GiftCard(ref gift_card) => {
-                    AdyenPaymentRequest::try_from((item, gift_card.as_ref()))
+                api_models::payments::PaymentMethodData::GiftCard(ref gift_card_data) => {
+                    AdyenPaymentRequest::try_from((item, gift_card_data.as_ref()))
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.request.payment_method_type),
@@ -1147,6 +1195,41 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
                 })?,
             },
         }
+    }
+}
+
+impl<'a> TryFrom<&types::PaymentsBalanceRouterData> for AdyenBalanceRequest<'a> {
+    type Error = Error;
+    fn try_from(item: &types::PaymentsBalanceRouterData) -> Result<Self, Self::Error> {
+        let payment_method = match &item.request.payment_method_data {
+            payments::PaymentMethodData::GiftCard(gift_card_data) => {
+                match gift_card_data.as_ref() {
+                    payments::GiftCardData::Givex(gift_card_data) => {
+                        let balance_pm = BalancePmData {
+                            payment_type: GiftCardBrand::Givex,
+                            number: gift_card_data.number.clone(),
+                            cvc: gift_card_data.cvc.clone(),
+                        };
+                        Ok(AdyenPaymentMethod::PaymentMethodBalance(Box::new(
+                            balance_pm,
+                        )))
+                    }
+                    _ => Err(errors::ConnectorError::FlowNotSupported {
+                        flow: "Balance".to_string(),
+                        connector: "adyen".to_string(),
+                    }),
+                }
+            }
+            _ => Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Balance".to_string(),
+                connector: "adyen".to_string(),
+            }),
+        }?;
+        let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+        Ok(Self {
+            payment_method,
+            merchant_account: auth_type.merchant_account,
+        })
     }
 }
 
@@ -1332,6 +1415,7 @@ fn get_social_security_number(
         | payments::VoucherData::Efecty
         | payments::VoucherData::PagoEfectivo
         | payments::VoucherData::RedCompra
+        | payments::VoucherData::Oxxo
         | payments::VoucherData::RedPagos => None,
     }
 }
@@ -1414,6 +1498,7 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
                     shopper_email: indomaret_data.email.clone(),
                 })))
             }
+            payments::VoucherData::Oxxo => Ok(AdyenPaymentMethod::Oxxo),
             payments::VoucherData::Efecty
             | payments::VoucherData::PagoEfectivo
             | payments::VoucherData::RedCompra
@@ -1430,8 +1515,14 @@ impl<'a> TryFrom<&api_models::payments::GiftCardData> for AdyenPaymentMethod<'a>
     fn try_from(gift_card_data: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
         match gift_card_data {
             payments::GiftCardData::PaySafeCard {} => Ok(AdyenPaymentMethod::PaySafeCard),
-            payments::GiftCardData::BabyGiftCard { .. } => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
+            payments::GiftCardData::Givex(givex_data) => {
+                let gift_card_pm = GiftCardData {
+                    payment_type: PaymentType::Giftcard,
+                    brand: GiftCardBrand::Givex,
+                    number: givex_data.number.clone(),
+                    cvc: givex_data.cvc.clone(),
+                };
+                Ok(AdyenPaymentMethod::AdyenGiftCard(Box::new(gift_card_pm)))
             }
         }
     }
@@ -2396,6 +2487,31 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
     }
 }
 
+impl TryFrom<types::PaymentsBalanceResponseRouterData<AdyenBalanceResponse>>
+    for types::PaymentsBalanceRouterData
+{
+    type Error = Error;
+    fn try_from(
+        item: types::PaymentsBalanceResponseRouterData<AdyenBalanceResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+            }),
+            payment_method_balance: Some(types::PaymentMethodBalance {
+                amount: item.response.balance.value,
+                currency: item.response.balance.currency,
+            }),
+            ..item.data
+        })
+    }
+}
+
 pub fn get_adyen_response(
     response: Response,
     is_capture_manual: bool,
@@ -2684,6 +2800,7 @@ pub fn get_wait_screen_metadata(
             })))
         }
         PaymentType::Affirm
+        | PaymentType::Oxxo
         | PaymentType::Afterpaytouch
         | PaymentType::Alipay
         | PaymentType::AlipayHk
@@ -2734,6 +2851,7 @@ pub fn get_wait_screen_metadata(
         | PaymentType::BriVa
         | PaymentType::CimbVa
         | PaymentType::DanamonVa
+        | PaymentType::Giftcard
         | PaymentType::MandiriVa
         | PaymentType::PaySafeCard => Ok(None),
     }
@@ -2745,7 +2863,10 @@ pub fn get_present_to_shopper_metadata(
     let reference = response.action.reference.clone();
 
     match response.action.payment_method_type {
-        PaymentType::Alfamart | PaymentType::Indomaret | PaymentType::BoletoBancario => {
+        PaymentType::Alfamart
+        | PaymentType::Indomaret
+        | PaymentType::BoletoBancario
+        | PaymentType::Oxxo => {
             let voucher_data = payments::VoucherNextStepData {
                 expires_at: response.action.expires_at.clone(),
                 reference,
@@ -2764,6 +2885,7 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::BriVa
         | PaymentType::CimbVa
         | PaymentType::DanamonVa
+        | PaymentType::Giftcard
         | PaymentType::MandiriVa => {
             let voucher_data = payments::BankTransferInstructions::DokuBankTransferInstructions(
                 Box::new(payments::DokuBankTransferInstructions {
