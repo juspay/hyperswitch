@@ -527,7 +527,7 @@ pub trait SeleniumTest {
                 {
                     return Ok(());
                 }
-            }
+            } 
             self.complete_actions(
                 &web_driver,
                 vec![Event::Trigger(Trigger::Sleep(webhook_retry_time))],
