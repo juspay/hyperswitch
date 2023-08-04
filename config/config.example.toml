@@ -9,8 +9,8 @@ host = "127.0.0.1"
 # This is the grace time (in seconds) given to the actix-server to stop the execution
 # For more details: https://actix.rs/docs/server/#graceful-shutdown
 shutdown_timeout = 30
-# HTTP Request body limit. Defaults to 16kB
-request_body_limit = 16_384
+# HTTP Request body limit. Defaults to 32kB
+request_body_limit = 32_768
 # Proxy server configuration for connecting to payment gateways.
 # Don't define the fields if a Proxy isn't needed. Empty strings will cause failure.
 [proxy]
@@ -20,24 +20,22 @@ request_body_limit = 16_384
 # Main SQL data store credentials
 [master_database]
 username = "db_user"        # DB Username
-password = "db_pass"        # DB Password. Only applicable when KMS is disabled.
+password = "db_pass"        # DB Password. Use base-64 encoded kms encrypted value here when kms is enabled
 host = "localhost"          # DB Host
 port = 5432                 # DB Port
 dbname = "hyperswitch_db"   # Name of Database
 pool_size = 5               # Number of connections to keep open
 connection_timeout = 10     # Timeout for database connection in seconds
-kms_encrypted_password = "" # Base64-encoded (KMS encrypted) ciphertext of the database password. Only applicable when KMS is enabled.
 
 # Replica SQL data store credentials
 [replica_database]
 username = "replica_user"   # DB Username
-password = "replica_pass"   # DB Password. Only applicable when KMS is disabled.
+password = "db_pass"        # DB Password. Use base-64 encoded kms encrypted value here when kms is enabled
 host = "localhost"          # DB Host
 port = 5432                 # DB Port
 dbname = "hyperswitch_db"   # Name of Database
 pool_size = 5               # Number of connections to keep open
 connection_timeout = 10     # Timeout for database connection in seconds
-kms_encrypted_password = "" # Base64-encoded (KMS encrypted) ciphertext of the database password. Only applicable when KMS is enabled.
 
 # Redis credentials
 [redis]
@@ -101,6 +99,8 @@ admin_api_key = "test_admin"     # admin API key for admin authentication. Only 
 kms_encrypted_admin_api_key = "" # Base64-encoded (KMS encrypted) ciphertext of the admin_api_key. Only applicable when KMS is enabled.
 jwt_secret = "secret"            # JWT secret used for user authentication. Only applicable when KMS is disabled.
 kms_encrypted_jwt_secret = ""    # Base64-encoded (KMS encrypted) ciphertext of the jwt_secret. Only applicable when KMS is enabled.
+recon_admin_api_key = "recon_test_admin"     # recon_admin API key for recon authentication. Only applicable when KMS is disabled.
+kms_encrypted_recon_admin_api_key = ""     # Base64-encoded (KMS encrypted) ciphertext of the recon_admin_api_key. Only applicable when KMS is enabled
 
 # Locker settings contain details for accessing a card locker, a
 # PCI Compliant storage entity which stores payment method information
@@ -157,7 +157,7 @@ authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
-boku.base_url = "https://country-api4-stage.boku.com"
+boku.base_url = "https://$-api4-stage.boku.com"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
@@ -188,6 +188,7 @@ payu.base_url = "https://secure.snd.payu.com/"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
+square.base_url = "https://connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
@@ -237,6 +238,7 @@ cards = [
     "mollie",
     "paypal",
     "shift4",
+    "square",
     "stax",
     "stripe",
     "worldpay",
@@ -294,6 +296,7 @@ base_url = "" # Base url used when adding links that should redirect to self
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet" }
 mollie = {long_lived_token = false, payment_method = "card"}
+stax = { long_lived_token = true, payment_method = "card" }
 
 [dummy_connector]
 payment_ttl = 172800             # Time to live for dummy connector payment in redis
@@ -330,6 +333,18 @@ online_banking_fpx = {country = "MY", currency = "MYR"}
 online_banking_thailand = {country = "TH", currency = "THB"}
 touch_n_go = {country = "MY", currency = "MYR"}
 atome = {country = "MY,SG", currency = "MYR,SGD"}
+swish = {country = "SE", currency = "SEK"}
+permata_bank_transfer = {country = "ID", currency = "IDR"}
+bca_bank_transfer = {country = "ID", currency = "IDR"}
+bni_va = {country = "ID", currency = "IDR"}
+bri_va = {country = "ID", currency = "IDR"}
+cimb_va = {country = "ID", currency = "IDR"}
+danamon_va = {country = "ID", currency = "IDR"}
+mandiri_va = {country = "ID", currency = "IDR"}
+alfamart = {country = "ID", currency = "IDR"}
+indomaret = {country = "ID", currency = "IDR"}
+oxxo = {country = "MX", currency = "MXN"}
+pay_safe_card = {country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,UAE,UK,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,ISK,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -342,6 +357,17 @@ pse = { country = "CO", currency = "COP" }
 pix = { country = "BR", currency = "BRL" }
 red_compra = { country = "CL", currency = "CLP" }
 red_pagos = { country = "UY", currency = "UYU" }
+
+[pm_filters.stax]
+credit = { currency = "USD" }
+debit = { currency = "USD" }
+ach = { currency = "USD" }
+
+[pm_filters.stripe]
+cashapp = {country = "US", currency = "USD"}
+
+[connector_customer]
+connector_list = "stax"
 
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,may_bank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
