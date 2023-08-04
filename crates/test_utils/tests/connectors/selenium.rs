@@ -505,8 +505,8 @@ pub trait SeleniumTest {
         .await?;
         let element = web_driver.query(By::Css("h2.last-payment")).first().await?;
         let payment_id = element.text().await?;
-        let times = 3; // no of retry times
-        for _i in 0..times {
+        let retries = 3; // no of retry times
+        for _i in 0..retries {
             let configs = self.get_configs().automation_configs.unwrap();
             let outgoing_webhook_url = configs.hs_webhook_url.unwrap().to_string();
             let client = reqwest::Client::new();
