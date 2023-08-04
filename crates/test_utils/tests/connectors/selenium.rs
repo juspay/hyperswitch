@@ -525,7 +525,7 @@ pub trait SeleniumTest {
                 if payment_id == webhook_response.content.object.payment_id
                     && webhook_status == webhook_response.content.object.status
                 {
-                    return Ok(());
+                    Ok(())
                 }
             }
             self.complete_actions(
@@ -534,7 +534,7 @@ pub trait SeleniumTest {
             )
             .await?;
         }
-        return Err(WebDriverError::CustomError("Webhook Not Found".to_string()));
+        Err(WebDriverError::CustomError("Webhook Not Found".to_string()))
     }
     async fn make_paypal_payment(
         &self,
