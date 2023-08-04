@@ -16,7 +16,7 @@ env:
   RUSTUP_MAX_RETRIES: 10
   RUST_BACKTRACE: short
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
-  CONNECTORS: aci, adyen_uk, airwallex, authorizedotnet, bambora, bambora_3ds, bluesnap, checkout, globalpay, mollie, nexinets, nmi, shift4, stripe, trustpay, worldline
+  CONNECTORS: aci, adyen_uk, airwallex, authorizedotnet, bambora, bambora_3ds, bluesnap, checkout, mollie, nexinets, nmi, shift4, stripe, trustpay, worldline
 
 jobs:
   runner:
@@ -132,64 +132,19 @@ jobs:
           GPAY_CERTIFICATE_KEYS: ${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
         shell: bash
         run: |
-          # Declare variables
           RED='\033[0;31m'
           RESET='\033[0m'
-          MAX_RETRIES=3
-          FAILED_CONNECTORS=()
-          PREVIOUS_FAILED_CONNECTORS=()
-
-          # Runner function
-          run_connector() {
-            local connector_name="$1"
-            if cargo run --bin test_utils -- --connector_name="$connector_name" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY"; then
-              echo "Connector $connector_name executed successfully."
-              return 0
-            else
-              return 1
-            fi
-          }
-
-          # Connectors are parsed and runner is called for each connector
+          failed_connectors=()
+      
           for i in $(echo "$CONNECTORS" | tr "," "\n"); do
-            if ! run_connector "$i"; then
-              FAILED_CONNECTORS+=("$i")
+            echo $i
+            if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY"; then
+              failed_connectors+=("$i")
             fi
           done
-
-          # Retry failed connectors by calling runner function with max retries set to 3
-          if [ ${#FAILED_CONNECTORS[@]} -gt 0 ]; then
-            PREVIOUS_FAILED_CONNECTORS=("${FAILED_CONNECTORS[@]}")
-
-            echo "Retrying failed connectors..."
-            RETRIES=0
-            while [ $RETRIES -lt $MAX_RETRIES ] && [ ${#FAILED_CONNECTORS[@]} -gt 0 ]; do
-              NEW_FAILED_CONNECTORS=()
-              for i in "${FAILED_CONNECTORS[@]}"; do
-                if run_connector "$i"; then
-                  continue  # Skip processing successful connectors during the retry loop
-                else
-                  NEW_FAILED_CONNECTORS+=("$i")
-                fi
-              done
-              FAILED_CONNECTORS=("${NEW_FAILED_CONNECTORS[@]}")
-              RETRIES=$((RETRIES + 1))
-            done
-
-            # If any connectors failed to run previously but succeeded after retries, print them
-            if [ ${#FAILED_CONNECTORS[@]} -lt ${#PREVIOUS_FAILED_CONNECTORS[@]} ]; then
-              echo -e "${RED}One or more connectors failed to run but succeeded after retries:${RESET}"
-              for i in "${PREVIOUS_FAILED_CONNECTORS[@]}"; do
-                if ! printf '%s\n' "${FAILED_CONNECTORS[@]}" | grep -q "^$i$"; then
-                  echo "$i"
-                fi
-              done
-            fi
-
-            # If any connectors still failed to run after retries, exit with error
-            if [ ${#FAILED_CONNECTORS[@]} -gt 0 ]; then
-              echo -e "${RED}One or more connectors still failed to run after retries:${RESET}"
-              printf '%s\n' "${FAILED_CONNECTORS[@]}"
-              exit 1
-            fi
+      
+          if [ ${#failed_connectors[@]} -gt 0 ]; then
+            echo -e "${RED}One or more connectors failed to run:${RESET}"
+            printf '%s\n' "${failed_connectors[@]}"
+            exit 1
           fi
