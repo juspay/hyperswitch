@@ -503,6 +503,7 @@ pub trait ConnectorActions: Connector {
             #[cfg(feature = "payouts")]
             quote_id: None,
             test_mode: None,
+            payment_method_balance: None,
         }
     }
 

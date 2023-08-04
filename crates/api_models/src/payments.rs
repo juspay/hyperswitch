@@ -727,17 +727,20 @@ pub enum PaymentMethodData {
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
-
 pub enum GiftCardData {
-    BabyGiftCard {
-        /// The gift card number
-        #[schema(value_type = String)]
-        number: Secret<String>,
-        /// The card verification code.
-        #[schema(value_type = String)]
-        cvc: Secret<String>,
-    },
+    Givex(GiftCardDetails),
     PaySafeCard {},
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub struct GiftCardDetails {
+    /// The gift card number
+    #[schema(value_type = String)]
+    pub number: Secret<String>,
+    /// The card verification code.
+    #[schema(value_type = String)]
+    pub cvc: Secret<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1289,6 +1292,7 @@ pub enum VoucherData {
     RedPagos,
     Alfamart(Box<AlfamartVoucherData>),
     Indomaret(Box<IndomaretVoucherData>),
+    Oxxo,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]

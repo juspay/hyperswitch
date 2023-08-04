@@ -1505,6 +1505,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Gcash
                 | api_enums::PaymentMethodType::Momo
                 | api_enums::PaymentMethodType::KakaoPay
+                | api_enums::PaymentMethodType::Cashapp
         ),
         api_enums::PaymentMethod::BankRedirect => matches!(
             payment_method_type,
@@ -1569,11 +1570,14 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::RedPagos
                 | api_enums::PaymentMethodType::Indomaret
                 | api_enums::PaymentMethodType::Alfamart
+                | api_enums::PaymentMethodType::Oxxo
         ),
-        api_enums::PaymentMethod::GiftCard => matches!(
-            payment_method_type,
-            api_enums::PaymentMethodType::PaySafeCard
-        ),
+        api_enums::PaymentMethod::GiftCard => {
+            matches!(
+                payment_method_type,
+                api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard
+            )
+        }
     }
 }
 
@@ -2408,6 +2412,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         customer_id: router_data.customer_id,
         connector_customer: router_data.connector_customer,
         preprocessing_id: router_data.preprocessing_id,
+        payment_method_balance: router_data.payment_method_balance,
         recurring_mandate_payment_data: router_data.recurring_mandate_payment_data,
         connector_request_reference_id: router_data.connector_request_reference_id,
         #[cfg(feature = "payouts")]

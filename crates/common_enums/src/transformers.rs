@@ -1605,6 +1605,8 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::RedCompra => Self::Voucher,
             PaymentMethodType::RedPagos => Self::Voucher,
             PaymentMethodType::Cashapp => Self::Wallet,
+            PaymentMethodType::Givex => Self::GiftCard,
+            PaymentMethodType::Oxxo => Self::Voucher,
         }
     }
 }

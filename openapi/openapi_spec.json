@@ -5036,25 +5036,11 @@
           {
             "type": "object",
             "required": [
-              "baby_gift_card"
+              "givex"
             ],
             "properties": {
-              "baby_gift_card": {
-                "type": "object",
-                "required": [
-                  "number",
-                  "cvc"
-                ],
-                "properties": {
-                  "number": {
-                    "type": "string",
-                    "description": "The gift card number"
-                  },
-                  "cvc": {
-                    "type": "string",
-                    "description": "The card verification code."
-                  }
-                }
+              "givex": {
+                "$ref": "#/components/schemas/GiftCardDetails"
               }
             }
           },
@@ -5070,6 +5056,23 @@
             }
           }
         ]
+      },
+      "GiftCardDetails": {
+        "type": "object",
+        "required": [
+          "number",
+          "cvc"
+        ],
+        "properties": {
+          "number": {
+            "type": "string",
+            "description": "The gift card number"
+          },
+          "cvc": {
+            "type": "string",
+            "description": "The card verification code."
+          }
+        }
       },
       "GoPayRedirection": {
         "type": "object"
@@ -7696,6 +7699,7 @@
           "eps",
           "evoucher",
           "giropay",
+          "givex",
           "google_pay",
           "go_pay",
           "gcash",
@@ -7715,6 +7719,7 @@
           "online_banking_fpx",
           "online_banking_poland",
           "online_banking_slovakia",
+          "oxxo",
           "pago_efectivo",
           "permata_bank_transfer",
           "pay_bright",
@@ -10362,6 +10367,12 @@
                 "$ref": "#/components/schemas/IndomaretVoucherData"
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "oxxo"
+            ]
           }
         ]
       },
