@@ -16,7 +16,6 @@ env:
   RUSTUP_MAX_RETRIES: 10
   RUST_BACKTRACE: short
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
-  CONNECTORS: "aci, adyen_uk, airwallex, authorizedotnet, bambora, bambora_3ds, bluesnap, checkout, globalpay, mollie, nexinets, nmi, shift4, stripe, trustpay, worldline"
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: "sccache"
 
@@ -125,6 +124,15 @@ jobs:
               fi
           done
 
+      - name: Get Connectors
+        env:
+          CONNECTORS_PATH: ${{ secrets.CONNECTORS_PATH }}
+        shell: bash
+        run: |
+          # Get connectors from secrets
+          apt install net-tools
+          sh .github/scripts/connector_validate.sh
+
       - name: Run Tests
         if: github.event_name != 'pull_request'
         env:
@@ -144,7 +152,7 @@ jobs:
           # Runner function
           run_connector() {
             local connector_name="$1"
-            if cargo run --bin test_utils -- --connector_name="$connector_name" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY"; then
+            if cargo run --bin test_utils -- --connector_name="$connector_name" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY" --folder_name="$FOLDERS"; then
               echo "Connector $connector_name executed successfully."
               return 0
             else
