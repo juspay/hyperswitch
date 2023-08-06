@@ -51,13 +51,15 @@ for CONNECTOR in "${CONNECTORS_ARRAY[@]}"; do
         FILTERED_CONNECTORS+=("$CONNECTOR")
     fi
 done
-export "${FILTERED_CONNECTORS[@]}"
-
+INCLUDED_FOLDERS=()
 for CONNECTOR in "${IGNORE_LIST_ARRAY[@]}"; do
     if [[ "$CONNECTOR" == *:* ]]; then
         IFS=':' read -r NAME FOLDER_TO_IGNORE <<< "$CONNECTOR"
         
         RESULT=$(exclude_folder "$NAME" "$FOLDER_TO_IGNORE")
     fi
-    export FOLDERS="$RESULT"
+    INCLUDED_FOLDERS+="$RESULT"
 done
+
+export "${INCLUDED_FOLDERS[*]}"
+export CONNECTORS="${FILTERED_CONNECTORS[@]/$NAME}"
