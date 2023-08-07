@@ -62,6 +62,7 @@ pub const PAYMENTS_CREATE_WITH_FORCED_3DS: &str = r#"{
 pub const PAYMENTS_CREATE: &str = r#"{
     "amount": 6540,
     "currency": "USD",
+    "payment_id": "abcdefghijklmnopqrstuvwxyz",
     "customer": {
         "id":"cus_abcdefgh",
         "name":"John Dough",
@@ -71,4 +72,32 @@ pub const PAYMENTS_CREATE: &str = r#"{
     "description": "Its my first payment request",
     "statement_descriptor_name": "joseph",
     "statement_descriptor_suffix": "JS",
+    "metadata": {
+        "udf1": "some-value",
+        "udf2": "some-value"
+    }
+}"#;
+
+/// Creating the payment with order details
+pub const PAYMENTS_CREATE_WITH_ORDER_DETAILS: &str = r#"{
+    "amount": 6540,
+    "currency": "USD",
+    "order_details": [
+        {
+            "product_name": "Apple iPhone 15",
+            "quantity": 1,
+            "amount" : 6540
+        }
+    ]
+}"#;
+
+/// Creating the payment with connector metadata for noon
+pub const PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY: &str = r#"{
+    "amount": 6540,
+    "currency": "USD",
+    "connector_metadata": {
+        "noon": {
+            "order_category":"shoes"
+        }
+    }
 }"#;
